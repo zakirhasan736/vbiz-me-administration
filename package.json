@@ -1,0 +1,60 @@
+{
+  "name": "vibz",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "format": "prettier --write .",
+    "prepare": "husky",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc -b"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --check",
+      "eslint --max-warnings=0"
+    ],
+    "*.{json,md,css,html,yml,yaml}": [
+      "prettier --check"
+    ]
+  },
+  "dependencies": {
+    "@google/genai": "^1.29.0",
+    "@reduxjs/toolkit": "^2.8.2",
+    "clsx": "^2.1.1",
+    "firebase": "^12.13.0",
+    "js-cookie": "^3.0.7",
+    "lucide-react": "0.546.0",
+    "motion": "^12.39.0",
+    "next": "16.2.6",
+    "qrcode.react": "^4.2.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-is": "^19.2.6",
+    "react-redux": "^9.2.0",
+    "recharts": "^3.8.1",
+    "redux-persist": "^6.0.0",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-is": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
+    "prettier": "^3.8.3",
+    "prettier-plugin-organize-imports": "^4.3.0",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
