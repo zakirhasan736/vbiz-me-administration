@@ -1,7 +1,7 @@
 'use client'
 
-import { AuthProvider } from '@/components/auth/Auth'
 import { ThemeProvider } from '@/lib/ThemeProvider'
+import AuthProvider from '@/providers/AuthProvider'
 import { persistor, store } from '@/redux/store'
 import { Provider } from 'react-redux'
 import { PersistGate } from 'redux-persist/integration/react'

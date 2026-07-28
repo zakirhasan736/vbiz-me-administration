@@ -1,11 +1,14 @@
 'use client'
 
-import { logout, useAuth } from '@/components/auth/Auth'
 import { CanvaConnectRow } from '@/components/canva'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
-import { ModalPortal } from '@/components/ModalPortal'
+import ChangePasswordForm from '@/components/settings/ChangePasswordForm'
+import SetPasswordForm from '@/components/settings/SetPasswordForm'
+import { Modal } from '@/components/ui/Modal'
 import { useDashboardTour } from '@/context/DashboardTourContext'
+import { useAppSelector } from '@/hooks/redux'
 import { useTheme } from '@/lib/ThemeProvider'
+import { logout, useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -102,111 +105,114 @@ function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; o
   }
 
   return (
-    <div className="animate-in fade-in fixed inset-0 z-200 flex items-center justify-center bg-slate-400/20 p-4 backdrop-blur-sm duration-200 dark:bg-black/60">
-      <div className="animate-in zoom-in-95 relative max-h-[min(90vh,100dvh)] w-full max-w-110 overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl duration-300 sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 rounded-full bg-slate-200 p-2 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/10"
-        >
-          <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-        </button>
+    <Modal
+      open
+      onClose={onClose}
+      overlayClassName="bg-slate-400/20 dark:bg-black/60"
+      className="relative max-h-[min(90vh,100dvh)] max-w-110 overflow-y-auto p-6 sm:p-8"
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 rounded-full bg-slate-200 p-2 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/10"
+      >
+        <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+      </button>
 
-        <div className="text-center">
-          <div className="from-primary-500 to-primary-700 mx-auto mb-6 h-20 w-20 rounded-3xl bg-linear-to-tr p-0.5 shadow-[0_0_30px_rgba(59,130,246,0.25)]">
-            <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-white dark:bg-[#0b0f19]">
-              <Bot className="text-primary-600 dark:text-primary-400 h-10 w-10" />
-            </div>
+      <div className="text-center">
+        <div className="from-primary-500 to-primary-700 mx-auto mb-6 h-20 w-20 rounded-3xl bg-linear-to-tr p-0.5 shadow-[0_0_30px_rgba(59,130,246,0.25)]">
+          <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-white dark:bg-[#0b0f19]">
+            <Bot className="text-primary-600 dark:text-primary-400 h-10 w-10" />
           </div>
-
-          <h3 className="mb-2 text-[22px] font-black text-slate-900 dark:text-white">Live Agent Integration</h3>
-          <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-            Upload your business knowledge base and describe your business so the live agent can assist visitors.
-          </p>
         </div>
 
-        <div className="space-y-5">
-          <div>
-            <label className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white">
-              Knowledge base file
-            </label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="sr-only"
-              accept={LIVE_AGENT_ACCEPT}
-              onChange={(e) => handleFileChange(e.target.files)}
-            />
-            {file ? (
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 dark:border-white/10 dark:bg-slate-800/50">
-                <FileText className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-white">
-                  {file.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={clearFile}
-                  className="shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white"
-                  aria-label="Remove file"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
+        <h3 className="mb-2 text-[22px] font-black text-slate-900 dark:text-white">Live Agent Integration</h3>
+        <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+          Upload your business knowledge base and describe your business so the live agent can assist visitors.
+        </p>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <label className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white">
+            Knowledge base file
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="sr-only"
+            accept={LIVE_AGENT_ACCEPT}
+            onChange={(e) => handleFileChange(e.target.files)}
+          />
+          {file ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 dark:border-white/10 dark:bg-slate-800/50">
+              <FileText className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-white">
+                {file.name}
+              </span>
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="hover:border-primary-400 hover:bg-primary-50/50 dark:hover:border-primary-500/40 dark:hover:bg-primary-500/5 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-all dark:border-white/15 dark:bg-white/5"
+                onClick={clearFile}
+                className="shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white"
+                aria-label="Remove file"
               >
-                <Upload className="h-6 w-6 text-slate-400 dark:text-slate-500" />
-                <span className="text-[13px] font-bold text-slate-900 dark:text-white">Click to upload</span>
-                <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">PDF or TXT only</span>
+                <X className="h-4 w-4" />
               </button>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="live-agent-business-title"
-              className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white"
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="hover:border-primary-400 hover:bg-primary-50/50 dark:hover:border-primary-500/40 dark:hover:bg-primary-500/5 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-all dark:border-white/15 dark:bg-white/5"
             >
-              Business title
-            </label>
-            <input
-              id="live-agent-business-title"
-              type="text"
-              value={businessTitle}
-              onChange={(e) => setBusinessTitle(e.target.value)}
-              placeholder="Enter your business title"
-              className={inputClasses}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="live-agent-business-description"
-              className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white"
-            >
-              Business description
-            </label>
-            <textarea
-              id="live-agent-business-description"
-              value={businessDescription}
-              onChange={(e) => setBusinessDescription(e.target.value)}
-              placeholder="Describe your business for the live agent"
-              className={inputClasses + ' min-h-25 resize-none'}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleConnect}
-            className="w-full rounded-2xl bg-slate-900 py-4 text-[15px] font-bold text-white transition-all hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.3)] active:scale-95 dark:bg-white dark:text-slate-900"
-          >
-            Connect Live Agent
-          </button>
+              <Upload className="h-6 w-6 text-slate-400 dark:text-slate-500" />
+              <span className="text-[13px] font-bold text-slate-900 dark:text-white">Click to upload</span>
+              <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">PDF or TXT only</span>
+            </button>
+          )}
         </div>
+
+        <div>
+          <label
+            htmlFor="live-agent-business-title"
+            className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white"
+          >
+            Business title
+          </label>
+          <input
+            id="live-agent-business-title"
+            type="text"
+            value={businessTitle}
+            onChange={(e) => setBusinessTitle(e.target.value)}
+            placeholder="Enter your business title"
+            className={inputClasses}
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="live-agent-business-description"
+            className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white"
+          >
+            Business description
+          </label>
+          <textarea
+            id="live-agent-business-description"
+            value={businessDescription}
+            onChange={(e) => setBusinessDescription(e.target.value)}
+            placeholder="Describe your business for the live agent"
+            className={inputClasses + ' min-h-25 resize-none'}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleConnect}
+          className="w-full rounded-2xl bg-slate-900 py-4 text-[15px] font-bold text-white transition-all hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.3)] active:scale-95 dark:bg-white dark:text-slate-900"
+        >
+          Connect Live Agent
+        </button>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -372,6 +378,7 @@ function ConnectRow({ icon: Icon, title, isConnected, color, iconStyle, onClick,
 
 export default function SettingsDialog() {
   const { user } = useAuth()
+  const reduxUser = useAppSelector((state) => state.user.user)
   const router = useRouter()
   const { accentColor, setAccentColor } = useTheme()
   const [selectedTab, setSelectedTab] = useState('profile')
@@ -381,6 +388,7 @@ export default function SettingsDialog() {
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const { isActive: isTourActive, settingsAssist, currentStep } = useDashboardTour()
+  const hasPassword = reduxUser?.hasPassword !== false
 
   const activeTab = isTourActive && currentStep?.id && settingsAssist.activeTab ? settingsAssist.activeTab : selectedTab
 
@@ -711,31 +719,11 @@ export default function SettingsDialog() {
             <Section id="security" active={activeTab === 'security'} title="Security">
               <div className="space-y-8">
                 <div className="space-y-6 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-4 sm:p-6 dark:border-white/5 dark:bg-white/2">
-                  <div className="group space-y-2">
-                    <label className="group-focus-within:text-primary-500 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors dark:text-slate-400">
-                      Current Password
-                    </label>
-                    <input type="password" placeholder="••••••••" className={inputClasses} />
-                  </div>
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <div className="group space-y-2">
-                      <label className="group-focus-within:text-primary-500 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors dark:text-slate-400">
-                        New Password
-                      </label>
-                      <input type="password" placeholder="••••••••" className={inputClasses} />
-                    </div>
-                    <div className="group space-y-2">
-                      <label className="group-focus-within:text-primary-500 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors dark:text-slate-400">
-                        Confirm Password
-                      </label>
-                      <input type="password" placeholder="••••••••" className={inputClasses} />
-                    </div>
-                  </div>
-                  <div className="flex w-full justify-end pt-2">
-                    <button className="w-full rounded-[14px] bg-slate-900 px-6 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_-6px_rgba(0,0,0,0.3)] transition-all hover:shadow-[0_8px_25px_-6px_rgba(0,0,0,0.4)] active:scale-95 sm:w-auto dark:bg-white dark:text-slate-900">
-                      Update Password
-                    </button>
-                  </div>
+                  {hasPassword ? (
+                    <ChangePasswordForm email={user?.email ?? null} />
+                  ) : (
+                    <SetPasswordForm email={user?.email ?? null} provider={reduxUser?.provider} />
+                  )}
                 </div>
               </div>
             </Section>
@@ -999,22 +987,18 @@ export default function SettingsDialog() {
         </div>
 
         {showLiveAgentModal && (
-          <ModalPortal>
-            <LiveAgentSettingsModal
-              onClose={() => setShowLiveAgentModal(false)}
-              onConnect={() => setLiveAgentConnected(true)}
-            />
-          </ModalPortal>
+          <LiveAgentSettingsModal
+            onClose={() => setShowLiveAgentModal(false)}
+            onConnect={() => setLiveAgentConnected(true)}
+          />
         )}
 
         {showLogoutModal && (
-          <ModalPortal>
-            <LogoutConfirmModal
-              onCancel={() => setShowLogoutModal(false)}
-              onConfirm={handleLogout}
-              isLoading={isLoggingOut}
-            />
-          </ModalPortal>
+          <LogoutConfirmModal
+            onCancel={() => setShowLogoutModal(false)}
+            onConfirm={handleLogout}
+            isLoading={isLoggingOut}
+          />
         )}
       </div>
     </div>

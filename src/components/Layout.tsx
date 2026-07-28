@@ -2,18 +2,13 @@
 
 import { TakeTourBanner, TakeTourTrigger } from '@/components/tour/TakeTourBanner'
 import { useDashboardTour } from '@/context/DashboardTourContext'
-import { useAppDispatch } from '@/hooks/redux'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
-import { useLogoutMutation } from '@/redux/features/auth/auth.api'
-import { logout as clearAuth } from '@/redux/features/auth/user.slice'
 import { cn } from '@/utils/cn'
-import { Contact, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun, UserCircle, X } from 'lucide-react'
-import Image from 'next/image'
+import { Contact, LayoutDashboard, Menu, Moon, Settings, Sun, X } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { useAuth } from './auth/Auth'
-import { LogoutConfirmModal } from './LogoutConfirmModal'
+import { UserDropdown } from './UserDropdown'
 
 function subscribeToTheme(callback: () => void) {
   window.addEventListener('theme-change', callback)
@@ -30,16 +25,9 @@ function getServerDarkModeSnapshot() {
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
-  const router = useRouter()
-  const dispatch = useAppDispatch()
-  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation()
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const isDarkMode = useSyncExternalStore(subscribeToTheme, getDarkModeSnapshot, getServerDarkModeSnapshot)
-  const { user } = useAuth()
   const { registerMobileNavOpener, isActive: isTourActive, currentStep } = useDashboardTour()
-  const menuRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const keepMobileNavOpen = isTourActive && Boolean(currentStep?.openMobileNav)
   const showMobileMenu = isMobileMenuOpen && (!isTourActive || keepMobileNavOpen)
@@ -56,9 +44,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsProfileOpen(false)
-      }
       if (
         mobileMenuRef.current &&
         !mobileMenuRef.current.contains(event.target as Node) &&
@@ -76,16 +61,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const isDark = document.documentElement.classList.toggle('dark')
     localStorage.setItem('theme', isDark ? 'dark' : 'light')
     window.dispatchEvent(new Event('theme-change'))
-  }
-
-  const handleLogout = async () => {
-    try {
-      await logout()
-    } catch {
-      dispatch(clearAuth())
-      setShowLogoutModal(false)
-      router.push('/login')
-    }
   }
 
   const navItems = [
@@ -159,64 +134,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
             <div className="hidden h-6 w-px bg-slate-200 lg:block dark:bg-white/10"></div>
 
-            <div className="relative isolate z-50" ref={menuRef}>
-              <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center gap-2 rounded-full border border-transparent p-1 transition-colors hover:bg-slate-100 focus:outline-none dark:hover:bg-white/5"
-              >
-                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-slate-800">
-                  {user?.photoURL ? (
-                    <Image
-                      src={user.photoURL}
-                      alt="Profile"
-                      className="h-full w-full object-cover"
-                      width={100}
-                      height={100}
-                    />
-                  ) : (
-                    <UserCircle className="h-5 w-5 text-slate-400" />
-                  )}
-                </div>
-              </button>
-
-              {isProfileOpen && (
-                <div className="animate-in zoom-in-95 absolute top-full right-0 z-100 mt-3 w-56 origin-top-right rounded-2xl border border-slate-200 bg-white py-1 shadow-xl duration-150 dark:border-white/10 dark:bg-[#0b0f19]">
-                  <div className="border-b border-slate-100 px-4 py-3 dark:border-white/5">
-                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                      {user?.displayName || 'User'}
-                    </p>
-                    <p className="text-primary-600 dark:text-primary-400 mt-1 text-[11px] font-bold tracking-widest uppercase">
-                      Free Plan
-                    </p>
-                  </div>
-                  <div className="p-2">
-                    <Link
-                      href="/settings"
-                      onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
-                    >
-                      <Settings className="h-4 w-4" /> Account Settings
-                    </Link>
-                    {!isTourActive && (
-                      <TakeTourTrigger
-                        className="w-full justify-start border-transparent bg-transparent px-3 py-2.5 text-slate-600 hover:border-transparent hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
-                        onStart={() => setIsProfileOpen(false)}
-                      />
-                    )}
-                    <button
-                      onClick={() => {
-                        setIsProfileOpen(false)
-                        setShowLogoutModal(true)
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
-                    >
-                      <LogOut className="h-4.5 w-4.5" />
-                      Log Out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <UserDropdown />
 
             {/* Mobile Menu Toggle */}
             <button
@@ -283,14 +201,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <TakeTourBanner />
         {children}
       </main>
-
-      {showLogoutModal && (
-        <LogoutConfirmModal
-          onCancel={() => setShowLogoutModal(false)}
-          onConfirm={handleLogout}
-          isLoading={isLoggingOut}
-        />
-      )}
     </div>
   )
 }

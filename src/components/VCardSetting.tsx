@@ -1,6 +1,5 @@
 'use client'
 
-import { useAuth } from '@/components/auth/Auth'
 import { CanvaConnectRow } from '@/components/canva'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
@@ -20,6 +19,7 @@ import {
   SOCIAL_LINK_FIELDS,
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
+import { useAuth } from '@/providers/AuthProvider'
 import type { VCardAppearance } from '@/types/vcard'
 import type { DisplayFieldConfig, VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { cn } from '@/utils/cn'

@@ -8,12 +8,21 @@ import {
   clearEmailVerificationSession,
   getEmailVerificationServerSnapshot,
   getEmailVerificationSnapshot,
+  readEmailVerificationCooldownEnd,
+  storeEmailVerificationSession,
   subscribeEmailVerificationSnapshot,
 } from '@/utils/emailVerification'
 import { Loader } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
+
+function getInitialCooldownSeconds() {
+  const cooldownEnd = readEmailVerificationCooldownEnd()
+  if (!cooldownEnd) return 0
+
+  return Math.max(0, Math.ceil((cooldownEnd - Date.now()) / 1000))
+}
 
 const VerifyEmailView = () => {
   const router = useRouter()
@@ -25,14 +34,12 @@ const VerifyEmailView = () => {
 
   const [otp, setOtp] = useState('')
   const [otpError, setOtpError] = useState<string | null>(null)
-  const [cooldownSeconds, setCooldownSeconds] = useState(0)
-  const [hasSentInitial, setHasSentInitial] = useState(false)
+  const [cooldownSeconds, setCooldownSeconds] = useState(getInitialCooldownSeconds)
 
   const [sendVerificationEmail, { isLoading: isSending }] = useSendVerificationEmailMutation()
   const [verifyEmail, { isLoading: isVerifying }] = useVerifyEmailMutation()
 
   const autoSubmitLockRef = useRef(false)
-  const initialSendStartedRef = useRef(false)
   const isLeavingRef = useRef(false)
 
   useEffect(() => {
@@ -75,7 +82,7 @@ const VerifyEmailView = () => {
 
     const cooldown = res.data?.data
     applyCooldown(cooldown?.remainingSecond, cooldown?.cooldownEnd)
-    setHasSentInitial(true)
+    storeEmailVerificationSession(email, cooldown)
 
     if (showSuccessToast) {
       toast.success('Verification code sent')
@@ -83,29 +90,6 @@ const VerifyEmailView = () => {
 
     return true
   }
-
-  useEffect(() => {
-    if (!email || initialSendStartedRef.current) return
-    initialSendStartedRef.current = true
-
-    void (async () => {
-      const res = await sendVerificationEmail(email)
-      const error = res.error as IQueryMutationErrorResponse | undefined
-
-      if (error) {
-        toast.error(error.data?.message || 'Failed to send verification email')
-        return
-      }
-
-      const cooldown = res.data?.data
-      if (typeof cooldown?.remainingSecond === 'number' && cooldown.remainingSecond > 0) {
-        setCooldownSeconds(cooldown.remainingSecond)
-      } else if (typeof cooldown?.cooldownEnd === 'number') {
-        setCooldownSeconds(Math.max(0, Math.ceil((cooldown.cooldownEnd - Date.now()) / 1000)))
-      }
-      setHasSentInitial(true)
-    })()
-  }, [email, sendVerificationEmail])
 
   const handleVerify = async (code: string) => {
     if (!email || isVerifying) return
@@ -164,8 +148,8 @@ const VerifyEmailView = () => {
     <>
       <p className="relative z-10 mb-6 rounded-[14px] border border-slate-200 bg-slate-50 p-3 text-left text-[12px] font-medium text-slate-600 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300">
         We sent a 6-digit code to{' '}
-        <span className="font-semibold break-all text-slate-900 dark:text-white">{email}</span>
-        {hasSentInitial ? '. Enter it below to verify your account.' : '. Sending code…'}
+        <span className="font-semibold break-all text-slate-900 dark:text-white">{email}</span>. Enter it below to
+        verify your account.
       </p>
 
       <form

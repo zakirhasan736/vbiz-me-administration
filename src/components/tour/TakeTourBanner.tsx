@@ -1,8 +1,8 @@
 'use client'
 
-import { useAuth } from '@/components/auth/Auth'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { dismissTourBanner, isTourBannerDismissed, isTourCompleted } from '@/lib/dashboardTour'
+import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
 import { Compass, PlayCircle, X } from 'lucide-react'
 import { useCallback, useState } from 'react'

@@ -3,20 +3,14 @@
 import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import FormErrorMessage from '@/components/shared/FormErrorMessage'
 import type { IQueryMutationErrorResponse, TSetPasswordFormValues } from '@/interfaces'
-import { useUpdateProfileMutation } from '@/redux/features/auth/auth.api'
+import { useUpdateProfileMutation, useVerifyPasswordSetupMutation } from '@/redux/features/auth/auth.api'
 import { cn } from '@/utils/cn'
-import {
-  clearPasswordSetupSession,
-  getPasswordSetupServerSnapshot,
-  getPasswordSetupSnapshot,
-  getProviderLabel,
-  subscribePasswordSetupSnapshot,
-} from '@/utils/passwordSetup'
+import { getProviderLabel } from '@/utils/passwordSetup'
 import { createSetPasswordSchema } from '@/utils/passwordValidation'
 import { Form, Formik } from 'formik'
-import { Eye, EyeOff, Lock } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { Eye, EyeOff, Loader, Lock } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 const initialValues: TSetPasswordFormValues = {
@@ -26,34 +20,57 @@ const initialValues: TSetPasswordFormValues = {
 
 const SetPasswordView = () => {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token')?.trim() || ''
+
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const session = useSyncExternalStore(
-    subscribePasswordSetupSnapshot,
-    getPasswordSetupSnapshot,
-    getPasswordSetupServerSnapshot
-  )
-  const [updateProfile] = useUpdateProfileMutation()
-  const validationSchema = useMemo(() => createSetPasswordSchema(session?.email), [session?.email])
+  const [verified, setVerified] = useState<{ email: string; providers: string[] } | null>(null)
+
+  const [verifyPasswordSetup, { isLoading: isVerifying }] = useVerifyPasswordSetupMutation()
+  const [updateProfile, { isLoading }] = useUpdateProfileMutation()
+  const validationSchema = useMemo(() => createSetPasswordSchema(verified?.email), [verified?.email])
 
   useEffect(() => {
-    if (session) return
-    toast.error('Please try signing in with email again to set a password.')
-    router.replace('/login')
-  }, [session, router])
+    let cancelled = false
+
+    const verify = async () => {
+      if (!token) {
+        toast.error('Invalid password setup link. Please try signing in with email again.')
+        router.replace('/login')
+        return
+      }
+
+      const res = await verifyPasswordSetup({ token })
+      if (cancelled) return
+
+      const error = res.error as IQueryMutationErrorResponse | undefined
+      if (error || !res.data?.data) {
+        toast.error(error?.data?.message || 'Your password setup link is invalid or expired.')
+        router.replace('/login')
+        return
+      }
+
+      setVerified(res.data.data)
+    }
+
+    void verify()
+    return () => {
+      cancelled = true
+    }
+  }, [token, router, verifyPasswordSetup])
 
   const handleSubmit = async (values: TSetPasswordFormValues) => {
-    if (!session) return
+    if (!token || !verified) return
 
     const res = await updateProfile({
-      passwordSetupToken: session.passwordSetupToken,
+      passwordSetupToken: token,
       password: values.password,
     })
     const error = res.error as IQueryMutationErrorResponse | undefined
 
     if (error) {
       if (error.status === 401 || error.data?.statusCode === 401) {
-        clearPasswordSetupSession()
         toast.error('Your password setup link expired. Please try email login again.')
         router.replace('/login')
         return
@@ -62,17 +79,20 @@ const SetPasswordView = () => {
       return
     }
 
-    clearPasswordSetupSession()
     toast.success('Password set successfully')
     router.push('/')
   }
 
-  if (!session) {
-    return <div className="mb-6 h-40" aria-hidden />
+  if (isVerifying || !verified) {
+    return (
+      <div className="relative z-10 mb-6 flex h-40 items-center justify-center" aria-busy="true">
+        <Loader className="text-primary-600 h-6 w-6 animate-spin" />
+      </div>
+    )
   }
 
-  const providerLabel = getProviderLabel(session.providers[0])
-  const { email } = session
+  const providerLabel = getProviderLabel(verified.providers[0])
+  const { email } = verified
 
   return (
     <>
@@ -198,9 +218,11 @@ const SetPasswordView = () => {
 
               <button
                 type="submit"
-                className="bg-primary-600 hover:bg-primary-700 mt-2 w-full rounded-2xl py-4 text-[14px] font-semibold text-white shadow-sm transition-all active:scale-95"
+                disabled={isLoading}
+                className="bg-primary-600 hover:bg-primary-700 mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-semibold text-white shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Set Password
+                {isLoading ? <Loader className="h-4 w-4 animate-spin" /> : null}
+                {isLoading ? 'Setting…' : 'Set Password'}
               </button>
             </Form>
           )

@@ -59,3 +59,21 @@ export const createSetPasswordSchema = (email: string | null | undefined) =>
       .oneOf([yup.ref('password')], 'Passwords must match')
       .required('Confirm password is required'),
   })
+
+export const createChangePasswordSchema = (email: string | null | undefined) =>
+  yup.object().shape({
+    oldPassword: yup.string().required('Current password is required'),
+    password: createPasswordSchemaForEmail(email).test(
+      'not-equal-to-old',
+      'New password cannot be same as old password',
+      function (value) {
+        const oldPassword = this.parent?.oldPassword
+        if (!value || typeof oldPassword !== 'string') return true
+        return value !== oldPassword
+      }
+    ),
+    confirmPassword: yup
+      .string()
+      .oneOf([yup.ref('password')], 'Passwords must match')
+      .required('Confirm password is required'),
+  })

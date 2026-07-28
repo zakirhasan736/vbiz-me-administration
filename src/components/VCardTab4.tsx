@@ -1,8 +1,9 @@
 'use client'
 
-import { useAuth } from '@/components/auth/Auth'
 import { useCanvaConnection } from '@/components/canva'
+import { Modal } from '@/components/ui/Modal'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
+import { useAuth } from '@/providers/AuthProvider'
 import {
   Check,
   CreditCard,
@@ -73,44 +74,47 @@ function GalleryModal({
     },
   ]
   return (
-    <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md duration-200 dark:bg-black/60">
-      <div className="animate-in zoom-in-95 w-full max-w-3xl overflow-hidden rounded-4xl border border-slate-200/50 bg-white shadow-2xl duration-300 dark:border-white/5 dark:bg-[#0b0f19]">
-        <div className="flex items-center justify-between border-b border-slate-200/50 p-6 dark:border-white/5">
-          <h3 className="flex items-center gap-3 text-lg font-black text-slate-900 dark:text-white">
-            <div className="bg-primary-50 dark:bg-primary-500/10 rounded-xl p-2">
-              <Grid className="text-primary-600 dark:text-primary-400 h-5 w-5" />
-            </div>{' '}
-            Choose Intro Video
-          </h3>
-          <button
-            onClick={onClose}
-            className="rounded-full bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="no-scrollbar grid max-h-[60vh] grid-cols-1 gap-5 overflow-y-auto bg-slate-50/50 p-8 sm:grid-cols-2 md:grid-cols-4 dark:bg-white/2">
-          {videos.map((v) => (
-            <div
-              key={v.id}
-              onClick={() => onSelect(v)}
-              className="hover:border-primary-500 group relative aspect-video cursor-pointer overflow-hidden rounded-[20px] border-2 border-transparent bg-slate-200 shadow-sm dark:bg-slate-800"
-            >
-              <Image
-                src={v.img}
-                alt={v.title}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                width={100}
-                height={100}
-              />
-              <div className="absolute inset-0 flex items-end bg-linear-to-t from-black/80 via-black/20 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
-                <span className="truncate text-[12px] font-bold text-white">{v.title}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+    <Modal
+      open
+      onClose={onClose}
+      overlayClassName="backdrop-blur-md"
+      className="max-w-3xl overflow-hidden rounded-4xl border-slate-200/50 dark:border-white/5"
+    >
+      <div className="flex items-center justify-between border-b border-slate-200/50 p-6 dark:border-white/5">
+        <h3 className="flex items-center gap-3 text-lg font-black text-slate-900 dark:text-white">
+          <div className="bg-primary-50 dark:bg-primary-500/10 rounded-xl p-2">
+            <Grid className="text-primary-600 dark:text-primary-400 h-5 w-5" />
+          </div>{' '}
+          Choose Intro Video
+        </h3>
+        <button
+          onClick={onClose}
+          className="rounded-full bg-slate-100 p-2.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
-    </div>
+      <div className="no-scrollbar grid max-h-[60vh] grid-cols-1 gap-5 overflow-y-auto bg-slate-50/50 p-8 sm:grid-cols-2 md:grid-cols-4 dark:bg-white/2">
+        {videos.map((v) => (
+          <div
+            key={v.id}
+            onClick={() => onSelect(v)}
+            className="hover:border-primary-500 group relative aspect-video cursor-pointer overflow-hidden rounded-[20px] border-2 border-transparent bg-slate-200 shadow-sm dark:bg-slate-800"
+          >
+            <Image
+              src={v.img}
+              alt={v.title}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              width={100}
+              height={100}
+            />
+            <div className="absolute inset-0 flex items-end bg-linear-to-t from-black/80 via-black/20 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
+              <span className="truncate text-[12px] font-bold text-white">{v.title}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Modal>
   )
 }
 
@@ -134,183 +138,189 @@ function CustomOrderModal({ onClose }: { onClose: () => void }) {
 
   if (confirmed) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-        <div className="animate-in zoom-in-95 w-full max-w-md rounded-4xl border border-emerald-500/20 bg-white p-8 text-center shadow-[0_0_100px_rgba(16,185,129,0.1)] duration-500 dark:bg-[#0b0f19]">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
-            <Check className="h-10 w-10 text-emerald-500" />
-          </div>
-          <h3 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">Order Confirmed!</h3>
-          <p className="mb-8 text-[14px] font-medium text-slate-500 dark:text-slate-400">{`Your custom intro video is in the works. Please upload your assets via the dashboard if you haven't yet.`}</p>
+      <Modal
+        open
+        onClose={onClose}
+        overlayClassName="bg-black/80"
+        className="max-w-md rounded-4xl border-emerald-500/20 p-8 text-center shadow-[0_0_100px_rgba(16,185,129,0.1)]"
+      >
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
+          <Check className="h-10 w-10 text-emerald-500" />
+        </div>
+        <h3 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">Order Confirmed!</h3>
+        <p className="mb-8 text-[14px] font-medium text-slate-500 dark:text-slate-400">{`Your custom intro video is in the works. Please upload your assets via the dashboard if you haven't yet.`}</p>
 
-          <div className="mb-8 rounded-[20px] border border-black/5 bg-slate-50 p-6 dark:border-white/5 dark:bg-[#0b0f19]">
-            <p className="mb-3 text-[12px] font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400">
-              Estimated Delivery
-            </p>
-            <div className="text-primary-600 dark:text-primary-400 flex items-center justify-center gap-4 text-3xl font-black">
-              <div className="flex flex-col">
-                <span className="text-slate-900 dark:text-white">{timeLeft.hours.toString().padStart(2, '0')}</span>
-                <span className="mt-1 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                  Hours
-                </span>
-              </div>
-              <span className="mb-4 text-slate-900/20">:</span>
-              <div className="flex flex-col">
-                <span className="text-slate-900 dark:text-white">{timeLeft.minutes.toString().padStart(2, '0')}</span>
-                <span className="mt-1 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                  Minutes
-                </span>
-              </div>
-              <span className="mb-4 text-slate-900/20">:</span>
-              <div className="flex flex-col">
-                <span className="text-slate-900 dark:text-white">{timeLeft.seconds.toString().padStart(2, '0')}</span>
-                <span className="mt-1 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                  Seconds
-                </span>
-              </div>
+        <div className="mb-8 rounded-[20px] border border-black/5 bg-slate-50 p-6 dark:border-white/5 dark:bg-[#0b0f19]">
+          <p className="mb-3 text-[12px] font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400">
+            Estimated Delivery
+          </p>
+          <div className="text-primary-600 dark:text-primary-400 flex items-center justify-center gap-4 text-3xl font-black">
+            <div className="flex flex-col">
+              <span className="text-slate-900 dark:text-white">{timeLeft.hours.toString().padStart(2, '0')}</span>
+              <span className="mt-1 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                Hours
+              </span>
+            </div>
+            <span className="mb-4 text-slate-900/20">:</span>
+            <div className="flex flex-col">
+              <span className="text-slate-900 dark:text-white">{timeLeft.minutes.toString().padStart(2, '0')}</span>
+              <span className="mt-1 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                Minutes
+              </span>
+            </div>
+            <span className="mb-4 text-slate-900/20">:</span>
+            <div className="flex flex-col">
+              <span className="text-slate-900 dark:text-white">{timeLeft.seconds.toString().padStart(2, '0')}</span>
+              <span className="mt-1 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                Seconds
+              </span>
             </div>
           </div>
-
-          <button
-            onClick={onClose}
-            className="w-full rounded-2xl bg-emerald-500 py-4 text-[14px] font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all hover:bg-emerald-400 active:scale-95"
-          >
-            Return to Editor
-          </button>
         </div>
-      </div>
+
+        <button
+          onClick={onClose}
+          className="w-full rounded-2xl bg-emerald-500 py-4 text-[14px] font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all hover:bg-emerald-400 active:scale-95"
+        >
+          Return to Editor
+        </button>
+      </Modal>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 py-10 backdrop-blur-sm">
-      <div className="animate-in zoom-in-95 my-auto w-full max-w-5xl overflow-hidden rounded-4xl border border-black/10 bg-white shadow-2xl duration-300 dark:border-white/10 dark:bg-[#0b0f19]">
-        <div className="flex flex-col items-start justify-between gap-4 border-b border-black/5 p-6 sm:flex-row sm:items-center sm:p-8 dark:border-white/5">
-          <div>
-            <h3 className="mb-1 flex items-center gap-3 text-2xl font-bold text-slate-900 dark:text-white">
-              <Wand2 className="text-primary-600 dark:text-primary-400 h-6 w-6" />
-              Custom Intro Video
-            </h3>
-            <p className="flex items-center gap-2 text-[13px] font-medium text-slate-500 dark:text-slate-400">
-              <Lock className="h-3.5 w-3.5 text-emerald-500" /> Secure SSL Encrypted Checkout
-            </p>
+    <Modal
+      open
+      onClose={onClose}
+      overlayClassName="overflow-y-auto bg-black/80 py-10"
+      className="my-auto max-w-5xl overflow-hidden rounded-4xl border-black/10 dark:border-white/10"
+    >
+      <div className="flex flex-col items-start justify-between gap-4 border-b border-black/5 p-6 sm:flex-row sm:items-center sm:p-8 dark:border-white/5">
+        <div>
+          <h3 className="mb-1 flex items-center gap-3 text-2xl font-bold text-slate-900 dark:text-white">
+            <Wand2 className="text-primary-600 dark:text-primary-400 h-6 w-6" />
+            Custom Intro Video
+          </h3>
+          <p className="flex items-center gap-2 text-[13px] font-medium text-slate-500 dark:text-slate-400">
+            <Lock className="h-3.5 w-3.5 text-emerald-500" /> Secure SSL Encrypted Checkout
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="rounded-full bg-black/5 p-3 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+        >
+          <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+        </button>
+      </div>
+
+      <div className="flex flex-col md:flex-row">
+        {/* Left: Product & Instructions */}
+        <div className="space-y-8 bg-white p-6 sm:p-8 md:w-1/2 dark:bg-[#0b0f19]">
+          <div className="flex gap-5">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border border-black/5 bg-slate-50 sm:h-28 sm:w-28 dark:border-white/5 dark:bg-[#0b0f19]">
+              <Image
+                src="https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&q=80&w=200&h=200"
+                alt="Custom Video"
+                className="h-full w-full object-cover"
+                width={100}
+                height={100}
+              />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-lg leading-tight font-bold text-slate-900 dark:text-white">Premium Custom Intro</h4>
+              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
+                Tailored perfectly to your brand identity.
+              </p>
+              <div className="text-primary-600 dark:text-primary-400 mt-2 text-2xl font-black">
+                $49.99{' '}
+                <span className="ml-2 text-xs font-bold text-slate-500 line-through dark:text-slate-400">$99.99</span>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-full bg-black/5 p-3 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
-          >
-            <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-          </button>
+
+          <div className="h-px w-full bg-black/5 dark:bg-white/5"></div>
+
+          <div className="space-y-5">
+            <h4 className="text-[13px] font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400">
+              Requirements & Assets
+            </h4>
+            <FieldGroup label="Design Instructions">
+              <textarea
+                placeholder="Tell us how you want it to look... colors, feeling, style."
+                className="focus:border-primary-500 focus:ring-primary-500 min-h-25 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:border-white/10 dark:bg-slate-800 dark:text-white"
+              ></textarea>
+            </FieldGroup>
+            <FieldGroup label="Upload Logo / Assets">
+              <div className="hover:border-primary-500/50 hover:bg-primary-500/5 group flex w-full cursor-pointer items-center justify-center gap-3 rounded-[14px] border border-dashed border-slate-200 bg-slate-50 p-6 shadow-sm transition-all dark:border-white/20 dark:bg-slate-800">
+                <Upload className="group-hover:text-primary-600 dark:group-hover:text-primary-400 h-5 w-5 text-slate-500 dark:text-slate-400" />
+                <span className="group-hover:text-primary-600 dark:group-hover:text-primary-400 text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                  Pick files to upload...
+                </span>
+              </div>
+            </FieldGroup>
+          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row">
-          {/* Left: Product & Instructions */}
-          <div className="space-y-8 bg-white p-6 sm:p-8 md:w-1/2 dark:bg-[#0b0f19]">
-            <div className="flex gap-5">
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border border-black/5 bg-slate-50 sm:h-28 sm:w-28 dark:border-white/5 dark:bg-[#0b0f19]">
-                <Image
-                  src="https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&q=80&w=200&h=200"
-                  alt="Custom Video"
-                  className="h-full w-full object-cover"
-                  width={100}
-                  height={100}
-                />
+        {/* Right: Payment */}
+        <div className="border-t border-black/5 bg-slate-100 p-6 sm:p-8 md:w-1/2 md:border-t-0 md:border-l dark:border-white/5 dark:bg-[#09090b]">
+          <h4 className="mb-6 text-[13px] font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400">
+            Billing & Payment
+          </h4>
+
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <FieldGroup label="Email Address" icon={<Mail className="h-4 w-4" />}>
+                <input type="email" placeholder="you@example.com" className={`${inputClasses} pl-10`} />
+              </FieldGroup>
+              <div className="grid grid-cols-2 gap-4">
+                <FieldGroup label="First Name">
+                  <input type="text" placeholder="John" className={inputClasses} />
+                </FieldGroup>
+                <FieldGroup label="Last Name">
+                  <input type="text" placeholder="Doe" className={inputClasses} />
+                </FieldGroup>
               </div>
-              <div className="space-y-1">
-                <h4 className="text-lg leading-tight font-bold text-slate-900 dark:text-white">Premium Custom Intro</h4>
-                <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
-                  Tailored perfectly to your brand identity.
-                </p>
-                <div className="text-primary-600 dark:text-primary-400 mt-2 text-2xl font-black">
-                  $49.99{' '}
-                  <span className="ml-2 text-xs font-bold text-slate-500 line-through dark:text-slate-400">$99.99</span>
-                </div>
-              </div>
+              <FieldGroup label="Billing Address" icon={<MapPin className="h-4 w-4" />}>
+                <input type="text" placeholder="123 Main St" className={`${inputClasses} pl-10`} />
+              </FieldGroup>
             </div>
 
             <div className="h-px w-full bg-black/5 dark:bg-white/5"></div>
 
-            <div className="space-y-5">
-              <h4 className="text-[13px] font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400">
-                Requirements & Assets
-              </h4>
-              <FieldGroup label="Design Instructions">
-                <textarea
-                  placeholder="Tell us how you want it to look... colors, feeling, style."
-                  className="focus:border-primary-500 focus:ring-primary-500 min-h-25 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:border-white/10 dark:bg-slate-800 dark:text-white"
-                ></textarea>
-              </FieldGroup>
-              <FieldGroup label="Upload Logo / Assets">
-                <div className="hover:border-primary-500/50 hover:bg-primary-500/5 group flex w-full cursor-pointer items-center justify-center gap-3 rounded-[14px] border border-dashed border-slate-200 bg-slate-50 p-6 shadow-sm transition-all dark:border-white/20 dark:bg-slate-800">
-                  <Upload className="group-hover:text-primary-600 dark:group-hover:text-primary-400 h-5 w-5 text-slate-500 dark:text-slate-400" />
-                  <span className="group-hover:text-primary-600 dark:group-hover:text-primary-400 text-[13px] font-bold text-slate-500 dark:text-slate-400">
-                    Pick files to upload...
-                  </span>
-                </div>
-              </FieldGroup>
-            </div>
-          </div>
-
-          {/* Right: Payment */}
-          <div className="border-t border-black/5 bg-slate-100 p-6 sm:p-8 md:w-1/2 md:border-t-0 md:border-l dark:border-white/5 dark:bg-[#09090b]">
-            <h4 className="mb-6 text-[13px] font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400">
-              Billing & Payment
-            </h4>
-
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <FieldGroup label="Email Address" icon={<Mail className="h-4 w-4" />}>
-                  <input type="email" placeholder="you@example.com" className={`${inputClasses} pl-10`} />
-                </FieldGroup>
-                <div className="grid grid-cols-2 gap-4">
-                  <FieldGroup label="First Name">
-                    <input type="text" placeholder="John" className={inputClasses} />
-                  </FieldGroup>
-                  <FieldGroup label="Last Name">
-                    <input type="text" placeholder="Doe" className={inputClasses} />
-                  </FieldGroup>
-                </div>
-                <FieldGroup label="Billing Address" icon={<MapPin className="h-4 w-4" />}>
-                  <input type="text" placeholder="123 Main St" className={`${inputClasses} pl-10`} />
-                </FieldGroup>
-              </div>
-
-              <div className="h-px w-full bg-black/5 dark:bg-white/5"></div>
-
-              <div className="space-y-4 rounded-[20px] border border-slate-200 bg-white p-5 shadow-inner dark:border-[#27272a] dark:bg-[#0b0f19]">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-[12px] font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400">
-                    <CreditCard className="h-4 w-4 text-emerald-500" /> Credit Card
-                  </span>
-                  <div className="flex gap-1.5">
-                    <div className="flex h-5 w-8 items-center justify-center rounded bg-black/10 text-[8px] font-bold text-slate-900 dark:bg-white/10 dark:text-white">
-                      VISA
-                    </div>
-                    <div className="flex h-5 w-8 items-center justify-center rounded bg-black/10 text-[8px] font-bold text-slate-900 dark:bg-white/10 dark:text-white">
-                      MC
-                    </div>
+            <div className="space-y-4 rounded-[20px] border border-slate-200 bg-white p-5 shadow-inner dark:border-[#27272a] dark:bg-[#0b0f19]">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-2 text-[12px] font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400">
+                  <CreditCard className="h-4 w-4 text-emerald-500" /> Credit Card
+                </span>
+                <div className="flex gap-1.5">
+                  <div className="flex h-5 w-8 items-center justify-center rounded bg-black/10 text-[8px] font-bold text-slate-900 dark:bg-white/10 dark:text-white">
+                    VISA
+                  </div>
+                  <div className="flex h-5 w-8 items-center justify-center rounded bg-black/10 text-[8px] font-bold text-slate-900 dark:bg-white/10 dark:text-white">
+                    MC
                   </div>
                 </div>
-                <input type="text" placeholder="Card Number" className={inputClasses} />
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="text" placeholder="MM/YY" className={inputClasses} />
-                  <input type="text" placeholder="CVC" className={inputClasses} />
-                </div>
               </div>
-
-              <button
-                onClick={() => {
-                  setConfirmed(true)
-                  localStorage.setItem('customOrderPlaced', Date.now().toString())
-                }}
-                className="bg-primary-600 hover:bg-primary-700 w-full rounded-2xl px-6 py-4 text-[15px] font-black text-white shadow-sm transition-all active:scale-95"
-              >
-                Pay $49.99 & Order Now
-              </button>
+              <input type="text" placeholder="Card Number" className={inputClasses} />
+              <div className="grid grid-cols-2 gap-4">
+                <input type="text" placeholder="MM/YY" className={inputClasses} />
+                <input type="text" placeholder="CVC" className={inputClasses} />
+              </div>
             </div>
+
+            <button
+              onClick={() => {
+                setConfirmed(true)
+                localStorage.setItem('customOrderPlaced', Date.now().toString())
+              }}
+              className="bg-primary-600 hover:bg-primary-700 w-full rounded-2xl px-6 py-4 text-[15px] font-black text-white shadow-sm transition-all active:scale-95"
+            >
+              Pay $49.99 & Order Now
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -361,70 +371,73 @@ function CanvaIntegrationModal({
   }, [onClose, onSelectVideo, workflowStep])
 
   return (
-    <div className="animate-in fade-in fixed inset-0 z-100 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm duration-200 dark:bg-white/20">
-      <div className="animate-in zoom-in-95 relative w-full max-w-100 overflow-hidden rounded-[28px] border border-black/10 bg-white p-8 shadow-2xl duration-300 dark:border-white/10 dark:bg-[#0b0f19]">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 rounded-full bg-black/5 p-2 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
-        >
-          <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-        </button>
+    <Modal
+      open
+      onClose={onClose}
+      overlayClassName="bg-black/20 dark:bg-white/20"
+      className="relative max-w-100 overflow-hidden p-8"
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 rounded-full bg-black/5 p-2 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+      >
+        <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+      </button>
 
-        <div className="text-center">
-          <div className="mx-auto mb-6 h-20 w-20 rounded-3xl bg-linear-to-tr from-[#00C4CC] to-[#7D2AE8] p-0.5 shadow-[0_0_30px_rgba(125,42,232,0.3)]">
-            <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-white dark:bg-[#0b0f19]">
-              <Palette className="h-10 w-10 text-[#00C4CC]" />
+      <div className="text-center">
+        <div className="mx-auto mb-6 h-20 w-20 rounded-3xl bg-linear-to-tr from-[#00C4CC] to-[#7D2AE8] p-0.5 shadow-[0_0_30px_rgba(125,42,232,0.3)]">
+          <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-white dark:bg-[#0b0f19]">
+            <Palette className="h-10 w-10 text-[#00C4CC]" />
+          </div>
+        </div>
+
+        <h3 className="mb-2 text-[22px] font-black text-slate-900 dark:text-white">Canva Integration</h3>
+        <p className="mb-8 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+          {step === 'connect' &&
+            'Connect your Canva account to create beautiful intro videos directly from your vCard dashboard.'}
+          {step === 'connecting' && 'Securely connecting to Canva...'}
+          {step === 'connected' && 'Account connected successfully! You can now create your intro video.'}
+          {step === 'editor' && 'Using Canva Editor... (Simulated)'}
+          {step === 'exporting' && 'Exporting your design and automatically uploading...'}
+        </p>
+
+        {error ? <p className="mb-4 text-[13px] font-medium text-red-500">{error}</p> : null}
+
+        {step === 'connect' && (
+          <button
+            onClick={handleConnect}
+            disabled={!userId || isLoading}
+            className="w-full rounded-2xl border border-black/10 bg-white py-4 text-[15px] font-bold text-slate-900 transition-all hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
+          >
+            {userId ? 'Connect Canva' : 'Log in to connect Canva'}
+          </button>
+        )}
+
+        {step === 'connecting' && (
+          <div className="flex items-center justify-center py-4 text-[#00C4CC]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        )}
+
+        {step === 'connected' && (
+          <button
+            onClick={handleOpenEditor}
+            className="w-full rounded-2xl bg-linear-to-r from-[#00C4CC] to-[#7D2AE8] py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(0,196,204,0.3)] transition-all hover:opacity-90 active:scale-95"
+          >
+            Create Video with Canva
+          </button>
+        )}
+
+        {(step === 'editor' || step === 'exporting') && (
+          <div className="flex flex-col items-center py-4">
+            <Loader2 className="mb-4 h-10 w-10 animate-spin text-[#7D2AE8]" />
+            <div className="h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+              <div className="h-full w-full animate-pulse bg-linear-to-r from-[#00C4CC] to-[#7D2AE8]"></div>
             </div>
           </div>
-
-          <h3 className="mb-2 text-[22px] font-black text-slate-900 dark:text-white">Canva Integration</h3>
-          <p className="mb-8 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-            {step === 'connect' &&
-              'Connect your Canva account to create beautiful intro videos directly from your vCard dashboard.'}
-            {step === 'connecting' && 'Securely connecting to Canva...'}
-            {step === 'connected' && 'Account connected successfully! You can now create your intro video.'}
-            {step === 'editor' && 'Using Canva Editor... (Simulated)'}
-            {step === 'exporting' && 'Exporting your design and automatically uploading...'}
-          </p>
-
-          {error ? <p className="mb-4 text-[13px] font-medium text-red-500">{error}</p> : null}
-
-          {step === 'connect' && (
-            <button
-              onClick={handleConnect}
-              disabled={!userId || isLoading}
-              className="w-full rounded-2xl border border-black/10 bg-white py-4 text-[15px] font-bold text-slate-900 transition-all hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
-            >
-              {userId ? 'Connect Canva' : 'Log in to connect Canva'}
-            </button>
-          )}
-
-          {step === 'connecting' && (
-            <div className="flex items-center justify-center py-4 text-[#00C4CC]">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          )}
-
-          {step === 'connected' && (
-            <button
-              onClick={handleOpenEditor}
-              className="w-full rounded-2xl bg-linear-to-r from-[#00C4CC] to-[#7D2AE8] py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(0,196,204,0.3)] transition-all hover:opacity-90 active:scale-95"
-            >
-              Create Video with Canva
-            </button>
-          )}
-
-          {(step === 'editor' || step === 'exporting') && (
-            <div className="flex flex-col items-center py-4">
-              <Loader2 className="mb-4 h-10 w-10 animate-spin text-[#7D2AE8]" />
-              <div className="h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-                <div className="h-full w-full animate-pulse bg-linear-to-r from-[#00C4CC] to-[#7D2AE8]"></div>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-    </div>
+    </Modal>
   )
 }
 

@@ -1,5 +1,7 @@
 export type { TUserRole } from '@/constants/userRole'
 export type {
+  TChangePasswordFormValues,
+  TChangePasswordPayload,
   TLoginPayload,
   TPasswordSetupRequiredData,
   TRegisterFormValues,

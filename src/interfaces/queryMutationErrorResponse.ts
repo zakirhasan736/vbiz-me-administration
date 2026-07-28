@@ -10,6 +10,9 @@ export interface IQueryMutationErrorResponse {
       providers?: string[]
       passwordSetupToken?: string
       hasPassword?: boolean
+      cooldownEnd?: number
+      remainingSecond?: number
+      expiresAt?: number
       [key: string]: unknown
     }
   }

@@ -6,7 +6,13 @@ import userReducer from './features/auth/user.slice'
 import designSettingsReducer from './features/designSettings/designSettings.slice'
 import vcardsReducer from './features/vcards/vcards.slice'
 
-const userPersistConfig = { key: 'user', storage }
+const userPersistConfig = {
+  key: 'user',
+  storage,
+  // Never persist loading — after OAuth redirect we must re-bootstrap from cookies
+  // before RequireAuth decides the user is logged out.
+  whitelist: ['user', 'token'],
+}
 const vcardsPersistConfig = { key: 'vcards', storage }
 const designPersistConfig = { key: 'designSettings', storage }
 

@@ -21,15 +21,32 @@ const authCopy = {
     title: 'Verify your email',
     subtitle: 'Enter the 6-digit code we sent to your inbox.',
   },
+  '/forgot-password': {
+    title: 'Forgot password',
+    subtitle: 'Enter your email and we will send you a reset link.',
+  },
+  '/reset-password': {
+    title: 'Reset your password',
+    subtitle: 'Choose a new password for your account.',
+  },
 } as const
+
+const resolveAuthCopy = (pathname: string) => {
+  if (pathname.startsWith('/reset-password')) {
+    return authCopy['/reset-password']
+  }
+  return authCopy[pathname as keyof typeof authCopy] ?? authCopy['/login']
+}
 
 const AuthLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
   const isLogin = pathname === '/login'
   const isSetPassword = pathname === '/set-password'
   const isVerifyEmail = pathname === '/verify-email'
-  const hideSocial = isSetPassword || isVerifyEmail
-  const copy = authCopy[pathname as keyof typeof authCopy] ?? authCopy['/login']
+  const isForgotPassword = pathname === '/forgot-password'
+  const isResetPassword = pathname.startsWith('/reset-password')
+  const hideSocial = isSetPassword || isVerifyEmail || isForgotPassword || isResetPassword
+  const copy = resolveAuthCopy(pathname)
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4 text-slate-900 dark:bg-[#09090b] dark:text-white">
@@ -70,19 +87,34 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
               </p>
             </div>
           </>
-        ) : (
+        ) : !isSetPassword ? (
           <div className="mt-6 border-t border-slate-200 pt-6 dark:border-white/10">
             <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
-              {isVerifyEmail ? 'Already verified?' : 'Already have a password?'}{' '}
+              {isVerifyEmail
+                ? 'Already verified?'
+                : isForgotPassword || isResetPassword
+                  ? 'Remember your password?'
+                  : 'Already have an account?'}{' '}
               <Link
                 href="/login"
                 className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-semibold transition-colors outline-none"
               >
                 Log In
               </Link>
+              {isForgotPassword ? (
+                <>
+                  {' · '}
+                  <Link
+                    href="/register"
+                    className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-semibold transition-colors outline-none"
+                  >
+                    Create account
+                  </Link>
+                </>
+              ) : null}
             </p>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )

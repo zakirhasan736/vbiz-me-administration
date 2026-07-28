@@ -1,6 +1,5 @@
 'use client'
 
-import { useAuth } from '@/components/auth/Auth'
 import {
   attachTourScrollLock,
   DASHBOARD_TOUR_STEPS,
@@ -23,6 +22,7 @@ import {
   type EditorBasePath,
   type SettingsTabId,
 } from '@/lib/vcardEditorRoutes'
+import { useAuth } from '@/providers/AuthProvider'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   createContext,

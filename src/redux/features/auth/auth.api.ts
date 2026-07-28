@@ -1,4 +1,10 @@
-import type { TLoginPayload, TRegisterPayload, TUpdateProfilePayload, TVerifyEmailPayload } from '@/interfaces'
+import type {
+  TChangePasswordPayload,
+  TLoginPayload,
+  TRegisterPayload,
+  TUpdateProfilePayload,
+  TVerifyEmailPayload,
+} from '@/interfaces'
 import { IUser } from '@/interfaces/user.interface'
 import { api, baseUrl } from '@/redux/api/api'
 
@@ -14,7 +20,10 @@ const redirectToOAuth = (url: string) => {
 
 const authApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    register: builder.mutation<{ data: null }, TRegisterPayload>({
+    register: builder.mutation<
+      { data: { cooldownEnd: number; remainingSecond: number; expiresAt?: number } },
+      TRegisterPayload
+    >({
       query: (payload) => ({
         url: '/auth/register',
         method: 'POST',
@@ -22,7 +31,10 @@ const authApi = api.injectEndpoints({
       }),
       invalidatesTags: ['auth'],
     }),
-    sendVerificationEmail: builder.mutation<{ data: { cooldownEnd: number; remainingSecond: number } }, string>({
+    sendVerificationEmail: builder.mutation<
+      { data: { cooldownEnd: number; remainingSecond: number; expiresAt?: number } },
+      string
+    >({
       query: (email) => ({
         url: '/auth/send-verification-email',
         method: 'POST',
@@ -78,6 +90,27 @@ const authApi = api.injectEndpoints({
         body: payload,
       }),
     }),
+    verifyForgotPassword: builder.mutation<{ data: { email: string } }, { token: string }>({
+      query: (payload) => ({
+        url: '/auth/forgot-password/verify',
+        method: 'POST',
+        body: payload,
+      }),
+    }),
+    verifyPasswordSetup: builder.mutation<{ data: { email: string; providers: string[] } }, { token: string }>({
+      query: (payload) => ({
+        url: '/auth/password-setup/verify',
+        method: 'POST',
+        body: payload,
+      }),
+    }),
+    resendPasswordSetup: builder.mutation<{ data: null }, { email: string }>({
+      query: (payload) => ({
+        url: '/auth/password-setup/resend',
+        method: 'POST',
+        body: payload,
+      }),
+    }),
     resetPassword: builder.mutation<{ data: null }, { token: string; password: string }>({
       query: (data) => ({
         url: '/auth/reset-password',
@@ -86,7 +119,7 @@ const authApi = api.injectEndpoints({
       }),
       invalidatesTags: ['auth'],
     }),
-    changePassword: builder.mutation<{ data: null }, { oldPassword: string; password: string }>({
+    changePassword: builder.mutation<{ data: null }, TChangePasswordPayload>({
       query: (data) => ({
         url: '/auth/change-password',
         method: 'PUT',
@@ -123,6 +156,9 @@ export const {
   useFacebookLoginMutation,
   useLogoutMutation,
   useForgotPasswordMutation,
+  useVerifyForgotPasswordMutation,
+  useVerifyPasswordSetupMutation,
+  useResendPasswordSetupMutation,
   useResetPasswordMutation,
   useChangePasswordMutation,
   useGetAuthorQuery,

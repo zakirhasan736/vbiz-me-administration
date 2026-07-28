@@ -10,4 +10,5 @@ export interface IUser {
   role: TUserRole
   avatar?: string | null
   provider?: string
+  hasPassword?: boolean
 }

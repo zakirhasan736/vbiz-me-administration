@@ -6,6 +6,13 @@ import { RootState } from '../store'
 
 export const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'
 
+const clearServerSession = () =>
+  fetch(`${baseUrl}/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  }).catch(() => undefined)
+
 const baseQuery = fetchBaseQuery({
   baseUrl: baseUrl,
   credentials: 'include',
@@ -21,6 +28,7 @@ const baseQueryWithRefreshToken = async (args: any, api: any, extraOptions: any)
   if (result?.error?.status === 419) {
     // session expired
     Cookies.remove('redirect_after_login')
+    await clearServerSession()
     api?.dispatch(logout())
     return result
   }
@@ -40,6 +48,7 @@ const baseQueryWithRefreshToken = async (args: any, api: any, extraOptions: any)
 
     if (res.status == 419) {
       Cookies.remove('redirect_after_login')
+      await clearServerSession()
       api?.dispatch(logout())
       return result
     }
@@ -54,6 +63,10 @@ const baseQueryWithRefreshToken = async (args: any, api: any, extraOptions: any)
     if (data?.success && data?.data?.accessToken) {
       api?.dispatch(updateAuthState({ token: data?.data?.accessToken }))
       result = await baseQuery(args, api, extraOptions)
+    } else {
+      Cookies.remove('redirect_after_login')
+      await clearServerSession()
+      api?.dispatch(logout())
     }
     return result
   }

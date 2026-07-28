@@ -23,7 +23,6 @@ export type TLoginPayload = {
 export type TPasswordSetupRequiredData = {
   email: string
   providers: string[]
-  passwordSetupToken: string
   hasPassword: boolean
 }
 
@@ -38,6 +37,17 @@ export type TUpdateProfilePayload = {
 export type TSetPasswordFormValues = {
   password: string
   confirmPassword: string
+}
+
+export type TChangePasswordFormValues = {
+  oldPassword: string
+  password: string
+  confirmPassword: string
+}
+
+export type TChangePasswordPayload = {
+  oldPassword: string
+  password: string
 }
 
 export type TVerifyEmailPayload = {

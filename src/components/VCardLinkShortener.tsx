@@ -1,5 +1,6 @@
 'use client'
 
+import { Modal } from '@/components/ui/Modal'
 import {
   ArrowRight,
   BarChart3,
@@ -102,7 +103,7 @@ export function TabLinkShortener() {
 
       <div className="mx-auto w-full max-w-3xl">
         {/* Main Card */}
-        <div className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-2xl md:p-8 dark:border-white/10 dark:bg-slate-900/80 dark:shadow-none">
+        <div className="relative overflow-hidden rounded-4xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-2xl md:p-8 dark:border-white/10 dark:bg-slate-900/80 dark:shadow-none">
           {/* Background decorative glow */}
           <div className="bg-primary-500/10 dark:bg-primary-500/5 pointer-events-none absolute -top-40 -right-40 h-80 w-80 rounded-full blur-[100px]" />
 
@@ -114,7 +115,7 @@ export function TabLinkShortener() {
               <textarea
                 required
                 placeholder="Paste one or multiple URLs here (separated by newlines)..."
-                className="dark:focus:border-primary-400 dark:focus:ring-primary-400 min-h-[120px] w-full resize-y rounded-[24px] border border-slate-200 bg-slate-50 py-5 pr-6 pl-12 text-[15px] font-medium text-slate-900 shadow-sm transition-all outline-none placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 dark:border-white/10 dark:bg-black/50 dark:text-white"
+                className="dark:focus:border-primary-400 dark:focus:ring-primary-400 min-h-30 w-full resize-y rounded-3xl border border-slate-200 bg-slate-50 py-5 pr-6 pl-12 text-[15px] font-medium text-slate-900 shadow-sm transition-all outline-none placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 dark:border-white/10 dark:bg-black/50 dark:text-white"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
               />
@@ -137,7 +138,7 @@ export function TabLinkShortener() {
             {links.map((link) => (
               <div
                 key={link.id}
-                className="flex flex-col gap-5 rounded-[24px] border border-black/10 bg-white p-5 shadow-sm transition-all hover:shadow-md md:flex-row md:items-center dark:border-white/10 dark:bg-[#0b0f19]"
+                className="flex flex-col gap-5 rounded-3xl border border-black/10 bg-white p-5 shadow-sm transition-all hover:shadow-md md:flex-row md:items-center dark:border-white/10 dark:bg-[#0b0f19]"
               >
                 <div className="min-w-0 flex-1 pr-4">
                   <div className="mb-1.5 flex items-center gap-3">
@@ -195,7 +196,7 @@ export function TabLinkShortener() {
       {/* Value Props / Features Grid */}
       <div className="mx-auto mt-8 grid w-full max-w-5xl gap-6 md:grid-cols-3">
         {/* Feature 1 */}
-        <div className="group rounded-[32px] border border-black/5 bg-white/60 p-8 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/5 dark:bg-[#0b0f19]/60">
+        <div className="group rounded-4xl border border-black/5 bg-white/60 p-8 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/5 dark:bg-[#0b0f19]/60">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 transition-transform group-hover:scale-110 dark:bg-blue-900/40 dark:text-blue-400">
             <BarChart3 className="h-7 w-7" />
           </div>
@@ -206,7 +207,7 @@ export function TabLinkShortener() {
         </div>
 
         {/* Feature 2 */}
-        <div className="group relative overflow-hidden rounded-[32px] border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:border-white/5 dark:bg-slate-900/60">
+        <div className="group relative overflow-hidden rounded-4xl border border-slate-200 bg-white/60 p-8 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:border-white/5 dark:bg-slate-900/60">
           <div className="pointer-events-none absolute top-0 right-0 p-6 opacity-10">
             <QrCodeIcon className="h-24 w-24 text-slate-900 dark:text-white" />
           </div>
@@ -222,7 +223,7 @@ export function TabLinkShortener() {
         </div>
 
         {/* Feature 3 */}
-        <div className="group rounded-[32px] border border-black/5 bg-white/60 p-8 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/5 dark:bg-[#0b0f19]/60">
+        <div className="group rounded-4xl border border-black/5 bg-white/60 p-8 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/5 dark:bg-[#0b0f19]/60">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-fuchsia-100 text-fuchsia-600 transition-transform group-hover:scale-110 dark:bg-fuchsia-900/40 dark:text-fuchsia-400">
             <Sparkles className="h-7 w-7" />
           </div>
@@ -235,124 +236,127 @@ export function TabLinkShortener() {
 
       {/* QR Code Modal */}
       {showQRModal && (
-        <div className="animate-in fade-in fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm duration-200 dark:bg-black/60">
-          <div className="animate-in zoom-in-95 hidden-scrollbar relative max-h-[90vh] w-full max-w-[400px] overflow-hidden overflow-y-auto rounded-[32px] border border-black/10 bg-white p-8 shadow-2xl duration-300 dark:border-white/10 dark:bg-[#0b0f19]">
-            <button
-              onClick={() => setShowQRModal(null)}
-              className="absolute top-5 right-5 z-10 rounded-full bg-black/5 p-2 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
-            >
-              <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-            </button>
+        <Modal
+          open
+          onClose={() => setShowQRModal(null)}
+          overlayClassName="bg-black/40 dark:bg-black/60"
+          className="hidden-scrollbar relative max-h-[90vh] max-w-100 overflow-hidden overflow-y-auto rounded-4xl border-black/10 p-8 dark:border-white/10"
+        >
+          <button
+            onClick={() => setShowQRModal(null)}
+            className="absolute top-5 right-5 z-10 rounded-full bg-black/5 p-2 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+          >
+            <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+          </button>
 
-            <div className="h-full py-2 text-center">
-              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-[20px] bg-slate-100 text-slate-900 shadow-sm dark:bg-black/20 dark:text-white">
-                <QrCodeIcon className="h-7 w-7" />
-              </div>
-              <h3 className="mb-2 text-2xl font-black text-slate-900 dark:text-white">QR Code Ready</h3>
-              <p className="mb-6 text-[15px] font-medium text-slate-500 dark:text-slate-400">
-                Scan this code to instantly visit your link.
-              </p>
+          <div className="h-full py-2 text-center">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-[20px] bg-slate-100 text-slate-900 shadow-sm dark:bg-black/20 dark:text-white">
+              <QrCodeIcon className="h-7 w-7" />
+            </div>
+            <h3 className="mb-2 text-2xl font-black text-slate-900 dark:text-white">QR Code Ready</h3>
+            <p className="mb-6 text-[15px] font-medium text-slate-500 dark:text-slate-400">
+              Scan this code to instantly visit your link.
+            </p>
 
-              <div className="mx-auto mb-6 inline-block rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)]">
-                <QRCodeSVG
-                  id="qr-code-svg"
-                  value={`https://${showQRModal}`}
-                  size={180}
-                  level={'H'}
-                  className="rounded-xl"
-                  fgColor={qrFgColor}
-                  bgColor={qrBgColor}
-                  imageSettings={qrLogo ? { src: qrLogo, excavate: true, height: 40, width: 40 } : undefined}
-                />
-              </div>
+            <div className="mx-auto mb-6 inline-block rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)]">
+              <QRCodeSVG
+                id="qr-code-svg"
+                value={`https://${showQRModal}`}
+                size={180}
+                level={'H'}
+                className="rounded-xl"
+                fgColor={qrFgColor}
+                bgColor={qrBgColor}
+                imageSettings={qrLogo ? { src: qrLogo, excavate: true, height: 40, width: 40 } : undefined}
+              />
+            </div>
 
-              <div className="mb-8 flex flex-col gap-4 text-left">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 ml-1 block text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                      Foreground
-                    </label>
-                    <div className="h-10 w-full overflow-hidden rounded-xl border border-black/10 p-0.5 dark:border-white/10">
-                      <input
-                        type="color"
-                        value={qrFgColor}
-                        onChange={(e) => setQrFgColor(e.target.value)}
-                        className="h-full w-full -translate-y-1 scale-150 transform cursor-pointer border-0 bg-transparent"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 ml-1 block text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                      Background
-                    </label>
-                    <div className="h-10 w-full overflow-hidden rounded-xl border border-black/10 p-0.5 dark:border-white/10">
-                      <input
-                        type="color"
-                        value={qrBgColor}
-                        onChange={(e) => setQrBgColor(e.target.value)}
-                        className="h-full w-full -translate-y-1 scale-150 transform cursor-pointer border-0 bg-transparent"
-                      />
-                    </div>
-                  </div>
-                </div>
-
+            <div className="mb-8 flex flex-col gap-4 text-left">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1.5 ml-1 block text-[12px] font-bold text-slate-500 dark:text-slate-400">
-                    Custom Logo
+                    Foreground
                   </label>
-                  <div className="relative">
+                  <div className="h-10 w-full overflow-hidden rounded-xl border border-black/10 p-0.5 dark:border-white/10">
                     <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                      type="color"
+                      value={qrFgColor}
+                      onChange={(e) => setQrFgColor(e.target.value)}
+                      className="h-full w-full -translate-y-1 scale-150 transform cursor-pointer border-0 bg-transparent"
                     />
-                    <div className="group hover:border-primary-500 relative flex items-center justify-center gap-2 overflow-hidden rounded-[14px] border border-dashed border-slate-200 bg-slate-50 px-4 py-3.5 text-[13px] font-medium text-slate-600 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                      <Upload className="group-hover:text-primary-500 h-4 w-4 transition-colors" />{' '}
-                      {qrLogo ? 'Change Logo' : 'Upload Logo'}
-                    </div>
                   </div>
-                  {qrLogo && (
-                    <button
-                      onClick={() => setQrLogo(null)}
-                      className="mt-1.5 ml-1 text-[11px] font-bold text-red-500 hover:underline"
-                    >
-                      Remove logo
-                    </button>
-                  )}
+                </div>
+                <div>
+                  <label className="mb-1.5 ml-1 block text-[12px] font-bold text-slate-500 dark:text-slate-400">
+                    Background
+                  </label>
+                  <div className="h-10 w-full overflow-hidden rounded-xl border border-black/10 p-0.5 dark:border-white/10">
+                    <input
+                      type="color"
+                      value={qrBgColor}
+                      onChange={(e) => setQrBgColor(e.target.value)}
+                      className="h-full w-full -translate-y-1 scale-150 transform cursor-pointer border-0 bg-transparent"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => {
-                    const svg = document.getElementById('qr-code-svg')
-                    if (svg) {
-                      const svgData = new XMLSerializer().serializeToString(svg)
-                      const canvas = document.createElement('canvas')
-                      const ctx = canvas.getContext('2d')
-                      const img = new Image()
-                      img.onload = () => {
-                        canvas.width = img.width
-                        canvas.height = img.height
-                        ctx?.drawImage(img, 0, 0)
-                        const pngFile = canvas.toDataURL('image/png')
-                        const downloadLink = document.createElement('a')
-                        downloadLink.download = 'qrcode.png'
-                        downloadLink.href = `${pngFile}`
-                        downloadLink.click()
-                      }
-                      img.src = 'data:image/svg+xml;base64,' + btoa(svgData)
-                    }
-                  }}
-                  className="dark:bg-primary-600 dark:hover:bg-primary-500 flex w-full items-center justify-center gap-2 rounded-[20px] bg-slate-900 py-4 text-[15px] font-bold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-slate-800 dark:text-white"
-                >
-                  Download HD PNG <ArrowRight className="h-4 w-4" />
-                </button>
+              <div>
+                <label className="mb-1.5 ml-1 block text-[12px] font-bold text-slate-500 dark:text-slate-400">
+                  Custom Logo
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                  />
+                  <div className="group hover:border-primary-500 relative flex items-center justify-center gap-2 overflow-hidden rounded-[14px] border border-dashed border-slate-200 bg-slate-50 px-4 py-3.5 text-[13px] font-medium text-slate-600 transition-colors dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                    <Upload className="group-hover:text-primary-500 h-4 w-4 transition-colors" />{' '}
+                    {qrLogo ? 'Change Logo' : 'Upload Logo'}
+                  </div>
+                </div>
+                {qrLogo && (
+                  <button
+                    onClick={() => setQrLogo(null)}
+                    className="mt-1.5 ml-1 text-[11px] font-bold text-red-500 hover:underline"
+                  >
+                    Remove logo
+                  </button>
+                )}
               </div>
             </div>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  const svg = document.getElementById('qr-code-svg')
+                  if (svg) {
+                    const svgData = new XMLSerializer().serializeToString(svg)
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    const img = new Image()
+                    img.onload = () => {
+                      canvas.width = img.width
+                      canvas.height = img.height
+                      ctx?.drawImage(img, 0, 0)
+                      const pngFile = canvas.toDataURL('image/png')
+                      const downloadLink = document.createElement('a')
+                      downloadLink.download = 'qrcode.png'
+                      downloadLink.href = `${pngFile}`
+                      downloadLink.click()
+                    }
+                    img.src = 'data:image/svg+xml;base64,' + btoa(svgData)
+                  }
+                }}
+                className="dark:bg-primary-600 dark:hover:bg-primary-500 flex w-full items-center justify-center gap-2 rounded-[20px] bg-slate-900 py-4 text-[15px] font-bold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-slate-800 dark:text-white"
+              >
+                Download HD PNG <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )
