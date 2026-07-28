@@ -1,7 +1,7 @@
 'use client'
 
 import { cornerStyleToRadius } from '@/lib/resolvedProfileDesign'
-import { GoogleAuthProvider, signInWithPopup, type User } from 'firebase/auth'
+import { GoogleAuthProvider, signInWithPopup as loginWithPopup, type User } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import {
   ArrowRight,
@@ -267,7 +267,7 @@ export const HomeSection = () => {
         }
       } else if (!user) {
         const provider = new GoogleAuthProvider()
-        const result = await signInWithPopup(auth, provider)
+        const result = await loginWithPopup(auth, provider)
         user = result.user
       }
 

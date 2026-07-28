@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@/components/Auth'
+import { useAuth } from '@/components/auth/Auth'
 import {
   attachTourScrollLock,
   DASHBOARD_TOUR_STEPS,

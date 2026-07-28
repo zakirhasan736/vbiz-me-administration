@@ -1,4 +1,11 @@
 export {
+  AUTH_PROVIDER_LABELS,
+  EMAIL_NOT_VERIFIED,
+  EMAIL_VERIFICATION_STORAGE_KEY,
+  PASSWORD_SETUP_REQUIRED,
+  PASSWORD_SETUP_STORAGE_KEYS,
+} from './auth'
+export {
   chartData,
   socialStatCards,
   statCards,
@@ -7,3 +14,4 @@ export {
   type EngagementRow,
   type StatCard,
 } from './dashboardHome'
+export { USER_ROLES, USER_ROLE_LABELS, type TUserRole } from './userRole'

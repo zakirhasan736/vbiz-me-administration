@@ -21,10 +21,10 @@ export function LogoutConfirmModal({ onCancel, onConfirm, isLoading }: LogoutCon
           <LogOut className="h-7 w-7 text-rose-600 dark:text-rose-400" />
         </div>
         <h3 id="logout-confirm-title" className="mb-2 text-center text-xl font-bold text-slate-900 dark:text-white">
-          Sign out?
+          Log out?
         </h3>
         <p className="mb-8 text-center text-[13px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Are you sure you want to sign out of your account?
+          Are you sure you want to log out of your account?
         </p>
         <div className="flex gap-3">
           <button
@@ -41,7 +41,7 @@ export function LogoutConfirmModal({ onCancel, onConfirm, isLoading }: LogoutCon
             disabled={isLoading}
             className="flex-1 rounded-2xl bg-rose-600 py-3 text-[14px] font-semibold text-white transition-all hover:bg-rose-700 active:scale-[0.98] disabled:opacity-50 dark:bg-rose-500 dark:hover:bg-rose-600"
           >
-            {isLoading ? 'Signing out…' : 'Delete'}
+            {isLoading ? 'Logging out…' : 'Log Out'}
           </button>
         </div>
       </div>

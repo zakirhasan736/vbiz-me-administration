@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@/components/Auth'
+import { useAuth } from '@/components/auth/Auth'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { dismissTourBanner, isTourBannerDismissed, isTourCompleted } from '@/lib/dashboardTour'
 import { cn } from '@/utils/cn'

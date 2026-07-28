@@ -1,0 +1,46 @@
+import type { TUserRole } from '@/constants/userRole'
+
+export type TRegisterPayload = {
+  name: string
+  email: string
+  password: string
+  role: TUserRole
+}
+
+export type TRegisterFormValues = {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+  role: TUserRole | ''
+}
+
+export type TLoginPayload = {
+  email: string
+  password: string
+}
+
+export type TPasswordSetupRequiredData = {
+  email: string
+  providers: string[]
+  passwordSetupToken: string
+  hasPassword: boolean
+}
+
+export type TUpdateProfilePayload = {
+  passwordSetupToken?: string
+  password?: string
+  currentPassword?: string
+  name?: string
+  avatar?: string
+}
+
+export type TSetPasswordFormValues = {
+  password: string
+  confirmPassword: string
+}
+
+export type TVerifyEmailPayload = {
+  email: string
+  otp: number
+}

@@ -1,38 +1,75 @@
+import type { TLoginPayload, TRegisterPayload, TUpdateProfilePayload, TVerifyEmailPayload } from '@/interfaces'
 import { IUser } from '@/interfaces/user.interface'
-import { api } from '@/redux/api/api'
+import { api, baseUrl } from '@/redux/api/api'
 
-const userApi = api.injectEndpoints({
+export const googleAuthUrl = `${baseUrl}/auth/google`
+export const facebookAuthUrl = `${baseUrl}/auth/facebook`
+
+const redirectToOAuth = (url: string) => {
+  if (typeof window !== 'undefined') {
+    window.location.assign(url)
+  }
+  return { data: null }
+}
+
+const authApi = api.injectEndpoints({
   endpoints: (builder) => ({
+    register: builder.mutation<{ data: null }, TRegisterPayload>({
+      query: (payload) => ({
+        url: '/auth/register',
+        method: 'POST',
+        body: payload,
+      }),
+      invalidatesTags: ['auth'],
+    }),
     sendVerificationEmail: builder.mutation<{ data: { cooldownEnd: number; remainingSecond: number } }, string>({
       query: (email) => ({
         url: '/auth/send-verification-email',
         method: 'POST',
         body: { email },
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ['auth'],
     }),
-    verifyEmail: builder.mutation<{ data: null }, { otp: number; email: string }>({
+    verifyEmail: builder.mutation<{ data: null }, TVerifyEmailPayload>({
       query: (payload) => ({
         url: '/auth/verify-email',
         method: 'POST',
         body: payload,
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ['auth'],
     }),
-    login: builder.mutation<{ data: { profile: IUser; accessToken: string } }, { email: string; password: string }>({
+    login: builder.mutation<{ data: { profile: IUser; accessToken: string } }, TLoginPayload>({
       query: (payload) => ({
         url: '/auth/login',
         method: 'POST',
         body: payload,
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ['auth'],
     }),
-    logout: builder.mutation<{ data: null }, undefined>({
+    updateProfile: builder.mutation<
+      { data: { user: IUser; accessToken?: string; refreshToken?: string } },
+      TUpdateProfilePayload
+    >({
+      query: (payload) => ({
+        url: '/auth/update',
+        method: 'PATCH',
+        body: payload,
+      }),
+      invalidatesTags: ['auth'],
+    }),
+    googleLogin: builder.mutation<null, void>({
+      // Passport OAuth is browser-redirect based — XHR cannot complete this flow.
+      queryFn: () => redirectToOAuth(googleAuthUrl),
+    }),
+    facebookLogin: builder.mutation<null, void>({
+      queryFn: () => redirectToOAuth(facebookAuthUrl),
+    }),
+    logout: builder.mutation<{ data: null }, void>({
       query: () => ({
         url: '/auth/logout',
         method: 'POST',
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ['auth'],
     }),
     forgotPassword: builder.mutation<{ data: null }, { email: string }>({
       query: (payload) => ({
@@ -47,7 +84,7 @@ const userApi = api.injectEndpoints({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ['auth'],
     }),
     changePassword: builder.mutation<{ data: null }, { oldPassword: string; password: string }>({
       query: (data) => ({
@@ -55,33 +92,38 @@ const userApi = api.injectEndpoints({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ['auth'],
     }),
     deactivateAccount: builder.mutation<{ data: null }, undefined>({
       query: () => ({
         url: '/auth/deactivate',
         method: 'POST',
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ['auth'],
     }),
     getAuthor: builder.query<{ data: IUser }, undefined>({
       query: () => {
         return {
-          url: `/auth/profile`,
+          url: `/auth/author`,
           method: 'GET',
         }
       },
-      providesTags: ['user'],
+      providesTags: ['auth'],
     }),
   }),
 })
+
 export const {
+  useRegisterMutation,
   useSendVerificationEmailMutation,
   useVerifyEmailMutation,
   useLoginMutation,
+  useUpdateProfileMutation,
+  useGoogleLoginMutation,
+  useFacebookLoginMutation,
   useLogoutMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useChangePasswordMutation,
   useGetAuthorQuery,
-} = userApi
+} = authApi

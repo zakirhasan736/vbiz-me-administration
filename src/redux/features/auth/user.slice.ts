@@ -24,13 +24,11 @@ const userSlice = createSlice({
       state.isLoading = false
       state.token = null
     },
-
     updateUser(state, action: PayloadAction<Partial<IUser>>) {
       if (state.user) {
         state.user = { ...state.user, ...action.payload }
       }
     },
-
     updateAuthState(state, action: PayloadAction<Partial<TAuthState>>) {
       return { ...state, ...action.payload }
     },

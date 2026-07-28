@@ -2,14 +2,17 @@
 
 import { TakeTourBanner, TakeTourTrigger } from '@/components/tour/TakeTourBanner'
 import { useDashboardTour } from '@/context/DashboardTourContext'
+import { useAppDispatch } from '@/hooks/redux'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
+import { useLogoutMutation } from '@/redux/features/auth/auth.api'
+import { logout as clearAuth } from '@/redux/features/auth/user.slice'
 import { cn } from '@/utils/cn'
 import { Contact, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun, UserCircle, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { logout, useAuth } from './Auth'
+import { useAuth } from './auth/Auth'
 import { LogoutConfirmModal } from './LogoutConfirmModal'
 
 function subscribeToTheme(callback: () => void) {
@@ -28,10 +31,11 @@ function getServerDarkModeSnapshot() {
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
   const router = useRouter()
+  const dispatch = useAppDispatch()
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const isDarkMode = useSyncExternalStore(subscribeToTheme, getDarkModeSnapshot, getServerDarkModeSnapshot)
   const { user } = useAuth()
   const { registerMobileNavOpener, isActive: isTourActive, currentStep } = useDashboardTour()
@@ -75,13 +79,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   }
 
   const handleLogout = async () => {
-    setIsLoggingOut(true)
     try {
       await logout()
+    } catch {
+      dispatch(clearAuth())
       setShowLogoutModal(false)
       router.push('/login')
-    } finally {
-      setIsLoggingOut(false)
     }
   }
 
@@ -135,7 +138,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                           : 'bg-transparent group-hover:bg-slate-100 dark:group-hover:bg-white/5'
                       )}
                     />
-                    <item.icon className="relative z-10 h-[18px] w-[18px] shrink-0" strokeWidth={2} />
+                    <item.icon className="relative z-10 h-4.5 w-4.5 shrink-0" strokeWidth={2} />
                     <span className="relative z-10 whitespace-nowrap">{item.name}</span>
                   </Link>
                 )
@@ -151,7 +154,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
               title="Toggle Theme"
             >
-              {isDarkMode ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+              {isDarkMode ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
             </button>
 
             <div className="hidden h-6 w-px bg-slate-200 lg:block dark:bg-white/10"></div>
@@ -207,8 +210,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                       }}
                       className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
                     >
-                      <LogOut className="h-[18px] w-[18px]" />
-                      Sign Out
+                      <LogOut className="h-4.5 w-4.5" />
+                      Log Out
                     </button>
                   </div>
                 </div>
@@ -221,7 +224,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:hidden dark:hover:bg-white/10 dark:hover:text-white"
             >
-              {showMobileMenu ? <X className="h-[18px] w-[18px]" /> : <Menu className="h-[18px] w-[18px]" />}
+              {showMobileMenu ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
             </button>
           </div>
         </div>

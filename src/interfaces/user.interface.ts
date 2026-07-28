@@ -1,3 +1,5 @@
+import type { TUserRole } from '@/constants/userRole'
+
 export interface IUser {
   id: string
   name: string
@@ -5,5 +7,7 @@ export interface IUser {
   password: string
   createdAt: string
   updatedAt: string
-  role?: string
+  role: TUserRole
+  avatar?: string | null
+  provider?: string
 }

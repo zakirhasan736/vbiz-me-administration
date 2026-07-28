@@ -1,6 +1,6 @@
 'use client'
 
-import { logout, useAuth } from '@/components/Auth'
+import { logout, useAuth } from '@/components/auth/Auth'
 import { CanvaConnectRow } from '@/components/canva'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
@@ -103,7 +103,7 @@ function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; o
 
   return (
     <div className="animate-in fade-in fixed inset-0 z-200 flex items-center justify-center bg-slate-400/20 p-4 backdrop-blur-sm duration-200 dark:bg-black/60">
-      <div className="animate-in zoom-in-95 relative max-h-[min(90vh,100dvh)] w-full max-w-[440px] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl duration-300 sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]">
+      <div className="animate-in zoom-in-95 relative max-h-[min(90vh,100dvh)] w-full max-w-110 overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl duration-300 sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-10 rounded-full bg-slate-200 p-2 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/10"
@@ -112,7 +112,7 @@ function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; o
         </button>
 
         <div className="text-center">
-          <div className="from-primary-500 to-primary-700 mx-auto mb-6 h-20 w-20 rounded-[24px] bg-linear-to-tr p-[2px] shadow-[0_0_30px_rgba(59,130,246,0.25)]">
+          <div className="from-primary-500 to-primary-700 mx-auto mb-6 h-20 w-20 rounded-3xl bg-linear-to-tr p-0.5 shadow-[0_0_30px_rgba(59,130,246,0.25)]">
             <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-white dark:bg-[#0b0f19]">
               <Bot className="text-primary-600 dark:text-primary-400 h-10 w-10" />
             </div>
@@ -137,7 +137,7 @@ function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; o
               onChange={(e) => handleFileChange(e.target.files)}
             />
             {file ? (
-              <div className="flex items-center gap-3 rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3.5 dark:border-white/10 dark:bg-slate-800/50">
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 dark:border-white/10 dark:bg-slate-800/50">
                 <FileText className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-white">
                   {file.name}
@@ -155,7 +155,7 @@ function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; o
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="hover:border-primary-400 hover:bg-primary-50/50 dark:hover:border-primary-500/40 dark:hover:bg-primary-500/5 flex w-full flex-col items-center justify-center gap-2 rounded-[16px] border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-all dark:border-white/15 dark:bg-white/5"
+                className="hover:border-primary-400 hover:bg-primary-50/50 dark:hover:border-primary-500/40 dark:hover:bg-primary-500/5 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-all dark:border-white/15 dark:bg-white/5"
               >
                 <Upload className="h-6 w-6 text-slate-400 dark:text-slate-500" />
                 <span className="text-[13px] font-bold text-slate-900 dark:text-white">Click to upload</span>
@@ -193,14 +193,14 @@ function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; o
               value={businessDescription}
               onChange={(e) => setBusinessDescription(e.target.value)}
               placeholder="Describe your business for the live agent"
-              className={inputClasses + ' min-h-[100px] resize-none'}
+              className={inputClasses + ' min-h-25 resize-none'}
             />
           </div>
 
           <button
             type="button"
             onClick={handleConnect}
-            className="w-full rounded-[16px] bg-slate-900 py-4 text-[15px] font-bold text-white transition-all hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.3)] active:scale-95 dark:bg-white dark:text-slate-900"
+            className="w-full rounded-2xl bg-slate-900 py-4 text-[15px] font-bold text-white transition-all hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.3)] active:scale-95 dark:bg-white dark:text-slate-900"
           >
             Connect Live Agent
           </button>
@@ -226,7 +226,7 @@ function TabButton({ active, icon: Icon, label, onClick, isCollapsed, tourId }: 
       id={tourId}
       data-tour-id={tourId}
       className={cn(
-        'group relative flex w-full items-center gap-3.5 overflow-hidden rounded-[16px] px-4 py-3 text-[13.5px] font-bold transition-all',
+        'group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl px-4 py-3 text-[13.5px] font-bold transition-all',
         active
           ? 'bg-slate-900 text-white shadow-[0_8px_20px_-6px_rgba(0,0,0,0.3)] dark:bg-white dark:text-slate-900 dark:shadow-[0_8px_20px_-6px_rgba(255,255,255,0.3)]'
           : 'border border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white',
@@ -269,7 +269,7 @@ function Section({ id, title, children, active }: SectionProps) {
       id={id}
       className="min-w-0 scroll-mt-28 space-y-6"
     >
-      <div className="flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-3xl sm:rounded-[28px] lg:rounded-[32px] dark:border-white/10 dark:bg-[#070a13]/70 dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+      <div className="flex min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-3xl sm:rounded-[28px] lg:rounded-4xl dark:border-white/10 dark:bg-[#070a13]/70 dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
         <div className="relative p-5 sm:p-6 md:p-8 lg:p-10">
           <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-slate-200 to-transparent dark:via-white/10" />
 
@@ -317,7 +317,7 @@ function ToggleRow({
         <span
           className={cn(
             'inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300',
-            checked ? 'translate-x-[22px]' : 'translate-x-1'
+            checked ? 'translate-x-5.5' : 'translate-x-1'
           )}
         />
       </button>
@@ -341,7 +341,7 @@ function ConnectRow({ icon: Icon, title, isConnected, color, iconStyle, onClick,
       <div className="flex min-w-0 items-center gap-4">
         <div
           className={cn(
-            'flex h-12 w-12 items-center justify-center rounded-[16px] shadow-sm transition-transform group-hover:scale-105',
+            'flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm transition-transform group-hover:scale-105',
             iconStyle || 'border border-slate-100 bg-slate-50 dark:border-white/5 dark:bg-white/5'
           )}
         >
@@ -432,10 +432,10 @@ export default function SettingsDialog() {
 
   return (
     <div className="relative min-h-screen w-full min-w-0 overflow-x-hidden" data-tour-settings-scope>
-      <div className="bg-primary-600/10 pointer-events-none absolute top-20 left-1/2 h-[400px] w-full max-w-[800px] -translate-x-1/2 rounded-full blur-[150px]" />
-      <div className="relative z-10 mx-auto w-full max-w-[1100px] min-w-0 pt-6 pb-16 sm:pt-8 sm:pb-20 lg:pt-10">
+      <div className="bg-primary-600/10 pointer-events-none absolute top-20 left-1/2 h-100 w-full max-w-200 -translate-x-1/2 rounded-full blur-[150px]" />
+      <div className="relative z-10 mx-auto w-full max-w-275 min-w-0 pt-6 pb-16 sm:pt-8 sm:pb-20 lg:pt-10">
         <div className="mb-8 flex items-start gap-3 sm:mb-10 sm:gap-4 lg:mb-14 lg:gap-5">
-          <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border shadow-sm sm:h-14 sm:w-14 sm:rounded-[18px] lg:h-16 lg:w-16 lg:rounded-[20px]">
+          <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm sm:h-14 sm:w-14 sm:rounded-[18px] lg:h-16 lg:w-16 lg:rounded-[20px]">
             <div className="from-primary-500/10 pointer-events-none absolute inset-0 rounded-[inherit] bg-linear-to-tr to-transparent" />
             <Settings className="text-primary-600 dark:text-primary-400 h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8" />
           </div>
@@ -453,8 +453,8 @@ export default function SettingsDialog() {
           {/* Sidebar Nav */}
           <div
             className={cn(
-              'no-scrollbar max-h-none w-full min-w-0 space-y-1.5 overflow-y-auto rounded-[24px] border border-slate-200/80 bg-white/70 pb-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-3xl transition-all duration-400 ease-[0.23,1,0.32,1] sm:rounded-[28px] sm:pb-8 lg:sticky lg:top-28 lg:max-h-[calc(100vh-140px)] lg:shrink-0 lg:rounded-[32px] lg:pb-10 dark:border-white/10 dark:bg-[#070a13]/70 dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]',
-              isSidebarCollapsed ? 'p-2 lg:w-[84px] lg:p-3' : 'p-4 sm:p-5 lg:w-[260px] xl:w-[280px]'
+              'no-scrollbar max-h-none w-full min-w-0 space-y-1.5 overflow-y-auto rounded-3xl border border-slate-200/80 bg-white/70 pb-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-3xl transition-all duration-400 ease-[0.23,1,0.32,1] sm:rounded-[28px] sm:pb-8 lg:sticky lg:top-28 lg:max-h-[calc(100vh-140px)] lg:shrink-0 lg:rounded-4xl lg:pb-10 dark:border-white/10 dark:bg-[#070a13]/70 dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]',
+              isSidebarCollapsed ? 'p-2 lg:w-21 lg:p-3' : 'p-4 sm:p-5 lg:w-65 xl:w-70'
             )}
           >
             <div
@@ -513,16 +513,16 @@ export default function SettingsDialog() {
                 'group flex w-full items-center overflow-hidden rounded-2xl border border-transparent px-4 py-3.5 text-[13.5px] font-bold text-red-500 transition-all hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400',
                 isSidebarCollapsed ? 'mx-auto h-12 w-12 justify-center rounded-[18px] px-0' : 'gap-3'
               )}
-              title={isSidebarCollapsed ? 'Sign Out' : undefined}
+              title={isSidebarCollapsed ? 'Log Out' : undefined}
             >
-              <LogOut className="h-[18px] w-[18px] shrink-0 transition-transform group-hover:-translate-x-0.5" />
+              <LogOut className="h-4.5 w-4.5 shrink-0 transition-transform group-hover:-translate-x-0.5" />
               <span
                 className={cn(
                   'font-semibold whitespace-nowrap transition-all duration-300',
                   isSidebarCollapsed ? 'w-0 opacity-0 lg:hidden' : 'opacity-100'
                 )}
               >
-                Sign Out
+                Log Out
               </span>
             </button>
           </div>
@@ -530,8 +530,8 @@ export default function SettingsDialog() {
           {/* Content Area */}
           <div className="w-full min-w-0 flex-1 space-y-8 pb-20 sm:space-y-10 sm:pb-24 lg:space-y-12 lg:pb-32">
             <Section id="profile" active={activeTab === 'profile'} title="My Profile">
-              <div className="flex w-full min-w-0 flex-col items-start gap-5 rounded-[20px] border border-slate-200/50 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:gap-6 sm:rounded-[24px] sm:p-6 dark:border-white/5 dark:bg-white/2">
-                <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
+              <div className="flex w-full min-w-0 flex-col items-start gap-5 rounded-[20px] border border-slate-200/50 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:gap-6 sm:rounded-3xl sm:p-6 dark:border-white/5 dark:bg-white/2">
+                <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
                   {user?.photoURL ? (
                     <Image
                       src={user.photoURL}
@@ -592,7 +592,7 @@ export default function SettingsDialog() {
                           ' cursor-not-allowed truncate bg-slate-100 pr-22 opacity-60 sm:pr-28 dark:bg-slate-800/50'
                         }
                       />
-                      <span className="pointer-events-none absolute top-1/2 right-2 max-w-[40%] -translate-y-1/2 truncate rounded-[6px] bg-slate-200 px-1.5 py-1 text-[9px] font-bold tracking-wider text-slate-500 uppercase sm:right-3 sm:max-w-none sm:px-2 sm:text-[10px] sm:tracking-widest dark:bg-slate-700 dark:text-slate-400">
+                      <span className="pointer-events-none absolute top-1/2 right-2 max-w-[40%] -translate-y-1/2 truncate rounded-md bg-slate-200 px-1.5 py-1 text-[9px] font-bold tracking-wider text-slate-500 uppercase sm:right-3 sm:max-w-none sm:px-2 sm:text-[10px] sm:tracking-widest dark:bg-slate-700 dark:text-slate-400">
                         Read Only
                       </span>
                     </div>
@@ -615,14 +615,14 @@ export default function SettingsDialog() {
                   </label>
                   <textarea
                     placeholder="Write a short bio about yourself..."
-                    className={inputClasses + ' min-h-[120px] resize-none'}
+                    className={inputClasses + ' min-h-30 resize-none'}
                   ></textarea>
                   <p className="pr-2 text-right text-[12px] text-slate-400">Max 160 characters</p>
                 </div>
               </div>
 
               <div className="flex border-t border-slate-200/50 pt-4 sm:justify-end dark:border-white/5">
-                <button className="w-full rounded-[16px] bg-slate-900 px-8 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_20px_-6px_rgba(0,0,0,0.3)] transition-all hover:shadow-[0_8px_25px_-6px_rgba(0,0,0,0.4)] active:scale-95 sm:w-auto dark:bg-white dark:text-slate-900">
+                <button className="w-full rounded-2xl bg-slate-900 px-8 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_20px_-6px_rgba(0,0,0,0.3)] transition-all hover:shadow-[0_8px_25px_-6px_rgba(0,0,0,0.4)] active:scale-95 sm:w-auto dark:bg-white dark:text-slate-900">
                   Save Changes
                 </button>
               </div>
@@ -659,13 +659,13 @@ export default function SettingsDialog() {
                 <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
                   Select a primary accent color specifically for your private application dashboard.
                 </p>
-                <div className="flex w-full flex-wrap items-center gap-4 rounded-[24px] border border-slate-200/50 bg-slate-50/50 p-4 dark:border-white/5 dark:bg-white/2">
+                <div className="flex w-full flex-wrap items-center gap-4 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-4 dark:border-white/5 dark:bg-white/2">
                   {(['indigo', 'emerald', 'amber', 'rose', 'sky'] as const).map((color) => (
                     <button
                       key={color}
                       onClick={() => setAccentColor(color)}
                       className={cn(
-                        'flex h-12 w-12 max-w-[80px] min-w-[60px] flex-1 items-center justify-center rounded-[16px] transition-all',
+                        'flex h-12 w-12 max-w-20 min-w-15 flex-1 items-center justify-center rounded-2xl transition-all',
                         accentColor === color
                           ? 'ring-primary-500 z-10 scale-110 shadow-lg ring-2 ring-offset-2 dark:ring-offset-[#0b0f19]'
                           : 'opacity-80 hover:scale-105 hover:opacity-100',
@@ -710,7 +710,7 @@ export default function SettingsDialog() {
 
             <Section id="security" active={activeTab === 'security'} title="Security">
               <div className="space-y-8">
-                <div className="space-y-6 rounded-[24px] border border-slate-200/50 bg-slate-50/50 p-4 sm:p-6 dark:border-white/5 dark:bg-white/2">
+                <div className="space-y-6 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-4 sm:p-6 dark:border-white/5 dark:bg-white/2">
                   <div className="group space-y-2">
                     <label className="group-focus-within:text-primary-500 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors dark:text-slate-400">
                       Current Password
@@ -850,14 +850,14 @@ export default function SettingsDialog() {
               <div className="space-y-8">
                 <div>
                   <h4 className="mb-3 pl-1 text-[14px] font-bold text-slate-900 dark:text-white">Facebook</h4>
-                  <div className="space-y-4 rounded-[24px] border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
+                  <div className="space-y-4 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
                     <input type="text" placeholder="Pixel ID (Example: 1234567890)" className={inputClasses} />
                     <input type="text" placeholder="Facebook Conversions API Access Token" className={inputClasses} />
                   </div>
                 </div>
                 <div>
                   <h4 className="mb-3 pl-1 text-[14px] font-bold text-slate-900 dark:text-white">Google</h4>
-                  <div className="rounded-[24px] border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
+                  <div className="rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
                     <input
                       type="text"
                       placeholder="Google Measurement ID (Example: G-XXXXXXX)"
@@ -940,11 +940,11 @@ export default function SettingsDialog() {
                   <p className="mb-6 pl-1 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
                     Changes to metadata may take some time to appear on other platforms.
                   </p>
-                  <div className="space-y-4 rounded-[24px] border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
+                  <div className="space-y-4 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
                     <input type="text" placeholder="Meta title (Example: @yourname)" className={inputClasses} />
                     <textarea
                       placeholder="Meta description (Example: Make your link do more.)"
-                      className={inputClasses + ' min-h-[100px] resize-none'}
+                      className={inputClasses + ' min-h-25 resize-none'}
                     ></textarea>
                   </div>
                 </div>
@@ -972,7 +972,7 @@ export default function SettingsDialog() {
                 <button className="inline-flex items-center gap-2 rounded-[14px] bg-slate-900 px-6 py-3 text-[13px] font-bold text-white shadow-md transition-all hover:bg-slate-800 active:scale-95 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
                   Connect program
                 </button>
-                <div className="mt-8 rounded-[16px] border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/10 dark:bg-amber-500/5">
+                <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/10 dark:bg-amber-500/5">
                   <p className="text-[13px] leading-relaxed font-medium text-amber-800 dark:text-amber-400/80">
                     Unknown affiliate credentials are applied by default to some products. We encourage you to replace
                     them with your own credentials.{' '}

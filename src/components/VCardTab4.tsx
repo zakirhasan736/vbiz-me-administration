@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@/components/Auth'
+import { useAuth } from '@/components/auth/Auth'
 import { useCanvaConnection } from '@/components/canva'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import {
@@ -74,7 +74,7 @@ function GalleryModal({
   ]
   return (
     <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md duration-200 dark:bg-black/60">
-      <div className="animate-in zoom-in-95 w-full max-w-3xl overflow-hidden rounded-[32px] border border-slate-200/50 bg-white shadow-2xl duration-300 dark:border-white/5 dark:bg-[#0b0f19]">
+      <div className="animate-in zoom-in-95 w-full max-w-3xl overflow-hidden rounded-4xl border border-slate-200/50 bg-white shadow-2xl duration-300 dark:border-white/5 dark:bg-[#0b0f19]">
         <div className="flex items-center justify-between border-b border-slate-200/50 p-6 dark:border-white/5">
           <h3 className="flex items-center gap-3 text-lg font-black text-slate-900 dark:text-white">
             <div className="bg-primary-50 dark:bg-primary-500/10 rounded-xl p-2">
@@ -135,7 +135,7 @@ function CustomOrderModal({ onClose }: { onClose: () => void }) {
   if (confirmed) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-        <div className="animate-in zoom-in-95 w-full max-w-md rounded-[32px] border border-emerald-500/20 bg-white p-8 text-center shadow-[0_0_100px_rgba(16,185,129,0.1)] duration-500 dark:bg-[#0b0f19]">
+        <div className="animate-in zoom-in-95 w-full max-w-md rounded-4xl border border-emerald-500/20 bg-white p-8 text-center shadow-[0_0_100px_rgba(16,185,129,0.1)] duration-500 dark:bg-[#0b0f19]">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
             <Check className="h-10 w-10 text-emerald-500" />
           </div>
@@ -172,7 +172,7 @@ function CustomOrderModal({ onClose }: { onClose: () => void }) {
 
           <button
             onClick={onClose}
-            className="w-full rounded-[16px] bg-emerald-500 py-4 text-[14px] font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all hover:bg-emerald-400 active:scale-95"
+            className="w-full rounded-2xl bg-emerald-500 py-4 text-[14px] font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all hover:bg-emerald-400 active:scale-95"
           >
             Return to Editor
           </button>
@@ -183,7 +183,7 @@ function CustomOrderModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 py-10 backdrop-blur-sm">
-      <div className="animate-in zoom-in-95 my-auto w-full max-w-5xl overflow-hidden rounded-[32px] border border-black/10 bg-white shadow-2xl duration-300 dark:border-white/10 dark:bg-[#0b0f19]">
+      <div className="animate-in zoom-in-95 my-auto w-full max-w-5xl overflow-hidden rounded-4xl border border-black/10 bg-white shadow-2xl duration-300 dark:border-white/10 dark:bg-[#0b0f19]">
         <div className="flex flex-col items-start justify-between gap-4 border-b border-black/5 p-6 sm:flex-row sm:items-center sm:p-8 dark:border-white/5">
           <div>
             <h3 className="mb-1 flex items-center gap-3 text-2xl font-bold text-slate-900 dark:text-white">
@@ -236,7 +236,7 @@ function CustomOrderModal({ onClose }: { onClose: () => void }) {
               <FieldGroup label="Design Instructions">
                 <textarea
                   placeholder="Tell us how you want it to look... colors, feeling, style."
-                  className="focus:border-primary-500 focus:ring-primary-500 min-h-[100px] w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:border-white/10 dark:bg-slate-800 dark:text-white"
+                  className="focus:border-primary-500 focus:ring-primary-500 min-h-25 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:border-white/10 dark:bg-slate-800 dark:text-white"
                 ></textarea>
               </FieldGroup>
               <FieldGroup label="Upload Logo / Assets">
@@ -302,7 +302,7 @@ function CustomOrderModal({ onClose }: { onClose: () => void }) {
                   setConfirmed(true)
                   localStorage.setItem('customOrderPlaced', Date.now().toString())
                 }}
-                className="bg-primary-600 hover:bg-primary-700 w-full rounded-[16px] px-6 py-4 text-[15px] font-black text-white shadow-sm transition-all active:scale-95"
+                className="bg-primary-600 hover:bg-primary-700 w-full rounded-2xl px-6 py-4 text-[15px] font-black text-white shadow-sm transition-all active:scale-95"
               >
                 Pay $49.99 & Order Now
               </button>
@@ -362,7 +362,7 @@ function CanvaIntegrationModal({
 
   return (
     <div className="animate-in fade-in fixed inset-0 z-100 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm duration-200 dark:bg-white/20">
-      <div className="animate-in zoom-in-95 relative w-full max-w-[400px] overflow-hidden rounded-[28px] border border-black/10 bg-white p-8 shadow-2xl duration-300 dark:border-white/10 dark:bg-[#0b0f19]">
+      <div className="animate-in zoom-in-95 relative w-full max-w-100 overflow-hidden rounded-[28px] border border-black/10 bg-white p-8 shadow-2xl duration-300 dark:border-white/10 dark:bg-[#0b0f19]">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-10 rounded-full bg-black/5 p-2 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
@@ -371,7 +371,7 @@ function CanvaIntegrationModal({
         </button>
 
         <div className="text-center">
-          <div className="mx-auto mb-6 h-20 w-20 rounded-[24px] bg-linear-to-tr from-[#00C4CC] to-[#7D2AE8] p-[2px] shadow-[0_0_30px_rgba(125,42,232,0.3)]">
+          <div className="mx-auto mb-6 h-20 w-20 rounded-3xl bg-linear-to-tr from-[#00C4CC] to-[#7D2AE8] p-0.5 shadow-[0_0_30px_rgba(125,42,232,0.3)]">
             <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-white dark:bg-[#0b0f19]">
               <Palette className="h-10 w-10 text-[#00C4CC]" />
             </div>
@@ -393,9 +393,9 @@ function CanvaIntegrationModal({
             <button
               onClick={handleConnect}
               disabled={!userId || isLoading}
-              className="w-full rounded-[16px] border border-black/10 bg-white py-4 text-[15px] font-bold text-slate-900 transition-all hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
+              className="w-full rounded-2xl border border-black/10 bg-white py-4 text-[15px] font-bold text-slate-900 transition-all hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
             >
-              {userId ? 'Connect Canva' : 'Sign in to connect Canva'}
+              {userId ? 'Connect Canva' : 'Log in to connect Canva'}
             </button>
           )}
 
@@ -408,7 +408,7 @@ function CanvaIntegrationModal({
           {step === 'connected' && (
             <button
               onClick={handleOpenEditor}
-              className="w-full rounded-[16px] bg-linear-to-r from-[#00C4CC] to-[#7D2AE8] py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(0,196,204,0.3)] transition-all hover:opacity-90 active:scale-95"
+              className="w-full rounded-2xl bg-linear-to-r from-[#00C4CC] to-[#7D2AE8] py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(0,196,204,0.3)] transition-all hover:opacity-90 active:scale-95"
             >
               Create Video with Canva
             </button>
@@ -480,7 +480,7 @@ export function Tab4HomeMedia() {
 
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl pb-12 duration-500">
-      <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-[24px] border p-6">
+      <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-3xl border p-6">
         <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Home Page Media</h3>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           Set the background, intro video and background music for your vCard homepage. All fields are optional.
@@ -489,7 +489,7 @@ export function Tab4HomeMedia() {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* Intro Video */}
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-10 w-10 items-center justify-center rounded-[14px] border">
               <Video className="text-primary-600 dark:text-primary-400 h-5 w-5" />
@@ -502,7 +502,7 @@ export function Tab4HomeMedia() {
                 Plays before your vCard loads &bull; Max 15MB
               </p>
               <div className="space-y-4">
-                <div className="focus-within:border-primary-500/50 group relative flex w-full overflow-hidden rounded-[16px] border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
+                <div className="focus-within:border-primary-500/50 group relative flex w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
                   <input
                     type="file"
                     className="hidden"
@@ -523,20 +523,20 @@ export function Tab4HomeMedia() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <button
                     onClick={() => setShowCanvaModal(true)}
-                    className="group flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#00C4CC]/30 bg-[#00C4CC]/10 px-3 py-3.5 text-[13px] font-bold whitespace-nowrap text-[#00C4CC] transition-colors hover:border-[#00C4CC] hover:bg-[#00C4CC] hover:text-white sm:px-4 sm:py-4"
+                    className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-[#00C4CC]/30 bg-[#00C4CC]/10 px-3 py-3.5 text-[13px] font-bold whitespace-nowrap text-[#00C4CC] transition-colors hover:border-[#00C4CC] hover:bg-[#00C4CC] hover:text-white sm:px-4 sm:py-4"
                   >
                     <Palette className="h-4 w-4 shrink-0 group-hover:animate-pulse" />
                     Connect Canva
                   </button>
                   <button
                     onClick={() => setShowGalleryModal(true)}
-                    className="bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 hover:dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 border-primary-500/20 hover:border-primary-500 flex w-full items-center justify-center gap-2 rounded-[16px] border px-3 py-3.5 text-[13px] font-bold whitespace-nowrap transition-colors sm:px-4 sm:py-4"
+                    className="bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 hover:dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 border-primary-500/20 hover:border-primary-500 flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-3.5 text-[13px] font-bold whitespace-nowrap transition-colors sm:px-4 sm:py-4"
                   >
                     <Grid className="h-4 w-4 shrink-0" /> Gallery
                   </button>
                   <button
                     onClick={() => setShowCustomModal(true)}
-                    className="bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 hover:dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 border-primary-500/20 hover:border-primary-500 flex w-full items-center justify-center gap-2 rounded-[16px] border px-3 py-3.5 text-[13px] font-bold whitespace-nowrap shadow-sm transition-colors sm:px-4 sm:py-4"
+                    className="bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 hover:dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 border-primary-500/20 hover:border-primary-500 flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-3.5 text-[13px] font-bold whitespace-nowrap shadow-sm transition-colors sm:px-4 sm:py-4"
                   >
                     <Wand2 className="h-4 w-4 shrink-0" /> Custom Made
                   </button>
@@ -584,7 +584,7 @@ export function Tab4HomeMedia() {
         </section>
 
         {/* Background Music */}
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10">
               <Music className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -596,7 +596,7 @@ export function Tab4HomeMedia() {
               <p className="text-[12px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                 Plays quietly in the background
               </p>
-              <div className="focus-within:border-primary-500/50 group relative flex overflow-hidden rounded-[16px] border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
+              <div className="focus-within:border-primary-500/50 group relative flex overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
                 <input
                   type="file"
                   className="hidden"
@@ -656,7 +656,7 @@ export function Tab4HomeMedia() {
         </section>
 
         {/* Background Video / Image */}
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm lg:col-span-2 dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm lg:col-span-2 dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-10 w-10 items-center justify-center rounded-[14px] border">
               <ImageIcon className="text-primary-600 dark:text-primary-400 h-5 w-5" />
@@ -668,7 +668,7 @@ export function Tab4HomeMedia() {
               <p className="text-[12px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                 Displayed as the background of your entire vCard. Image or Video loop.
               </p>
-              <div className="focus-within:border-primary-500/50 group relative flex overflow-hidden rounded-[16px] border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
+              <div className="focus-within:border-primary-500/50 group relative flex overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
                 <input
                   type="file"
                   className="hidden"

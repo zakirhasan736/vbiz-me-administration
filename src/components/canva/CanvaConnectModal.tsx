@@ -66,7 +66,7 @@ function CanvaConnectModalContent({
               disabled={!userId}
               className="w-full rounded-[16px] border border-slate-200 bg-white py-4 text-[15px] font-bold text-slate-900 transition-all hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
             >
-              {userId ? 'Connect Canva' : 'Sign in to connect Canva'}
+              {userId ? 'Connect Canva' : 'Log in to connect Canva'}
             </button>
           )}
 

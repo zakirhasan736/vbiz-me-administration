@@ -1,0 +1,228 @@
+'use client'
+
+import OtpInput, { OTP_LENGTH } from '@/components/auth/OtpInput'
+import FormErrorMessage from '@/components/shared/FormErrorMessage'
+import type { IQueryMutationErrorResponse } from '@/interfaces'
+import { useSendVerificationEmailMutation, useVerifyEmailMutation } from '@/redux/features/auth/auth.api'
+import {
+  clearEmailVerificationSession,
+  getEmailVerificationServerSnapshot,
+  getEmailVerificationSnapshot,
+  subscribeEmailVerificationSnapshot,
+} from '@/utils/emailVerification'
+import { Loader } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { toast } from 'sonner'
+
+const VerifyEmailView = () => {
+  const router = useRouter()
+  const email: string | null = useSyncExternalStore(
+    subscribeEmailVerificationSnapshot,
+    getEmailVerificationSnapshot,
+    getEmailVerificationServerSnapshot
+  )
+
+  const [otp, setOtp] = useState('')
+  const [otpError, setOtpError] = useState<string | null>(null)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
+  const [hasSentInitial, setHasSentInitial] = useState(false)
+
+  const [sendVerificationEmail, { isLoading: isSending }] = useSendVerificationEmailMutation()
+  const [verifyEmail, { isLoading: isVerifying }] = useVerifyEmailMutation()
+
+  const autoSubmitLockRef = useRef(false)
+  const initialSendStartedRef = useRef(false)
+  const isLeavingRef = useRef(false)
+
+  useEffect(() => {
+    if (email || isLeavingRef.current) return
+    toast.error('Please register first to verify your email.')
+    router.replace('/register')
+  }, [email, router])
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return
+
+    const timer = window.setInterval(() => {
+      setCooldownSeconds((prev) => Math.max(0, prev - 1))
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [cooldownSeconds])
+
+  const applyCooldown = (remainingSecond?: number, cooldownEnd?: number) => {
+    if (typeof remainingSecond === 'number' && remainingSecond > 0) {
+      setCooldownSeconds(remainingSecond)
+      return
+    }
+    if (typeof cooldownEnd === 'number') {
+      const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000)
+      setCooldownSeconds(Math.max(0, remaining))
+    }
+  }
+
+  const sendCode = async (showSuccessToast = false) => {
+    if (!email) return false
+
+    const res = await sendVerificationEmail(email)
+    const error = res.error as IQueryMutationErrorResponse | undefined
+
+    if (error) {
+      toast.error(error.data?.message || 'Failed to send verification email')
+      return false
+    }
+
+    const cooldown = res.data?.data
+    applyCooldown(cooldown?.remainingSecond, cooldown?.cooldownEnd)
+    setHasSentInitial(true)
+
+    if (showSuccessToast) {
+      toast.success('Verification code sent')
+    }
+
+    return true
+  }
+
+  useEffect(() => {
+    if (!email || initialSendStartedRef.current) return
+    initialSendStartedRef.current = true
+
+    void (async () => {
+      const res = await sendVerificationEmail(email)
+      const error = res.error as IQueryMutationErrorResponse | undefined
+
+      if (error) {
+        toast.error(error.data?.message || 'Failed to send verification email')
+        return
+      }
+
+      const cooldown = res.data?.data
+      if (typeof cooldown?.remainingSecond === 'number' && cooldown.remainingSecond > 0) {
+        setCooldownSeconds(cooldown.remainingSecond)
+      } else if (typeof cooldown?.cooldownEnd === 'number') {
+        setCooldownSeconds(Math.max(0, Math.ceil((cooldown.cooldownEnd - Date.now()) / 1000)))
+      }
+      setHasSentInitial(true)
+    })()
+  }, [email, sendVerificationEmail])
+
+  const handleVerify = async (code: string) => {
+    if (!email || isVerifying) return
+
+    const sanitized = code.replace(/\D/g, '')
+    if (sanitized.length !== OTP_LENGTH) {
+      setOtpError('Enter the 6-digit code')
+      return
+    }
+
+    setOtpError(null)
+    const res = await verifyEmail({ email, otp: Number(sanitized) })
+    const error = res.error as IQueryMutationErrorResponse | undefined
+
+    if (error) {
+      autoSubmitLockRef.current = false
+      setOtpError(error.data?.message || 'Invalid verification code')
+      toast.error(error.data?.message || 'Verification failed')
+      return
+    }
+
+    isLeavingRef.current = true
+    clearEmailVerificationSession()
+    router.replace('/login?verified=1')
+  }
+
+  const handleOtpChange = (next: string) => {
+    setOtp(next)
+    if (otpError) setOtpError(null)
+    if (next.length < OTP_LENGTH) {
+      autoSubmitLockRef.current = false
+    }
+  }
+
+  const handleOtpComplete = (code: string) => {
+    if (autoSubmitLockRef.current || isVerifying) return
+    autoSubmitLockRef.current = true
+    void handleVerify(code)
+  }
+
+  const handleResend = async () => {
+    if (cooldownSeconds > 0 || isSending || isVerifying) return
+    setOtp('')
+    setOtpError(null)
+    autoSubmitLockRef.current = false
+    await sendCode(true)
+  }
+
+  if (!email) {
+    return <div className="mb-6 h-40" aria-hidden />
+  }
+
+  const isBusy = isSending || isVerifying
+
+  return (
+    <>
+      <p className="relative z-10 mb-6 rounded-[14px] border border-slate-200 bg-slate-50 p-3 text-left text-[12px] font-medium text-slate-600 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300">
+        We sent a 6-digit code to{' '}
+        <span className="font-semibold break-all text-slate-900 dark:text-white">{email}</span>
+        {hasSentInitial ? '. Enter it below to verify your account.' : '. Sending code…'}
+      </p>
+
+      <form
+        className="relative z-10 mb-6 space-y-4"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          void handleVerify(otp)
+        }}
+      >
+        <div className="flex flex-col space-y-1.5 text-left">
+          <label
+            htmlFor="otp"
+            className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
+          >
+            Verification Code
+          </label>
+          <OtpInput
+            value={otp}
+            onChange={handleOtpChange}
+            onComplete={handleOtpComplete}
+            disabled={isBusy}
+            invalid={Boolean(otpError)}
+            autoFocus
+          />
+          {otpError ? <FormErrorMessage message={otpError} /> : null}
+        </div>
+
+        <button
+          type="submit"
+          disabled={isBusy || otp.length !== OTP_LENGTH}
+          className="bg-primary-600 hover:bg-primary-700 mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-semibold text-white shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isVerifying ? <Loader className="h-4 w-4 animate-spin" /> : null}
+          {isVerifying ? 'Verifying...' : 'Verify Email'}
+        </button>
+
+        <div className="pt-1 text-center">
+          {cooldownSeconds > 0 ? (
+            <p className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+              Resend code in{' '}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{cooldownSeconds}s</span>
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleResend()}
+              disabled={isBusy}
+              className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 text-[12px] font-semibold transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSending ? 'Sending...' : 'Resend code'}
+            </button>
+          )}
+        </div>
+      </form>
+    </>
+  )
+}
+
+export default VerifyEmailView

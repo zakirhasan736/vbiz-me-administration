@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@/components/Auth'
+import { useAuth } from '@/components/auth/Auth'
 import { CanvaConnectRow } from '@/components/canva'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
@@ -186,7 +186,7 @@ function Toggle({
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
         />
-        <div className="peer peer-checked:bg-primary-600 h-6 w-11 rounded-full bg-slate-200 shadow-sm peer-hover:bg-slate-300 peer-focus:outline-none after:absolute after:top-[.125rem] after:left-[.125rem] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-slate-700 dark:peer-hover:bg-slate-600"></div>
+        <div className="peer peer-checked:bg-primary-600 h-6 w-11 rounded-full bg-slate-200 shadow-sm peer-hover:bg-slate-300 peer-focus:outline-none after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-slate-700 dark:peer-hover:bg-slate-600"></div>
       </label>
     </div>
   )
@@ -494,9 +494,9 @@ function TemplateDesigner() {
               onClick={() => setWallpaperStyle('Pattern')}
               isPro
             >
-              <div className="grid h-12 w-12 grid-cols-3 grid-rows-3 gap-[.125rem] overflow-hidden rounded-[.625rem] bg-[#e2e4e9] p-1">
+              <div className="grid h-12 w-12 grid-cols-3 grid-rows-3 gap-0.5 overflow-hidden rounded-[.625rem] bg-[#e2e4e9] p-1">
                 {[...Array(9)].map((_, i) => (
-                  <div key={i} className="rounded-[.125rem] bg-white dark:bg-[#0b0f19]" />
+                  <div key={i} className="rounded-xs bg-white dark:bg-[#0b0f19]" />
                 ))}
               </div>
             </OptionCard>
@@ -773,7 +773,7 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col pb-12 duration-500">
       <div className="relative flex min-h-212.5 w-full flex-col overflow-hidden rounded-[2.5rem] border border-black/10 bg-slate-100/80 shadow-sm backdrop-blur-2xl md:flex-row dark:border-white/10 dark:bg-[#0b0f19]/80">
         {/* Subtle inner top highlight */}
-        <div className="absolute inset-x-0 top-0 z-20 h-[.125rem] bg-linear-to-r from-transparent via-white/20 to-transparent" />
+        <div className="absolute inset-x-0 top-0 z-20 h-0.5 bg-linear-to-r from-transparent via-white/20 to-transparent" />
 
         {/* Left Sidebar for Settings */}
         <div
