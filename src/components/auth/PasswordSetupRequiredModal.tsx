@@ -1,7 +1,7 @@
 'use client'
 
 import SocialLogin from '@/components/auth/SocialLogin'
-import { Modal } from '@/components/ui/Modal'
+import { Button, Modal } from '@/components/ui'
 import { PASSWORD_SETUP_RESEND_COOLDOWN_SECONDS } from '@/constants'
 import type { IQueryMutationErrorResponse } from '@/interfaces'
 import { useResendPasswordSetupMutation } from '@/redux/features/auth/auth.api'
@@ -92,14 +92,17 @@ const PasswordSetupRequiredModal = ({ open, onClose, email, providers }: Passwor
               </span>
             </p>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => void handleResend()}
               disabled={isResending}
-              className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 w-full text-center text-[13px] font-semibold transition-colors disabled:opacity-60"
+              loading={isResending}
+              className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 h-auto w-full px-0 text-[13px] hover:bg-transparent"
             >
               {isResending ? 'Sending…' : 'Resend setup link'}
-            </button>
+            </Button>
           )}
         </div>
 
@@ -114,13 +117,9 @@ const PasswordSetupRequiredModal = ({ open, onClose, email, providers }: Passwor
 
         <SocialLogin />
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-4 w-full rounded-2xl border border-slate-200 py-3 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
-        >
+        <Button type="button" variant="outline" size="lg" onClick={onClose} className="mt-4 w-full rounded-2xl">
           Close
-        </button>
+        </Button>
       </div>
     </Modal>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { Modal } from '@/components/ui/Modal'
+import { Button, Modal } from '@/components/ui'
 import { downloadQrCanvasFromContainer, readImageFileAsDataUrl } from '@/utils/vcard'
 import { Download, Image as ImageIcon, QrCode, X } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -27,24 +27,27 @@ export function QrCodeModal({ url, onClose }: QrCodeModalProps) {
     <Modal
       open
       onClose={onClose}
-      className="flex max-w-md flex-col overflow-hidden rounded-[32px] border-slate-200/50 dark:border-white/10"
+      className="flex max-w-md flex-col overflow-hidden rounded-4xl border-slate-200/50 dark:border-white/10"
     >
       <div className="flex items-center justify-between border-b border-slate-200/50 px-6 py-5 dark:border-white/5">
         <h3 className="flex items-center gap-2 text-[18px] font-black text-slate-900 dark:text-white">
           <QrCode className="text-primary-500 h-5 w-5" />
           vCard QR Code
         </h3>
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={onClose}
-          className="-mr-2 rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="-mr-2 rounded-full text-slate-500"
         >
           <X className="h-5 w-5" />
-        </button>
+        </Button>
       </div>
 
       <div className="hidden-scrollbar flex flex-1 flex-col gap-6 overflow-y-auto p-6 md:p-8">
         <div
-          className="flex items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-white/5 dark:bg-white/2"
+          className="flex items-center justify-center rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-white/5 dark:bg-white/2"
           ref={qrRef}
         >
           <QRCodeCanvas
@@ -101,23 +104,28 @@ export function QrCodeModal({ url, onClose }: QrCodeModalProps) {
             </span>
           </label>
           {qrLogo && (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setQrLogo(null)}
-              className="self-start pl-1 text-[12px] font-medium text-red-500 hover:underline"
+              className="h-auto self-start px-1 text-[12px] font-medium text-red-500 hover:bg-transparent hover:underline"
             >
               Remove Logo
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       <div className="border-t border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/1">
-        <button
+        <Button
+          type="button"
           onClick={() => downloadQrCanvasFromContainer(qrRef.current)}
-          className="bg-primary-600 hover:bg-primary-700 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[14px] font-bold text-white shadow-sm transition-all active:scale-[0.98]"
+          leftIcon={Download}
+          className="w-full rounded-xl py-3.5 font-bold"
         >
-          <Download className="h-4 w-4" /> Download QR Code
-        </button>
+          Download QR Code
+        </Button>
       </div>
     </Modal>
   )

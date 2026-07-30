@@ -3,13 +3,14 @@
 import ForgotPasswordSentModal from '@/components/auth/ForgotPasswordSentModal'
 import PasswordSetupRequiredModal from '@/components/auth/PasswordSetupRequiredModal'
 import FormErrorMessage from '@/components/shared/FormErrorMessage'
+import { Button, Input } from '@/components/ui'
 import type { TPasswordSetupRequiredData } from '@/interfaces'
 import type { IQueryMutationErrorResponse } from '@/interfaces/queryMutationErrorResponse'
 import { useForgotPasswordMutation } from '@/redux/features/auth/auth.api'
 import { cn } from '@/utils/cn'
 import { getPasswordSetupRequiredData, isPasswordSetupRequired } from '@/utils/passwordSetup'
 import { Form, Formik } from 'formik'
-import { Loader, Mail } from 'lucide-react'
+import { Mail } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import * as yup from 'yup'
@@ -68,43 +69,23 @@ const ForgotPasswordView = () => {
                 >
                   Email Address
                 </label>
-                <div className="relative">
-                  <Mail
-                    className={cn(
-                      'pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 transition-colors',
-                      emailInvalid
-                        ? 'text-red-500'
-                        : 'group-focus-within:text-primary-600 text-slate-400 dark:text-slate-500'
-                    )}
-                  />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={values.email}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="you@email.com"
-                    aria-invalid={emailInvalid}
-                    className={cn(
-                      'w-full rounded-[14px] border bg-slate-50 py-3.5 pr-4 pl-11 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:bg-slate-800 dark:text-white',
-                      emailInvalid
-                        ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500 dark:border-red-500/60 dark:bg-red-500/10'
-                        : 'focus:border-primary-500 focus:ring-primary-500 border-slate-200 dark:border-white/10'
-                    )}
-                  />
-                </div>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={values.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="you@email.com"
+                  invalid={emailInvalid}
+                  leftIcon={Mail}
+                />
                 {emailInvalid ? <FormErrorMessage message={errors.email!} /> : null}
               </div>
 
-              <button
-                type="submit"
-                className="bg-primary-600 hover:bg-primary-700 mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-semibold text-white shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={isLoading}
-              >
-                {isLoading ? <Loader className="h-4 w-4 animate-spin" /> : null}
+              <Button type="submit" size="lg" loading={isLoading} className="mt-2 w-full py-4">
                 {isLoading ? 'Sending…' : 'Send reset link'}
-              </button>
+              </Button>
             </Form>
           )
         }}

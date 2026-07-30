@@ -180,7 +180,7 @@ export const HomeSectionV2 = () => {
     <div className="vbiz-bento-grid grid w-full grid-cols-1 gap-4 pb-20 md:grid-cols-3 lg:grid-cols-4">
       {/* Bio / Intro Card - Takes up 3 cols on desktop */}
       <div
-        className="group relative flex min-h-[360px] flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white p-8 md:col-span-3 lg:col-span-3 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900"
+        className="group relative flex min-h-90 flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white p-8 md:col-span-3 lg:col-span-3 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900"
         style={bannerBg ? { backgroundColor: bannerBg } : undefined}
       >
         {/* Background Video */}
@@ -291,7 +291,7 @@ export const HomeSectionV2 = () => {
 
       {/* Location / Map Style Bento */}
       {isVisible('MyInfo Address') && personal.address && (
-        <div className="group relative flex min-h-[220px] items-center overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 backdrop-blur-xl transition-all duration-500 hover:border-zinc-300 md:col-span-1 lg:col-span-1 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700">
+        <div className="group relative flex min-h-55 items-center overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 backdrop-blur-xl transition-all duration-500 hover:border-zinc-300 md:col-span-1 lg:col-span-1 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700">
           <div
             className="pointer-events-none absolute inset-0 bg-white opacity-50 mix-blend-overlay saturate-0 transition-all duration-1000 group-hover:saturate-100 dark:bg-zinc-950"
             style={{

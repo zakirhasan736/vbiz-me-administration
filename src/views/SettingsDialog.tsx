@@ -4,7 +4,7 @@ import { CanvaConnectRow } from '@/components/canva'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
 import ChangePasswordForm from '@/components/settings/ChangePasswordForm'
 import SetPasswordForm from '@/components/settings/SetPasswordForm'
-import { Modal } from '@/components/ui/Modal'
+import { Button, Input, Modal, Switch, Textarea } from '@/components/ui'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useTheme } from '@/lib/ThemeProvider'
@@ -35,9 +35,6 @@ import { motion } from 'motion/react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, type MouseEventHandler, type ReactNode } from 'react'
-
-const inputClasses =
-  'w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-[14px] px-4 py-3.5 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 shadow-sm'
 
 const sectionsGroups = [
   {
@@ -178,13 +175,12 @@ function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; o
           >
             Business title
           </label>
-          <input
+          <Input
             id="live-agent-business-title"
             type="text"
             value={businessTitle}
             onChange={(e) => setBusinessTitle(e.target.value)}
             placeholder="Enter your business title"
-            className={inputClasses}
           />
         </div>
 
@@ -195,22 +191,24 @@ function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; o
           >
             Business description
           </label>
-          <textarea
+          <Textarea
             id="live-agent-business-description"
             value={businessDescription}
             onChange={(e) => setBusinessDescription(e.target.value)}
             placeholder="Describe your business for the live agent"
-            className={inputClasses + ' min-h-25 resize-none'}
+            className="min-h-25 resize-none"
           />
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="dark"
+          size="lg"
           onClick={handleConnect}
-          className="w-full rounded-2xl bg-slate-900 py-4 text-[15px] font-bold text-white transition-all hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.3)] active:scale-95 dark:bg-white dark:text-slate-900"
+          className="w-full py-4 text-[15px] font-bold"
         >
           Connect Live Agent
-        </button>
+        </Button>
       </div>
     </Modal>
   )
@@ -312,21 +310,7 @@ function ToggleRow({
         <h4 className="mb-0.5 text-[14px] font-bold text-slate-900 dark:text-white">{title}</h4>
         <p className="text-[13px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">{description}</p>
       </div>
-      <button
-        type="button"
-        onClick={onChange}
-        className={cn(
-          'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full shadow-inner transition-colors',
-          checked ? 'bg-primary-500' : 'bg-slate-200 dark:bg-slate-700'
-        )}
-      >
-        <span
-          className={cn(
-            'inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-300',
-            checked ? 'translate-x-5.5' : 'translate-x-1'
-          )}
-        />
-      </button>
+      <Switch checked={Boolean(checked)} onChange={onChange} />
     </label>
   )
 }
@@ -563,12 +547,17 @@ export default function SettingsDialog() {
                     {user?.email}
                   </p>
                   <div className="flex flex-wrap gap-2 sm:gap-3">
-                    <button className="flex h-10 items-center rounded-[14px] border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-900 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md active:scale-95 sm:px-5 dark:border-white/10 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
+                    <Button type="button" variant="secondary" size="sm" className="h-10 px-4 font-bold sm:px-5">
                       Upload new
-                    </button>
-                    <button className="flex h-10 items-center rounded-[14px] bg-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-all hover:bg-red-50 hover:text-red-600 active:scale-95 sm:px-5 dark:hover:bg-red-500/10 dark:hover:text-red-400">
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 px-4 font-bold text-slate-500 hover:bg-red-50 hover:text-red-600 sm:px-5 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                    >
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -579,26 +568,18 @@ export default function SettingsDialog() {
                     <label className="group-focus-within:text-primary-500 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors dark:text-slate-400">
                       Display Name
                     </label>
-                    <input
-                      type="text"
-                      defaultValue={user?.displayName || ''}
-                      className={inputClasses}
-                      placeholder="Jane Doe"
-                    />
+                    <Input type="text" defaultValue={user?.displayName || ''} placeholder="Jane Doe" />
                   </div>
                   <div className="group min-w-0 space-y-2">
                     <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                       Email Address
                     </label>
                     <div className="relative min-w-0">
-                      <input
+                      <Input
                         type="email"
                         defaultValue={user?.email || ''}
                         readOnly
-                        className={
-                          inputClasses +
-                          ' cursor-not-allowed truncate bg-slate-100 pr-22 opacity-60 sm:pr-28 dark:bg-slate-800/50'
-                        }
+                        className="cursor-not-allowed truncate bg-slate-100 pr-22 opacity-60 sm:pr-28 dark:bg-slate-800/50"
                       />
                       <span className="pointer-events-none absolute top-1/2 right-2 max-w-[40%] -translate-y-1/2 truncate rounded-md bg-slate-200 px-1.5 py-1 text-[9px] font-bold tracking-wider text-slate-500 uppercase sm:right-3 sm:max-w-none sm:px-2 sm:text-[10px] sm:tracking-widest dark:bg-slate-700 dark:text-slate-400">
                         Read Only
@@ -610,29 +591,21 @@ export default function SettingsDialog() {
                   <label className="group-focus-within:text-primary-500 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors dark:text-slate-400">
                     Location
                   </label>
-                  <input
-                    type="text"
-                    defaultValue="San Francisco, CA"
-                    className={inputClasses}
-                    placeholder="e.g. San Francisco, CA"
-                  />
+                  <Input type="text" defaultValue="San Francisco, CA" placeholder="e.g. San Francisco, CA" />
                 </div>
                 <div className="group space-y-2">
                   <label className="group-focus-within:text-primary-500 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors dark:text-slate-400">
                     Bio
                   </label>
-                  <textarea
-                    placeholder="Write a short bio about yourself..."
-                    className={inputClasses + ' min-h-30 resize-none'}
-                  ></textarea>
+                  <Textarea placeholder="Write a short bio about yourself..." className="min-h-30 resize-none" />
                   <p className="pr-2 text-right text-[12px] text-slate-400">Max 160 characters</p>
                 </div>
               </div>
 
               <div className="flex border-t border-slate-200/50 pt-4 sm:justify-end dark:border-white/5">
-                <button className="w-full rounded-2xl bg-slate-900 px-8 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_20px_-6px_rgba(0,0,0,0.3)] transition-all hover:shadow-[0_8px_25px_-6px_rgba(0,0,0,0.4)] active:scale-95 sm:w-auto dark:bg-white dark:text-slate-900">
+                <Button type="button" variant="dark" size="lg" className="w-full px-8 font-bold sm:w-auto">
                   Save Changes
-                </button>
+                </Button>
               </div>
             </Section>
 
@@ -839,18 +812,14 @@ export default function SettingsDialog() {
                 <div>
                   <h4 className="mb-3 pl-1 text-[14px] font-bold text-slate-900 dark:text-white">Facebook</h4>
                   <div className="space-y-4 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
-                    <input type="text" placeholder="Pixel ID (Example: 1234567890)" className={inputClasses} />
-                    <input type="text" placeholder="Facebook Conversions API Access Token" className={inputClasses} />
+                    <Input type="text" placeholder="Pixel ID (Example: 1234567890)" />
+                    <Input type="text" placeholder="Facebook Conversions API Access Token" />
                   </div>
                 </div>
                 <div>
                   <h4 className="mb-3 pl-1 text-[14px] font-bold text-slate-900 dark:text-white">Google</h4>
                   <div className="rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
-                    <input
-                      type="text"
-                      placeholder="Google Measurement ID (Example: G-XXXXXXX)"
-                      className={inputClasses}
-                    />
+                    <Input type="text" placeholder="Google Measurement ID (Example: G-XXXXXXX)" />
                   </div>
                 </div>
 
@@ -929,11 +898,11 @@ export default function SettingsDialog() {
                     Changes to metadata may take some time to appear on other platforms.
                   </p>
                   <div className="space-y-4 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
-                    <input type="text" placeholder="Meta title (Example: @yourname)" className={inputClasses} />
-                    <textarea
+                    <Input type="text" placeholder="Meta title (Example: @yourname)" />
+                    <Textarea
                       placeholder="Meta description (Example: Make your link do more.)"
-                      className={inputClasses + ' min-h-25 resize-none'}
-                    ></textarea>
+                      className="min-h-25 resize-none"
+                    />
                   </div>
                 </div>
 

@@ -2,6 +2,7 @@
 
 import OtpInput, { OTP_LENGTH } from '@/components/auth/OtpInput'
 import FormErrorMessage from '@/components/shared/FormErrorMessage'
+import { Button } from '@/components/ui'
 import type { IQueryMutationErrorResponse } from '@/interfaces'
 import { useSendVerificationEmailMutation, useVerifyEmailMutation } from '@/redux/features/auth/auth.api'
 import {
@@ -12,7 +13,6 @@ import {
   storeEmailVerificationSession,
   subscribeEmailVerificationSnapshot,
 } from '@/utils/emailVerification'
-import { Loader } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
@@ -178,14 +178,15 @@ const VerifyEmailView = () => {
           {otpError ? <FormErrorMessage message={otpError} /> : null}
         </div>
 
-        <button
+        <Button
           type="submit"
+          size="lg"
+          loading={isVerifying}
           disabled={isBusy || otp.length !== OTP_LENGTH}
-          className="bg-primary-600 hover:bg-primary-700 mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-semibold text-white shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
+          className="mt-2 w-full py-4"
         >
-          {isVerifying ? <Loader className="h-4 w-4 animate-spin" /> : null}
           {isVerifying ? 'Verifying...' : 'Verify Email'}
-        </button>
+        </Button>
 
         <div className="pt-1 text-center">
           {cooldownSeconds > 0 ? (
@@ -194,14 +195,17 @@ const VerifyEmailView = () => {
               <span className="font-semibold text-slate-700 dark:text-slate-200">{cooldownSeconds}s</span>
             </p>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => void handleResend()}
               disabled={isBusy}
-              className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 text-[12px] font-semibold transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              loading={isSending}
+              className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 h-auto px-0 text-[12px] hover:bg-transparent"
             >
               {isSending ? 'Sending...' : 'Resend code'}
-            </button>
+            </Button>
           )}
         </div>
       </form>

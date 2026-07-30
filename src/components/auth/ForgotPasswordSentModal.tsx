@@ -1,6 +1,6 @@
 'use client'
 
-import { Modal } from '@/components/ui/Modal'
+import { Button, Modal } from '@/components/ui'
 import { CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -40,13 +40,9 @@ const ForgotPasswordSentModal = ({ open, onClose, email }: ForgotPasswordSentMod
           Back to login
         </Link>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full rounded-2xl border border-slate-200 py-3 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
-        >
+        <Button type="button" variant="outline" size="lg" onClick={onClose} className="w-full rounded-2xl">
           Close
-        </button>
+        </Button>
       </div>
     </Modal>
   )

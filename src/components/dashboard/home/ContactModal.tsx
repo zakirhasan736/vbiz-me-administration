@@ -1,7 +1,6 @@
 'use client'
 
-import { Modal } from '@/components/ui/Modal'
-import { cn } from '@/utils/cn'
+import { Button, Modal, Select, Textarea } from '@/components/ui'
 import { AlertCircle, ArrowUpRight, Check, MessageCircle, X } from 'lucide-react'
 import { useState } from 'react'
 
@@ -22,12 +21,9 @@ export function ContactModal({ onClose }: ContactModalProps) {
         <p className="mb-8 text-[13px] font-medium text-slate-500 dark:text-slate-400">
           Our support team will get back to you shortly.
         </p>
-        <button
-          onClick={onClose}
-          className="w-full rounded-2xl bg-slate-900 py-3 text-[14px] font-semibold text-white transition-all hover:bg-slate-800 active:scale-95 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
-        >
+        <Button type="button" variant="dark" size="lg" onClick={onClose} className="w-full">
           Close
-        </button>
+        </Button>
       </Modal>
     )
   }
@@ -41,12 +37,15 @@ export function ContactModal({ onClose }: ContactModalProps) {
           </span>
           Contact Support
         </h3>
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={onClose}
-          className="rounded-full bg-slate-50 p-2 transition-colors hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700"
+          className="rounded-full bg-slate-50 dark:bg-slate-800"
         >
           <X className="h-4 w-4 text-slate-500" />
-        </button>
+        </Button>
       </div>
       <div className="space-y-6 p-6 sm:px-8 sm:pb-8">
         <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
@@ -59,31 +58,29 @@ export function ContactModal({ onClose }: ContactModalProps) {
         <div className="space-y-5 text-sm">
           <div className="group flex flex-col space-y-2">
             <label className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">Subject</label>
-            <div className="relative">
-              <select className="focus:border-primary-500 focus:ring-primary-500 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-[14px] font-medium text-slate-900 transition-all outline-none focus:ring-1 dark:border-white/10 dark:bg-slate-800/50 dark:text-white">
-                <option>Order Status Inquiry</option>
-                <option>Report an Issue</option>
-                <option>Other</option>
-              </select>
-            </div>
+            <Select className="cursor-pointer rounded-xl dark:bg-slate-800/50">
+              <option>Order Status Inquiry</option>
+              <option>Report an Issue</option>
+              <option>Other</option>
+            </Select>
           </div>
           <div className="group flex flex-col space-y-2">
             <label className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">Message</label>
-            <textarea
+            <Textarea
               placeholder="How can we help you?"
-              className="focus:border-primary-500 focus:ring-primary-500 min-h-30 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-[14px] font-medium text-slate-900 transition-all outline-none focus:ring-1 dark:border-white/10 dark:bg-slate-800/50 dark:text-white"
-            ></textarea>
+              className="min-h-30 resize-none rounded-xl dark:bg-slate-800/50"
+            />
           </div>
         </div>
 
-        <button
+        <Button
+          type="button"
           onClick={() => setSent(true)}
-          className={cn(
-            'bg-primary-600 hover:bg-primary-700 shadow-primary-500/20 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 text-[14px] font-bold text-white shadow-sm transition-all active:scale-95'
-          )}
+          rightIcon={ArrowUpRight}
+          className="shadow-primary-500/20 w-full rounded-xl px-6 py-4 font-bold"
         >
-          Send Message <ArrowUpRight className="h-4 w-4" />
-        </button>
+          Send Message
+        </Button>
       </div>
     </Modal>
   )

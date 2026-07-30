@@ -3,6 +3,7 @@
 import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import PasswordSetupRequiredModal from '@/components/auth/PasswordSetupRequiredModal'
 import FormErrorMessage from '@/components/shared/FormErrorMessage'
+import { Button, Input, Select } from '@/components/ui'
 import { USER_ROLE_LABELS, USER_ROLES } from '@/constants/userRole'
 import type {
   IQueryMutationErrorResponse,
@@ -16,7 +17,7 @@ import { storeEmailVerificationSession } from '@/utils/emailVerification'
 import { getPasswordSetupRequiredData, isPasswordSetupRequired } from '@/utils/passwordSetup'
 import { passwordNotEqualToEmailField } from '@/utils/passwordValidation'
 import { Form, Formik } from 'formik'
-import { Briefcase, ChevronDown, Eye, EyeOff, Loader, Lock, Mail, User } from 'lucide-react'
+import { Briefcase, Lock, Mail, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -47,8 +48,6 @@ const validationSchema = yup.object().shape({
 })
 
 const RegisterView = () => {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordSetup, setPasswordSetup] = useState<TPasswordSetupRequiredData | null>(null)
   const [register, { isLoading }] = useRegisterMutation()
   const router = useRouter()
@@ -106,32 +105,17 @@ const RegisterView = () => {
                 >
                   Full Name
                 </label>
-                <div className="relative">
-                  <User
-                    className={cn(
-                      'pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 transition-colors',
-                      nameInvalid
-                        ? 'text-red-500'
-                        : 'group-focus-within:text-primary-600 text-slate-400 dark:text-slate-500'
-                    )}
-                  />
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    value={values.name}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="John Doe"
-                    aria-invalid={nameInvalid}
-                    className={cn(
-                      'w-full rounded-[14px] border bg-slate-50 py-3.5 pr-4 pl-11 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:bg-slate-800 dark:text-white',
-                      nameInvalid
-                        ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500 dark:border-red-500/60 dark:bg-red-500/10'
-                        : 'focus:border-primary-500 focus:ring-primary-500 border-slate-200 dark:border-white/10'
-                    )}
-                  />
-                </div>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  value={values.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="John Doe"
+                  invalid={nameInvalid}
+                  leftIcon={User}
+                />
                 {nameInvalid ? <FormErrorMessage message={errors.name!} /> : null}
               </div>
 
@@ -147,32 +131,17 @@ const RegisterView = () => {
                 >
                   Email Address
                 </label>
-                <div className="relative">
-                  <Mail
-                    className={cn(
-                      'pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 transition-colors',
-                      emailInvalid
-                        ? 'text-red-500'
-                        : 'group-focus-within:text-primary-600 text-slate-400 dark:text-slate-500'
-                    )}
-                  />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={values.email}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="you@email.com"
-                    aria-invalid={emailInvalid}
-                    className={cn(
-                      'w-full rounded-[14px] border bg-slate-50 py-3.5 pr-4 pl-11 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:bg-slate-800 dark:text-white',
-                      emailInvalid
-                        ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500 dark:border-red-500/60 dark:bg-red-500/10'
-                        : 'focus:border-primary-500 focus:ring-primary-500 border-slate-200 dark:border-white/10'
-                    )}
-                  />
-                </div>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={values.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="you@email.com"
+                  invalid={emailInvalid}
+                  leftIcon={Mail}
+                />
                 {emailInvalid ? <FormErrorMessage message={errors.email!} /> : null}
               </div>
 
@@ -188,48 +157,25 @@ const RegisterView = () => {
                 >
                   Account Type
                 </label>
-                <div className="relative">
-                  <Briefcase
-                    className={cn(
-                      'pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 transition-colors',
-                      roleInvalid
-                        ? 'text-red-500'
-                        : 'group-focus-within:text-primary-600 text-slate-400 dark:text-slate-500'
-                    )}
-                  />
-                  <select
-                    id="role"
-                    name="role"
-                    value={values.role}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    aria-invalid={roleInvalid}
-                    className={cn(
-                      'w-full appearance-none rounded-[14px] border bg-slate-50 py-3.5 pr-11 pl-11 text-[13px] font-medium shadow-sm transition-all outline-none focus:ring-1 dark:bg-slate-800',
-                      !values.role ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white',
-                      roleInvalid
-                        ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500 dark:border-red-500/60 dark:bg-red-500/10'
-                        : 'focus:border-primary-500 focus:ring-primary-500 border-slate-200 dark:border-white/10'
-                    )}
-                  >
-                    <option value="" disabled>
-                      Select account type
+                <Select
+                  id="role"
+                  name="role"
+                  value={values.role}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  invalid={roleInvalid}
+                  leftIcon={Briefcase}
+                  className={!values.role ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}
+                >
+                  <option value="" disabled>
+                    Select account type
+                  </option>
+                  {PUBLIC_REGISTER_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {USER_ROLE_LABELS[role]}
                     </option>
-                    {PUBLIC_REGISTER_ROLES.map((role) => (
-                      <option key={role} value={role}>
-                        {USER_ROLE_LABELS[role]}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    className={cn(
-                      'pointer-events-none absolute top-1/2 right-4 z-10 h-4 w-4 -translate-y-1/2 transition-colors',
-                      roleInvalid
-                        ? 'text-red-500'
-                        : 'group-focus-within:text-primary-600 text-slate-400 dark:text-slate-500'
-                    )}
-                  />
-                </div>
+                  ))}
+                </Select>
                 {roleInvalid ? <FormErrorMessage message={errors.role!} /> : null}
               </div>
 
@@ -245,40 +191,17 @@ const RegisterView = () => {
                 >
                   Password
                 </label>
-                <div className="relative">
-                  <Lock
-                    className={cn(
-                      'pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 transition-colors',
-                      passwordInvalid
-                        ? 'text-red-500'
-                        : 'group-focus-within:text-primary-600 text-slate-400 dark:text-slate-500'
-                    )}
-                  />
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={values.password}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="••••••••"
-                    aria-invalid={passwordInvalid}
-                    className={cn(
-                      'w-full rounded-[14px] border bg-slate-50 py-3.5 pr-11 pl-11 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:bg-slate-800 dark:text-white',
-                      passwordInvalid
-                        ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500 dark:border-red-500/60 dark:bg-red-500/10'
-                        : 'focus:border-primary-500 focus:ring-primary-500 border-slate-200 dark:border-white/10'
-                    )}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute top-1/2 right-3.5 z-10 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={values.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="••••••••"
+                  invalid={passwordInvalid}
+                  leftIcon={Lock}
+                />
                 <PasswordRulesTags password={values.password} email={values.email} />
                 {passwordInvalid && !values.password ? <FormErrorMessage message={errors.password!} /> : null}
               </div>
@@ -295,51 +218,23 @@ const RegisterView = () => {
                 >
                   Confirm Password
                 </label>
-                <div className="relative">
-                  <Lock
-                    className={cn(
-                      'pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 transition-colors',
-                      confirmPasswordInvalid
-                        ? 'text-red-500'
-                        : 'group-focus-within:text-primary-600 text-slate-400 dark:text-slate-500'
-                    )}
-                  />
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={values.confirmPassword}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="••••••••"
-                    aria-invalid={confirmPasswordInvalid}
-                    className={cn(
-                      'w-full rounded-[14px] border bg-slate-50 py-3.5 pr-11 pl-11 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:bg-slate-800 dark:text-white',
-                      confirmPasswordInvalid
-                        ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500 dark:border-red-500/60 dark:bg-red-500/10'
-                        : 'focus:border-primary-500 focus:ring-primary-500 border-slate-200 dark:border-white/10'
-                    )}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                    className="absolute top-1/2 right-3.5 z-10 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  value={values.confirmPassword}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="••••••••"
+                  invalid={confirmPasswordInvalid}
+                  leftIcon={Lock}
+                />
                 {confirmPasswordInvalid ? <FormErrorMessage message={errors.confirmPassword!} /> : null}
               </div>
 
-              <button
-                type="submit"
-                className="bg-primary-600 hover:bg-primary-700 mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-semibold text-white shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={isLoading}
-              >
-                {isLoading ? <Loader className="h-4 w-4 animate-spin" /> : null}
+              <Button type="submit" size="lg" loading={isLoading} className="mt-2 w-full py-4">
                 {isLoading ? 'Registering...' : 'Register'}
-              </button>
+              </Button>
             </Form>
           )
         }}

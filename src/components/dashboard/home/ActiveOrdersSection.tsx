@@ -1,5 +1,6 @@
 'use client'
 
+import { Badge, Button, Card } from '@/components/ui'
 import { formatDeliveryCountdown, type TimeLeft } from '@/utils/orderTimer'
 import { Activity, Clock, MessageCircle } from 'lucide-react'
 
@@ -16,11 +17,14 @@ export function ActiveOrdersSection({ timeLeft, onContactSupport }: ActiveOrders
           <Activity className="h-4 w-4 text-slate-400" />
           Active Orders
         </h2>
-        <span className="bg-primary-500 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm">
+        <Badge
+          variant="primary"
+          className="bg-primary-500 h-5 w-5 justify-center rounded-full p-0 text-[10px] text-white"
+        >
           1
-        </span>
+        </Badge>
       </div>
-      <div className="group relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-6 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.02)] transition-all duration-500 hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.05)] sm:p-8 dark:border-white/5 dark:bg-[#0b0f19]">
+      <Card className="group relative overflow-hidden rounded-[32px] p-6 transition-all duration-500 hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.05)] sm:p-8">
         <div className="bg-primary-500/5 dark:bg-primary-500/10 absolute top-0 right-0 h-64 w-64 translate-x-1/3 -translate-y-1/2 rounded-full blur-3xl"></div>
         <div className="relative z-10 flex flex-col justify-between gap-4 sm:gap-8 lg:flex-row lg:items-center">
           <div className="flex items-center gap-5">
@@ -30,10 +34,13 @@ export function ActiveOrdersSection({ timeLeft, onContactSupport }: ActiveOrders
             <div>
               <div className="mb-1.5 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Custom Intro Video</h3>
-                <span className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 text-primary-600 dark:text-primary-400 flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1 text-[10px] font-bold tracking-widest uppercase">
+                <Badge
+                  variant="primary"
+                  className="border-primary-100 dark:border-primary-500/20 rounded-[10px] border px-2.5 py-1 text-[10px] tracking-widest uppercase"
+                >
                   <div className="bg-primary-500 h-1.5 w-1.5 animate-pulse rounded-full"></div>
                   In Progress
-                </span>
+                </Badge>
               </div>
               <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
                 Order #INV-2094 • Placed recently
@@ -55,14 +62,17 @@ export function ActiveOrdersSection({ timeLeft, onContactSupport }: ActiveOrders
             </div>
           </div>
 
-          <button
+          <Button
+            type="button"
+            variant="secondary"
             onClick={onContactSupport}
-            className="flex shrink-0 items-center justify-center gap-2 rounded-[16px] border border-slate-200 bg-white px-5 py-3.5 text-[14px] font-bold text-slate-900 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.02)] transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-[#1e2333] dark:text-white dark:hover:bg-[#252b3d]"
+            leftIcon={MessageCircle}
+            className="shrink-0 rounded-[16px] px-5 py-3.5 font-bold dark:bg-[#1e2333] dark:hover:bg-[#252b3d]"
           >
-            <MessageCircle className="text-primary-500 h-4 w-4 shrink-0" /> Support
-          </button>
+            Support
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   )
 }

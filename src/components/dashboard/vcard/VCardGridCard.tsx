@@ -1,5 +1,6 @@
 'use client'
 
+import { Badge, Button, Card, Tooltip } from '@/components/ui'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
 import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -30,12 +31,12 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
   }
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_2px_10px_-3px_rgba(6,81,237,0.03)] transition-all duration-400 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(6,81,237,0.08)] dark:border-white/10 dark:bg-[#0b0f19] dark:hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.5)]">
+    <Card className="group relative flex flex-col overflow-hidden rounded-[28px] shadow-[0_2px_10px_-3px_rgba(6,81,237,0.03)] transition-all duration-400 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(6,81,237,0.08)] dark:hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.5)]">
       <div className="absolute top-4 right-4 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-black/5 bg-white/70 text-slate-700 opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100 hover:bg-white dark:border-white/10 dark:bg-black/50 dark:text-slate-200 dark:hover:bg-slate-800">
         <MoreHorizontal className="h-4 w-4" />
       </div>
 
-      <div className="from-primary-50 to-primary-100/50 dark:from-primary-900/20 dark:to-primary-800/10 relative h-[140px] shrink-0 overflow-hidden bg-linear-to-br transition-transform duration-500 group-hover:scale-[1.02]">
+      <div className="from-primary-50 to-primary-100/50 dark:from-primary-900/20 dark:to-primary-800/10 relative h-35 shrink-0 overflow-hidden bg-linear-to-br transition-transform duration-500 group-hover:scale-[1.02]">
         <div
           className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
           style={{
@@ -44,20 +45,23 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
           }}
         ></div>
         <div className="absolute top-4 left-4 z-10">
-          <div className="flex items-center gap-1.5 rounded-full border border-black/5 bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90">
+          <Badge
+            variant={card.isActive ? 'success' : 'default'}
+            className="rounded-full border border-black/5 bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90"
+          >
             <div
               className={`h-1.5 w-1.5 rounded-full shadow-[0_0_8px_0_rgba(16,185,129,0.5)] ${card.isActive ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'}`}
             ></div>
             <span className="mt-0.5 text-[10px] font-bold tracking-widest text-slate-700 uppercase dark:text-slate-300">
               {card.isActive ? 'Active' : 'Draft'}
             </span>
-          </div>
+          </Badge>
         </div>
       </div>
 
       <div className="relative z-20 flex flex-1 flex-col bg-white px-6 pt-0 pb-6 dark:bg-[#0b0f19]">
         <div className="mb-5 flex items-end justify-between">
-          <div className="group-hover:shadow-primary-500/20 relative -mt-11 h-[88px] w-[88px] shrink-0 overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-md transition-shadow dark:border-[#0b0f19] dark:bg-slate-800">
+          <div className="group-hover:shadow-primary-500/20 relative -mt-11 h-22 w-22 shrink-0 overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-md transition-shadow dark:border-[#0b0f19] dark:bg-slate-800">
             {avatarSrc ? (
               <Image
                 src={avatarSrc}
@@ -135,56 +139,60 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
               )}
             </AnimatePresence>
           </div>
-          <button
-            type="button"
-            disabled={!fullUrl}
-            onClick={handleCopyLink}
-            className={cn(
-              'absolute top-1/2 right-3 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center overflow-hidden rounded-lg border shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-40',
-              copied
-                ? 'border-emerald-200 bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)] dark:border-emerald-500/40 dark:bg-emerald-500 dark:shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
-                : 'border-slate-200 bg-white text-slate-400 hover:bg-white hover:text-slate-700 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-slate-700 dark:hover:text-slate-200'
-            )}
-            title={copied ? 'Copied!' : 'Copy Link'}
-            aria-label={copied ? 'Link copied' : 'Copy link'}
+          <Tooltip
+            content={copied ? 'Copied!' : 'Copy Link'}
+            className="absolute top-1/2 right-3 z-10 -translate-y-1/2"
           >
-            <AnimatePresence mode="wait" initial={false}>
-              {copied ? (
-                <motion.span
-                  key="check"
-                  initial={{ scale: 0, opacity: 0, rotate: -90 }}
-                  animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                  exit={{ scale: 0, opacity: 0, rotate: 90 }}
-                  transition={{ type: 'spring', stiffness: 600, damping: 28 }}
-                  className="flex items-center justify-center"
-                >
-                  <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="copy"
-                  initial={{ scale: 0.6, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.6, opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center justify-center"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </motion.span>
+            <button
+              type="button"
+              disabled={!fullUrl}
+              onClick={handleCopyLink}
+              className={cn(
+                'flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-40',
+                copied
+                  ? 'border-emerald-200 bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)] dark:border-emerald-500/40 dark:bg-emerald-500 dark:shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
+                  : 'border-slate-200 bg-white text-slate-400 hover:bg-white hover:text-slate-700 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-slate-700 dark:hover:text-slate-200'
               )}
-            </AnimatePresence>
-            <AnimatePresence>
-              {copied && (
-                <motion.span
-                  initial={{ scale: 0.6, opacity: 0.5 }}
-                  animate={{ scale: 1.8, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5, ease: 'easeOut' }}
-                  className="pointer-events-none absolute inset-0 rounded-lg bg-emerald-400/40"
-                />
-              )}
-            </AnimatePresence>
-          </button>
+              aria-label={copied ? 'Link copied' : 'Copy link'}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {copied ? (
+                  <motion.span
+                    key="check"
+                    initial={{ scale: 0, opacity: 0, rotate: -90 }}
+                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                    exit={{ scale: 0, opacity: 0, rotate: 90 }}
+                    transition={{ type: 'spring', stiffness: 600, damping: 28 }}
+                    className="flex items-center justify-center"
+                  >
+                    <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="copy"
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.6, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center justify-center"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              <AnimatePresence>
+                {copied && (
+                  <motion.span
+                    initial={{ scale: 0.6, opacity: 0.5 }}
+                    animate={{ scale: 1.8, opacity: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    className="pointer-events-none absolute inset-0 rounded-lg bg-emerald-400/40"
+                  />
+                )}
+              </AnimatePresence>
+            </button>
+          </Tooltip>
         </div>
 
         <div className="mt-auto grid grid-cols-[1fr_1fr_auto] gap-2">
@@ -202,25 +210,29 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
               View
             </Link>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="dark"
               disabled
-              className="flex cursor-not-allowed items-center justify-center rounded-xl bg-slate-300 py-2.5 text-[13px] font-bold text-white opacity-70 dark:bg-slate-700"
+              className="rounded-xl bg-slate-300 py-2.5 opacity-70 dark:bg-slate-700"
             >
               View
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            disabled={!fullUrl}
-            onClick={() => fullUrl && onOpenQr(fullUrl)}
-            className="hover:border-primary-500/50 flex w-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white text-slate-700 shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300"
-            title="Generate QR Code"
-          >
-            <QrCode className="h-4 w-4" />
-          </button>
+          <Tooltip content="Generate QR Code">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              disabled={!fullUrl}
+              onClick={() => fullUrl && onOpenQr(fullUrl)}
+              className="hover:border-primary-500/50 w-11 rounded-xl border-2"
+            >
+              <QrCode className="h-4 w-4" />
+            </Button>
+          </Tooltip>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }

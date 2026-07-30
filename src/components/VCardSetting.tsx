@@ -1,6 +1,7 @@
 'use client'
 
 import { CanvaConnectRow } from '@/components/canva'
+import { Switch } from '@/components/ui'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
@@ -179,15 +180,7 @@ function Toggle({
           <Zap className="text-primary-600 fill-primary-600 dark:text-primary-400 dark:fill-primary-400 h-3.5 w-3.5" />
         </div>
       )}
-      <label className="group relative flex cursor-pointer items-center justify-center">
-        <input
-          type="checkbox"
-          className="peer sr-only"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <div className="peer peer-checked:bg-primary-600 h-6 w-11 rounded-full bg-slate-200 shadow-sm peer-hover:bg-slate-300 peer-focus:outline-none after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-slate-700 dark:peer-hover:bg-slate-600"></div>
-      </label>
+      <Switch checked={checked} onCheckedChange={onChange} size="sm" />
     </div>
   )
 }
