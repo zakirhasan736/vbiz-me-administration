@@ -192,5 +192,5 @@ export function useHorizontalScroll<T extends HTMLElement = HTMLDivElement>(
     '[&[data-dragging=true]]:cursor-grabbing [&[data-dragging=true]]:select-none'
   )
 
-  return { scrollRef, scrollClassName }
+  return { scrollRef, scrollClassName, didDragRef }
 }

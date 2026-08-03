@@ -22,6 +22,7 @@ import type {
   VCardSocial,
 } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
+import type { MyCardActionButtons } from '@interfaces/api/myCard'
 import React, { createContext, useContext, useMemo } from 'react'
 
 export type ProfileDisplayContextValue = {
@@ -44,6 +45,10 @@ export type ProfileDisplayContextValue = {
   pageColors: ReturnType<typeof getPageColors>
   homeMedia: ReturnType<typeof getHomeMediaUrls>
   embedded: boolean
+  cardOwnerId?: string
+  cardSlug?: string
+  profileViews: number
+  actionButtons?: MyCardActionButtons | null
 }
 
 const FALLBACK_PERSONAL: VCardPersonal = {
@@ -81,6 +86,10 @@ const defaultValue: ProfileDisplayContextValue = {
   pageColors: getPageColors(resolveDisplaySettings()),
   homeMedia: getHomeMediaUrls(resolveDisplaySettings(), FALLBACK_PERSONAL),
   embedded: false,
+  cardOwnerId: undefined,
+  cardSlug: undefined,
+  profileViews: 0,
+  actionButtons: null,
 }
 
 const ProfileDisplayContext = createContext<ProfileDisplayContextValue>(defaultValue)
@@ -101,6 +110,10 @@ export function ProfileDisplayProvider({
   avatarMediaUrl,
   /** Editor phone preview: show all sections regardless of Card Settings visibility. */
   embedded = false,
+  cardOwnerId,
+  cardSlug,
+  profileViews = 0,
+  actionButtons = null,
 }: {
   children: React.ReactNode
   personal?: VCardPersonal
@@ -115,6 +128,10 @@ export function ProfileDisplayProvider({
   design?: ResolvedProfileDesign | null
   avatarMediaUrl?: string
   embedded?: boolean
+  cardOwnerId?: string
+  cardSlug?: string
+  profileViews?: number
+  actionButtons?: MyCardActionButtons | null
 }) {
   const value = useMemo<ProfileDisplayContextValue>(() => {
     const settings = resolveDisplaySettings(displaySettings)
@@ -149,6 +166,10 @@ export function ProfileDisplayProvider({
         return avatar === media.profileMedia ? media : { ...media, profileMedia: avatar }
       })(),
       embedded,
+      cardOwnerId,
+      cardSlug,
+      profileViews,
+      actionButtons,
     }
   }, [
     personal,
@@ -163,6 +184,10 @@ export function ProfileDisplayProvider({
     design,
     avatarMediaUrl,
     embedded,
+    cardOwnerId,
+    cardSlug,
+    profileViews,
+    actionButtons,
   ])
 
   return <ProfileDisplayContext.Provider value={value}>{children}</ProfileDisplayContext.Provider>

@@ -1,6 +1,7 @@
 'use client'
 
 import { notepadThemeFromDesign, resolveProfileDesign, type ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
+import { saveProfileNote } from '@/profile-app/lib/saveProfileNote'
 import { cn } from '@/utils/cn'
 import { Bold, CheckCircle2, Cloud, Italic, List, Pin, Underline, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -17,17 +18,22 @@ type LeaveMessageModalProps = {
   onClose: () => void
   ownerName?: string
   design?: ResolvedProfileDesign | null
+  /** Profile owner id sent to `POST /save-note`. */
+  profileId?: string
   /** Editor phone preview — overlay covers the preview frame, not the whole page */
   embedded?: boolean
-  /** Wire API later; default shows success UI only */
+  /** Override default save-note API (e.g. tests). */
   onSubmit?: (payload: LeaveMessagePayload) => void | Promise<void>
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'synced'
 
-const DRAFT_STORAGE_KEY = 'vbiz_visitor_note_draft'
 const MAX_NOTE_LENGTH = 2000
 const PREVIEW_PHONE_SELECTOR = '.vbiz-preview-phone'
+
+function draftStorageKey(profileId?: string) {
+  return profileId ? `vbiz_visitor_note_draft_${profileId}` : 'vbiz_visitor_note_draft'
+}
 
 const FALLBACK_DESIGN = resolveProfileDesign(
   {
@@ -77,15 +83,18 @@ function LeaveMessageModalPanel({
   onClose,
   ownerName = 'the card owner',
   onSubmit,
+  profileId,
   design,
   embedded = false,
 }: Omit<LeaveMessageModalProps, 'isOpen'>) {
   const editorRef = useRef<HTMLDivElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const draftKey = draftStorageKey(profileId)
 
   const [showSuccess, setShowSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [charCount, setCharCount] = useState(0)
   const [isEmpty, setIsEmpty] = useState(true)
@@ -116,7 +125,7 @@ function LeaveMessageModalPanel({
 
     saveTimerRef.current = setTimeout(() => {
       try {
-        localStorage.setItem(DRAFT_STORAGE_KEY, editorRef.current?.innerHTML ?? '')
+        localStorage.setItem(draftKey, editorRef.current?.innerHTML ?? '')
       } catch {
         /* ignore quota errors in preview */
       }
@@ -126,7 +135,7 @@ function LeaveMessageModalPanel({
         setSaveStatus('synced')
       }, 600)
     }, 450)
-  }, [getPlainText])
+  }, [draftKey, getPlainText])
 
   useEffect(() => {
     if (embedded) return
@@ -142,7 +151,7 @@ function LeaveMessageModalPanel({
     if (!editor) return
 
     try {
-      const draft = localStorage.getItem(DRAFT_STORAGE_KEY)
+      const draft = localStorage.getItem(draftKey)
       if (draft) {
         editor.innerHTML = draft
         setCharCount(editor.innerText.length)
@@ -154,7 +163,7 @@ function LeaveMessageModalPanel({
     }
 
     editor.focus()
-  }, [])
+  }, [draftKey])
 
   useEffect(() => {
     return () => {
@@ -183,6 +192,7 @@ function LeaveMessageModalPanel({
     if (!trimmed) return
 
     setSubmitting(true)
+    setSubmitError(null)
     try {
       const payload: LeaveMessagePayload = {
         visitorName: '',
@@ -190,11 +200,13 @@ function LeaveMessageModalPanel({
       }
       if (onSubmit) {
         await onSubmit(payload)
+      } else if (profileId && !embedded && profileId !== 'preview') {
+        await saveProfileNote(profileId, trimmed)
       } else {
         await new Promise((r) => setTimeout(r, 400))
       }
       try {
-        localStorage.removeItem(DRAFT_STORAGE_KEY)
+        localStorage.removeItem(draftKey)
       } catch {
         /* ignore */
       }
@@ -202,6 +214,8 @@ function LeaveMessageModalPanel({
       setTimeout(() => {
         onClose()
       }, 1600)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Failed to save note. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -229,7 +243,10 @@ function LeaveMessageModalPanel({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 12 }}
         transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-        className={cn('vbiz-notepad relative z-10 w-full max-w-lg', isV1 ? 'vbiz-notepad--v1' : 'vbiz-notepad--v2')}
+        className={cn(
+          'vbiz-notepad relative z-10 w-full max-w-lg overflow-hidden rounded-2xl',
+          isV1 ? 'vbiz-notepad--v1' : 'vbiz-notepad--v2'
+        )}
         style={{ ...noteThemeStyle, colorScheme: 'light' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -243,10 +260,15 @@ function LeaveMessageModalPanel({
             <div className="vbiz-notepad-paper relative overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
               <div className="vbiz-notepad-header relative flex items-start justify-between gap-3 border-b px-4 pt-5 pb-2">
                 <div className="min-w-0 flex-1">
-                  <h3 id="leave-note-title" className="vbiz-notepad-title text-[1.35rem] leading-tight font-semibold">
+                  <h3
+                    id="leave-note-title"
+                    className="vbiz-notepad-title text-[1.35rem] leading-tight font-semibold text-zinc-950"
+                  >
                     Note for {ownerName}
                   </h3>
-                  <p className="vbiz-notepad-muted mt-0.5 text-xs">Write freely — your note will reach them later.</p>
+                  <p className="vbiz-notepad-muted mt-0.5 text-xs text-zinc-900">
+                    Write freely — your note will reach them later.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -305,6 +327,11 @@ function LeaveMessageModalPanel({
               </div>
 
               <div className="vbiz-notepad-footer border-t px-4 py-3">
+                {submitError ? (
+                  <p className="vbiz-notepad-muted mb-2 text-center text-xs text-red-700" role="alert">
+                    {submitError}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={handlePinNote}
@@ -328,7 +355,7 @@ function LeaveMessageModalPanel({
             </div>
             <h3 className="vbiz-notepad-title text-2xl font-semibold">Note pinned!</h3>
             <p className="vbiz-notepad-muted mt-2 max-w-xs text-sm">
-              {ownerName} will find your note in their dashboard when syncing is enabled.
+              {ownerName} will see your note in their dashboard.
             </p>
           </motion.div>
         )}

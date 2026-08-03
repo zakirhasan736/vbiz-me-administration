@@ -11,9 +11,14 @@ import { cn } from '@/utils/cn'
 
 const TEMPLATES: { id: ProfileTemplateId; title: string; description: string }[] = [
   {
+    id: 'v3',
+    title: 'Ocean Profile',
+    description: 'Redesign home hero, notepad, and floating navigation (public default).',
+  },
+  {
     id: 'v2',
     title: 'Link in Bio',
-    description: 'Bento dashboard home, cover video, and categorized floating navigation (default).',
+    description: 'Bento dashboard home, cover video, and categorized floating navigation.',
   },
   {
     id: 'v1',
@@ -95,7 +100,7 @@ export function ProfileTemplateLayoutSettings({
               type="button"
               onClick={() => setTemplate(tpl.id)}
               className={cn(
-                'group relative overflow-hidden rounded-[24px] border p-6 text-left transition-all',
+                'group relative overflow-hidden rounded-3xl border p-6 text-left transition-all',
                 profileTemplate === tpl.id
                   ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-[0_4px_20px_-4px_rgba(99,102,241,0.2)]'
                   : 'hover:border-primary-500/30 border-slate-200/80 bg-slate-50/50 dark:border-white/10 dark:bg-white/2'
@@ -108,7 +113,7 @@ export function ProfileTemplateLayoutSettings({
               )}
               <div
                 className={cn(
-                  'relative mb-4 flex w-full flex-col gap-2 rounded-[12px] border border-slate-100 bg-white p-3 shadow-sm dark:border-white/5 dark:bg-slate-800',
+                  'relative mb-4 flex w-full flex-col gap-2 rounded-xl border border-slate-100 bg-white p-3 shadow-sm dark:border-white/5 dark:bg-slate-800',
                   tpl.id === 'v2' ? 'h-24' : 'h-20'
                 )}
               >

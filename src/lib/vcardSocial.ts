@@ -10,6 +10,8 @@ export const SOCIAL_KEY_TO_DISPLAY_LABEL: Record<string, string> = {
   truth: 'Truth',
   rumble: 'Rumble',
   linkedin: 'LinkedIn',
+  pinterest: 'Pinterest',
+  whatsapp: 'Whatsapp',
 }
 
 const NETWORK_BASE_URL: Record<string, (handle: string) => string> = {
@@ -21,6 +23,11 @@ const NETWORK_BASE_URL: Record<string, (handle: string) => string> = {
   truth: (h) => `https://truthsocial.com/@${stripAt(h)}`,
   rumble: (h) => `https://rumble.com/c/${stripAt(h)}`,
   linkedin: (h) => `https://linkedin.com/in/${stripAt(h)}`,
+  pinterest: (h) => `https://pinterest.com/${stripAt(h)}`,
+  whatsapp: (h) => {
+    const digits = h.replace(/\D/g, '')
+    return digits ? `https://wa.me/${digits}` : ''
+  },
 }
 
 function stripAt(handle: string) {

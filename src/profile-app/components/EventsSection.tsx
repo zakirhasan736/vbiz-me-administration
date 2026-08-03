@@ -1,0 +1,184 @@
+'use client'
+
+import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
+import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useGetEventsQuery } from '@/redux/api'
+import { ArrowUpRight, CalendarDays, Ticket } from 'lucide-react'
+import { motion } from 'motion/react'
+import Image from 'next/image'
+
+function resolveEventImage(item: DynamicPostListItem): string {
+  const featured = item.featuredImage.trim()
+  if (featured) return featured
+  return item.attachments.find((attachment) => attachment.url?.trim())?.url?.trim() ?? ''
+}
+
+function formatEventDate(date: string): string | null {
+  const trimmed = date.trim()
+  if (!trimmed) return null
+
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return null
+
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function EventsSkeleton() {
+  return (
+    <div className="w-full pb-20">
+      <div className="mb-4 min-h-[220px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="h-[360px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+        <div className="h-[360px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+      </div>
+    </div>
+  )
+}
+
+function EventCard({ item, idx, accent }: { item: DynamicPostListItem; idx: number; accent: string }) {
+  const imageUrl = resolveEventImage(item)
+  const preview = stripHtml(item.description)
+  const detailUrl = item.generalInfoUrl.trim()
+  const eventDate = formatEventDate(item.date)
+
+  const card = (
+    <motion.article
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: idx * 0.08 }}
+      className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${detailUrl ? 'cursor-pointer' : ''}`}
+    >
+      {imageUrl ? (
+        <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+          <Image
+            src={imageUrl}
+            alt={item.title}
+            fill
+            className="object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
+        </div>
+      ) : (
+        <div className="flex h-40 items-center justify-center bg-zinc-100 dark:bg-zinc-950">
+          <Ticket size={40} style={{ color: accent }} />
+        </div>
+      )}
+
+      <div className="flex flex-1 flex-col p-6">
+        {eventDate ? (
+          <div className="mb-3 inline-flex items-center gap-2 text-xs font-bold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+            <CalendarDays size={14} style={{ color: accent }} />
+            {eventDate}
+          </div>
+        ) : null}
+
+        <h3 className="mb-3 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
+
+        {item.description.trim() ? (
+          <div
+            className="prose prose-zinc dark:prose-invert line-clamp-4 max-w-none text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"
+            dangerouslySetInnerHTML={{ __html: item.description }}
+          />
+        ) : preview ? (
+          <p className="line-clamp-4 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">{preview}</p>
+        ) : null}
+
+        {detailUrl ? (
+          <span
+            className="mt-5 inline-flex items-center gap-2 text-sm font-bold transition-opacity group-hover:opacity-80"
+            style={{ color: accent }}
+          >
+            View event <ArrowUpRight size={15} />
+          </span>
+        ) : null}
+      </div>
+    </motion.article>
+  )
+
+  if (!detailUrl) return card
+
+  return (
+    <a href={detailUrl} target="_blank" rel="noopener noreferrer" className="block h-full">
+      {card}
+    </a>
+  )
+}
+
+export const EventsSection = () => {
+  const { cardOwnerId, design } = useProfileDisplay()
+  const profileId = cardOwnerId?.trim() ?? ''
+  const template = design?.profileTemplate === 'v1' ? 'v1' : 'v2'
+  const accent = design?.accentColor ?? (template === 'v1' ? '#dcc969' : '#eab308')
+
+  const { data, isLoading, isError } = useGetEventsQuery(profileId, { skip: !profileId })
+
+  const sectionTitle = data?.sectionTitle ?? 'Events'
+  const items = data?.posts ?? []
+  const showInitialLoader = isLoading && items.length === 0
+  const showEmptyState = !isLoading && !isError && items.length === 0
+
+  if (!profileId) return null
+  if (showInitialLoader) return <EventsSkeleton />
+
+  if (isError) {
+    return (
+      <div className="w-full pb-20">
+        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+          Unable to load {sectionTitle.toLowerCase()} right now. Please try again later.
+        </div>
+      </div>
+    )
+  }
+
+  if (showEmptyState) {
+    return (
+      <div className="w-full pb-20">
+        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
+            <Ticket size={24} style={{ color: accent }} />
+          </div>
+          <h2 className="mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{sectionTitle}</h2>
+          <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
+            No events have been published yet. Add content from the vCard editor Events tab.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full pb-20">
+      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
+        <div className="group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-8 backdrop-blur-xl md:flex-row md:items-center md:gap-0 lg:col-span-4 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900/50">
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
+          <div
+            className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110"
+            style={{ backgroundColor: `${accent}18` }}
+          />
+          <div className="relative z-10 w-full md:w-auto">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
+              <Ticket size={12} style={{ color: accent }} /> Events
+            </div>
+            <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+              {sectionTitle}
+            </h2>
+            <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400">
+              Stay up to date with upcoming events, appearances, and special happenings.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        {items.map((item, idx) => (
+          <EventCard key={item.id} item={item} idx={idx} accent={accent} />
+        ))}
+      </div>
+    </div>
+  )
+}

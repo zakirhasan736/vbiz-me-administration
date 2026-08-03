@@ -41,8 +41,73 @@
 }
 
 @layer base {
+  :root {
+    --vbiz-scrollbar-size: 3px;
+    --vbiz-scrollbar-size-active: 5px;
+    --vbiz-scrollbar-duration: 240ms;
+    --vbiz-scrollbar-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --vbiz-scrollbar-track: transparent;
+    --vbiz-scrollbar-thumb-rest: color-mix(in srgb, var(--primary-500) 0%, transparent);
+    --vbiz-scrollbar-thumb: color-mix(in srgb, var(--primary-500) 48%, rgba(15, 23, 42, 0.32));
+    --vbiz-scrollbar-thumb-hover: color-mix(in srgb, var(--primary-500) 72%, rgba(255, 255, 255, 0.42));
+    --vbiz-scrollbar-glow: color-mix(in srgb, var(--primary-500) 38%, transparent);
+  }
+
+  .dark {
+    --vbiz-scrollbar-thumb-rest: color-mix(in srgb, var(--primary-400) 8%, transparent);
+    --vbiz-scrollbar-thumb: color-mix(in srgb, var(--primary-400) 52%, rgba(255, 255, 255, 0.24));
+    --vbiz-scrollbar-thumb-hover: color-mix(in srgb, var(--primary-400) 78%, white);
+    --vbiz-scrollbar-glow: color-mix(in srgb, var(--primary-400) 42%, transparent);
+  }
+
   html {
     scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--vbiz-scrollbar-thumb-rest) var(--vbiz-scrollbar-track);
+    transition: scrollbar-color var(--vbiz-scrollbar-duration) var(--vbiz-scrollbar-ease);
+  }
+
+  html:hover {
+    scrollbar-color: var(--vbiz-scrollbar-thumb) var(--vbiz-scrollbar-track);
+  }
+
+  html::-webkit-scrollbar {
+    width: var(--vbiz-scrollbar-size);
+    height: var(--vbiz-scrollbar-size);
+  }
+
+  html:hover::-webkit-scrollbar {
+    width: var(--vbiz-scrollbar-size-active);
+    height: var(--vbiz-scrollbar-size-active);
+  }
+
+  html::-webkit-scrollbar-track {
+    background: var(--vbiz-scrollbar-track);
+  }
+
+  html::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background: var(--vbiz-scrollbar-thumb-rest);
+    background-clip: padding-box;
+    box-shadow: none;
+    transition:
+      background var(--vbiz-scrollbar-duration) var(--vbiz-scrollbar-ease),
+      box-shadow var(--vbiz-scrollbar-duration) var(--vbiz-scrollbar-ease);
+  }
+
+  html:hover::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vbiz-scrollbar-thumb) 88%, white),
+      var(--vbiz-scrollbar-thumb)
+    );
+    box-shadow: 0 0 10px var(--vbiz-scrollbar-glow);
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background: var(--vbiz-scrollbar-thumb-hover);
+    box-shadow: 0 0 14px var(--vbiz-scrollbar-glow);
   }
 
   body {
@@ -63,6 +128,73 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .vbiz-cinematic-scrollbar,
+  .vbiz-thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--vbiz-scrollbar-thumb-rest, rgba(15, 23, 42, 0.12)) var(--vbiz-scrollbar-track, transparent);
+    transition: scrollbar-color var(--vbiz-scrollbar-duration, 240ms) var(--vbiz-scrollbar-ease, ease);
+  }
+
+  .vbiz-cinematic-scrollbar:hover,
+  .vbiz-cinematic-scrollbar:focus-within,
+  .vbiz-cinematic-scrollbar[data-vbiz-scrollbar-active],
+  .vbiz-thin-scrollbar:hover,
+  .vbiz-thin-scrollbar:focus-within,
+  .vbiz-thin-scrollbar[data-vbiz-scrollbar-active] {
+    scrollbar-color: var(--vbiz-scrollbar-thumb, rgba(15, 23, 42, 0.28)) var(--vbiz-scrollbar-track, transparent);
+  }
+
+  .vbiz-cinematic-scrollbar::-webkit-scrollbar,
+  .vbiz-thin-scrollbar::-webkit-scrollbar {
+    width: var(--vbiz-scrollbar-size, 3px);
+    height: var(--vbiz-scrollbar-size, 3px);
+  }
+
+  .vbiz-cinematic-scrollbar:hover::-webkit-scrollbar,
+  .vbiz-cinematic-scrollbar:focus-within::-webkit-scrollbar,
+  .vbiz-cinematic-scrollbar[data-vbiz-scrollbar-active]::-webkit-scrollbar,
+  .vbiz-thin-scrollbar:hover::-webkit-scrollbar,
+  .vbiz-thin-scrollbar:focus-within::-webkit-scrollbar,
+  .vbiz-thin-scrollbar[data-vbiz-scrollbar-active]::-webkit-scrollbar {
+    width: var(--vbiz-scrollbar-size-active, 5px);
+    height: var(--vbiz-scrollbar-size-active, 5px);
+  }
+
+  .vbiz-cinematic-scrollbar::-webkit-scrollbar-track,
+  .vbiz-thin-scrollbar::-webkit-scrollbar-track {
+    background: var(--vbiz-scrollbar-track, transparent);
+  }
+
+  .vbiz-cinematic-scrollbar::-webkit-scrollbar-thumb,
+  .vbiz-thin-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: var(--vbiz-scrollbar-thumb-rest, rgba(15, 23, 42, 0.12));
+    box-shadow: none;
+    transition:
+      background var(--vbiz-scrollbar-duration, 240ms) var(--vbiz-scrollbar-ease, ease),
+      box-shadow var(--vbiz-scrollbar-duration, 240ms) var(--vbiz-scrollbar-ease, ease);
+  }
+
+  .vbiz-cinematic-scrollbar:hover::-webkit-scrollbar-thumb,
+  .vbiz-cinematic-scrollbar:focus-within::-webkit-scrollbar-thumb,
+  .vbiz-cinematic-scrollbar[data-vbiz-scrollbar-active]::-webkit-scrollbar-thumb,
+  .vbiz-thin-scrollbar:hover::-webkit-scrollbar-thumb,
+  .vbiz-thin-scrollbar:focus-within::-webkit-scrollbar-thumb,
+  .vbiz-thin-scrollbar[data-vbiz-scrollbar-active]::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vbiz-scrollbar-thumb, rgba(15, 23, 42, 0.28)) 88%, white),
+      var(--vbiz-scrollbar-thumb, rgba(15, 23, 42, 0.28))
+    );
+    box-shadow: 0 0 10px var(--vbiz-scrollbar-glow, transparent);
+  }
+
+  .vbiz-cinematic-scrollbar::-webkit-scrollbar-thumb:hover,
+  .vbiz-thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--vbiz-scrollbar-thumb-hover, rgba(15, 23, 42, 0.45));
+    box-shadow: 0 0 14px var(--vbiz-scrollbar-glow, transparent);
   }
 
   .mask-edges {

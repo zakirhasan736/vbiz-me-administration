@@ -10,7 +10,7 @@ export const DoneModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative flex w-full max-w-sm flex-col items-center rounded-[1.5rem] border border-zinc-800 bg-zinc-900 p-8 text-center shadow-2xl"
+            className="relative flex w-full max-w-sm flex-col items-center rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center shadow-2xl"
           >
             <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10 text-green-500">
               <CheckCircle2 size={48} />

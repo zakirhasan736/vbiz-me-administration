@@ -3,7 +3,7 @@ import type { VCardData, VCardPersonal } from '@/types/vcard'
 import {
   createDefaultDisplaySettings,
   createDefaultFieldConfig,
-  normalizeFieldConfig,
+  stripFieldDisplayColors,
   type DisplayFieldConfig,
   type VCardDisplaySettings,
 } from '@/types/vcardDisplaySettings'
@@ -149,7 +149,7 @@ export function resolveDisplaySettings(raw?: VCardDisplaySettings | null): VCard
   if (!raw) return DEFAULT_SETTINGS
   const fields = { ...DEFAULT_SETTINGS.fields }
   for (const [key, config] of Object.entries(raw.fields || {})) {
-    fields[key] = normalizeFieldConfig({ ...fields[key], ...config })
+    fields[key] = stripFieldDisplayColors({ ...fields[key], ...config })
   }
   return {
     globalEnabled: raw.globalEnabled ?? true,
@@ -246,15 +246,12 @@ export function getNavTabBackgroundColor(settings: VCardDisplaySettings, tabId: 
   return getFieldConfig(settings, navLabel).backgroundColor || undefined
 }
 
-export function getPageColors(settings: VCardDisplaySettings) {
-  const pageBg = getFieldConfig(settings, 'Home Page BG Color').backgroundColor
-  const pageBanner = getFieldConfig(settings, 'Home Page Banner Color').backgroundColor
-  const headerColor = getFieldConfig(settings, 'vCard Header Color').textColor
-  const navBg = getFieldConfig(settings, 'Nav Background Color').backgroundColor
+/** Page-level colors from Card Settings are ignored on public profiles (static template styling). */
+export function getPageColors(_settings: VCardDisplaySettings) {
   return {
-    pageBg: pageBg || undefined,
-    pageBanner: pageBanner || undefined,
-    headerColor: headerColor || undefined,
-    navBg: navBg || undefined,
+    pageBg: undefined,
+    pageBanner: undefined,
+    headerColor: undefined,
+    navBg: undefined,
   }
 }

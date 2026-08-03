@@ -1,21 +1,19 @@
 'use client'
 
-import { LiveAgentPanelV1 } from '@/profile-app/components/live-agent/LiveAgentPanelV1'
-import { LiveAgentPanelV2 } from '@/profile-app/components/live-agent/LiveAgentPanelV2'
-import { useLiveAgent, type UseLiveAgentOptions } from '@/profile-app/components/live-agent/useLiveAgent'
+import { ExternalIntentPrompt } from '@/profile-app/components/ExternalIntentPrompt'
+import { LiveAgentPanel } from '@/profile-app/components/live-agent/LiveAgentPanel'
+import type { UseLiveAgentOptions } from '@/profile-app/components/live-agent/useLiveAgent'
+import { isInIframe } from '@/profile-app/lib/isInIframe'
 import { DEFAULT_LIVE_AGENT_CARD, type LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
 import { useCallback, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
-export type LiveAgentVariant = 'v1' | 'v2'
-
 export type LiveAgentProps = UseLiveAgentOptions & {
-  /** v1 = gold concierge UI; v2 = zinc link-in-bio UI */
-  variant?: LiveAgentVariant
-  /** Scope UI to editor phone preview (not full-page viewport). */
   embedded?: boolean
-  /** Accent for v1 gold controls (from card theme). */
+  /** Accent from the card theme (`design.accentColor`). */
   accentColor?: string
+  /** Overrides the floating wrapper position classes (e.g. per-template placement). */
+  wrapperClassName?: string
 }
 
 const PREVIEW_PHONE_SELECTOR = '.vbiz-preview-phone'
@@ -31,15 +29,15 @@ function subscribeToPreviewPhoneShell(onStoreChange: () => void) {
   return () => observer.disconnect()
 }
 
+/** Shared live agent (central configuration & UI) for all profile templates. */
 export function LiveAgent({
-  variant = 'v2',
   accentColor,
   embedded = false,
   cardData = DEFAULT_LIVE_AGENT_CARD,
+  systemInstruction,
   readyToConnect = false,
+  wrapperClassName,
 }: LiveAgentProps) {
-  const controller = useLiveAgent({ cardData, readyToConnect })
-
   const subscribe = useCallback(
     (onStoreChange: () => void) => (embedded ? subscribeToPreviewPhoneShell(onStoreChange) : () => {}),
     [embedded]
@@ -49,12 +47,21 @@ export function LiveAgent({
 
   const phoneShell = useSyncExternalStore(subscribe, getSnapshot, () => null)
 
-  const panel =
-    variant === 'v1' ? (
-      <LiveAgentPanelV1 {...controller} embedded={embedded} accentColor={accentColor} />
-    ) : (
-      <LiveAgentPanelV2 {...controller} embedded={embedded} />
-    )
+  if (isInIframe()) return null
+
+  const panel = (
+    <>
+      <LiveAgentPanel
+        accentColor={accentColor}
+        cardData={cardData}
+        systemInstruction={systemInstruction}
+        readyToConnect={readyToConnect}
+        embedded={embedded}
+        wrapperClassName={wrapperClassName}
+      />
+      {!embedded ? <ExternalIntentPrompt /> : null}
+    </>
+  )
 
   if (!embedded) return panel
 

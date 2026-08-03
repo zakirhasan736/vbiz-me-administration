@@ -1,11 +1,15 @@
+import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
+import { buildProfilePath } from '@/lib/profileRoutes'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesignFromData } from '@/lib/resolvedProfileDesign'
+import type { CardThemeConfig } from '@/lib/theme/cardThemeContract'
 import { getDisplaySettingsFromVCard, getHomeMediaUrls, isFieldVisible } from '@/lib/vcardDisplaySettings'
 import { normalizeFaqList } from '@/lib/vcardFaq'
 import { normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
 import { normalizeServiceList } from '@/lib/vcardServices'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import { DEFAULT_LIVE_AGENT_CARD, type LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
+import { cleanProfileFieldValue } from '@/profile-app/lib/profileHomeData'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
 import type {
   VCardData,
@@ -20,9 +24,9 @@ import type {
   VCardSocial,
 } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
-import type { ReactNode } from 'react'
+import type { MyCardActionButtons } from '@interfaces/api/myCard'
 
-const DEFAULT_COVER = 'https://app.vbizme.com/storage/ecard/backgroundVideos/91/Untitled%20design-36.mp4'
+export const DEFAULT_COVER = 'https://app.vbizme.com/storage/ecard/backgroundVideos/91/Untitled%20design-36.mp4'
 /** Demo / fallback intro played in the avatar circle when no profile image is set. */
 export const DEFAULT_INTRO_VIDEO = 'https://app.vbizme.com/storage/ecard/profileimages/91/mc%20vbizme.mp4'
 
@@ -45,6 +49,8 @@ export type VBizProfileAppProps = {
   coverVideoUrl?: string
   avatarVideoUrl?: string
   liveAgentCardData?: LiveAgentCardData
+  /** Pre-built on the server from `GET /profile-ai-data/{profile_id}`. */
+  liveAgentSystemPrompt?: string
   design?: ResolvedProfileDesign
   personal?: VCardPersonal
   social?: VCardSocial
@@ -57,28 +63,34 @@ export type VBizProfileAppProps = {
   displaySettings?: VCardDisplaySettings
   /** Public slug used to build the share URL. */
   shareSlug?: string
-  /** Active nav section (from URL or parent). */
-  sectionId?: string
-  /** Slug for route-based nav links (`/v/{slug}/{section}`). */
+  /** Slug for the public profile URL (`/v/{slug}`). */
   profileSlug?: string
-  /** Embedded preview: update section without changing the browser URL. */
+  /** Active nav section (client state — not reflected in the URL). */
+  sectionId?: string
+  /** Called when the user picks a nav item (embedded preview). */
   onSectionChange?: (sectionId: string) => void
   /** Skip intro preloader and scope theme (editor preview). */
   embedded?: boolean
   /** Controlled theme for live preview chrome (optional). */
   previewTheme?: 'light' | 'dark'
   onPreviewThemeChange?: (theme: 'light' | 'dark') => void
-  /** When set (public route layout), only this slot updates on section navigation. */
-  children?: ReactNode
+  profileViews?: number
+  actionButtons?: MyCardActionButtons | null
+  /** Server-prefetched navbar catalog (`GET /post-types?profile_id=`). */
+  initialNavBarLinks?: NavBarLinksData | null
+  /** Dynamic global theme (Primary/Secondary/Accent + button/social appearance). Optional. */
+  themeConfig?: CardThemeConfig | null
+  /** True when theme comes from settings API (not template defaults). */
+  themeFromApi?: boolean
 }
 
 export function buildProfileShareUrl(slug: string): string {
   const trimmed = slug.trim()
   if (!trimmed) return ''
   if (typeof window !== 'undefined') {
-    return `${window.location.origin}/v/${trimmed}`
+    return `${window.location.origin}${buildProfilePath(trimmed)}`
   }
-  return `https://vbiz.me/${trimmed}`
+  return `https://vbiz.me/v/${trimmed}`
 }
 
 export function vCardDataToProfileProps(
@@ -103,7 +115,7 @@ export function vCardDataToProfileProps(
   const taglineParts: string[] = []
   if (showTagline) {
     if (isFieldVisible(display, 'MyInfo Designation') && data.personal.designation) {
-      taglineParts.push(data.personal.designation)
+      taglineParts.push(cleanProfileFieldValue(data.personal.designation))
     }
     if (isFieldVisible(display, 'MyInfo Profession') && data.personal.profession) {
       taglineParts.push(data.personal.profession)
@@ -135,26 +147,23 @@ export function vCardDataToProfileProps(
     faqs: normalizeFaqList(data.faqs),
     displaySettings: display,
     shareSlug: slug || undefined,
-    liveAgentCardData: {
-      ownerName: data.personal.fullName || DEFAULT_LIVE_AGENT_CARD.ownerName,
-      title: data.personal.designation || data.personal.profession || DEFAULT_LIVE_AGENT_CARD.title,
-      company: data.personal.company || DEFAULT_LIVE_AGENT_CARD.company,
-      email: data.personal.email || DEFAULT_LIVE_AGENT_CARD.email,
-      phone: data.personal.phone || DEFAULT_LIVE_AGENT_CARD.phone,
-      website: slug ? `https://vbiz.me/${slug}` : DEFAULT_LIVE_AGENT_CARD.website,
-      location: data.personal.address || DEFAULT_LIVE_AGENT_CARD.location,
-    },
+    themeConfig: data.themeConfig ?? null,
   }
 }
 
 export function vCardRecordToProfileProps(
   record: VCardRecord,
-  designSettings: DesignSettingsState
+  designSettings: DesignSettingsState,
+  actionButtons?: MyCardActionButtons | null
 ): VBizProfileAppProps {
-  return vCardDataToProfileProps(record, designSettings, {
-    id: record.id,
-    avatarImageUrl: record.avatarImageUrl,
-  })
+  return {
+    ...vCardDataToProfileProps(record, designSettings, {
+      id: record.id,
+      avatarImageUrl: record.avatarImageUrl,
+    }),
+    profileViews: record.views,
+    actionButtons: actionButtons ?? null,
+  }
 }
 
 export const DEMO_PROFILE_PROPS: VBizProfileAppProps = {

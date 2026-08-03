@@ -1,20 +1,14 @@
 'use client'
 
-import { parseProfileSegments } from '@/lib/profileRoutes'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
-import PublicProfileSection from '@/views/PublicProfileSection'
 
 type Props = {
   slug: string
+  /** @deprecated Sections are client-state only (template-services parity). */
   segments?: string[]
 }
 
-/** Full public profile (layout + section) for standalone / legacy imports. */
-export default function PublicProfileClient({ slug, segments }: Props) {
-  const { sectionId } = parseProfileSegments(segments)
-  return (
-    <PublicProfileLayout slug={slug}>
-      <PublicProfileSection sectionId={sectionId} />
-    </PublicProfileLayout>
-  )
+/** Full public profile for standalone / legacy imports. */
+export default function PublicProfileClient({ slug }: Props) {
+  return <PublicProfileLayout slug={slug} />
 }

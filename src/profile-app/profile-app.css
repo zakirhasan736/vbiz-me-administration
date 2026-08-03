@@ -1,12 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 @import 'tailwindcss';
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark, .dark *));
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-heading: 'Playfair Display', ui-serif, Georgia, serif;
   --font-notepad: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  --font-notebook: 'Caveat', cursive, sans-serif;
+
+  --color-gold: #eed677;
+  --color-gold-dark: #cca43b;
+  --color-ocean-deep: #020914;
+  --color-ocean-dark: #051429;
+  --color-ocean-medium: #09203f;
+  --color-ocean-light: #16365f;
+  --color-ocean-soft: #27528a;
+  --color-ocean-glass: rgba(5, 20, 41, 0.85);
+}
+
+/* Interactive elements use a pointer cursor (Tailwind v4 defaults buttons to the
+   browser default). Applies to every button, link, social icon, and role=button
+   inside the profile across all templates. */
+.vbiz-profile-root button:not(:disabled):not([aria-disabled='true']),
+.vbiz-profile-root a[href],
+.vbiz-profile-root label[for],
+.vbiz-profile-root [role='button']:not([aria-disabled='true']),
+.vbiz-profile-root summary,
+.vbiz-profile-root [data-clickable] {
+  cursor: pointer;
 }
 
 /* Visitor note — sticky notepad modal (themed via --vbiz-note-* vars from card design) */
@@ -62,16 +84,16 @@
 .vbiz-notepad-title,
 .vbiz-notepad-editor,
 .vbiz-notepad-toolbar-btn {
-  color: var(--vbiz-note-text, #2a2416);
+  color: #09090b;
 }
 
 .vbiz-notepad-muted {
-  color: var(--vbiz-note-muted, #5c5340);
+  color: #18181b;
 }
 
 .vbiz-notepad-editor:empty::before {
   content: attr(data-placeholder);
-  color: var(--vbiz-note-placeholder, #a39572);
+  color: #52525b;
   pointer-events: none;
 }
 
@@ -103,6 +125,31 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* 2px theme-aware scrollbar — opt in, or auto-applied in .vbiz-profile-root scroll areas */
+  .vbiz-thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--vbiz-scrollbar-thumb) var(--vbiz-scrollbar-track);
+  }
+
+  .vbiz-thin-scrollbar::-webkit-scrollbar {
+    width: var(--vbiz-scrollbar-size);
+    height: var(--vbiz-scrollbar-size);
+  }
+
+  .vbiz-thin-scrollbar::-webkit-scrollbar-track {
+    background: var(--vbiz-scrollbar-track);
+  }
+
+  .vbiz-thin-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: var(--vbiz-scrollbar-thumb);
+  }
+
+  .vbiz-thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--vbiz-scrollbar-thumb-hover);
+  }
+
   .mask-edges {
     mask-image: linear-gradient(to right, transparent, black 15px, black calc(100% - 15px), transparent);
     -webkit-mask-image: linear-gradient(to right, transparent, black 15px, black calc(100% - 15px), transparent);
@@ -113,13 +160,102 @@
   }
 }
 
+/* v3 template — Google Translate widget hidden (translation uses hidden element) */
+iframe.goog-te-banner-frame {
+  display: none !important;
+  visibility: hidden !important;
+}
+.goog-te-gadget,
+.goog-te-gadget-simple,
+.goog-tooltip {
+  display: none !important;
+}
+.goog-text-highlight {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.vbiz-profile-v3 {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.vbiz-profile-v3::-webkit-scrollbar {
+  display: none;
+}
+
+/* Theme-aware scrollbar tokens (light default, dark via .dark or data-theme) */
+.vbiz-profile-root {
+  --vbiz-scrollbar-size: 2px;
+  --vbiz-scrollbar-thumb: rgba(15, 23, 42, 0.28);
+  --vbiz-scrollbar-thumb-hover: rgba(15, 23, 42, 0.45);
+  --vbiz-scrollbar-track: transparent;
+}
+
+.vbiz-profile-root.dark,
+.dark .vbiz-profile-root,
+.vbiz-profile-root[data-theme='dark'] {
+  --vbiz-scrollbar-thumb: rgba(255, 255, 255, 0.22);
+  --vbiz-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+}
+
+/* Auto thin scrollbar on scrollable profile content — use .no-scrollbar to hide */
+.vbiz-profile-root
+  :where(.overflow-y-auto, .overflow-auto, .overflow-x-auto, .overflow-y-scroll, .overflow-scroll):not(
+    .no-scrollbar,
+    .vbiz-floating-nav-scroll,
+    .vbiz-v1-nav-scroll
+  ) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--vbiz-scrollbar-thumb) var(--vbiz-scrollbar-track);
+}
+
+.vbiz-profile-root
+  :where(.overflow-y-auto, .overflow-auto, .overflow-x-auto, .overflow-y-scroll, .overflow-scroll):not(
+    .no-scrollbar,
+    .vbiz-floating-nav-scroll,
+    .vbiz-v1-nav-scroll
+  )::-webkit-scrollbar {
+  width: var(--vbiz-scrollbar-size);
+  height: var(--vbiz-scrollbar-size);
+}
+
+.vbiz-profile-root
+  :where(.overflow-y-auto, .overflow-auto, .overflow-x-auto, .overflow-y-scroll, .overflow-scroll):not(
+    .no-scrollbar,
+    .vbiz-floating-nav-scroll,
+    .vbiz-v1-nav-scroll
+  )::-webkit-scrollbar-track {
+  background: var(--vbiz-scrollbar-track);
+}
+
+.vbiz-profile-root
+  :where(.overflow-y-auto, .overflow-auto, .overflow-x-auto, .overflow-y-scroll, .overflow-scroll):not(
+    .no-scrollbar,
+    .vbiz-floating-nav-scroll,
+    .vbiz-v1-nav-scroll
+  )::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: var(--vbiz-scrollbar-thumb);
+}
+
+.vbiz-profile-root
+  :where(.overflow-y-auto, .overflow-auto, .overflow-x-auto, .overflow-y-scroll, .overflow-scroll):not(
+    .no-scrollbar,
+    .vbiz-floating-nav-scroll,
+    .vbiz-v1-nav-scroll
+  )::-webkit-scrollbar-thumb:hover {
+  background: var(--vbiz-scrollbar-thumb-hover);
+}
+
 /* Profile nav — horizontal scroll, no visible scrollbar */
 .vbiz-cover-video {
   isolation: isolate;
 }
 
 .vbiz-floating-nav-inner {
-  max-width: 100%;
+  width: 100%;
+  max-width: 1032px;
   min-width: 0;
   overflow: hidden;
 }
@@ -156,41 +292,29 @@
   transform: translateZ(0);
 }
 
-/* Mobile preview scrollbars — dark / black (editor phone frame only) */
+/* Mobile preview scrollbars — alias for thin theme-aware scrollbar */
 .vbiz-preview-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(15, 15, 15, 0.55) transparent;
+  scrollbar-color: var(--vbiz-scrollbar-thumb) var(--vbiz-scrollbar-track);
 }
 
 .vbiz-preview-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: var(--vbiz-scrollbar-size);
+  height: var(--vbiz-scrollbar-size);
 }
 
 .vbiz-preview-scrollbar::-webkit-scrollbar-track {
   margin-block: 0.35rem;
-  background: transparent;
+  background: var(--vbiz-scrollbar-track);
 }
 
 .vbiz-preview-scrollbar::-webkit-scrollbar-thumb {
   border-radius: 9999px;
-  background: rgba(10, 10, 10, 0.5);
+  background: var(--vbiz-scrollbar-thumb);
 }
 
 .vbiz-preview-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.72);
-}
-
-.dark .vbiz-preview-scrollbar {
-  scrollbar-color: rgba(0, 0, 0, 0.65) transparent;
-}
-
-.dark .vbiz-preview-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.dark .vbiz-preview-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.78);
+  background: var(--vbiz-scrollbar-thumb-hover);
 }
 
 /*
@@ -617,22 +741,23 @@
   max-height: min(50dvh, 320px);
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(15, 15, 15, 0.55) transparent;
+  scrollbar-color: var(--vbiz-scrollbar-thumb) var(--vbiz-scrollbar-track);
 }
 
 .vbiz-profile-root[data-embedded] .vbiz-live-agent .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar {
-  width: 5px;
+  width: var(--vbiz-scrollbar-size);
+  height: var(--vbiz-scrollbar-size);
 }
 
 .vbiz-profile-root[data-embedded] .vbiz-live-agent .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar-thumb {
   border-radius: 9999px;
-  background: rgba(10, 10, 10, 0.5);
+  background: var(--vbiz-scrollbar-thumb);
 }
 
 .vbiz-profile-root[data-embedded]
   .vbiz-live-agent
   .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--vbiz-scrollbar-thumb-hover);
 }
 
 .vbiz-profile-v1[data-embedded] .grid[class*='lg:grid-cols'],
@@ -705,5 +830,152 @@
 
   .vbiz-profile-v1[data-embedded] .font-heading {
     word-break: break-word;
+  }
+}
+
+/* Compact section banners — all nav sections except Home & About */
+.vbiz-profile-root
+  [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+  .mb-4.grid
+  > [class*='lg:col-span-4'] {
+  gap: 0.75rem !important;
+  padding: 1.25rem !important;
+}
+
+@media (max-width: 639px) {
+  .vbiz-profile-root
+    [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+    .mb-4.grid
+    > [class*='lg:col-span-4']
+    h2,
+  .vbiz-profile-root [data-section-id='faq'] h2,
+  .vbiz-profile-root [data-section-id='mission'] h2,
+  .vbiz-profile-root [data-section-id='who-we-are'] h2,
+  .vbiz-profile-root [data-section-id='reviews'] h2,
+  .vbiz-profile-root [data-section-id='public-cards'] h2 {
+    font-size: 1.5rem !important;
+    line-height: 2rem !important;
+  }
+
+  .vbiz-profile-root
+    [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+    .mb-4.grid
+    > [class*='lg:col-span-4']
+    p.max-w-xl,
+  .vbiz-profile-root [data-section-id='faq'] .group.relative.mb-4 p,
+  .vbiz-profile-root [data-section-id='mission'] h2 + *,
+  .vbiz-profile-root [data-section-id='who-we-are'] h2 + *,
+  .vbiz-profile-root [data-section-id='reviews'] h2 + p,
+  .vbiz-profile-root [data-section-id='public-cards'] h2 + p {
+    line-height: 1.5 !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .vbiz-profile-root
+    [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+    .mb-4.grid
+    > [class*='lg:col-span-4'] {
+    padding: 1.5rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vbiz-profile-root
+    [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+    .mb-4.grid
+    > [class*='lg:col-span-4'] {
+    padding: 2rem !important;
+  }
+
+  .vbiz-profile-root
+    [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+    h2[class*='lg:text-5xl'] {
+    font-size: 2.25rem !important;
+    line-height: 2.5rem !important;
+  }
+}
+
+.vbiz-profile-root
+  [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+  .mb-4.grid
+  > [class*='lg:col-span-4']
+  [class*='mb-8'],
+.vbiz-profile-root
+  [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+  .mb-4.grid
+  > [class*='lg:col-span-4']
+  [class*='mb-6']:not(input):not(button) {
+  margin-bottom: 0.5rem !important;
+}
+
+.vbiz-profile-root
+  [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+  .mb-4.grid
+  > [class*='lg:col-span-4']
+  h2[class*='mb-4'],
+.vbiz-profile-root
+  [data-section-id]:not([data-section-id='home']):not([data-section-id='about'])
+  .mb-4.grid
+  > [class*='lg:col-span-4']
+  h2[class*='mb-6'] {
+  margin-bottom: 0.5rem !important;
+}
+
+.vbiz-profile-root [data-section-id='reviews'] [class*='min-h-[42vh]'],
+.vbiz-profile-root [data-section-id='reviews'] [class*='min-h-[50vh]'] {
+  min-height: 28vh !important;
+}
+
+@media (min-width: 768px) {
+  .vbiz-profile-root [data-section-id='reviews'] [class*='min-h-[30vh]'] {
+    min-height: 22vh !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vbiz-profile-root [data-section-id='reviews'] [class*='min-h-[32vh]'] {
+    min-height: 24vh !important;
+  }
+}
+
+.vbiz-profile-root [data-section-id='public-cards'] [class*='min-h-[40vh]'],
+.vbiz-profile-root [data-section-id='public-cards'] [class*='min-h-[44vh]'],
+.vbiz-profile-root [data-section-id='public-cards'] [class*='min-h-[38vh]'] {
+  min-height: 26vh !important;
+}
+
+@media (min-width: 768px) {
+  .vbiz-profile-root [data-section-id='public-cards'] [class*='min-h-[38vh]'] {
+    min-height: 24vh !important;
+  }
+}
+
+.vbiz-profile-root [data-section-id='faq'] .group.relative.mb-4.overflow-hidden {
+  padding: 1.25rem !important;
+}
+
+@media (min-width: 768px) {
+  .vbiz-profile-root [data-section-id='faq'] .group.relative.mb-4.overflow-hidden {
+    padding: 1.5rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vbiz-profile-root [data-section-id='faq'] .group.relative.mb-4.overflow-hidden {
+    padding: 2rem !important;
+  }
+
+  .vbiz-profile-root [data-section-id='faq'] h2[class*='lg:text-5xl'] {
+    font-size: 2.25rem !important;
+    line-height: 2.5rem !important;
+  }
+}
+
+/* Image Vault — extra-compact mobile banner + filters */
+@media (max-width: 767px) {
+  .vbiz-profile-root [data-section-id='gallery'] [class*='lg:col-span-4'] {
+    gap: 0.5rem !important;
+    padding: 0.75rem !important;
   }
 }

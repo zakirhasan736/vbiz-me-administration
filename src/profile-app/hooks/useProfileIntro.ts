@@ -32,7 +32,8 @@ function resolveIntroState(embedded: boolean, slug: string, isClient: boolean): 
 }
 
 /**
- * Intro / preloader runs once per profile per browser tab (not on every section route).
+ * Intro plays on every full page reload. Within the same tab session, it runs once
+ * per profile (section navigation does not replay it).
  */
 export function useProfileIntro({ embedded = false, profileSlug, shareSlug, explainerVideoUrl }: Options) {
   const slug = profileSlug?.trim() || shareSlug?.trim() || ''

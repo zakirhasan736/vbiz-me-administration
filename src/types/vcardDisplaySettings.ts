@@ -32,6 +32,15 @@ export function normalizeFieldConfig(config: DisplayFieldConfig): DisplayFieldCo
   return next
 }
 
+/** Remove API-driven colors so public profiles use static template styling only. */
+export function stripFieldDisplayColors(config: DisplayFieldConfig): DisplayFieldConfig {
+  const next = normalizeFieldConfig({ ...config })
+  delete next.textColor
+  delete next.backgroundColor
+  delete next.iconColor
+  return next
+}
+
 export function createDefaultFieldConfig(overrides?: Partial<DisplayFieldConfig>): DisplayFieldConfig {
   return normalizeFieldConfig({
     visible: true,

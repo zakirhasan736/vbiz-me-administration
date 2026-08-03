@@ -1,3 +1,4 @@
+import type { CardThemeConfig } from '@/lib/theme/cardThemeContract'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
@@ -131,6 +132,8 @@ export type VCardData = {
   experience?: VCardExperienceEntry[]
   /** Card Settings tab: visibility, colors, and overrides per UI element */
   displaySettings?: VCardDisplaySettings
+  /** Dynamic global theme (Primary/Secondary/Accent + button & social appearance). Optional — backend `theme_config`. */
+  themeConfig?: CardThemeConfig
 }
 
 export type VCardListMeta = {
@@ -208,7 +211,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
 }
 
 export const DEFAULT_VCARD_APPEARANCE: VCardAppearance = {
-  profileTemplate: 'v2',
+  profileTemplate: 'v3',
   layoutStyle: 'classic',
   buttonStyle: 'solid',
   cornerStyle: 'round',

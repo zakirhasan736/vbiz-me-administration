@@ -1,3 +1,6 @@
+import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
+import type { CardThemeConfig, ThemeMode } from '@/lib/theme/cardThemeContract'
+import { brandColorsFromThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { resolveVCardAppearance } from '@/lib/vcardDesignDefaults'
 import type { DesignSettingsState, ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 import type { VCardAppearance, VCardData, VCardRecord, VCardTheme } from '@/types/vcard'
@@ -54,22 +57,43 @@ export function buttonStyleClasses(buttonStyle: string): string {
   }
 }
 
-/** Merge account defaults with per-card theme + appearance (card wins when set). */
+type ResolveProfileDesignOptions = {
+  themeConfig?: CardThemeConfig | null
+  /** Which palette to read brand colors from (defaults to theme_config.defaultMode or dark). */
+  colorMode?: ThemeMode
+}
+
+/**
+ * Merge account defaults with per-card appearance.
+ * Colors: template static palette as fallback, then smart placement from `theme_config`
+ * (light/dark sets from `/profiles/{id}/settings`).
+ */
 export function resolveProfileDesign(
   designSettings: DesignSettingsState,
-  cardTheme?: Partial<VCardTheme> | null,
-  cardAppearance?: Partial<VCardAppearance> | null
+  _cardTheme?: Partial<VCardTheme> | null,
+  cardAppearance?: Partial<VCardAppearance> | null,
+  options?: ResolveProfileDesignOptions
 ): ResolvedProfileDesign {
   const appearance = resolveVCardAppearance(designSettings, cardAppearance)
+  const staticTheme = getStaticProfileTheme(appearance.profileTemplate)
+  const mode: ThemeMode =
+    options?.colorMode ??
+    options?.themeConfig?.colors.defaultMode ??
+    (staticTheme.darkMode === false ? 'light' : 'dark')
+
+  const brand = options?.themeConfig
+    ? brandColorsFromThemeConfig(options.themeConfig, mode)
+    : { primaryColor: staticTheme.primaryColor, accentColor: staticTheme.accentColor }
+
   return {
-    primaryColor: cardTheme?.primaryColor || designSettings.vcardPrimaryColor || '#6366f1',
-    accentColor: cardTheme?.accentColor || designSettings.vcardAccentColor || '#f43f5e',
-    fontFamily: cardTheme?.fontFamily || designSettings.fontFamily || 'inter',
+    primaryColor: brand.primaryColor || staticTheme.primaryColor,
+    accentColor: brand.accentColor || staticTheme.accentColor,
+    fontFamily: staticTheme.fontFamily || designSettings.fontFamily || 'inter',
     profileTemplate: appearance.profileTemplate,
     layoutStyle: appearance.layoutStyle,
     buttonStyle: appearance.buttonStyle,
     cornerStyle: appearance.cornerStyle,
-    darkMode: cardTheme?.darkMode ?? true,
+    darkMode: mode === 'dark',
   }
 }
 
@@ -110,9 +134,9 @@ export function notepadThemeFromDesign(design: ResolvedProfileDesign): CSSProper
     ['--vbiz-note-line' as string]: `color-mix(in srgb, ${accent} 38%, #bdbdbd)`,
     ['--vbiz-note-border' as string]: `color-mix(in srgb, ${accent} 42%, #d4d4d4)`,
     ['--vbiz-note-border-strong' as string]: `color-mix(in srgb, ${brand} 58%, #737373)`,
-    ['--vbiz-note-text' as string]: `color-mix(in srgb, ${brand} 82%, black)`,
-    ['--vbiz-note-muted' as string]: `color-mix(in srgb, ${brand} 48%, #525252)`,
-    ['--vbiz-note-placeholder' as string]: `color-mix(in srgb, ${brand} 35%, #78716c)`,
+    ['--vbiz-note-text' as string]: '#09090b',
+    ['--vbiz-note-muted' as string]: '#18181b',
+    ['--vbiz-note-placeholder' as string]: '#52525b',
     ['--vbiz-note-tape' as string]: `color-mix(in srgb, ${accent} 28%, #e7e0cc)`,
     ['--vbiz-note-accent' as string]: brand,
     ['--vbiz-note-accent-hover' as string]: `color-mix(in srgb, ${brand} 88%, black)`,

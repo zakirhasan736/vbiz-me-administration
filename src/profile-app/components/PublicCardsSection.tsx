@@ -1,3 +1,13 @@
+'use client'
+
+/**
+ * Shared Public Cards / Global Connections directory.
+ * Used by v1, v2, and v3 profile shells — self-contained layout that fits any parent.
+ */
+import { mapPublicCardProfileUrl, type PublicCardListItem } from '@/lib/api/publicCards/mapPublicCards'
+import { PUBLIC_CARDS_SEARCH_DEBOUNCE_MS, PUBLIC_CARDS_SEARCH_MIN_CHARS } from '@/lib/publicCards/publicCardsSearch'
+import { usePublicCardsDirectory } from '@/profile-app/hooks/usePublicCardsDirectory'
+import type { PublicCardsFilterOption } from '@interfaces/api/publicCards'
 import {
   Briefcase,
   ChevronDown,
@@ -7,312 +17,714 @@ import {
   Loader2,
   MapPin,
   Monitor,
+  RotateCcw,
   Search,
-  Share2,
+  SlidersHorizontal,
   Users,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
-import { useState } from 'react'
+import Link from 'next/link'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
-const INITIAL_CARDS = [
-  {
-    id: 1,
-    name: 'Michaelangelo Casale',
-    profession: 'Life Coach and Mentor',
-    img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&fit=crop',
-  },
-  {
-    id: 2,
-    name: 'Jim Quinn',
-    profession: 'Business Analyst',
-    img: 'https://images.unsplash.com/photo-1556761175-5973dc0f32b7?q=80&w=400&fit=crop',
-  },
-  {
-    id: 3,
-    name: 'Stephan H. Brewer',
-    profession: 'Consultant',
-    img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400&fit=crop',
-  },
-  {
-    id: 4,
-    name: 'M Autobody Support',
-    profession: 'Auto Services',
-    img: 'https://images.unsplash.com/photo-1621213437500-1111666dd934?q=80&w=400&fit=crop',
-  },
-  {
-    id: 5,
-    name: 'Thomas J Desjardin',
-    profession: 'Finance',
-    img: 'https://images.unsplash.com/photo-1579227114347-15d08fc37cae?q=80&w=400&fit=crop',
-  },
-  {
-    id: 6,
-    name: 'Julia Roso',
-    profession: 'Marketing',
-    img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&fit=crop',
-  },
-  {
-    id: 7,
-    name: 'John Doe',
-    profession: 'Real Estate',
-    img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&fit=crop',
-  },
-  {
-    id: 8,
-    name: 'Jane Doe',
-    profession: 'Designer',
-    img: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=400&fit=crop',
-  },
-]
+function findOptionName(options: PublicCardsFilterOption[] | undefined, id: number | null): string | null {
+  if (id == null) return null
+  return options?.find((option) => option.id === id)?.name ?? null
+}
 
-const MORE_CARDS = [
-  {
-    id: 9,
-    name: 'Alice Smith',
-    profession: 'Developer',
-    img: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=400&fit=crop',
-  },
-  {
-    id: 10,
-    name: 'Bob Johnson',
-    profession: 'Architect',
-    img: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?q=80&w=400&fit=crop',
-  },
-  {
-    id: 11,
-    name: 'Carol White',
-    profession: 'Producer',
-    img: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=400&fit=crop',
-  },
-  {
-    id: 12,
-    name: 'David Brown',
-    profession: 'Designer',
-    img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&fit=crop',
-  },
-]
+type DesktopFilterSelectProps = {
+  value: number | null
+  onChange: (val: number | null) => void
+  options: PublicCardsFilterOption[]
+  placeholder: string
+  Icon: LucideIcon
+  disabled?: boolean
+}
 
-function FilterSelect({ placeholder, Icon, tooltip }: { placeholder: string; Icon: LucideIcon; tooltip: string }) {
+function DesktopFilterSelect({ value, onChange, options, placeholder, Icon, disabled }: DesktopFilterSelectProps) {
   return (
-    <div className="group relative flex-1 md:min-w-[140px]" title={tooltip}>
-      <div className="pointer-events-none absolute top-1/2 left-4 z-10 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-zinc-300 group-hover:text-zinc-300">
+    <div className="group relative min-w-[130px] flex-1">
+      <div className="pointer-events-none absolute top-1/2 left-4 z-10 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-200 group-hover:text-zinc-200">
         <Icon size={16} />
       </div>
-      <select className="h-full w-full cursor-pointer appearance-none rounded-xl border border-zinc-800/80 bg-zinc-950/50 py-3 pr-10 pl-11 text-xs font-medium text-zinc-100 shadow-sm transition-all outline-none hover:border-zinc-700/80 hover:bg-zinc-800/50 focus:border-zinc-700 focus:bg-zinc-800/50 focus:outline-none lg:text-sm">
-        <option value="" className="bg-zinc-900 text-zinc-500">
+      <select
+        value={value ?? ''}
+        disabled={disabled}
+        onChange={(e) => {
+          const next = e.target.value
+          onChange(next ? Number(next) : null)
+        }}
+        className="h-full w-full cursor-pointer appearance-none rounded-xl border border-zinc-300 bg-white py-3 pr-10 pl-11 text-xs font-semibold text-zinc-900 shadow-sm transition-all hover:border-zinc-400 hover:bg-zinc-50 focus:border-[#eab308] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-900/80"
+      >
+        <option value="" className="bg-white text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
           {placeholder}
         </option>
-        <option value="1" className="bg-zinc-900 text-zinc-100">
-          Option 1
-        </option>
-        <option value="2" className="bg-zinc-900 text-zinc-100">
-          Option 2
-        </option>
+        {options.map((opt) => (
+          <option key={opt.id} value={opt.id} className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+            {opt.name}
+          </option>
+        ))}
       </select>
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500 transition-colors group-hover:text-zinc-300">
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-400 transition-colors group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300">
         <ChevronDown size={14} />
       </div>
     </div>
   )
 }
 
-export const PublicCardsSection = () => {
-  const [cards, setCards] = useState(INITIAL_CARDS)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [viewMode, setViewMode] = useState<'grid' | 'slider'>('slider')
-  const [activeIndex, setActiveIndex] = useState(2)
-  const [isTransitioning, setIsTransitioning] = useState(false)
+type MobileFilterSelectProps = DesktopFilterSelectProps & { label: string }
 
-  const nextCard = () => {
-    if (isTransitioning) return
-    setIsTransitioning(true)
-    setActiveIndex((prev) => Math.min(cards.length - 1, prev + 1))
-    setTimeout(() => setIsTransitioning(false), 500)
+function MobileFilterSelect({ label, value, onChange, options, placeholder, Icon, disabled }: MobileFilterSelectProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-[10px] font-black tracking-widest text-zinc-400 uppercase">{label}</label>
+      <div className="group relative w-full">
+        <div className="pointer-events-none absolute top-1/2 left-4 z-10 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-zinc-300">
+          <Icon size={15} />
+        </div>
+        <select
+          value={value ?? ''}
+          disabled={disabled}
+          onChange={(e) => {
+            const next = e.target.value
+            onChange(next ? Number(next) : null)
+          }}
+          className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-800 bg-zinc-900/60 py-3 pr-10 pl-11 text-xs font-semibold text-zinc-100 shadow-sm transition-all focus:border-[#eab308] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <option value="" className="bg-zinc-950 text-zinc-400">
+            {placeholder}
+          </option>
+          {options.map((opt) => (
+            <option key={opt.id} value={opt.id} className="bg-zinc-950 text-zinc-100">
+              {opt.name}
+            </option>
+          ))}
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
+          <ChevronDown size={14} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Shared card shell — mobile uses rounded-xl, larger screens use a softer rounded-3xl. */
+const CONNECTION_CARD_SHELL =
+  'group/card relative flex flex-col overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900 shadow-xl transition-colors duration-300 md:rounded-3xl'
+
+const CONNECTION_CARD_MEDIA_FIT = 'object-cover object-[center_35%] origin-[center_35%] scale-[1.02]'
+
+/** Photo area — real card image/video, or initials when the API returns the generic vBiz logo. */
+function PublicCardPhoto({
+  card,
+  className = '',
+  imageClassName = '',
+}: {
+  card: PublicCardListItem
+  className?: string
+  imageClassName?: string
+}) {
+  if (card.img && card.isVideo) {
+    return (
+      <video
+        src={card.img}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className={`h-full w-full ${CONNECTION_CARD_MEDIA_FIT} ${imageClassName}`}
+        aria-label={card.name}
+      />
+    )
   }
 
-  const prevCard = () => {
-    if (isTransitioning) return
-    setIsTransitioning(true)
-    setActiveIndex((prev) => Math.max(0, prev - 1))
-    setTimeout(() => setIsTransitioning(false), 500)
-  }
-
-  const loadMoreCards = () => {
-    setIsLoadingMore(true)
-    // Simulate API call
-    setTimeout(() => {
-      setCards((prev) => [...prev, ...MORE_CARDS.map((c) => ({ ...c, id: c.id + prev.length }))])
-      setIsLoadingMore(false)
-    }, 1200)
+  if (card.img) {
+    return (
+      <Image
+        src={card.img}
+        alt={card.name}
+        fill
+        unoptimized
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+        className={`${CONNECTION_CARD_MEDIA_FIT} ${imageClassName}`}
+      />
+    )
   }
 
   return (
-    <div className="w-full overflow-hidden pb-20">
+    <div
+      className={`flex h-full w-full items-center justify-center bg-linear-to-br from-zinc-800 via-zinc-900 to-zinc-950 ${className}`}
+      aria-hidden
+    >
+      <span className="text-3xl font-black tracking-tight text-[#eab308] md:text-4xl">{card.initials}</span>
+    </div>
+  )
+}
+
+/** Single card design shared by both the grid and the 3D slider. */
+function ConnectionCardInner({ card }: { card: PublicCardListItem }) {
+  return (
+    <>
+      {/* Photo */}
+      <div className="relative min-h-0 flex-1 overflow-hidden bg-zinc-950">
+        <div className="absolute inset-0 z-10 bg-linear-to-t from-zinc-900 via-zinc-900/20 to-transparent" />
+        <PublicCardPhoto
+          card={card}
+          imageClassName="grayscale-15 transition-all duration-700 group-hover/card:scale-105 group-hover/card:grayscale-0"
+        />
+      </div>
+
+      {/* Details */}
+      <div className="relative z-20 flex shrink-0 flex-col items-center gap-2.5 bg-zinc-900 px-4 pt-3 pb-4 text-center md:gap-3 md:px-5 md:pb-5">
+        <div className="w-full">
+          <h3 className="w-full truncate text-base font-bold text-zinc-100 md:text-lg" title={card.name}>
+            {card.name}
+          </h3>
+          <div className="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[#eab308] uppercase">
+            <Briefcase size={10} /> {card.profession}
+          </div>
+        </div>
+        <Link
+          href={mapPublicCardProfileUrl(card.slug)}
+          className="flex w-full items-center justify-center rounded-xl border border-zinc-700/80 bg-zinc-800 py-2.5 text-xs font-bold text-zinc-100 shadow-sm transition-all group-hover/card:bg-zinc-100 group-hover/card:text-zinc-950 hover:bg-zinc-700 active:scale-95"
+        >
+          View Profile
+        </Link>
+      </div>
+    </>
+  )
+}
+
+export const PublicCardsSection = () => {
+  const {
+    cards,
+    dropdowns,
+    draftFilters,
+    hasActiveFilters,
+    isLoading,
+    isSearching,
+    isLoadingMore,
+    isPrefetchingAll,
+    error,
+    hasMore,
+    setDraftFilter,
+    applyFilters,
+    updateAndApplyFilter,
+    clearFilters,
+    loadMore,
+  } = usePublicCardsDirectory()
+
+  const [viewMode, setViewMode] = useState<'grid' | 'slider'>('slider')
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const serviceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setMounted(true), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    const timer = window.setTimeout(handleResize, 0)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (serviceDebounceRef.current) clearTimeout(serviceDebounceRef.current)
+    }
+  }, [])
+
+  const handleApplyFilters = useCallback(() => {
+    setActiveIndex(0)
+    applyFilters()
+  }, [applyFilters])
+
+  const handleClearFilters = useCallback(() => {
+    setActiveIndex(0)
+    clearFilters()
+  }, [clearFilters])
+
+  const handleDesktopServiceChange = useCallback(
+    (value: string) => {
+      setDraftFilter('service', value)
+      if (serviceDebounceRef.current) clearTimeout(serviceDebounceRef.current)
+      serviceDebounceRef.current = setTimeout(() => {
+        const trimmed = value.trim()
+        if (trimmed.length > 0 && trimmed.length < PUBLIC_CARDS_SEARCH_MIN_CHARS) return
+        updateAndApplyFilter('service', value)
+        setActiveIndex(0)
+      }, PUBLIC_CARDS_SEARCH_DEBOUNCE_MS)
+    },
+    [setDraftFilter, updateAndApplyFilter]
+  )
+
+  const handleDesktopFilterChange = useCallback(
+    <K extends 'stateId' | 'cityId' | 'professionId'>(key: K, value: number | null) => {
+      updateAndApplyFilter(key, value)
+      setActiveIndex(0)
+    },
+    [updateAndApplyFilter]
+  )
+
+  const selectedStateName = findOptionName(dropdowns.states, draftFilters.stateId)
+  const selectedCityName = findOptionName(dropdowns.cities, draftFilters.cityId)
+  const selectedProfessionName = findOptionName(dropdowns.professions, draftFilters.professionId)
+
+  const sliderActiveIndex = cards.length === 0 ? 0 : Math.min(activeIndex, cards.length - 1)
+
+  useEffect(() => {
+    if (viewMode !== 'slider' || !hasMore || isLoadingMore || isPrefetchingAll) return
+    if (sliderActiveIndex >= cards.length - 2) {
+      void loadMore()
+    }
+  }, [cards.length, hasMore, isLoadingMore, isPrefetchingAll, loadMore, sliderActiveIndex, viewMode])
+
+  const nextCard = () => {
+    if (cards.length <= 1) return
+    if (isTransitioning) return
+    setIsTransitioning(true)
+    setActiveIndex((prev) => (prev + 1) % cards.length)
+    setTimeout(() => setIsTransitioning(false), 350)
+  }
+
+  const prevCard = () => {
+    if (cards.length <= 1) return
+    if (isTransitioning) return
+    setIsTransitioning(true)
+    setActiveIndex((prev) => (prev - 1 + cards.length) % cards.length)
+    setTimeout(() => setIsTransitioning(false), 350)
+  }
+
+  const showInitialLoader = isLoading && cards.length === 0
+  const showEmptyState = !isLoading && !isPrefetchingAll && !error && cards.length === 0
+
+  return (
+    <div className="vbiz-public-cards-section isolate w-full max-w-full overflow-hidden pb-20">
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
-        {/* Header Card */}
-        <div className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-8 backdrop-blur-xl lg:col-span-4 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900/50">
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
+        {/* Header Card / Banner — theme-aware solid background (no video) */}
+        <div className="group dark:bg-ocean-deep relative flex min-h-[26vh] w-full flex-col overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-50 shadow-xl sm:min-h-[28vh] md:min-h-[24vh] md:rounded-[2.5rem] lg:col-span-4 lg:min-h-[24vh] dark:border-[#eab308]/20">
+          {/* Accessible background — subtle accent wash, adapts to light/dark theme */}
+          <div className="absolute inset-0 z-0 h-full w-full">
+            <div className="dark:from-ocean-deep dark:via-ocean-deep/85 dark:to-ocean-deep/30 absolute inset-0 bg-linear-to-t from-white via-white/85 to-white/40" />
+            <div className="dark:from-ocean-deep dark:via-ocean-deep/60 absolute inset-0 hidden bg-linear-to-r from-[#eab308]/10 to-transparent md:block md:w-2/3" />
+          </div>
 
-          <div className="bg-yellow-primary/10 dark:bg-yellow-primary/5 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
-          <div className="pointer-events-none absolute bottom-0 left-0 -mb-24 -ml-24 rounded-full bg-black/5 p-24 blur-3xl transition-transform delay-100 duration-1000 group-hover:scale-110 dark:bg-white/5" />
-
-          <div className="relative z-10 mb-8 flex w-full flex-col gap-6 pt-2 md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm transition-colors dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
-                <Users size={12} className="text-yellow-primary" /> Professional Network
-              </div>
-
-              <h2 className="mb-4 max-w-2xl text-3xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-5xl dark:text-zinc-100">
-                Global <span className="text-yellow-primary font-medium italic">Connections</span>
-              </h2>
-              <p className="max-w-xl text-base leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-                Discover and connect with top professionals across various industries worldwide. Build your network
-                today.
-              </p>
-            </div>
-
-            {/* View Toggle */}
-            <div className="flex shrink-0 self-start rounded-xl border border-zinc-200 bg-white/80 p-1.5 dark:border-zinc-800/80 dark:bg-zinc-950/80">
+          {/* View Toggle on Banner Top Right */}
+          <div className="absolute top-4 right-4 z-20 md:top-8 md:right-8 lg:top-10 lg:right-10">
+            <div className="inline-flex items-center rounded-xl border border-zinc-200 bg-white/80 p-1 shadow-2xl backdrop-blur-xl dark:border-zinc-800/80 dark:bg-black/60">
               <button
                 onClick={() => setViewMode('slider')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${viewMode === 'slider' ? 'bg-zinc-100 text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-black transition-all duration-300 md:px-4 md:py-2 md:text-xs ${viewMode === 'slider' ? 'bg-[#eab308] text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'}`}
               >
-                <Monitor size={14} /> Slider
+                <Monitor size={12} className="md:h-3.5 md:w-3.5" />
+                <span>Slider</span>
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${viewMode === 'grid' ? 'bg-zinc-100 text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-black transition-all duration-300 md:px-4 md:py-2 md:text-xs ${viewMode === 'grid' ? 'bg-[#eab308] text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'}`}
               >
-                <LayoutGrid size={14} /> Grid
+                <LayoutGrid size={12} className="md:h-3.5 md:w-3.5" />
+                <span>Grid</span>
               </button>
             </div>
           </div>
 
-          {/* Modern Filter Bar inside the header */}
-          <div className="relative z-10 flex w-full flex-col gap-3 border-t border-zinc-800/80 pt-6 md:flex-row">
-            <FilterSelect placeholder="State" Icon={MapPin} tooltip="Filter by US State" />
-            <FilterSelect placeholder="City" Icon={MapPin} tooltip="Filter by City Region" />
-            <FilterSelect placeholder="Profession" Icon={Briefcase} tooltip="Find specific expertise" />
+          {/* Content overlay */}
+          <div className="relative z-10 flex h-full w-full grow flex-col justify-end p-0 sm:p-7 md:p-8 lg:px-12 lg:py-9">
+            <div className="mt-auto flex w-full max-w-7xl flex-col items-start justify-between gap-4 md:gap-5">
+              <div className="flex max-w-2xl flex-col gap-2 md:gap-2.5">
+                <div className="inline-flex items-center gap-1.5 self-start rounded-full border border-[#eab308]/30 bg-[#eab308]/15 px-3 py-1 text-[9px] font-bold tracking-wider text-[#eab308] uppercase shadow-md backdrop-blur-md md:text-xs">
+                  <Users size={12} className="text-[#eab308]" /> Global Connections Directory
+                </div>
 
-            <div className="group relative w-full min-w-[200px] flex-[1.5]">
-              <div className="absolute top-1/2 left-4 z-10 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-zinc-300">
-                <Search size={16} />
+                <h2 className="text-2xl leading-[1.05] font-black tracking-tight text-zinc-900 sm:text-3xl md:text-4xl lg:text-4xl dark:text-white">
+                  Global{' '}
+                  <span className="bg-linear-to-r from-[#eab308] to-yellow-500 bg-clip-text text-transparent italic">
+                    Connections
+                  </span>
+                </h2>
+                <p className="max-w-xl text-[12px] leading-normal font-medium text-zinc-600 sm:text-xs md:text-sm dark:text-zinc-300">
+                  Discover and connect with top-tier verified professionals across the United States. Filter instantly
+                  by state, city, and industry sector to find valuable prospects.
+                </p>
+                {hasMore ? (
+                  <button
+                    type="button"
+                    onClick={() => void loadMore()}
+                    disabled={isLoadingMore || isPrefetchingAll}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#eab308]/40 bg-[#eab308]/15 px-3 py-1.5 text-[10px] font-bold text-[#b8940f] transition-all hover:border-[#eab308]/60 hover:bg-[#eab308]/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:text-xs dark:text-[#eab308]"
+                  >
+                    {isLoadingMore || isPrefetchingAll ? <Loader2 size={12} className="animate-spin" /> : null}
+                    Load more
+                  </button>
+                ) : null}
               </div>
-              <input
-                type="text"
-                placeholder="Search directory..."
-                className="h-full w-full rounded-xl border border-zinc-800/80 bg-zinc-950/50 py-3 pr-4 pl-11 text-xs font-medium text-zinc-100 shadow-sm transition-all placeholder:text-zinc-500 hover:border-zinc-700/80 hover:bg-zinc-800/50 focus:border-zinc-700 focus:bg-zinc-800/50 focus:outline-none lg:text-sm"
-              />
-            </div>
 
-            <button className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-6 py-3 text-xs font-bold text-zinc-950 shadow-sm transition-all hover:bg-white active:scale-95 lg:text-sm">
-              Search
-            </button>
+              {/* Desktop Filter Bar (md and larger) */}
+              <div className="hidden w-full items-center gap-3 border-t border-zinc-200 pt-4 md:flex dark:border-zinc-800/80">
+                <DesktopFilterSelect
+                  value={draftFilters.stateId}
+                  onChange={(value) => handleDesktopFilterChange('stateId', value)}
+                  options={dropdowns.states ?? []}
+                  placeholder="All States"
+                  Icon={MapPin}
+                />
+                <DesktopFilterSelect
+                  value={draftFilters.cityId}
+                  onChange={(value) => handleDesktopFilterChange('cityId', value)}
+                  options={dropdowns.cities ?? []}
+                  placeholder="All Cities"
+                  Icon={MapPin}
+                  disabled={!draftFilters.stateId}
+                />
+                <DesktopFilterSelect
+                  value={draftFilters.professionId}
+                  onChange={(value) => handleDesktopFilterChange('professionId', value)}
+                  options={dropdowns.professions ?? []}
+                  placeholder="All Professions"
+                  Icon={Briefcase}
+                />
+
+                <div className="group relative w-full min-w-[180px] flex-[1.5]">
+                  <div className="absolute top-1/2 left-4 z-10 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-600 dark:text-zinc-500 dark:group-focus-within:text-zinc-300">
+                    <Search size={16} />
+                  </div>
+                  <input
+                    type="text"
+                    value={draftFilters.service}
+                    onChange={(e) => handleDesktopServiceChange(e.target.value)}
+                    placeholder={`Search name or profession (${PUBLIC_CARDS_SEARCH_MIN_CHARS}+ letters)…`}
+                    className="w-full rounded-xl border border-zinc-300 bg-white py-3 pr-4 pl-11 text-xs font-medium text-zinc-900 shadow-sm transition-all placeholder:text-zinc-400 hover:border-zinc-400 hover:bg-zinc-50 focus:border-[#eab308] focus:outline-none lg:text-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:hover:border-zinc-700 dark:hover:bg-zinc-900/80"
+                  />
+                </div>
+
+                {(hasActiveFilters || isSearching) && (
+                  <button
+                    onClick={handleClearFilters}
+                    disabled={isSearching}
+                    className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3.5 text-xs font-bold text-zinc-600 transition-all hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 active:scale-95 disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-white"
+                    title="Reset All Filters"
+                  >
+                    {isSearching ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  </button>
+                )}
+              </div>
+
+              {/* Mobile Search & Filter trigger (md:hidden) */}
+              <div className="mt-1 flex w-full gap-2 border-t border-zinc-200 pt-4 md:hidden dark:border-zinc-800/50">
+                <button
+                  onClick={() => setIsFilterOpen(true)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-xs font-extrabold text-zinc-900 shadow-md backdrop-blur-md transition-all active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                >
+                  <SlidersHorizontal size={14} className="text-[#eab308]" />
+                  <span>Search & Filter Directory</span>
+                  {hasActiveFilters && <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#eab308]" />}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {viewMode === 'grid' ? (
+      {/* Mobile View Active Filters Bar (if filtered but popup is closed) */}
+      {isMobile && hasActiveFilters && (
+        <div className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-900 bg-zinc-950/40 p-3 md:hidden">
+          <div className="flex max-w-[80%] flex-wrap gap-1.5">
+            {selectedStateName && (
+              <span className="rounded-md border border-[#eab308]/20 bg-[#eab308]/10 px-2 py-0.5 text-[10px] text-[#eab308]">
+                {selectedStateName}
+              </span>
+            )}
+            {selectedCityName && (
+              <span className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300">
+                {selectedCityName}
+              </span>
+            )}
+            {selectedProfessionName && (
+              <span className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300">
+                {selectedProfessionName}
+              </span>
+            )}
+            {draftFilters.service.trim() !== '' && (
+              <span className="max-w-[100px] truncate rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300">
+                &ldquo;{draftFilters.service}&rdquo;
+              </span>
+            )}
+          </div>
+          <button
+            onClick={handleClearFilters}
+            className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 hover:text-white active:scale-95"
+          >
+            <RotateCcw size={10} /> Reset
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Filter Overlay Modal - bottom sheet rendered at viewport level via portal */}
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {isFilterOpen && (
+              <div className="fixed inset-0 z-9999 flex items-end justify-center p-0">
+                {/* Backdrop Blur */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsFilterOpen(false)}
+                  className="absolute inset-0 bg-black/85 backdrop-blur-md"
+                />
+
+                {/* Dialog container - bottom drawer that slides up like a mobile app sheet */}
+                <motion.div
+                  initial={{ opacity: 0, y: '100%' }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: '100%' }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                  className="relative z-10 flex max-h-[85vh] w-full flex-col gap-4 overflow-hidden rounded-t-[2.5rem] border-t border-zinc-800 bg-zinc-950 p-6 shadow-2xl"
+                >
+                  {/* Drag indicator bar */}
+                  <div className="mx-auto -mt-2 mb-2 h-1 w-12 shrink-0 rounded-full bg-zinc-800" />
+
+                  {/* Top bar */}
+                  <div className="flex shrink-0 items-center justify-between border-b border-zinc-900 pb-3">
+                    <div className="flex items-center gap-2">
+                      <SlidersHorizontal size={16} className="text-[#eab308]" />
+                      <h3 className="text-base font-black text-white">Filter Connections</h3>
+                    </div>
+                    <button
+                      onClick={() => setIsFilterOpen(false)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-400 transition-all hover:text-white active:scale-95"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Scrollable Filter Chips Area */}
+                  <div className="flex-1 space-y-5 overflow-y-auto py-2 pr-1 select-none">
+                    {/* Keyword Search */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[10px] font-black tracking-widest text-zinc-400 uppercase">
+                        Keyword Search
+                      </label>
+                      <div className="group relative w-full">
+                        <div className="absolute top-1/2 left-4 z-10 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-zinc-300">
+                          <Search size={15} />
+                        </div>
+                        <input
+                          type="text"
+                          value={draftFilters.service}
+                          onChange={(e) => setDraftFilter('service', e.target.value)}
+                          placeholder={`Search name or profession (${PUBLIC_CARDS_SEARCH_MIN_CHARS}+ letters)…`}
+                          className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 py-3 pr-4 pl-11 text-xs font-semibold text-zinc-100 shadow-sm transition-all placeholder:text-zinc-500 focus:border-[#eab308] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* State Select */}
+                    <MobileFilterSelect
+                      label="Filter by State"
+                      value={draftFilters.stateId}
+                      onChange={(value) => setDraftFilter('stateId', value)}
+                      options={dropdowns.states ?? []}
+                      placeholder="All States"
+                      Icon={MapPin}
+                    />
+
+                    {/* City Select */}
+                    <MobileFilterSelect
+                      label="Filter by City"
+                      value={draftFilters.cityId}
+                      onChange={(value) => setDraftFilter('cityId', value)}
+                      options={dropdowns.cities ?? []}
+                      placeholder="All Cities"
+                      Icon={MapPin}
+                      disabled={!draftFilters.stateId}
+                    />
+
+                    {/* Profession Select */}
+                    <MobileFilterSelect
+                      label="Filter by Profession"
+                      value={draftFilters.professionId}
+                      onChange={(value) => setDraftFilter('professionId', value)}
+                      options={dropdowns.professions ?? []}
+                      placeholder="All Professions"
+                      Icon={Briefcase}
+                    />
+                  </div>
+
+                  {/* Bottom action bar */}
+                  <div className="flex shrink-0 gap-2 border-t border-zinc-900 pt-3">
+                    <button
+                      onClick={handleClearFilters}
+                      className="hover:bg-zinc-850 flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 py-3.5 text-xs font-bold text-zinc-300 transition-all active:scale-95"
+                    >
+                      <RotateCcw size={13} /> Reset
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleApplyFilters()
+                        setIsFilterOpen(false)
+                      }}
+                      disabled={isSearching}
+                      className="flex flex-2 items-center justify-center gap-1.5 rounded-xl bg-[#eab308] py-3.5 text-xs font-black text-zinc-950 shadow-lg shadow-yellow-500/10 transition-all hover:bg-yellow-500 active:scale-95 disabled:opacity-60"
+                    >
+                      {isSearching || isPrefetchingAll ? <Loader2 size={13} className="animate-spin" /> : 'Apply'}
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
+
+      {error ? (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 mt-6 flex w-full flex-col items-center justify-center rounded-4xl border border-red-900/40 bg-red-950/20 px-4 py-16 text-center"
+        >
+          <h3 className="text-lg font-bold text-white">Unable to Load Connections</h3>
+          <p className="mt-1.5 max-w-sm text-xs text-red-300/80">
+            Public profiles could not be loaded right now. Please try again in a moment.
+          </p>
+        </motion.div>
+      ) : showInitialLoader ? (
+        <div className="relative z-20 mt-8 flex justify-center py-20">
+          <Loader2 size={32} className="animate-spin text-[#eab308]" />
+        </div>
+      ) : showEmptyState ? (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 mt-6 flex w-full flex-col items-center justify-center rounded-4xl border border-zinc-900 bg-zinc-950/20 px-4 py-20 text-center"
+        >
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-[#eab308]">
+            <Users size={24} />
+          </div>
+          <h3 className="text-lg font-bold text-white">No Connections Match Your Filters</h3>
+          <p className="mt-1.5 max-w-sm text-xs text-zinc-400">
+            {hasActiveFilters
+              ? 'Try resetting your selected search keyword, city, state, or profession filters to browse other top members.'
+              : 'No public profiles are available right now.'}
+          </p>
+          {hasActiveFilters ? (
+            <button
+              onClick={handleClearFilters}
+              className="mt-6 flex items-center gap-1.5 rounded-xl bg-[#eab308] px-5 py-2.5 text-xs font-bold text-zinc-950 transition-all hover:bg-yellow-500 active:scale-95"
+            >
+              <RotateCcw size={12} /> Clear Filter Settings
+            </button>
+          ) : null}
+        </motion.div>
+      ) : viewMode === 'grid' ? (
         /* Grid of Connections */
-        <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="relative z-20 mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {cards.map((card, idx) => (
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-50px' }}
-              transition={{ duration: 0.6, delay: (idx % 8) * 0.1, ease: 'easeOut' }}
+              transition={{ duration: 0.6, delay: (idx % 8) * 0.08, ease: 'easeOut' }}
               key={card.id}
-              className="group relative flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-white/5 bg-zinc-950/30 shadow-sm backdrop-blur-3xl transition-colors duration-300 hover:bg-zinc-950/40"
+              className={`${CONNECTION_CARD_SHELL} h-[385px] cursor-pointer hover:border-zinc-700 sm:h-[407px]`}
             >
-              <div className="relative h-56 overflow-hidden bg-zinc-950">
-                <div className="absolute inset-0 z-10 bg-linear-to-t from-zinc-900 to-transparent" />
-                <Image
-                  width={300}
-                  height={300}
-                  src={card.img}
-                  alt={card.name}
-                  className="h-full w-full object-cover opacity-80 grayscale-30 transition-all duration-700 group-hover:scale-105 group-hover:opacity-100 group-hover:grayscale-0"
-                />
-              </div>
-
-              <div className="relative z-20 -mt-6 flex flex-1 flex-col p-6">
-                <div className="flex flex-col items-center text-center">
-                  <h3 className="mb-1 w-full truncate text-lg leading-tight font-bold text-zinc-100 transition-colors group-hover:text-white md:text-xl">
-                    {card.name}
-                  </h3>
-                  <div className="text-yellow-primary inline-flex max-w-full items-center gap-1.5 truncate rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase">
-                    <Briefcase size={10} /> {card.profession}
-                  </div>
-                </div>
-
-                <div className="mt-8 flex w-full items-center justify-center gap-2">
-                  <button className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800 text-xs font-bold text-zinc-100 shadow-sm transition-colors duration-300 group-hover:bg-zinc-100 group-hover:text-zinc-950">
-                    View Profile
-                  </button>
-                  <button
-                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-300 transition-colors hover:bg-zinc-700"
-                    title="Share Profile"
-                  >
-                    <Share2 size={16} />
-                  </button>
-                </div>
-              </div>
+              <ConnectionCardInner card={card} />
             </motion.div>
           ))}
         </div>
       ) : (
-        /* Carousel Area */
-        <div className="relative z-20 mt-8 flex min-h-[480px] flex-1 flex-col items-center justify-center perspective-[1600px]">
-          {/* Navigation */}
-          <div className="pointer-events-none absolute top-1/2 z-40 flex w-full max-w-[1100px] -translate-y-1/2 justify-between px-4 md:px-8">
+        /* Cinematic Unified 3D Slider Area with swipe & drag on both mobile and desktop! */
+        <div className="relative z-20 mt-6 flex min-h-[380px] flex-1 flex-col items-center justify-center perspective-[1600px] md:min-h-[460px]">
+          {/* Navigation arrows (desktop floating layout, hidden on mobile for cleaner look) */}
+          <div className="pointer-events-none absolute top-1/2 z-40 hidden w-full max-w-[1080px] -translate-y-1/2 justify-between px-2 md:flex">
             <button
               onClick={prevCard}
-              disabled={activeIndex === 0}
-              className="group pointer-events-auto hidden h-12 w-12 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-800/80 text-zinc-100 shadow-sm backdrop-blur-md transition-all hover:bg-zinc-700 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-20 md:flex"
+              disabled={cards.length <= 1}
+              className="group pointer-events-auto flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/90 text-zinc-100 shadow-lg backdrop-blur-md transition-all hover:bg-[#eab308] hover:text-zinc-950 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft size={20} className="transition-transform group-hover:-translate-x-0.5" />
             </button>
             <button
               onClick={nextCard}
-              disabled={activeIndex === cards.length - 1}
-              className="group pointer-events-auto hidden h-12 w-12 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-800/80 text-zinc-100 shadow-sm backdrop-blur-md transition-all hover:bg-zinc-700 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-20 md:flex"
+              disabled={cards.length <= 1}
+              className="group pointer-events-auto flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/90 text-zinc-100 shadow-lg backdrop-blur-md transition-all hover:bg-[#eab308] hover:text-zinc-950 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronRight size={20} className="transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
 
-          <div className="transform-style-3d relative flex h-[440px] w-full max-w-[1000px] items-center justify-center px-4 md:px-0">
+          {/* Swipeable Draggable 3D Card Stack Container */}
+          <motion.div
+            drag={cards.length > 1 ? 'x' : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.4}
+            onDragEnd={(e, info) => {
+              const threshold = 55
+              if (info.offset.x < -threshold) {
+                nextCard()
+              } else if (info.offset.x > threshold) {
+                prevCard()
+              }
+            }}
+            className="transform-style-3d relative flex w-full max-w-[1000px] cursor-grab items-center justify-center select-none active:cursor-grabbing"
+            style={{ height: isMobile ? '330px' : '430px' }}
+          >
             <AnimatePresence initial={false}>
               {cards.map((card, idx) => {
-                const offset = idx - activeIndex
+                const offset = idx - sliderActiveIndex
                 const absOffset = Math.abs(offset)
                 const direction = Math.sign(offset)
 
-                if (absOffset > 3) return null // Only render cards within 3 slots
+                // Only show nearest cards to look pristine and fit perfectly
+                if (absOffset > 2) return null
 
-                // Depth
-                const zTranslate = absOffset === 0 ? 80 : -absOffset * 100
-                // Lateral position (x)
-                const xTranslate = offset === 0 ? 0 : direction * (absOffset * 130 + 80)
-                // Rotation
-                const yRotate = offset === 0 ? 0 : direction * -20
-                // Scale
-                const scale = absOffset === 0 ? 1 : Math.max(0.75, 1 - absOffset * 0.1)
+                // Calculate scales and translations for mobile and desktop
+                const cardWidth = isMobile ? 220 : 300
+                const cardHeight = isMobile ? 320 : 420
+
+                // Dynamic lateral spacing (xTranslate)
+                const xTranslate =
+                  offset === 0 ? 0 : direction * (absOffset * (isMobile ? 55 : 130) + (isMobile ? 30 : 80))
+
+                // Dynamic depth layer (zTranslate)
+                const zTranslate = offset === 0 ? (isMobile ? 40 : 80) : -absOffset * (isMobile ? 55 : 110)
+
+                // Smooth perspective rotation
+                const yRotate = offset === 0 ? 0 : direction * (isMobile ? -14 : -22)
+
+                // Scale cards cleanly
+                const scale =
+                  absOffset === 0 ? 1 : Math.max(isMobile ? 0.8 : 0.75, 1 - absOffset * (isMobile ? 0.08 : 0.12))
 
                 const zIndex = 50 - absOffset
-                const opacity = absOffset === 3 ? 0 : 1
+                const opacity = absOffset === 2 ? 0.6 : 1
 
                 return (
                   <motion.div
                     key={card.id}
                     onMouseMove={(e) => {
+                      if (isMobile) return
                       const rect = e.currentTarget.getBoundingClientRect()
                       const x = e.clientX - rect.left
                       const y = e.clientY - rect.top
-                      e.currentTarget.style.setProperty('--mouse-x', `${(x / rect.width - 0.5) * -15}px`)
-                      e.currentTarget.style.setProperty('--mouse-y', `${(y / rect.height - 0.5) * -15}px`)
+                      e.currentTarget.style.setProperty('--mouse-x', `${(x / rect.width - 0.5) * -12}px`)
+                      e.currentTarget.style.setProperty('--mouse-y', `${(y / rect.height - 0.5) * -12}px`)
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.setProperty('--mouse-x', '0px')
@@ -328,95 +740,135 @@ export const PublicCardsSection = () => {
                       opacity: opacity,
                     }}
                     transition={{
-                      duration: 0.5,
-                      ease: [0.32, 0.72, 0, 1], // smoother transition
+                      type: 'spring',
+                      damping: 24,
+                      stiffness: 160,
                     }}
                     onClick={() => {
-                      if (!isTransitioning) {
-                        setIsTransitioning(true)
+                      if (absOffset !== 0) {
                         setActiveIndex(idx)
-                        setTimeout(() => setIsTransitioning(false), 500)
                       }
                     }}
-                    className="transform-style-3d group/card absolute w-[260px] cursor-pointer overflow-hidden rounded-3xl border border-zinc-800/80 bg-zinc-900 shadow-sm transition-colors duration-300 md:w-[300px]"
-                    style={{ height: '420px' }}
+                    className="transform-style-3d group/card absolute cursor-pointer overflow-hidden rounded-4xl border border-zinc-800/80 bg-zinc-900 shadow-2xl transition-colors duration-300"
+                    style={{
+                      width: `${cardWidth}px`,
+                      height: `${cardHeight}px`,
+                    }}
                   >
-                    {/* Loading overlay during transition or fetching */}
+                    {/* Loading overlay */}
                     <AnimatePresence>
                       {isTransitioning && absOffset === 0 && (
                         <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/40 backdrop-blur-[2px]"
+                          className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/45 backdrop-blur-[2px]"
                         >
-                          <Loader2 size={32} className="animate-spin text-zinc-400" />
+                          <Loader2 size={isMobile ? 24 : 32} className="animate-spin text-[#eab308]" />
                         </motion.div>
                       )}
                     </AnimatePresence>
 
-                    {/* Card Overlay to darken back cards */}
+                    {/* Background Dimmer for unfocused cards */}
                     <motion.div
-                      animate={{ backgroundColor: absOffset === 0 ? 'rgba(24,24,27,0)' : 'rgba(24,24,27,0.7)' }}
+                      animate={{ backgroundColor: absOffset === 0 ? 'rgba(24,24,27,0)' : 'rgba(24,24,27,0.72)' }}
                       className="pointer-events-none absolute inset-0 z-20 transition-colors duration-500"
                     />
 
-                    <div className="relative h-[260px] w-full overflow-hidden bg-zinc-950">
-                      <div className="absolute inset-0 z-10 bg-linear-to-t from-zinc-900 via-zinc-900/40 to-transparent" />
-                      {/* Subtle Parallax on Hover */}
+                    {/* Connection Photo */}
+                    <div
+                      className="relative w-full overflow-hidden bg-zinc-950"
+                      style={{ height: isMobile ? '203px' : '278px' }}
+                    >
+                      <div className="absolute inset-0 z-10 bg-linear-to-t from-zinc-900 via-zinc-900/20 to-transparent" />
+
                       <motion.div
-                        className="absolute inset-0 h-full w-full overflow-hidden"
+                        className="absolute inset-0 h-full w-full translate-x-(--mouse-x,0px) translate-y-(--mouse-y,0px) overflow-hidden"
                         animate={{ scale: absOffset === 0 ? 1 : 1.05 }}
                         transition={{ duration: 0.5 }}
                       >
-                        <div
-                          className="absolute top-[-5%] left-[-5%] h-[110%] w-[110%] translate-x-(--mouse-x,0px) translate-y-(--mouse-y,0px) bg-cover bg-center grayscale-20 transition-transform duration-300 ease-out group-hover/card:scale-105"
-                          style={{ backgroundImage: `url(${card.img})` }}
+                        <PublicCardPhoto
+                          card={card}
+                          imageClassName="grayscale-15 transition-transform duration-300 ease-out group-hover/card:scale-105 group-hover/card:grayscale-0"
                         />
                       </motion.div>
                     </div>
 
-                    <div className="relative z-20 -mt-4 flex h-[160px] flex-col items-center justify-between border-t border-zinc-800/80 bg-zinc-900 p-6">
+                    {/* Connection Text Details */}
+                    <div
+                      className="relative z-20 -mt-2 flex flex-col items-center justify-between border-t border-zinc-800/60 bg-zinc-900 p-4 md:p-6"
+                      style={{ height: isMobile ? '130px' : '160px' }}
+                    >
                       <div className="w-full text-center">
                         <h4
-                          className="w-full truncate px-2 text-lg font-bold text-zinc-100 md:text-xl"
+                          className="w-full truncate px-1 text-sm font-extrabold text-zinc-100 md:text-xl"
                           title={card.name}
                         >
                           {card.name}
                         </h4>
                         <p
-                          className="text-yellow-primary mt-1.5 w-full truncate px-2 text-[10px] font-bold tracking-wider uppercase md:text-xs"
+                          className="mt-1 w-full truncate px-1 text-[9px] font-black tracking-wider text-[#eab308] uppercase md:text-xs"
                           title={card.profession}
                         >
                           {card.profession}
                         </p>
                       </div>
 
-                      <button className="mt-4 flex w-full items-center justify-center rounded-xl border border-zinc-700 bg-zinc-800 py-3.5 text-xs font-bold text-zinc-100 shadow-sm transition-all group-hover/card:bg-zinc-100 group-hover/card:text-zinc-950 hover:bg-zinc-700 active:scale-95">
+                      <Link
+                        href={mapPublicCardProfileUrl(card.slug)}
+                        className="mt-2 flex w-full items-center justify-center rounded-xl border border-zinc-700/80 bg-zinc-800 py-2 text-[10px] font-black text-zinc-100 shadow-sm transition-all group-hover/card:bg-zinc-100 group-hover/card:text-zinc-950 hover:bg-zinc-700 active:scale-95 md:py-3.5 md:text-xs"
+                      >
                         View Profile
-                      </button>
+                      </Link>
                     </div>
                   </motion.div>
                 )
               })}
             </AnimatePresence>
+          </motion.div>
+
+          {/* Uniform Slider Controller (dots & responsive buttons) — above cards on mobile, below on desktop */}
+          <div className="order-first mb-4 flex w-full max-w-[420px] shrink-0 items-center justify-between px-4 select-none md:order-none md:mt-6 md:mb-0">
+            {/* Prev Button */}
+            <button
+              onClick={prevCard}
+              disabled={cards.length <= 1}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition-all hover:bg-white/10 hover:text-white active:scale-90 disabled:cursor-not-allowed disabled:opacity-20"
+            >
+              <ChevronLeft size={18} />
+            </button>
+
+            {/* Centered Dots Indicator */}
+            <div className="no-scrollbar flex max-w-[60%] items-center gap-1.5 overflow-x-auto scroll-smooth py-1.5">
+              {cards.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (!isTransitioning) {
+                      setIsTransitioning(true)
+                      setActiveIndex(idx)
+                      setTimeout(() => setIsTransitioning(false), 350)
+                    }
+                  }}
+                  className={`h-1.5 shrink-0 rounded-full transition-all duration-300 ${idx === sliderActiveIndex ? 'w-5 bg-[#eab308]' : 'w-1.5 bg-zinc-700 hover:bg-zinc-600'}`}
+                  title={`Navigate to connection ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Next Button */}
+            <button
+              onClick={nextCard}
+              disabled={cards.length <= 1}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition-all hover:bg-white/10 hover:text-white active:scale-90 disabled:cursor-not-allowed disabled:opacity-20"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       )}
 
-      {cards.length < INITIAL_CARDS.length + MORE_CARDS.length && (
-        <div className="relative z-20 mt-10 flex w-full justify-center border-t border-zinc-800/50 pt-8 pb-8 md:mt-16">
-          <button
-            onClick={loadMoreCards}
-            disabled={isLoadingMore}
-            className="group flex min-w-[160px] items-center justify-center gap-2 rounded-xl border border-zinc-800/80 bg-zinc-900/50 px-6 py-3.5 text-sm font-bold text-zinc-100 shadow-sm backdrop-blur-md transition-all hover:bg-zinc-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isLoadingMore ? <Loader2 size={16} className="animate-spin" /> : 'Load More Connections'}
-          </button>
-        </div>
-      )}
-
-      {/* Custom CSS for 3D Perspective */}
+      {/* Custom CSS for 3D Perspective & Hidden Scrollbars */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -426,6 +878,13 @@ export const PublicCardsSection = () => {
               }
               .transform-style-3d {
                  transform-style: preserve-3d;
+              }
+              .no-scrollbar::-webkit-scrollbar {
+                 display: none;
+              }
+              .no-scrollbar {
+                 -ms-overflow-style: none;
+                 scrollbar-width: none;
               }
             `,
         }}
