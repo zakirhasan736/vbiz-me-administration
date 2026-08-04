@@ -1,7 +1,7 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
 
 export type MyCardProfile = {
-  id: number
+  id: string | number
   name: string
   slug: string
   email: string | null

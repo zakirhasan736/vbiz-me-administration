@@ -9,6 +9,7 @@ import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useTheme } from '@/lib/ThemeProvider'
 import { logout, useAuth } from '@/providers/AuthProvider'
+import { useGetPackagesQuery, useGetSubscriptionsQuery } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -373,6 +374,8 @@ export default function SettingsDialog() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const { isActive: isTourActive, settingsAssist, currentStep } = useDashboardTour()
   const hasPassword = reduxUser?.hasPassword !== false
+  const { data: packages = [] } = useGetPackagesQuery()
+  const { data: subscriptions = [] } = useGetSubscriptionsQuery()
 
   const activeTab = isTourActive && currentStep?.id && settingsAssist.activeTab ? settingsAssist.activeTab : selectedTab
 
@@ -945,11 +948,27 @@ export default function SettingsDialog() {
               <div>
                 <h4 className="mb-2 text-[15px] font-black text-slate-900 dark:text-white">Subscription & Billing</h4>
                 <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                  Manage your plan, billing details, and view payment history.
+                  Plans and subscriptions from your Node backend.
                 </p>
-                <button className="inline-flex items-center gap-2 rounded-[14px] bg-slate-900 px-6 py-3.5 text-[13px] font-bold text-white shadow-[0_4px_12px_-4px_rgba(0,0,0,0.3)] transition-all hover:shadow-md active:scale-95 dark:bg-white dark:text-slate-900">
-                  Manage Billing settings <ChevronRight className="h-4 w-4 opacity-50" />
-                </button>
+                <div className="mb-6 space-y-3">
+                  {(packages as Array<{ id: string; name: string; monthlyPrice?: number }>).map((pkg) => (
+                    <div
+                      key={pkg.id}
+                      className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 dark:border-white/10"
+                    >
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{pkg.name}</span>
+                      <span className="text-sm font-medium text-slate-500">
+                        {pkg.monthlyPrice != null ? `$${pkg.monthlyPrice}/mo` : '—'}
+                      </span>
+                    </div>
+                  ))}
+                  {packages.length === 0 && (
+                    <p className="text-sm text-slate-500">No packages imported yet. Run the Laravel data migration.</p>
+                  )}
+                </div>
+                <p className="mb-4 text-[13px] font-medium text-slate-500">
+                  Active subscriptions: {(subscriptions as unknown[]).length}
+                </p>
               </div>
             </Section>
           </div>

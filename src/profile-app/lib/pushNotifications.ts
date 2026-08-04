@@ -21,8 +21,10 @@ export const SERVICE_WORKER_PATH = '/sw.js'
 function getPushApiBase() {
   const base =
     process.env.NEXT_PUBLIC_PUSH_API_URL?.replace(/\/$/, '') ||
-    process.env.NEXT_PUBLIC_LARAVEL_API_URL?.replace(/\/$/, '') ||
-    'https://app.vbizme.com/api'
+    process.env.NEXT_PUBLIC_PUBLIC_API_URL?.replace(/\/$/, '') ||
+    (process.env.NEXT_PUBLIC_API_URL
+      ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')}/public`
+      : 'http://localhost:5000/api/v1/public')
   return base
 }
 

@@ -46,6 +46,27 @@ const vcardsSlice = createSlice({
       >
     ) {
       const id = action.payload?.id ?? newId()
+      if (state.byId[id]) {
+        const cur = state.byId[id]
+        state.byId[id] = {
+          ...cur,
+          ...createDefaultVCardData({
+            ...action.payload?.seed,
+            theme: { ...cur.theme, ...(action.payload?.seed?.theme || {}) },
+            appearance: action.payload?.seed?.appearance || cur.appearance,
+            personal: { ...cur.personal, ...(action.payload?.seed?.personal || {}) },
+          }),
+          id: cur.id,
+          createdAt: cur.createdAt,
+          updatedAt: new Date().toISOString(),
+          views: cur.views,
+          saves: cur.saves,
+          avatarImageUrl: cur.avatarImageUrl,
+          isActive: cur.isActive,
+        }
+        reindexSlugs(state)
+        return
+      }
       const now = new Date().toISOString()
       const branding = action.payload?.branding
       const data = createDefaultVCardData({
@@ -108,6 +129,15 @@ const vcardsSlice = createSlice({
       const id = action.payload
       delete state.byId[id]
       state.ids = state.ids.filter((x) => x !== id)
+      reindexSlugs(state)
+    },
+    replaceAllVCards(state, action: PayloadAction<VCardRecord[]>) {
+      state.byId = {}
+      state.ids = []
+      for (const card of action.payload) {
+        state.byId[card.id] = card
+        state.ids.push(card.id)
+      }
       reindexSlugs(state)
     },
     seedDemoIfEmpty(state) {
@@ -182,7 +212,8 @@ const vcardsSlice = createSlice({
   },
 })
 
-export const { addVCard, updateVCard, replaceVCardData, removeVCard, seedDemoIfEmpty } = vcardsSlice.actions
+export const { addVCard, updateVCard, replaceVCardData, removeVCard, replaceAllVCards, seedDemoIfEmpty } =
+  vcardsSlice.actions
 
 export default vcardsSlice.reducer
 

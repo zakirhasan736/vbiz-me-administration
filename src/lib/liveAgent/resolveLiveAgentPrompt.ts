@@ -19,7 +19,9 @@ export async function resolveLiveAgentPrompt(slug: string): Promise<ResolvedLive
 }
 
 /** Builds live agent prompt when profile id is already known (avoids duplicate slug fetch). */
-export async function resolveLiveAgentPromptFromProfileId(profileId: number): Promise<ResolvedLiveAgentPrompt | null> {
+export async function resolveLiveAgentPromptFromProfileId(
+  profileId: number | string
+): Promise<ResolvedLiveAgentPrompt | null> {
   const cardData = await fetchProfileAiData(profileId)
   if (!cardData) return null
 

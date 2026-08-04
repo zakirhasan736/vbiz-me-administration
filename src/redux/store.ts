@@ -10,6 +10,9 @@ import vcardsReducer from './features/vcards/vcards.slice'
 
 /** Registers all Laravel public-profile RTK Query endpoints. */
 import './api/index'
+/** Registers private profile / vCard RTK Query endpoints. */
+import './features/auth/auth.api'
+import './features/profiles/profiles.api'
 
 const userPersistConfig = {
   key: 'user',

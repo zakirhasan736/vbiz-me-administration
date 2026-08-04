@@ -2,7 +2,7 @@ import { getApiBaseUrl, SERVER_FETCH_REVALIDATE_SECONDS } from '@/lib/api/server
 import type { MyCardResponse } from '@interfaces/api/myCard'
 
 /** Resolves a public profile id from a vCard slug (server-only). */
-export async function fetchMyCardProfileId(slug: string): Promise<number | null> {
+export async function fetchMyCardProfileId(slug: string): Promise<string | number | null> {
   const trimmed = slug.trim()
   if (!trimmed) return null
 

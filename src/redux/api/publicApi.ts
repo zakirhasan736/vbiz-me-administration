@@ -6,8 +6,12 @@ import {
   type FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react'
 
-/** Laravel public vcard API (template-services parity). */
-export const baseUrl = process.env.NEXT_PUBLIC_LARAVEL_API_URL || 'https://app.vbizme.com/api'
+/** Public vcard API (Node `/api/v1/public` — Laravel path/shape parity). */
+export const baseUrl =
+  process.env.NEXT_PUBLIC_PUBLIC_API_URL ||
+  (process.env.NEXT_PUBLIC_API_URL
+    ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')}/public`
+    : 'http://localhost:5000/api/v1/public')
 
 const ONE_HOUR_SECONDS = 60 * 60
 

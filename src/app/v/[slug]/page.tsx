@@ -10,7 +10,7 @@ type Props = {
   params: Promise<{ slug: string }>
 }
 
-/** `/v/{slug}` — public vcard (Laravel-backed, template-services parity). */
+/** `/v/{slug}` — public vcard (Node `/api/v1/public`, template-services parity). */
 export default async function PublicProfilePage({ params }: Props) {
   const { slug } = await params
   const trimmed = slug?.trim()

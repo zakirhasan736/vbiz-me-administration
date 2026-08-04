@@ -1,7 +1,11 @@
 const ONE_HOUR_SECONDS = 60 * 60
 
+/** Public card API base (`/api/v1/public`). */
 export function getApiBaseUrl(): string {
-  const base = process.env.NEXT_PUBLIC_LARAVEL_API_URL || 'https://app.vbizme.com/api'
+  const fromPublic = process.env.NEXT_PUBLIC_PUBLIC_API_URL
+  const fromPrivate = process.env.NEXT_PUBLIC_API_URL
+  const base =
+    fromPublic || (fromPrivate ? `${fromPrivate.replace(/\/$/, '')}/public` : 'http://localhost:5000/api/v1/public')
   return base.replace(/\/$/, '')
 }
 

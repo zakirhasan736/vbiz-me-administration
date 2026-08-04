@@ -69,7 +69,7 @@ export function ProfileBrandPreloader() {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="vbiz-preloader fixed inset-0 z-[190] flex flex-col items-center justify-center"
+          className="vbiz-preloader fixed inset-0 z-190 flex flex-col items-center justify-center"
         >
           <div className="flex flex-col items-center gap-6">
             <motion.div
@@ -114,7 +114,7 @@ export function ProfileBrandPreloader() {
               ) : null}
             </div>
 
-            <div className="vbiz-preloader-progress-track mt-2 h-[3px] w-40 overflow-hidden rounded-full">
+            <div className="vbiz-preloader-progress-track mt-2 h-0.75 w-40 overflow-hidden rounded-full">
               <motion.div
                 className="vbiz-preloader-progress-bar h-full w-1/2 rounded-full"
                 animate={{ x: ['-100%', '220%'] }}
