@@ -1,6 +1,6 @@
 'use client'
 
-import { isVideoUrl } from '@/lib/mediaUrl'
+import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { notifyProfileExperienceSettled } from '@/lib/push/notificationExperience'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { cleanProfileFieldValue } from '@/profile-app/lib/profileHomeData'
@@ -55,7 +55,8 @@ export function ProfileBrandPreloader() {
     [personal.fullName, personal.company]
   )
   const initials = useMemo(() => resolveInitials(brandName), [brandName])
-  const logo = homeMedia.profileMedia?.trim() ?? ''
+  const logoRaw = homeMedia.profileMedia?.trim() ?? ''
+  const logo = isUsableImageSrc(logoRaw) ? encodeMediaUrl(logoRaw) : ''
   const showLogoImage = Boolean(logo) && !isVideoUrl(logo)
   const tagline = (personal.profession || personal.designation || '').trim()
 

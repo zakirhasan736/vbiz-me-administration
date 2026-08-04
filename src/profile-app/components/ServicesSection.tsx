@@ -15,7 +15,7 @@ function ServiceCardSkeleton({ delay }: { delay: number }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="flex min-h-[220px] flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50"
+      className="flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50"
     >
       <div className="mb-4 h-32 w-full animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
       <div className="mb-2 h-6 w-3/4 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
@@ -27,7 +27,7 @@ function ServiceCardSkeleton({ delay }: { delay: number }) {
 export const ServicesSection = () => {
   const { cardOwnerId } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null)
+  const [selectedServiceId, setSelectedServiceId] = useState<number | string | null>(null)
 
   const { data, isLoading, isError } = useGetServicesQuery(profileId, { skip: !profileId })
 
@@ -72,7 +72,7 @@ export const ServicesSection = () => {
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-[#eab308] dark:border-zinc-700 dark:bg-zinc-800/80">
             <Wrench size={24} />
           </div>
@@ -100,7 +100,7 @@ export const ServicesSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: idx * 0.08 }}
-              className={`group relative flex min-h-[220px] flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 md:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${isClickable ? 'cursor-pointer' : ''}`}
+              className={`group relative flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 md:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${isClickable ? 'cursor-pointer' : ''}`}
             >
               {imageUrl ? (
                 <div className="mb-4 h-32 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80">

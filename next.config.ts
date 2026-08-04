@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'app.vbizme.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'aws-s3-vbizme-vcard.s3.us-east-2.amazonaws.com',
+      },
     ],
   },
   reactCompiler: true,

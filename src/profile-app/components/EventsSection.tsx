@@ -31,10 +31,10 @@ function formatEventDate(date: string): string | null {
 function EventsSkeleton() {
   return (
     <div className="w-full pb-20">
-      <div className="mb-4 min-h-[220px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+      <div className="mb-4 min-h-55 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="h-[360px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
-        <div className="h-[360px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+        <div className="h-90 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+        <div className="h-90 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
       </div>
     </div>
   )
@@ -59,6 +59,7 @@ function EventCard({ item, idx, accent }: { item: DynamicPostListItem; idx: numb
             src={imageUrl}
             alt={item.title}
             fill
+            sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover transition-transform duration-700 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
@@ -138,7 +139,7 @@ export const EventsSection = () => {
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <Ticket size={24} style={{ color: accent }} />
           </div>

@@ -175,7 +175,7 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
   }
 
   const profileUrl = card.profile_media.url || card.profile_media.fallback_url || ''
-  if (profileUrl) {
+  if (profileUrl && (/^https?:\/\//i.test(profileUrl) || profileUrl.startsWith('/'))) {
     fields['Profile Image/Video'] = {
       ...fields['Profile Image/Video'],
       customValue: profileUrl,
@@ -296,6 +296,8 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
 export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
   const data = mapMyCardToVCardData(card)
   const now = new Date().toISOString()
+  const avatar = card.profile_media.url || card.profile_media.fallback_url || ''
+  const avatarImageUrl = avatar && (/^https?:\/\//i.test(avatar) || avatar.startsWith('/')) ? avatar : ''
 
   return {
     ...data,
@@ -304,7 +306,7 @@ export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
     updatedAt: now,
     views: card.action_buttons.view_counter?.count ?? 0,
     saves: 0,
-    avatarImageUrl: card.profile_media.url || card.profile_media.fallback_url || '',
+    avatarImageUrl,
     isActive: true,
   }
 }

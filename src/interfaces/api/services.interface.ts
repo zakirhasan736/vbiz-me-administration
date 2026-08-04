@@ -6,13 +6,14 @@ export type ServiceReviewLink = {
 }
 
 export type ServiceItem = {
-  id: number
+  id: number | string
   title: string
   description: string | null
-  post_type_id: number
-  created_at: string
+  post_type_id?: number
+  created_at?: string
   status: number
-  featured_image: string | null
+  /** Laravel: string URL. Node may send string or [{ url }]. */
+  featured_image: string | null | Array<{ url?: string | null }> | { url?: string | null }
   review_link: ServiceReviewLink
 }
 
@@ -38,7 +39,7 @@ export type ServicesSectionResponse = ApiResponse<ServicesSectionData> & {
 }
 
 export type ServiceListItem = {
-  id: number
+  id: number | string
   title: string
   description: string
   htmlDescription: string
