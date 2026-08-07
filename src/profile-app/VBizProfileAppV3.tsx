@@ -146,7 +146,7 @@ export function VBizProfileAppV3({
         />
       </ProfileFloatingNav>
 
-      <div className="relative z-20 mt-0 flex h-full w-full flex-1 flex-col px-0 md:mt-[72px]">
+      <div className="relative z-20 mt-0 flex h-full w-full flex-1 flex-col px-0 md:mt-18">
         <main
           className="no-scrollbar relative flex w-full flex-1 flex-col overflow-x-hidden md:overflow-x-visible"
           role="tabpanel"
@@ -178,7 +178,7 @@ export function VBizProfileAppV3({
                   {activeSectionId === 'home' ? (
                     <ProfileSectionOutlet sectionId={activeSectionId} template="v3" homeHeroProps={homeHeroProps} />
                   ) : (
-                    <div className="mx-auto mt-10 mb-10 min-h-auto w-full max-w-[1032px] px-6 md:mt-15">
+                    <div className="mx-auto mt-10 mb-10 min-h-auto w-full max-w-258 px-6 md:mt-15">
                       <ProfileSectionOutlet sectionId={activeSectionId} template="v3" />
                     </div>
                   )}

@@ -1,11 +1,14 @@
 'use client'
 
 import { Badge, Button, Card, Tooltip } from '@/components/ui'
+import { useAppDispatch } from '@/hooks/redux'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
+import { useDeleteProfileMutation } from '@/redux/features/profiles/profiles.api'
+import { removeVCard } from '@/redux/features/vcards/vcards.slice'
 import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { formatViewCount, getVCardPublicPath, getVCardPublicUrl } from '@/utils/vcard'
-import { Check, Copy, ExternalLink, MoreHorizontal, QrCode, User } from 'lucide-react'
+import { Check, Copy, ExternalLink, MoreHorizontal, QrCode, Trash2, User } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -17,7 +20,10 @@ type VCardGridCardProps = {
 }
 
 export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
+  const dispatch = useAppDispatch()
+  const [deleteProfile, { isLoading: isDeleting }] = useDeleteProfileMutation()
   const [copied, setCopied] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const slug = card.slug.trim()
   const publicPath = getVCardPublicPath(slug)
   const fullUrl = getVCardPublicUrl(slug)
@@ -30,10 +36,43 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleDelete = async () => {
+    const ok = window.confirm(`Delete “${card.personal.fullName || 'this vCard'}”? This cannot be undone.`)
+    if (!ok) return
+    try {
+      await deleteProfile(card.id).unwrap()
+      dispatch(removeVCard(card.id))
+    } catch {
+      window.alert('Could not delete this vCard. Please try again.')
+    } finally {
+      setMenuOpen(false)
+    }
+  }
+
   return (
     <Card className="group relative flex flex-col overflow-hidden rounded-[28px] shadow-[0_2px_10px_-3px_rgba(6,81,237,0.03)] transition-all duration-400 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(6,81,237,0.08)] dark:hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.5)]">
-      <div className="absolute top-4 right-4 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-black/5 bg-white/70 text-slate-700 opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100 hover:bg-white dark:border-white/10 dark:bg-black/50 dark:text-slate-200 dark:hover:bg-slate-800">
-        <MoreHorizontal className="h-4 w-4" />
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-black/5 bg-white/70 text-slate-700 opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100 hover:bg-white dark:border-white/10 dark:bg-black/50 dark:text-slate-200 dark:hover:bg-slate-800"
+          aria-label="Card actions"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+        {menuOpen ? (
+          <div className="absolute top-10 right-0 min-w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => void handleDelete()}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {isDeleting ? 'Deleting…' : 'Delete card'}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="from-primary-50 to-primary-100/50 dark:from-primary-900/20 dark:to-primary-800/10 relative h-35 shrink-0 overflow-hidden bg-linear-to-br transition-transform duration-500 group-hover:scale-[1.02]">
@@ -178,17 +217,6 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </motion.span>
-                )}
-              </AnimatePresence>
-              <AnimatePresence>
-                {copied && (
-                  <motion.span
-                    initial={{ scale: 0.6, opacity: 0.5 }}
-                    animate={{ scale: 1.8, opacity: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                    className="pointer-events-none absolute inset-0 rounded-lg bg-emerald-400/40"
-                  />
                 )}
               </AnimatePresence>
             </button>

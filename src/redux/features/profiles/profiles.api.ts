@@ -1,5 +1,7 @@
+import { mapVCardEditorSettingsPayload } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
-import type { VCardData, VCardRecord } from '@/types/vcard'
+import type { VCardData, VCardFaqEntry, VCardGeneralPost, VCardRecord } from '@/types/vcard'
 import { createDefaultVCardData } from '@/types/vcard'
 
 export type ApiProfile = {
@@ -50,6 +52,7 @@ export type ApiProfile = {
     description?: string | null
     imageUrl?: string | null
     reviewUrl?: string | null
+    status?: number | null
   }>
   portfolios?: Array<{
     id: string
@@ -57,6 +60,12 @@ export type ApiProfile = {
     description?: string | null
     url?: string | null
     imageUrl?: string | null
+    status?: number | null
+  }>
+  skillTags?: Array<{
+    id: string
+    name?: string | null
+    level?: string | null
   }>
   socialLinks?: Array<{ id: string; name?: string | null; url?: string | null; icon?: string | null }>
   profileSettings?: {
@@ -67,12 +76,62 @@ export type ApiProfile = {
   } | null
 }
 
+export type ApiPost = {
+  id: string
+  title?: string | null
+  description?: string | null
+  url?: string | null
+  featuredImage?: string | null
+  status?: string | null
+  sortOrder?: number | null
+  postType?: { id?: string; name?: string | null; title?: string | null } | null
+  metas?: Array<{ metaKey: string; metaValue: string | null }>
+  createdAt?: string
+  updatedAt?: string
+}
+
 type Envelope<T> = { success: boolean; data: T; message?: string }
+
+export const BLOG_POST_TYPE = 'blog'
+export const FAQ_POST_TYPE = 'Faq'
 
 const templateToAppearance = (template?: string) => {
   if (template === 'dynamic' || template === 'v1') return 'v1' as const
   if (template === 'classic' || template === 'v2') return 'v2' as const
   return 'v3' as const
+}
+
+function metaMap(metas?: ApiPost['metas']): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const m of metas || []) {
+    if (m.metaKey) out[m.metaKey] = m.metaValue ?? ''
+  }
+  return out
+}
+
+export function mapApiPostsToGeneralPosts(posts: ApiPost[]): VCardGeneralPost[] {
+  return posts.map((p) => {
+    const metas = metaMap(p.metas)
+    return {
+      id: p.id,
+      category: metas.category || '',
+      title: p.title || '',
+      description: p.description || '',
+      customUrl: p.url || '',
+      featuredImage: p.featuredImage || '',
+      date: metas.date || (p.createdAt ? String(p.createdAt).slice(0, 10) : ''),
+      active: p.status !== '0' && p.status !== 'false',
+    }
+  })
+}
+
+export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
+  return posts.map((p) => ({
+    id: p.id,
+    question: p.title || '',
+    answer: p.description || '',
+    active: p.status !== '0' && p.status !== 'false',
+  }))
 }
 
 export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
@@ -140,8 +199,19 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       description: s.description || '',
       url: s.reviewUrl || '',
       featuredImage: s.imageUrl || '',
-      active: true,
+      active: s.status !== 0,
     })),
+    portfolio: (profile.portfolios || []).map((p) => ({
+      id: p.id,
+      type: 'Image',
+      title: p.title || '',
+      description: p.description || '',
+      imageUrl: p.imageUrl || '',
+      imageName: '',
+      url: p.url || '',
+      active: p.status !== 0,
+    })),
+    skills: skillTagsToGroups(profile.skillTags),
   })
 
   return {
@@ -182,15 +252,23 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     tiktok: data.social?.handles?.tiktok,
     youtube: data.social?.handles?.youtube,
     linkedin: data.social?.handles?.linkedin,
-    profileSettings: data.appearance
-      ? {
-          profileTemplate: data.appearance.profileTemplate,
-          layoutStyle: data.appearance.layoutStyle,
-          buttonStyle: data.appearance.buttonStyle,
-          cornerStyle: data.appearance.cornerStyle,
-        }
-      : undefined,
+    settings: mapVCardEditorSettingsPayload(data),
+    profileSettings: {
+      ...(data.appearance
+        ? {
+            profileTemplate: data.appearance.profileTemplate,
+            layoutStyle: data.appearance.layoutStyle,
+            buttonStyle: data.appearance.buttonStyle,
+            cornerStyle: data.appearance.cornerStyle,
+          }
+        : {}),
+      ...(data.themeConfig ? { themeConfig: data.themeConfig } : {}),
+    },
   }
+}
+
+function isLocalTempId(id: string): boolean {
+  return /^(pf_|sk_|post_|faq_|svc_|sec_)/.test(id)
 }
 
 const profilesApi = api.injectEndpoints({
@@ -245,10 +323,72 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
     }),
+    replaceSkills: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
+      query: ({ id, items }) => ({ url: `/profiles/${id}/skills`, method: 'PUT', body: { items } }),
+      transformResponse: (res: Envelope<ApiProfile>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+    }),
     replaceSocialLinks: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/social-links`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+    }),
+    listProfilePosts: builder.query<ApiPost[], { id: string; postType?: string }>({
+      query: ({ id, postType }) =>
+        postType ? `/profiles/${id}/posts?postType=${encodeURIComponent(postType)}` : `/profiles/${id}/posts`,
+      transformResponse: (res: Envelope<ApiPost[]>) => res.data || [],
+      providesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:posts` }],
+    }),
+    createProfilePost: builder.mutation<
+      ApiPost,
+      {
+        id: string
+        body: {
+          title?: string
+          description?: string
+          postTypeName?: string
+          url?: string
+          featuredImage?: string
+          status?: string
+          metas?: Record<string, string>
+        }
+      }
+    >({
+      query: ({ id, body }) => ({ url: `/profiles/${id}/posts`, method: 'POST', body }),
+      transformResponse: (res: Envelope<ApiPost>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:posts` },
+      ],
+    }),
+    updateProfilePost: builder.mutation<
+      ApiPost,
+      {
+        id: string
+        postId: string
+        body: {
+          title?: string
+          description?: string
+          url?: string
+          featuredImage?: string
+          status?: string
+          sortOrder?: number
+        }
+      }
+    >({
+      query: ({ id, postId, body }) => ({ url: `/profiles/${id}/posts/${postId}`, method: 'PATCH', body }),
+      transformResponse: (res: Envelope<ApiPost>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:posts` },
+      ],
+    }),
+    deleteProfilePost: builder.mutation<{ id: string; deleted: boolean }, { id: string; postId: string }>({
+      query: ({ id, postId }) => ({ url: `/profiles/${id}/posts/${postId}`, method: 'DELETE' }),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:posts` },
+      ],
     }),
     getDashboardStats: builder.query<
       {
@@ -307,6 +447,8 @@ const profilesApi = api.injectEndpoints({
   }),
 })
 
+export { isLocalTempId }
+
 export const {
   useGetProfilesQuery,
   useGetProfileQuery,
@@ -317,7 +459,13 @@ export const {
   useReplaceExperiencesMutation,
   useReplaceServicesMutation,
   useReplacePortfoliosMutation,
+  useReplaceSkillsMutation,
   useReplaceSocialLinksMutation,
+  useListProfilePostsQuery,
+  useLazyListProfilePostsQuery,
+  useCreateProfilePostMutation,
+  useUpdateProfilePostMutation,
+  useDeleteProfilePostMutation,
   useGetDashboardStatsQuery,
   useGetPackagesQuery,
   useGetSubscriptionsQuery,

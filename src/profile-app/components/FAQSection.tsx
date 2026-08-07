@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 
 type FaqItem = {
-  id: number
+  id: number | string
   question: string
   answer: string
 }
@@ -58,7 +58,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
   if (!profileId) return null
 
   if (showInitialLoader) {
-    return <V3LoadingSkeleton className="min-h-[280px]" />
+    return <V3LoadingSkeleton className="min-h-70" />
   }
 
   if (isError) {
@@ -161,7 +161,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                           transition={{ duration: 0.25 }}
                         >
                           <div
-                            className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-100 px-4 pt-1 pb-4 text-[11px] leading-relaxed font-medium text-zinc-700 sm:text-xs dark:border-zinc-800/40 dark:text-zinc-200 [&_*]:!text-[inherit]"
+                            className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-100 px-4 pt-1 pb-4 text-[11px] leading-relaxed font-medium text-zinc-700 **:text-inherit! sm:text-xs dark:border-zinc-800/40 dark:text-zinc-200"
                             dangerouslySetInnerHTML={{ __html: faq.answer }}
                           />
                         </motion.div>
@@ -239,7 +239,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                       >
                         <div
-                          className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-200 px-6 pt-6 pb-8 text-sm leading-relaxed font-medium text-zinc-700 md:text-base lg:px-8 dark:border-zinc-800/50 dark:text-zinc-200 [&_*]:!text-[inherit]"
+                          className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-200 px-6 pt-6 pb-8 text-sm leading-relaxed font-medium text-zinc-700 **:text-inherit! md:text-base lg:px-8 dark:border-zinc-800/50 dark:text-zinc-200"
                           dangerouslySetInnerHTML={{ __html: faq.answer }}
                         />
                       </motion.div>

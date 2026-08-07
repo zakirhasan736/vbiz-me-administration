@@ -14,7 +14,7 @@ export const BlogSection = ({ sectionName = 'blog' }: BlogSectionProps) => {
   const { cardOwnerId } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
   const resolvedSectionName = sectionName.trim() || 'blog'
-  const [selectedPostId, setSelectedPostId] = useState<number | null>(null)
+  const [selectedPostId, setSelectedPostId] = useState<number | string | null>(null)
 
   const { data, isLoading, isError } = useGetDynamicSectionQuery(
     { profileId, sectionName: resolvedSectionName },

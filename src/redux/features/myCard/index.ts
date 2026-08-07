@@ -1,3 +1,4 @@
+export { myCardApi, useGetMyCardBySlugQuery, useLazyGetMyCardBySlugQuery } from './myCard.api'
 export {
   selectActiveProfileSlug,
   selectMyCardBySlug,

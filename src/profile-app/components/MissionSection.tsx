@@ -2,10 +2,11 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useSectionAccent, V3EmptyState, V3ErrorState, V3LoadingSkeleton, V3SectionShell } from '@/profile-app/sections'
-import { useGetMissionStatementQuery } from '@/redux/api'
+import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, BookOpen, Quote } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -103,7 +104,10 @@ export const MissionSection = () => {
   const profileId = cardOwnerId?.trim() ?? ''
   const accent = useSectionAccent()
 
-  const { data, isLoading, isError } = useGetMissionStatementQuery(profileId, { skip: !profileId })
+  const { data, isLoading, isError } = useGetDynamicSectionQuery(
+    { profileId, sectionName: PUBLIC_SECTION_NAMES.mission },
+    { skip: !profileId }
+  )
 
   const sectionTitle = data?.sectionTitle ?? 'Mission Statement'
   const items = data?.posts ?? []

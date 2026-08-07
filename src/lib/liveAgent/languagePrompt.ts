@@ -19,6 +19,12 @@ export function buildCardPayloadForPrompt(data: LiveAgentCardData): string {
     phone: data.phone,
     website: data.website,
     location: data.location,
+    about: data.about,
+    skills: data.skills ?? [],
+    services: data.services ?? [],
+    experience: data.experience ?? [],
+    education: data.education ?? [],
+    portfolio: data.portfolio ?? [],
   })
 }
 

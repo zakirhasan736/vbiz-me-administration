@@ -42,6 +42,7 @@ import {
   SalesPersonSection,
   SeeProductsSection,
   ServicesSection,
+  SkillsSection,
   VideoLinksSection,
   VideosSection,
   WhyChooseUsSection,
@@ -121,6 +122,8 @@ export function renderProfileSection({
       return <EducationSection key={tabId} sectionName={sectionName} />
     case 'work':
       return <ExperienceSection key={tabId} sectionName={sectionName} />
+    case 'skills':
+      return <SkillsSection key={tabId} sectionName={sectionName} />
     case 'public-cards':
       return <PublicCardsSection key={tabId} />
     case 'clients':

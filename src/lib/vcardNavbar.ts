@@ -45,6 +45,7 @@ import {
   Utensils,
   UtensilsCrossed,
   Video,
+  Wand2,
   Wrench,
 } from 'lucide-react'
 
@@ -60,6 +61,7 @@ export const MERGED_PROFILE_NAV_LABELS = [
   'About Me',
   'Company Mission Statement',
   'Resume',
+  'Skills',
   'Services',
   'Gallery',
   'Videos',
@@ -94,6 +96,7 @@ export type ProfileNavContentKey =
   | 'certificates'
   | 'education'
   | 'work'
+  | 'skills'
   | 'calendar'
   | 'events'
   | 'booking'
@@ -130,6 +133,8 @@ export type EditorNavPanel =
   | { kind: 'blog' }
   | { kind: 'faq' }
   | { kind: 'link-shortener' }
+  | { kind: 'section-posts'; schemaKey: ProfileNavContentKey }
+  | { kind: 'info'; infoKey: 'public-cards' }
   | { kind: 'empty' }
 
 export type NavBarNavItem = {
@@ -156,7 +161,7 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     label: 'Company Mission Statement',
     icon: ScrollText,
     profileContent: 'mission',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'mission' },
   },
   {
     id: 'education',
@@ -165,9 +170,22 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     profileContent: 'education',
     editorPanel: { kind: 'education' },
   },
+  {
+    id: 'skills',
+    label: 'Skills',
+    icon: Wand2,
+    profileContent: 'skills',
+    editorPanel: { kind: 'skill' },
+  },
   { id: 'services', label: 'Services', icon: Wrench, profileContent: 'services', editorPanel: { kind: 'services' } },
   { id: 'gallery', label: 'Gallery', icon: Camera, profileContent: 'gallery', editorPanel: { kind: 'portfolio' } },
-  { id: 'videos', label: 'Videos', icon: Film, profileContent: 'videos', editorPanel: { kind: 'empty' } },
+  {
+    id: 'videos',
+    label: 'Videos',
+    icon: Film,
+    profileContent: 'videos',
+    editorPanel: { kind: 'section-posts', schemaKey: 'videos' },
+  },
   { id: 'blog', label: 'Blog', icon: FileEdit, profileContent: 'blog', editorPanel: { kind: 'blog' } },
   { id: 'post', label: 'Post', icon: Newspaper, profileContent: 'post', editorPanel: { kind: 'blog' } },
   {
@@ -175,53 +193,71 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     label: 'Additional Services',
     icon: Layers,
     profileContent: 'additional',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'additional' },
   },
   {
     id: 'explainer',
     label: '2D Explainer',
     icon: PlaySquare,
     profileContent: 'explainer',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'explainer' },
   },
-  { id: 'reviews', label: 'Reviews', icon: Star, profileContent: 'reviews', editorPanel: { kind: 'empty' } },
+  {
+    id: 'reviews',
+    label: 'Reviews',
+    icon: Star,
+    profileContent: 'reviews',
+    editorPanel: { kind: 'section-posts', schemaKey: 'reviews' },
+  },
   {
     id: 'certificates',
     label: 'Certifications/Licenses',
     icon: Award,
     profileContent: 'certificates',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'certificates' },
   },
   {
     id: 'insurance-license',
     label: 'Insurance License',
     icon: ShieldCheck,
     profileContent: 'insurance-license',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'insurance-license' },
   },
   {
     id: 'licensing',
     label: 'Licensing',
     icon: BadgeCheck,
     profileContent: 'licensing',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'licensing' },
   },
   {
     id: 'public-cards',
     label: 'Public Cards',
     icon: IdCard,
     profileContent: 'public-cards',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'info', infoKey: 'public-cards' },
   },
-  { id: 'clients', label: 'Clients', icon: Handshake, profileContent: 'clients', editorPanel: { kind: 'empty' } },
+  {
+    id: 'clients',
+    label: 'Clients',
+    icon: Handshake,
+    profileContent: 'clients',
+    editorPanel: { kind: 'section-posts', schemaKey: 'clients' },
+  },
   {
     id: 'meet-team',
     label: 'Meet Our Team',
     icon: UsersRound,
     profileContent: 'meet-team',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'meet-team' },
   },
-  { id: 'calendar', label: 'Calender', icon: Calendar, profileContent: 'calendar', editorPanel: { kind: 'empty' } },
+  {
+    id: 'calendar',
+    label: 'Calender',
+    icon: Calendar,
+    profileContent: 'calendar',
+    editorPanel: { kind: 'section-posts', schemaKey: 'calendar' },
+  },
   { id: 'faq', label: 'Faq', icon: Lightbulb, profileContent: 'faq', editorPanel: { kind: 'faq' } },
   {
     id: 'work',
@@ -235,18 +271,36 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     label: 'Video Links',
     icon: Video,
     profileContent: 'video-links',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'video-links' },
   },
   {
     id: 'announcement',
     label: 'Announcement',
     icon: Megaphone,
     profileContent: 'announcement',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'announcement' },
   },
-  { id: 'bbb', label: 'BBB', icon: Shield, profileContent: 'bbb', editorPanel: { kind: 'empty' } },
-  { id: 'booking', label: 'Booking', icon: CalendarDays, profileContent: 'booking', editorPanel: { kind: 'empty' } },
-  { id: 'breakfast', label: 'Breakfast', icon: Coffee, profileContent: 'breakfast', editorPanel: { kind: 'empty' } },
+  {
+    id: 'bbb',
+    label: 'BBB',
+    icon: Shield,
+    profileContent: 'bbb',
+    editorPanel: { kind: 'section-posts', schemaKey: 'bbb' },
+  },
+  {
+    id: 'booking',
+    label: 'Booking',
+    icon: CalendarDays,
+    profileContent: 'booking',
+    editorPanel: { kind: 'section-posts', schemaKey: 'booking' },
+  },
+  {
+    id: 'breakfast',
+    label: 'Breakfast',
+    icon: Coffee,
+    profileContent: 'breakfast',
+    editorPanel: { kind: 'section-posts', schemaKey: 'breakfast' },
+  },
   {
     id: 'contact-us',
     label: 'Contact Us',
@@ -254,55 +308,103 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     profileContent: 'about',
     editorPanel: { kind: 'personal', subTab: 2 },
   },
-  { id: 'dcp', label: 'DCP', icon: FileText, profileContent: 'dcp', editorPanel: { kind: 'empty' } },
-  { id: 'dinner', label: 'Dinner', icon: Utensils, profileContent: 'dinner', editorPanel: { kind: 'empty' } },
-  { id: 'events', label: 'Events', icon: Ticket, profileContent: 'events', editorPanel: { kind: 'empty' } },
-  { id: 'home-solar', label: 'Home Solar', icon: Sun, profileContent: 'home-solar', editorPanel: { kind: 'empty' } },
-  { id: 'inventory', label: 'Inventory', icon: Package, profileContent: 'inventory', editorPanel: { kind: 'empty' } },
+  {
+    id: 'dcp',
+    label: 'DCP',
+    icon: FileText,
+    profileContent: 'dcp',
+    editorPanel: { kind: 'section-posts', schemaKey: 'dcp' },
+  },
+  {
+    id: 'dinner',
+    label: 'Dinner',
+    icon: Utensils,
+    profileContent: 'dinner',
+    editorPanel: { kind: 'section-posts', schemaKey: 'dinner' },
+  },
+  {
+    id: 'events',
+    label: 'Events',
+    icon: Ticket,
+    profileContent: 'events',
+    editorPanel: { kind: 'section-posts', schemaKey: 'events' },
+  },
+  {
+    id: 'home-solar',
+    label: 'Home Solar',
+    icon: Sun,
+    profileContent: 'home-solar',
+    editorPanel: { kind: 'section-posts', schemaKey: 'home-solar' },
+  },
+  {
+    id: 'inventory',
+    label: 'Inventory',
+    icon: Package,
+    profileContent: 'inventory',
+    editorPanel: { kind: 'section-posts', schemaKey: 'inventory' },
+  },
   {
     id: 'join-team',
     label: 'Join My Team',
     icon: UserPlus,
     profileContent: 'join-my-team',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'join-my-team' },
   },
-  { id: 'lunch', label: 'Lunch', icon: UtensilsCrossed, profileContent: 'lunch', editorPanel: { kind: 'empty' } },
-  { id: 'menu', label: 'Menu', icon: Menu, profileContent: 'menu', editorPanel: { kind: 'empty' } },
-  { id: 'press', label: 'Press/Media', icon: Mic, profileContent: 'media-press', editorPanel: { kind: 'empty' } },
+  {
+    id: 'lunch',
+    label: 'Lunch',
+    icon: UtensilsCrossed,
+    profileContent: 'lunch',
+    editorPanel: { kind: 'section-posts', schemaKey: 'lunch' },
+  },
+  {
+    id: 'menu',
+    label: 'Menu',
+    icon: Menu,
+    profileContent: 'menu',
+    editorPanel: { kind: 'section-posts', schemaKey: 'menu' },
+  },
+  {
+    id: 'press',
+    label: 'Press/Media',
+    icon: Mic,
+    profileContent: 'media-press',
+    editorPanel: { kind: 'section-posts', schemaKey: 'media-press' },
+  },
   {
     id: 'property-listing',
     label: 'Property Listing',
     icon: Building2,
     profileContent: 'property-listing',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'property-listing' },
   },
   {
     id: 'resiliency',
     label: 'Resiliency Products',
     icon: ShieldCheck,
     profileContent: 'resiliency-products',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'resiliency-products' },
   },
   {
     id: 'see-product',
     label: 'See Product',
     icon: ShoppingBag,
     profileContent: 'see-products',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'see-products' },
   },
   {
     id: 'sales-24h',
     label: '24/h SalesPerson',
     icon: Headphones,
     profileContent: 'sales-person',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'sales-person' },
   },
   {
     id: 'who-we-are',
     label: 'Who We Are',
     icon: Landmark,
     profileContent: 'why-choose-us',
-    editorPanel: { kind: 'empty' },
+    editorPanel: { kind: 'section-posts', schemaKey: 'why-choose-us' },
   },
 ]
 

@@ -113,6 +113,39 @@ export type VCardFaqEntry = {
   active: boolean
 }
 
+/** Generic posts-backed nav section items (Mission, Reviews, Calendar, etc.). */
+export type VCardSectionPostItem = {
+  id: string
+  title: string
+  description: string
+  url: string
+  featuredImage: string
+  date: string
+  rating: string
+  location: string
+  active: boolean
+  metas?: Record<string, string>
+}
+
+/** Back office → Portfolio tab entries (shown on public Gallery section). */
+export type VCardPortfolioEntry = {
+  id: string
+  type: string
+  title: string
+  description: string
+  imageUrl: string
+  imageName?: string
+  url: string
+  active: boolean
+}
+
+/** Back office → Skills tab: category + skill tags (persisted as SkillTag rows). */
+export type VCardSkillGroup = {
+  id: string
+  type: string
+  skills: string[]
+}
+
 export type VCardData = {
   slug: string
   isPublic: boolean
@@ -123,7 +156,10 @@ export type VCardData = {
   services?: VCardServiceEntry[]
   generalPosts?: VCardGeneralPost[]
   faqs?: VCardFaqEntry[]
-  portfolio: unknown[]
+  /** Posts keyed by exact PUBLIC_SECTION_NAMES / postTypeName values. */
+  sectionPosts?: Record<string, VCardSectionPostItem[]>
+  portfolio: VCardPortfolioEntry[]
+  skills?: VCardSkillGroup[]
   /** @deprecated Legacy field; use `social` */
   socials: unknown[]
   social?: VCardSocial
@@ -181,7 +217,9 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     services: [],
     generalPosts: [],
     faqs: [],
+    sectionPosts: {},
     portfolio: [],
+    skills: [],
     socials: [],
     social: { handles: {}, customLinks: [], games: {} },
     extraFields: [],
@@ -206,6 +244,9 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     services: overrides.services ?? base.services,
     generalPosts: overrides.generalPosts ?? base.generalPosts,
     faqs: overrides.faqs ?? base.faqs,
+    sectionPosts: overrides.sectionPosts ?? base.sectionPosts,
+    portfolio: overrides.portfolio ?? base.portfolio,
+    skills: overrides.skills ?? base.skills,
     displaySettings: overrides.displaySettings,
   }
 }

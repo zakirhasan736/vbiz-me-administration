@@ -2,8 +2,9 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useGetDcpQuery } from '@/redux/api'
+import { useGetDynamicSectionQuery } from '@/redux/api'
 import { FileText } from 'lucide-react'
 import Image from 'next/image'
 import type { CSSProperties } from 'react'
@@ -92,7 +93,10 @@ export const DcpSection = () => {
   const profileId = cardOwnerId?.trim() ?? ''
   const accent = design?.accentColor ?? (design?.profileTemplate === 'v1' ? '#dcc969' : '#eab308')
 
-  const { data, isLoading, isError } = useGetDcpQuery(profileId, { skip: !profileId })
+  const { data, isLoading, isError } = useGetDynamicSectionQuery(
+    { profileId, sectionName: PUBLIC_SECTION_NAMES.dcp },
+    { skip: !profileId }
+  )
 
   const sectionTitle = data?.sectionTitle ?? 'Department of Consumer Protection (DCP)'
   const items = data?.posts ?? []

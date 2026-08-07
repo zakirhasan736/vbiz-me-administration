@@ -76,6 +76,8 @@ const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
   experience: 'work',
   resume: 'education',
   education: 'education',
+  skills: 'skills',
+  skill: 'skills',
 }
 
 function resolveNavIdFromLabel(value?: string | null): string | undefined {

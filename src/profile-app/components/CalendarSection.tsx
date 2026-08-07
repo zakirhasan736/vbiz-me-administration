@@ -2,8 +2,9 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { resolveCalendarItemUrl, stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useGetCalendarQuery } from '@/redux/api'
+import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, Calendar, Clock, Video } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -90,7 +91,10 @@ export const CalendarSection = () => {
   const { cardOwnerId } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
 
-  const { data, isLoading, isError } = useGetCalendarQuery(profileId, { skip: !profileId })
+  const { data, isLoading, isError } = useGetDynamicSectionQuery(
+    { profileId, sectionName: PUBLIC_SECTION_NAMES.calendar },
+    { skip: !profileId }
+  )
 
   const items = data?.posts ?? []
   const sectionTitle = data?.sectionTitle ?? 'Calendar'

@@ -3,9 +3,9 @@
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { mapMyCardToVCardRecord } from '@/lib/api/myCard/mapMyCard'
 import { DEFAULT_PROFILE_SLUG } from '@/lib/constants/profile'
-import { myCardApi, useGetMyCardBySlugQuery } from '@/redux/api/myCardApi'
 import type { MyCardData } from '@interfaces/api/myCard'
 import { useLayoutEffect, useMemo } from 'react'
+import { myCardApi, useGetMyCardBySlugQuery } from './myCard.api'
 import {
   selectMyCardRawBySlug,
   selectMyCardRecordBySlug,

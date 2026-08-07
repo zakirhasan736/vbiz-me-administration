@@ -2,6 +2,7 @@
 
 import { CardPushMediaSync } from '@/profile-app/components/CardPushMediaSync'
 import { CinematicScrollbarBinder } from '@/profile-app/components/CinematicScrollbarBinder'
+import { EmbeddedDraftCacheSync } from '@/profile-app/components/EmbeddedDraftCacheSync'
 import { ProfileBrandPreloader } from '@/profile-app/components/ProfileBrandPreloader'
 import { ProfileForceNotification } from '@/profile-app/components/ProfileForceNotification'
 import { ProfileIntroOverlay } from '@/profile-app/components/ProfileIntroOverlay'
@@ -55,6 +56,19 @@ export function ProfileApp(props: VBizProfileAppProps) {
       profileViews={props.profileViews}
       actionButtons={props.actionButtons}
     >
+      <EmbeddedDraftCacheSync
+        embedded={props.embedded}
+        cardOwnerId={props.cardOwnerId}
+        about={props.personal?.about}
+        sectionPosts={props.sectionPosts}
+        generalPosts={props.generalPosts}
+        faqs={props.faqs}
+        education={props.education}
+        experience={props.experience}
+        skills={props.skills}
+        services={props.services}
+        portfolio={props.portfolio}
+      />
       <TranslationProvider
         cardOwnerId={props.cardOwnerId}
         profileSlug={props.profileSlug ?? props.shareSlug}

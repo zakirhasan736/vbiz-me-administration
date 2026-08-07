@@ -31,6 +31,7 @@ export const CANONICAL_NAV_TAB_ORDER = [
   'join-team',
   'public-cards',
   'education',
+  'skills',
   'work',
 ] as const
 

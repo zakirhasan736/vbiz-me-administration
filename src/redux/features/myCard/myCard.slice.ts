@@ -1,8 +1,8 @@
 import { mapMyCardToVCardRecord } from '@/lib/api/myCard/mapMyCard'
-import { myCardApi } from '@/redux/api/myCardApi'
 import type { VCardRecord } from '@/types/vcard'
 import type { MyCardData } from '@interfaces/api/myCard'
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { myCardApi } from './myCard.api'
 
 export type MyCardCacheEntry = {
   slug: string

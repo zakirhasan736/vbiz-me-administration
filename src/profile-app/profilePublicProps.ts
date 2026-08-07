@@ -19,8 +19,11 @@ import type {
   VCardFaqEntry,
   VCardGeneralPost,
   VCardPersonal,
+  VCardPortfolioEntry,
   VCardRecord,
+  VCardSectionPostItem,
   VCardServiceEntry,
+  VCardSkillGroup,
   VCardSocial,
 } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
@@ -58,6 +61,9 @@ export type VBizProfileAppProps = {
   education?: VCardEducationEntry[]
   experience?: VCardExperienceEntry[]
   services?: VCardServiceEntry[]
+  skills?: VCardSkillGroup[]
+  portfolio?: VCardPortfolioEntry[]
+  sectionPosts?: Record<string, VCardSectionPostItem[]>
   generalPosts?: VCardGeneralPost[]
   faqs?: VCardFaqEntry[]
   displaySettings?: VCardDisplaySettings
@@ -143,6 +149,9 @@ export function vCardDataToProfileProps(
     education: data.education ?? [],
     experience: data.experience ?? [],
     services: normalizeServiceList(data.services),
+    skills: data.skills ?? [],
+    portfolio: data.portfolio ?? [],
+    sectionPosts: data.sectionPosts ?? {},
     generalPosts: normalizeGeneralPostList(data.generalPosts),
     faqs: normalizeFaqList(data.faqs),
     displaySettings: display,

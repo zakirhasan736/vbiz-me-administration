@@ -8,11 +8,8 @@ import designSettingsReducer from './features/designSettings/designSettings.slic
 import myCardReducer from './features/myCard/myCard.slice'
 import vcardsReducer from './features/vcards/vcards.slice'
 
-/** Registers all Laravel public-profile RTK Query endpoints. */
+/** Registers all RTK Query endpoints (auth + public profile + admin profiles). */
 import './api/index'
-/** Registers private profile / vCard RTK Query endpoints. */
-import './features/auth/auth.api'
-import './features/profiles/profiles.api'
 
 const userPersistConfig = {
   key: 'user',

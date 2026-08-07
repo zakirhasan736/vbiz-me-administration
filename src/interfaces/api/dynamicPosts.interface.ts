@@ -1,7 +1,7 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
 
 export type DynamicPostAttachment = {
-  id: number
+  id: number | string
   doc_name: string
   attachment_type_id: number
   url: string
@@ -10,18 +10,18 @@ export type DynamicPostAttachment = {
 export type DynamicPostFeaturedImage =
   | string
   | {
-      id?: number
+      id?: number | string
       doc_name?: string
       url?: string
     }
   | null
 
 export type DynamicPostItem = {
-  id?: number
+  id?: number | string
   title?: string
   description?: string | null
-  profile_id?: number
-  post_type_id?: number
+  profile_id?: number | string
+  post_type_id?: number | string
   status?: string | number | null
   created_at?: string
   updated_at?: string
@@ -32,7 +32,7 @@ export type DynamicPostItem = {
 }
 
 export type DynamicPostsSectionPostType = {
-  id?: number
+  id?: number | string
   name: string
   title: string
 }
@@ -54,7 +54,7 @@ export type DynamicPostsSectionResponse = ApiResponse<DynamicPostsSectionData> &
 }
 
 export type DynamicPostListItem = {
-  id: number
+  id: number | string
   title: string
   description: string
   featuredImage: string

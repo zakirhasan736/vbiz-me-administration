@@ -128,12 +128,12 @@ export const HomeHero: React.FC<{
 
   return (
     <div
-      className={`border-gold/20 relative mx-auto flex min-h-[calc(100dvh-72px)] w-full max-w-[480px] flex-col overflow-x-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 md:max-w-none md:border-0 ${theme === 'dark' ? 'bg-[#031327] text-white' : 'bg-white text-zinc-900'}`}
+      className={`border-gold/20 relative mx-auto flex min-h-[calc(100dvh-72px)] w-full max-w-120 flex-col overflow-x-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 md:max-w-none md:border-0 ${theme === 'dark' ? 'bg-[#031327] text-white' : 'bg-white text-zinc-900'}`}
     >
       <div
         className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${theme === 'dark' ? 'bg-[#030914]' : 'bg-white'}`}
       >
-        <div className="absolute inset-0 mx-auto h-full w-full md:max-w-[1032px]">
+        <div className="absolute inset-0 mx-auto h-full w-full md:max-w-258">
           <video
             src={coverSrc}
             autoPlay
@@ -150,7 +150,7 @@ export const HomeHero: React.FC<{
 
       <div className="relative z-10 flex min-h-full w-full flex-1 flex-col justify-start">
         <div className="pointer-events-none absolute top-5 left-0 z-40 flex w-full justify-center px-2 md:top-28 md:px-0">
-          <div className="relative h-0 w-full max-w-[1032px]">
+          <div className="relative h-0 w-full max-w-258">
             <div className="pointer-events-auto absolute top-8 right-2 flex flex-col gap-3 md:right-6">
               {showViewCounter && (
                 <div
@@ -164,7 +164,7 @@ export const HomeHero: React.FC<{
                     {viewCountLabel}
                   </div>
                   <div className="vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12">
-                    <Eye size={18} strokeWidth={2.5} className="md:h-[22px] md:w-[22px]" />
+                    <Eye size={18} strokeWidth={2.5} className="md:h-5.5 md:w-5.5" />
                   </div>
                 </div>
               )}
@@ -177,7 +177,7 @@ export const HomeHero: React.FC<{
                   onClick={() => triggerHaptic(10)}
                   className="vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
                 >
-                  <Globe size={18} strokeWidth={2.5} className="md:h-[20px] md:w-[20px]" />
+                  <Globe size={18} strokeWidth={2.5} className="md:h-5 md:w-5" />
                 </a>
               )}
               <div
@@ -204,9 +204,9 @@ export const HomeHero: React.FC<{
                 className="vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
               >
                 {theme === 'dark' ? (
-                  <Sun size={18} strokeWidth={2.5} className="md:h-[20px] md:w-[20px]" />
+                  <Sun size={18} strokeWidth={2.5} className="md:h-5 md:w-5" />
                 ) : (
-                  <Moon size={18} strokeWidth={2.5} className="md:h-[20px] md:w-[20px]" />
+                  <Moon size={18} strokeWidth={2.5} className="md:h-5 md:w-5" />
                 )}
               </div>
             </div>
@@ -214,7 +214,7 @@ export const HomeHero: React.FC<{
         </div>
 
         {/* Mobile View */}
-        <div className="=]-['/0p.ol;uy vtcredxvswr] relative flex flex-1 flex-col items-center pt-[25px] pb-2 sm:pb-[70px] md:hidden">
+        <div className="=]-['/0p.ol;uy vtcredxvswr] relative flex flex-1 flex-col items-center pt-6.25 pb-2 sm:pb-17.5 md:hidden">
           {visibleSocials.length > 0 && (
             <div className="absolute top-8 left-2 z-30 flex flex-col gap-2">
               {visibleSocials.map((item) => {
@@ -235,7 +235,7 @@ export const HomeHero: React.FC<{
             </div>
           )}
 
-          <div className="relative z-20 mx-auto mb-4 aspect-4/4.5 w-[56%] max-w-[240px] border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] sm:w-[60%] md:w-[65%]">
+          <div className="relative z-20 mx-auto mb-4 aspect-4/4.5 w-[56%] max-w-60 border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] sm:w-[60%] md:w-[65%]">
             <ProfileMedia
               src={profileSrc}
               alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
@@ -304,9 +304,9 @@ export const HomeHero: React.FC<{
         </div>
 
         {/* Desktop View */}
-        <div className="relative z-20 mx-auto hidden h-full w-full max-w-[1032px] flex-col justify-between gap-8 px-6 pb-24 md:flex">
+        <div className="relative z-20 mx-auto hidden h-full w-full max-w-258 flex-col justify-between gap-8 px-6 pb-24 md:flex">
           <div className="mt-16 flex items-start gap-12 xl:gap-20">
-            <div className="group relative mt-4 h-[320px] w-[280px] shrink-0 overflow-hidden rounded-2xl border-4 border-white/20 bg-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md xl:h-[350px] xl:w-[300px]">
+            <div className="group relative mt-4 h-80 w-70 shrink-0 overflow-hidden rounded-2xl border-4 border-white/20 bg-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md xl:h-87.5 xl:w-75">
               <ProfileMedia
                 src={profileSrc}
                 alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
@@ -413,11 +413,11 @@ export const HomeHero: React.FC<{
                 theme={theme}
                 onAction={onAction}
                 visibleOn="desktop"
-                className="flex w-full max-w-[420px] flex-col gap-3 xl:max-w-[480px]"
+                className="flex w-full max-w-105 flex-col gap-3 xl:max-w-120"
               />
 
               {contactItems.length > 0 && (
-                <div className="mt-auto grid max-w-[480px] flex-1 shrink-0 grid-cols-2 gap-x-3 gap-y-2">
+                <div className="mt-auto grid max-w-120 flex-1 shrink-0 grid-cols-2 gap-x-3 gap-y-2">
                   {contactItems.map((item) => (
                     <div
                       key={item.label}

@@ -3,21 +3,35 @@
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
+import { loadAndSyncSectionPosts, mapApiPostsToSectionPosts } from '@/lib/vcardPostsSync'
+import { VCARD_SECTION_SCHEMAS } from '@/lib/vcardSectionSchemas'
+import { skillGroupsToApiItems } from '@/lib/vcardSkills'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
+import { publicApi } from '@/redux/api/publicApi'
 import {
+  BLOG_POST_TYPE,
+  FAQ_POST_TYPE,
+  mapApiPostsToFaqs,
+  mapApiPostsToGeneralPosts,
   mapApiProfileToVCardRecord,
   mapVCardDataToProfilePayload,
   useCreateProfileMutation,
+  useCreateProfilePostMutation,
+  useDeleteProfilePostMutation,
   useGetProfileQuery,
+  useLazyListProfilePostsQuery,
   useReplaceEducationMutation,
   useReplaceExperiencesMutation,
+  useReplacePortfoliosMutation,
   useReplaceServicesMutation,
+  useReplaceSkillsMutation,
   useReplaceSocialLinksMutation,
   useUpdateProfileCardMutation,
+  useUpdateProfilePostMutation,
 } from '@/redux/features/profiles/profiles.api'
 import { addVCard, replaceVCardData, selectVCardById, updateVCard } from '@/redux/features/vcards/vcards.slice'
 import type { RootState } from '@/redux/store'
-import type { VCardData, VCardRecord } from '@/types/vcard'
+import type { VCardData, VCardRecord, VCardSectionPostItem } from '@/types/vcard'
 import { createDefaultVCardData } from '@/types/vcard'
 import { useRouter } from 'next/navigation'
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
@@ -91,13 +105,40 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const [replaceEducation] = useReplaceEducationMutation()
   const [replaceExperiences] = useReplaceExperiencesMutation()
   const [replaceServices] = useReplaceServicesMutation()
+  const [replacePortfolios] = useReplacePortfoliosMutation()
+  const [replaceSkills] = useReplaceSkillsMutation()
   const [replaceSocialLinks] = useReplaceSocialLinksMutation()
+  const [listPosts] = useLazyListProfilePostsQuery()
+  const [createPost] = useCreateProfilePostMutation()
+  const [updatePost] = useUpdateProfilePostMutation()
+  const [deletePost] = useDeleteProfilePostMutation()
+  const postsHydratedForId = React.useRef<string | null>(null)
+  const postsSnapshotRef = React.useRef<{
+    generalPosts: VCardData['generalPosts']
+    faqs: VCardData['faqs']
+    sectionPosts: Record<string, VCardSectionPostItem[]>
+  }>({
+    generalPosts: [],
+    faqs: [],
+    sectionPosts: {},
+  })
 
   useEffect(() => {
     if (!remoteProfile || isCreateMode) return
     const mapped = mapApiProfileToVCardRecord(remoteProfile)
-    dispatch(addVCard({ id: mapped.id, seed: toVCardData(mapped) }))
-    dispatch(replaceVCardData({ id: mapped.id, data: toVCardData(mapped) }))
+    const alreadyHydrated = postsHydratedForId.current === mapped.id
+    const mappedData = toVCardData(mapped)
+    const data = alreadyHydrated
+      ? {
+          ...mappedData,
+          generalPosts: postsSnapshotRef.current.generalPosts ?? [],
+          faqs: postsSnapshotRef.current.faqs ?? [],
+          sectionPosts: postsSnapshotRef.current.sectionPosts ?? {},
+        }
+      : mappedData
+
+    dispatch(addVCard({ id: mapped.id, seed: data }))
+    dispatch(replaceVCardData({ id: mapped.id, data }))
     dispatch(
       updateVCard({
         id: mapped.id,
@@ -110,7 +151,50 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         },
       })
     )
-  }, [remoteProfile, isCreateMode, dispatch])
+
+    if (alreadyHydrated) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const schemas = Object.values(VCARD_SECTION_SCHEMAS)
+        const [blogPosts, faqPosts, ...sectionResults] = await Promise.all([
+          listPosts({ id: mapped.id, postType: BLOG_POST_TYPE }).unwrap(),
+          listPosts({ id: mapped.id, postType: FAQ_POST_TYPE }).unwrap(),
+          ...schemas.map((schema) =>
+            listPosts({ id: mapped.id, postType: schema.postTypeName })
+              .unwrap()
+              .catch(() => [])
+          ),
+        ])
+        if (cancelled) return
+        const generalPosts = mapApiPostsToGeneralPosts(blogPosts)
+        const faqs = mapApiPostsToFaqs(faqPosts)
+        const sectionPosts: Record<string, VCardSectionPostItem[]> = {}
+        schemas.forEach((schema, index) => {
+          sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts(sectionResults[index] || [])
+        })
+        postsHydratedForId.current = mapped.id
+        postsSnapshotRef.current = { generalPosts, faqs, sectionPosts }
+        dispatch(
+          replaceVCardData({
+            id: mapped.id,
+            data: {
+              ...mappedData,
+              generalPosts,
+              faqs,
+              sectionPosts,
+            },
+          })
+        )
+      } catch {
+        // Posts load is best-effort; profile collections already mapped.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [remoteProfile, isCreateMode, dispatch, listPosts])
 
   const accountDefaultsSig = designDefaultsSignature(design)
   const [createDraft, setCreateDraft] = useState<VCardData>(() => buildCreateDraft(design))
@@ -137,11 +221,30 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       services: base.services ?? [],
       generalPosts: base.generalPosts ?? [],
       faqs: base.faqs ?? [],
+      sectionPosts: base.sectionPosts ?? {},
+      portfolio: base.portfolio ?? [],
+      skills: base.skills ?? [],
     }
   }, [isCreateMode, createDraft, record])
 
   const updateData = useCallback(
     (path: string, value: unknown) => {
+      if (path === 'generalPosts') {
+        postsSnapshotRef.current = {
+          ...postsSnapshotRef.current,
+          generalPosts: value as VCardData['generalPosts'],
+        }
+      } else if (path === 'faqs') {
+        postsSnapshotRef.current = {
+          ...postsSnapshotRef.current,
+          faqs: value as VCardData['faqs'],
+        }
+      } else if (path === 'sectionPosts') {
+        postsSnapshotRef.current = {
+          ...postsSnapshotRef.current,
+          sectionPosts: value as Record<string, VCardSectionPostItem[]>,
+        }
+      }
       if (isCreateMode) {
         setCreateDraft(
           (prev) => setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
@@ -165,6 +268,90 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     [isCreateMode, cardId, dispatch]
   )
 
+  const persistCollections = useCallback(
+    async (profileId: string, data: VCardData) => {
+      await Promise.all([
+        replaceEducation({
+          id: profileId,
+          items: (data.education || []).map((e) => ({
+            institute: e.institute,
+            degree: e.degree,
+            fromDate: e.fromDate || null,
+            toDate: e.toDate || null,
+            tillNow: e.tillNow,
+          })),
+        }),
+        replaceExperiences({
+          id: profileId,
+          items: (data.experience || []).map((e) => ({
+            company: e.company,
+            jobTitle: e.jobTitle,
+            description: e.description,
+            fromDate: e.fromDate || null,
+            toDate: e.toDate || null,
+            tillNow: e.tillNow,
+          })),
+        }),
+        replaceServices({
+          id: profileId,
+          items: (data.services || []).map((s) => ({
+            title: s.title,
+            description: s.description,
+            imageUrl: s.featuredImage,
+            reviewUrl: s.url,
+            status: s.active ? 1 : 0,
+          })),
+        }),
+        replacePortfolios({
+          id: profileId,
+          items: (data.portfolio || []).map((p) => ({
+            title: p.title,
+            description: p.description,
+            imageUrl: p.imageUrl,
+            url: p.url,
+            status: p.active ? 1 : 0,
+          })),
+        }),
+        replaceSkills({
+          id: profileId,
+          items: skillGroupsToApiItems(data.skills || []),
+        }),
+        replaceSocialLinks({
+          id: profileId,
+          items: (data.social?.customLinks || []).map((l) => ({
+            name: l.name,
+            url: l.url,
+          })),
+        }),
+      ])
+
+      const synced = await loadAndSyncSectionPosts({
+        profileId,
+        blogPosts: data.generalPosts || [],
+        faqs: data.faqs || [],
+        sectionPosts: data.sectionPosts || {},
+        listPosts,
+        createPost,
+        updatePost,
+        deletePost,
+      })
+
+      return synced
+    },
+    [
+      replaceEducation,
+      replaceExperiences,
+      replaceServices,
+      replacePortfolios,
+      replaceSkills,
+      replaceSocialLinks,
+      listPosts,
+      createPost,
+      updatePost,
+      deletePost,
+    ]
+  )
+
   const saveVCard = useCallback(async () => {
     if (isCreateMode) {
       const slug = createDraft.slug.trim()
@@ -176,46 +363,23 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       const mapped = mapApiProfileToVCardRecord(created)
       dispatch(addVCard({ id: mapped.id, seed: toVCardData(mapped) }))
 
-      await Promise.all([
-        replaceEducation({
-          id: created.id,
-          items: (createDraft.education || []).map((e) => ({
-            institute: e.institute,
-            degree: e.degree,
-            fromDate: e.fromDate || null,
-            toDate: e.toDate || null,
-            tillNow: e.tillNow,
-          })),
-        }),
-        replaceExperiences({
-          id: created.id,
-          items: (createDraft.experience || []).map((e) => ({
-            company: e.company,
-            jobTitle: e.jobTitle,
-            description: e.description,
-            fromDate: e.fromDate || null,
-            toDate: e.toDate || null,
-            tillNow: e.tillNow,
-          })),
-        }),
-        replaceServices({
-          id: created.id,
-          items: (createDraft.services || []).map((s) => ({
-            title: s.title,
-            description: s.description,
-            imageUrl: s.featuredImage,
-            reviewUrl: s.url,
-            status: s.active ? 1 : 0,
-          })),
-        }),
-        replaceSocialLinks({
-          id: created.id,
-          items: (createDraft.social?.customLinks || []).map((l) => ({
-            name: l.name,
-            url: l.url,
-          })),
-        }),
-      ])
+      await persistCollections(created.id, createDraft)
+      dispatch(
+        publicApi.util.invalidateTags([
+          'MyCard',
+          'DynamicSection',
+          'ProfileAiData',
+          'ProfileSettings',
+          'NavBarLinks',
+          'AboutMe',
+          'Services',
+          'Gallery',
+          'Reviews',
+          'Clients',
+          'Videos',
+          'VideoExplainer',
+        ])
+      )
 
       router.push('/vcards')
       return
@@ -224,43 +388,44 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     if (!cardId || !record) throw new Error('No vCard selected')
     const data = toVCardData(record)
     await updateProfileCard({ id: cardId, body: mapVCardDataToProfilePayload(data) }).unwrap()
-    await Promise.all([
-      replaceEducation({
+    const synced = await persistCollections(cardId, data)
+
+    const generalPosts = mapApiPostsToGeneralPosts(synced.blog)
+    const faqs = mapApiPostsToFaqs(synced.faqs)
+    const sectionPosts: Record<string, VCardSectionPostItem[]> = {}
+    for (const [postTypeName, apiPosts] of Object.entries(synced.sectionPosts || {})) {
+      sectionPosts[postTypeName] = mapApiPostsToSectionPosts(apiPosts)
+    }
+    postsHydratedForId.current = cardId
+    postsSnapshotRef.current = { generalPosts, faqs, sectionPosts }
+
+    dispatch(
+      replaceVCardData({
         id: cardId,
-        items: (data.education || []).map((e) => ({
-          institute: e.institute,
-          degree: e.degree,
-          fromDate: e.fromDate || null,
-          toDate: e.toDate || null,
-          tillNow: e.tillNow,
-        })),
-      }),
-      replaceExperiences({
-        id: cardId,
-        items: (data.experience || []).map((e) => ({
-          company: e.company,
-          jobTitle: e.jobTitle,
-          description: e.description,
-          fromDate: e.fromDate || null,
-          toDate: e.toDate || null,
-          tillNow: e.tillNow,
-        })),
-      }),
-      replaceServices({
-        id: cardId,
-        items: (data.services || []).map((s) => ({
-          title: s.title,
-          description: s.description,
-          imageUrl: s.featuredImage,
-          reviewUrl: s.url,
-          status: s.active ? 1 : 0,
-        })),
-      }),
-      replaceSocialLinks({
-        id: cardId,
-        items: (data.social?.customLinks || []).map((l) => ({ name: l.name, url: l.url })),
-      }),
-    ])
+        data: {
+          ...data,
+          generalPosts,
+          faqs,
+          sectionPosts,
+        },
+      })
+    )
+    dispatch(
+      publicApi.util.invalidateTags([
+        'MyCard',
+        'DynamicSection',
+        'ProfileAiData',
+        'ProfileSettings',
+        'NavBarLinks',
+        'AboutMe',
+        'Services',
+        'Gallery',
+        'Reviews',
+        'Clients',
+        'Videos',
+        'VideoExplainer',
+      ])
+    )
   }, [
     isCreateMode,
     createDraft,
@@ -268,10 +433,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     record,
     createProfile,
     updateProfileCard,
-    replaceEducation,
-    replaceExperiences,
-    replaceServices,
-    replaceSocialLinks,
+    persistCollections,
     dispatch,
     router,
   ])

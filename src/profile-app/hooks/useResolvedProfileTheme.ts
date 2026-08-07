@@ -2,8 +2,8 @@
 
 import type { MappedProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
 import { getDefaultThemeConfig, type CardThemeConfig } from '@/lib/theme/cardThemeContract'
-import { useGetProfileSettingsQuery } from '@/redux/api/profileSettingsApi'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
+import { useGetProfileSettingsQuery } from '@/redux/features/profileSettings/profileSettings.api'
 import type { VCardAppearance } from '@/types/vcard'
 import { useMemo } from 'react'
 

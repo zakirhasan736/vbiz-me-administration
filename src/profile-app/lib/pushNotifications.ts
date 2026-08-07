@@ -12,6 +12,7 @@ import {
   type PushSubscriptionStatusResponse,
   type UpdatePreferencesResult,
 } from '@/lib/push/types'
+import { baseUrl as publicApiBaseUrl } from '@/redux/api/publicApi'
 
 export { DEFAULT_NOTIFICATION_PREFERENCES }
 export type { NotificationPreferenceKey, NotificationPreferences, UpdatePreferencesResult }
@@ -19,13 +20,7 @@ export type { NotificationPreferenceKey, NotificationPreferences, UpdatePreferen
 export const SERVICE_WORKER_PATH = '/sw.js'
 
 function getPushApiBase() {
-  const base =
-    process.env.NEXT_PUBLIC_PUSH_API_URL?.replace(/\/$/, '') ||
-    process.env.NEXT_PUBLIC_PUBLIC_API_URL?.replace(/\/$/, '') ||
-    (process.env.NEXT_PUBLIC_API_URL
-      ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')}/public`
-      : 'http://localhost:5000/api/v1/public')
-  return base
+  return process.env.NEXT_PUBLIC_PUSH_API_URL?.replace(/\/$/, '') || publicApiBaseUrl.replace(/\/$/, '')
 }
 
 function pushApiUrl(path: string) {
@@ -367,7 +362,7 @@ export async function updateCardBackendPreferences(
   }
 
   const response = await fetch(pushApiUrl('/preferences'), {
-    method: 'PUT',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       profile_slug: cardSlug,
@@ -411,7 +406,7 @@ export async function unsubscribeFromCard(cardSlug: string) {
 
   if (stored) {
     await fetch(pushApiUrl('/unsubscribe'), {
-      method: 'DELETE',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         profile_slug: cardSlug,

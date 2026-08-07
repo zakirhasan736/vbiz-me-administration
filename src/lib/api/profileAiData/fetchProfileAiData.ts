@@ -1,3 +1,4 @@
+import { normalizeProfileAiData } from '@/lib/api/profileAiData/normalizeProfileAiData'
 import { getApiBaseUrl, SERVER_FETCH_REVALIDATE_SECONDS } from '@/lib/api/serverApi'
 import type { ProfileAiData } from '@interfaces/api/profileAiData'
 
@@ -13,7 +14,7 @@ export async function fetchProfileAiData(profileId: number | string): Promise<Pr
 
     if (!response.ok) return null
 
-    return (await response.json()) as ProfileAiData
+    return normalizeProfileAiData(await response.json())
   } catch {
     return null
   }

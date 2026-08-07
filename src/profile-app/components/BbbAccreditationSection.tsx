@@ -1,8 +1,9 @@
 'use client'
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useGetBbbAccreditationQuery } from '@/redux/api'
+import { useGetDynamicSectionQuery } from '@/redux/api'
 import { Shield } from 'lucide-react'
 import Image from 'next/image'
 
@@ -70,7 +71,10 @@ export const BbbAccreditationSection = () => {
   const profileId = cardOwnerId?.trim() ?? ''
   const accent = design?.accentColor ?? (design?.profileTemplate === 'v1' ? '#dcc969' : '#eab308')
 
-  const { data, isLoading, isError } = useGetBbbAccreditationQuery(profileId, { skip: !profileId })
+  const { data, isLoading, isError } = useGetDynamicSectionQuery(
+    { profileId, sectionName: PUBLIC_SECTION_NAMES.bbb },
+    { skip: !profileId }
+  )
 
   const sectionTitle = data?.sectionTitle ?? 'Better Business Bureau (BBB) Accreditation'
   const items = data?.posts ?? []

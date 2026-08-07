@@ -180,7 +180,7 @@ export function VBizProfileApp({
       />
 
       <div
-        className={`vbiz-profile-main relative z-20 mx-auto flex w-full max-w-[1032px] flex-col ${embedded ? 'min-h-0 max-w-full px-3.5 pt-24' : 'min-h-screen px-5 pt-16 sm:px-8 sm:pt-44'}`}
+        className={`vbiz-profile-main relative z-20 mx-auto flex w-full max-w-258 flex-col ${embedded ? 'min-h-0 max-w-full px-3.5 pt-24' : 'min-h-screen px-5 pt-16 sm:px-8 sm:pt-44'}`}
       >
         <ProfileHeaderV2
           avatarVideoUrl={avatarVideoUrl}
@@ -208,7 +208,7 @@ export function VBizProfileApp({
           {activeSectionId === 'home' ? (
             <ProfileSectionOutlet sectionId={activeSectionId} template="v2" />
           ) : (
-            <div className="mx-auto w-full max-w-[1032px] lg:px-6">
+            <div className="mx-auto w-full max-w-258 lg:px-6">
               <ProfileSectionOutlet sectionId={activeSectionId} template="v2" />
             </div>
           )}

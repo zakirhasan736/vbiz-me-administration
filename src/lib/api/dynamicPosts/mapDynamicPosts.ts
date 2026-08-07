@@ -22,17 +22,17 @@ function isActiveItem(status: unknown): boolean {
   )
 }
 
-function resolveFeaturedImage(image: unknown): { url: string; id?: number; docName?: string } {
+function resolveFeaturedImage(image: unknown): { url: string; id?: number | string; docName?: string } {
   if (typeof image === 'string') {
     const url = image.trim()
     return url ? { url } : { url: '' }
   }
   if (image && typeof image === 'object') {
-    const record = image as { url?: string; id?: number; doc_name?: string }
+    const record = image as { url?: string; id?: number | string; doc_name?: string }
     const url = record.url?.trim() ?? ''
     return {
       url,
-      id: typeof record.id === 'number' ? record.id : undefined,
+      id: record.id,
       docName: record.doc_name?.trim() || undefined,
     }
   }
@@ -63,8 +63,15 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
         ? ''
         : String(item.description)
 
+  const rawId = item.id
+  const id =
+    (typeof rawId === 'string' && rawId.trim()) ||
+    (typeof rawId === 'number' && rawId > 0 ? rawId : undefined) ||
+    featured.id ||
+    index + 1
+
   return {
-    id: typeof item.id === 'number' && item.id > 0 ? item.id : (featured.id ?? index + 1),
+    id,
     title: item.title?.trim() || featured.docName || 'Update',
     description,
     featuredImage: featured.url,

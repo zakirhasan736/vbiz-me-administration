@@ -2,8 +2,9 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useGetCertificationsLicensingQuery } from '@/redux/api'
+import { useGetDynamicSectionQuery } from '@/redux/api'
 import { Award, ExternalLink } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -117,7 +118,10 @@ export const CertificationsLicensingSection = () => {
   const template = design?.profileTemplate === 'v1' ? 'v1' : 'v2'
   const accent = design?.accentColor ?? (template === 'v1' ? '#dcc969' : '#eab308')
 
-  const { data, isLoading, isError } = useGetCertificationsLicensingQuery(profileId, { skip: !profileId })
+  const { data, isLoading, isError } = useGetDynamicSectionQuery(
+    { profileId, sectionName: PUBLIC_SECTION_NAMES.certificates },
+    { skip: !profileId }
+  )
 
   const sectionTitle = data?.sectionTitle ?? 'Certifications/Licensing'
   const items = data?.posts ?? []

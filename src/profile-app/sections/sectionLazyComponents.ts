@@ -48,6 +48,7 @@ export const ExperienceSection = lazyNamed(
   () => import('@/profile-app/components/ExperienceSection'),
   'ExperienceSection'
 )
+export const SkillsSection = lazyNamed(() => import('@/profile-app/components/SkillsSection'), 'SkillsSection')
 export const PublicCardsSection = lazyNamed(
   () => import('@/profile-app/components/PublicCardsSection'),
   'PublicCardsSection'

@@ -1,6 +1,8 @@
 'use client'
 
 import { EditorNavEmptyPanel } from '@/components/EditorNavEmptyPanel'
+import { EditorNavInfoPanel } from '@/components/EditorNavInfoPanel'
+import { SectionPostsEditorPanel } from '@/components/vcard/SectionPostsEditorPanel'
 import { TabBlog } from '@/components/VCardBlog'
 import { TabEducation } from '@/components/VCardEducation'
 import { TabExperience } from '@/components/VCardExperience'
@@ -30,6 +32,7 @@ import {
   type EditorBasePath,
 } from '@/lib/vcardEditorRoutes'
 import { filterNavItemsByVisibility, getNavItemById, NAV_BAR_NAV_ITEMS, type EditorNavPanel } from '@/lib/vcardNavbar'
+import { getSectionSchema } from '@/lib/vcardSectionSchemas'
 import { cn } from '@/utils/cn'
 import { ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Eye, FileText, Loader2, Settings } from 'lucide-react'
 import Link from 'next/link'
@@ -50,43 +53,9 @@ type VCardEditProps = {
   cardId?: string
 }
 
-function renderEditorPanel(panel: EditorNavPanel, activeTab: number) {
-  switch (panel.kind) {
-    case 'personal':
-      return (
-        <>
-          {activeTab === 1 && <Tab1MediaProfile />}
-          {activeTab === 2 && <Tab2PersonalInfo />}
-          {activeTab === 3 && <Tab3SocialGames />}
-          {activeTab === 4 && <Tab4HomeMedia />}
-          {activeTab === 5 && <Tab5ExtraFields />}
-        </>
-      )
-    case 'education':
-      return <TabEducation />
-    case 'experience':
-      return <TabExperience />
-    case 'skill':
-      return <TabSkill />
-    case 'services':
-      return <TabServices />
-    case 'portfolio':
-      return <TabPortfolio />
-    case 'blog':
-      return <TabBlog />
-    case 'faq':
-      return <TabFaq />
-    case 'link-shortener':
-      return <TabLinkShortener />
-    case 'empty':
-    default:
-      return null
-  }
-}
-
 export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps) {
   const router = useRouter()
-  const { vCardData, updateData, saveVCard, isCreateMode } = useVCard()
+  const { vCardData, updateData, saveVCard, isCreateMode, cardId: contextCardId } = useVCard()
   const display = useMemo(() => getDisplaySettingsFromVCard(vCardData), [vCardData])
   const visibleNavItems = useMemo(() => filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display), [display])
   const [showPreview, setShowPreview] = useState(false)
@@ -101,6 +70,67 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const activeNavItem = getNavItemById(activeNavId)
   const editorPanel = activeNavItem?.editorPanel ?? { kind: 'empty' as const }
   const isPersonalEditor = editorPanel.kind === 'personal'
+
+  const renderEditorPanel = (panel: EditorNavPanel) => {
+    switch (panel.kind) {
+      case 'personal':
+        return (
+          <>
+            {activeTab === 1 && <Tab1MediaProfile />}
+            {activeTab === 2 && <Tab2PersonalInfo />}
+            {activeTab === 3 && <Tab3SocialGames />}
+            {activeTab === 4 && <Tab4HomeMedia />}
+            {activeTab === 5 && <Tab5ExtraFields />}
+          </>
+        )
+      case 'education':
+        return <TabEducation />
+      case 'experience':
+        return <TabExperience />
+      case 'skill':
+        return <TabSkill />
+      case 'services':
+        return <TabServices />
+      case 'portfolio':
+        return <TabPortfolio />
+      case 'blog':
+        return <TabBlog />
+      case 'faq':
+        return <TabFaq />
+      case 'link-shortener':
+        return <TabLinkShortener />
+      case 'section-posts': {
+        const schema = getSectionSchema(panel.schemaKey)
+        if (!schema) {
+          return (
+            <EditorNavEmptyPanel
+              title={activeNavItem?.label ?? 'Section'}
+              tourTargetId={`tour-editor-panel-${activeNavId}`}
+            />
+          )
+        }
+        const posts = vCardData.sectionPosts?.[schema.postTypeName] ?? []
+        return (
+          <SectionPostsEditorPanel
+            schema={schema}
+            posts={posts}
+            cardId={contextCardId}
+            onPostsChange={(next) => {
+              updateData('sectionPosts', {
+                ...(vCardData.sectionPosts ?? {}),
+                [schema.postTypeName]: next,
+              })
+            }}
+          />
+        )
+      }
+      case 'info':
+        return <EditorNavInfoPanel infoKey={panel.infoKey} tourTargetId={`tour-editor-panel-${activeNavId}`} />
+      case 'empty':
+      default:
+        return null
+    }
+  }
 
   useLayoutEffect(() => {
     if (!isTourActive || !currentStep) return
@@ -136,9 +166,9 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   return (
     <div className="relative flex min-h-screen w-full justify-center pt-4 pb-24 sm:pt-10" data-tour-editor-scope>
-      <div className="bg-primary-500/10 pointer-events-none fixed top-20 left-1/2 h-[500px] w-full max-w-[1000px] -translate-x-1/2 rounded-full blur-[150px]" />
+      <div className="bg-primary-500/10 pointer-events-none fixed top-20 left-1/2 h-125 w-full max-w-250 -translate-x-1/2 rounded-full blur-[150px]" />
 
-      <div className="relative z-10 flex w-full max-w-[1300px] flex-col gap-6">
+      <div className="relative z-10 flex w-full max-w-325 flex-col gap-6">
         {isCreateMode && (
           <Link
             href="/vcards"
@@ -220,7 +250,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       onChange={(e) => updateData('isPublic', e.target.checked)}
                       className="peer sr-only"
                     />
-                    <div className="peer h-6 w-10 shrink-0 overflow-hidden rounded-full bg-slate-200 shadow-sm peer-checked:bg-emerald-500 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-4 peer-checked:after:border-white dark:bg-slate-700"></div>
+                    <div className="peer h-6 w-10 shrink-0 overflow-hidden rounded-full bg-slate-200 shadow-sm peer-checked:bg-emerald-500 peer-focus:outline-none after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-4 peer-checked:after:border-white dark:bg-slate-700"></div>
                   </div>
                 </label>
               </div>
@@ -233,7 +263,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
             <TabSetting basePath={basePath} settingsTab={route.settingsTab} cardId={cardId} />
           ) : (
             <div
-              className="relative flex min-h-[700px] flex-col overflow-visible rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/5 dark:bg-[#0b0f19]"
+              className="relative flex min-h-175 flex-col overflow-visible rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/5 dark:bg-[#0b0f19]"
               data-tour-id={isPersonalEditor ? `tour-editor-panel-${activeNavId}` : undefined}
             >
               <div className="via-primary-500/10 absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent to-transparent" />
@@ -295,7 +325,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       tourTargetId={`tour-editor-panel-${activeNavId}`}
                     />
                   ) : (
-                    renderEditorPanel(editorPanel, activeTab)
+                    renderEditorPanel(editorPanel)
                   )}
                 </div>
               </div>

@@ -2,9 +2,10 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useGetWhyChooseUsQuery } from '@/redux/api'
+import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, Landmark, Quote } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -108,7 +109,10 @@ export const WhyChooseUsSection = () => {
   const template = design?.profileTemplate === 'v1' ? 'v1' : 'v2'
   const accent = design?.accentColor ?? (template === 'v1' ? '#dcc969' : '#eab308')
 
-  const { data, isLoading, isError } = useGetWhyChooseUsQuery(profileId, { skip: !profileId })
+  const { data, isLoading, isError } = useGetDynamicSectionQuery(
+    { profileId, sectionName: PUBLIC_SECTION_NAMES.whyChooseUs },
+    { skip: !profileId }
+  )
   const sectionTitle = data?.sectionTitle ?? 'Why Choose Us'
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0

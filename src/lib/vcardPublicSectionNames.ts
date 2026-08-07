@@ -1,0 +1,44 @@
+/**
+ * Exact `dynamic-section` / PostType names used by public profile APIs.
+ * Keep editor schemas and public section queries aligned with these strings.
+ */
+export const PUBLIC_SECTION_NAMES = {
+  aboutMe: 'About Me',
+  mission: 'Mission Statement',
+  additionalServices: 'Additional Services',
+  videos: 'video',
+  videoLinks: 'Video Links',
+  explainer: '2D Video Explainer',
+  reviews: 'reviews',
+  certificates: 'Certificates Licenses',
+  insuranceLicense: 'Insurance License',
+  licensing: 'Licensing',
+  clients: 'clients',
+  meetTeam: 'Meet Our Team',
+  calendar: 'calender',
+  faq: 'Faq',
+  blog: 'blog',
+  post: 'Post',
+  announcement: 'Announcement',
+  bbb: 'Better Business Bureau (BBB) Accreditation',
+  booking: 'Booking',
+  breakfast: 'Breakfast',
+  dinner: 'Dinner',
+  lunch: 'Lunch',
+  dcp: 'Department of Consumer Protection (DCP)',
+  events: 'Events',
+  homeSolar: 'Home Solar',
+  inventory: 'Inventory',
+  joinMyTeam: 'Join My Team',
+  menu: 'Menu',
+  mediaPress: 'Media Press',
+  propertyListing: 'Property Listing',
+  resiliencyProducts: 'Resiliency Products',
+  seeProducts: 'See Products',
+  salesPerson: 'Sales Person',
+  whyChooseUs: 'Why Choose Us',
+  services: 'services',
+  gallery: 'gallery',
+} as const
+
+export type PublicSectionNameKey = keyof typeof PUBLIC_SECTION_NAMES

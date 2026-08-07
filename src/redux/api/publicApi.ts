@@ -5,15 +5,13 @@ import {
   type FetchArgs,
   type FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react'
+import { baseUrl as apiBaseUrl } from './api'
 
-/** Public vcard API (Node `/api/v1/public` — Laravel path/shape parity). */
-export const baseUrl =
-  process.env.NEXT_PUBLIC_PUBLIC_API_URL ||
-  (process.env.NEXT_PUBLIC_API_URL
-    ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')}/public`
-    : 'http://localhost:5000/api/v1/public')
+/** Public vcard API — always `{NEXT_PUBLIC_API_URL}/public`. */
+export const baseUrl = `${apiBaseUrl.replace(/\/$/, '')}/public`
 
-const ONE_HOUR_SECONDS = 60 * 60
+/** Default unused-data TTL — shorter so back-office saves show sooner on public tabs. */
+const DEFAULT_KEEP_UNUSED_SECONDS = 5 * 60
 
 /** Max times a single request is retried after a 429 before giving up. */
 const MAX_RATE_LIMIT_RETRIES = 3
@@ -61,57 +59,24 @@ const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> =
 export const publicApi = createApi({
   reducerPath: 'publicApi',
   baseQuery: baseQuery,
-  /** Public profile sections are mostly static — cache 1h to avoid repeat tab visits refetching. */
-  keepUnusedDataFor: ONE_HOUR_SECONDS,
-  refetchOnMountOrArgChange: false,
+  keepUnusedDataFor: DEFAULT_KEEP_UNUSED_SECONDS,
+  refetchOnMountOrArgChange: 60,
   refetchOnFocus: false,
-  refetchOnReconnect: false,
+  refetchOnReconnect: true,
   tagTypes: [
-    'user',
     'MyCard',
     'PublicCards',
     'NavBarLinks',
-    'Clients',
-    'Blog',
-    'Post',
-    'Services',
-    'Calendar',
-    'Events',
-    'Gallery',
-    'Reviews',
-    'AboutMe',
-    'VideoExplainer',
-    'AdditionalServices',
-    'BbbAccreditation',
-    'Dcp',
-    'MeetOurTeam',
-    'Faq',
-    'Booking',
-    'Menu',
-    'SalesPerson',
-    'SeeProducts',
-    'VideoLinks',
-    'Videos',
-    'MissionStatement',
-    'WhyChooseUs',
-    'JoinMyTeam',
-    'HomeSolar',
-    'ResiliencyProducts',
-    'PropertyListing',
-    'MediaPress',
-    'Announcement',
-    'CertificationsLicensing',
-    'Breakfast',
-    'Dinner',
-    'Lunch',
-    'Inventory',
-    'Licensing',
-    'InsuranceLicense',
-    'Resume',
-    'WorkExperience',
     'DynamicSection',
     'ProfileAiData',
     'ProfileSettings',
+    'AboutMe',
+    'Services',
+    'Gallery',
+    'Reviews',
+    'Clients',
+    'Videos',
+    'VideoExplainer',
   ],
   endpoints: () => ({}),
 })

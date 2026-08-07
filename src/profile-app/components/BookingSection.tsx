@@ -1,8 +1,9 @@
 'use client'
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useGetBookingQuery } from '@/redux/api'
+import { useGetDynamicSectionQuery } from '@/redux/api'
 import { CalendarDays } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -127,7 +128,10 @@ export const BookingSection = () => {
   const accent = design?.accentColor ?? (template === 'v1' ? '#dcc969' : '#eab308')
   const primaryColor = design?.primaryColor ?? accent
 
-  const { data, isLoading, isError } = useGetBookingQuery(profileId, { skip: !profileId })
+  const { data, isLoading, isError } = useGetDynamicSectionQuery(
+    { profileId, sectionName: PUBLIC_SECTION_NAMES.booking },
+    { skip: !profileId }
+  )
 
   const sectionTitle = data?.sectionTitle ?? 'Booking'
   const items = data?.posts ?? []
