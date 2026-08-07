@@ -236,7 +236,7 @@ export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
 export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   const primaryAddress = profile.addresses?.find((a) => a.isPrimary) || profile.addresses?.[0] || null
 
-  const { displaySettings, avatarImageUrl, explainerVideoUrl } = hydrateDisplaySettingsFromProfile({
+  const { displaySettings, avatarImageUrl, backgroundImageUrl, explainerVideoUrl } = hydrateDisplaySettingsFromProfile({
     settings: profile.settings,
     attachments: profile.attachments,
     avatar: profile.avatar,
@@ -334,6 +334,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     views: profile.viewCount || 0,
     saves: 0,
     avatarImageUrl,
+    backgroundImageUrl,
     isActive: true,
   }
 }

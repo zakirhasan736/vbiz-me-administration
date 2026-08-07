@@ -120,6 +120,8 @@ export type HydrateDisplaySettingsResult = {
   displaySettings: VCardDisplaySettings
   settingsMap: Record<string, string>
   avatarImageUrl: string
+  /** Cover media from Background Video/Image (image or video URL). */
+  backgroundImageUrl: string
   explainerVideoUrl: string
 }
 
@@ -191,6 +193,9 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
     setFieldCustomValue(fields, 'Profile Image/Video', avatarImageUrl)
   }
 
+  const backgroundFromSettings = fields['Background Video/Image']?.customValue?.trim() || ''
+  const backgroundImageUrl = isDurableHttpUrl(backgroundFromSettings) ? backgroundFromSettings : ''
+
   const introYoutube = fields['Intro YouTube vCard Video Link']?.customValue?.trim() || ''
   const explainerVideoUrl = introYoutube && isYoutubeMediaUrl(introYoutube) ? introYoutube : ''
 
@@ -201,6 +206,7 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
     },
     settingsMap,
     avatarImageUrl,
+    backgroundImageUrl,
     explainerVideoUrl,
   }
 }

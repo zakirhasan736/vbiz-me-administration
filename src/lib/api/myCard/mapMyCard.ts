@@ -389,6 +389,16 @@ export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
     ''
   const avatarImageUrl = avatar && (/^https?:\/\//i.test(avatar) || avatar.startsWith('/')) ? avatar : ''
 
+  const settingsBackground =
+    typeof card.settings?.background_media_url === 'string' ? card.settings.background_media_url.trim() : ''
+  const background =
+    settingsBackground ||
+    card.background_media.video_url ||
+    card.background_media.url ||
+    data.displaySettings?.fields?.['Background Video/Image']?.customValue?.trim() ||
+    ''
+  const backgroundImageUrl = background && isDurableHttpUrl(background) ? background : ''
+
   return {
     ...data,
     id: String(card.profile.id),
@@ -397,6 +407,7 @@ export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
     views: card.action_buttons.view_counter?.count ?? 0,
     saves: 0,
     avatarImageUrl,
+    backgroundImageUrl,
     isActive: true,
   }
 }

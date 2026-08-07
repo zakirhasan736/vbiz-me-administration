@@ -236,6 +236,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           patch: {
             views: mapped.views,
             avatarImageUrl: mapped.avatarImageUrl,
+            backgroundImageUrl: mapped.backgroundImageUrl,
             updatedAt: mapped.updatedAt,
             isActive: true,
           },
@@ -264,6 +265,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         patch: {
           views: mapped.views,
           avatarImageUrl: mapped.avatarImageUrl,
+          backgroundImageUrl: mapped.backgroundImageUrl,
           createdAt: mapped.createdAt,
           updatedAt: mapped.updatedAt,
           isActive: true,

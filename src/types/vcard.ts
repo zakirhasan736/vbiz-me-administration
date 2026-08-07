@@ -180,6 +180,8 @@ export type VCardListMeta = {
   saves: number
   /** Dashboard card image (Media & Profile) */
   avatarImageUrl: string
+  /** Dashboard card cover (Background Video/Image) */
+  backgroundImageUrl: string
   isActive: boolean
 }
 

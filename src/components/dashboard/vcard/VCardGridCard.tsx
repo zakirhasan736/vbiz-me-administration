@@ -1,5 +1,6 @@
 'use client'
 
+import { ConfirmModal } from '@/components/ConfirmModal'
 import { Badge, Button, Card, Tooltip } from '@/components/ui'
 import { useAppDispatch } from '@/hooks/redux'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
@@ -19,15 +20,24 @@ type VCardGridCardProps = {
   onOpenQr: (url: string) => void
 }
 
+function isVideoMediaUrl(url: string): boolean {
+  const path = url.split('?')[0]?.split('#')[0]?.toLowerCase() || ''
+  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(path)
+}
+
 export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
   const dispatch = useAppDispatch()
   const [deleteProfile, { isLoading: isDeleting }] = useDeleteProfileMutation()
   const [copied, setCopied] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const slug = card.slug.trim()
   const publicPath = getVCardPublicPath(slug)
   const fullUrl = getVCardPublicUrl(slug)
   const avatarSrc = card.avatarImageUrl?.trim() || null
+  const coverSrc = card.backgroundImageUrl?.trim() || null
+  const coverIsVideo = coverSrc ? isVideoMediaUrl(coverSrc) : false
+  const cardName = card.personal.fullName || 'this vCard'
 
   const handleCopyLink = async () => {
     if (!fullUrl) return
@@ -36,21 +46,37 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleDelete = async () => {
-    const ok = window.confirm(`Delete “${card.personal.fullName || 'this vCard'}”? This cannot be undone.`)
-    if (!ok) return
+  const handleDeleteClick = () => {
+    setMenuOpen(false)
+    setDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
     try {
       await deleteProfile(card.id).unwrap()
       dispatch(removeVCard(card.id))
+      setDeleteOpen(false)
     } catch {
       window.alert('Could not delete this vCard. Please try again.')
-    } finally {
-      setMenuOpen(false)
     }
   }
 
   return (
     <Card className="group relative flex flex-col overflow-hidden rounded-[28px] shadow-[0_2px_10px_-3px_rgba(6,81,237,0.03)] transition-all duration-400 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(6,81,237,0.08)] dark:hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.5)]">
+      <ConfirmModal
+        open={deleteOpen}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => void handleDeleteConfirm()}
+        isLoading={isDeleting}
+        variant="danger"
+        icon={Trash2}
+        title={`Delete “${cardName}”?`}
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        loadingLabel="Deleting…"
+        labelledBy={`delete-vcard-title-${card.id}`}
+        describedBy={`delete-vcard-description-${card.id}`}
+      />
       <div className="absolute top-4 right-4 z-20">
         <button
           type="button"
@@ -65,24 +91,45 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
             <button
               type="button"
               disabled={isDeleting}
-              onClick={() => void handleDelete()}
+              onClick={handleDeleteClick}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              {isDeleting ? 'Deleting…' : 'Delete card'}
+              Delete card
             </button>
           </div>
         ) : null}
       </div>
 
       <div className="from-primary-50 to-primary-100/50 dark:from-primary-900/20 dark:to-primary-800/10 relative h-35 shrink-0 overflow-hidden bg-linear-to-br transition-transform duration-500 group-hover:scale-[1.02]">
-        <div
-          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
-          }}
-        ></div>
+        {coverSrc && coverIsVideo ? (
+          <video
+            src={coverSrc}
+            className="absolute inset-0 h-full w-full object-cover"
+            muted
+            autoPlay
+            loop
+            playsInline
+            aria-hidden
+          />
+        ) : coverSrc ? (
+          <Image
+            src={coverSrc}
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 400px"
+            className="object-cover"
+            aria-hidden
+          />
+        ) : (
+          <div
+            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+            style={{
+              backgroundImage:
+                "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
+            }}
+          />
+        )}
         <div className="absolute top-4 left-4 z-10">
           <Badge
             variant={card.isActive ? 'success' : 'default'}

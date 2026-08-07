@@ -62,6 +62,7 @@ const vcardsSlice = createSlice({
           views: cur.views,
           saves: cur.saves,
           avatarImageUrl: cur.avatarImageUrl,
+          backgroundImageUrl: cur.backgroundImageUrl || '',
           isActive: cur.isActive,
         }
         reindexSlugs(state)
@@ -92,6 +93,7 @@ const vcardsSlice = createSlice({
         views: 0,
         saves: 0,
         avatarImageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
+        backgroundImageUrl: '',
         isActive: true,
       }
       state.byId[id] = record
@@ -121,6 +123,7 @@ const vcardsSlice = createSlice({
         views: cur.views,
         saves: cur.saves,
         avatarImageUrl: cur.avatarImageUrl,
+        backgroundImageUrl: cur.backgroundImageUrl || '',
         isActive: cur.isActive,
       }
       reindexSlugs(state)
@@ -204,6 +207,7 @@ const vcardsSlice = createSlice({
         views: 1200,
         saves: 342,
         avatarImageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
+        backgroundImageUrl: '',
         isActive: true,
       }
       state.ids = [id]
