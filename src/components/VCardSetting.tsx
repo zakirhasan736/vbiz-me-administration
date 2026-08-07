@@ -2,6 +2,7 @@
 
 import { CanvaConnectRow } from '@/components/canva'
 import { Switch } from '@/components/ui'
+import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
@@ -187,7 +188,7 @@ function Toggle({
 
 function TemplateDesigner() {
   const { user } = useAuth()
-  const { vCardData, updateData } = useVCard()
+  const { vCardData, updateData, cardId, isCreateMode } = useVCard()
   const accountDesign = useAppSelector((s) => s.designSettings)
 
   const cardAppearance: VCardAppearance = vCardData.appearance ?? appearanceFromDesignSettings(accountDesign)
@@ -249,19 +250,13 @@ function TemplateDesigner() {
               <Globe className="text-primary-600 dark:text-primary-400 h-4 w-4" />
               <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">Custom Profile Slug</span>
             </div>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-[#070a13]">
-              <span className="text-[.8125rem] font-medium text-slate-400">vbiz.me/</span>
-              <input
-                type="text"
-                value={vCardData.slug}
-                onChange={(e) => updateData('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                placeholder="your-name"
-                className="dark:text-primary-400 flex-1 bg-transparent text-[.8125rem] font-semibold text-slate-900 outline-none"
-              />
-            </div>
-            <p className="mt-2.5 ml-1 text-[.6875rem] font-medium text-slate-500 dark:text-slate-400">
-              This will be your live URL. Use only lowercase letters, numbers, and dashes.
-            </p>
+            <SlugAvailabilityField
+              value={vCardData.slug}
+              onChange={(slug) => updateData('slug', slug)}
+              excludeId={isCreateMode ? null : cardId}
+              variant="settings"
+              inputClassName="dark:text-primary-400 flex-1 bg-transparent text-[.8125rem] font-semibold text-slate-900 outline-none"
+            />
           </div>
         </div>
       </SettingSection>

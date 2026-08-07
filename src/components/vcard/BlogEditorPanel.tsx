@@ -1,5 +1,6 @@
 'use client'
 
+import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { createDefaultGeneralPost, normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
 import type { VCardGeneralPost } from '@/types/vcard'
 import {
@@ -46,7 +47,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col pb-12 duration-500">
       <div
-        className="mb-8 rounded-[24px] border border-amber-100 bg-amber-50/50 p-6 dark:border-amber-500/10 dark:bg-amber-500/2"
+        className="mb-8 rounded-3xl border border-amber-100 bg-amber-50/50 p-6 dark:border-amber-500/10 dark:bg-amber-500/2"
         data-tour-id="tour-editor-panel-blog"
       >
         <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
@@ -59,7 +60,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
           <button
             type="button"
             onClick={addPost}
-            className="hidden items-center justify-center gap-2 rounded-[12px] bg-amber-600 px-5 py-2.5 text-sm font-bold whitespace-nowrap text-white shadow-sm transition-all hover:bg-amber-700 active:scale-95 sm:flex"
+            className="hidden items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold whitespace-nowrap text-white shadow-sm transition-all hover:bg-amber-700 active:scale-95 sm:flex"
           >
             <Plus className="h-4 w-4" /> Add Post
           </button>
@@ -71,7 +72,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
         <button
           type="button"
           onClick={addPost}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-[12px] bg-amber-600 px-5 py-3.5 text-[13px] font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-95 sm:hidden"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-3.5 text-[13px] font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-95 sm:hidden"
         >
           <Plus className="h-4 w-4" /> Add Post
         </button>
@@ -79,7 +80,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
 
       <div className="flex flex-1 flex-col">
         {posts.length === 0 ? (
-          <div className="rounded-[32px] border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
+          <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
               <FileBox className="h-8 w-8 text-slate-400" />
             </div>
@@ -90,7 +91,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
             <button
               type="button"
               onClick={addPost}
-              className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-95"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-95"
             >
               <Plus className="h-4 w-4" /> Add Post
             </button>
@@ -100,7 +101,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
             {posts.map((post, index) => (
               <section
                 key={post.id}
-                className="group/card overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
+                className="group/card overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
               >
                 <div className="flex items-center justify-between border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
                   <div className="flex items-center gap-4">
@@ -114,7 +115,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
                   <button
                     type="button"
                     onClick={() => removePost(post.id)}
-                    className="flex items-center gap-2 rounded-[12px] bg-red-50 px-4 py-2.5 font-bold text-red-500 opacity-0 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+                    className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 font-bold text-red-500 opacity-0 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
                     title="Remove Post"
                   >
                     <Trash2 className="h-4 w-4" /> Remove
@@ -164,7 +165,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
                       onChange={(e) => updatePost(post.id, 'description', e.target.value)}
                       placeholder="Write your post description here..."
                       rows={5}
-                      className="min-h-[120px] w-full resize-y rounded-[16px] border border-slate-200/80 bg-white px-5 py-4 text-[13px] font-medium text-slate-900 shadow-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
+                      className="min-h-30 w-full resize-y rounded-2xl border border-slate-200/80 bg-white px-5 py-4 text-[13px] font-medium text-slate-900 shadow-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
                     />
                   </div>
 
@@ -200,11 +201,10 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
                       <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                         <Calendar className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Date
                       </label>
-                      <input
-                        type="date"
+                      <VCardDateInput
                         value={post.date}
                         onChange={(e) => updatePost(post.id, 'date', e.target.value)}
-                        className={`${inputClasses} [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:dark:invert`}
+                        className={inputClasses}
                       />
                     </div>
                     <div className="flex items-center gap-4 pt-6">
@@ -217,12 +217,12 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
                             className="sr-only"
                           />
                           <div
-                            className={`relative h-[22px] w-[38px] rounded-[12px] shadow-inner transition-colors ${
+                            className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
                               post.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
                             }`}
                           >
                             <div
-                              className={`absolute top-[3px] left-[3px] h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
+                              className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
                                 post.active ? 'translate-x-4' : 'translate-x-0'
                               }`}
                             />
@@ -240,7 +240,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange }: BlogEditorPa
               <button
                 type="button"
                 onClick={addPost}
-                className="flex items-center justify-center gap-2 rounded-[16px] border border-slate-200/80 bg-white px-6 py-4 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-300 dark:hover:bg-white/5"
+                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200/80 bg-white px-6 py-4 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-300 dark:hover:bg-white/5"
               >
                 <Plus className="h-4 w-4" /> Add Post
               </button>

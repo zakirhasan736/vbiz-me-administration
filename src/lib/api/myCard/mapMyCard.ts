@@ -80,6 +80,7 @@ const API_FIELD_TO_LABEL: Record<string, string> = {
   profile_video_checkbox: 'Intro vCard Video',
   profile_video_link_checkbox: 'Intro YouTube vCard Video Link',
   background_video_checkbox: 'Background Video/Image',
+  bg_video_checkbox: 'Background Video/Image',
   profile_image_checkbox: 'Profile Image/Video',
   background_music_checkbox: 'Background Music',
   background_music_link_checkbox: 'YouTube Background Music Link',
@@ -104,12 +105,45 @@ function readMyInfoFieldIcon(section: Record<string, MyCardMyInfoField> | undefi
   return ''
 }
 
+function isYoutubeMediaUrl(url: string): boolean {
+  return /youtu\.?be/i.test(url)
+}
+
+function isDurableHttpUrl(url: string): boolean {
+  const trimmed = url.trim()
+  if (!trimmed || trimmed.startsWith('blob:')) return false
+  return /^https?:\/\//i.test(trimmed) || trimmed.startsWith('/')
+}
+
+function parseDisplaySettingsSnapshot(raw?: string): VCardDisplaySettings | null {
+  if (!raw?.trim()) return null
+  try {
+    const parsed = JSON.parse(raw) as VCardDisplaySettings
+    if (!parsed || typeof parsed !== 'object' || !parsed.fields || typeof parsed.fields !== 'object') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
 function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
   const { settings, features } = card
+  const snapshot = parseDisplaySettingsSnapshot(settings.display_settings_json)
   const fields: VCardDisplaySettings['fields'] = {}
 
+  if (snapshot?.fields) {
+    for (const [label, config] of Object.entries(snapshot.fields)) {
+      const customValue = config.customValue?.trim() || ''
+      fields[label] = {
+        ...createDefaultFieldConfig(),
+        ...config,
+        customValue: customValue.startsWith('blob:') ? '' : customValue,
+      }
+    }
+  }
+
   for (const key of NAV_BAR_FIELDS) {
-    fields[key] = createDefaultNavFieldConfig(key)
+    fields[key] = fields[key] || createDefaultNavFieldConfig(key)
   }
 
   for (const [apiKey, labels] of Object.entries(API_NAV_TO_LABELS)) {
@@ -157,28 +191,67 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
     fields['Vcard View Counter'] = { ...fields['Vcard View Counter'], visible: false }
   }
 
-  const introUrl =
-    card.intro_video.regular_video?.url || card.intro_video.url || card.intro_video.youtube?.embed_url || ''
-  if (introUrl) {
+  const introYoutube = settings.intro_youtube_url?.trim() || card.intro_video.youtube?.link?.trim() || ''
+  const introFileCandidate =
+    settings.intro_video_url?.trim() ||
+    card.intro_video.regular_video?.url?.trim() ||
+    card.intro_video.url?.trim() ||
+    ''
+  const introFile = introFileCandidate && !isYoutubeMediaUrl(introFileCandidate) ? introFileCandidate : ''
+  const introYoutubeFallback =
+    introYoutube ||
+    (introFileCandidate && isYoutubeMediaUrl(introFileCandidate) ? introFileCandidate : '') ||
+    card.intro_video.youtube?.embed_url?.trim() ||
+    ''
+
+  if (introFile) {
     fields['Intro vCard Video'] = {
       ...fields['Intro vCard Video'],
-      customValue: introUrl,
+      customValue: introFile,
+    }
+  }
+  if (introYoutubeFallback) {
+    fields['Intro YouTube vCard Video Link'] = {
+      ...fields['Intro YouTube vCard Video Link'],
+      customValue: introYoutube || introYoutubeFallback,
     }
   }
 
-  const bgUrl = card.background_media.video_url || card.background_media.url || ''
-  if (bgUrl) {
+  const bgUrl = settings.background_media_url || card.background_media.video_url || card.background_media.url || ''
+  if (bgUrl && isDurableHttpUrl(bgUrl)) {
     fields['Background Video/Image'] = {
       ...fields['Background Video/Image'],
       customValue: bgUrl,
     }
   }
 
-  const profileUrl = card.profile_media.url || card.profile_media.fallback_url || ''
-  if (profileUrl && (/^https?:\/\//i.test(profileUrl) || profileUrl.startsWith('/'))) {
+  const profileUrl =
+    settings.profile_media_url?.trim() || card.profile_media.url || card.profile_media.fallback_url || ''
+  if (profileUrl && isDurableHttpUrl(profileUrl)) {
     fields['Profile Image/Video'] = {
       ...fields['Profile Image/Video'],
       customValue: profileUrl,
+    }
+  }
+
+  const audio = card.background_audio
+  const musicFileUrl =
+    settings.background_music_file_url?.trim() || (!audio?.use_youtube_link && audio?.url?.trim()) || ''
+  if (musicFileUrl && isDurableHttpUrl(musicFileUrl) && !isYoutubeMediaUrl(musicFileUrl)) {
+    fields['Background Music'] = {
+      ...fields['Background Music'],
+      customValue: musicFileUrl,
+    }
+  }
+
+  const musicYoutubeUrl =
+    settings.background_music_url?.trim() ||
+    (audio?.use_youtube_link ? audio.youtube?.link || audio.youtube?.embed_url || '' : '') ||
+    ''
+  if (musicYoutubeUrl && isYoutubeMediaUrl(musicYoutubeUrl)) {
+    fields['YouTube Background Music Link'] = {
+      ...fields['YouTube Background Music Link'],
+      customValue: musicYoutubeUrl,
     }
   }
 
@@ -192,7 +265,7 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
     }
   }
 
-  return { globalEnabled: true, fields }
+  return { globalEnabled: snapshot?.globalEnabled ?? true, fields }
 }
 
 function mapPersonal(card: MyCardData): VCardPersonal {
@@ -202,19 +275,29 @@ function mapPersonal(card: MyCardData): VCardPersonal {
   return {
     fullName: p.name ?? '',
     email: p.email ?? '',
-    dob: '',
-    gender: p.gender ?? 'Male',
-    relationship: p.marital_status ?? 'Single',
+    dob: card.my_info.personal?.dob?.value ?? '',
+    gender: p.gender ?? card.my_info.personal?.gender?.value ?? 'Male',
+    relationship: p.marital_status ?? card.my_info.personal?.marital_status?.value ?? 'Single',
     profession: p.profession ?? '',
     designation: p.designation ?? '',
     company: p.company_name ?? '',
     phone: p.phone ?? '',
     whatsapp: p.whatsapp ?? p.phone ?? '',
     address: p.address ?? '',
+    state: p.state ?? '',
+    city: p.city ?? '',
+    zip: p.zipcode ?? '',
     website: p.website ?? '',
     about: aboutSection,
-    explainerVideoUrl:
-      card.intro_video.regular_video?.url || card.intro_video.url || card.intro_video.youtube?.embed_url || '',
+    explainerVideoUrl: (() => {
+      const fromSettings = card.settings?.intro_video_url?.trim() || ''
+      const file =
+        (fromSettings && !isYoutubeMediaUrl(fromSettings) ? fromSettings : '') ||
+        card.intro_video.regular_video?.url?.trim() ||
+        (card.intro_video.youtube ? '' : card.intro_video.url?.trim()) ||
+        ''
+      return file && !isYoutubeMediaUrl(file) ? file : ''
+    })(),
   }
 }
 
@@ -296,7 +379,14 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
 export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
   const data = mapMyCardToVCardData(card)
   const now = new Date().toISOString()
-  const avatar = card.profile_media.url || card.profile_media.fallback_url || ''
+  const settingsProfile =
+    typeof card.settings?.profile_media_url === 'string' ? card.settings.profile_media_url.trim() : ''
+  const avatar =
+    settingsProfile ||
+    card.profile_media.url ||
+    card.profile_media.fallback_url ||
+    data.displaySettings?.fields?.['Profile Image/Video']?.customValue?.trim() ||
+    ''
   const avatarImageUrl = avatar && (/^https?:\/\//i.test(avatar) || avatar.startsWith('/')) ? avatar : ''
 
   return {

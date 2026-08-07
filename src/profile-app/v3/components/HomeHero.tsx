@@ -12,7 +12,11 @@ import {
   cleanProfileFieldValue,
   formatProfileViewCount,
 } from '@/profile-app/lib/profileHomeData'
-import { filterSocialItemsWithLinks, resolveSocialLinkHref } from '@/profile-app/lib/profileSocialLinks'
+import {
+  filterSocialItemsWithLinks,
+  onTrackedSocialClick,
+  resolveSocialLinkHref,
+} from '@/profile-app/lib/profileSocialLinks'
 import { DEFAULT_COVER, DEFAULT_INTRO_VIDEO, resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
 import {
   Bell,
@@ -30,6 +34,7 @@ import {
   Youtube,
   type LucideIcon,
 } from 'lucide-react'
+import Image from 'next/image'
 import React, { useMemo } from 'react'
 
 const XIcon = () => (
@@ -72,7 +77,7 @@ function ProfileMedia({ src, alt, className }: { src: string; alt: string; class
       <CustomVideoPlayer src={encoded} imageAlt={alt} controlsMode="owner" showSeekBar={false} className={className} />
     )
   }
-  return <img src={encoded} alt={alt} className={className} />
+  return <Image src={encoded} alt={alt} fill priority sizes="(max-width: 767px) 60vw, 300px" className={className} />
 }
 
 export const HomeHero: React.FC<{
@@ -81,7 +86,7 @@ export const HomeHero: React.FC<{
   toggleTheme?: () => void
 }> = ({ theme, onAction, toggleTheme }) => {
   const { t, lang } = useTranslation()
-  const { personal, isVisible, field, homeMedia, socialHref, profileViews } = useProfileDisplay()
+  const { personal, isVisible, field, homeMedia, socialHref, profileViews, cardOwnerId, cardSlug } = useProfileDisplay()
 
   const introSrc = homeMedia.introVideo || personal.explainerVideoUrl || undefined
   const profileSrc = useMemo(
@@ -89,6 +94,7 @@ export const HomeHero: React.FC<{
     [homeMedia.profileMedia, introSrc]
   )
   const coverSrc = encodeMediaUrl(homeMedia.bgMedia || DEFAULT_COVER)
+  const coverIsVideo = Boolean(coverSrc && isVideoUrl(coverSrc))
   const profileIsVideo = isVideoUrl(profileSrc)
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn')
@@ -134,14 +140,23 @@ export const HomeHero: React.FC<{
         className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${theme === 'dark' ? 'bg-[#030914]' : 'bg-white'}`}
       >
         <div className="absolute inset-0 mx-auto h-full w-full md:max-w-258">
-          <video
-            src={coverSrc}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 aspect-video h-full w-full object-cover opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten"
-          />
+          {coverIsVideo ? (
+            <video
+              src={coverSrc}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 aspect-video h-full w-full object-cover opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverSrc}
+              alt=""
+              className="absolute inset-0 aspect-video h-full w-full object-cover opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten"
+            />
+          )}
           <div
             className={`absolute inset-0 bg-linear-to-b ${theme === 'dark' ? 'from-[#030914]/15 via-[#031327]/30 to-[#031327]' : 'from-white/5 via-white/10 to-white'}`}
           />
@@ -225,7 +240,10 @@ export const HomeHero: React.FC<{
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => triggerHaptic(10)}
+                    onClick={() => {
+                      triggerHaptic(10)
+                      onTrackedSocialClick(item.label, cardOwnerId, cardSlug)
+                    }}
                     className="vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 hover:scale-[1.12] hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] md:h-10 md:w-10"
                   >
                     {renderSocialIcon(item, 18)}
@@ -396,6 +414,7 @@ export const HomeHero: React.FC<{
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
                         className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
                       >
                         {renderSocialIcon(item, 18)}

@@ -1,7 +1,5 @@
 'use client'
 
-import { CardScopeProvider } from '@/lib/card-scope'
-import { VCardProvider } from '@/lib/VCardContext'
 import {
   DEFAULT_EDITOR_SECTION,
   buildEditorPath,
@@ -39,11 +37,5 @@ export default function CreateVCardClient({ segments }: Props) {
     )
   }
 
-  return (
-    <CardScopeProvider cardId={null} mode="create">
-      <VCardProvider>
-        <VCardEdit basePath="/vcards/create" segments={segments} />
-      </VCardProvider>
-    </CardScopeProvider>
-  )
+  return <VCardEdit basePath="/vcards/create" segments={segments} />
 }

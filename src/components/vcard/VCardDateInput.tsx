@@ -1,5 +1,6 @@
 'use client'
 
+import { toDateInputValue } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import type { InputHTMLAttributes, MouseEvent } from 'react'
 
@@ -18,13 +19,22 @@ function tryOpenDatePicker(input: HTMLInputElement) {
 
 type VCardDateInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>
 
-export function VCardDateInput({ className, onClick, ...props }: VCardDateInputProps) {
+/** Native date input that always displays `yyyy-MM-dd` values after save/refetch. */
+export function VCardDateInput({ className, onClick, value, ...props }: VCardDateInputProps) {
+  const normalized = typeof value === 'string' || typeof value === 'number' ? toDateInputValue(String(value)) : ''
+
   const handleClick = (e: MouseEvent<HTMLInputElement>) => {
     onClick?.(e)
     tryOpenDatePicker(e.currentTarget)
   }
 
   return (
-    <input type="date" onClick={handleClick} className={cn(VCARD_DATE_INPUT_PICKER_CLASSES, className)} {...props} />
+    <input
+      {...props}
+      type="date"
+      value={normalized}
+      onClick={handleClick}
+      className={cn(VCARD_DATE_INPUT_PICKER_CLASSES, className)}
+    />
   )
 }

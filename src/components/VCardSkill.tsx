@@ -4,7 +4,7 @@ import { useVCard } from '@/lib/VCardContext'
 import { createDefaultSkillGroup, normalizeSkillGroups } from '@/lib/vcardSkills'
 import type { VCardSkillGroup } from '@/types/vcard'
 import { Plus, Star, Trash2, X } from 'lucide-react'
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 shadow-sm'
@@ -12,60 +12,98 @@ const inputClasses =
 export function TabSkill() {
   const { vCardData, updateData } = useVCard()
   const skillGroups = normalizeSkillGroups(vCardData.skills)
+  const skillGroupsRef = useRef(skillGroups)
+  const [inputValues, setInputValues] = React.useState<Record<string, string>>({})
+  const inputValuesRef = useRef(inputValues)
 
-  const setSkillGroups = (next: VCardSkillGroup[]) => updateData('skills', next)
+  useEffect(() => {
+    skillGroupsRef.current = skillGroups
+  }, [skillGroups])
+
+  useEffect(() => {
+    inputValuesRef.current = inputValues
+  }, [inputValues])
+
+  const setSkillGroups = (next: VCardSkillGroup[]) => {
+    const normalized = normalizeSkillGroups(next)
+    skillGroupsRef.current = normalized
+    updateData('skills', normalized)
+  }
+
+  const commitPendingInputs = (groups: VCardSkillGroup[] = skillGroupsRef.current): VCardSkillGroup[] => {
+    const pending = inputValuesRef.current
+    let changed = false
+    const next = groups.map((grp) => {
+      const typed = (pending[grp.id] || '').trim()
+      if (!typed || grp.skills.includes(typed)) return grp
+      changed = true
+      return { ...grp, skills: [...grp.skills, typed] }
+    })
+    if (changed) {
+      setInputValues({})
+      inputValuesRef.current = {}
+      setSkillGroups(next)
+      return next
+    }
+    return groups
+  }
 
   const addSkillGroup = () => {
-    setSkillGroups([...skillGroups, createDefaultSkillGroup()])
+    const current = commitPendingInputs()
+    setSkillGroups([...current, createDefaultSkillGroup()])
   }
 
   const removeSkillGroup = (id: string) => {
-    const next = skillGroups.filter((grp) => grp.id !== id)
+    const current = commitPendingInputs()
+    const next = current.filter((grp) => grp.id !== id)
     setSkillGroups(next.length ? next : [createDefaultSkillGroup()])
   }
 
   const updateSkillGroupType = (id: string, type: string) => {
-    setSkillGroups(skillGroups.map((grp) => (grp.id === id ? { ...grp, type } : grp)))
-  }
-
-  const handleKeyDown = (id: string, e: React.KeyboardEvent<HTMLInputElement>, inputValue: string) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      if (inputValue.trim() !== '') {
-        addSkillToGroup(id, inputValue.trim())
-      }
-    }
-  }
-
-  const [inputValues, setInputValues] = React.useState<Record<string, string>>({})
-
-  const updateInputValue = (id: string, value: string) => {
-    setInputValues((prev) => ({ ...prev, [id]: value }))
+    const current = skillGroupsRef.current
+    setSkillGroups(current.map((grp) => (grp.id === id ? { ...grp, type } : grp)))
   }
 
   const addSkillToGroup = (id: string, skillName: string) => {
+    const name = skillName.trim()
+    if (!name) return
+    const current = skillGroupsRef.current
     setSkillGroups(
-      skillGroups.map((grp) => {
-        if (grp.id === id) {
-          if (!grp.skills.includes(skillName)) {
-            return { ...grp, skills: [...grp.skills, skillName] }
-          }
-        }
-        return grp
+      current.map((grp) => {
+        if (grp.id !== id) return grp
+        if (grp.skills.includes(name)) return grp
+        return { ...grp, skills: [...grp.skills, name] }
       })
     )
-    setInputValues((prev) => ({ ...prev, [id]: '' }))
+    setInputValues((prev) => {
+      const next = { ...prev, [id]: '' }
+      inputValuesRef.current = next
+      return next
+    })
   }
 
   const removeSkillFromGroup = (groupId: string, skillName: string) => {
+    const current = commitPendingInputs()
     setSkillGroups(
-      skillGroups.map((grp) => {
-        if (grp.id === groupId) {
-          return { ...grp, skills: grp.skills.filter((s) => s !== skillName) }
-        }
-        return grp
+      current.map((grp) => {
+        if (grp.id !== groupId) return grp
+        return { ...grp, skills: grp.skills.filter((s) => s !== skillName) }
       })
     )
+  }
+
+  const handleKeyDown = (id: string, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    addSkillToGroup(id, inputValuesRef.current[id] || '')
+  }
+
+  const updateInputValue = (id: string, value: string) => {
+    setInputValues((prev) => {
+      const next = { ...prev, [id]: value }
+      inputValuesRef.current = next
+      return next
+    })
   }
 
   return (
@@ -78,7 +116,7 @@ export function TabSkill() {
           <h3 className="text-lg font-black text-purple-600 dark:text-purple-400">Skills</h3>
         </div>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Highlight your top skills and expertise. Saved with your profile on Save.
+          Highlight your top skills and expertise. Press Enter to add each skill — changes autosave to your public card.
         </p>
       </div>
 
@@ -151,7 +189,11 @@ export function TabSkill() {
                     type="text"
                     value={inputValues[group.id] || ''}
                     onChange={(e) => updateInputValue(group.id, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(group.id, e, inputValues[group.id] || '')}
+                    onKeyDown={(e) => handleKeyDown(group.id, e)}
+                    onBlur={() => {
+                      const typed = (inputValuesRef.current[group.id] || '').trim()
+                      if (typed) addSkillToGroup(group.id, typed)
+                    }}
                     placeholder="Type a skill and press Enter..."
                     className="mt-1 w-full bg-transparent py-1 text-[13px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white"
                   />

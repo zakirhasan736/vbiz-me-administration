@@ -1,5 +1,7 @@
 'use client'
 
+import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
+import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { VCardDocumentUpload } from '@/components/vcard/VCardDocumentUpload'
 import { applyVCardContextAutoFill } from '@/lib/applyVCardAutoFill'
 import type { VCardAutoFillResult } from '@/lib/vcardAutoFillDemo'
@@ -20,7 +22,7 @@ import {
   PlaySquare,
   User,
 } from 'lucide-react'
-import { ReactNode, useState } from 'react'
+import { ReactNode } from 'react'
 
 function FieldGroup({
   label,
@@ -56,24 +58,17 @@ const selectClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none cursor-pointer shadow-sm'
 
 export function Tab2PersonalInfo() {
-  const { vCardData, updateData } = useVCard()
-  const [zip, setZip] = useState('')
-  const [state, setState] = useState('')
-  const [city, setCity] = useState('')
+  const { vCardData, updateData, cardId, isCreateMode } = useVCard()
 
   const handleAutoFill = (fields: VCardAutoFillResult) => {
-    const { zip: z, state: s, city: c, ...rest } = fields
-    applyVCardContextAutoFill(updateData, rest)
-    if (z) setZip(z)
-    if (s) setState(s)
-    if (c) setCity(c)
+    applyVCardContextAutoFill(updateData, fields)
   }
 
   return (
     <div className="animate-in fade-in w-full pb-12 duration-500">
       <VCardDocumentUpload section="personal-info" onAutoFill={handleAutoFill} />
 
-      <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-[24px] border p-6">
+      <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-3xl border p-6">
         <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Personal Information</h3>
         <p className="text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           This info appears in the &ldquo;About Me&rdquo; section of your vCard. Ensure your details are accurate as
@@ -84,7 +79,7 @@ export function Tab2PersonalInfo() {
 
       <div className="space-y-8">
         {/* Public URL */}
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-sky-100 bg-sky-50 dark:border-sky-500/20 dark:bg-sky-500/10">
               <Link2 className="h-5 w-5 text-sky-600 dark:text-sky-400" />
@@ -92,25 +87,24 @@ export function Tab2PersonalInfo() {
             <h4 className="text-[16px] font-black text-slate-900 dark:text-white">Public URL</h4>
           </div>
           <div className="p-4 sm:p-8">
-            <FieldGroup label="URL slug" required icon={<Link2 className="h-4 w-4" />}>
-              <input
-                type="text"
+            <div className="group flex flex-col space-y-1.5">
+              <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                URL slug <span className="font-black text-red-500">*</span>
+              </label>
+              <SlugAvailabilityField
                 value={vCardData.slug}
-                onChange={(e) => updateData('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                placeholder="your-name"
-                className={`${inputClasses} pl-10 font-mono`}
+                onChange={(slug) => updateData('slug', slug)}
+                excludeId={isCreateMode ? null : cardId}
+                variant="personal"
+                icon={<Link2 className="h-4 w-4" />}
+                inputClassName={`${inputClasses} pl-10 font-mono`}
               />
-            </FieldGroup>
-            <p className="mt-3 pl-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
-              Your card will be available at{' '}
-              <span className="text-primary-600 dark:text-primary-400 font-mono">/v/{vCardData.slug || '…'}</span>.
-              Letters, numbers, and hyphens only.
-            </p>
+            </div>
           </div>
         </section>
 
         {/* My Information Section */}
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-10 w-10 items-center justify-center rounded-[14px] border">
               <User className="text-primary-600 dark:text-primary-400 h-5 w-5" />
@@ -137,11 +131,10 @@ export function Tab2PersonalInfo() {
             </FieldGroup>
 
             <FieldGroup label="Date of Birth" required icon={<Calendar className="h-4 w-4" />}>
-              <input
-                type="date"
+              <VCardDateInput
                 value={vCardData.personal.dob}
                 onChange={(e) => updateData('personal.dob', e.target.value)}
-                className={`${inputClasses} pl-10 [&::-webkit-calendar-picker-indicator]:invert-[0.6]`}
+                className={`${inputClasses} pl-10`}
               />
             </FieldGroup>
 
@@ -251,7 +244,7 @@ export function Tab2PersonalInfo() {
         </section>
 
         {/* Address Details Section */}
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10">
               <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -261,10 +254,14 @@ export function Tab2PersonalInfo() {
           <div className="grid grid-cols-1 gap-x-6 gap-y-8 p-4 sm:grid-cols-2 sm:p-8 md:grid-cols-3">
             <FieldGroup label="State">
               <div className="relative w-full">
-                <select value={state} onChange={(e) => setState(e.target.value)} className={`${selectClasses}`}>
+                <select
+                  value={vCardData.personal.state || ''}
+                  onChange={(e) => updateData('personal.state', e.target.value)}
+                  className={`${selectClasses}`}
+                >
                   <option value="">Choose...</option>
-                  <option>California</option>
-                  <option>New York</option>
+                  <option value="California">California</option>
+                  <option value="New York">New York</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500 dark:text-slate-400">
                   <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
@@ -276,10 +273,14 @@ export function Tab2PersonalInfo() {
 
             <FieldGroup label="City">
               <div className="relative w-full">
-                <select value={city} onChange={(e) => setCity(e.target.value)} className={`${selectClasses}`}>
+                <select
+                  value={vCardData.personal.city || ''}
+                  onChange={(e) => updateData('personal.city', e.target.value)}
+                  className={`${selectClasses}`}
+                >
                   <option value="">Choose...</option>
-                  <option>San Francisco</option>
-                  <option>Los Angeles</option>
+                  <option value="San Francisco">San Francisco</option>
+                  <option value="Los Angeles">Los Angeles</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500 dark:text-slate-400">
                   <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
@@ -292,8 +293,8 @@ export function Tab2PersonalInfo() {
             <FieldGroup label="Zip" required icon={<Hash className="h-4 w-4" />}>
               <input
                 type="text"
-                value={zip}
-                onChange={(e) => setZip(e.target.value)}
+                value={vCardData.personal.zip || ''}
+                onChange={(e) => updateData('personal.zip', e.target.value)}
                 className={`${inputClasses} pl-11`}
               />
             </FieldGroup>
@@ -312,7 +313,7 @@ export function Tab2PersonalInfo() {
         </section>
 
         {/* Explainer video (preloader on public profile) */}
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10">
               <PlaySquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -337,7 +338,7 @@ export function Tab2PersonalInfo() {
         </section>
 
         {/* About Me Section */}
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-purple-100 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10">
               <AlignLeft className="h-5 w-5 text-purple-600 dark:text-purple-400" />

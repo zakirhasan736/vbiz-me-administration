@@ -5,6 +5,7 @@ import type {
   ProfileAiExperience,
   ProfileAiPortfolio,
   ProfileAiService,
+  ProfileAiSkillGroup,
   ProfileAiSocials,
 } from '@/interfaces/api/profileAiData'
 
@@ -66,21 +67,58 @@ function normalizeSocials(raw: unknown): ProfileAiSocials {
   }
 }
 
-function normalizeSkills(raw: unknown): string[] {
+function normalizeSkills(raw: unknown): ProfileAiSkillGroup[] {
   if (!Array.isArray(raw)) return []
-  const names: string[] = []
+
+  const byCategory = new Map<string, string[]>()
+  const order: string[] = []
+
+  const pushSkill = (category: string, name: string) => {
+    const skill = name.trim()
+    if (!skill) return
+    const key = category.trim()
+    let list = byCategory.get(key)
+    if (!list) {
+      list = []
+      byCategory.set(key, list)
+      order.push(key)
+    }
+    if (!list.includes(skill)) list.push(skill)
+  }
+
   for (const item of raw) {
     if (typeof item === 'string') {
-      const name = item.trim()
-      if (name) names.push(name)
+      pushSkill('', item)
       continue
     }
     const rec = asRecord(item)
     if (!rec) continue
+
+    // Already grouped: { category|type|level, skills: string[] }
+    if (Array.isArray(rec.skills)) {
+      const category = asString(rec.category ?? rec.type ?? rec.level).trim()
+      for (const skill of rec.skills) {
+        if (typeof skill === 'string') pushSkill(category, skill)
+        else {
+          const nested = asRecord(skill)
+          if (nested) pushSkill(category, asString(nested.name || nested.title || nested.skill))
+        }
+      }
+      continue
+    }
+
     const name = asString(rec.name || rec.title || rec.skill).trim()
-    if (name) names.push(name)
+    if (!name) continue
+    const category = asString(rec.level ?? rec.category ?? rec.type).trim()
+    pushSkill(category, name)
   }
-  return names
+
+  return order
+    .map((category) => ({
+      category,
+      skills: byCategory.get(category) || [],
+    }))
+    .filter((group) => group.skills.length > 0)
 }
 
 function normalizeEducation(raw: unknown): ProfileAiEducation[] {

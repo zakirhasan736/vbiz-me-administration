@@ -1,8 +1,29 @@
-import { Badge, Button, Card, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui'
-import { tableData } from '@/constants/dashboardHome'
+import { Badge, Card, Pagination, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui'
 import { Activity, TrendingUp } from 'lucide-react'
 
-export function RecentEngagementTable() {
+export type EngagementRow = {
+  id: string
+  event: string
+  viewer: string
+  time: string
+  platform: string
+}
+
+type RecentEngagementTableProps = {
+  rows?: EngagementRow[]
+  page?: number
+  total?: number
+  pageSize?: number
+  onPageChange?: (page: number) => void
+}
+
+export function RecentEngagementTable({
+  rows = [],
+  page = 1,
+  total = 0,
+  pageSize = 10,
+  onPageChange,
+}: RecentEngagementTableProps) {
   return (
     <Card className="mb-10 overflow-hidden rounded-4xl">
       <div className="flex flex-col justify-between gap-4 border-b border-slate-100 px-6 py-8 sm:flex-row sm:items-center md:px-8 dark:border-white/5">
@@ -12,14 +33,6 @@ export function RecentEngagementTable() {
           </span>
           Recent Engagement
         </h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 dark:hover:bg-primary-500/20 rounded-xl font-bold"
-        >
-          View All Activity
-        </Button>
       </div>
       <Table>
         <TableHeader className="bg-slate-50/50 dark:bg-white/2">
@@ -31,46 +44,59 @@ export function RecentEngagementTable() {
           </TableRow>
         </TableHeader>
         <TableBody className="divide-y divide-slate-100 dark:divide-white/5">
-          {tableData.map((row) => (
-            <TableRow
-              key={row.id}
-              className="group cursor-default border-0 hover:bg-slate-50/80 dark:hover:bg-[#121827]"
-            >
-              <TableCell className="flex items-center gap-4 px-8 py-5 font-bold text-slate-900 dark:text-slate-200">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600 transition-transform group-hover:scale-110 dark:bg-sky-500/10 dark:text-sky-400">
-                  <TrendingUp className="h-4 w-4" />
-                </div>
-                {row.event}
-              </TableCell>
-              <TableCell className="px-8 py-5 font-semibold text-slate-600 dark:text-slate-300">
-                <div className="flex items-center gap-2">
-                  {row.viewer !== 'Guest' ? (
-                    <div className="bg-primary-100 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold">
-                      {row.viewer.charAt(0)}
-                    </div>
-                  ) : (
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 dark:bg-slate-800">
-                      G
-                    </div>
-                  )}
-                  {row.viewer}
-                </div>
-              </TableCell>
-              <TableCell className="px-8 py-5 text-[13px] font-medium text-slate-500 dark:text-slate-400">
-                {row.time}
-              </TableCell>
-              <TableCell className="px-8 py-5 text-right font-medium">
-                <Badge
-                  variant="outline"
-                  className="group-hover:border-primary-500/30 group-hover:text-primary-600 dark:group-hover:text-primary-400 rounded-[10px] bg-white px-3 py-1.5 text-[11px] tracking-wider uppercase shadow-sm dark:bg-slate-800"
-                >
-                  {row.platform}
-                </Badge>
+          {rows.length === 0 ? (
+            <TableRow className="border-0 hover:bg-transparent dark:hover:bg-transparent">
+              <TableCell colSpan={4} className="px-8 py-10 text-center text-sm font-medium text-slate-500">
+                No recent engagement yet. Activity will appear when visitors view your cards.
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className="group cursor-default border-0 hover:bg-slate-50/80 dark:hover:bg-[#121827]"
+              >
+                <TableCell className="flex items-center gap-4 px-8 py-5 font-bold text-slate-900 dark:text-slate-200">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600 transition-transform group-hover:scale-110 dark:bg-sky-500/10 dark:text-sky-400">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                  {row.event}
+                </TableCell>
+                <TableCell className="px-8 py-5 font-semibold text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-2">
+                    {row.viewer !== 'Guest' ? (
+                      <div className="bg-primary-100 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold">
+                        {row.viewer.charAt(0)}
+                      </div>
+                    ) : (
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 dark:bg-slate-800">
+                        G
+                      </div>
+                    )}
+                    {row.viewer}
+                  </div>
+                </TableCell>
+                <TableCell className="px-8 py-5 text-[13px] font-medium text-slate-500 dark:text-slate-400">
+                  {row.time}
+                </TableCell>
+                <TableCell className="px-8 py-5 text-right font-medium">
+                  <Badge
+                    variant="outline"
+                    className="group-hover:border-primary-500/30 group-hover:text-primary-600 dark:group-hover:text-primary-400 rounded-[10px] bg-white px-3 py-1.5 text-[11px] tracking-wider uppercase shadow-sm dark:bg-slate-800"
+                  >
+                    {row.platform}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
+      {onPageChange ? (
+        <div className="border-t border-slate-100 px-6 py-4 md:px-8 dark:border-white/5">
+          <Pagination page={page} total={total} pageSize={pageSize} onPageChange={onPageChange} />
+        </div>
+      ) : null}
     </Card>
   )
 }

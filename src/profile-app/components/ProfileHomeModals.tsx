@@ -52,6 +52,7 @@ export function ProfileHomeModals({
         isOpen={activeModal === 'contact'}
         onClose={onClose}
         profileId={cardOwnerId}
+        cardSlug={cardSlug}
         ownerName={ownerName}
       />
       <NotificationFollowModal

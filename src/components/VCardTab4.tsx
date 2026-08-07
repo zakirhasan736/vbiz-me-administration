@@ -2,8 +2,12 @@
 
 import { useCanvaConnection } from '@/components/canva'
 import { Modal } from '@/components/ui/Modal'
+import { VCardMediaField } from '@/components/vcard/VCardMediaField'
+import { MAX_MEDIA_UPLOAD_MB } from '@/lib/media/uploadMediaWithProgress'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
+import { useVCard } from '@/lib/VCardContext'
 import { useAuth } from '@/providers/AuthProvider'
+import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import {
   Check,
   CreditCard,
@@ -21,7 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import Image from 'next/image'
-import React, { ReactNode, useEffect, useRef, useState } from 'react'
+import React, { ReactNode, useEffect, useState } from 'react'
 
 function FieldGroup({ label, children, icon }: { label: string; children: ReactNode; icon?: ReactNode }) {
   return (
@@ -447,18 +451,9 @@ const FIELD_MUSIC = 'Background Music'
 const FIELD_MUSIC_YT = 'YouTube Background Music Link'
 const FIELD_BG = 'Background Video/Image'
 
-function mediaLabel(url: string, fallback: string) {
-  if (!url) return fallback
-  if (url.startsWith('blob:')) return 'Uploaded file'
-  try {
-    return new URL(url).pathname.split('/').pop() || fallback
-  } catch {
-    return fallback
-  }
-}
-
 export function Tab4HomeMedia() {
   const { user } = useAuth()
+  const { cardId } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
 
   const introVideoUrl = getCustomValue(FIELD_INTRO)
@@ -466,6 +461,7 @@ export function Tab4HomeMedia() {
   const bgMediaUrl = getCustomValue(FIELD_BG)
   const introYoutubeUrl = getCustomValue(FIELD_INTRO_YT)
   const musicYoutubeUrl = getCustomValue(FIELD_MUSIC_YT)
+  const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
 
   const [introStart, setIntroStart] = useState('0')
   const [introEnd, setIntroEnd] = useState('0')
@@ -475,21 +471,6 @@ export function Tab4HomeMedia() {
   const [showGalleryModal, setShowGalleryModal] = useState(false)
   const [showCustomModal, setShowCustomModal] = useState(false)
   const [showCanvaModal, setShowCanvaModal] = useState(false)
-
-  const introRef = useRef<HTMLInputElement>(null)
-  const musicRef = useRef<HTMLInputElement>(null)
-  const mediaRef = useRef<HTMLInputElement>(null)
-
-  const handleFileToField = (e: React.ChangeEvent<HTMLInputElement>, fieldKey: string, maxSizeMB?: number) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (maxSizeMB && file.size > maxSizeMB * 1024 * 1024) {
-        alert(`File size exceeds ${maxSizeMB}MB`)
-        return
-      }
-      setCustomValue(fieldKey, URL.createObjectURL(file))
-    }
-  }
 
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl pb-12 duration-500">
@@ -501,7 +482,6 @@ export function Tab4HomeMedia() {
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Intro Video */}
         <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-10 w-10 items-center justify-center rounded-[14px] border">
@@ -510,54 +490,47 @@ export function Tab4HomeMedia() {
             <h4 className="text-[16px] font-black text-slate-900 dark:text-white">Intro Video</h4>
           </div>
           <div className="space-y-8 p-4 sm:p-8">
-            <div className="space-y-4">
-              <p className="text-[12px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                Plays before your vCard loads &bull; Max 15MB
-              </p>
-              <div className="space-y-4">
-                <div className="focus-within:border-primary-500/50 group relative flex w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
-                  <input
-                    type="file"
-                    className="hidden"
-                    ref={introRef}
-                    accept="video/*"
-                    onChange={(e) => handleFileToField(e, FIELD_INTRO, 15)}
-                  />
-                  <button
-                    onClick={() => introRef.current?.click()}
-                    className="flex shrink-0 cursor-pointer items-center gap-2 border-r border-slate-200/80 bg-slate-50 px-4 py-3.5 text-[13px] font-bold whitespace-nowrap text-slate-900 transition-colors hover:bg-slate-100 sm:px-5 sm:py-4 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white dark:hover:bg-slate-800"
-                  >
-                    <Upload className="h-4 w-4 shrink-0" /> Upload
-                  </button>
-                  <span className="flex min-w-0 flex-1 items-center truncate px-4 py-3.5 text-[13px] font-medium text-slate-500 sm:px-5 sm:py-4 dark:text-slate-400">
-                    {introVideoUrl ? mediaLabel(introVideoUrl, 'Select video') : 'Select video'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <button
-                    onClick={() => setShowCanvaModal(true)}
-                    className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-[#00C4CC]/30 bg-[#00C4CC]/10 px-3 py-3.5 text-[13px] font-bold whitespace-nowrap text-[#00C4CC] transition-colors hover:border-[#00C4CC] hover:bg-[#00C4CC] hover:text-white sm:px-4 sm:py-4"
-                  >
-                    <Palette className="h-4 w-4 shrink-0 group-hover:animate-pulse" />
-                    Connect Canva
-                  </button>
-                  <button
-                    onClick={() => setShowGalleryModal(true)}
-                    className="bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 hover:dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 border-primary-500/20 hover:border-primary-500 flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-3.5 text-[13px] font-bold whitespace-nowrap transition-colors sm:px-4 sm:py-4"
-                  >
-                    <Grid className="h-4 w-4 shrink-0" /> Gallery
-                  </button>
-                  <button
-                    onClick={() => setShowCustomModal(true)}
-                    className="bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 hover:dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 border-primary-500/20 hover:border-primary-500 flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-3.5 text-[13px] font-bold whitespace-nowrap shadow-sm transition-colors sm:px-4 sm:py-4"
-                  >
-                    <Wand2 className="h-4 w-4 shrink-0" /> Custom Made
-                  </button>
-                </div>
+            <VCardMediaField
+              variant="inset"
+              value={introVideoUrl}
+              onChange={(url) => setCustomValue(FIELD_INTRO, url || '')}
+              profileId={profileId}
+              attachmentType={FIELD_INTRO}
+              accept="video/*"
+              browseLabel="Upload"
+              selectPlaceholder="Select video"
+              subtitle={`Plays before your vCard loads • Max ${MAX_MEDIA_UPLOAD_MB}MB`}
+              previewKind="video"
+              previewClassName="aspect-video max-h-56"
+              emptyIcon={<Video className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCanvaModal(true)}
+                  className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-[#00C4CC]/30 bg-[#00C4CC]/10 px-3 py-3.5 text-[13px] font-bold whitespace-nowrap text-[#00C4CC] transition-colors hover:border-[#00C4CC] hover:bg-[#00C4CC] hover:text-white sm:px-4 sm:py-4"
+                >
+                  <Palette className="h-4 w-4 shrink-0 group-hover:animate-pulse" />
+                  Connect Canva
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowGalleryModal(true)}
+                  className="bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 hover:dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 border-primary-500/20 hover:border-primary-500 flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-3.5 text-[13px] font-bold whitespace-nowrap transition-colors sm:px-4 sm:py-4"
+                >
+                  <Grid className="h-4 w-4 shrink-0" /> Gallery
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomModal(true)}
+                  className="bg-primary-50 dark:bg-primary-500/10 hover:bg-primary-100 hover:dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 border-primary-500/20 hover:border-primary-500 flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-3.5 text-[13px] font-bold whitespace-nowrap shadow-sm transition-colors sm:px-4 sm:py-4"
+                >
+                  <Wand2 className="h-4 w-4 shrink-0" /> Custom Made
+                </button>
               </div>
-            </div>
+            </VCardMediaField>
 
-            <div className="my-8 flex items-center gap-5 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+            <div className="flex items-center gap-5 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
               <div className="h-px flex-1 bg-slate-200 dark:bg-white/5"></div>
               OR YOUTUBE LINK
               <div className="h-px flex-1 bg-slate-200 dark:bg-white/5"></div>
@@ -596,7 +569,6 @@ export function Tab4HomeMedia() {
           </div>
         </section>
 
-        {/* Background Music */}
         <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10">
@@ -605,31 +577,21 @@ export function Tab4HomeMedia() {
             <h4 className="text-[16px] font-black text-slate-900 dark:text-white">Background Music</h4>
           </div>
           <div className="space-y-8 p-4 sm:p-8">
-            <div className="space-y-4">
-              <p className="text-[12px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                Plays quietly in the background
-              </p>
-              <div className="focus-within:border-primary-500/50 group relative flex overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
-                <input
-                  type="file"
-                  className="hidden"
-                  ref={musicRef}
-                  accept="audio/*"
-                  onChange={(e) => handleFileToField(e, FIELD_MUSIC)}
-                />
-                <button
-                  onClick={() => musicRef.current?.click()}
-                  className="flex cursor-pointer items-center gap-2 border-r border-slate-200/80 bg-slate-50 px-5 py-4 text-[13px] font-bold whitespace-nowrap text-slate-900 transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800/50 dark:text-white dark:hover:bg-slate-800"
-                >
-                  <Upload className="h-4 w-4" /> Browse
-                </button>
-                <span className="flex w-full items-center truncate px-5 py-4 text-[13px] font-medium text-slate-500 dark:text-slate-400">
-                  {bgMusicUrl ? mediaLabel(bgMusicUrl, 'Select audio file') : 'Select audio file'}
-                </span>
-              </div>
-            </div>
+            <VCardMediaField
+              variant="inset"
+              value={bgMusicUrl}
+              onChange={(url) => setCustomValue(FIELD_MUSIC, url || '')}
+              profileId={profileId}
+              attachmentType={FIELD_MUSIC}
+              accept="audio/*"
+              selectPlaceholder="Select audio file"
+              subtitle={`Plays quietly in the background • Max ${MAX_MEDIA_UPLOAD_MB}MB`}
+              previewKind="audio"
+              previewClassName="min-h-24"
+              emptyIcon={<Music className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
+            />
 
-            <div className="my-8 flex items-center gap-5 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+            <div className="flex items-center gap-5 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
               <div className="h-px flex-1 bg-slate-200 dark:bg-white/5"></div>
               OR YOUTUBE LINK
               <div className="h-px flex-1 bg-slate-200 dark:bg-white/5"></div>
@@ -668,7 +630,6 @@ export function Tab4HomeMedia() {
           </div>
         </section>
 
-        {/* Background Video / Image */}
         <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm lg:col-span-2 dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-10 w-10 items-center justify-center rounded-[14px] border">
@@ -677,28 +638,20 @@ export function Tab4HomeMedia() {
             <h4 className="text-[16px] font-black text-slate-900 dark:text-white">Background Media</h4>
           </div>
           <div className="p-4 sm:p-8">
-            <div className="max-w-xl space-y-4">
-              <p className="text-[12px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                Displayed as the background of your entire vCard. Image or Video loop.
-              </p>
-              <div className="focus-within:border-primary-500/50 group relative flex overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
-                <input
-                  type="file"
-                  className="hidden"
-                  ref={mediaRef}
-                  accept="image/*,video/*"
-                  onChange={(e) => handleFileToField(e, FIELD_BG)}
-                />
-                <button
-                  onClick={() => mediaRef.current?.click()}
-                  className="flex cursor-pointer items-center gap-2 border-r border-slate-200/80 bg-slate-50 px-5 py-4 text-[13px] font-bold whitespace-nowrap text-slate-900 transition-colors hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800/50 dark:text-white dark:hover:bg-slate-800"
-                >
-                  <Upload className="h-4 w-4" /> Browse
-                </button>
-                <span className="flex w-full items-center truncate px-5 py-4 text-[13px] font-medium text-slate-500 dark:text-slate-400">
-                  {bgMediaUrl ? mediaLabel(bgMediaUrl, 'Select media file') : 'Select media file'}
-                </span>
-              </div>
+            <div className="max-w-xl">
+              <VCardMediaField
+                variant="inset"
+                value={bgMediaUrl}
+                onChange={(url) => setCustomValue(FIELD_BG, url || '')}
+                profileId={profileId}
+                attachmentType={FIELD_BG}
+                accept="image/*,video/*"
+                selectPlaceholder="Select media file"
+                subtitle={`Displayed as the background of your entire vCard. Image or Video loop. Max ${MAX_MEDIA_UPLOAD_MB}MB`}
+                previewKind="auto"
+                previewClassName="aspect-video max-h-56"
+                placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
+              />
             </div>
           </div>
         </section>
@@ -720,7 +673,9 @@ export function Tab4HomeMedia() {
         <CanvaIntegrationModal
           userId={user?.uid}
           onClose={() => setShowCanvaModal(false)}
-          onSelectVideo={(v) => setCustomValue(FIELD_INTRO, v.url)}
+          onSelectVideo={(v) => {
+            setCustomValue(FIELD_INTRO, v.url)
+          }}
         />
       )}
     </div>

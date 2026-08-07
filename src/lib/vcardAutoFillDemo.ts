@@ -16,13 +16,13 @@ const DEMO_BY_SECTION: Record<VCardUploadSection, VCardAutoFillResult> = {
     'personal.phone': '+1 555 010 2847',
     'personal.whatsapp': '+1 555 010 2847',
     'personal.address': '742 Evergreen Terrace, San Francisco, CA 94102',
+    'personal.state': 'California',
+    'personal.city': 'San Francisco',
+    'personal.zip': '94102',
     'personal.website': 'https://alexmorgan.dev',
     'personal.about':
       'Product-focused engineer with 8+ years building delightful digital experiences. Passionate about design systems, AI-assisted workflows, and helping teams ship faster.',
     'personal.explainerVideoUrl': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    zip: '94102',
-    state: 'California',
-    city: 'San Francisco',
   },
   'social-games': {
     instagram: 'alexmorgan',

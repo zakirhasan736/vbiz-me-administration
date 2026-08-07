@@ -6,6 +6,7 @@ import { EmbeddedDraftCacheSync } from '@/profile-app/components/EmbeddedDraftCa
 import { ProfileBrandPreloader } from '@/profile-app/components/ProfileBrandPreloader'
 import { ProfileForceNotification } from '@/profile-app/components/ProfileForceNotification'
 import { ProfileIntroOverlay } from '@/profile-app/components/ProfileIntroOverlay'
+import { ProfileViewTracker } from '@/profile-app/components/ProfileViewTracker'
 import { ProfileDisplayProvider } from '@/profile-app/lib/profileDisplayContext'
 import type { VBizProfileAppProps } from '@/profile-app/profilePublicProps'
 import { ProfileIntroProvider } from '@/profile-app/providers/ProfileIntroProvider'
@@ -89,6 +90,11 @@ export function ProfileApp(props: VBizProfileAppProps) {
               cardOwnerId={props.cardOwnerId}
               cardSlug={props.profileSlug ?? props.shareSlug ?? 'preview'}
               ownerName={props.liveAgentCardData?.ownerName ?? props.ownerName ?? 'Guest'}
+              embedded={props.embedded}
+            />
+            <ProfileViewTracker
+              profileId={props.cardOwnerId}
+              slug={props.profileSlug ?? props.shareSlug}
               embedded={props.embedded}
             />
             {!props.embedded && <CardPushMediaSync />}

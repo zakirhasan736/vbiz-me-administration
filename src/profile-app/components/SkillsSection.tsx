@@ -1,5 +1,6 @@
 'use client'
 
+import type { ProfileAiSkillGroup } from '@/interfaces/api/profileAiData'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useGetProfileAiDataQuery } from '@/redux/api'
 import { Wand2 } from 'lucide-react'
@@ -23,8 +24,12 @@ type SkillsSectionProps = {
   sectionName?: string
 }
 
+function countSkills(groups: ProfileAiSkillGroup[]): number {
+  return groups.reduce((total, group) => total + group.skills.length, 0)
+}
+
 /**
- * Skills — data from `GET /profile-ai-data/{profile_id}` (`skills` array).
+ * Skills — data from `GET /profile-ai-data/{profile_id}` (`skills` grouped by category).
  */
 export function SkillsSection({ sectionName = 'Skills' }: SkillsSectionProps) {
   const { cardOwnerId } = useProfileDisplay()
@@ -33,9 +38,10 @@ export function SkillsSection({ sectionName = 'Skills' }: SkillsSectionProps) {
 
   const { data, isLoading, isError } = useGetProfileAiDataQuery(profileId, { skip: !profileId })
 
-  const skills = (data?.skills ?? []).map((s) => s.trim()).filter(Boolean)
-  const showInitialLoader = isLoading && skills.length === 0
-  const showEmptyState = !isLoading && !isError && skills.length === 0
+  const groups = (data?.skills ?? []).filter((group) => group.skills.some((s) => s.trim()))
+  const skillCount = countSkills(groups)
+  const showInitialLoader = isLoading && skillCount === 0
+  const showEmptyState = !isLoading && !isError && skillCount === 0
 
   if (!profileId) return null
   if (showInitialLoader) return <SkillsSkeleton />
@@ -66,6 +72,8 @@ export function SkillsSection({ sectionName = 'Skills' }: SkillsSectionProps) {
     )
   }
 
+  let chipIndex = 0
+
   return (
     <div className="w-full pb-20">
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
@@ -87,18 +95,31 @@ export function SkillsSection({ sectionName = 'Skills' }: SkillsSectionProps) {
         </div>
       </div>
 
-      <div className="relative z-20 mt-4 flex flex-wrap gap-3">
-        {skills.map((skill, idx) => (
-          <motion.span
-            key={`${skill}-${idx}`}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: idx * 0.04 }}
-            className="vbiz-card inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm backdrop-blur-xl"
-          >
-            {skill}
-          </motion.span>
-        ))}
+      <div className="relative z-20 mt-4 space-y-8">
+        {groups.map((group, groupIdx) => {
+          const category = group.category.trim()
+          return (
+            <div key={`${category || 'skills'}-${groupIdx}`} className="space-y-3">
+              {category ? <h3 className="vbiz-title text-lg font-bold tracking-tight sm:text-xl">{category}</h3> : null}
+              <div className="flex flex-wrap gap-3">
+                {group.skills.map((skill) => {
+                  const idx = chipIndex++
+                  return (
+                    <motion.span
+                      key={`${category}-${skill}-${idx}`}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: idx * 0.04 }}
+                      className="vbiz-card inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold shadow-sm backdrop-blur-xl"
+                    >
+                      {skill}
+                    </motion.span>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

@@ -140,7 +140,7 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
 
         <div
           className={cn(
-            'group/url relative mb-6 flex items-center justify-between overflow-hidden rounded-2xl border p-3.5 transition-all duration-300',
+            'group/url relative mb-6 flex items-center justify-between rounded-2xl border p-3.5 transition-all duration-300',
             copied
               ? 'border-emerald-200/80 bg-emerald-50/60 dark:border-emerald-500/20 dark:bg-emerald-500/5'
               : 'hover:border-primary-500/30 border-slate-200 bg-slate-50/50 dark:border-white/5 dark:bg-slate-800/30'
@@ -148,7 +148,7 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
         >
           <div
             className={cn(
-              'absolute inset-0 transition-opacity duration-300',
+              'pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-300',
               copied ? 'bg-emerald-500/5 opacity-100' : 'bg-primary-500/5 opacity-0 group-hover/url:opacity-100'
             )}
           />
@@ -162,7 +162,7 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
                 copied ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary-600 dark:text-primary-400'
               )}
             >
-              {slug ? `vbiz.me/${slug}` : 'Set URL slug in editor'}
+              {slug ? `vbiz.me/v/${slug}` : 'Set URL slug in editor'}
             </span>
             <AnimatePresence>
               {copied && (
@@ -180,7 +180,7 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
           </div>
           <Tooltip
             content={copied ? 'Copied!' : 'Copy Link'}
-            className="absolute top-1/2 right-3 z-10 -translate-y-1/2"
+            className="absolute top-1/2 right-3 z-20 -translate-y-1/2"
           >
             <button
               type="button"

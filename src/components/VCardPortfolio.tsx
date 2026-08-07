@@ -1,19 +1,10 @@
 'use client'
 
+import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultPortfolioEntry, normalizePortfolioList } from '@/lib/vcardPortfolio'
-import { useUploadMediaMutation } from '@/redux/features/profiles/profiles.api'
 import type { VCardPortfolioEntry } from '@/types/vcard'
-import {
-  FileText,
-  FolderOpen,
-  Image as ImageIcon,
-  LayoutGrid,
-  Link as LinkIcon,
-  Plus,
-  Trash2,
-  Youtube,
-} from 'lucide-react'
+import { FileText, FolderOpen, LayoutGrid, Link as LinkIcon, Plus, Trash2, Youtube } from 'lucide-react'
 import { useRef } from 'react'
 
 const inputClasses =
@@ -23,17 +14,18 @@ const selectClasses =
 
 export function TabPortfolio() {
   const { cardId, vCardData, updateData } = useVCard()
-  const [uploadMedia, { isLoading: uploading }] = useUploadMediaMutation()
   const portfolios = normalizePortfolioList(vCardData.portfolio)
+  const portfoliosRef = useRef(portfolios)
+  portfoliosRef.current = portfolios
 
   const setPortfolios = (next: VCardPortfolioEntry[]) => updateData('portfolio', next)
 
   const addPortfolio = () => {
-    setPortfolios([createDefaultPortfolioEntry(), ...portfolios])
+    setPortfolios([createDefaultPortfolioEntry(), ...portfoliosRef.current])
   }
 
   const removePortfolio = (id: string) => {
-    setPortfolios(portfolios.filter((p) => p.id !== id))
+    setPortfolios(portfoliosRef.current.filter((p) => p.id !== id))
   }
 
   const updatePortfolio = (
@@ -41,65 +33,11 @@ export function TabPortfolio() {
     field: keyof VCardPortfolioEntry,
     value: VCardPortfolioEntry[keyof VCardPortfolioEntry]
   ) => {
-    setPortfolios(portfolios.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+    setPortfolios(portfoliosRef.current.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
   }
 
-  const uploadImage = async (id: string, file: File) => {
-    try {
-      const result = await uploadMedia({
-        file,
-        profileId: cardId || undefined,
-        attachmentType: 'Portfolio Gallery',
-      }).unwrap()
-      setPortfolios(portfolios.map((p) => (p.id === id ? { ...p, imageUrl: result.url, imageName: file.name } : p)))
-    } catch {
-      setPortfolios(
-        portfolios.map((p) => (p.id === id ? { ...p, imageUrl: URL.createObjectURL(file), imageName: file.name } : p))
-      )
-    }
-  }
-
-  const FeatureImageInput = ({ portfolio }: { portfolio: VCardPortfolioEntry }) => {
-    const fileRef = useRef<HTMLInputElement>(null)
-    return (
-      <div className="group flex flex-col space-y-1.5">
-        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-          <ImageIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Featured Image
-        </label>
-        <div className="group/input relative flex overflow-hidden rounded-2xl border border-slate-200/80 shadow-sm transition-colors focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500 dark:border-white/10">
-          <input
-            type="file"
-            className="hidden"
-            ref={fileRef}
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void uploadImage(portfolio.id, file)
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="cursor-pointer border-r border-slate-200/50 bg-slate-50 px-5 py-4 text-[13px] font-bold whitespace-nowrap text-slate-700 transition-colors group-hover/input:text-teal-600 hover:bg-slate-100 disabled:opacity-60 dark:border-white/5 dark:bg-white/2 dark:text-slate-200 dark:group-hover/input:text-teal-400 dark:hover:bg-white/5"
-          >
-            Choose File
-          </button>
-          <span className="flex w-full items-center truncate bg-white px-5 py-4 text-[13px] font-medium text-slate-500 dark:bg-[#0b0f19] dark:text-slate-400">
-            {portfolio.imageName || portfolio.imageUrl || 'No file chosen'}
-          </span>
-        </div>
-        {portfolio.imageUrl ? (
-          <input
-            type="text"
-            value={portfolio.imageUrl}
-            onChange={(e) => updatePortfolio(portfolio.id, 'imageUrl', e.target.value)}
-            placeholder="Or paste image URL"
-            className={inputClasses}
-          />
-        ) : null}
-      </div>
-    )
+  const patchPortfolio = (id: string, patch: Partial<VCardPortfolioEntry>) => {
+    setPortfolios(portfoliosRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p)))
   }
 
   return (
@@ -207,7 +145,34 @@ export function TabPortfolio() {
                   </div>
 
                   <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <FeatureImageInput portfolio={portfolio} />
+                    <MediaFileUploader
+                      label="Featured media"
+                      accent="teal"
+                      profileId={cardId}
+                      attachmentType="Portfolio Gallery"
+                      value={portfolio.imageUrl}
+                      fileName={portfolio.imageName}
+                      accept={
+                        portfolio.type === 'Video'
+                          ? 'video/*,image/*'
+                          : portfolio.type === 'Audio'
+                            ? 'audio/*,image/*'
+                            : portfolio.type === 'Document'
+                              ? 'application/pdf,.pdf,.doc,.docx,image/*'
+                              : 'image/*,video/*,audio/*,application/pdf'
+                      }
+                      hint="Upload image, video, audio, or a document — preview appears below"
+                      onChange={(next) => {
+                        if (!next) {
+                          patchPortfolio(portfolio.id, { imageUrl: '', imageName: '' })
+                          return
+                        }
+                        patchPortfolio(portfolio.id, {
+                          imageUrl: next.url,
+                          imageName: next.fileName,
+                        })
+                      }}
+                    />
                     <div className="group flex flex-col space-y-1.5">
                       <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
                         {portfolio.type === 'Video' ? (

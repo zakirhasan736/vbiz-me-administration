@@ -1,17 +1,18 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
 
 export type GalleryImageAsset = {
-  id: number
+  id: string | number
   doc_name: string
   url: string
 }
 
 export type GalleryItem = {
+  id?: string | number
   title: string
-  created_at: string
-  type: string
-  featured_image: GalleryImageAsset | null
-  gallery: GalleryImageAsset[] | null
+  created_at?: string
+  type?: string
+  featured_image: GalleryImageAsset | GalleryImageAsset[] | string | null
+  gallery?: GalleryImageAsset[] | null
 }
 
 export type GallerySectionPostType = {
@@ -35,7 +36,7 @@ export type GallerySectionResponse = ApiResponse<GallerySectionData> & {
 }
 
 export type GalleryListItem = {
-  id: number
+  id: string | number
   title: string
   imageUrl: string
   createdAt: string

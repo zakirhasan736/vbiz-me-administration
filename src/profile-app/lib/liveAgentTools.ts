@@ -47,7 +47,7 @@ export const LIVE_AGENT_TOOL_DECLARATIONS = [
   {
     name: 'saveContact',
     description:
-      'Open the Save Contact popup so the visitor can enter their name and email, then download the card owner vCard file. Use when they ask to save contact, add to contacts, or download the contact.',
+      'Open the Save Contact popup so the visitor can enter their full name, phone number, and email, then download the card owner vCard file. Use when they ask to save contact, add to contacts, or download the contact.',
     parameters: { type: Type.OBJECT, properties: {} },
   },
   {

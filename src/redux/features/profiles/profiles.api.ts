@@ -1,3 +1,4 @@
+import { hydrateDisplaySettingsFromProfile } from '@/lib/api/myCard/hydrateDisplaySettingsFromProfile'
 import { mapVCardEditorSettingsPayload } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
@@ -16,8 +17,18 @@ export type ApiProfile = {
   designation?: string | null
   about?: string | null
   address?: string | null
+  zipCode?: string | null
   avatar?: string | null
+  addresses?: Array<{
+    id?: string
+    city?: string | null
+    state?: string | null
+    zipCode?: string | null
+    line1?: string | null
+    isPrimary?: boolean
+  }>
   prof?: string | null
+  dob?: string | null
   template?: string
   isPublic?: boolean
   viewCount?: number
@@ -29,6 +40,8 @@ export type ApiProfile = {
   tiktok?: string | null
   youtube?: string | null
   linkedin?: string | null
+  gender?: { id?: string; name?: string | null } | null
+  maritalStatus?: { id?: string; name?: string | null } | null
   education?: Array<{
     id: string
     institute?: string | null
@@ -74,6 +87,14 @@ export type ApiProfile = {
     buttonStyle?: string | null
     cornerStyle?: string | null
   } | null
+  settings?: Array<{ key: string; value: string | null }>
+  attachments?: Array<{
+    url?: string | null
+    path?: string | null
+    fileUrl?: string | null
+    docName?: string | null
+    attachmentType?: { name?: string | null } | null
+  }>
 }
 
 export type ApiPost = {
@@ -92,6 +113,70 @@ export type ApiPost = {
 
 type Envelope<T> = { success: boolean; data: T; message?: string }
 
+export type DashboardSocialChannel =
+  | 'facebook'
+  | 'twitter'
+  | 'instagram'
+  | 'whatsapp'
+  | 'linkedin'
+  | 'youtube'
+  | 'tiktok'
+  | 'truth'
+  | 'rumble'
+  | 'pinterest'
+  | 'website'
+
+export type DashboardStats = {
+  cards: number
+  totalViews: number
+  viewsLast30Days: number
+  contactsLast30Days: number
+  notesLast30Days: number
+  guestsLast30Days: number
+  visitsChart: {
+    total: number
+    trendPercent: number
+    points: Array<{ name: string; total: number }>
+  }
+  socialChannels: Array<{
+    channel: DashboardSocialChannel
+    label: string
+    count: number
+    trendPercent: number
+  }>
+  recentEngagement: Array<{
+    id: string
+    event: string
+    viewer: string
+    time: string
+    platform: string
+    createdAt: string
+  }>
+}
+
+export type DashboardEngagementRow = {
+  id: string
+  event: string
+  viewer: string
+  time: string
+  platform: string
+  createdAt: string
+}
+
+export type DashboardEngagementPage = {
+  items: DashboardEngagementRow[]
+  total: number
+  skip: number
+  limit: number
+}
+
+export type DashboardEngagementQuery = {
+  skip?: number
+  limit?: number
+  profileId?: string
+  eventType?: string
+}
+
 export const BLOG_POST_TYPE = 'blog'
 export const FAQ_POST_TYPE = 'Faq'
 
@@ -109,6 +194,20 @@ function metaMap(metas?: ApiPost['metas']): Record<string, string> {
   return out
 }
 
+/** Normalize API date/datetime to `yyyy-MM-dd` for `<input type="date">`. */
+export function toDateInputValue(value?: string | null): string {
+  if (!value) return ''
+  const trimmed = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+  if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed.slice(0, 10)
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return ''
+  const y = parsed.getUTCFullYear()
+  const m = String(parsed.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(parsed.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export function mapApiPostsToGeneralPosts(posts: ApiPost[]): VCardGeneralPost[] {
   return posts.map((p) => {
     const metas = metaMap(p.metas)
@@ -119,7 +218,7 @@ export function mapApiPostsToGeneralPosts(posts: ApiPost[]): VCardGeneralPost[] 
       description: p.description || '',
       customUrl: p.url || '',
       featuredImage: p.featuredImage || '',
-      date: metas.date || (p.createdAt ? String(p.createdAt).slice(0, 10) : ''),
+      date: toDateInputValue(metas.date || (p.createdAt ? String(p.createdAt) : '')),
       active: p.status !== '0' && p.status !== 'false',
     }
   })
@@ -135,23 +234,35 @@ export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
 }
 
 export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
+  const primaryAddress = profile.addresses?.find((a) => a.isPrimary) || profile.addresses?.[0] || null
+
+  const { displaySettings, avatarImageUrl, explainerVideoUrl } = hydrateDisplaySettingsFromProfile({
+    settings: profile.settings,
+    attachments: profile.attachments,
+    avatar: profile.avatar,
+  })
+
   const data = createDefaultVCardData({
     slug: profile.slug || '',
     isPublic: profile.isPublic ?? true,
     personal: {
       fullName: profile.name,
       email: profile.email,
-      dob: '',
-      gender: 'Male',
-      relationship: 'Single',
+      dob: toDateInputValue(profile.dob),
+      gender: profile.gender?.name || 'Male',
+      relationship: profile.maritalStatus?.name || 'Single',
       profession: profile.prof || '',
       designation: profile.designation || '',
       company: profile.companyName || '',
       phone: profile.phone || '',
       whatsapp: profile.whatsapp || '',
       address: profile.address || '',
+      state: primaryAddress?.state || '',
+      city: primaryAddress?.city || '',
+      zip: profile.zipCode || primaryAddress?.zipCode || '',
       website: profile.website || '',
       about: profile.about || '',
+      explainerVideoUrl,
     },
     appearance: {
       profileTemplate: templateToAppearance(profile.profileSettings?.profileTemplate || profile.template),
@@ -179,8 +290,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       id: e.id,
       institute: e.institute || '',
       degree: e.degree || '',
-      fromDate: e.fromDate ? String(e.fromDate).slice(0, 10) : '',
-      toDate: e.toDate ? String(e.toDate).slice(0, 10) : '',
+      fromDate: toDateInputValue(e.fromDate),
+      toDate: toDateInputValue(e.toDate),
       tillNow: Boolean(e.tillNow),
     })),
     experience: (profile.experiences || []).map((e) => ({
@@ -188,8 +299,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       company: e.company || '',
       jobTitle: e.jobTitle || '',
       description: e.description || '',
-      fromDate: e.fromDate ? String(e.fromDate).slice(0, 10) : '',
-      toDate: e.toDate ? String(e.toDate).slice(0, 10) : '',
+      fromDate: toDateInputValue(e.fromDate),
+      toDate: toDateInputValue(e.toDate),
       tillNow: Boolean(e.tillNow),
     })),
     services: (profile.services || []).map((s) => ({
@@ -212,6 +323,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       active: p.status !== 0,
     })),
     skills: skillTagsToGroups(profile.skillTags),
+    displaySettings,
   })
 
   return {
@@ -221,12 +333,19 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     updatedAt: profile.updatedAt || new Date().toISOString(),
     views: profile.viewCount || 0,
     saves: 0,
-    avatarImageUrl: profile.avatar || '',
+    avatarImageUrl,
     isActive: true,
   }
 }
 
 export function mapVCardDataToProfilePayload(data: VCardData) {
+  const dob = (data.personal.dob || '').trim()
+  const profileMediaUrl = data.displaySettings?.fields?.['Profile Image/Video']?.customValue?.trim() || ''
+  const avatar =
+    profileMediaUrl && !profileMediaUrl.startsWith('blob:') && /^(https?:\/\/|\/)/i.test(profileMediaUrl)
+      ? profileMediaUrl
+      : ''
+
   return {
     name: data.personal.fullName,
     email: data.personal.email,
@@ -237,9 +356,14 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     whatsapp: data.personal.whatsapp,
     website: data.personal.website,
     address: data.personal.address,
+    zipCode: data.personal.zip ?? '',
+    city: data.personal.city ?? '',
+    state: data.personal.state ?? '',
     about: data.personal.about,
     prof: data.personal.profession,
+    dob: dob || null,
     isPublic: data.isPublic,
+    avatar,
     template:
       data.appearance?.profileTemplate === 'v1'
         ? 'dynamic'
@@ -285,6 +409,17 @@ const profilesApi = api.injectEndpoints({
       query: (id) => `/profiles/${id}`,
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       providesTags: (_r, _e, id) => [{ type: 'profiles', id }],
+    }),
+    checkSlug: builder.query<
+      { slug: string; available: boolean; suggestion: string },
+      { slug: string; excludeId?: string }
+    >({
+      query: ({ slug, excludeId }) => {
+        const params = new URLSearchParams({ slug })
+        if (excludeId) params.set('excludeId', excludeId)
+        return `/profiles/check-slug?${params.toString()}`
+      },
+      transformResponse: (res: Envelope<{ slug: string; available: boolean; suggestion: string }>) => res.data,
     }),
     createProfile: builder.mutation<ApiProfile, Partial<ReturnType<typeof mapVCardDataToProfilePayload>>>({
       query: (body) => ({ url: '/profiles', method: 'POST', body }),
@@ -373,6 +508,7 @@ const profilesApi = api.injectEndpoints({
           featuredImage?: string
           status?: string
           sortOrder?: number
+          metas?: Record<string, string>
         }
       }
     >({
@@ -390,29 +526,31 @@ const profilesApi = api.injectEndpoints({
         { type: 'profiles', id: `${arg.id}:posts` },
       ],
     }),
-    getDashboardStats: builder.query<
-      {
-        cards: number
-        totalViews: number
-        viewsLast30Days: number
-        contactsLast30Days: number
-        notesLast30Days: number
-        guestsLast30Days: number
-      },
-      void
-    >({
+    getDashboardStats: builder.query<DashboardStats, void>({
       query: () => '/profiles/dashboard/stats',
-      transformResponse: (
-        res: Envelope<{
-          cards: number
-          totalViews: number
-          viewsLast30Days: number
-          contactsLast30Days: number
-          notesLast30Days: number
-          guestsLast30Days: number
-        }>
-      ) => res.data,
+      transformResponse: (res: Envelope<DashboardStats>) => res.data,
       providesTags: ['dashboard'],
+    }),
+    getRecentEngagement: builder.query<DashboardEngagementPage, DashboardEngagementQuery | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        const skip = params?.skip ?? 0
+        const limit = params?.limit ?? 10
+        search.set('skip', String(skip))
+        search.set('limit', String(limit))
+        if (params?.profileId) search.set('profileId', params.profileId)
+        if (params?.eventType) search.set('eventType', params.eventType)
+        return `/profiles/dashboard/engagement?${search.toString()}`
+      },
+      transformResponse: (res: Envelope<DashboardEngagementPage>) => res.data,
+      providesTags: ['dashboard'],
+    }),
+    exportDashboardOverview: builder.mutation<Blob, void>({
+      query: () => ({
+        url: '/profiles/dashboard/export',
+        method: 'GET',
+        responseHandler: async (response: Response) => response.blob(),
+      }),
     }),
     getPackages: builder.query<unknown[], void>({
       query: () => '/profiles/packages',
@@ -452,6 +590,7 @@ export { isLocalTempId }
 export const {
   useGetProfilesQuery,
   useGetProfileQuery,
+  useCheckSlugQuery,
   useCreateProfileMutation,
   useUpdateProfileCardMutation,
   useDeleteProfileMutation,
@@ -467,6 +606,8 @@ export const {
   useUpdateProfilePostMutation,
   useDeleteProfilePostMutation,
   useGetDashboardStatsQuery,
+  useGetRecentEngagementQuery,
+  useExportDashboardOverviewMutation,
   useGetPackagesQuery,
   useGetSubscriptionsQuery,
   useGetContactsQuery,

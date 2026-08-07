@@ -6,10 +6,25 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export type PaginationProps = {
   page: number
-  totalPages: number
   onPageChange: (page: number) => void
   className?: string
   siblingCount?: number
+  /** Pass directly, or derive via `total` + `pageSize`. */
+  totalPages?: number
+  /** Total item count from the API. Used with `pageSize` when `totalPages` is omitted. */
+  total?: number
+  /** Page size (limit). Used with `total` when `totalPages` is omitted. */
+  pageSize?: number
+}
+
+function resolveTotalPages(totalPages: number | undefined, total: number | undefined, pageSize: number | undefined) {
+  if (typeof totalPages === 'number' && Number.isFinite(totalPages)) {
+    return Math.max(0, Math.floor(totalPages))
+  }
+  if (typeof total === 'number' && typeof pageSize === 'number' && pageSize > 0) {
+    return Math.max(0, Math.ceil(total / pageSize))
+  }
+  return 0
 }
 
 function getPageNumbers(page: number, totalPages: number, siblingCount: number) {
@@ -26,7 +41,16 @@ function getPageNumbers(page: number, totalPages: number, siblingCount: number) 
   return pages
 }
 
-export function Pagination({ page, totalPages, onPageChange, className, siblingCount = 1 }: PaginationProps) {
+export function Pagination({
+  page,
+  totalPages: totalPagesProp,
+  total,
+  pageSize,
+  onPageChange,
+  className,
+  siblingCount = 1,
+}: PaginationProps) {
+  const totalPages = resolveTotalPages(totalPagesProp, total, pageSize)
   if (totalPages <= 1) return null
 
   const pages = getPageNumbers(page, totalPages, siblingCount)

@@ -7,8 +7,10 @@ import type { GalleryQueryResult } from '@/interfaces/api/gallery.interface'
 import type { ProfileAiData } from '@/interfaces/api/profileAiData'
 import type { ReviewsQueryResult } from '@/interfaces/api/reviews.interface'
 import type { ServicesQueryResult } from '@/interfaces/api/services.interface'
+import type { NavBarLinksData, PostTypeNavLink } from '@/interfaces/navbarLinks.interface'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { dynamicSectionApi } from '@/redux/features/dynamicSection/dynamicSection.api'
+import { navBarLinksApi } from '@/redux/features/navbar/navbar.api'
 import { profileAiDataApi } from '@/redux/features/profileAiData/profileAiData.api'
 import { aboutMeApi } from '@/redux/features/sections/aboutMe.api'
 import { galleryApi } from '@/redux/features/sections/gallery.api'
@@ -25,6 +27,69 @@ import type {
   VCardSkillGroup,
 } from '@/types/vcard'
 import { useEffect } from 'react'
+
+function draftPostType(id: string, name: string, title: string): PostTypeNavLink {
+  return {
+    id: id as unknown as number,
+    name,
+    title,
+    status: 'active',
+    type_id: '',
+    slug: id,
+  }
+}
+
+function buildDraftNavBarLinks(input: {
+  sectionPosts?: Record<string, VCardSectionPostItem[]>
+  generalPosts?: VCardGeneralPost[]
+  faqs?: VCardFaqEntry[]
+  education?: VCardEducationEntry[]
+  experience?: VCardExperienceEntry[]
+  skills?: VCardSkillGroup[]
+  services?: VCardServiceEntry[]
+  portfolio?: VCardPortfolioEntry[]
+  about?: string
+}): NavBarLinksData {
+  const post_types: PostTypeNavLink[] = []
+  const pushUnique = (item: PostTypeNavLink) => {
+    if (post_types.some((t) => t.name.toLowerCase() === item.name.toLowerCase())) return
+    post_types.push(item)
+  }
+
+  if ((input.about || '').trim()) pushUnique(draftPostType('about', 'About Me', 'About Me'))
+  if ((input.services || []).some((s) => s.active !== false && s.title?.trim())) {
+    pushUnique(draftPostType('services', 'services', 'Services'))
+  }
+  if ((input.portfolio || []).some((p) => p.active !== false && (p.title?.trim() || p.imageUrl?.trim()))) {
+    pushUnique(draftPostType('gallery', 'gallery', 'Gallery'))
+  }
+  if ((input.education || []).some((e) => e.institute?.trim() || e.degree?.trim())) {
+    pushUnique(draftPostType('resume', 'Resume', 'Resume'))
+  }
+  if ((input.experience || []).some((e) => e.company?.trim() || e.jobTitle?.trim())) {
+    pushUnique(draftPostType('work-experience', 'Work Experience', 'Work Experience'))
+  }
+  if ((input.skills || []).some((g) => (g.skills || []).some((s) => s.trim()))) {
+    pushUnique(draftPostType('skills', 'skills', 'Skills'))
+  }
+  if ((input.generalPosts || []).some((p) => p.active !== false && p.title?.trim())) {
+    pushUnique(draftPostType('blog', 'Blog', 'Blog'))
+  }
+  if ((input.faqs || []).some((f) => f.active !== false && f.question?.trim())) {
+    pushUnique(draftPostType('faq', 'Faq', 'Faq'))
+  }
+  for (const [name, items] of Object.entries(input.sectionPosts || {})) {
+    if (!name.trim() || !(items || []).some((p) => p.active !== false && (p.title?.trim() || p.description?.trim()))) {
+      continue
+    }
+    pushUnique(draftPostType(name, name, name))
+  }
+
+  return {
+    StaticLink: [{ id: 'home', title: 'Home', name: 'Home', post_type: 'static', active: true }],
+    post_types,
+  }
+}
 
 function toDynamicResult(sectionName: string, items: VCardSectionPostItem[]): DynamicPostsQueryResult {
   return {
@@ -221,7 +286,12 @@ export function EmbeddedDraftCacheSync({
       dispatch(reviewsApi.util.upsertQueryData('getReviews', profileId, reviewsResult))
     }
 
-    const skillNames = (skills || []).flatMap((g) => g.skills || [])
+    const skillGroups = (skills || [])
+      .map((g) => ({
+        category: (g.type || '').trim(),
+        skills: (g.skills || []).map((s) => String(s || '').trim()).filter(Boolean),
+      }))
+      .filter((g) => g.skills.length > 0)
     const aiData: ProfileAiData = {
       slug: '',
       ownerName: '',
@@ -244,7 +314,7 @@ export function EmbeddedDraftCacheSync({
         rumble: null,
         truth: null,
       },
-      skills: skillNames,
+      skills: skillGroups,
       services: (services || []).map((s) => ({
         title: s.title,
         description: s.description,
@@ -274,6 +344,25 @@ export function EmbeddedDraftCacheSync({
       customSections: [],
     }
     dispatch(profileAiDataApi.util.upsertQueryData('getProfileAiData', profileId, aiData))
+
+    // Keep preview nav in sync with draft collections (e.g. Skills tab before/after save).
+    dispatch(
+      navBarLinksApi.util.upsertQueryData(
+        'getNavBarLinks',
+        profileId,
+        buildDraftNavBarLinks({
+          sectionPosts,
+          generalPosts,
+          faqs,
+          education,
+          experience,
+          skills,
+          services,
+          portfolio,
+          about,
+        })
+      )
+    )
   }, [
     embedded,
     cardOwnerId,

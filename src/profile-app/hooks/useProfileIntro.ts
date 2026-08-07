@@ -37,7 +37,8 @@ function resolveIntroState(embedded: boolean, slug: string, isClient: boolean): 
  */
 export function useProfileIntro({ embedded = false, profileSlug, shareSlug, explainerVideoUrl }: Options) {
   const slug = profileSlug?.trim() || shareSlug?.trim() || ''
-  const hasVideo = Boolean(explainerVideoUrl?.trim())
+  const rawVideo = explainerVideoUrl?.trim() || ''
+  const hasVideo = Boolean(rawVideo && !/youtu\.?be/i.test(rawVideo))
   const isClient = typeof window !== 'undefined'
   const syncKey = `${embedded}\0${slug}`
 

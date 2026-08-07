@@ -1,5 +1,5 @@
 import type { SavedGuestUser } from '@/interfaces/api/saveGuestUser'
-import { baseUrl } from '@/redux/api/publicApi'
+import { baseUrl } from '@/redux/api/api'
 
 export class SaveGuestUserError extends Error {
   status?: number
@@ -25,29 +25,51 @@ function isDuplicateEmailMessage(message: string): boolean {
   )
 }
 
+function collectClientMeta(cardSlug?: string): Record<string, string | null> {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return { cardSlug: cardSlug?.trim() || null }
+  }
+
+  const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
+  return {
+    userAgent: nav.userAgent || null,
+    language: nav.language || null,
+    platform: nav.userAgentData?.platform || nav.platform || null,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+    screen:
+      typeof window.screen?.width === 'number' && typeof window.screen?.height === 'number'
+        ? `${window.screen.width}x${window.screen.height}`
+        : null,
+    referrer: document.referrer || null,
+    cardSlug: cardSlug?.trim() || null,
+  }
+}
+
 export type SaveGuestUserInput = {
-  firstName: string
-  lastName: string
+  fullName: string
+  phone: string
   email: string
   profileId: string
+  cardSlug?: string
 }
 
 export async function saveGuestUser(input: SaveGuestUserInput): Promise<SavedGuestUser> {
-  const firstName = input.firstName.trim()
-  const lastName = input.lastName.trim()
+  const fullName = input.fullName.trim()
+  const phone = input.phone.trim()
   const email = input.email.trim()
   const profileId = input.profileId.trim()
 
-  if (!firstName) throw new SaveGuestUserError('First name is required')
-  if (!lastName) throw new SaveGuestUserError('Last name is required')
+  if (!fullName) throw new SaveGuestUserError('Full name is required')
+  if (!phone) throw new SaveGuestUserError('Phone number is required')
   if (!email) throw new SaveGuestUserError('Email is required')
   if (!profileId) throw new SaveGuestUserError('Profile ID is required')
 
   const body = new FormData()
-  body.append('first_name', firstName)
-  body.append('last_name', lastName)
+  body.append('full_name', fullName)
+  body.append('phone', phone)
   body.append('email', email)
   body.append('profile_id', profileId)
+  body.append('meta', JSON.stringify(collectClientMeta(input.cardSlug)))
 
   const response = await fetch(`${baseUrl}/save-guest-user`, {
     method: 'POST',
@@ -71,5 +93,6 @@ export async function saveGuestUser(input: SaveGuestUserInput): Promise<SavedGue
     throw new SaveGuestUserError(rawMessage, response.status)
   }
 
-  return (await response.json()) as SavedGuestUser
+  const payload = (await response.json()) as { data?: SavedGuestUser } & SavedGuestUser
+  return (payload.data ?? payload) as SavedGuestUser
 }

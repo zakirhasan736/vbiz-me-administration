@@ -107,7 +107,11 @@ export function vCardDataToProfileProps(
   const slug = data.slug.trim()
   const display = getDisplaySettingsFromVCard(data)
   const homeMedia = getHomeMediaUrls(display, data.personal)
-  const introUrl = homeMedia.introVideo || data.personal.explainerVideoUrl?.trim() || undefined
+  const personalExplainer = data.personal.explainerVideoUrl?.trim() || ''
+  const introUrl =
+    homeMedia.introVideo ||
+    (personalExplainer && !/youtu\.?be/i.test(personalExplainer) ? personalExplainer : '') ||
+    undefined
   const coverUrl = homeMedia.bgMedia || DEFAULT_COVER
   const avatarOnly = homeMedia.profileMedia || meta?.avatarImageUrl?.trim() || undefined
 

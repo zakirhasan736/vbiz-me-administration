@@ -9,12 +9,12 @@ import { motion } from 'motion/react'
 import { useState } from 'react'
 
 type SaveContactFormData = {
-  firstName: string
-  lastName: string
+  fullName: string
+  phone: string
   email: string
 }
 
-const EMPTY_FORM: SaveContactFormData = { firstName: '', lastName: '', email: '' }
+const EMPTY_FORM: SaveContactFormData = { fullName: '', phone: '', email: '' }
 
 type SaveContactModalProps = {
   isOpen: boolean
@@ -22,11 +22,20 @@ type SaveContactModalProps = {
   onSuccess?: () => void
   /** Profile owner id sent to `POST /save-guest-user` and `GET /save-contact/{id}`. */
   profileId?: string
+  /** Public card slug — stored in guest meta as which vCard the lead came from. */
+  cardSlug?: string
   /** Card owner display name — used in the intro copy. */
   ownerName?: string
 }
 
-export const SaveContactModal = ({ isOpen, onClose, onSuccess, profileId, ownerName }: SaveContactModalProps) => {
+export const SaveContactModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  profileId,
+  cardSlug,
+  ownerName,
+}: SaveContactModalProps) => {
   const [formData, setFormData] = useState<SaveContactFormData>(EMPTY_FORM)
   const [showSuccess, setShowSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -55,10 +64,11 @@ export const SaveContactModal = ({ isOpen, onClose, onSuccess, profileId, ownerN
         await new Promise((resolve) => setTimeout(resolve, 400))
       } else {
         await saveGuestUser({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
+          fullName: formData.fullName,
+          phone: formData.phone,
           email: formData.email,
           profileId: trimmedId,
+          cardSlug,
         })
         await downloadProfileContactVcf(trimmedId)
       }
@@ -108,27 +118,29 @@ export const SaveContactModal = ({ isOpen, onClose, onSuccess, profileId, ownerN
               <h3 className="vbiz-title text-xl font-bold tracking-tight">Download Contact Info</h3>
               <p className="vbiz-description mt-2 text-sm leading-relaxed">
                 You&apos;re about to receive {contactOwnerLabel}&apos;s contact file. First, tell us who you are — your
-                first name, last name, and email — so we know who&apos;s saving this contact.
+                full name, phone number, and email — so we know who&apos;s saving this contact.
               </p>
             </div>
             <input
               type="text"
-              placeholder="Your first name"
-              aria-label="Your first name"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              placeholder="Your full name"
+              aria-label="Your full name"
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               required
               disabled={submitting}
+              autoComplete="name"
               className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
             />
             <input
-              type="text"
-              placeholder="Your last name"
-              aria-label="Your last name"
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              type="tel"
+              placeholder="Your phone number"
+              aria-label="Your phone number"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               required
               disabled={submitting}
+              autoComplete="tel"
               className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
             />
             <input
@@ -139,6 +151,7 @@ export const SaveContactModal = ({ isOpen, onClose, onSuccess, profileId, ownerN
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
               disabled={submitting}
+              autoComplete="email"
               className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
             />
             {submitError ? (

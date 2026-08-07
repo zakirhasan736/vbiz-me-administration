@@ -94,6 +94,7 @@ const CUSTOM_VALUE_SETTING_KEYS: Record<string, string> = {
   'Background Video/Image': 'background_media_url',
   'Profile Image/Video': 'profile_media_url',
   'Company/Office Icon': 'company_icon_url',
+  'Background Music': 'background_music_file_url',
   'YouTube Background Music Link': 'background_music_url',
   'Intro YouTube vCard Video Link': 'intro_youtube_url',
 }
@@ -104,6 +105,12 @@ export const THEME_SETTING_KEY = 'theme_json'
 
 function checkboxValue(visible: boolean | undefined): string {
   return visible === false ? '0' : '1'
+}
+
+function isPersistableMediaUrl(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.startsWith('blob:')) return false
+  return true
 }
 
 /**
@@ -127,7 +134,12 @@ export function mapDisplaySettingsToApiSettings(
 
     const customKey = CUSTOM_VALUE_SETTING_KEYS[label]
     const custom = field.customValue?.trim()
-    if (customKey && custom) settings[customKey] = custom
+    if (customKey && custom && isPersistableMediaUrl(custom)) settings[customKey] = custom
+  }
+
+  // Compat: public MyCard historically reads bg_video_checkbox
+  if (settings.background_video_checkbox !== undefined) {
+    settings.bg_video_checkbox = settings.background_video_checkbox
   }
 
   // Keep gallery/portfolio nav keys in sync

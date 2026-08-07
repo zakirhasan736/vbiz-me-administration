@@ -28,6 +28,7 @@ type UpdatePostFn = (args: {
     featuredImage?: string
     status?: string
     sortOrder?: number
+    metas?: Record<string, string>
   }
 }) => { unwrap: () => Promise<ApiPost> }
 
@@ -78,7 +79,7 @@ export async function syncProfilePosts(options: {
       const updated = await updatePost({
         id: profileId,
         postId: item.id,
-        body: { ...payload, sortOrder: item.sortOrder },
+        body: { ...payload, sortOrder: item.sortOrder, metas: item.metas },
       }).unwrap()
       saved.push(updated)
     } else {
@@ -94,7 +95,7 @@ export async function syncProfilePosts(options: {
         const ordered = await updatePost({
           id: profileId,
           postId: created.id,
-          body: { sortOrder: item.sortOrder },
+          body: { sortOrder: item.sortOrder, metas: item.metas },
         }).unwrap()
         saved.push(ordered)
       } else {
@@ -114,8 +115,8 @@ export function generalPostsToSyncItems(posts: VCardGeneralPost[]) {
     featuredImage: p.featuredImage || undefined,
     status: p.active ? '1' : '0',
     metas: {
-      ...(p.category ? { category: p.category } : {}),
-      ...(p.date ? { date: p.date } : {}),
+      category: p.category || '',
+      date: p.date || '',
     },
     sortOrder: index,
   }))
@@ -140,9 +141,9 @@ export function sectionPostsToSyncItems(items: VCardSectionPostItem[]) {
     featuredImage: p.featuredImage || undefined,
     status: p.active ? '1' : '0',
     metas: {
-      ...(p.date ? { date: p.date } : {}),
-      ...(p.rating ? { rating: p.rating } : {}),
-      ...(p.location ? { location: p.location } : {}),
+      date: p.date || '',
+      rating: p.rating || '',
+      location: p.location || '',
       ...(p.metas || {}),
     },
     sortOrder: index,
@@ -157,6 +158,19 @@ function metaMap(metas?: ApiPost['metas']): Record<string, string> {
   return out
 }
 
+function toDateInputValue(value?: string | null): string {
+  if (!value) return ''
+  const trimmed = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+  if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed.slice(0, 10)
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return ''
+  const y = parsed.getUTCFullYear()
+  const m = String(parsed.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(parsed.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export function mapApiPostsToSectionPosts(posts: ApiPost[]): VCardSectionPostItem[] {
   return posts.map((p) => {
     const metas = metaMap(p.metas)
@@ -167,7 +181,7 @@ export function mapApiPostsToSectionPosts(posts: ApiPost[]): VCardSectionPostIte
       description: p.description || '',
       url: p.url || '',
       featuredImage: p.featuredImage || '',
-      date,
+      date: toDateInputValue(date),
       rating,
       location,
       active: p.status !== '0' && p.status !== 'false',

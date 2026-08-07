@@ -229,14 +229,19 @@ export function getPersonalValueForField(personal: VCardPersonal, fieldKey: stri
 }
 
 export function getHomeMediaUrls(settings: VCardDisplaySettings, personal: VCardPersonal) {
+  const introFile = getFieldConfig(settings, 'Intro vCard Video').customValue?.trim() || ''
+  const introYoutube = getFieldConfig(settings, 'Intro YouTube vCard Video Link').customValue?.trim() || ''
+  const explainer = personal.explainerVideoUrl?.trim() || ''
+
+  const isYoutube = (url: string) => /youtu\.?be/i.test(url)
+
+  // File/S3 intros only for <video> preloader — YouTube links are not valid video sources.
   const introVideo =
-    getFieldConfig(settings, 'Intro vCard Video').customValue?.trim() ||
-    getFieldConfig(settings, 'Intro YouTube vCard Video Link').customValue?.trim() ||
-    personal.explainerVideoUrl?.trim() ||
-    ''
+    (introFile && !isYoutube(introFile) ? introFile : '') || (explainer && !isYoutube(explainer) ? explainer : '') || ''
+
   const bgMedia = getFieldConfig(settings, 'Background Video/Image').customValue?.trim() || ''
   const profileMedia = getFieldConfig(settings, 'Profile Image/Video').customValue?.trim() || ''
-  return { introVideo, bgMedia, profileMedia }
+  return { introVideo, introYoutube, bgMedia, profileMedia }
 }
 
 /** Background color for editor nav tabs from Card Settings → Nav Bar (not used on public vCard). */
@@ -247,7 +252,8 @@ export function getNavTabBackgroundColor(settings: VCardDisplaySettings, tabId: 
 }
 
 /** Page-level colors from Card Settings are ignored on public profiles (static template styling). */
-export function getPageColors(_settings: VCardDisplaySettings) {
+export function getPageColors(settings: VCardDisplaySettings) {
+  void settings
   return {
     pageBg: undefined,
     pageBanner: undefined,

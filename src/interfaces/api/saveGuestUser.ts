@@ -1,9 +1,11 @@
 export type SavedGuestUser = {
-  id: number
-  first_name: string
-  last_name: string
-  email: string
+  id: string
+  full_name: string | null
+  phone: string | null
+  email: string | null
   profile_id: string
+  profile_slug: string | null
+  owner_name: string | null
+  meta?: unknown
   created_at: string
-  updated_at: string
 }

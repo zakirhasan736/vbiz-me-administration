@@ -34,7 +34,19 @@ import {
 import { filterNavItemsByVisibility, getNavItemById, NAV_BAR_NAV_ITEMS, type EditorNavPanel } from '@/lib/vcardNavbar'
 import { getSectionSchema } from '@/lib/vcardSectionSchemas'
 import { cn } from '@/utils/cn'
-import { ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Eye, FileText, Loader2, Settings } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
+  CloudOff,
+  Eye,
+  FileText,
+  Loader2,
+  Settings,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLayoutEffect, useMemo, useState } from 'react'
@@ -55,12 +67,43 @@ type VCardEditProps = {
 
 export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps) {
   const router = useRouter()
-  const { vCardData, updateData, saveVCard, isCreateMode, cardId: contextCardId } = useVCard()
+  const {
+    vCardData,
+    updateData,
+    saveVCard,
+    flushSave,
+    saveStatus,
+    saveError,
+    isCreateMode,
+    cardId: contextCardId,
+  } = useVCard()
   const display = useMemo(() => getDisplaySettingsFromVCard(vCardData), [vCardData])
   const visibleNavItems = useMemo(() => filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display), [display])
   const [showPreview, setShowPreview] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const { isActive: isTourActive, currentStep } = useDashboardTour()
+
+  const saveStatusLabel =
+    saveStatus === 'saving'
+      ? 'Saving…'
+      : saveStatus === 'dirty'
+        ? 'Unsaved'
+        : saveStatus === 'saved'
+          ? 'Saved'
+          : saveStatus === 'error'
+            ? 'Save failed'
+            : null
+
+  const SaveStatusIcon =
+    saveStatus === 'saving'
+      ? Loader2
+      : saveStatus === 'dirty'
+        ? CloudOff
+        : saveStatus === 'saved'
+          ? Cloud
+          : saveStatus === 'error'
+            ? AlertCircle
+            : null
 
   const route = useMemo(() => parseEditorSegments(segments), [segments])
   const activeNavId = route.isSettings ? route.sectionId : route.sectionId
@@ -218,6 +261,31 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
             <div className="mx-2 hidden h-8 w-px shrink-0 bg-slate-200 md:block dark:bg-white/10" />
 
             <div className="flex shrink-0 items-center gap-3 px-2 pb-2 md:pb-0">
+              {!isCreateMode && saveStatusLabel && SaveStatusIcon && (
+                <button
+                  type="button"
+                  title={saveStatus === 'error' ? saveError || 'Save failed — click to retry' : saveStatusLabel}
+                  onClick={() => {
+                    if (saveStatus === 'error' || saveStatus === 'dirty') {
+                      void flushSave().catch(() => undefined)
+                    }
+                  }}
+                  className={cn(
+                    'flex shrink-0 items-center gap-2 rounded-2xl border px-4 py-3 text-[12.5px] font-semibold whitespace-nowrap transition-all',
+                    saveStatus === 'error'
+                      ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
+                      : saveStatus === 'dirty'
+                        ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                        : saveStatus === 'saving'
+                          ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                  )}
+                >
+                  <SaveStatusIcon className={cn('h-3.5 w-3.5', saveStatus === 'saving' && 'animate-spin')} />
+                  {saveStatusLabel}
+                </button>
+              )}
+
               <Link
                 id="tour-editor-settings"
                 href={settingsHref}
@@ -351,7 +419,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       Next Step{' '}
                       <ChevronRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </button>
-                  ) : (
+                  ) : isCreateMode ? (
                     <button
                       onClick={async () => {
                         setIsSaving(true)
@@ -371,13 +439,29 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       ) : (
                         <CheckCircle className="h-4.5 w-4.5" />
                       )}
-                      {isSaving
-                        ? isCreateMode
-                          ? 'Creating...'
-                          : 'Saving...'
-                        : isCreateMode
-                          ? 'Create vCard'
-                          : 'Save Everything'}
+                      {isSaving ? 'Creating...' : 'Create vCard'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        setIsSaving(true)
+                        try {
+                          await flushSave()
+                        } catch (e) {
+                          alert('Error saving Profile: ' + (e as Error).message)
+                        } finally {
+                          setIsSaving(false)
+                        }
+                      }}
+                      disabled={isSaving || saveStatus === 'saving' || saveStatus === 'saved' || saveStatus === 'idle'}
+                      className="bg-primary-600 hover:bg-primary-700 border-primary-500/20 mobile:px-7 flex items-center gap-2.5 rounded-xl border px-5 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+                    >
+                      {isSaving || saveStatus === 'saving' ? (
+                        <Loader2 className="h-4.5 w-4.5 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-4.5 w-4.5" />
+                      )}
+                      {isSaving || saveStatus === 'saving' ? 'Saving...' : 'Save now'}
                     </button>
                   )}
                 </div>

@@ -48,6 +48,11 @@ export type ProfileAiCustomSection = {
   date: string
 }
 
+export type ProfileAiSkillGroup = {
+  category: string
+  skills: string[]
+}
+
 export type ProfileAiData = {
   slug: string
   ownerName: string
@@ -61,7 +66,7 @@ export type ProfileAiData = {
   location: string
   about: string
   socials: ProfileAiSocials
-  skills: string[]
+  skills: ProfileAiSkillGroup[]
   services: ProfileAiService[]
   experience: ProfileAiExperience[]
   education: ProfileAiEducation[]

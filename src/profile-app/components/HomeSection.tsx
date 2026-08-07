@@ -2,6 +2,7 @@
 
 import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
 import { useTranslation } from '@/lib/i18n/translationData'
+import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import {
   ArrowUpRight,
   Bell,
@@ -25,7 +26,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useProfileDisplay } from '../lib/profileDisplayContext'
 import { openVbizmeLogin } from '../lib/profileExternalLinks'
 import { buildBentoContactItems, formatProfileViewCount, splitDisplayName } from '../lib/profileHomeData'
-import { filterSocialItemsWithLinks, resolveSocialLinkHref } from '../lib/profileSocialLinks'
+import { filterSocialItemsWithLinks, onTrackedSocialClick, resolveSocialLinkHref } from '../lib/profileSocialLinks'
 import { resolveProfileAvatarSrc } from '../profilePublicProps'
 import { CustomVideoPlayer } from './CustomVideoPlayer'
 import { LeaveMessageModal } from './LeaveMessageModal'
@@ -76,7 +77,7 @@ const TypewriterText = ({ text, delay = 0, speed = 100 }: { text: string; delay?
       <motion.span
         animate={{ opacity: [1, 0, 1] }}
         transition={{ repeat: Infinity, duration: 0.8 }}
-        className="bg-yellow-primary ml-1.5 inline-block h-[1.1em] w-[3px]"
+        className="bg-yellow-primary ml-1.5 inline-block h-[1.1em] w-0.75"
       />
     </span>
   )
@@ -224,13 +225,25 @@ type HomeSectionProps = {
 
 export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const { lang } = useTranslation()
-  const { personal, isVisible, field, pageColors, homeMedia, design, socialHref, embedded, cardOwnerId, profileViews } =
-    useProfileDisplay()
+  const {
+    personal,
+    isVisible,
+    field,
+    pageColors,
+    homeMedia,
+    design,
+    socialHref,
+    embedded,
+    cardOwnerId,
+    cardSlug,
+    profileViews,
+  } = useProfileDisplay()
   const showShare = isVisible('Share Btn')
   const nameStyle = field('MyInfo section Name')
   const accent = design?.accentColor ?? '#dcc969'
 
-  const coverSrc = homeMedia.bgMedia || DEFAULT_COVER
+  const coverSrc = encodeMediaUrl(homeMedia.bgMedia || DEFAULT_COVER)
+  const coverIsVideo = Boolean(coverSrc && isVideoUrl(coverSrc))
   const introSrc = homeMedia.introVideo || personal.explainerVideoUrl || undefined
   const profileSrc = useMemo(
     () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc),
@@ -286,26 +299,35 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-            className="group relative col-span-1 flex min-h-[70vh] flex-col justify-end overflow-hidden rounded-4xl border border-black/5 bg-white p-5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] ring-1 ring-black/5 sm:min-h-[500px] sm:p-10 lg:col-span-8 lg:min-h-[580px] lg:rounded-[3rem] dark:border-white/5 dark:bg-gray-900 dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] dark:ring-white/5"
+            className="group relative col-span-1 flex min-h-[70vh] flex-col justify-end overflow-hidden rounded-4xl border border-black/5 bg-white p-5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] ring-1 ring-black/5 sm:min-h-125 sm:p-10 lg:col-span-8 lg:min-h-145 lg:rounded-[3rem] dark:border-white/5 dark:bg-gray-900 dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] dark:ring-white/5"
             style={pageColors.pageBanner ? { backgroundColor: pageColors.pageBanner } : undefined}
           >
             {/* Ambient Glow */}
             <div className="from-yellow-primary/15 to-yellow-primary/5 pointer-events-none absolute -inset-1 -z-10 bg-linear-to-br via-transparent opacity-0 blur-3xl transition-opacity duration-1000 group-hover:opacity-100" />
 
-            {/* Background Video Layer */}
+            {/* Background media layer */}
             <motion.div
               style={{ y: yBg }}
               className="absolute top-[-20%] right-0 left-0 z-0 h-[120%] overflow-hidden bg-white dark:bg-gray-900"
             >
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="absolute inset-0 h-full w-full scale-105 object-cover opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen"
-              >
-                <source src={coverSrc} type="video/mp4" />
-              </video>
+              {coverIsVideo ? (
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="absolute inset-0 h-full w-full scale-105 object-cover opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen"
+                >
+                  <source src={coverSrc} type="video/mp4" />
+                </video>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverSrc}
+                  alt=""
+                  className="absolute inset-0 h-full w-full scale-105 object-cover opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen"
+                />
+              )}
               <div className="absolute inset-0 bg-linear-to-t from-white via-white/40 to-transparent dark:from-gray-950 dark:via-gray-950/40" />
               <div className="absolute inset-0 bg-linear-to-r from-white/90 via-transparent to-transparent dark:from-gray-950/90" />
 
@@ -401,6 +423,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       href={socialHref(item.label)}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl"
@@ -634,7 +657,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
           {/* Right Column: Mini Cards (Spans 4 cols on desktop) */}
           <div className="col-span-1 flex flex-col-reverse gap-6 md:flex-col lg:col-span-4 lg:gap-8">
             {/* Quick Actions Card */}
-            <div className="group relative flex flex-col gap-5 overflow-hidden rounded-4xl border border-black/5 bg-white px-[14px] py-5 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.1)] backdrop-blur-3xl sm:p-8 dark:border-white/5 dark:bg-gray-900/40 dark:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.8)]">
+            <div className="group relative flex flex-col gap-5 overflow-hidden rounded-4xl border border-black/5 bg-white px-3.5 py-5 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.1)] backdrop-blur-3xl sm:p-8 dark:border-white/5 dark:bg-gray-900/40 dark:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.8)]">
               <div className="from-yellow-primary/10 absolute inset-0 bg-linear-to-tr via-transparent to-black/1 opacity-0 transition-opacity duration-700 group-hover:opacity-100 dark:to-white/2" />
 
               <div className="relative z-10 flex flex-1 flex-col">
@@ -682,6 +705,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           href={href}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
                           className="vbiz-social flex h-10 w-10 items-center justify-center justify-self-center rounded-full shadow-xl transition-all duration-300 hover:-translate-y-1"
                           style={socialInlineStyle}
                         >

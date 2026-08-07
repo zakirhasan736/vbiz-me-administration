@@ -1,24 +1,14 @@
 'use client'
 
+import { MediaFileUploader } from '@/components/media/MediaFileUploader'
+import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import {
   createDefaultSectionPostItem,
   normalizeSectionPostList,
   type VCardSectionSchema,
 } from '@/lib/vcardSectionSchemas'
-import { useUploadMediaMutation } from '@/redux/features/profiles/profiles.api'
 import type { VCardSectionPostItem } from '@/types/vcard'
-import {
-  Calendar,
-  FileBox,
-  FileText,
-  Image as ImageIcon,
-  Layers,
-  Link as LinkIcon,
-  MapPin,
-  Plus,
-  Star,
-  Trash2,
-} from 'lucide-react'
+import { Calendar, FileBox, FileText, Layers, Link as LinkIcon, MapPin, Plus, Star, Trash2 } from 'lucide-react'
 type Accent = 'amber' | 'teal' | 'violet'
 
 const accentStyles: Record<
@@ -106,8 +96,13 @@ export function SectionPostsEditorPanel({
   const posts = normalizeSectionPostList(rawPosts)
   const a = accentStyles[resolveAccent(schema.accentClass)]
   const inputClasses = `${baseInput} ${a.focus}`
-  const [uploadMedia, { isLoading: uploading }] = useUploadMediaMutation()
   const fieldSet = new Set(schema.fields)
+  const uploaderAccent =
+    resolveAccent(schema.accentClass) === 'teal'
+      ? 'teal'
+      : resolveAccent(schema.accentClass) === 'violet'
+        ? 'violet'
+        : 'primary'
 
   const setPosts = (next: VCardSectionPostItem[]) => onPostsChange(next)
 
@@ -125,19 +120,6 @@ export function SectionPostsEditorPanel({
     value: VCardSectionPostItem[keyof VCardSectionPostItem]
   ) => {
     setPosts(posts.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
-  }
-
-  const uploadImage = async (id: string, file: File) => {
-    try {
-      const result = await uploadMedia({
-        file,
-        profileId: cardId || undefined,
-        attachmentType: schema.title,
-      }).unwrap()
-      setPosts(posts.map((p) => (p.id === id ? { ...p, featuredImage: result.url } : p)))
-    } catch {
-      setPosts(posts.map((p) => (p.id === id ? { ...p, featuredImage: URL.createObjectURL(file) } : p)))
-    }
   }
 
   return (
@@ -265,50 +247,26 @@ export function SectionPostsEditorPanel({
 
                   <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
                     {fieldSet.has('featuredImage') ? (
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                          <ImageIcon className={`h-3.5 w-3.5 ${a.iconText}`} /> Featured Image
-                        </label>
-                        <div
-                          className={`group/input relative flex overflow-hidden rounded-2xl border border-slate-200/80 shadow-sm transition-colors focus-within:ring-1 dark:border-white/10 ${a.fileFocus}`}
-                        >
-                          <label className="cursor-pointer border-r border-slate-200/50 bg-slate-50 px-5 py-4 text-[13px] font-bold whitespace-nowrap text-slate-700 transition-colors hover:bg-slate-100 dark:border-white/5 dark:bg-white/2 dark:text-slate-200 dark:hover:bg-white/5">
-                            Choose File
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept="image/*"
-                              disabled={uploading}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0]
-                                if (file) void uploadImage(post.id, file)
-                                e.target.value = ''
-                              }}
-                            />
-                          </label>
-                          <span className="flex w-full items-center truncate bg-white px-5 py-4 text-[13px] font-medium text-slate-500 dark:bg-[#0b0f19] dark:text-slate-400">
-                            {post.featuredImage || 'No file chosen'}
-                          </span>
-                        </div>
-                        <input
-                          type="url"
-                          value={post.featuredImage}
-                          onChange={(e) => updatePost(post.id, 'featuredImage', e.target.value)}
-                          placeholder="Or paste image URL"
-                          className={inputClasses}
-                        />
-                      </div>
+                      <MediaFileUploader
+                        label="Featured media"
+                        accent={uploaderAccent}
+                        profileId={cardId}
+                        attachmentType={schema.title}
+                        value={post.featuredImage}
+                        accept="image/*,video/*,application/pdf"
+                        hint="Upload an image, video, or PDF — preview appears here"
+                        onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
+                      />
                     ) : null}
                     {fieldSet.has('date') ? (
                       <div className="group flex flex-col space-y-1.5">
                         <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                           <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} /> Date
                         </label>
-                        <input
-                          type="date"
+                        <VCardDateInput
                           value={post.date}
                           onChange={(e) => updatePost(post.id, 'date', e.target.value)}
-                          className={`${inputClasses} [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:dark:invert`}
+                          className={inputClasses}
                         />
                       </div>
                     ) : null}

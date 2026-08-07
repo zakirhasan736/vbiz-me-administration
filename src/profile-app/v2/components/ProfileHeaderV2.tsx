@@ -6,7 +6,11 @@ import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionBut
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import { cleanProfileFieldValue, formatProfileViewCount } from '@/profile-app/lib/profileHomeData'
-import { filterSocialItemsWithLinks, resolveSocialLinkHref } from '@/profile-app/lib/profileSocialLinks'
+import {
+  filterSocialItemsWithLinks,
+  onTrackedSocialClick,
+  resolveSocialLinkHref,
+} from '@/profile-app/lib/profileSocialLinks'
 import { resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
 import {
   Bell,
@@ -83,7 +87,8 @@ export function ProfileHeaderV2({
   onLanguage,
   embedded,
 }: ProfileHeaderV2Props) {
-  const { personal, isVisible, field, socialHref, profileViews, actionButtons } = useProfileDisplay()
+  const { personal, isVisible, field, socialHref, profileViews, actionButtons, cardOwnerId, cardSlug } =
+    useProfileDisplay()
 
   const avatarDisplaySrc = useMemo(
     () => resolveProfileAvatarSrc(avatarVideoUrl, explainerVideoUrl),
@@ -145,6 +150,7 @@ export function ProfileHeaderV2({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
                 className="vbiz-social flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10"
                 aria-label={social.label}
               >
@@ -211,6 +217,7 @@ export function ProfileHeaderV2({
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
                   className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full transition-colors"
                   aria-label={social.label}
                 >
