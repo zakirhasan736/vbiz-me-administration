@@ -1,26 +1,34 @@
 'use client'
 
-import { TakeTourTrigger } from '@/components/tour/TakeTourBanner'
-import { useDashboardTour } from '@/context/DashboardTourContext'
+import { ContactModal, type OwnerFeedbackMode } from '@/components/dashboard/home/ContactModal'
 import { useAppSelector } from '@/hooks/redux'
 import { logout, useAuth } from '@/providers/AuthProvider'
-import { LogOut, Settings, UserCircle } from 'lucide-react'
+import { cn } from '@/utils/cn'
+import { LifeBuoy, MessageSquareHeart, Settings, UserCircle } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { LogoutConfirmModal } from './LogoutConfirmModal'
 
+const menuItemClassName =
+  'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white'
+
+function accountTypeLabel(role: string | undefined) {
+  if (role === 'admin') return 'Admin Account'
+  if (role === 'corporate-owner') return 'Corporate Account'
+  return 'Single Account'
+}
+
 export function UserDropdown() {
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
   const { user } = useAuth()
   const role = useAppSelector((state) => state.user.user?.role)
-  const { isActive: isTourActive } = useDashboardTour()
   const menuRef = useRef<HTMLDivElement>(null)
-  const isVcardOwner = role === 'vcard-owner'
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -71,39 +79,68 @@ export function UserDropdown() {
               <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                 {user?.displayName || 'User'}
               </p>
-              <p className="text-primary-600 dark:text-primary-400 mt-1 text-[11px] font-bold tracking-widest uppercase">
-                Free Plan
+              <p
+                className={cn(
+                  'mt-1 inline-block rounded-md px-2 py-0.5 text-[10px] font-extrabold tracking-widest uppercase',
+                  role === 'admin'
+                    ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400'
+                    : role === 'corporate-owner'
+                      ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/15 dark:text-primary-400'
+                      : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300'
+                )}
+              >
+                {accountTypeLabel(role)}
               </p>
             </div>
-            <div className="p-2">
-              <Link
-                href="/settings"
-                onClick={() => setIsProfileOpen(false)}
-                className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
-              >
+            <div className="space-y-1 p-2">
+              <Link href="/settings" onClick={() => setIsProfileOpen(false)} className={menuItemClassName}>
                 <Settings className="h-4 w-4" /> Account Settings
               </Link>
-              {!isTourActive && isVcardOwner && (
-                <TakeTourTrigger
-                  tourKey="dashboard"
-                  className="w-full justify-start border-transparent bg-transparent px-3 py-2.5 text-slate-600 hover:border-transparent hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
-                  onStart={() => setIsProfileOpen(false)}
-                />
-              )}
               <button
+                type="button"
+                onClick={() => {
+                  setOwnerFeedbackMode('feedback')
+                  setIsProfileOpen(false)
+                }}
+                className={menuItemClassName}
+              >
+                <MessageSquareHeart className="h-4 w-4" /> Send feedback
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOwnerFeedbackMode('support')
+                  setIsProfileOpen(false)
+                }}
+                className={menuItemClassName}
+              >
+                <LifeBuoy className="h-4 w-4 text-indigo-500" /> Contact Support
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   setIsProfileOpen(false)
                   setShowLogoutModal(true)
                 }}
                 className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
               >
-                <LogOut className="h-4.5 w-4.5" />
-                Log Out
+                Sign Out
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {ownerFeedbackMode && (
+        <ContactModal
+          key={ownerFeedbackMode}
+          mode={ownerFeedbackMode}
+          onClose={() => setOwnerFeedbackMode(null)}
+          fromRole="single"
+          fromName={user?.displayName || 'Owner'}
+          fromEmail={user?.email || undefined}
+        />
+      )}
 
       {showLogoutModal && (
         <LogoutConfirmModal
