@@ -70,7 +70,6 @@ export const ICON_FIELDS = [
 ] as const
 
 export const GENERAL_SETTINGS_FIELDS = [
-  'Zip',
   'Pages Header',
   'Save Contact',
   'My Info Btn',

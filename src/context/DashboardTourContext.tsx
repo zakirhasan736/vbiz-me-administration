@@ -1,11 +1,14 @@
 'use client'
 
+import { useAppSelector } from '@/hooks/redux'
 import {
   attachTourScrollLock,
+  CREATE_CARD_TOUR_STEPS,
   DASHBOARD_TOUR_STEPS,
+  getTourSteps,
   isMobileNavViewport,
   isTourCompleted,
-  markTourCompleted,
+  markTourDone,
   requestTourRemeasure,
   resolveTourBackDestination,
   routeMatchesStep,
@@ -14,16 +17,10 @@ import {
   type DashboardTourStep,
   type EditorTourAssist,
   type SettingsTourAssist,
+  type TourKey,
 } from '@/lib/dashboardTour'
-import {
-  buildEditorSectionPath,
-  buildEditorSettingsPath,
-  DEFAULT_EDITOR_SECTION,
-  type EditorBasePath,
-  type SettingsTabId,
-} from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   createContext,
   useCallback,
@@ -38,6 +35,7 @@ import {
 
 type DashboardTourContextValue = {
   isActive: boolean
+  activeTourKey: TourKey | null
   currentStep: DashboardTourStep | null
   currentStepIndex: number
   totalSteps: number
@@ -46,9 +44,10 @@ type DashboardTourContextValue = {
   next: () => void
   back: () => void
   skip: () => void
-  startTour: () => void
+  startTour: (key?: TourKey) => void
   canGoBack: boolean
   registerMobileNavOpener: (fn: () => void) => void
+  registerActivateTab: (fn: ((tab: string) => void) | null) => void
 }
 
 const DashboardTourContext = createContext<DashboardTourContextValue | null>(null)
@@ -58,6 +57,7 @@ export function useDashboardTour() {
   if (!ctx) {
     return {
       isActive: false,
+      activeTourKey: null as TourKey | null,
       currentStep: null,
       currentStepIndex: -1,
       totalSteps: DASHBOARD_TOUR_STEPS.length,
@@ -69,49 +69,62 @@ export function useDashboardTour() {
       startTour: () => {},
       canGoBack: false,
       registerMobileNavOpener: () => {},
+      registerActivateTab: () => {},
     }
   }
   return ctx
 }
 
+function isEditorPath(pathname: string) {
+  return pathname.startsWith('/vcards/create') || pathname.startsWith('/vcards/edit')
+}
+
 export function DashboardTourProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
+  const role = useAppSelector((state) => state.user.user?.role)
+  const isVcardOwner = role === 'vcard-owner'
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const router = useRouter()
+  const [tourKey, setTourKey] = useState<TourKey | null>(null)
   const [stepIndex, setStepIndex] = useState(-1)
   const [started, setStarted] = useState(false)
   const mobileNavOpenerRef = useRef<(() => void) | null>(null)
+  const activateTabRef = useRef<((tab: string) => void) | null>(null)
+  const dashboardAutoStarted = useRef(false)
+  const createAutoStarted = useRef(false)
+
+  const steps = useMemo(() => (tourKey ? getTourSteps(tourKey) : []), [tourKey])
 
   const finishTour = useCallback(() => {
-    if (user?.uid) markTourCompleted(user.uid)
+    if (tourKey) markTourDone(tourKey)
     setStepIndex(-1)
+    setTourKey(null)
     setStarted(false)
-  }, [user])
+  }, [tourKey])
 
   const skip = useCallback(() => {
     finishTour()
   }, [finishTour])
 
   const next = useCallback(() => {
-    const step = DASHBOARD_TOUR_STEPS[stepIndex]
+    const step = steps[stepIndex]
     if (step?.nextNavigate) {
       router.push(step.nextNavigate)
     }
 
     const nextIndex = stepIndex + 1
-    if (nextIndex >= DASHBOARD_TOUR_STEPS.length) {
+    if (nextIndex >= steps.length) {
       finishTour()
       return
     }
     setStepIndex(nextIndex)
-  }, [stepIndex, router, finishTour])
+  }, [stepIndex, steps, router, finishTour])
 
   const back = useCallback(() => {
     if (stepIndex <= 0) return
 
     const prevIndex = stepIndex - 1
-    const destination = resolveTourBackDestination(stepIndex, pathname)
+    const destination = resolveTourBackDestination(steps, stepIndex, pathname)
 
     if (destination) {
       router.push(destination)
@@ -119,38 +132,74 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
 
     setStepIndex(prevIndex)
     requestAnimationFrame(() => requestTourRemeasure())
-  }, [stepIndex, pathname, router])
+  }, [stepIndex, steps, pathname, router])
 
   const registerMobileNavOpener = useCallback((fn: () => void) => {
     mobileNavOpenerRef.current = fn
   }, [])
 
-  const startTour = useCallback(() => {
-    if (!user?.uid) return
+  const registerActivateTab = useCallback((fn: ((tab: string) => void) | null) => {
+    activateTabRef.current = fn
+  }, [])
 
-    setStarted(true)
-    setStepIndex(0)
+  const startTour = useCallback(
+    (key: TourKey = 'dashboard') => {
+      if (key === 'dashboard' && !isVcardOwner) return
 
-    const firstStep = DASHBOARD_TOUR_STEPS[0]
-    if (firstStep?.route && !routeMatchesStep(pathname, firstStep)) {
-      router.push(firstStep.route)
-    }
-  }, [user?.uid, pathname, router])
-
-  useEffect(() => {
-    if (loading || !user?.uid || started) return
-    if (isTourCompleted(user.uid)) return
-
-    const timer = window.setTimeout(() => {
+      setTourKey(key)
       setStarted(true)
       setStepIndex(0)
-    }, 600)
+
+      if (key === 'dashboard' && pathname !== '/') {
+        router.push('/')
+      }
+    },
+    [isVcardOwner, pathname, router]
+  )
+
+  // Dashboard auto-start (vcard-owner on home only)
+  useEffect(() => {
+    if (loading || !user?.uid || started || dashboardAutoStarted.current) return
+    if (!isVcardOwner) return
+    if (pathname !== '/') return
+    if (isTourCompleted('dashboard', user.uid)) return
+
+    dashboardAutoStarted.current = true
+    const timer = window.setTimeout(() => {
+      setTourKey('dashboard')
+      setStarted(true)
+      setStepIndex(0)
+    }, 700)
 
     return () => window.clearTimeout(timer)
-  }, [loading, user?.uid, started])
+  }, [loading, user?.uid, started, isVcardOwner, pathname])
 
-  const currentStep = stepIndex >= 0 ? (DASHBOARD_TOUR_STEPS[stepIndex] ?? null) : null
-  const isActive = stepIndex >= 0 && stepIndex < DASHBOARD_TOUR_STEPS.length
+  // Create-card auto-start on editor routes
+  useEffect(() => {
+    if (loading || !user?.uid || started || createAutoStarted.current) return
+    if (!isEditorPath(pathname)) return
+    if (isTourCompleted('create_card', user.uid)) return
+
+    createAutoStarted.current = true
+    const timer = window.setTimeout(() => {
+      setTourKey('create_card')
+      setStarted(true)
+      setStepIndex(0)
+    }, 700)
+
+    return () => window.clearTimeout(timer)
+  }, [loading, user?.uid, started, pathname])
+
+  const currentStep = stepIndex >= 0 ? (steps[stepIndex] ?? null) : null
+  const isActive = Boolean(tourKey) && stepIndex >= 0 && stepIndex < steps.length
+
+  // activateTab for create-card steps
+  useEffect(() => {
+    if (!isActive || !currentStep?.activateTab) return
+    activateTabRef.current?.(currentStep.activateTab)
+    const t = window.setTimeout(() => requestTourRemeasure(), 220)
+    return () => window.clearTimeout(t)
+  }, [isActive, currentStep, stepIndex])
 
   useEffect(() => {
     if (!isActive) return
@@ -203,54 +252,15 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
 
     const target = currentStep.target
     const route = currentStep.route
+    const delay = currentStep.activateTab ? 220 : 40
     const scrollTarget = () => scrollTourTargetIntoView(target, route)
 
-    const raf = requestAnimationFrame(scrollTarget)
-    const timers = [150, 400, 800, 1200].map((ms) => window.setTimeout(scrollTarget, ms))
+    const timers = [delay, delay + 150, delay + 400, delay + 800].map((ms) => window.setTimeout(scrollTarget, ms))
 
     return () => {
-      cancelAnimationFrame(raf)
       timers.forEach(clearTimeout)
     }
   }, [isActive, currentStep, pathname, stepIndex])
-
-  useEffect(() => {
-    if (!isActive || !currentStep) return
-
-    const basePath: EditorBasePath | null = pathname.startsWith('/vcards/edit')
-      ? '/vcards/edit'
-      : pathname.startsWith('/vcards/create')
-        ? '/vcards/create'
-        : null
-
-    if (!basePath) return
-
-    const cardId = searchParams.get('cardId')
-
-    if (currentStep.id === 'editor-settings' && pathname.includes('/settings')) {
-      router.push(buildEditorSectionPath(basePath, DEFAULT_EDITOR_SECTION, cardId))
-      return
-    }
-
-    if (!currentStep.editorAssist) return
-
-    const { settingsOpen, settingsTab, activeNavId } = currentStep.editorAssist
-
-    if (settingsOpen) {
-      const href = buildEditorSettingsPath(basePath, (settingsTab as SettingsTabId | undefined) ?? 'info', cardId)
-      if (pathname !== href.split('?')[0]) {
-        router.push(href)
-      }
-      return
-    }
-
-    if (activeNavId) {
-      const href = buildEditorSectionPath(basePath, activeNavId, cardId)
-      if (pathname !== href.split('?')[0]) {
-        router.push(href)
-      }
-    }
-  }, [isActive, currentStep, pathname, router, searchParams])
 
   const editorAssist = useMemo(() => currentStep?.editorAssist ?? {}, [currentStep])
   const settingsAssist = useMemo(() => currentStep?.settingsAssist ?? {}, [currentStep])
@@ -258,9 +268,11 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     (): DashboardTourContextValue => ({
       isActive,
+      activeTourKey: tourKey,
       currentStep,
       currentStepIndex: stepIndex,
-      totalSteps: DASHBOARD_TOUR_STEPS.length,
+      totalSteps:
+        steps.length || (tourKey === 'create_card' ? CREATE_CARD_TOUR_STEPS.length : DASHBOARD_TOUR_STEPS.length),
       editorAssist,
       settingsAssist,
       next,
@@ -269,11 +281,14 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
       startTour,
       canGoBack: stepIndex > 0,
       registerMobileNavOpener,
+      registerActivateTab,
     }),
     [
       isActive,
+      tourKey,
       currentStep,
       stepIndex,
+      steps.length,
       editorAssist,
       settingsAssist,
       next,
@@ -281,6 +296,7 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
       skip,
       startTour,
       registerMobileNavOpener,
+      registerActivateTab,
     ]
   )
 

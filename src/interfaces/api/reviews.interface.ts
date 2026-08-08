@@ -6,14 +6,15 @@ export type ReviewLink = {
 }
 
 export type ReviewItem = {
-  id: number
+  id: string | number
   title: string
   description: string | null
-  post_type_id: number
-  created_at: string
+  post_type_id?: number
+  created_at?: string
   status: number
   featured_image: string | null
   review_link: ReviewLink
+  rating?: number | null
 }
 
 export type ReviewsSectionPostType = {
@@ -38,13 +39,14 @@ export type ReviewsSectionResponse = ApiResponse<ReviewsSectionData> & {
 }
 
 export type ReviewListItem = {
-  id: number
+  id: string | number
   title: string
   plainDescription: string
   htmlDescription: string
   image: string
   linkUrl: string | null
   isLinkCard: boolean
+  rating: number
 }
 
 export type ReviewsQueryResult = {
@@ -52,4 +54,5 @@ export type ReviewsQueryResult = {
   slides: ReviewListItem[]
   leaveReviewUrl: string | null
   reviewCount: number
+  averageRating: number
 }

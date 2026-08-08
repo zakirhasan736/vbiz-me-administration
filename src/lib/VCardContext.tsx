@@ -24,6 +24,7 @@ import {
   useReplaceEducationMutation,
   useReplaceExperiencesMutation,
   useReplacePortfoliosMutation,
+  useReplaceReviewsMutation,
   useReplaceServicesMutation,
   useReplaceSkillsMutation,
   useReplaceSocialLinksMutation,
@@ -40,7 +41,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 export type VCardSaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 
 type DirtyBucket =
-  'profile' | 'education' | 'experience' | 'services' | 'portfolio' | 'skills' | 'socialLinks' | 'posts'
+  'profile' | 'education' | 'experience' | 'services' | 'portfolio' | 'reviews' | 'skills' | 'socialLinks' | 'posts'
 
 const ALL_DIRTY_BUCKETS: DirtyBucket[] = [
   'profile',
@@ -48,6 +49,7 @@ const ALL_DIRTY_BUCKETS: DirtyBucket[] = [
   'experience',
   'services',
   'portfolio',
+  'reviews',
   'skills',
   'socialLinks',
   'posts',
@@ -131,6 +133,7 @@ function dirtyBucketForPath(path: string): DirtyBucket {
   if (path === 'experience' || path.startsWith('experience.')) return 'experience'
   if (path === 'services' || path.startsWith('services.')) return 'services'
   if (path === 'portfolio' || path.startsWith('portfolio.')) return 'portfolio'
+  if (path === 'reviews' || path.startsWith('reviews.')) return 'reviews'
   if (path === 'skills' || path.startsWith('skills.')) return 'skills'
   if (path === 'social.customLinks' || path.startsWith('social.customLinks.')) return 'socialLinks'
   if (
@@ -173,6 +176,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const [replaceExperiences] = useReplaceExperiencesMutation()
   const [replaceServices] = useReplaceServicesMutation()
   const [replacePortfolios] = useReplacePortfoliosMutation()
+  const [replaceReviews] = useReplaceReviewsMutation()
   const [replaceSkills] = useReplaceSkillsMutation()
   const [replaceSocialLinks] = useReplaceSocialLinksMutation()
   const [listPosts] = useLazyListProfilePostsQuery()
@@ -364,6 +368,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       faqs: base.faqs ?? [],
       sectionPosts: base.sectionPosts ?? {},
       portfolio: base.portfolio ?? [],
+      reviews: base.reviews ?? [],
       skills: base.skills ?? [],
     }
   }, [isCreateMode, createDraft, record])
@@ -433,8 +438,23 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
               title: p.title,
               description: p.description,
               imageUrl: p.imageUrl,
+              attachmentUrl: p.attachments?.url || null,
+              attachmentName: p.attachments?.name || null,
               url: p.url,
               status: p.active ? 1 : 0,
+            })),
+          }).unwrap()
+        )
+      }
+      if (buckets.has('reviews')) {
+        tasks.push(
+          replaceReviews({
+            id: profileId,
+            items: (data.reviews || []).map((r) => ({
+              author: r.author,
+              text: r.text,
+              rating: r.rating,
+              status: 1,
             })),
           }).unwrap()
         )
@@ -503,6 +523,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       replaceExperiences,
       replaceServices,
       replacePortfolios,
+      replaceReviews,
       replaceSkills,
       replaceSocialLinks,
       listPosts,
@@ -668,7 +689,16 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       await persistDirtyBuckets(
         profileId,
         data,
-        new Set<DirtyBucket>(['education', 'experience', 'services', 'portfolio', 'skills', 'socialLinks', 'posts'])
+        new Set<DirtyBucket>([
+          'education',
+          'experience',
+          'services',
+          'portfolio',
+          'reviews',
+          'skills',
+          'socialLinks',
+          'posts',
+        ])
       )
     },
     [persistDirtyBuckets]

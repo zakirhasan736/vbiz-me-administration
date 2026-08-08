@@ -1,8 +1,5 @@
 'use client'
 
-import { VCardDocumentUpload } from '@/components/vcard/VCardDocumentUpload'
-import { applyVCardContextAutoFill } from '@/lib/applyVCardAutoFill'
-import type { VCardAutoFillResult } from '@/lib/vcardAutoFillDemo'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import type { VCardCustomSocialLink } from '@/types/vcard'
@@ -38,14 +35,6 @@ export function Tab3SocialGames() {
   const social = vCardData.social ?? createDefaultVCardSocial()
   const customLinks = social.customLinks.length > 0 ? social.customLinks : [{ id: '1', name: '', url: '' }]
 
-  const handleAutoFill = (fields: VCardAutoFillResult) => {
-    applyVCardContextAutoFill(updateData, fields)
-    for (const { key } of SOCIAL_FIELDS) {
-      if (fields[key]) updateData(`social.handles.${key}`, fields[key])
-    }
-    if (fields.gameTitle) updateData('social.games.steam', fields.gameTitle)
-  }
-
   const setCustomLinks = (links: VCardCustomSocialLink[]) => {
     updateData('social.customLinks', links)
   }
@@ -70,9 +59,7 @@ export function Tab3SocialGames() {
 
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl pb-12 duration-500">
-      <VCardDocumentUpload section="social-games" onAutoFill={handleAutoFill} />
-
-      <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-[24px] border p-6">
+      <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-3xl border p-6">
         <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Social Networks & Games</h3>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           Connect your audience across all your digital platforms. Fill only the ones you want to display.
@@ -80,7 +67,7 @@ export function Tab3SocialGames() {
       </div>
 
       <div className="space-y-8">
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-10 w-10 items-center justify-center rounded-[14px] border">
               <Share2 className="text-primary-600 dark:text-primary-400 h-5 w-5" />
@@ -93,7 +80,7 @@ export function Tab3SocialGames() {
                 <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
                   {label}
                 </label>
-                <div className="focus-within:border-primary-500/50 focus-within:ring-primary-500/50 group flex overflow-hidden rounded-[16px] border border-slate-200/80 bg-white shadow-sm transition-all focus-within:ring-1 dark:border-white/10 dark:bg-[#0b0f19]">
+                <div className="focus-within:border-primary-500/50 focus-within:ring-primary-500/50 group flex overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all focus-within:ring-1 dark:border-white/10 dark:bg-[#0b0f19]">
                   <span className="flex items-center justify-center border-r border-slate-200/80 bg-slate-50 px-5 py-4 text-[14px] font-bold tracking-wider text-slate-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-400">
                     @
                   </span>
@@ -110,7 +97,7 @@ export function Tab3SocialGames() {
           </div>
         </section>
 
-        <section className="space-y-6 overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 p-4 shadow-sm sm:p-8 dark:border-white/5 dark:bg-white/2">
+        <section className="space-y-6 overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 p-4 shadow-sm sm:p-8 dark:border-white/5 dark:bg-white/2">
           <div className="mb-2 flex items-center gap-4">
             <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-10 w-10 items-center justify-center rounded-[14px] border">
               <LinkIcon className="text-primary-600 dark:text-primary-400 h-5 w-5" />
@@ -122,7 +109,7 @@ export function Tab3SocialGames() {
             {customLinks.map((link) => (
               <div
                 key={link.id}
-                className="flex flex-col items-end gap-5 rounded-[24px] border border-slate-200/80 bg-white p-6 shadow-sm sm:flex-row dark:border-white/10 dark:bg-[#0b0f19]"
+                className="flex flex-col items-end gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm sm:flex-row dark:border-white/10 dark:bg-[#0b0f19]"
               >
                 <div className="group w-full space-y-1.5 sm:w-1/3">
                   <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
@@ -157,7 +144,7 @@ export function Tab3SocialGames() {
                     />
                     <button
                       onClick={() => removeCustomLink(link.id)}
-                      className="shrink-0 rounded-[16px] border border-red-500/20 bg-red-50/50 p-4 text-red-500 shadow-sm transition-all hover:bg-red-500 hover:text-white active:scale-95 dark:bg-red-500/10"
+                      className="shrink-0 rounded-2xl border border-red-500/20 bg-red-50/50 p-4 text-red-500 shadow-sm transition-all hover:bg-red-500 hover:text-white active:scale-95 dark:bg-red-500/10"
                       aria-label="Remove link"
                     >
                       <Trash2 className="h-5 w-5" />
@@ -170,13 +157,13 @@ export function Tab3SocialGames() {
 
           <button
             onClick={addCustomLink}
-            className="flex w-full items-center justify-center gap-2 rounded-[16px] bg-slate-900 px-6 py-4 text-[13px] font-bold text-white shadow-md transition-colors hover:bg-slate-800 active:scale-95 sm:w-auto dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 py-4 text-[13px] font-bold text-white shadow-md transition-colors hover:bg-slate-800 active:scale-95 sm:w-auto dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
           >
             <Plus className="h-4 w-4" /> Add Social Link
           </button>
         </section>
 
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-purple-100 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10">
               <Gamepad2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
@@ -189,7 +176,7 @@ export function Tab3SocialGames() {
                 <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
                   {label}
                 </label>
-                <div className="focus-within:border-primary-500/50 focus-within:ring-primary-500/50 group flex overflow-hidden rounded-[16px] border border-slate-200/80 bg-white shadow-sm transition-all focus-within:ring-1 dark:border-white/10 dark:bg-[#0b0f19]">
+                <div className="focus-within:border-primary-500/50 focus-within:ring-primary-500/50 group flex overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all focus-within:ring-1 dark:border-white/10 dark:bg-[#0b0f19]">
                   <span className="flex items-center justify-center border-r border-slate-200/80 bg-slate-50 px-5 py-4 text-[14px] font-bold tracking-wider text-slate-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-400">
                     @
                   </span>

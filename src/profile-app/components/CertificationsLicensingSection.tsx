@@ -23,10 +23,10 @@ function formatYear(date: string): string {
 function CertificationsLicensingSkeleton() {
   return (
     <div className="w-full pb-20">
-      <div className="mb-4 min-h-[220px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+      <div className="mb-4 min-h-55 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div className="h-[360px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
-        <div className="h-[360px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+        <div className="h-90 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+        <div className="h-90 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
       </div>
     </div>
   )
@@ -35,9 +35,13 @@ function CertificationsLicensingSkeleton() {
 function CertificationCard({ item, idx, accent }: { item: DynamicPostListItem; idx: number; accent: string }) {
   const imageUrl = resolveCertificateImage(item)
   const preview = stripHtml(item.description)
-  const detailUrl = item.generalInfoUrl.trim()
-  const year = formatYear(item.date)
-  const credentialLabel = item.attachments[0]?.doc_name?.trim() || `CERT-${item.id}`
+  const detailUrl = item.generalInfoUrl.trim() || item.attachments.find((a) => a.url?.trim())?.url?.trim() || ''
+  const year = item.year?.trim() || formatYear(item.date)
+  const issuer = item.issuer?.trim() || ''
+  const credentialLabel = item.attachments[0]?.doc_name?.trim() || issuer || `CERT-${item.id}`
+  const isImageDoc =
+    Boolean(imageUrl) &&
+    (/\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(imageUrl) || !/\.(pdf|docx?|txt)(\?|$)/i.test(imageUrl))
 
   const card = (
     <motion.article
@@ -48,7 +52,7 @@ function CertificationCard({ item, idx, accent }: { item: DynamicPostListItem; i
     >
       <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
         <div className="absolute inset-0 z-10 bg-linear-to-t from-white to-transparent dark:from-zinc-900" />
-        {imageUrl ? (
+        {imageUrl && isImageDoc ? (
           <Image
             width={500}
             height={500}
@@ -74,6 +78,7 @@ function CertificationCard({ item, idx, accent }: { item: DynamicPostListItem; i
         <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
           {item.title}
         </h3>
+        {issuer ? <p className="mb-3 text-xs font-bold tracking-wider text-zinc-500 uppercase">{issuer}</p> : null}
         {item.description.trim() ? (
           <div
             className="prose prose-zinc dark:prose-invert mb-6 line-clamp-3 max-w-none text-sm font-medium text-zinc-600 dark:text-zinc-400"
@@ -144,7 +149,7 @@ export const CertificationsLicensingSection = () => {
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <Award size={24} style={{ color: accent }} />
           </div>
@@ -171,7 +176,7 @@ export const CertificationsLicensingSection = () => {
             <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
               <Award size={12} style={{ color: accent }} /> Licenses & Certifications
             </div>
-            <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight break-words hyphens-auto text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+            <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight wrap-break-word hyphens-auto text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
               {sectionTitle}
             </h2>
             <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400">

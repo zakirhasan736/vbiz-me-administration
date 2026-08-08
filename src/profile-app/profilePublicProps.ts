@@ -21,6 +21,7 @@ import type {
   VCardPersonal,
   VCardPortfolioEntry,
   VCardRecord,
+  VCardReviewEntry,
   VCardSectionPostItem,
   VCardServiceEntry,
   VCardSkillGroup,
@@ -63,6 +64,7 @@ export type VBizProfileAppProps = {
   services?: VCardServiceEntry[]
   skills?: VCardSkillGroup[]
   portfolio?: VCardPortfolioEntry[]
+  reviews?: VCardReviewEntry[]
   sectionPosts?: Record<string, VCardSectionPostItem[]>
   generalPosts?: VCardGeneralPost[]
   faqs?: VCardFaqEntry[]
@@ -102,7 +104,13 @@ export function buildProfileShareUrl(slug: string): string {
 export function vCardDataToProfileProps(
   data: VCardData,
   designSettings: DesignSettingsState,
-  meta?: { id?: string; avatarImageUrl?: string }
+  meta?: {
+    id?: string
+    avatarImageUrl?: string
+    themeConfig?: CardThemeConfig | null
+    themeFromApi?: boolean
+    appearance?: Partial<VCardData['appearance']> | null
+  }
 ): VBizProfileAppProps {
   const slug = data.slug.trim()
   const display = getDisplaySettingsFromVCard(data)
@@ -139,6 +147,9 @@ export function vCardDataToProfileProps(
     (showTagline && data.personal.about?.trim()) ||
     (showTagline ? 'Your digital introduction' : '')
 
+  const themeConfig = meta?.themeConfig ?? data.themeConfig ?? null
+  const appearance = meta?.appearance ? { ...data.appearance, ...meta.appearance } : data.appearance
+
   return {
     explainerVideoUrl: introUrl,
     cardOwnerId: meta?.id ?? 'preview',
@@ -146,7 +157,10 @@ export function vCardDataToProfileProps(
     tagline,
     coverVideoUrl: coverUrl,
     avatarVideoUrl: avatarOnly,
-    design: resolveProfileDesignFromData(data, designSettings),
+    design: resolveProfileDesignFromData(data, designSettings, {
+      themeConfig,
+      appearance,
+    }),
     personal: data.personal,
     social: data.social ?? createDefaultVCardSocial(),
     extraFields: data.extraFields ?? [],
@@ -155,12 +169,14 @@ export function vCardDataToProfileProps(
     services: normalizeServiceList(data.services),
     skills: data.skills ?? [],
     portfolio: data.portfolio ?? [],
+    reviews: data.reviews ?? [],
     sectionPosts: data.sectionPosts ?? {},
     generalPosts: normalizeGeneralPostList(data.generalPosts),
     faqs: normalizeFaqList(data.faqs),
     displaySettings: display,
     shareSlug: slug || undefined,
-    themeConfig: data.themeConfig ?? null,
+    themeConfig,
+    themeFromApi: meta?.themeFromApi,
   }
 }
 

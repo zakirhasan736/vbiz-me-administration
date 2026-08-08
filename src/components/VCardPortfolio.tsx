@@ -1,11 +1,13 @@
 'use client'
 
+import { AiDropFillZone, type ParsedEntry } from '@/components/AiDropFillZone'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
+import { SectionJumpPills } from '@/components/SectionJumpPills'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultPortfolioEntry, normalizePortfolioList } from '@/lib/vcardPortfolio'
 import type { VCardPortfolioEntry } from '@/types/vcard'
 import { FileText, FolderOpen, LayoutGrid, Link as LinkIcon, Plus, Trash2, Youtube } from 'lucide-react'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 shadow-sm'
@@ -16,7 +18,10 @@ export function TabPortfolio() {
   const { cardId, vCardData, updateData } = useVCard()
   const portfolios = normalizePortfolioList(vCardData.portfolio)
   const portfoliosRef = useRef(portfolios)
-  portfoliosRef.current = portfolios
+
+  useEffect(() => {
+    portfoliosRef.current = portfolios
+  }, [portfolios])
 
   const setPortfolios = (next: VCardPortfolioEntry[]) => updateData('portfolio', next)
 
@@ -38,6 +43,15 @@ export function TabPortfolio() {
 
   const patchPortfolio = (id: string, patch: Partial<VCardPortfolioEntry>) => {
     setPortfolios(portfoliosRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+  }
+
+  const applyParsed = (entries: ParsedEntry[]) => {
+    const mapped = entries.map((e) => ({
+      ...createDefaultPortfolioEntry(),
+      title: e.title,
+      description: e.description,
+    }))
+    setPortfolios([...mapped, ...portfoliosRef.current.filter((p) => p.title || p.description)])
   }
 
   return (
@@ -70,6 +84,22 @@ export function TabPortfolio() {
         </button>
       </div>
 
+      <AiDropFillZone
+        accent="violet"
+        hint="Paste projects as title then description — blank line or --- between each"
+        onParsed={applyParsed}
+      />
+
+      <SectionJumpPills
+        accent="teal"
+        label="Jump to project"
+        items={portfolios.map((p) => ({
+          id: p.id,
+          title: p.title || 'Project',
+          detail: p.description?.slice(0, 40),
+        }))}
+      />
+
       <div className="flex flex-1 flex-col">
         {portfolios.length === 0 ? (
           <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
@@ -84,7 +114,8 @@ export function TabPortfolio() {
             {portfolios.map((portfolio, index) => (
               <section
                 key={portfolio.id}
-                className="group/card overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
+                id={`entry-${portfolio.id}`}
+                className="group/card scroll-mt-24 overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
               >
                 <div className="flex flex-col items-center justify-between gap-2 border-b border-slate-200/50 px-4 py-6 sm:px-8 md:flex-row dark:border-white/5">
                   <div className="flex items-center gap-4">
@@ -173,23 +204,43 @@ export function TabPortfolio() {
                         })
                       }}
                     />
-                    <div className="group flex flex-col space-y-1.5">
-                      <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                        {portfolio.type === 'Video' ? (
-                          <Youtube className="h-3.5 w-3.5 text-red-500" />
-                        ) : (
-                          <LinkIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                        )}
-                        {portfolio.type === 'Video' ? 'YouTube / Video URL' : 'Project / Link URL'}
-                      </label>
-                      <input
-                        type="text"
-                        value={portfolio.url}
-                        onChange={(e) => updatePortfolio(portfolio.id, 'url', e.target.value)}
-                        placeholder={portfolio.type === 'Video' ? 'Enter YouTube video URL' : 'https://…'}
-                        className={inputClasses}
-                      />
-                    </div>
+                    <MediaFileUploader
+                      label="Attachments (Images/Video)"
+                      accent="teal"
+                      profileId={cardId}
+                      attachmentType="Portfolio Attachment"
+                      value={portfolio.attachments?.url || ''}
+                      fileName={portfolio.attachments?.name || ''}
+                      accept="image/*,video/*"
+                      hint="Optional secondary image or video attachment"
+                      onChange={(next) => {
+                        if (!next) {
+                          patchPortfolio(portfolio.id, { attachments: null })
+                          return
+                        }
+                        patchPortfolio(portfolio.id, {
+                          attachments: { url: next.url, name: next.fileName },
+                        })
+                      }}
+                    />
+                  </div>
+
+                  <div className="group mb-8 flex flex-col space-y-1.5">
+                    <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                      {portfolio.type === 'Video' ? (
+                        <Youtube className="h-3.5 w-3.5 text-red-500" />
+                      ) : (
+                        <LinkIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                      )}
+                      {portfolio.type === 'Video' ? 'YouTube / Video URL' : 'Project / Link URL'}
+                    </label>
+                    <input
+                      type="text"
+                      value={portfolio.url}
+                      onChange={(e) => updatePortfolio(portfolio.id, 'url', e.target.value)}
+                      placeholder={portfolio.type === 'Video' ? 'Enter YouTube video URL' : 'https://…'}
+                      className={inputClasses}
+                    />
                   </div>
 
                   <div className="mb-8 flex items-center gap-4 pt-2">

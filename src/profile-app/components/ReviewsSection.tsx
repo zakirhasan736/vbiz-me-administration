@@ -25,7 +25,7 @@ const SKELETON_CARD_COUNT = 4
 
 function ReviewsHeaderSkeleton() {
   return (
-    <div className="relative flex min-h-[200px] flex-col justify-end overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-100 p-4 pb-12 md:min-h-[22vh] md:rounded-[2.5rem] md:p-6 md:pb-6 lg:col-span-4 lg:min-h-[24vh] dark:border-zinc-800/80 dark:bg-zinc-900">
+    <div className="relative flex min-h-50 flex-col justify-end overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-100 p-4 pb-12 md:min-h-[22vh] md:rounded-[2.5rem] md:p-6 md:pb-6 lg:col-span-4 lg:min-h-[24vh] dark:border-zinc-800/80 dark:bg-zinc-900">
       <div className="w-full space-y-3">
         <div className="h-6 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
         <div className="h-8 w-3/4 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
@@ -41,7 +41,7 @@ function ReviewGridCardSkeleton({ idx }: { idx: number }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: idx * 0.05 }}
-      className="min-h-[280px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800"
+      className="min-h-70 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800"
     />
   )
 }
@@ -62,11 +62,13 @@ export const ReviewsSection = () => {
   const sectionTitle = data?.sectionTitle ?? 'Reviews'
   const leaveReviewUrl = data?.leaveReviewUrl ?? null
   const reviewCount = data?.reviewCount ?? 0
+  const averageRating = data?.averageRating ?? 0
   const slideCount = slides.length
   const clampedActiveIndex = slideCount === 0 ? 0 : Math.min(activeIndex, slideCount - 1)
 
   const totalReviewsLabel =
     reviewCount >= 50 ? '50+' : reviewCount >= 20 ? '20+' : reviewCount >= 10 ? '10+' : reviewCount
+  const averageLabel = averageRating > 0 ? averageRating.toFixed(1) : '0.0'
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -113,7 +115,7 @@ export const ReviewsSection = () => {
         {showInitialLoader ? (
           <ReviewsHeaderSkeleton />
         ) : (
-          <div className="group relative flex min-h-[200px] w-full flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#020914] shadow-xl md:min-h-[22vh] md:rounded-[2.5rem] lg:col-span-4 lg:min-h-[24vh] dark:border-[#eed677]/20">
+          <div className="group relative flex min-h-50 w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 bg-[#020914] shadow-xl md:min-h-[22vh] md:rounded-[2.5rem] lg:col-span-4 lg:min-h-[24vh] dark:border-[#eed677]/20">
             {/* Accent background (no video) */}
             <div className="absolute inset-0 z-0 h-full w-full">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,rgba(238,214,119,0.14),transparent_60%)]" />
@@ -175,7 +177,9 @@ export const ReviewsSection = () => {
                         {[1, 2, 3, 4, 5].map((i) => (
                           <Star
                             key={i}
-                            className="h-3 w-3 fill-[#eed677] text-[#eed677] drop-shadow-[0_0_8px_rgba(238,214,119,0.4)] md:h-5 md:w-5"
+                            className={`h-3 w-3 drop-shadow-[0_0_8px_rgba(238,214,119,0.4)] md:h-5 md:w-5 ${
+                              i <= Math.round(averageRating) ? 'fill-[#eed677] text-[#eed677]' : 'text-zinc-600'
+                            }`}
                           />
                         ))}
                       </div>
@@ -184,7 +188,7 @@ export const ReviewsSection = () => {
                       </span>
                     </div>
                     <div className="flex shrink-0 items-baseline gap-1 md:gap-2">
-                      <span className="text-sm font-black text-white md:text-3xl">5.0</span>
+                      <span className="text-sm font-black text-white md:text-3xl">{averageLabel}</span>
                       <span className="text-[9px] font-medium text-zinc-500 md:text-sm">/ 5.0</span>
                     </div>
                   </div>
@@ -274,7 +278,7 @@ export const ReviewsSection = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
                 key={item.id}
-                className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 sm:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 md:col-span-2 lg:col-span-2 dark:from-zinc-900/80 dark:to-zinc-900/40' : 'col-span-1'}`}
+                className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 sm:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 md:col-span-2 lg:col-span-2 dark:from-zinc-900/80 dark:to-zinc-900/40' : 'col-span-1'}`}
               >
                 <div className="pointer-events-none absolute top-0 right-0 -mt-12 -mr-12 rounded-full bg-[#eab308]/10 p-24 opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-100 dark:bg-[#eab308]/5" />
 
@@ -282,7 +286,12 @@ export const ReviewsSection = () => {
                   <div className="mb-6 flex items-start justify-between">
                     <div className="flex gap-1.5 rounded-lg border border-zinc-200/50 bg-zinc-50/50 p-1.5 backdrop-blur-sm dark:border-zinc-800/50 dark:bg-zinc-950/50">
                       {[1, 2, 3, 4, 5].map((i) => (
-                        <Star key={i} className="h-4 w-4 fill-[#eab308] text-[#eab308]" />
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i <= item.rating ? 'fill-[#eab308] text-[#eab308]' : 'text-zinc-300 dark:text-zinc-600'
+                          }`}
+                        />
                       ))}
                     </div>
                     <Quote className="h-8 w-8 text-zinc-200 transition-colors group-hover:text-zinc-300 dark:text-zinc-800 dark:group-hover:text-zinc-700" />
@@ -326,9 +335,9 @@ export const ReviewsSection = () => {
       ) : null}
 
       {!showInitialLoader && slideCount > 0 && viewMode === 'slider' ? (
-        <div className="relative z-20 mt-6 mb-8 flex min-h-[380px] w-full flex-1 flex-col items-center justify-center perspective-[1600px] md:mt-12 md:min-h-[480px]">
+        <div className="relative z-20 mt-6 mb-8 flex min-h-95 w-full flex-1 flex-col items-center justify-center perspective-[1600px] md:mt-12 md:min-h-120">
           {/* Desktop floating arrows */}
-          <div className="pointer-events-none absolute top-1/2 z-40 hidden w-full max-w-[1080px] -translate-y-1/2 justify-between px-2 md:flex">
+          <div className="pointer-events-none absolute top-1/2 z-40 hidden w-full max-w-270 -translate-y-1/2 justify-between px-2 md:flex">
             <button
               type="button"
               onClick={prevReview}
@@ -357,7 +366,7 @@ export const ReviewsSection = () => {
               if (info.offset.x < -threshold) nextReview()
               else if (info.offset.x > threshold) prevReview()
             }}
-            className="transform-style-3d relative flex w-full max-w-[1000px] cursor-grab items-center justify-center select-none active:cursor-grabbing"
+            className="transform-style-3d relative flex w-full max-w-250 cursor-grab items-center justify-center select-none active:cursor-grabbing"
             style={{ height: isMobile ? '310px' : '410px' }}
           >
             <AnimatePresence initial={false}>
@@ -405,7 +414,7 @@ export const ReviewsSection = () => {
                         setTimeout(() => setIsTransitioning(false), 350)
                       }
                     }}
-                    className="transform-style-3d group/card absolute flex cursor-pointer flex-col justify-between overflow-hidden rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-2xl transition-all duration-300 md:p-8 dark:border-zinc-800 dark:bg-zinc-900"
+                    className="transform-style-3d group/card absolute flex cursor-pointer flex-col justify-between overflow-hidden rounded-4xl border border-zinc-200 bg-white p-6 shadow-2xl transition-all duration-300 md:p-8 dark:border-zinc-800 dark:bg-zinc-900"
                     style={{ width: `${cardWidth}px`, height: `${cardHeight}px` }}
                   >
                     <AnimatePresence>
@@ -423,14 +432,14 @@ export const ReviewsSection = () => {
 
                     <motion.div
                       animate={{ backgroundColor: absOffset === 0 ? 'rgba(24,24,27,0)' : 'rgba(100,100,100,0.1)' }}
-                      className="pointer-events-none absolute inset-0 z-30 rounded-[2rem] mix-blend-multiply transition-colors duration-500 dark:mix-blend-normal"
+                      className="pointer-events-none absolute inset-0 z-30 rounded-4xl mix-blend-multiply transition-colors duration-500 dark:mix-blend-normal"
                     />
                     <motion.div
                       animate={{ backgroundColor: absOffset === 0 ? 'rgba(24,24,27,0)' : 'rgba(24,24,27,0.72)' }}
-                      className="pointer-events-none absolute inset-0 z-30 hidden rounded-[2rem] transition-colors duration-500 dark:block"
+                      className="pointer-events-none absolute inset-0 z-30 hidden rounded-4xl transition-colors duration-500 dark:block"
                     />
 
-                    <div className="pointer-events-none absolute top-0 right-0 -mt-16 -mr-16 translate-x-[var(--mouse-x,0px)] translate-y-[var(--mouse-y,0px)] rounded-full bg-[#eed677]/10 p-32 blur-3xl transition-transform duration-700 dark:bg-[#eed677]/5" />
+                    <div className="pointer-events-none absolute top-0 right-0 -mt-16 -mr-16 translate-x-(--mouse-x,0px) translate-y-(--mouse-y,0px) rounded-full bg-[#eed677]/10 p-32 blur-3xl transition-transform duration-700 dark:bg-[#eed677]/5" />
 
                     <div className="relative z-10 flex h-full flex-col">
                       <SliderReviewCard item={item} />
@@ -442,7 +451,7 @@ export const ReviewsSection = () => {
           </motion.div>
 
           {/* Controller — prev / dots / next. On mobile it sits above the cards. */}
-          <div className="order-first mb-5 flex w-full max-w-[420px] shrink-0 items-center justify-between px-4 select-none md:order-none md:mt-6 md:mb-0">
+          <div className="order-first mb-5 flex w-full max-w-105 shrink-0 items-center justify-between px-4 select-none md:order-0 md:mt-6 md:mb-0">
             <button
               type="button"
               onClick={prevReview}

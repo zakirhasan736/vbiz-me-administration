@@ -33,13 +33,10 @@ export type VCardPersonal = {
   phone: string
   whatsapp: string
   address: string
-  state?: string
-  city?: string
-  zip?: string
   /** Public website URL (contact card + MyInfo Website setting) */
   website?: string
   about: string
-  /** Shown on the public profile preloader (Personal → Explainer Video) */
+  /** Shown on the public profile preloader (Media & Profile / intro video) */
   explainerVideoUrl?: string
 }
 
@@ -138,8 +135,18 @@ export type VCardPortfolioEntry = {
   description: string
   imageUrl: string
   imageName?: string
+  /** Secondary image/video — backoffice “Attachments (Images/Video)”. */
+  attachments?: { url: string; name: string } | null
   url: string
   active: boolean
+}
+
+/** Back office → Reviews tab entries (shown on public Reviews section). */
+export type VCardReviewEntry = {
+  id: string
+  author: string
+  rating: number
+  text: string
 }
 
 /** Back office → Skills tab: category + skill tags (persisted as SkillTag rows). */
@@ -162,6 +169,7 @@ export type VCardData = {
   /** Posts keyed by exact PUBLIC_SECTION_NAMES / postTypeName values. */
   sectionPosts?: Record<string, VCardSectionPostItem[]>
   portfolio: VCardPortfolioEntry[]
+  reviews?: VCardReviewEntry[]
   skills?: VCardSkillGroup[]
   /** @deprecated Legacy field; use `social` */
   socials: unknown[]
@@ -208,9 +216,6 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
       phone: '',
       whatsapp: '',
       address: '',
-      state: '',
-      city: '',
-      zip: '',
       website: '',
       about: '',
       explainerVideoUrl: '',
@@ -227,6 +232,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     faqs: [],
     sectionPosts: {},
     portfolio: [],
+    reviews: [],
     skills: [],
     socials: [],
     social: { handles: {}, customLinks: [], games: {} },
@@ -254,6 +260,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     faqs: overrides.faqs ?? base.faqs,
     sectionPosts: overrides.sectionPosts ?? base.sectionPosts,
     portfolio: overrides.portfolio ?? base.portfolio,
+    reviews: overrides.reviews ?? base.reviews,
     skills: overrides.skills ?? base.skills,
     displaySettings: overrides.displaySettings,
   }

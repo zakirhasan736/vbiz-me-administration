@@ -9,7 +9,7 @@ import { useState } from 'react'
 type CanvaConnectRowProps = {
   userId?: string | null
   returnTo?: string
-  variant?: 'status' | 'icon'
+  variant?: 'status' | 'icon' | 'card'
   title?: string
   description?: string
   className?: string
@@ -35,16 +35,87 @@ export function CanvaConnectRow({
   })
 
   const handleConnectClick = () => {
-    if (!userId) {
-      setShowModal(true)
-      return
-    }
     setShowModal(true)
   }
 
   const handleDisconnect = async () => {
     await disconnect()
     onDisconnected?.()
+  }
+
+  const modal = (
+    <CanvaConnectModal
+      isOpen={showModal}
+      onClose={() => setShowModal(false)}
+      userId={userId}
+      returnTo={returnTo}
+      onConnected={onConnected}
+      onConnect={connect}
+      error={error}
+    />
+  )
+
+  if (variant === 'card') {
+    const cardTitle = isConnected ? 'Canva connected' : 'Connect Canva'
+    const cardDescription =
+      description ||
+      (isConnected
+        ? 'Your Canva account is linked for profile images and wallpapers.'
+        : 'Link Canva to create custom visuals for your vCards.')
+
+    return (
+      <>
+        <div
+          className={cn(
+            'rounded-3xl border border-slate-200/80 bg-linear-to-br from-[#00C4CC]/10 via-white to-[#7D2AE8]/10 p-6 dark:border-white/10 dark:from-[#00C4CC]/10 dark:via-[#0b0f19] dark:to-[#7D2AE8]/10',
+            className
+          )}
+        >
+          <div className="flex items-start gap-4">
+            <div className="h-14 w-14 shrink-0 rounded-2xl bg-linear-to-tr from-[#00C4CC] to-[#7D2AE8] p-0.5">
+              <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white dark:bg-[#0b0f19]">
+                <Palette className="h-7 w-7 text-[#00C4CC]" />
+              </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 className="text-[15px] font-black text-slate-900 dark:text-white">{cardTitle}</h4>
+              <p className="mt-1 text-[13px] leading-relaxed font-semibold text-slate-500">{cardDescription}</p>
+              {error ? <p className="mt-2 text-[12px] font-medium text-red-500">{error}</p> : null}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {isLoading ? (
+                  <div className="flex items-center gap-2 py-2 text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-[12px] font-bold">Checking connection…</span>
+                  </div>
+                ) : isConnected ? (
+                  <>
+                    <span className="inline-flex items-center rounded-xl bg-emerald-50 px-3 py-1.5 text-[11px] font-black tracking-wider text-emerald-700 uppercase dark:bg-emerald-500/15 dark:text-emerald-300">
+                      Connected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void handleDisconnect()}
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
+                    >
+                      Disconnect
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleConnectClick}
+                    className="rounded-xl bg-linear-to-r from-[#00C4CC] to-[#7D2AE8] px-5 py-2.5 text-[12px] font-black tracking-wider text-white uppercase shadow-md active:scale-95"
+                  >
+                    Connect Canva
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        {modal}
+      </>
+    )
   }
 
   if (variant === 'icon') {
@@ -57,7 +128,7 @@ export function CanvaConnectRow({
           )}
         >
           <div className="flex min-w-0 items-center gap-4">
-            <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-12 w-12 items-center justify-center rounded-[16px] border shadow-sm transition-transform group-hover:scale-105">
+            <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm transition-transform group-hover:scale-105">
               <Palette className="text-primary-600 dark:text-primary-400 h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -92,16 +163,7 @@ export function CanvaConnectRow({
             </button>
           )}
         </div>
-
-        <CanvaConnectModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          userId={userId}
-          returnTo={returnTo}
-          onConnected={onConnected}
-          onConnect={connect}
-          error={error}
-        />
+        {modal}
       </>
     )
   }
@@ -145,16 +207,7 @@ export function CanvaConnectRow({
           </button>
         )}
       </div>
-
-      <CanvaConnectModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        userId={userId}
-        returnTo={returnTo}
-        onConnected={onConnected}
-        onConnect={connect}
-        error={error}
-      />
+      {modal}
     </>
   )
 }

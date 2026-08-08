@@ -27,6 +27,32 @@ function pushApiUrl(path: string) {
   return `${getPushApiBase()}/push${path}`
 }
 
+/** Public API uses `{ success, data }`; accept flat payloads too. */
+function unwrapPublicPayload<T extends Record<string, unknown>>(json: unknown): T {
+  if (!json || typeof json !== 'object') return {} as T
+  const record = json as Record<string, unknown>
+  if (record.data && typeof record.data === 'object') {
+    return record.data as T
+  }
+  return record as T
+}
+
+function hasOtherActiveFollows(exceptCardSlug: string) {
+  if (typeof window === 'undefined') return false
+  const except = followStorageKey(exceptCardSlug)
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i)
+    if (!key || !key.startsWith('vbiz_push_follow_') || key === except) continue
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || '') as { following?: boolean }
+      if (parsed?.following) return true
+    } catch {
+      /* ignore */
+    }
+  }
+  return false
+}
+
 export const NOTIFICATION_PREFERENCE_OPTIONS: Array<{ id: NotificationPreferenceKey; label: string }> = [
   { id: 'contact', label: '📞 Updated contact info' },
   { id: 'video', label: '🎬 New videos or photos' },
@@ -245,7 +271,7 @@ export async function fetchPushStatus(
     }
   }
 
-  const json = (await response.json()) as PushSubscriptionStatusResponse
+  const json = unwrapPublicPayload<PushSubscriptionStatusResponse>(await response.json())
   const backendPreferences = json.preferences ? normalizeBackendPreferences(json.preferences) : null
   const preferences = backendPreferences ? fromBackendPreferences(backendPreferences) : null
   const following = Boolean(json.subscribed)
@@ -373,7 +399,7 @@ export async function updateCardBackendPreferences(
 
   let payload: PushPreferencesUpdateResponse = {}
   try {
-    payload = (await response.json()) as PushPreferencesUpdateResponse
+    payload = unwrapPublicPayload<PushPreferencesUpdateResponse>(await response.json())
   } catch {
     /* ignore parse errors */
   }
@@ -385,6 +411,11 @@ export async function updateCardBackendPreferences(
   const savedPreferences = normalizeBackendPreferences(payload.preferences ?? preferences)
   const uiPreferences = fromBackendPreferences(savedPreferences)
 
+  writeFollowState(cardSlug, {
+    following: true,
+    preferences: uiPreferences,
+    subscribedAt: readFollowState(cardSlug)?.subscribedAt,
+  })
   setCachedCardPushStatus(cardSlug, { following: true, preferences: uiPreferences })
 
   return {
@@ -413,8 +444,16 @@ export async function unsubscribeFromCard(cardSlug: string) {
         endpoint: stored.endpoint,
       }),
     }).catch(() => {
-      /* still clear browser state if backend call fails */
+      /* still clear local follow state if backend call fails */
     })
+  }
+
+  clearFollowState(cardSlug)
+  invalidateCardPushStatus(cardSlug)
+
+  // Keep the browser PushSubscription if this endpoint still follows other cards.
+  if (hasOtherActiveFollows(cardSlug)) {
+    return
   }
 
   const registration = await getReadyRegistration()
@@ -422,23 +461,30 @@ export async function unsubscribeFromCard(cardSlug: string) {
   if (subscription) {
     await subscription.unsubscribe()
   }
-
   clearStoredSubscription()
-  clearFollowState(cardSlug)
-  invalidateCardPushStatus(cardSlug)
 }
 
 export async function sendTestNotification(cardSlug: string, title?: string, body?: string) {
+  const stored = await resolvePushSubscriptionPayload()
+  if (!stored?.endpoint) {
+    throw new Error('No browser push subscription found. Enable notifications first.')
+  }
+
   const response = await fetch(pushApiUrl('/test'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cardSlug, title, body }),
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      profile_slug: cardSlug,
+      endpoint: stored.endpoint,
+      title,
+      body,
+    }),
   })
 
   if (!response.ok) {
-    const error = (await response.json().catch(() => null)) as { error?: string } | null
-    throw new Error(error?.error ?? 'Could not send test notification.')
+    const error = (await response.json().catch(() => null)) as { error?: string; message?: string } | null
+    throw new Error(error?.error ?? error?.message ?? 'Could not send test notification.')
   }
 
-  return response.json()
+  return unwrapPublicPayload(await response.json())
 }

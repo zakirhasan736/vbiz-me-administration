@@ -17,13 +17,9 @@ export type ApiProfile = {
   designation?: string | null
   about?: string | null
   address?: string | null
-  zipCode?: string | null
   avatar?: string | null
   addresses?: Array<{
     id?: string
-    city?: string | null
-    state?: string | null
-    zipCode?: string | null
     line1?: string | null
     isPrimary?: boolean
   }>
@@ -73,6 +69,15 @@ export type ApiProfile = {
     description?: string | null
     url?: string | null
     imageUrl?: string | null
+    attachmentUrl?: string | null
+    attachmentName?: string | null
+    status?: number | null
+  }>
+  reviews?: Array<{
+    id: string
+    author?: string | null
+    text?: string | null
+    rating?: number | null
     status?: number | null
   }>
   skillTags?: Array<{
@@ -107,8 +112,20 @@ export type ApiPost = {
   sortOrder?: number | null
   postType?: { id?: string; name?: string | null; title?: string | null } | null
   metas?: Array<{ metaKey: string; metaValue: string | null }>
+  attachments?: Array<{
+    id?: string
+    docName?: string | null
+    url?: string | null
+    mimeType?: string | null
+  }>
   createdAt?: string
   updatedAt?: string
+}
+
+export type PostDocumentPayload = {
+  url: string
+  name?: string
+  type?: string
 }
 
 type Envelope<T> = { success: boolean; data: T; message?: string }
@@ -126,6 +143,8 @@ export type DashboardSocialChannel =
   | 'pinterest'
   | 'website'
 
+export type DashboardPeriod = 'all' | '7' | '30' | '90'
+
 export type DashboardStats = {
   cards: number
   totalViews: number
@@ -133,6 +152,9 @@ export type DashboardStats = {
   contactsLast30Days: number
   notesLast30Days: number
   guestsLast30Days: number
+  uniqueViews?: number
+  shares?: number
+  period?: DashboardPeriod
   visitsChart: {
     total: number
     trendPercent: number
@@ -152,6 +174,19 @@ export type DashboardStats = {
     platform: string
     createdAt: string
   }>
+  profiles?: Array<{
+    id: string
+    name: string
+    slug: string
+    viewCount: number
+    services: number
+    portfolios: number
+    posts: number
+  }>
+}
+
+export type DashboardStatsQuery = {
+  period?: DashboardPeriod
 }
 
 export type DashboardEngagementRow = {
@@ -175,6 +210,26 @@ export type DashboardEngagementQuery = {
   limit?: number
   profileId?: string
   eventType?: string
+}
+
+export type LiveSocialClickRow = {
+  label: string
+  channel: string
+  clickCount: number
+}
+
+export type WeeklyEngagementDay = {
+  day: string
+  fullDay: string
+  views: number
+  clicks: number
+  ctr: number
+}
+
+export type WeeklyEngagement = {
+  days: WeeklyEngagementDay[]
+  totals: { views: number; clicks: number; avgCtr: number }
+  profileName: string
 }
 
 export const BLOG_POST_TYPE = 'blog'
@@ -234,8 +289,6 @@ export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
 }
 
 export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
-  const primaryAddress = profile.addresses?.find((a) => a.isPrimary) || profile.addresses?.[0] || null
-
   const { displaySettings, avatarImageUrl, backgroundImageUrl, explainerVideoUrl } = hydrateDisplaySettingsFromProfile({
     settings: profile.settings,
     attachments: profile.attachments,
@@ -257,9 +310,6 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       phone: profile.phone || '',
       whatsapp: profile.whatsapp || '',
       address: profile.address || '',
-      state: primaryAddress?.state || '',
-      city: primaryAddress?.city || '',
-      zip: profile.zipCode || primaryAddress?.zipCode || '',
       website: profile.website || '',
       about: profile.about || '',
       explainerVideoUrl,
@@ -319,9 +369,20 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       description: p.description || '',
       imageUrl: p.imageUrl || '',
       imageName: '',
+      attachments: p.attachmentUrl ? { url: p.attachmentUrl, name: p.attachmentName || '' } : null,
       url: p.url || '',
       active: p.status !== 0,
     })),
+    reviews: (profile.reviews || []).map((r) => {
+      const rawRating = typeof r.rating === 'number' ? r.rating : Number(r.rating)
+      const rating = Number.isFinite(rawRating) ? Math.min(5, Math.max(1, Math.round(rawRating))) : 5
+      return {
+        id: r.id,
+        author: r.author || '',
+        text: r.text || '',
+        rating,
+      }
+    }),
     skills: skillTagsToGroups(profile.skillTags),
     displaySettings,
   })
@@ -357,9 +418,6 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     whatsapp: data.personal.whatsapp,
     website: data.personal.website,
     address: data.personal.address,
-    zipCode: data.personal.zip ?? '',
-    city: data.personal.city ?? '',
-    state: data.personal.state ?? '',
     about: data.personal.about,
     prof: data.personal.profession,
     dob: dob || null,
@@ -393,7 +451,7 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
 }
 
 function isLocalTempId(id: string): boolean {
-  return /^(pf_|sk_|post_|faq_|svc_|sec_)/.test(id)
+  return /^(pf_|sk_|post_|faq_|svc_|sec_|rev_)/.test(id)
 }
 
 const profilesApi = api.injectEndpoints({
@@ -459,6 +517,11 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
     }),
+    replaceReviews: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
+      query: ({ id, items }) => ({ url: `/profiles/${id}/reviews`, method: 'PUT', body: { items } }),
+      transformResponse: (res: Envelope<ApiProfile>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+    }),
     replaceSkills: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/skills`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
@@ -487,6 +550,7 @@ const profilesApi = api.injectEndpoints({
           featuredImage?: string
           status?: string
           metas?: Record<string, string>
+          documents?: PostDocumentPayload[]
         }
       }
     >({
@@ -510,6 +574,7 @@ const profilesApi = api.injectEndpoints({
           status?: string
           sortOrder?: number
           metas?: Record<string, string>
+          documents?: PostDocumentPayload[]
         }
       }
     >({
@@ -527,8 +592,11 @@ const profilesApi = api.injectEndpoints({
         { type: 'profiles', id: `${arg.id}:posts` },
       ],
     }),
-    getDashboardStats: builder.query<DashboardStats, void>({
-      query: () => '/profiles/dashboard/stats',
+    getDashboardStats: builder.query<DashboardStats, DashboardStatsQuery | void>({
+      query: (params) => {
+        const period = params?.period ?? 'all'
+        return `/profiles/dashboard/stats?period=${encodeURIComponent(period)}`
+      },
       transformResponse: (res: Envelope<DashboardStats>) => res.data,
       providesTags: ['dashboard'],
     }),
@@ -546,12 +614,20 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<DashboardEngagementPage>) => res.data,
       providesTags: ['dashboard'],
     }),
-    exportDashboardOverview: builder.mutation<Blob, void>({
-      query: () => ({
-        url: '/profiles/dashboard/export',
-        method: 'GET',
-        responseHandler: async (response: Response) => response.blob(),
-      }),
+    getWeeklyEngagement: builder.query<WeeklyEngagement, void>({
+      query: () => '/profiles/dashboard/weekly-engagement',
+      transformResponse: (res: Envelope<WeeklyEngagement>) => res.data,
+      providesTags: ['dashboard'],
+    }),
+    exportDashboardOverview: builder.mutation<Blob, DashboardStatsQuery | void>({
+      query: (params) => {
+        const period = params?.period ?? 'all'
+        return {
+          url: `/profiles/dashboard/export?period=${encodeURIComponent(period)}`,
+          method: 'GET',
+          responseHandler: async (response: Response) => response.blob(),
+        }
+      },
     }),
     getPackages: builder.query<unknown[], void>({
       query: () => '/profiles/packages',
@@ -599,6 +675,7 @@ export const {
   useReplaceExperiencesMutation,
   useReplaceServicesMutation,
   useReplacePortfoliosMutation,
+  useReplaceReviewsMutation,
   useReplaceSkillsMutation,
   useReplaceSocialLinksMutation,
   useListProfilePostsQuery,
@@ -608,6 +685,7 @@ export const {
   useDeleteProfilePostMutation,
   useGetDashboardStatsQuery,
   useGetRecentEngagementQuery,
+  useGetWeeklyEngagementQuery,
   useExportDashboardOverviewMutation,
   useGetPackagesQuery,
   useGetSubscriptionsQuery,

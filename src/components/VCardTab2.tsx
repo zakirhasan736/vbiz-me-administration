@@ -2,9 +2,6 @@
 
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
-import { VCardDocumentUpload } from '@/components/vcard/VCardDocumentUpload'
-import { applyVCardContextAutoFill } from '@/lib/applyVCardAutoFill'
-import type { VCardAutoFillResult } from '@/lib/vcardAutoFillDemo'
 import { useVCard } from '@/lib/VCardContext'
 import {
   AlignLeft,
@@ -12,14 +9,12 @@ import {
   Building,
   Calendar,
   Globe,
-  Hash,
   Heart,
   Link2,
   Mail,
   MapPin,
   MessageCircle,
   Phone,
-  PlaySquare,
   User,
 } from 'lucide-react'
 import { ReactNode } from 'react'
@@ -60,14 +55,8 @@ const selectClasses =
 export function Tab2PersonalInfo() {
   const { vCardData, updateData, cardId, isCreateMode } = useVCard()
 
-  const handleAutoFill = (fields: VCardAutoFillResult) => {
-    applyVCardContextAutoFill(updateData, fields)
-  }
-
   return (
     <div className="animate-in fade-in w-full pb-12 duration-500">
-      <VCardDocumentUpload section="personal-info" onAutoFill={handleAutoFill} />
-
       <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-3xl border p-6">
         <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Personal Information</h3>
         <p className="text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
@@ -251,89 +240,15 @@ export function Tab2PersonalInfo() {
             </div>
             <h4 className="text-[16px] font-black text-slate-900 dark:text-white">Address Details</h4>
           </div>
-          <div className="grid grid-cols-1 gap-x-6 gap-y-8 p-4 sm:grid-cols-2 sm:p-8 md:grid-cols-3">
-            <FieldGroup label="State">
-              <div className="relative w-full">
-                <select
-                  value={vCardData.personal.state || ''}
-                  onChange={(e) => updateData('personal.state', e.target.value)}
-                  className={`${selectClasses}`}
-                >
-                  <option value="">Choose...</option>
-                  <option value="California">California</option>
-                  <option value="New York">New York</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500 dark:text-slate-400">
-                  <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </div>
-              </div>
-            </FieldGroup>
-
-            <FieldGroup label="City">
-              <div className="relative w-full">
-                <select
-                  value={vCardData.personal.city || ''}
-                  onChange={(e) => updateData('personal.city', e.target.value)}
-                  className={`${selectClasses}`}
-                >
-                  <option value="">Choose...</option>
-                  <option value="San Francisco">San Francisco</option>
-                  <option value="Los Angeles">Los Angeles</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500 dark:text-slate-400">
-                  <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </div>
-              </div>
-            </FieldGroup>
-
-            <FieldGroup label="Zip" required icon={<Hash className="h-4 w-4" />}>
+          <div className="p-4 sm:p-8">
+            <FieldGroup label="Address" icon={<MapPin className="h-4 w-4" />}>
               <input
                 type="text"
-                value={vCardData.personal.zip || ''}
-                onChange={(e) => updateData('personal.zip', e.target.value)}
+                value={vCardData.personal.address}
+                onChange={(e) => updateData('personal.address', e.target.value)}
                 className={`${inputClasses} pl-11`}
               />
             </FieldGroup>
-
-            <div className="md:col-span-3">
-              <FieldGroup label="Address" icon={<MapPin className="h-4 w-4" />}>
-                <input
-                  type="text"
-                  value={vCardData.personal.address}
-                  onChange={(e) => updateData('personal.address', e.target.value)}
-                  className={`${inputClasses} pl-11`}
-                />
-              </FieldGroup>
-            </div>
-          </div>
-        </section>
-
-        {/* Explainer video (preloader on public profile) */}
-        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
-          <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10">
-              <PlaySquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <h4 className="text-[16px] font-black text-slate-900 dark:text-white">Explainer Video</h4>
-          </div>
-          <div className="space-y-4 p-4 sm:p-8">
-            <FieldGroup label="Video URL" icon={<PlaySquare className="h-4 w-4" />}>
-              <input
-                type="url"
-                value={vCardData.personal.explainerVideoUrl || ''}
-                onChange={(e) => updateData('personal.explainerVideoUrl', e.target.value)}
-                placeholder="https://…"
-                className={`${inputClasses} pl-10`}
-              />
-            </FieldGroup>
-            <p className="pl-1 text-[13px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-              This clip plays on the loading screen before your public profile appears. The home hero videos start only
-              after this preloader finishes (or is skipped).
-            </p>
           </div>
         </section>
 

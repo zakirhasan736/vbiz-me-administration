@@ -2,6 +2,7 @@
 
 import { TakeTourTrigger } from '@/components/tour/TakeTourBanner'
 import { useDashboardTour } from '@/context/DashboardTourContext'
+import { useAppSelector } from '@/hooks/redux'
 import { logout, useAuth } from '@/providers/AuthProvider'
 import { LogOut, Settings, UserCircle } from 'lucide-react'
 import Image from 'next/image'
@@ -16,8 +17,10 @@ export function UserDropdown() {
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const { user } = useAuth()
+  const role = useAppSelector((state) => state.user.user?.role)
   const { isActive: isTourActive } = useDashboardTour()
   const menuRef = useRef<HTMLDivElement>(null)
+  const isVcardOwner = role === 'vcard-owner'
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -80,8 +83,9 @@ export function UserDropdown() {
               >
                 <Settings className="h-4 w-4" /> Account Settings
               </Link>
-              {!isTourActive && (
+              {!isTourActive && isVcardOwner && (
                 <TakeTourTrigger
+                  tourKey="dashboard"
                   className="w-full justify-start border-transparent bg-transparent px-3 py-2.5 text-slate-600 hover:border-transparent hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
                   onStart={() => setIsProfileOpen(false)}
                 />

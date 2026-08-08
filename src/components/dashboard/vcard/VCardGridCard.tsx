@@ -17,7 +17,8 @@ import { useState } from 'react'
 
 type VCardGridCardProps = {
   card: VCardRecord
-  onOpenQr: (url: string) => void
+  onOpenQr: (url: string, name?: string) => void
+  isPersonal?: boolean
 }
 
 function isVideoMediaUrl(url: string): boolean {
@@ -25,7 +26,7 @@ function isVideoMediaUrl(url: string): boolean {
   return /\.(mp4|webm|ogg|mov|m4v)$/i.test(path)
 }
 
-export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
+export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridCardProps) {
   const dispatch = useAppDispatch()
   const [deleteProfile, { isLoading: isDeleting }] = useDeleteProfileMutation()
   const [copied, setCopied] = useState(false)
@@ -62,7 +63,7 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
   }
 
   return (
-    <Card className="group relative flex flex-col overflow-hidden rounded-[28px] shadow-[0_2px_10px_-3px_rgba(6,81,237,0.03)] transition-all duration-400 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(6,81,237,0.08)] dark:hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.5)]">
+    <Card className="group relative flex flex-col overflow-hidden rounded-[28px] border border-slate-200/80 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.03)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl dark:border-white/10 dark:hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.5)]">
       <ConfirmModal
         open={deleteOpen}
         onCancel={() => setDeleteOpen(false)}
@@ -77,7 +78,14 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
         labelledBy={`delete-vcard-title-${card.id}`}
         describedBy={`delete-vcard-description-${card.id}`}
       />
-      <div className="absolute top-4 right-4 z-20">
+      {isPersonal && (
+        <div className="absolute top-4 left-4 z-20">
+          <span className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-black tracking-wider text-violet-700 uppercase shadow-sm backdrop-blur-md dark:border-violet-500/25 dark:bg-violet-500/15 dark:text-violet-300">
+            My card
+          </span>
+        </div>
+      )}
+      <div className={cn('absolute z-20', isPersonal ? 'top-4 right-4' : 'top-4 right-4')}>
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
@@ -130,7 +138,7 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
             }}
           />
         )}
-        <div className="absolute top-4 left-4 z-10">
+        <div className={cn('absolute z-10', isPersonal ? 'top-14 left-4' : 'top-4 left-4')}>
           <Badge
             variant={card.isActive ? 'success' : 'default'}
             className="rounded-full border border-black/5 bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90"
@@ -300,7 +308,7 @@ export function VCardGridCard({ card, onOpenQr }: VCardGridCardProps) {
               variant="outline"
               size="icon"
               disabled={!fullUrl}
-              onClick={() => fullUrl && onOpenQr(fullUrl)}
+              onClick={() => fullUrl && onOpenQr(fullUrl, card.personal.fullName || undefined)}
               className="hover:border-primary-500/50 w-11 rounded-xl border-2"
             >
               <QrCode className="h-4 w-4" />

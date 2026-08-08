@@ -70,13 +70,24 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
     featured.id ||
     index + 1
 
+  const metas = item.metas && typeof item.metas === 'object' ? item.metas : {}
+  const issuer =
+    (typeof item.issuer === 'string' && item.issuer.trim()) ||
+    (typeof metas.issuer === 'string' && metas.issuer.trim()) ||
+    ''
+  const yearRaw =
+    (item.year != null && String(item.year).trim()) || (typeof metas.year === 'string' && metas.year.trim()) || ''
+  const year = /^\d{4}/.test(yearRaw) ? yearRaw.slice(0, 4) : yearRaw
+
   return {
     id,
     title: item.title?.trim() || featured.docName || 'Update',
     description,
     featuredImage: featured.url,
     generalInfoUrl: item.general_info_url?.trim() ?? '',
-    date: item.created_at ?? item.updated_at ?? '',
+    date: year || item.created_at || item.updated_at || '',
+    issuer,
+    year,
     attachments,
   }
 }

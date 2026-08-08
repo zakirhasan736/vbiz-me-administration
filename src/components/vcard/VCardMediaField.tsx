@@ -1,9 +1,10 @@
 'use client'
 
+import { ConfirmModal } from '@/components/ConfirmModal'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
-import { Film, Loader2, Music, Upload, X } from 'lucide-react'
+import { Film, Loader2, Music, Trash2, Upload, X } from 'lucide-react'
 import Image from 'next/image'
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
 
@@ -120,6 +121,7 @@ export function VCardMediaField({
   const [error, setError] = useState<string | null>(null)
   const [localPreview, setLocalPreview] = useState<string | null>(null)
   const [localFileName, setLocalFileName] = useState<string | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const savedUrl = (value || '').trim()
   const [prevSavedUrl, setPrevSavedUrl] = useState(savedUrl)
@@ -211,6 +213,27 @@ export function VCardMediaField({
     onChange(null)
   }
 
+  const handleConfirmRemove = () => {
+    clear()
+    setConfirmOpen(false)
+  }
+
+  const confirmModal = (
+    <ConfirmModal
+      open={confirmOpen}
+      onCancel={() => setConfirmOpen(false)}
+      onConfirm={handleConfirmRemove}
+      variant="danger"
+      icon={Trash2}
+      title="Remove this file?"
+      description="This media will be removed from the card."
+      confirmLabel="Remove"
+      cancelLabel="Cancel"
+      labelledBy={`remove-media-title-${inputId}`}
+      describedBy={`remove-media-description-${inputId}`}
+    />
+  )
+
   const browseRow = (
     <div className="space-y-0">
       <div className="focus-within:border-primary-500/50 group relative flex overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-[#0b0f19]">
@@ -295,7 +318,7 @@ export function VCardMediaField({
       {displayUrl ? (
         <button
           type="button"
-          onClick={clear}
+          onClick={() => setConfirmOpen(true)}
           disabled={disabled || uploading}
           className="absolute top-4 right-4 rounded-full border border-slate-200 bg-white/90 p-2.5 text-slate-900 shadow-lg backdrop-blur-md transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500 active:scale-95 disabled:opacity-50 dark:border-white/10 dark:bg-black/50 dark:text-white dark:hover:border-red-500/50 dark:hover:bg-red-500/20"
           aria-label="Remove media"
@@ -309,6 +332,7 @@ export function VCardMediaField({
   if (variant === 'inset') {
     return (
       <div className={cn('space-y-4', className)}>
+        {confirmModal}
         {subtitle ? (
           <p className="text-[12px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
             {subtitle}
@@ -323,6 +347,7 @@ export function VCardMediaField({
 
   return (
     <div className={cn('space-y-6', className)}>
+      {confirmModal}
       <div className="rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 shadow-sm dark:border-white/5 dark:bg-white/2">
         {(icon || title) && (
           <div className="mb-5 flex items-center gap-4">

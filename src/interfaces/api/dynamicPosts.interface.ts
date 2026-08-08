@@ -25,9 +25,12 @@ export type DynamicPostItem = {
   status?: string | number | null
   created_at?: string
   updated_at?: string
+  issuer?: string | null
+  year?: string | number | null
   featured_image?: DynamicPostFeaturedImage
   general_info_url?: string | null
   attachments?: DynamicPostAttachment[]
+  metas?: Record<string, string | null | undefined>
   type?: string
 }
 
@@ -60,6 +63,8 @@ export type DynamicPostListItem = {
   featuredImage: string
   generalInfoUrl: string
   date: string
+  issuer: string
+  year: string
   attachments: DynamicPostAttachment[]
 }
 

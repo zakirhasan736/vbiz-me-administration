@@ -1,9 +1,7 @@
 'use client'
 
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
-import { VCardDocumentUpload } from '@/components/vcard/VCardDocumentUpload'
 import { useVCard } from '@/lib/VCardContext'
-import type { VCardAutoFillResult } from '@/lib/vcardAutoFillDemo'
 import { createDefaultExperienceEntry, normalizeExperienceList } from '@/lib/vcardExperience'
 import type { VCardExperienceEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -33,28 +31,9 @@ export function TabExperience() {
     setExperiences(experiences.map((exp) => (exp.id === id ? { ...exp, [field]: value } : exp)))
   }
 
-  const handleAutoFill = (fields: VCardAutoFillResult) => {
-    setExperiences(
-      experiences.map((exp, i) =>
-        i === 0
-          ? {
-              ...exp,
-              company: fields.company || exp.company,
-              jobTitle: fields.jobTitle || exp.jobTitle,
-              description: fields.description || exp.description,
-              fromDate: fields.fromDate || exp.fromDate,
-              toDate: fields.toDate || exp.toDate,
-            }
-          : exp
-      )
-    )
-  }
-
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col pb-12 duration-500">
-      <VCardDocumentUpload section="experience" onAutoFill={handleAutoFill} />
-
-      <div className="mb-8 rounded-[24px] border border-orange-100 bg-orange-50/50 p-6 dark:border-orange-500/10 dark:bg-orange-500/2">
+      <div className="mb-8 rounded-3xl border border-orange-100 bg-orange-50/50 p-6 dark:border-orange-500/10 dark:bg-orange-500/2">
         <div className="mb-2 flex items-center gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-orange-100 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10">
             <Briefcase className="h-5 w-5 text-orange-600 dark:text-orange-400" />
@@ -71,7 +50,7 @@ export function TabExperience() {
         {experiences.map((exp, index) => (
           <section
             key={exp.id}
-            className="group/card overflow-visible rounded-[32px] border border-transparent bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
+            className="group/card overflow-visible rounded-4xl border border-transparent bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
           >
             <div className="flex items-center justify-between border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
               <div className="flex items-center gap-4">
@@ -86,7 +65,7 @@ export function TabExperience() {
                 <button
                   type="button"
                   onClick={() => removeExperience(exp.id)}
-                  className="flex items-center gap-2 rounded-[12px] bg-red-50 px-4 py-2.5 font-bold text-red-500 opacity-0 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+                  className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 font-bold text-red-500 opacity-0 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
                   title="Remove Entry"
                 >
                   <Trash2 className="h-4 w-4" /> Remove
@@ -196,7 +175,7 @@ export function TabExperience() {
           <button
             type="button"
             onClick={addExperience}
-            className="flex w-full items-center justify-center gap-2 rounded-[16px] border border-black/5 bg-white px-6 py-4 text-[13px] font-bold text-orange-600 shadow-sm transition-all hover:border-orange-500/30 hover:bg-slate-200 active:scale-95 sm:w-auto dark:border-white/5 dark:bg-[#0b0f19] dark:text-orange-400"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-black/5 bg-white px-6 py-4 text-[13px] font-bold text-orange-600 shadow-sm transition-all hover:border-orange-500/30 hover:bg-slate-200 active:scale-95 sm:w-auto dark:border-white/5 dark:bg-[#0b0f19] dark:text-orange-400"
           >
             <Plus className="h-4 w-4" /> Add Experience
           </button>

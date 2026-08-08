@@ -1,9 +1,7 @@
 'use client'
 
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
-import { VCardDocumentUpload } from '@/components/vcard/VCardDocumentUpload'
 import { useVCard } from '@/lib/VCardContext'
-import type { VCardAutoFillResult } from '@/lib/vcardAutoFillDemo'
 import { createDefaultEducationEntry, normalizeEducationList } from '@/lib/vcardEducation'
 import type { VCardEducationEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -33,27 +31,9 @@ export function TabEducation() {
     setEducations(educations.map((edu) => (edu.id === id ? { ...edu, [field]: value } : edu)))
   }
 
-  const handleAutoFill = (fields: VCardAutoFillResult) => {
-    setEducations(
-      educations.map((edu, i) =>
-        i === 0
-          ? {
-              ...edu,
-              institute: fields.institute || edu.institute,
-              degree: fields.degree || edu.degree,
-              fromDate: fields.fromDate || edu.fromDate,
-              toDate: fields.toDate || edu.toDate,
-            }
-          : edu
-      )
-    )
-  }
-
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col duration-500">
-      <VCardDocumentUpload section="education" onAutoFill={handleAutoFill} />
-
-      <div className="mb-8 rounded-[24px] border border-cyan-100 bg-cyan-50/50 p-6 dark:border-cyan-500/10 dark:bg-cyan-500/2">
+      <div className="mb-8 rounded-3xl border border-cyan-100 bg-cyan-50/50 p-6 dark:border-cyan-500/10 dark:bg-cyan-500/2">
         <div className="mb-2 flex items-center gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-cyan-100 bg-cyan-50 dark:border-cyan-500/20 dark:bg-cyan-500/10">
             <GraduationCap className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
@@ -70,7 +50,7 @@ export function TabEducation() {
         {educations.map((edu, index) => (
           <section
             key={edu.id}
-            className="group/card overflow-visible rounded-[32px] border border-transparent bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
+            className="group/card overflow-visible rounded-4xl border border-transparent bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
           >
             <div className="flex items-center justify-between border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
               <div className="flex items-center gap-4">
@@ -85,7 +65,7 @@ export function TabEducation() {
                 <button
                   type="button"
                   onClick={() => removeEducation(edu.id)}
-                  className="flex items-center gap-2 rounded-[12px] bg-red-50 px-4 py-2.5 font-bold text-red-500 opacity-0 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+                  className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 font-bold text-red-500 opacity-0 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
                   title="Remove Entry"
                 >
                   <Trash2 className="h-4 w-4" /> Remove

@@ -1,8 +1,28 @@
 import { Card, CardDescription, CardTitle } from '@/components/ui'
-import { Plus } from 'lucide-react'
+import { Lock, Plus } from 'lucide-react'
 import Link from 'next/link'
 
-export function CreateVCardCard() {
+type CreateVCardCardProps = {
+  canCreate?: boolean
+  limitReachedMessage?: string
+}
+
+export function CreateVCardCard({
+  canCreate = true,
+  limitReachedMessage = 'Single card owners can create only one vCard',
+}: CreateVCardCardProps) {
+  if (!canCreate) {
+    return (
+      <Card className="flex min-h-100 flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-violet-200/80 bg-violet-50/40 shadow-none dark:border-violet-500/20 dark:bg-violet-500/5">
+        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-violet-200 bg-white text-violet-500 shadow-sm dark:border-violet-500/20 dark:bg-[#0b0f19] dark:text-violet-300">
+          <Lock className="h-7 w-7" strokeWidth={2.25} />
+        </div>
+        <CardTitle className="text-[17px]">1 Card Limit Reached</CardTitle>
+        <CardDescription className="mt-1 max-w-50 text-center">{limitReachedMessage}</CardDescription>
+      </Card>
+    )
+  }
+
   return (
     <Link href="/vcards/create/home" className="block min-h-100">
       <Card className="hover:border-primary-500/30 group flex min-h-100 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed bg-slate-50 shadow-none transition-all hover:bg-slate-100 dark:bg-[#070a13] dark:hover:bg-white/2">

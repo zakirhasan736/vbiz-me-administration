@@ -35,7 +35,7 @@ function InsuranceLicenseCard({ item, idx, accent }: { item: DynamicPostListItem
   const imageUrl = resolveInsuranceLicenseImage(item)
   const preview = stripHtml(item.description)
   const detailUrl = item.generalInfoUrl.trim()
-  const year = formatYear(item.date)
+  const year = item.year?.trim() || formatYear(item.date)
   const credentialLabel = item.attachments[0]?.doc_name?.trim() || `INS-${item.id}`
 
   const card = (

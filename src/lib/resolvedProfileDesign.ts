@@ -57,7 +57,7 @@ export function buttonStyleClasses(buttonStyle: string): string {
   }
 }
 
-type ResolveProfileDesignOptions = {
+export type ResolveProfileDesignOptions = {
   themeConfig?: CardThemeConfig | null
   /** Which palette to read brand colors from (defaults to theme_config.defaultMode or dark). */
   colorMode?: ThemeMode
@@ -106,9 +106,10 @@ export function resolveProfileDesignFromRecord(
 
 export function resolveProfileDesignFromData(
   data: VCardData,
-  designSettings: DesignSettingsState
+  designSettings: DesignSettingsState,
+  options?: ResolveProfileDesignOptions & { appearance?: Partial<VCardAppearance> | null }
 ): ResolvedProfileDesign {
-  return resolveProfileDesign(designSettings, data.theme, data.appearance)
+  return resolveProfileDesign(designSettings, data.theme, options?.appearance ?? data.appearance, options)
 }
 
 export function designToCssVars(design: ResolvedProfileDesign): CSSProperties {

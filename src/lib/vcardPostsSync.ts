@@ -1,5 +1,5 @@
 import { VCARD_SECTION_SCHEMAS } from '@/lib/vcardSectionSchemas'
-import type { ApiPost } from '@/redux/features/profiles/profiles.api'
+import type { ApiPost, PostDocumentPayload } from '@/redux/features/profiles/profiles.api'
 import { BLOG_POST_TYPE, FAQ_POST_TYPE, isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import type { VCardFaqEntry, VCardGeneralPost, VCardSectionPostItem } from '@/types/vcard'
 
@@ -15,6 +15,7 @@ type CreatePostFn = (args: {
     featuredImage?: string
     status?: string
     metas?: Record<string, string>
+    documents?: PostDocumentPayload[]
   }
 }) => { unwrap: () => Promise<ApiPost> }
 
@@ -29,12 +30,25 @@ type UpdatePostFn = (args: {
     status?: string
     sortOrder?: number
     metas?: Record<string, string>
+    documents?: PostDocumentPayload[]
   }
 }) => { unwrap: () => Promise<ApiPost> }
 
 type DeletePostFn = (args: { id: string; postId: string }) => { unwrap: () => Promise<unknown> }
 
 type ListPostsFn = (args: { id: string; postType?: string }) => { unwrap: () => Promise<ApiPost[]> }
+
+type SyncItem = {
+  id: string
+  title: string
+  description: string
+  url?: string
+  featuredImage?: string
+  status: string
+  metas?: Record<string, string>
+  documents?: PostDocumentPayload[]
+  sortOrder: number
+}
 
 /**
  * Sync local blog/FAQ editor items with authenticated `/profiles/:id/posts`.
@@ -44,16 +58,7 @@ export async function syncProfilePosts(options: {
   profileId: string
   postTypeName: string
   existing: ApiPost[]
-  items: Array<{
-    id: string
-    title: string
-    description: string
-    url?: string
-    featuredImage?: string
-    status: string
-    metas?: Record<string, string>
-    sortOrder: number
-  }>
+  items: SyncItem[]
   createPost: CreatePostFn
   updatePost: UpdatePostFn
   deletePost: DeletePostFn
@@ -74,6 +79,7 @@ export async function syncProfilePosts(options: {
       url: item.url,
       featuredImage: item.featuredImage,
       status: item.status,
+      documents: item.documents,
     }
     if (existingById.has(item.id) && !isLocalTempId(item.id)) {
       const updated = await updatePost({
@@ -132,22 +138,61 @@ export function faqsToSyncItems(faqs: VCardFaqEntry[]) {
   }))
 }
 
-export function sectionPostsToSyncItems(items: VCardSectionPostItem[]) {
-  return items.map((p, index) => ({
-    id: p.id,
-    title: p.title,
-    description: p.description,
-    url: p.url || undefined,
-    featuredImage: p.featuredImage || undefined,
-    status: p.active ? '1' : '0',
-    metas: {
-      date: p.date || '',
-      rating: p.rating || '',
-      location: p.location || '',
-      ...(p.metas || {}),
-    },
-    sortOrder: index,
-  }))
+function parseDocumentsMeta(raw: unknown): PostDocumentPayload[] {
+  if (!raw) return []
+  if (typeof raw === 'string') {
+    try {
+      return parseDocumentsMeta(JSON.parse(raw))
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null
+      const doc = entry as Record<string, unknown>
+      const url = typeof doc.url === 'string' ? doc.url.trim() : ''
+      if (!url) return null
+      return {
+        url,
+        name: typeof doc.name === 'string' ? doc.name : undefined,
+        type: typeof doc.type === 'string' ? doc.type : undefined,
+      } satisfies PostDocumentPayload
+    })
+    .filter(Boolean) as PostDocumentPayload[]
+}
+
+export function sectionPostsToSyncItems(items: VCardSectionPostItem[]): SyncItem[] {
+  return items.map((p, index) => {
+    const metas = { ...(p.metas || {}) }
+    const documentsFromMeta = parseDocumentsMeta(metas.documents)
+    delete metas.documents
+
+    const documents =
+      documentsFromMeta.length > 0
+        ? documentsFromMeta
+        : p.featuredImage?.trim()
+          ? [{ url: p.featuredImage.trim(), name: 'document' }]
+          : undefined
+
+    return {
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      url: p.url || undefined,
+      featuredImage: p.featuredImage || documents?.[0]?.url || undefined,
+      status: p.active ? '1' : '0',
+      metas: {
+        date: p.date || '',
+        rating: p.rating || '',
+        location: p.location || '',
+        ...metas,
+      },
+      documents,
+      sortOrder: index,
+    }
+  })
 }
 
 function metaMap(metas?: ApiPost['metas']): Record<string, string> {
@@ -171,10 +216,39 @@ function toDateInputValue(value?: string | null): string {
   return `${y}-${m}-${d}`
 }
 
+function attachmentsToDocumentsJson(post: ApiPost): string | undefined {
+  const docs: Array<{ id: string; name: string; url: string; type: string; size: number }> = []
+  for (const [index, a] of (post.attachments || []).entries()) {
+    const url = a.url?.trim()
+    if (!url) continue
+    docs.push({
+      id: a.id || `att_${index}`,
+      name: a.docName || 'Document',
+      url,
+      type: a.mimeType || 'application/octet-stream',
+      size: 0,
+    })
+  }
+  if (!docs.length && post.featuredImage?.trim()) {
+    docs.push({
+      id: 'featured',
+      name: 'Document',
+      url: post.featuredImage.trim(),
+      type: 'application/octet-stream',
+      size: 0,
+    })
+  }
+  return docs.length ? JSON.stringify(docs) : undefined
+}
+
 export function mapApiPostsToSectionPosts(posts: ApiPost[]): VCardSectionPostItem[] {
   return posts.map((p) => {
     const metas = metaMap(p.metas)
     const { date = '', rating = '', location = '', ...rest } = metas
+    const documentsJson = attachmentsToDocumentsJson(p)
+    if (documentsJson && !rest.documents) {
+      rest.documents = documentsJson
+    }
     return {
       id: p.id,
       title: p.title || '',

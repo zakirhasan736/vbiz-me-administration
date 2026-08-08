@@ -69,6 +69,7 @@ export function ProfileApp(props: VBizProfileAppProps) {
         skills={props.skills}
         services={props.services}
         portfolio={props.portfolio}
+        reviews={props.reviews}
       />
       <TranslationProvider
         cardOwnerId={props.cardOwnerId}

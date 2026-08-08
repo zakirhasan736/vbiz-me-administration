@@ -7,10 +7,7 @@ export type MyCardProfile = {
   email: string | null
   phone: string | null
   address: string | null
-  city: string | null
-  state: string | null
   country: string | null
-  zipcode: string | null
   website: string | null
   company_name: string | null
   designation: string | null

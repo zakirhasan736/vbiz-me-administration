@@ -21,33 +21,43 @@ function subscribeToDocumentTheme(onStoreChange: () => void) {
   }
 }
 
+function subscribeNoop() {
+  return () => {}
+}
+
 /**
  * Injects dynamic theme CSS variables (primary/secondary/accent, light+dark,
  * button & social styles) scoped to `.vbiz-profile-root`.
  *
  * Follows the live light/dark toggle on `<html class="dark">` so API colors
  * for each mode are applied as the user switches themes.
+ * When `forcedMode` is set (editor phone preview), that mode wins and the
+ * document class is ignored.
  * Template defaults are already merged into `config` before this renders.
  */
 export function CardThemeStyles({
   config,
   mode: modeProp,
+  forcedMode,
   fromApi,
   template,
 }: {
   config?: CardThemeConfig | null
-  /** Initial / controlled mode. Live document class wins when present. */
+  /** Initial / controlled mode. Live document class wins when present (unless forcedMode). */
   mode?: ThemeMode
+  /** Editor live preview: use this mode instead of `<html class="dark">`. */
+  forcedMode?: ThemeMode
   /** When false, theme is template defaults (not settings API). */
   fromApi?: boolean
   template?: string
 }) {
   const fallback = modeProp ?? config?.colors.defaultMode ?? 'dark'
-  const mode = useSyncExternalStore(
-    subscribeToDocumentTheme,
-    () => readDocumentThemeMode(fallback),
-    () => fallback
+  const documentMode = useSyncExternalStore(
+    forcedMode ? subscribeNoop : subscribeToDocumentTheme,
+    () => (forcedMode ? forcedMode : readDocumentThemeMode(fallback)),
+    () => forcedMode ?? fallback
   )
+  const mode = forcedMode ?? documentMode
 
   const css = useMemo(() => (config ? buildCardThemeStyleSheet(config, mode) : ''), [config, mode])
 
@@ -75,6 +85,11 @@ export function CardThemeStyles({
 
   if (!css) return null
   return (
-    <style key={themeFingerprint} data-vbiz-card-theme="" data-mode={mode} dangerouslySetInnerHTML={{ __html: css }} />
+    <style
+      key={`${themeFingerprint}|${mode}`}
+      data-vbiz-card-theme=""
+      data-mode={mode}
+      dangerouslySetInnerHTML={{ __html: css }}
+    />
   )
 }

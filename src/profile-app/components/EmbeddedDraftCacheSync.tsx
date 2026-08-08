@@ -2,7 +2,7 @@
 
 import { useAppDispatch } from '@/hooks/redux'
 import type { AboutMeQueryResult } from '@/interfaces/api/aboutMe.interface'
-import type { DynamicPostsQueryResult } from '@/interfaces/api/dynamicPosts.interface'
+import type { DynamicPostListItem, DynamicPostsQueryResult } from '@/interfaces/api/dynamicPosts.interface'
 import type { GalleryQueryResult } from '@/interfaces/api/gallery.interface'
 import type { ProfileAiData } from '@/interfaces/api/profileAiData'
 import type { ReviewsQueryResult } from '@/interfaces/api/reviews.interface'
@@ -22,11 +22,12 @@ import type {
   VCardFaqEntry,
   VCardGeneralPost,
   VCardPortfolioEntry,
+  VCardReviewEntry,
   VCardSectionPostItem,
   VCardServiceEntry,
   VCardSkillGroup,
 } from '@/types/vcard'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 function draftPostType(id: string, name: string, title: string): PostTypeNavLink {
   return {
@@ -48,6 +49,7 @@ function buildDraftNavBarLinks(input: {
   skills?: VCardSkillGroup[]
   services?: VCardServiceEntry[]
   portfolio?: VCardPortfolioEntry[]
+  reviews?: VCardReviewEntry[]
   about?: string
 }): NavBarLinksData {
   const post_types: PostTypeNavLink[] = []
@@ -62,6 +64,9 @@ function buildDraftNavBarLinks(input: {
   }
   if ((input.portfolio || []).some((p) => p.active !== false && (p.title?.trim() || p.imageUrl?.trim()))) {
     pushUnique(draftPostType('gallery', 'gallery', 'Gallery'))
+  }
+  if ((input.reviews || []).some((r) => r.author?.trim() || r.text?.trim())) {
+    pushUnique(draftPostType('reviews', 'reviews', 'Reviews'))
   }
   if ((input.education || []).some((e) => e.institute?.trim() || e.degree?.trim())) {
     pushUnique(draftPostType('resume', 'Resume', 'Resume'))
@@ -91,20 +96,79 @@ function buildDraftNavBarLinks(input: {
   }
 }
 
+const DEFAULT_HOME_STATIC: NavBarLinksData['StaticLink'] = [
+  { id: 'home', title: 'Home', name: 'Home', post_type: 'static', active: true },
+]
+
+/** Keep published API tabs and add any draft-only sections that already have content. */
+function mergeNavBarLinks(api: NavBarLinksData | undefined, draft: NavBarLinksData): NavBarLinksData {
+  const byName = new Map<string, PostTypeNavLink>()
+  for (const item of api?.post_types ?? []) {
+    byName.set(item.name.toLowerCase(), item)
+  }
+  for (const item of draft.post_types ?? []) {
+    const key = item.name.toLowerCase()
+    if (!byName.has(key)) byName.set(key, item)
+  }
+  return {
+    StaticLink: api?.StaticLink?.length ? api.StaticLink : (draft.StaticLink ?? DEFAULT_HOME_STATIC),
+    post_types: Array.from(byName.values()),
+  }
+}
+
 function toDynamicResult(sectionName: string, items: VCardSectionPostItem[]): DynamicPostsQueryResult {
   return {
     sectionTitle: sectionName,
     posts: items
       .filter((p) => p.active !== false)
-      .map((p) => ({
-        id: p.id,
-        title: p.title || '',
-        description: p.description || '',
-        featuredImage: p.featuredImage || '',
-        generalInfoUrl: p.url || '',
-        date: p.date || '',
-        attachments: [],
-      })),
+      .map((p) => {
+        const metas = p.metas || {}
+        const issuer = typeof metas.issuer === 'string' ? metas.issuer : ''
+        const year = (typeof metas.year === 'string' && metas.year.trim()) || (p.date?.match(/^\d{4}/)?.[0] ?? '') || ''
+        let attachments: DynamicPostListItem['attachments'] = []
+        if (typeof metas.documents === 'string' && metas.documents.trim()) {
+          try {
+            const parsed = JSON.parse(metas.documents) as Array<{
+              id?: string
+              name?: string
+              url?: string
+            }>
+            if (Array.isArray(parsed)) {
+              attachments = parsed
+                .filter((d) => d?.url?.trim())
+                .map((d, index) => ({
+                  id: d.id || index,
+                  doc_name: d.name || 'Document',
+                  attachment_type_id: 0,
+                  url: d.url!.trim(),
+                }))
+            }
+          } catch {
+            attachments = []
+          }
+        }
+        if (!attachments.length && p.featuredImage?.trim()) {
+          attachments = [
+            {
+              id: 0,
+              doc_name: 'Document',
+              attachment_type_id: 0,
+              url: p.featuredImage.trim(),
+            },
+          ]
+        }
+        return {
+          id: p.id,
+          title: p.title || '',
+          description: p.description || '',
+          featuredImage: p.featuredImage || '',
+          generalInfoUrl: p.url || attachments[0]?.url || '',
+          date: year || p.date || '',
+          issuer,
+          year,
+          attachments,
+        }
+      }),
   }
 }
 
@@ -120,6 +184,8 @@ function generalPostsToDynamic(posts: VCardGeneralPost[]): DynamicPostsQueryResu
         featuredImage: p.featuredImage || '',
         generalInfoUrl: p.customUrl || '',
         date: p.date || '',
+        issuer: '',
+        year: '',
         attachments: [],
       })),
   }
@@ -137,6 +203,8 @@ function faqsToDynamic(faqs: VCardFaqEntry[]): DynamicPostsQueryResult {
         featuredImage: '',
         generalInfoUrl: '',
         date: '',
+        issuer: '',
+        year: '',
         attachments: [],
       })),
   }
@@ -154,6 +222,7 @@ type EmbeddedDraftCacheSyncProps = {
   skills?: VCardSkillGroup[]
   services?: VCardServiceEntry[]
   portfolio?: VCardPortfolioEntry[]
+  reviews?: VCardReviewEntry[]
 }
 
 /**
@@ -172,12 +241,19 @@ export function EmbeddedDraftCacheSync({
   skills,
   services,
   portfolio,
+  reviews,
 }: EmbeddedDraftCacheSyncProps) {
   const dispatch = useAppDispatch()
+  /** Pure API `/post-types` payload — kept so draft merges do not permanently overwrite published tabs. */
+  const apiNavBaselineRef = useRef<{ profileId: string; loaded: boolean; data?: NavBarLinksData }>({
+    profileId: '',
+    loaded: false,
+  })
 
   useEffect(() => {
     if (!embedded || !cardOwnerId) return
     const profileId = cardOwnerId
+    let cancelled = false
 
     for (const [sectionName, items] of Object.entries(sectionPosts || {})) {
       if (!sectionName || !items) continue
@@ -264,24 +340,32 @@ export function EmbeddedDraftCacheSync({
       dispatch(galleryApi.util.upsertQueryData('getGallery', profileId, galleryResult))
     }
 
-    const reviewDraft = sectionPosts?.[PUBLIC_SECTION_NAMES.reviews]
+    const reviewDraft = reviews
     if (reviewDraft) {
       const slides = reviewDraft
-        .filter((p) => p.active !== false)
-        .map((p, index) => ({
-          id: index + 1,
-          title: p.title,
-          plainDescription: p.description,
-          htmlDescription: p.description,
-          image: p.featuredImage,
-          linkUrl: p.url || null,
-          isLinkCard: Boolean(p.url?.trim()),
-        }))
+        .filter((r) => r.author?.trim() || r.text?.trim())
+        .map((r, index) => {
+          const rawRating = typeof r.rating === 'number' ? r.rating : Number(r.rating)
+          const rating = Number.isFinite(rawRating) ? Math.min(5, Math.max(1, Math.round(rawRating))) : 5
+          return {
+            id: r.id || index + 1,
+            title: r.author || 'Review',
+            plainDescription: r.text || '',
+            htmlDescription: r.text || '',
+            image: '',
+            linkUrl: null as string | null,
+            isLinkCard: false,
+            rating,
+          }
+        })
+      const averageRating =
+        slides.length > 0 ? Math.round((slides.reduce((sum, s) => sum + s.rating, 0) / slides.length) * 10) / 10 : 0
       const reviewsResult: ReviewsQueryResult = {
         sectionTitle: 'Reviews',
         slides,
         leaveReviewUrl: null,
         reviewCount: slides.length,
+        averageRating,
       }
       dispatch(reviewsApi.util.upsertQueryData('getReviews', profileId, reviewsResult))
     }
@@ -339,30 +423,57 @@ export function EmbeddedDraftCacheSync({
         title: p.title,
         description: p.description,
         url: p.url || null,
+        imageUrl: p.imageUrl || null,
+        attachmentUrl: p.attachments?.url || null,
+        attachmentName: p.attachments?.name || null,
         status: p.active ? 1 : 0,
       })),
       customSections: [],
     }
     dispatch(profileAiDataApi.util.upsertQueryData('getProfileAiData', profileId, aiData))
 
-    // Keep preview nav in sync with draft collections (e.g. Skills tab before/after save).
-    dispatch(
-      navBarLinksApi.util.upsertQueryData(
-        'getNavBarLinks',
-        profileId,
-        buildDraftNavBarLinks({
-          sectionPosts,
-          generalPosts,
-          faqs,
-          education,
-          experience,
-          skills,
-          services,
-          portfolio,
-          about,
-        })
+    const draftNav = buildDraftNavBarLinks({
+      sectionPosts,
+      generalPosts,
+      faqs,
+      education,
+      experience,
+      skills,
+      services,
+      portfolio,
+      reviews,
+      about,
+    })
+
+    // Merge draft tabs onto published API post-types (do not replace the catalog).
+    void (async () => {
+      if (apiNavBaselineRef.current.profileId !== profileId) {
+        apiNavBaselineRef.current = { profileId, loaded: false, data: undefined }
+      }
+      if (!apiNavBaselineRef.current.loaded) {
+        const result = await dispatch(
+          navBarLinksApi.endpoints.getNavBarLinks.initiate(profileId, { forceRefetch: true })
+        )
+        if (cancelled) return
+        apiNavBaselineRef.current = {
+          profileId,
+          loaded: true,
+          data: 'data' in result ? result.data : undefined,
+        }
+      }
+      if (cancelled) return
+      dispatch(
+        navBarLinksApi.util.upsertQueryData(
+          'getNavBarLinks',
+          profileId,
+          mergeNavBarLinks(apiNavBaselineRef.current.data, draftNav)
+        )
       )
-    )
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [
     embedded,
     cardOwnerId,
@@ -375,6 +486,7 @@ export function EmbeddedDraftCacheSync({
     skills,
     services,
     portfolio,
+    reviews,
     dispatch,
   ])
 

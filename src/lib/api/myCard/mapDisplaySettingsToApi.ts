@@ -61,7 +61,6 @@ const LABEL_TO_FIELD_CHECKBOX: Record<string, string> = {
   Gender: 'gender_id_checkbox',
   'MyInfo Relationship Status': 'marital_status_checkbox',
   'About Me': 'about_checkbox',
-  Zip: 'zip_code_checkbox',
   'Save Contact': 'save_contact_checkbox',
   'Share Btn': 'share_checkbox',
   FaceBook: 'facebook_checkbox',

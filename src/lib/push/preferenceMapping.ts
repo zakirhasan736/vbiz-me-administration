@@ -1,6 +1,6 @@
 import type { NotificationPreferenceKey, NotificationPreferences } from '@/lib/push/types'
 
-/** Preference keys returned by `GET /push/subscription-status` and `PUT /push/preferences`. */
+/** Preference keys returned by `GET /push/subscription-status` and `POST /push/preferences`. */
 export type BackendNotificationPreferenceKey =
   | 'service_updates'
   | 'portfolio_updates'

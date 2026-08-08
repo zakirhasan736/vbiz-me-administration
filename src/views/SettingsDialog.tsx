@@ -4,9 +4,10 @@ import { CanvaConnectRow } from '@/components/canva'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
 import ChangePasswordForm from '@/components/settings/ChangePasswordForm'
 import SetPasswordForm from '@/components/settings/SetPasswordForm'
-import { Button, Input, Modal, Switch, Textarea } from '@/components/ui'
+import { Button, Input, Switch, Textarea } from '@/components/ui'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs } from '@/lib/notifications'
 import { useTheme } from '@/lib/ThemeProvider'
 import { logout, useAuth } from '@/providers/AuthProvider'
 import { useGetPackagesQuery, useGetSubscriptionsQuery } from '@/redux/features/profiles/profiles.api'
@@ -14,28 +15,24 @@ import { cn } from '@/utils/cn'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
-  BarChart2,
   Bell,
   Bot,
-  ChevronRight,
-  FileText,
   Key,
   Layers,
   LogOut,
   Megaphone,
   Menu,
+  MessageCircle,
   Palette,
-  Search,
   Settings,
   Shield,
-  Upload,
   User,
-  X,
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState, type MouseEventHandler, type ReactNode } from 'react'
+import { useEffect, useState, type MouseEventHandler, type ReactNode } from 'react'
 
 const sectionsGroups = [
   {
@@ -55,18 +52,9 @@ const sectionsGroups = [
     groupName: 'Growth',
     items: [
       { id: 'integrations', label: 'Integrations', icon: Layers },
-      { id: 'analytics', label: 'Analytics', icon: BarChart2 },
-      { id: 'seo', label: 'SEO', icon: Search },
+      { id: 'ai-assistance', label: 'AI Assistance', icon: Bot },
     ],
   },
-  // {
-  //   groupName: "Monetization",
-  //   items: [
-  //     { id: "earn", label: "Earn", icon: DollarSign },
-  //     { id: "affiliate", label: "Affiliates", icon: Briefcase },
-  //     { id: "subscribe", label: "Subscribe", icon: Mail },
-  //   ]
-  // },
   {
     groupName: 'Banners',
     items: [
@@ -75,145 +63,6 @@ const sectionsGroups = [
     ],
   },
 ]
-
-const LIVE_AGENT_ACCEPT = '.pdf,.txt,application/pdf,text/plain'
-
-function LiveAgentSettingsModal({ onClose, onConnect }: { onClose: () => void; onConnect: () => void }) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [file, setFile] = useState<File | null>(null)
-  const [businessTitle, setBusinessTitle] = useState('')
-  const [businessDescription, setBusinessDescription] = useState('')
-
-  const handleFileChange = (files: FileList | null) => {
-    const selected = files?.[0]
-    if (!selected) return
-    const ext = selected.name.split('.').pop()?.toLowerCase()
-    if (ext !== 'pdf' && ext !== 'txt') return
-    setFile(selected)
-  }
-
-  const clearFile = () => {
-    setFile(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const handleConnect = () => {
-    onConnect()
-    onClose()
-  }
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      overlayClassName="bg-slate-400/20 dark:bg-black/60"
-      className="relative max-h-[min(90vh,100dvh)] max-w-110 overflow-y-auto p-6 sm:p-8"
-    >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 rounded-full bg-slate-200 p-2 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/10"
-      >
-        <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-      </button>
-
-      <div className="text-center">
-        <div className="from-primary-500 to-primary-700 mx-auto mb-6 h-20 w-20 rounded-3xl bg-linear-to-tr p-0.5 shadow-[0_0_30px_rgba(59,130,246,0.25)]">
-          <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-white dark:bg-[#0b0f19]">
-            <Bot className="text-primary-600 dark:text-primary-400 h-10 w-10" />
-          </div>
-        </div>
-
-        <h3 className="mb-2 text-[22px] font-black text-slate-900 dark:text-white">Live Agent Integration</h3>
-        <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Upload your business knowledge base and describe your business so the live agent can assist visitors.
-        </p>
-      </div>
-
-      <div className="space-y-5">
-        <div>
-          <label className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white">
-            Knowledge base file
-          </label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="sr-only"
-            accept={LIVE_AGENT_ACCEPT}
-            onChange={(e) => handleFileChange(e.target.files)}
-          />
-          {file ? (
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 dark:border-white/10 dark:bg-slate-800/50">
-              <FileText className="text-primary-600 dark:text-primary-400 h-5 w-5 shrink-0" />
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-white">
-                {file.name}
-              </span>
-              <button
-                type="button"
-                onClick={clearFile}
-                className="shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white"
-                aria-label="Remove file"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="hover:border-primary-400 hover:bg-primary-50/50 dark:hover:border-primary-500/40 dark:hover:bg-primary-500/5 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-all dark:border-white/15 dark:bg-white/5"
-            >
-              <Upload className="h-6 w-6 text-slate-400 dark:text-slate-500" />
-              <span className="text-[13px] font-bold text-slate-900 dark:text-white">Click to upload</span>
-              <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">PDF or TXT only</span>
-            </button>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="live-agent-business-title"
-            className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white"
-          >
-            Business title
-          </label>
-          <Input
-            id="live-agent-business-title"
-            type="text"
-            value={businessTitle}
-            onChange={(e) => setBusinessTitle(e.target.value)}
-            placeholder="Enter your business title"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="live-agent-business-description"
-            className="mb-2 block pl-1 text-[13px] font-bold text-slate-900 dark:text-white"
-          >
-            Business description
-          </label>
-          <Textarea
-            id="live-agent-business-description"
-            value={businessDescription}
-            onChange={(e) => setBusinessDescription(e.target.value)}
-            placeholder="Describe your business for the live agent"
-            className="min-h-25 resize-none"
-          />
-        </div>
-
-        <Button
-          type="button"
-          variant="dark"
-          size="lg"
-          onClick={handleConnect}
-          className="w-full py-4 text-[15px] font-bold"
-        >
-          Connect Live Agent
-        </Button>
-      </div>
-    </Modal>
-  )
-}
 
 type TabButtonProps = {
   active: boolean
@@ -316,59 +165,12 @@ function ToggleRow({
   )
 }
 
-type ConnectRowProps = {
-  icon: LucideIcon
-  title: string
-  isConnected?: boolean
-  color?: string
-  iconStyle?: string
-  onClick?: () => void
-  onDisconnect?: () => void
-}
-
-function ConnectRow({ icon: Icon, title, isConnected, color, iconStyle, onClick, onDisconnect }: ConnectRowProps) {
-  return (
-    <div className="group flex flex-col gap-4 rounded-[20px] border border-slate-200 bg-white p-4 font-medium shadow-[0_2px_10px_-3px_rgba(0,0,0,0.02)] transition-all hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-white/5 dark:bg-[#0b0f19]">
-      <div className="flex min-w-0 items-center gap-4">
-        <div
-          className={cn(
-            'flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm transition-transform group-hover:scale-105',
-            iconStyle || 'border border-slate-100 bg-slate-50 dark:border-white/5 dark:bg-white/5'
-          )}
-        >
-          <Icon className={cn('h-5 w-5', color || 'text-slate-900 dark:text-white')} />
-        </div>
-        <span className="truncate text-[15px] font-bold text-slate-900 dark:text-white">{title}</span>
-      </div>
-      {isConnected ? (
-        <button
-          onClick={onDisconnect || onClick}
-          className="group/btn flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[12px] font-bold text-emerald-600 shadow-sm transition-all hover:bg-red-50 hover:text-red-600 active:scale-95 sm:w-auto sm:justify-start dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:border-red-500/20 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-        >
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-colors group-hover/btn:bg-red-500 dark:bg-emerald-400" />
-          <span className="group-hover/btn:hidden">Connected</span>
-          <span className="hidden group-hover/btn:inline">Disconnect</span>
-        </button>
-      ) : (
-        <button
-          onClick={onClick}
-          className="flex w-full shrink-0 items-center justify-center gap-2 rounded-[14px] bg-slate-900 px-5 py-2.5 text-[13px] font-bold text-white shadow-sm transition-all hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.3)] active:scale-95 sm:w-auto dark:bg-white dark:text-slate-900"
-        >
-          Connect <ChevronRight className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  )
-}
-
 export default function SettingsDialog() {
   const { user } = useAuth()
   const reduxUser = useAppSelector((state) => state.user.user)
   const router = useRouter()
   const { accentColor, setAccentColor } = useTheme()
   const [selectedTab, setSelectedTab] = useState('profile')
-  const [showLiveAgentModal, setShowLiveAgentModal] = useState(false)
-  const [liveAgentConnected, setLiveAgentConnected] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -381,9 +183,6 @@ export default function SettingsDialog() {
 
   const [toggles, setToggles] = useState<Record<string, boolean>>({
     'dark-mode': document.documentElement.classList.contains('dark'),
-    'email-notif': true,
-    'security-alerts': true,
-    'product-updates': false,
     'show-followers': false,
     'social-analysis': true,
     'publish-shop': false,
@@ -391,11 +190,13 @@ export default function SettingsDialog() {
     'support-banner': false,
     'sensitive-warning': false,
     'subscribe-btn': true,
-    'utm-params': false,
-    'hide-search': false,
   })
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(() => getNotificationPrefs())
 
   const toggle = (key: string) => setToggles((p) => ({ ...p, [key]: !p[key] }))
+  const patchNotif = (patch: Partial<NotificationPrefs>) => {
+    setNotifPrefs(saveNotificationPrefs(patch))
+  }
 
   useEffect(() => {
     // Scroll spy logic removed in favor of content swapping
@@ -672,22 +473,58 @@ export default function SettingsDialog() {
             <Section id="notifications" active={activeTab === 'notifications'} title="Notifications">
               <div className="space-y-4">
                 <ToggleRow
+                  title="Browser push alerts"
+                  description="Show OS notifications when this tab is open or in the background."
+                  checked={notifPrefs.browserPush}
+                  onChange={() => patchNotif({ browserPush: !notifPrefs.browserPush })}
+                />
+                <ToggleRow
+                  title="Contact saves"
+                  description="Alert when a guest shares contact details on your vCard."
+                  checked={notifPrefs.contactSaves}
+                  onChange={() => patchNotif({ contactSaves: !notifPrefs.contactSaves })}
+                />
+                <ToggleRow
+                  title="Notes & urgent replies"
+                  description="Alert when notes are saved or replies are sent."
+                  checked={notifPrefs.notesReplies}
+                  onChange={() => patchNotif({ notesReplies: !notifPrefs.notesReplies })}
+                />
+                <ToggleRow
+                  title="Weekly insights"
+                  description="Once-per-week engagement summary in your alert inbox."
+                  checked={notifPrefs.weeklyInsight}
+                  onChange={() => patchNotif({ weeklyInsight: !notifPrefs.weeklyInsight })}
+                />
+                <ToggleRow
+                  title="Call & email taps"
+                  description="Notify when visitors tap call or email on your public vCard."
+                  checked={notifPrefs.callEmail}
+                  onChange={() => patchNotif({ callEmail: !notifPrefs.callEmail })}
+                />
+                <ToggleRow
+                  title="Support & feedback"
+                  description="Alerts about support tickets and feedback updates."
+                  checked={notifPrefs.supportFeedback}
+                  onChange={() => patchNotif({ supportFeedback: !notifPrefs.supportFeedback })}
+                />
+                <ToggleRow
                   title="Email notifications"
-                  description="Receive a daily summary of your activity and audience insights."
-                  checked={toggles['email-notif']}
-                  onChange={() => toggle('email-notif')}
+                  description="Receive email summaries of activity and audience insights."
+                  checked={notifPrefs.emailNotifications}
+                  onChange={() => patchNotif({ emailNotifications: !notifPrefs.emailNotifications })}
                 />
                 <ToggleRow
                   title="Security alerts"
                   description="Get notified about unrecognized logins or password changes."
-                  checked={toggles['security-alerts']}
-                  onChange={() => toggle('security-alerts')}
+                  checked={notifPrefs.securityAlerts}
+                  onChange={() => patchNotif({ securityAlerts: !notifPrefs.securityAlerts })}
                 />
                 <ToggleRow
                   title="Product updates"
                   description="Stay in the loop with the latest features and announcements."
-                  checked={toggles['product-updates']}
-                  onChange={() => toggle('product-updates')}
+                  checked={notifPrefs.productUpdates}
+                  onChange={() => patchNotif({ productUpdates: !notifPrefs.productUpdates })}
                 />
               </div>
             </Section>
@@ -787,52 +624,11 @@ export default function SettingsDialog() {
                 <div>
                   <h4 className="mb-2 text-[15px] font-black text-slate-900 dark:text-white">Design tools</h4>
                   <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                    Connect with Canva to create custom profile images and wallpapers.
+                    Connect Canva for creatives. Guest-facing AI Assistance is a separate setting — train it per vCard
+                    in Card Settings.
                   </p>
-                  <div className="space-y-3">
-                    <CanvaConnectRow userId={user?.uid} variant="icon" returnTo="/settings" />
-                    <ConnectRow
-                      icon={Bot}
-                      title="Live Agent Integration"
-                      iconStyle="bg-indigo-50 dark:bg-indigo-500/10 border-indigo-100 dark:border-indigo-500/20"
-                      color="text-indigo-600 dark:text-indigo-400"
-                      isConnected={liveAgentConnected}
-                      onClick={() => {
-                        if (!liveAgentConnected) setShowLiveAgentModal(true)
-                      }}
-                      onDisconnect={() => setLiveAgentConnected(false)}
-                    />
-                  </div>
+                  <CanvaConnectRow userId={user?.uid} variant="card" returnTo="/settings" />
                 </div>
-              </div>
-            </Section>
-
-            <Section id="analytics" active={activeTab === 'analytics'} title="Analytics">
-              <p className="mb-8 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                Integrate pixels to track your events in Facebook and Google.
-              </p>
-              <div className="space-y-8">
-                <div>
-                  <h4 className="mb-3 pl-1 text-[14px] font-bold text-slate-900 dark:text-white">Facebook</h4>
-                  <div className="space-y-4 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
-                    <Input type="text" placeholder="Pixel ID (Example: 1234567890)" />
-                    <Input type="text" placeholder="Facebook Conversions API Access Token" />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="mb-3 pl-1 text-[14px] font-bold text-slate-900 dark:text-white">Google</h4>
-                  <div className="rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
-                    <Input type="text" placeholder="Google Measurement ID (Example: G-XXXXXXX)" />
-                  </div>
-                </div>
-
-                <div className="pt-2"></div>
-                <ToggleRow
-                  title="UTM Parameters"
-                  description="Make Google Analytics show traffic as 'social' traffic. The campaign parameter is set dynamically from the title of each link."
-                  checked={toggles['utm-params']}
-                  onChange={() => toggle('utm-params')}
-                />
               </div>
             </Section>
 
@@ -856,6 +652,51 @@ export default function SettingsDialog() {
                       checked={toggles['main-tab-shop']}
                       onChange={() => toggle('main-tab-shop')}
                     />
+                  </div>
+                </div>
+              </div>
+            </Section>
+
+            <Section id="ai-assistance" active={activeTab === 'ai-assistance'} title="AI Assistance">
+              <div className="space-y-6">
+                <p className="text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                  AI Assistance chats with guests on your public vCard — answering questions about your business. Train
+                  it per card (documents + business brief) in Card Settings → AI Assistance.
+                </p>
+                <div className="rounded-3xl border border-violet-200/70 bg-linear-to-br from-violet-50/80 via-white to-indigo-50/40 p-6 dark:border-violet-500/25 dark:from-violet-500/10 dark:via-[#0b0f19] dark:to-indigo-500/5">
+                  <div className="flex items-start gap-4">
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white">
+                      <MessageCircle className="h-7 w-7" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-[15px] font-black text-slate-900 dark:text-white">
+                        Guest-facing AI assistant
+                      </h4>
+                      <p className="mt-1 text-[13px] leading-relaxed font-semibold text-slate-500">
+                        Separate from Canva. When active on a card, visitors can talk to your assistant and get answers
+                        trained from your business info.
+                      </p>
+                      <ul className="mt-4 space-y-2 text-[12px] font-semibold text-slate-600 dark:text-slate-300">
+                        <li className="flex items-start gap-2">
+                          <Bot className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
+                          Open a vCard → Card Settings → AI Assistance
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Bot className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
+                          Turn the assistant Active, then train with docs / write about your business
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Bot className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
+                          Guests chat with the trained assistant on that public card
+                        </li>
+                      </ul>
+                      <Link
+                        href="/vcards"
+                        className="mt-5 inline-flex rounded-xl bg-violet-600 px-5 py-2.5 text-[12px] font-black tracking-wider text-white uppercase hover:bg-violet-700"
+                      >
+                        Go to vCards
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -890,32 +731,6 @@ export default function SettingsDialog() {
                 <button className="inline-flex items-center gap-2 rounded-[14px] border border-slate-200/80 bg-white px-6 py-3 text-[13px] font-bold text-slate-900 shadow-sm transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
                   See subscriber insights
                 </button>
-              </div>
-            </Section>
-
-            <Section id="seo" active={activeTab === 'seo'} title="SEO">
-              <div className="space-y-8">
-                <div>
-                  <h4 className="mb-2 pl-1 text-[15px] font-black text-slate-900 dark:text-white">Custom metadata</h4>
-                  <p className="mb-6 pl-1 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                    Changes to metadata may take some time to appear on other platforms.
-                  </p>
-                  <div className="space-y-4 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/2">
-                    <Input type="text" placeholder="Meta title (Example: @yourname)" />
-                    <Textarea
-                      placeholder="Meta description (Example: Make your link do more.)"
-                      className="min-h-25 resize-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2"></div>
-                <ToggleRow
-                  title="Hide profile from search engines"
-                  description="Adds a noindex tag to your profile so search engines won't include it in results."
-                  checked={toggles['hide-search']}
-                  onChange={() => toggle('hide-search')}
-                />
               </div>
             </Section>
 
@@ -973,13 +788,6 @@ export default function SettingsDialog() {
             </Section>
           </div>
         </div>
-
-        {showLiveAgentModal && (
-          <LiveAgentSettingsModal
-            onClose={() => setShowLiveAgentModal(false)}
-            onConnect={() => setLiveAgentConnected(true)}
-          />
-        )}
 
         {showLogoutModal && (
           <LogoutConfirmModal

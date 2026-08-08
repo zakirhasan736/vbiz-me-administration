@@ -8,6 +8,27 @@ import Link from 'next/link'
 
 const REVIEW_IMAGE_FALLBACK = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&fit=crop'
 
+function ReviewStars({
+  rating,
+  className = 'h-4 w-4',
+  filledClassName = 'fill-yellow-primary text-yellow-primary',
+  emptyClassName = 'text-zinc-300 dark:text-zinc-600',
+}: {
+  rating: number
+  className?: string
+  filledClassName?: string
+  emptyClassName?: string
+}) {
+  const value = Number.isFinite(rating) ? Math.min(5, Math.max(0, Math.round(rating))) : 5
+  return (
+    <>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star key={i} className={`${className} ${i <= value ? filledClassName : emptyClassName}`} />
+      ))}
+    </>
+  )
+}
+
 type AllReviewsViewProps = {
   sectionTitle: string
   slides: ReviewListItem[]
@@ -51,9 +72,7 @@ function ReviewCardContent({ item }: { item: ReviewListItem }) {
     <>
       <div className="mb-6 flex items-start justify-between">
         <div className="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50/80 p-1.5 dark:border-zinc-800 dark:bg-zinc-950/80">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Star key={i} className="fill-yellow-primary text-yellow-primary h-4 w-4" />
-          ))}
+          <ReviewStars rating={item.rating} />
         </div>
         <Quote className="h-8 w-8 text-zinc-200 dark:text-zinc-800" />
       </div>
@@ -116,7 +135,7 @@ export function AllReviewsView({ sectionTitle, slides, onBack }: AllReviewsViewP
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: idx * 0.05 }}
-            className="flex min-h-[280px] flex-col rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl sm:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50"
+            className="flex min-h-70 flex-col rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl sm:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50"
           >
             <ReviewCardContent item={item} />
           </motion.div>
@@ -162,9 +181,7 @@ export function SliderReviewCard({ item }: { item: ReviewListItem }) {
     <>
       <div className="mb-3 flex shrink-0 items-start justify-between md:mb-6">
         <div className="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50/80 p-1.5 dark:border-zinc-800 dark:bg-zinc-950/80">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Star key={i} className="fill-yellow-primary text-yellow-primary h-3.5 w-3.5 md:h-4 md:w-4" />
-          ))}
+          <ReviewStars rating={item.rating} className="h-3.5 w-3.5 md:h-4 md:w-4" />
         </div>
         <Quote className="h-7 w-7 text-zinc-200 transition-colors group-hover/card:text-zinc-300 md:h-8 md:w-8 dark:text-zinc-800" />
       </div>

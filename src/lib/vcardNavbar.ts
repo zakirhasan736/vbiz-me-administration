@@ -1,3 +1,4 @@
+import { getDefaultCreateCardNavIds } from '@/lib/createCardTabs'
 import {
   createDefaultFieldConfig,
   normalizeFieldConfig,
@@ -14,14 +15,17 @@ import {
   CalendarDays,
   Camera,
   Coffee,
+  Contact,
   FileEdit,
   FileText,
   Film,
+  Globe2,
   GraduationCap,
   Handshake,
   Headphones,
   Home,
   IdCard,
+  Images,
   Landmark,
   Layers,
   Lightbulb,
@@ -60,7 +64,7 @@ export const MERGED_PROFILE_NAV_LABELS = [
   'Home',
   'About Me',
   'Company Mission Statement',
-  'Resume',
+  'Education',
   'Skills',
   'Services',
   'Gallery',
@@ -77,6 +81,11 @@ export const MERGED_PROFILE_NAV_LABELS = [
   'Faq',
   'Work Experience',
   'Video Links',
+  'Profile',
+  'Resume',
+  'Content & media',
+  'Global Connection',
+  'My Info',
 ] as const
 
 export type ProfileNavContentKey =
@@ -121,6 +130,11 @@ export type ProfileNavContentKey =
   | 'inventory'
   | 'licensing'
   | 'insurance-license'
+  | 'profile'
+  | 'resume'
+  | 'content-media'
+  | 'global-connection'
+  | 'my-info'
   | 'empty'
 
 export type EditorNavPanel =
@@ -130,9 +144,16 @@ export type EditorNavPanel =
   | { kind: 'skill' }
   | { kind: 'services' }
   | { kind: 'portfolio' }
+  | { kind: 'reviews' }
   | { kind: 'blog' }
   | { kind: 'faq' }
   | { kind: 'link-shortener' }
+  | { kind: 'profile' }
+  | { kind: 'resume' }
+  | { kind: 'content-media' }
+  | { kind: 'global-connection' }
+  | { kind: 'my-info' }
+  | { kind: 'certificates' }
   | { kind: 'section-posts'; schemaKey: ProfileNavContentKey }
   | { kind: 'info'; infoKey: 'public-cards' }
   | { kind: 'empty' }
@@ -143,6 +164,8 @@ export type NavBarNavItem = {
   label: string
   /** Optional API title override for tooltips / aria labels. */
   displayLabel?: string
+  /** Editor main-strip label (public nav still uses `label` / `displayLabel`). */
+  editorLabel?: string
   /**
    * Exact section key from `/post-types` (`name` for post types / static links).
    * Used as `GET /dynamic-section/{apiSectionName}?profile_id=`.
@@ -154,7 +177,14 @@ export type NavBarNavItem = {
 }
 
 const NAV_ITEM_DEFS: NavBarNavItem[] = [
-  { id: 'home', label: 'Home', icon: Home, profileContent: 'home', editorPanel: { kind: 'personal', subTab: 1 } },
+  {
+    id: 'home',
+    label: 'Home',
+    editorLabel: 'Personal',
+    icon: Home,
+    profileContent: 'home',
+    editorPanel: { kind: 'personal', subTab: 1 },
+  },
   { id: 'about', label: 'About Me', icon: User, profileContent: 'about', editorPanel: { kind: 'personal', subTab: 2 } },
   {
     id: 'mission',
@@ -165,7 +195,7 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
   },
   {
     id: 'education',
-    label: 'Resume',
+    label: 'Education',
     icon: GraduationCap,
     profileContent: 'education',
     editorPanel: { kind: 'education' },
@@ -173,12 +203,20 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
   {
     id: 'skills',
     label: 'Skills',
+    displayLabel: 'Skill',
     icon: Wand2,
     profileContent: 'skills',
     editorPanel: { kind: 'skill' },
   },
   { id: 'services', label: 'Services', icon: Wrench, profileContent: 'services', editorPanel: { kind: 'services' } },
-  { id: 'gallery', label: 'Gallery', icon: Camera, profileContent: 'gallery', editorPanel: { kind: 'portfolio' } },
+  {
+    id: 'gallery',
+    label: 'Gallery',
+    displayLabel: 'Portfolio',
+    icon: Camera,
+    profileContent: 'gallery',
+    editorPanel: { kind: 'portfolio' },
+  },
   {
     id: 'videos',
     label: 'Videos',
@@ -186,8 +224,50 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     profileContent: 'videos',
     editorPanel: { kind: 'section-posts', schemaKey: 'videos' },
   },
-  { id: 'blog', label: 'Blog', icon: FileEdit, profileContent: 'blog', editorPanel: { kind: 'blog' } },
+  {
+    id: 'blog',
+    label: 'Blog',
+    displayLabel: 'News/Blogs',
+    icon: FileEdit,
+    profileContent: 'blog',
+    editorPanel: { kind: 'blog' },
+  },
   { id: 'post', label: 'Post', icon: Newspaper, profileContent: 'post', editorPanel: { kind: 'blog' } },
+  {
+    id: 'profile',
+    label: 'Profile',
+    icon: IdCard,
+    profileContent: 'profile',
+    editorPanel: { kind: 'profile' },
+  },
+  {
+    id: 'resume',
+    label: 'Resume',
+    icon: FileText,
+    profileContent: 'resume',
+    editorPanel: { kind: 'resume' },
+  },
+  {
+    id: 'content-media',
+    label: 'Content & media',
+    icon: Images,
+    profileContent: 'content-media',
+    editorPanel: { kind: 'content-media' },
+  },
+  {
+    id: 'global-connection',
+    label: 'Global Connection',
+    icon: Globe2,
+    profileContent: 'global-connection',
+    editorPanel: { kind: 'global-connection' },
+  },
+  {
+    id: 'my-info',
+    label: 'My Info',
+    icon: Contact,
+    profileContent: 'my-info',
+    editorPanel: { kind: 'my-info' },
+  },
   {
     id: 'additional',
     label: 'Additional Services',
@@ -207,14 +287,14 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     label: 'Reviews',
     icon: Star,
     profileContent: 'reviews',
-    editorPanel: { kind: 'section-posts', schemaKey: 'reviews' },
+    editorPanel: { kind: 'reviews' },
   },
   {
     id: 'certificates',
     label: 'Certifications/Licenses',
     icon: Award,
     profileContent: 'certificates',
-    editorPanel: { kind: 'section-posts', schemaKey: 'certificates' },
+    editorPanel: { kind: 'certificates' },
   },
   {
     id: 'insurance-license',
@@ -262,6 +342,7 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
   {
     id: 'work',
     label: 'Work Experience',
+    displayLabel: 'Experience',
     icon: Briefcase,
     profileContent: 'work',
     editorPanel: { kind: 'experience' },
@@ -432,7 +513,6 @@ export const NAV_LABELS_HIDDEN_BY_DEFAULT = new Set([
   'Breakfast',
   'BBB',
   'Announcement',
-  'Resume',
   'Insurance License',
   'Licensing',
 ])
@@ -474,6 +554,21 @@ export function filterNavItemsByVisibility(items: NavBarNavItem[], settings: VCa
   return items.filter((item) => isNavItemVisible(settings, item.label))
 }
 
+/**
+ * About Me opens the same personal editor as Home; hide it from the editor main strip
+ * so only the Personal (home) chip appears. Public Nav Bar / Add Tabs still use `about`.
+ */
+export const EDITOR_COLLAPSED_INTO_PERSONAL_IDS = new Set(['about'])
+
+export function filterEditorMainNavItems(items: NavBarNavItem[]): NavBarNavItem[] {
+  return items.filter((item) => !EDITOR_COLLAPSED_INTO_PERSONAL_IDS.has(item.id))
+}
+
+/** Whether this nav id should highlight the Personal (home) chip in the editor. */
+export function isPersonalEditorNavId(id: string): boolean {
+  return id === 'home' || id === 'about'
+}
+
 export function getNavItemBackgroundColor(settings: VCardDisplaySettings, label: string): string | undefined {
   const bg = settings.fields[label]?.backgroundColor?.trim()
   return bg || undefined
@@ -485,4 +580,95 @@ export function getNavItemById(id: string, items: NavBarNavItem[] = NAV_BAR_NAV_
 
 export function getNavDisplayLabel(item: NavBarNavItem): string {
   return item.displayLabel ?? item.label
+}
+
+/** Label shown on the vCard editor main nav strip. */
+export function getEditorNavLabel(item: NavBarNavItem): string {
+  return item.editorLabel ?? item.displayLabel ?? item.label
+}
+
+/** Always kept enabled in the Add-tab modal (same role as Personal in backoffice). */
+export const LOCKED_NAV_ITEM_IDS = new Set(['home'])
+
+export type NavItemGroupId = 'essentials' | 'profile' | 'content' | 'business' | 'tools'
+
+export const NAV_ITEM_GROUPS: { id: NavItemGroupId; label: string }[] = [
+  { id: 'essentials', label: 'Essentials' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'content', label: 'Content & media' },
+  { id: 'business', label: 'Business' },
+  { id: 'tools', label: 'Tools' },
+]
+
+const NAV_ITEM_GROUP_BY_ID: Record<string, NavItemGroupId> = {
+  home: 'essentials',
+  about: 'essentials',
+  services: 'essentials',
+  reviews: 'essentials',
+  blog: 'essentials',
+  post: 'essentials',
+  education: 'profile',
+  skills: 'profile',
+  work: 'profile',
+  gallery: 'profile',
+  certificates: 'profile',
+  profile: 'profile',
+  resume: 'profile',
+  'content-media': 'content',
+  'global-connection': 'tools',
+  'my-info': 'tools',
+  'insurance-license': 'profile',
+  licensing: 'profile',
+  mission: 'content',
+  videos: 'content',
+  additional: 'content',
+  explainer: 'content',
+  faq: 'content',
+  'video-links': 'content',
+  announcement: 'content',
+  breakfast: 'content',
+  dinner: 'content',
+  lunch: 'content',
+  menu: 'content',
+  events: 'content',
+  calendar: 'content',
+  press: 'content',
+  'who-we-are': 'content',
+  'contact-us': 'content',
+  clients: 'business',
+  'meet-team': 'business',
+  booking: 'business',
+  bbb: 'business',
+  dcp: 'business',
+  'home-solar': 'business',
+  inventory: 'business',
+  'join-team': 'business',
+  'property-listing': 'business',
+  resiliency: 'business',
+  'see-product': 'business',
+  'sales-24h': 'business',
+  'public-cards': 'tools',
+}
+
+export function getNavItemGroup(item: NavBarNavItem): NavItemGroupId {
+  return NAV_ITEM_GROUP_BY_ID[item.id] ?? 'content'
+}
+
+export function sortNavItemsByOrder(items: NavBarNavItem[], orderIds: string[]): NavBarNavItem[] {
+  if (!orderIds.length) return items
+  const rank = new Map(orderIds.map((id, index) => [id, index]))
+  return [...items].sort((a, b) => {
+    const ra = rank.has(a.id) ? (rank.get(a.id) as number) : Number.MAX_SAFE_INTEGER
+    const rb = rank.has(b.id) ? (rank.get(b.id) as number) : Number.MAX_SAFE_INTEGER
+    if (ra !== rb) return ra - rb
+    return 0
+  })
+}
+
+export function storageKeyForEditorNavOrder(cardKey: string) {
+  return `vcard_editor_nav_order_v1_${cardKey}`
+}
+
+export function getDefaultEnabledNavIds(): string[] {
+  return getDefaultCreateCardNavIds()
 }

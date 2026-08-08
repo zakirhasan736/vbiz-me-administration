@@ -64,7 +64,6 @@ const API_FIELD_TO_LABEL: Record<string, string> = {
   gender_id_checkbox: 'Gender',
   marital_status_checkbox: 'MyInfo Relationship Status',
   about_checkbox: 'About Me',
-  zip_code_checkbox: 'Zip',
   save_contact_checkbox: 'Save Contact',
   share_checkbox: 'Share Btn',
   facebook_checkbox: 'FaceBook',
@@ -284,9 +283,6 @@ function mapPersonal(card: MyCardData): VCardPersonal {
     phone: p.phone ?? '',
     whatsapp: p.whatsapp ?? p.phone ?? '',
     address: p.address ?? '',
-    state: p.state ?? '',
-    city: p.city ?? '',
-    zip: p.zipcode ?? '',
     website: p.website ?? '',
     about: aboutSection,
     explainerVideoUrl: (() => {

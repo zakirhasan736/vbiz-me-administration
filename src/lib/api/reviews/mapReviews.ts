@@ -26,19 +26,25 @@ function linkCardSortWeight(item: ReviewListItem): number {
   return 2
 }
 
+function normalizeRating(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n)) return 5
+  return Math.min(5, Math.max(1, Math.round(n)))
+}
+
 export function mapReviewItemToListItem(item: ReviewItem): ReviewListItem {
   const linkUrl = item.review_link?.has_link && item.review_link.url?.trim() ? item.review_link.url.trim() : null
   const { plain, html } = toPlainDescription(item.description)
   const isLinkCard = Boolean(linkUrl)
-
   return {
     id: item.id,
-    title: item.title.trim() || (isLinkCard ? 'Leave a Review' : 'Review'),
+    title: (item.title || '').trim() || (isLinkCard ? 'Leave a Review' : 'Review'),
     plainDescription: plain,
     htmlDescription: html,
     image: item.featured_image?.trim() ?? '',
     linkUrl,
     isLinkCard,
+    rating: normalizeRating(item.rating),
   }
 }
 
@@ -56,11 +62,14 @@ export function normalizeReviewsResponse(response: ReviewsSectionResponse): Revi
     .sort((a, b) => linkCardSortWeight(a) - linkCardSortWeight(b))
   const reviews = items.filter((item) => !item.isLinkCard)
   const slides = [...linkCards, ...reviews]
+  const averageRating =
+    reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : 0
 
   return {
     sectionTitle,
     slides,
     leaveReviewUrl: linkCards[0]?.linkUrl ?? null,
     reviewCount: reviews.length,
+    averageRating,
   }
 }

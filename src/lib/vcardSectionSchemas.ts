@@ -78,16 +78,6 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     addLabel: 'Add Explainer',
     accentClass: 'teal',
   }),
-  reviews: schema({
-    key: 'reviews',
-    postTypeName: PUBLIC_SECTION_NAMES.reviews,
-    title: 'Reviews',
-    fields: ['title', 'description', 'rating', 'featuredImage', 'active'],
-    addLabel: 'Add Review',
-    emptyTitle: 'No reviews yet',
-    emptyHint: 'Add customer reviews for your public profile.',
-    accentClass: 'amber',
-  }),
   certificates: schema({
     key: 'certificates',
     postTypeName: PUBLIC_SECTION_NAMES.certificates,
