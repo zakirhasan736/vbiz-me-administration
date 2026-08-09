@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { useGetActiveTemplatesQuery } from '@/redux/features/adminTemplates/adminTemplates.api'
 import {
   setLayoutStyle,
   setProfileTemplate,
@@ -8,8 +9,9 @@ import {
 } from '@/redux/features/designSettings/designSettings.slice'
 import type { VCardAppearance } from '@/types/vcard'
 import { cn } from '@/utils/cn'
+import { useMemo } from 'react'
 
-const TEMPLATES: { id: ProfileTemplateId; title: string; description: string }[] = [
+const FALLBACK_TEMPLATES: { id: ProfileTemplateId; title: string; description: string }[] = [
   {
     id: 'v3',
     title: 'Ocean Profile',
@@ -59,9 +61,29 @@ export function ProfileTemplateLayoutSettings({
     cornerStyle: s.designSettings.cornerStyle,
   }))
 
+  const { data: activeTemplates, isError } = useGetActiveTemplatesQuery()
+
   const isVCardScope = scope === 'vcard' && appearanceProp && onAppearanceChange
   const profileTemplate = isVCardScope ? appearanceProp.profileTemplate : accountAppearance.profileTemplate
   const layoutStyle = isVCardScope ? appearanceProp.layoutStyle : accountAppearance.layoutStyle
+
+  const templates = useMemo(() => {
+    const catalog =
+      !isError && activeTemplates && activeTemplates.length > 0
+        ? activeTemplates.map((t) => ({
+            id: t.id as ProfileTemplateId,
+            title: t.name,
+            description: t.description,
+          }))
+        : FALLBACK_TEMPLATES
+
+    const selected = profileTemplate as ProfileTemplateId
+    if (catalog.some((t) => t.id === selected)) return catalog
+
+    const fallback = FALLBACK_TEMPLATES.find((t) => t.id === selected)
+    if (fallback) return [...catalog, fallback]
+    return catalog
+  }, [activeTemplates, isError, profileTemplate])
 
   const setTemplate = (id: ProfileTemplateId) => {
     if (isVCardScope) {
@@ -87,6 +109,11 @@ export function ProfileTemplateLayoutSettings({
 
   const sectionTitle = mergeLayout ? 'Template & layout' : 'Profile template'
 
+  const selectedTitle =
+    templates.find((t) => t.id === profileTemplate)?.title ??
+    FALLBACK_TEMPLATES.find((t) => t.id === profileTemplate)?.title ??
+    'Link in Bio'
+
   return (
     <div className={mergeLayout ? 'space-y-5' : 'space-y-8'}>
       <div id="tour-card-template-picker" data-tour-id="tour-card-template-picker">
@@ -94,7 +121,7 @@ export function ProfileTemplateLayoutSettings({
           {sectionTitle}
         </h4>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {TEMPLATES.map((tpl) => (
+          {templates.map((tpl) => (
             <button
               key={tpl.id}
               type="button"
@@ -168,8 +195,8 @@ export function ProfileTemplateLayoutSettings({
               )}
             >
               {profileTemplate === 'v2'
-                ? 'Applies to Link in Bio header and cover video.'
-                : 'Classic template uses its own shell; layout applies when you switch to Link in Bio.'}
+                ? `Applies to ${selectedTitle} header and cover video.`
+                : `Classic template uses its own shell; layout applies when you switch to Link in Bio.`}
             </p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <button

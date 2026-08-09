@@ -1,5 +1,6 @@
 'use client'
 
+import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { Badge, Button, Card, Tooltip } from '@/components/ui'
 import { useAppDispatch } from '@/hooks/redux'
@@ -32,6 +33,11 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
   const [copied, setCopied] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [alertState, setAlertState] = useState<{
+    title: string
+    description: string
+    variant?: 'default' | 'danger'
+  } | null>(null)
   const slug = card.slug.trim()
   const publicPath = getVCardPublicPath(slug)
   const fullUrl = getVCardPublicUrl(slug)
@@ -58,7 +64,11 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
       dispatch(removeVCard(card.id))
       setDeleteOpen(false)
     } catch {
-      window.alert('Could not delete this vCard. Please try again.')
+      setAlertState({
+        title: 'Delete failed',
+        description: 'Could not delete this vCard. Please try again.',
+        variant: 'danger',
+      })
     }
   }
 
@@ -78,6 +88,16 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
         labelledBy={`delete-vcard-title-${card.id}`}
         describedBy={`delete-vcard-description-${card.id}`}
       />
+
+      {alertState && (
+        <AlertModal
+          open
+          title={alertState.title}
+          description={alertState.description}
+          variant={alertState.variant}
+          onClose={() => setAlertState(null)}
+        />
+      )}
       {isPersonal && (
         <div className="absolute top-4 left-4 z-20">
           <span className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-black tracking-wider text-violet-700 uppercase shadow-sm backdrop-blur-md dark:border-violet-500/25 dark:bg-violet-500/15 dark:text-violet-300">

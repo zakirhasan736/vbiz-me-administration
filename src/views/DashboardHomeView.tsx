@@ -25,6 +25,7 @@ import {
   useGetDashboardStatsQuery,
   useGetRecentEngagementQuery,
 } from '@/redux/features/profiles/profiles.api'
+import CorporateOwnerDashboardHome from '@/views/CorporateOwnerDashboardHome'
 import { Calendar, Download, Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
@@ -274,6 +275,7 @@ function SingleOwnerDashboardHome() {
 const DashboardHomeView = () => {
   const role = useAppSelector((state) => state.user.user?.role)
   if (role === 'vcard-owner') return <SingleOwnerDashboardHome />
+  if (role === 'corporate-owner') return <CorporateOwnerDashboardHome />
   return <LegacyDashboardHome />
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
-import { type AiChatMessage, createTicket, getAiReply, type TicketType } from '@/lib/supportFeedback'
+import { type AiChatMessage, getAiReply, type TicketType } from '@/lib/supportFeedback'
+import { useCreateSupportTicketMutation } from '@/redux/features/adminSupport/adminSupport.api'
 import { cn } from '@/utils/cn'
 import { Bot, LifeBuoy, Mail, MessageSquareHeart, Send, Sparkles, Star, X } from 'lucide-react'
 import { useState } from 'react'
@@ -79,48 +80,56 @@ export function ContactModal({
   const [details, setDetails] = useState('')
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [aiMessages, setAiMessages] = useState<AiChatMessage[]>(() => loadOwnerAiChat())
   const [aiInput, setAiInput] = useState('')
+  const [createSupportTicket] = useCreateSupportTicketMutation()
 
   const isFeedback = lockedMode === 'feedback'
 
   const handleClose = () => {
     setSent(false)
     setSending(false)
+    setSubmitError(null)
     onClose()
   }
 
-  const handleSubmitFeedbackOrAdmin = (e: React.FormEvent) => {
+  const handleSubmitFeedbackOrAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!subject.trim() || !details.trim()) return
     setSending(true)
+    setSubmitError(null)
 
-    if (isFeedback) {
-      createTicket({
-        channel: 'feedback',
-        type,
-        subject: subject.trim(),
-        details: details.trim(),
-        rating: type === 'satisfaction' ? rating : undefined,
-        fromRole,
-        fromName,
-        fromEmail,
-      })
-    } else {
-      createTicket({
-        channel: 'email',
-        type: 'help',
-        subject: subject.trim(),
-        details: details.trim(),
-        fromRole,
-        fromName,
-        fromEmail,
-        meta: { to: 'support@vbiz.me', route: 'email_support' },
-      })
+    try {
+      if (isFeedback) {
+        await createSupportTicket({
+          channel: 'feedback',
+          type,
+          subject: subject.trim(),
+          details: details.trim(),
+          rating: type === 'satisfaction' ? rating : undefined,
+          fromRole,
+          fromName,
+          fromEmail,
+        }).unwrap()
+      } else {
+        await createSupportTicket({
+          channel: 'email',
+          type: 'help',
+          subject: subject.trim(),
+          details: details.trim(),
+          fromRole,
+          fromName,
+          fromEmail,
+          meta: { to: 'support@vbiz.me', route: 'email_support' },
+        }).unwrap()
+      }
+      setSent(true)
+    } catch {
+      setSubmitError('Could not send your message. Please try again.')
+    } finally {
+      setSending(false)
     }
-
-    setSending(false)
-    setSent(true)
   }
 
   const handleAiSend = (e: React.FormEvent) => {
@@ -293,6 +302,7 @@ export function ContactModal({
               >
                 {sending ? 'Sending...' : 'Submit feedback to admin'}
               </button>
+              {submitError && <p className="text-[11px] font-semibold text-rose-500">{submitError}</p>}
             </form>
           ) : supportPath === 'ai' ? (
             <div className="flex min-h-90 flex-col">
@@ -378,6 +388,7 @@ export function ContactModal({
               >
                 {sending ? 'Sending...' : 'Send email support'}
               </button>
+              {submitError && <p className="text-[11px] font-semibold text-rose-500">{submitError}</p>}
             </form>
           )}
         </div>

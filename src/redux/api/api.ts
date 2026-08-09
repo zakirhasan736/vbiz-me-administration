@@ -76,6 +76,21 @@ const baseQueryWithRefreshToken = async (args: any, api: any, extraOptions: any)
 export const api = createApi({
   reducerPath: 'baseApi',
   baseQuery: baseQueryWithRefreshToken,
-  tagTypes: ['auth', 'profiles', 'dashboard'],
+  tagTypes: [
+    'auth',
+    'profiles',
+    'dashboard',
+    'meetings',
+    'activity',
+    'adminProfiles',
+    'adminUsers',
+    'adminLeads',
+    'adminSupport',
+    'adminAnnouncements',
+    'adminTemplates',
+    'templates',
+    'adminPackages',
+    'adminTeam',
+  ],
   endpoints: () => ({}),
 })

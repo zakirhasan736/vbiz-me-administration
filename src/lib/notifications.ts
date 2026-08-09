@@ -197,7 +197,7 @@ export async function ensureNotificationPermission(): Promise<NotificationPermis
 
 export function roleToAudience(role?: string | null): NotificationAudience {
   if (role === 'corporate-owner') return 'corporate'
-  if (role === 'admin') return 'admin'
+  if (role === 'admin' || role === 'super-admin') return 'admin'
   return 'single'
 }
 
@@ -282,4 +282,59 @@ export function pushNotification(input: {
   }
 
   return n
+}
+
+export function notifyOwners(input: {
+  category: NotificationCategory
+  title: string
+  body: string
+  href?: string
+  meta?: Record<string, string>
+  forceBrowser?: boolean
+}) {
+  ;(['single', 'corporate'] as const).forEach((audience) => {
+    pushNotification({
+      audience,
+      category: input.category,
+      title: input.title,
+      body: input.body,
+      href: input.href || '/',
+      meta: input.meta,
+      forceBrowser: input.forceBrowser,
+    })
+  })
+}
+
+export function notifyOwnerAndAdmin(opts: {
+  ownerAudience: NotificationAudience
+  category: NotificationCategory
+  ownerTitle: string
+  ownerBody: string
+  adminTitle: string
+  adminBody: string
+  ownerHref?: string
+  adminHref?: string
+  forceBrowser?: boolean
+}) {
+  pushNotification({
+    audience: opts.ownerAudience,
+    category: opts.category,
+    title: opts.ownerTitle,
+    body: opts.ownerBody,
+    href: opts.ownerHref || '/',
+    forceBrowser: opts.forceBrowser,
+  })
+  pushNotification({
+    audience: 'admin',
+    category: opts.category,
+    title: opts.adminTitle,
+    body: opts.adminBody,
+    href: opts.adminHref || '/admin/leads',
+    forceBrowser: opts.forceBrowser,
+  })
+}
+
+export function getCurrentUserRole(): NotificationAudience | string {
+  if (typeof window === 'undefined') return 'single'
+  return localStorage.getItem('user_role') || 'single'
 }

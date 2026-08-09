@@ -1,5 +1,6 @@
 'use client'
 
+import { AlertModal } from '@/components/AlertModal'
 import {
   NoticeModal,
   QrCodeModal,
@@ -37,6 +38,7 @@ const DashboardVCardsView = () => {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<VCardStatusFilter>('all')
   const [sort, setSort] = useState<VCardSortOption>('newest')
+  const [alertMessage, setAlertMessage] = useState<string | null>(null)
 
   const cards = useMemo(() => profiles.map(mapApiProfileToVCardRecord), [profiles])
 
@@ -85,7 +87,7 @@ const DashboardVCardsView = () => {
   const handleEmailCard = (card: VCardRecord) => {
     const email = card.personal.email?.trim()
     if (!email) {
-      window.alert('No email on this card.')
+      setAlertMessage('No email on this card.')
       return
     }
     window.open(`mailto:${email}`, '_blank')
@@ -94,7 +96,7 @@ const DashboardVCardsView = () => {
   const handleCallCard = (card: VCardRecord) => {
     const phone = card.personal.phone?.trim() || card.personal.whatsapp?.trim()
     if (!phone) {
-      window.alert('No phone on this card.')
+      setAlertMessage('No phone on this card.')
       return
     }
     window.open(`tel:${phone.replace(/\s/g, '')}`, '_self')
@@ -121,7 +123,7 @@ const DashboardVCardsView = () => {
       }).unwrap()
       void refetch()
     } catch {
-      window.alert('Could not update card status. Please try again.')
+      setAlertMessage('Could not update card status. Please try again.')
     }
   }
 
@@ -191,11 +193,20 @@ const DashboardVCardsView = () => {
         onSchedule={handleScheduleCard}
         onNotice={openNotice}
         onDuplicate={() => {
-          window.alert(canCreate ? 'Duplicate is not available yet.' : 'Single card owners can create only one vCard')
+          setAlertMessage(
+            canCreate ? 'Duplicate is not available yet.' : 'Single card owners can create only one vCard'
+          )
         }}
         onToggleStatus={handleToggleStatus}
         canDuplicate={canCreate}
         duplicateDisabledReason="Single card owners can create only one vCard"
+      />
+
+      <AlertModal
+        open={Boolean(alertMessage)}
+        title="Notice"
+        description={alertMessage || ''}
+        onClose={() => setAlertMessage(null)}
       />
 
       <NoticeModal

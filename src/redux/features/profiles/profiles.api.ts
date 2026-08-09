@@ -187,6 +187,11 @@ export type DashboardStats = {
 
 export type DashboardStatsQuery = {
   period?: DashboardPeriod
+  scope?: 'created'
+}
+
+export type ProfilesListQuery = {
+  scope?: 'created'
 }
 
 export type DashboardEngagementRow = {
@@ -456,8 +461,11 @@ function isLocalTempId(id: string): boolean {
 
 const profilesApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getProfiles: builder.query<ApiProfile[], void>({
-      query: () => '/profiles',
+    getProfiles: builder.query<ApiProfile[], ProfilesListQuery | void>({
+      query: (params) => {
+        if (params?.scope) return `/profiles?scope=${encodeURIComponent(params.scope)}`
+        return '/profiles'
+      },
       transformResponse: (res: Envelope<ApiProfile[]>) => res.data || [],
       providesTags: (result) =>
         result
@@ -483,7 +491,12 @@ const profilesApi = api.injectEndpoints({
     createProfile: builder.mutation<ApiProfile, Partial<ReturnType<typeof mapVCardDataToProfilePayload>>>({
       query: (body) => ({ url: '/profiles', method: 'POST', body }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: [{ type: 'profiles', id: 'LIST' }, 'dashboard'],
+      invalidatesTags: [
+        { type: 'profiles', id: 'LIST' },
+        { type: 'adminProfiles', id: 'LIST' },
+        { type: 'adminProfiles', id: 'FILTERS' },
+        'dashboard',
+      ],
     }),
     updateProfileCard: builder.mutation<ApiProfile, { id: string; body: Record<string, unknown> }>({
       query: ({ id, body }) => ({ url: `/profiles/${id}`, method: 'PATCH', body }),
@@ -495,7 +508,12 @@ const profilesApi = api.injectEndpoints({
     }),
     deleteProfile: builder.mutation<{ id: string }, string>({
       query: (id) => ({ url: `/profiles/${id}`, method: 'DELETE' }),
-      invalidatesTags: [{ type: 'profiles', id: 'LIST' }, 'dashboard'],
+      invalidatesTags: [
+        { type: 'profiles', id: 'LIST' },
+        { type: 'adminProfiles', id: 'LIST' },
+        { type: 'adminProfiles', id: 'FILTERS' },
+        'dashboard',
+      ],
     }),
     replaceEducation: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/education`, method: 'PUT', body: { items } }),
@@ -594,8 +612,10 @@ const profilesApi = api.injectEndpoints({
     }),
     getDashboardStats: builder.query<DashboardStats, DashboardStatsQuery | void>({
       query: (params) => {
-        const period = params?.period ?? 'all'
-        return `/profiles/dashboard/stats?period=${encodeURIComponent(period)}`
+        const search = new URLSearchParams()
+        search.set('period', params?.period ?? 'all')
+        if (params?.scope) search.set('scope', params.scope)
+        return `/profiles/dashboard/stats?${search.toString()}`
       },
       transformResponse: (res: Envelope<DashboardStats>) => res.data,
       providesTags: ['dashboard'],
@@ -614,8 +634,13 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<DashboardEngagementPage>) => res.data,
       providesTags: ['dashboard'],
     }),
-    getWeeklyEngagement: builder.query<WeeklyEngagement, void>({
-      query: () => '/profiles/dashboard/weekly-engagement',
+    getWeeklyEngagement: builder.query<WeeklyEngagement, ProfilesListQuery | void>({
+      query: (params) => {
+        if (params?.scope) {
+          return `/profiles/dashboard/weekly-engagement?scope=${encodeURIComponent(params.scope)}`
+        }
+        return '/profiles/dashboard/weekly-engagement'
+      },
       transformResponse: (res: Envelope<WeeklyEngagement>) => res.data,
       providesTags: ['dashboard'],
     }),

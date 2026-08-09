@@ -1,5 +1,6 @@
 'use client'
 
+import { useAppSelector } from '@/hooks/redux'
 import { CardScopeProvider } from '@/lib/card-scope'
 import { VCardProvider } from '@/lib/VCardContext'
 import {
@@ -16,15 +17,22 @@ type Props = {
   segments?: string[]
 }
 
+function directoryPathForRole(role: string | undefined) {
+  if (role === 'admin' || role === 'super-admin') return '/admin/mycards'
+  if (role === 'corporate-owner') return '/teamvcard'
+  return '/vcards'
+}
+
 export default function EditVCardClient({ segments }: Props) {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const role = useAppSelector((state) => state.user.user?.role)
   const cardId = searchParams.get('cardId')
   const parsed = parseEditorSegments(segments)
 
   useEffect(() => {
     if (!cardId) {
-      router.replace('/vcards')
+      router.replace(directoryPathForRole(role))
       return
     }
 
@@ -36,7 +44,7 @@ export default function EditVCardClient({ segments }: Props) {
     if (!isValidEditorSection(parsed.sectionId)) {
       router.replace(buildEditorPath('/vcards/edit', { sectionId: DEFAULT_EDITOR_SECTION }, cardId))
     }
-  }, [cardId, parsed.sectionId, router, segments])
+  }, [cardId, parsed.sectionId, role, router, segments])
 
   if (!cardId || !segments || segments.length === 0 || !isValidEditorSection(parsed.sectionId)) {
     return (

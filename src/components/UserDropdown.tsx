@@ -4,7 +4,7 @@ import { ContactModal, type OwnerFeedbackMode } from '@/components/dashboard/hom
 import { useAppSelector } from '@/hooks/redux'
 import { logout, useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
-import { LifeBuoy, MessageSquareHeart, Settings, UserCircle } from 'lucide-react'
+import { LifeBuoy, LogOut, MessageSquareHeart, Settings, UserCircle } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -15,6 +15,7 @@ const menuItemClassName =
   'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white'
 
 function accountTypeLabel(role: string | undefined) {
+  if (role === 'super-admin') return 'Super Admin Account'
   if (role === 'admin') return 'Admin Account'
   if (role === 'corporate-owner') return 'Corporate Account'
   return 'Single Account'
@@ -82,7 +83,7 @@ export function UserDropdown() {
               <p
                 className={cn(
                   'mt-1 inline-block rounded-md px-2 py-0.5 text-[10px] font-extrabold tracking-widest uppercase',
-                  role === 'admin'
+                  role === 'admin' || role === 'super-admin'
                     ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400'
                     : role === 'corporate-owner'
                       ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/15 dark:text-primary-400'
@@ -93,29 +94,39 @@ export function UserDropdown() {
               </p>
             </div>
             <div className="space-y-1 p-2">
-              <Link href="/settings" onClick={() => setIsProfileOpen(false)} className={menuItemClassName}>
-                <Settings className="h-4 w-4" /> Account Settings
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setOwnerFeedbackMode('feedback')
-                  setIsProfileOpen(false)
-                }}
-                className={menuItemClassName}
-              >
-                <MessageSquareHeart className="h-4 w-4" /> Send feedback
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOwnerFeedbackMode('support')
-                  setIsProfileOpen(false)
-                }}
-                className={menuItemClassName}
-              >
-                <LifeBuoy className="h-4 w-4 text-indigo-500" /> Contact Support
-              </button>
+              {role === 'admin' || role === 'super-admin' ? (
+                <Link href="/admin/settings" onClick={() => setIsProfileOpen(false)} className={menuItemClassName}>
+                  <Settings className="h-4 w-4" /> Admin Settings
+                </Link>
+              ) : (
+                <Link href="/settings" onClick={() => setIsProfileOpen(false)} className={menuItemClassName}>
+                  <Settings className="h-4 w-4" /> Account Settings
+                </Link>
+              )}
+              {role !== 'admin' && role !== 'super-admin' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOwnerFeedbackMode('feedback')
+                      setIsProfileOpen(false)
+                    }}
+                    className={menuItemClassName}
+                  >
+                    <MessageSquareHeart className="h-4 w-4" /> Send feedback
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOwnerFeedbackMode('support')
+                      setIsProfileOpen(false)
+                    }}
+                    className={menuItemClassName}
+                  >
+                    <LifeBuoy className="h-4 w-4 text-indigo-500" /> Contact Support
+                  </button>
+                </>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -124,6 +135,7 @@ export function UserDropdown() {
                 }}
                 className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
               >
+                <LogOut className="h-4 w-4" />
                 Sign Out
               </button>
             </div>
@@ -136,7 +148,7 @@ export function UserDropdown() {
           key={ownerFeedbackMode}
           mode={ownerFeedbackMode}
           onClose={() => setOwnerFeedbackMode(null)}
-          fromRole="single"
+          fromRole={role === 'corporate-owner' ? 'corporate' : 'single'}
           fromName={user?.displayName || 'Owner'}
           fromEmail={user?.email || undefined}
         />

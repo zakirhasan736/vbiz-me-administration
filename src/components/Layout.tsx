@@ -1,5 +1,6 @@
 'use client'
 
+import AnnouncementBanner from '@/components/AnnouncementBanner'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
@@ -8,7 +9,7 @@ import { roleToAudience } from '@/lib/notifications'
 import { cn } from '@/utils/cn'
 import { Contact, LayoutDashboard, Menu, Moon, Settings, Sun, X } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { UserDropdown } from './UserDropdown'
 
@@ -27,6 +28,7 @@ function getServerDarkModeSnapshot() {
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
+  const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const isDarkMode = useSyncExternalStore(subscribeToTheme, getDarkModeSnapshot, getServerDarkModeSnapshot)
   const { registerMobileNavOpener, isActive: isTourActive, currentStep } = useDashboardTour()
@@ -35,6 +37,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const showMobileMenu = isMobileMenuOpen && (!isTourActive || keepMobileNavOpen)
   const role = useAppSelector((state) => state.user.user?.role)
   const audience = roleToAudience(role)
+  const isAdminRoute = pathname.startsWith('/admin')
+  const isEditorRoute = pathname.startsWith('/vcards/create') || pathname.startsWith('/vcards/edit')
+
+  useEffect(() => {
+    if ((role === 'admin' || role === 'super-admin') && !isAdminRoute && !isEditorRoute) {
+      router.replace('/admin/dashboard')
+      return
+    }
+    if (role === 'corporate-owner' && pathname === '/vcards') {
+      router.replace('/teamvcard')
+    }
+  }, [role, isAdminRoute, isEditorRoute, pathname, router])
 
   useEffect(() => {
     registerMobileNavOpener(() => setIsMobileMenuOpen(true))
@@ -67,20 +81,39 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     window.dispatchEvent(new Event('theme-change'))
   }
 
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
-    { name: 'My vCards', path: '/vcards', icon: Contact, tourId: 'tour-nav-vcards' },
-    { name: 'Settings', path: '/settings', icon: Settings, tourId: 'tour-nav-settings' },
-  ]
+  const navItems =
+    role === 'admin' || role === 'super-admin'
+      ? [
+          { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
+          { name: 'My Cards', path: '/admin/mycards', icon: Contact, tourId: 'tour-nav-vcards' },
+          { name: 'Settings', path: '/admin/settings', icon: Settings, tourId: 'tour-nav-settings' },
+        ]
+      : [
+          { name: 'Dashboard', path: '/', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
+          ...(role === 'corporate-owner'
+            ? [{ name: 'Team vCards', path: '/teamvcard', icon: Contact, tourId: 'tour-nav-teamvcard' }]
+            : [{ name: 'My vCards', path: '/vcards', icon: Contact, tourId: 'tour-nav-vcards' }]),
+          { name: 'Settings', path: '/settings', icon: Settings, tourId: 'tour-nav-settings' },
+        ]
+
+  // Admin console provides its own shell; avoid double chrome on /admin/*
+  if (isAdminRoute) {
+    return <>{children}</>
+  }
+
+  const brandHref = role === 'admin' || role === 'super-admin' ? '/admin/dashboard' : '/'
+  const showAnnouncementBanner = role === 'vcard-owner' || role === 'corporate-owner'
 
   return (
     <div className="selection:bg-primary-500/30 relative flex min-h-screen flex-col overflow-x-hidden bg-slate-50 font-sans text-slate-900 dark:bg-[#070a13] dark:text-slate-100">
       <div className="bg-primary-500/20 dark:bg-primary-600/10 pointer-events-none fixed top-0 left-1/2 -z-10 h-[40vh] w-full max-w-4xl -translate-x-1/2 rounded-full blur-[120px]" />
 
-      <header className="sticky top-4 z-50 mx-4 rounded-2xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl md:mx-8 lg:mx-auto lg:max-w-7xl dark:border-white/10 dark:bg-[#0b0f19]/70">
+      <AnnouncementBanner enabled={showAnnouncementBanner} />
+
+      <header className="sticky top-4 z-50 mx-4 mt-3 rounded-2xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl md:mx-8 lg:mx-auto lg:max-w-7xl dark:border-white/10 dark:bg-[#0b0f19]/70">
         <div className="flex h-16 min-w-0 items-center justify-between gap-2 px-4 md:gap-3 md:px-6">
           <div className="flex min-w-0 items-center gap-4 lg:gap-8">
-            <Link href="/" className="group flex items-center gap-2">
+            <Link href={brandHref} className="group flex items-center gap-2">
               <div className="bg-primary-600 dark:bg-primary-500 flex h-8 w-8 items-center justify-center rounded-xl font-bold text-white shadow-sm transition-transform group-hover:scale-105">
                 v
               </div>
@@ -123,7 +156,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-3">
-            <NotificationCenter audience={audience} title={audience === 'single' ? 'Your Alerts' : 'Alerts'} />
+            <NotificationCenter
+              audience={audience}
+              title={
+                audience === 'corporate' ? 'Corporate Alerts' : audience === 'admin' ? 'Admin Alerts' : 'Your Alerts'
+              }
+            />
 
             <button
               onClick={toggleTheme}

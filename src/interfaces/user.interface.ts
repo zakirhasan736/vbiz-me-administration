@@ -8,6 +8,8 @@ export interface IUser {
   createdAt: string
   updatedAt: string
   role: TUserRole
+  staffRole?: string | null
+  allowedModules?: string[]
   avatar?: string | null
   provider?: string
   hasPassword?: boolean

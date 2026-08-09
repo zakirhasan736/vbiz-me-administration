@@ -1,5 +1,6 @@
 'use client'
 
+import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { useAppDispatch } from '@/hooks/redux'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
@@ -8,10 +9,10 @@ import { removeVCard } from '@/redux/features/vcards/vcards.slice'
 import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { getVCardPublicPath, getVCardPublicUrl } from '@/utils/vcard'
-import { Building, Megaphone, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Building, GripVertical, Megaphone, MoreHorizontal, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, type DragEvent } from 'react'
 import { ContactSaveChip, SocialClickChip } from './SocialClickChip'
 import { TrafficSparkline } from './TrafficSparkline'
 import { VCardCardActions } from './VCardCardActions'
@@ -27,6 +28,19 @@ type VCardTeamCardProps = {
   /** Single-card owners cannot duplicate past the 1-card limit */
   canDuplicate?: boolean
   duplicateDisabledReason?: string
+  mode?: 'personal' | 'corporate'
+  badgeLabel?: string
+  showDragHandle?: boolean
+  dragged?: boolean
+  onDragStart?: (e: DragEvent) => void
+  onDragOver?: (e: DragEvent) => void
+  onDrop?: (e: DragEvent) => void
+  showCheckbox?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
+  onCardClick?: () => void
+  onTrends?: () => void
+  onDuplicate?: () => void
 }
 
 export function VCardTeamCard({
@@ -37,12 +51,29 @@ export function VCardTeamCard({
   noticeVersion = 0,
   canDuplicate = false,
   duplicateDisabledReason = 'Single card owners can create only one vCard',
+  mode = 'personal',
+  badgeLabel,
+  showDragHandle = false,
+  dragged = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  showCheckbox = false,
+  selected = false,
+  onToggleSelect,
+  onCardClick,
+  onDuplicate,
 }: VCardTeamCardProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const [deleteProfile, { isLoading: isDeleting }] = useDeleteProfileMutation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [alertState, setAlertState] = useState<{
+    title: string
+    description: string
+    variant?: 'default' | 'danger'
+  } | null>(null)
   // Read during render; noticeVersion re-render after modal save/clear (no sync setState in effect)
   const noticeText =
     noticeVersion >= 0 && typeof window !== 'undefined' && card.id ? localStorage.getItem(`notice_${card.id}`) : null
@@ -66,7 +97,7 @@ export function VCardTeamCard({
   const handleEmail = () => {
     const email = card.personal.email?.trim()
     if (!email) {
-      window.alert('No email on this card.')
+      setAlertState({ title: 'No email', description: 'No email on this card.' })
       return
     }
     window.open(`mailto:${email}`, '_blank')
@@ -75,7 +106,7 @@ export function VCardTeamCard({
   const handleCall = () => {
     const phone = card.personal.phone?.trim() || card.personal.whatsapp?.trim()
     if (!phone) {
-      window.alert('No phone on this card.')
+      setAlertState({ title: 'No phone', description: 'No phone on this card.' })
       return
     }
     window.open(`tel:${phone.replace(/\s/g, '')}`, '_self')
@@ -95,7 +126,7 @@ export function VCardTeamCard({
 
   const handleView = () => {
     if (!slug || slug === 'profile') {
-      window.alert('Set a URL slug in the editor first.')
+      setAlertState({ title: 'URL slug required', description: 'Set a URL slug in the editor first.' })
       return
     }
     window.open(publicPath, '_blank')
@@ -103,7 +134,7 @@ export function VCardTeamCard({
 
   const handleQr = () => {
     if (!fullUrl) {
-      window.alert('Set a URL slug in the editor first.')
+      setAlertState({ title: 'URL slug required', description: 'Set a URL slug in the editor first.' })
       return
     }
     onOpenQr(fullUrl, card.personal.fullName || undefined)
@@ -115,16 +146,35 @@ export function VCardTeamCard({
       dispatch(removeVCard(card.id))
       setDeleteOpen(false)
     } catch {
-      window.alert('Could not delete this vCard. Please try again.')
+      setAlertState({
+        title: 'Delete failed',
+        description: 'Could not delete this vCard. Please try again.',
+        variant: 'danger',
+      })
     }
+  }
+
+  const isCorporate = mode === 'corporate'
+  const label = badgeLabel || (isCorporate ? 'Corporate' : 'My card')
+  const handleRootClick = () => {
+    if (onCardClick) {
+      onCardClick()
+      return
+    }
+    goEdit()
   }
 
   return (
     <div
-      onClick={goEdit}
+      draggable={showDragHandle}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onClick={handleRootClick}
       className={cn(
         'group relative flex h-auto cursor-pointer flex-col rounded-2xl border border-slate-200/60 bg-white transition-all duration-300 hover:border-slate-400 hover:shadow-xl dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/20',
-        status === 'inactive' && 'border-slate-200/80'
+        status === 'inactive' && 'border-slate-200/80',
+        dragged && 'opacity-50 ring-2 ring-indigo-400'
       )}
     >
       <ConfirmModal
@@ -141,6 +191,37 @@ export function VCardTeamCard({
         labelledBy={`delete-vcard-title-${card.id}`}
         describedBy={`delete-vcard-description-${card.id}`}
       />
+
+      {alertState && (
+        <AlertModal
+          open
+          title={alertState.title}
+          description={alertState.description}
+          variant={alertState.variant}
+          onClose={() => setAlertState(null)}
+        />
+      )}
+
+      {showDragHandle ? (
+        <div
+          className="absolute top-2.5 left-2.5 z-10 flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-slate-200/60 bg-white/90 text-slate-400 active:cursor-grabbing dark:border-white/10 dark:bg-black/50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
+      ) : null}
+
+      {showCheckbox ? (
+        <div className="absolute top-2.5 left-10 z-10" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect?.()}
+            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            aria-label={`Select ${cardName}`}
+          />
+        </div>
+      ) : null}
 
       <div className="absolute top-2.5 right-2.5 z-10">
         <button
@@ -175,9 +256,18 @@ export function VCardTeamCard({
 
       <div className="flex flex-1 flex-col gap-2 p-3.5 pb-4">
         <div>
-          <div className="flex items-start justify-between gap-2 pr-7">
-            <span className="rounded-md border border-violet-500/15 bg-violet-500/10 px-2 py-0.5 text-[9px] font-black tracking-wider text-violet-600 uppercase dark:text-violet-300">
-              My card
+          <div
+            className={cn('flex items-start justify-between gap-2 pr-7', (showDragHandle || showCheckbox) && 'pl-8')}
+          >
+            <span
+              className={cn(
+                'rounded-md border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                isCorporate
+                  ? 'border-slate-300/60 bg-slate-100 text-slate-600 dark:border-white/15 dark:bg-white/10 dark:text-slate-300'
+                  : 'border-violet-500/15 bg-violet-500/10 text-violet-600 dark:text-violet-300'
+              )}
+            >
+              {label}
             </span>
             <span className="shrink-0 rounded-md bg-indigo-500/5 px-2 py-0.5 text-[10px] font-bold text-indigo-500 dark:text-indigo-400">
               #{slug}
@@ -300,10 +390,14 @@ export function VCardTeamCard({
           onPanel={() => onPanel(card)}
           onQr={handleQr}
           onDuplicate={() => {
-            if (!canDuplicate) window.alert(duplicateDisabledReason)
+            if (onDuplicate) {
+              onDuplicate()
+              return
+            }
+            if (!canDuplicate) setAlertState({ title: 'Cannot duplicate', description: duplicateDisabledReason })
           }}
-          duplicateDisabled={!canDuplicate}
-          duplicateTitle={canDuplicate ? 'Duplicate this card' : duplicateDisabledReason}
+          duplicateDisabled={!canDuplicate && !onDuplicate}
+          duplicateTitle={canDuplicate || onDuplicate ? 'Duplicate this card' : duplicateDisabledReason}
         />
       </div>
     </div>

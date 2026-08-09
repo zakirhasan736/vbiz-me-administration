@@ -29,6 +29,7 @@ import { Tab3SocialGames } from '@/components/VCardTab3'
 import { Tab4HomeMedia } from '@/components/VCardTab4'
 import { Tab5ExtraFields } from '@/components/VCardTab5'
 import { useDashboardTour } from '@/context/DashboardTourContext'
+import { useAppSelector } from '@/hooks/redux'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
 import { createCardTabNameToNavId, getDefaultCreateCardNavIds } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
@@ -99,6 +100,19 @@ function readEditorNavOrderIds(cardKey: string): string[] {
 
 export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps) {
   const router = useRouter()
+  const role = useAppSelector((state) => state.user.user?.role)
+  const directoryHref =
+    role === 'corporate-owner'
+      ? '/teamvcard'
+      : role === 'admin' || role === 'super-admin'
+        ? '/admin/mycards'
+        : '/vcards'
+  const directoryLabel =
+    role === 'corporate-owner'
+      ? 'Back to Team vCards'
+      : role === 'admin' || role === 'super-admin'
+        ? 'Back to My Cards'
+        : 'Back to My vCards'
   const {
     vCardData,
     updateData,
@@ -357,15 +371,13 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
           title="Take a create-card tour"
           body="Guided walkthrough of Generate, Portfolio, Services, Skill, AI Auto-fill, My Info, and every major tab — start anytime."
         />
-        {isCreateMode && (
-          <Link
-            href="/vcards"
-            className="hover:border-primary-500/30 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm backdrop-blur transition-all hover:text-slate-900 dark:border-white/10 dark:bg-[#0b0f19]/80 dark:text-slate-300 dark:hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to My vCards
-          </Link>
-        )}
+        <Link
+          href={directoryHref}
+          className="hover:border-primary-500/30 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm backdrop-blur transition-all hover:text-slate-900 dark:border-white/10 dark:bg-[#0b0f19]/80 dark:text-slate-300 dark:hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {directoryLabel}
+        </Link>
 
         <div
           data-tour="card-complete"

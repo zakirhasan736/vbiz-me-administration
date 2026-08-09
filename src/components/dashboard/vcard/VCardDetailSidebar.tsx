@@ -1,5 +1,6 @@
 'use client'
 
+import { AlertModal } from '@/components/AlertModal'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
 import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -95,6 +96,7 @@ export function VCardDetailSidebar({
 }: Props) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
+  const [alertState, setAlertState] = useState<{ title: string; description: string } | null>(null)
 
   const socials = useMemo(() => (card ? getCardSocialClickStats(card) : []), [card])
 
@@ -325,7 +327,7 @@ export function VCardDetailSidebar({
                   title={canDuplicate ? 'Duplicate this card' : duplicateDisabledReason}
                   onClick={() => {
                     if (canDuplicate) onDuplicate(card)
-                    else window.alert(duplicateDisabledReason)
+                    else setAlertState({ title: 'Cannot duplicate', description: duplicateDisabledReason })
                   }}
                   className={cn(
                     'inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200',
@@ -450,7 +452,19 @@ export function VCardDetailSidebar({
     </div>
   )
 
-  return createPortal(panel, document.body)
+  return (
+    <>
+      {createPortal(panel, document.body)}
+      {alertState && (
+        <AlertModal
+          open
+          title={alertState.title}
+          description={alertState.description}
+          onClose={() => setAlertState(null)}
+        />
+      )}
+    </>
+  )
 }
 
 /** Small trends popup for CTR / stats click */

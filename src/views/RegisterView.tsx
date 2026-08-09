@@ -23,7 +23,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import * as yup from 'yup'
 
-const PUBLIC_REGISTER_ROLES = USER_ROLES.filter((role) => role !== 'admin')
+const PUBLIC_REGISTER_ROLES = USER_ROLES.filter((role) => role !== 'admin' && role !== 'super-admin')
 
 const initialValues: TRegisterFormValues = {
   name: '',
