@@ -211,18 +211,6 @@ export function VCardTeamCard({
         </div>
       ) : null}
 
-      {showCheckbox ? (
-        <div className="absolute top-2.5 left-10 z-10" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={() => onToggleSelect?.()}
-            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            aria-label={`Select ${cardName}`}
-          />
-        </div>
-      ) : null}
-
       <div className="absolute top-2.5 right-2.5 z-10">
         <button
           type="button"
@@ -256,19 +244,32 @@ export function VCardTeamCard({
 
       <div className="flex flex-1 flex-col gap-2 p-3.5 pb-4">
         <div>
-          <div
-            className={cn('flex items-start justify-between gap-2 pr-7', (showDragHandle || showCheckbox) && 'pl-8')}
-          >
-            <span
-              className={cn(
-                'rounded-md border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                isCorporate
-                  ? 'border-slate-300/60 bg-slate-100 text-slate-600 dark:border-white/15 dark:bg-white/10 dark:text-slate-300'
-                  : 'border-violet-500/15 bg-violet-500/10 text-violet-600 dark:text-violet-300'
-              )}
-            >
-              {label}
-            </span>
+          <div className={cn('flex items-center justify-between gap-2 pr-7', showDragHandle && 'pl-8')}>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {showCheckbox ? (
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={(e) => {
+                    e.stopPropagation()
+                    onToggleSelect?.()
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
+                  aria-label={`Select ${cardName}`}
+                />
+              ) : null}
+              <span
+                className={cn(
+                  'rounded-md border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                  isCorporate
+                    ? 'border-slate-300/60 bg-slate-100 text-slate-600 dark:border-white/15 dark:bg-white/10 dark:text-slate-300'
+                    : 'border-violet-500/15 bg-violet-500/10 text-violet-600 dark:text-violet-300'
+                )}
+              >
+                {label}
+              </span>
+            </div>
             <span className="shrink-0 rounded-md bg-indigo-500/5 px-2 py-0.5 text-[10px] font-bold text-indigo-500 dark:text-indigo-400">
               #{slug}
             </span>

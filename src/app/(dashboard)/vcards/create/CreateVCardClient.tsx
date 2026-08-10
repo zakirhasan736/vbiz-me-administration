@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppSelector } from '@/hooks/redux'
+import { notify } from '@/lib/toast/toast'
 import {
   DEFAULT_EDITOR_SECTION,
   buildEditorPath,
@@ -11,7 +12,7 @@ import {
 import { useGetProfilesQuery } from '@/redux/features/profiles/profiles.api'
 import VCardEdit from '@/views/VCardEdit'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 type Props = {
   segments?: string[]
@@ -20,13 +21,32 @@ type Props = {
 export default function CreateVCardClient({ segments }: Props) {
   const router = useRouter()
   const role = useAppSelector((state) => state.user.user?.role)
-  const { data: profiles = [], isLoading } = useGetProfilesQuery()
+  const { data: profilesResult, isLoading } = useGetProfilesQuery({ limit: 100 })
   const parsed = parseEditorSegments(segments)
+  const profiles = useMemo(() => profilesResult?.items ?? [], [profilesResult?.items])
+  const capacity = profilesResult?.capacity
   const isPersonal = role === 'vcard-owner'
-  const blockedByLimit = isPersonal && !isLoading && profiles.length >= 1
+  const isCorporate = role === 'corporate-owner'
+  const blockedByPersonalLimit = isPersonal && !isLoading && (capacity ? !capacity.canCreate : profiles.length >= 1)
+  const blockedByCorporateLimit = isCorporate && !isLoading && capacity != null && !capacity.canCreate
+  const blockedByLimit = blockedByPersonalLimit || blockedByCorporateLimit
+  const toastShown = useRef(false)
 
   useEffect(() => {
-    if (blockedByLimit) {
+    if (blockedByCorporateLimit) {
+      if (!toastShown.current) {
+        toastShown.current = true
+        notify.warning(
+          capacity && capacity.limit <= 0
+            ? 'No active package with card capacity. Upgrade your package to create cards.'
+            : `Maximum of ${capacity?.limit ?? 0} corporate cards reached`
+        )
+      }
+      router.replace('/teamvcard')
+      return
+    }
+
+    if (blockedByPersonalLimit) {
       const existingId = profiles[0]?.id
       if (existingId) {
         router.replace(buildEditorSectionPath('/vcards/edit', 'home', existingId))
@@ -44,12 +64,16 @@ export default function CreateVCardClient({ segments }: Props) {
     if (!isValidEditorSection(parsed.sectionId)) {
       router.replace(buildEditorPath('/vcards/create', { sectionId: DEFAULT_EDITOR_SECTION }))
     }
-  }, [blockedByLimit, parsed.sectionId, profiles, router, segments])
+  }, [blockedByCorporateLimit, blockedByPersonalLimit, capacity, parsed.sectionId, profiles, router, segments])
 
   if (blockedByLimit || isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-slate-500">
-        {blockedByLimit ? 'Redirecting to your existing vCard…' : 'Loading…'}
+        {blockedByCorporateLimit
+          ? 'Redirecting to Team vCards…'
+          : blockedByPersonalLimit
+            ? 'Redirecting to your existing vCard…'
+            : 'Loading…'}
       </div>
     )
   }

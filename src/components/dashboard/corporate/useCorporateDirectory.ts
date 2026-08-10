@@ -1,7 +1,7 @@
 'use client'
 
 import { CORPORATE_CARD_ORDER_KEY, applyCardOrder, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
-import { getCorporateCardQuota } from '@/lib/corporateQuota'
+import { notify } from '@/lib/toast/toast'
 import {
   mapApiProfileToVCardRecord,
   mapVCardDataToProfilePayload,
@@ -10,58 +10,71 @@ import {
   useUpdateProfileCardMutation,
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
-import { filterVCardsByQuery } from '@/utils/vcard'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export type CorporateSortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc'
 export type CorporateStatusFilter = 'all' | 'active' | 'inactive' | 'suspended'
 
-export function useCorporateDirectory() {
-  const { data: profiles = [], isLoading, isError, refetch } = useGetProfilesQuery()
+function sortToApi(sort: CorporateSortOption): {
+  sortBy: 'createdAt' | 'updatedAt' | 'name' | 'viewCount'
+  sortDir: 'asc' | 'desc'
+} {
+  if (sort === 'oldest') return { sortBy: 'createdAt', sortDir: 'asc' }
+  if (sort === 'name-asc') return { sortBy: 'name', sortDir: 'asc' }
+  if (sort === 'name-desc') return { sortBy: 'name', sortDir: 'desc' }
+  return { sortBy: 'createdAt', sortDir: 'desc' }
+}
+
+export function useCorporateDirectory(filters: {
+  searchTerm: string
+  statusFilter: CorporateStatusFilter
+  sort: CorporateSortOption
+}) {
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.searchTerm)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(filters.searchTerm), 300)
+    return () => window.clearTimeout(timer)
+  }, [filters.searchTerm])
+
+  const { sortBy, sortDir } = sortToApi(filters.sort)
+
+  const {
+    data: profilesResult,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetProfilesQuery({
+    q: debouncedSearch.trim() || undefined,
+    status: filters.statusFilter,
+    sortBy,
+    sortDir,
+    skip: 0,
+    limit: 100,
+  })
+
   const [createProfile] = useCreateProfileMutation()
   const [updateProfileCard] = useUpdateProfileCardMutation()
 
   const [cardOrder, setCardOrder] = useState<string[]>(() => loadCardOrder(CORPORATE_CARD_ORDER_KEY))
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
+  const profiles = profilesResult?.items ?? []
+  const capacity = profilesResult?.capacity
   const cards = useMemo(() => profiles.map(mapApiProfileToVCardRecord), [profiles])
-  const quotaLimit = getCorporateCardQuota()
-  const currentCount = cards.length
-  const quotaPercentage = Math.min((currentCount / quotaLimit) * 100, 100)
-  const canCreate = currentCount < quotaLimit
-  const createDisabledReason = `Maximum of ${quotaLimit} corporate cards reached`
+
+  const quotaLimit = capacity?.limit ?? 0
+  const currentCount = capacity?.used ?? cards.length
+  const quotaPercentage = quotaLimit > 0 ? Math.min((currentCount / quotaLimit) * 100, 100) : currentCount > 0 ? 100 : 0
+  const canCreate = capacity?.canCreate ?? false
+  const createDisabledReason =
+    quotaLimit <= 0
+      ? 'No active package with card capacity. Upgrade your package to create cards.'
+      : `Maximum of ${quotaLimit} corporate cards reached`
   const activeCount = cards.filter((c) => c.isActive).length
   const totalViews = cards.reduce((sum, c) => sum + (c.views || 0), 0)
 
   const orderedCards = useMemo(() => applyCardOrder(cards, cardOrder), [cards, cardOrder])
-
-  const filterAndSort = useCallback(
-    (query: string, status: CorporateStatusFilter, sort: CorporateSortOption) => {
-      let list = filterVCardsByQuery(orderedCards, query)
-      if (status === 'active') list = list.filter((c) => c.isActive)
-      if (status === 'inactive') list = list.filter((c) => !c.isActive)
-      if (status === 'suspended') list = list.filter((c) => !c.isActive)
-
-      if (cardOrder.length > 0 && sort === 'newest') return list
-
-      const sorted = [...list]
-      if (sort === 'name-asc') {
-        sorted.sort((a, b) =>
-          (a.personal.fullName || '').localeCompare(b.personal.fullName || '', undefined, { sensitivity: 'base' })
-        )
-      } else if (sort === 'name-desc') {
-        sorted.sort((a, b) =>
-          (b.personal.fullName || '').localeCompare(a.personal.fullName || '', undefined, { sensitivity: 'base' })
-        )
-      } else if (sort === 'oldest') {
-        sorted.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())
-      } else {
-        sorted.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      }
-      return sorted
-    },
-    [orderedCards, cardOrder.length]
-  )
 
   const handleDragStart = (index: number) => setDraggedIndex(index)
 
@@ -74,32 +87,49 @@ export function useCorporateDirectory() {
     setDraggedIndex(null)
   }
 
-  const duplicateCard = async (card: VCardRecord) => {
-    if (!canCreate) return false
-    const suffix = Math.floor(1000 + Math.random() * 9000)
-    const payload = mapVCardDataToProfilePayload(card)
-    try {
-      await createProfile({
-        ...payload,
-        name: `${payload.name || 'Card'} (Copy)`,
-        slug: `${payload.slug || 'card'}-${suffix}`,
-      }).unwrap()
-      void refetch()
-      return true
-    } catch {
-      return false
-    }
-  }
+  const duplicateCard = useCallback(
+    async (card: VCardRecord) => {
+      if (!canCreate) return false
+      const suffix = Math.floor(1000 + Math.random() * 9000)
+      const payload = mapVCardDataToProfilePayload(card)
+      try {
+        await createProfile({
+          ...payload,
+          name: `${payload.name || 'Card'} (Copy)`,
+          slug: `${payload.slug || 'card'}-${suffix}`,
+        }).unwrap()
+        notify.success('Card duplicated successfully.')
+        void refetch()
+        return true
+      } catch (e) {
+        const message =
+          (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not duplicate card.'
+        notify.error(message)
+        return false
+      }
+    },
+    [canCreate, createProfile, refetch]
+  )
 
-  const bulkUpdateStatus = async (ids: string[], active: boolean) => {
-    await Promise.all(ids.map((id) => updateProfileCard({ id, body: { status: active ? '1' : '0' } }).unwrap()))
-    void refetch()
-  }
+  const bulkUpdateStatus = useCallback(
+    async (ids: string[], active: boolean) => {
+      try {
+        await Promise.all(ids.map((id) => updateProfileCard({ id, body: { isPublic: active } }).unwrap()))
+        notify.success(active ? 'Cards activated.' : 'Cards deactivated.')
+        void refetch()
+      } catch (e) {
+        const message =
+          (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not update cards.'
+        notify.error(message)
+      }
+    },
+    [refetch, updateProfileCard]
+  )
 
   return {
     cards,
     orderedCards,
-    filteredCards: filterAndSort,
+    filteredCards: orderedCards,
     isLoading,
     isError,
     refetch,

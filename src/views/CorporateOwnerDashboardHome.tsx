@@ -10,7 +10,6 @@ import {
   CorporateQuotaWarning,
   CorporateSocialBreakdown,
   type HubTab,
-  useCorporateDirectory,
 } from '@/components/dashboard/corporate'
 import {
   ContactModal,
@@ -27,30 +26,66 @@ import {
   VCardTrendsPopup,
 } from '@/components/dashboard/vcard'
 import { useAppSelector } from '@/hooks/redux'
+import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
+import { notify } from '@/lib/toast/toast'
 import {
-  type DashboardPeriod,
-  useExportDashboardOverviewMutation,
+  mapApiProfileToVCardRecord,
+  mapVCardDataToProfilePayload,
+  useCreateProfileMutation,
   useGetContactsQuery,
   useGetDashboardStatsQuery,
+  useGetProfilesQuery,
+  useGetSocialClicksByCardQuery,
+  useGetSocialClicksQuery,
+  useGetTeamNoticesQuery,
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
+function formatTrendPercent(value?: number | null): { text?: string; negative?: boolean } {
+  if (value == null || value === 0) return {}
+  const negative = value < 0
+  const abs = Math.abs(value)
+  const text = `${negative ? '-' : '+'}${abs % 1 === 0 ? abs.toFixed(0) : abs.toFixed(1)}%`
+  return { text, negative }
 }
 
 export default function CorporateOwnerDashboardHome() {
   const user = useAppSelector((state) => state.user.user)
-  const [period] = useState<DashboardPeriod>('30')
+
+  const { data: profilesResult, refetch: refetchProfiles } = useGetProfilesQuery({
+    status: 'all',
+    skip: 0,
+    limit: 100,
+  })
+  const { data: stats } = useGetDashboardStatsQuery({ period: 'all' })
+  const { data: contactsRaw } = useGetContactsQuery()
+  const { data: socialClickRows = [] } = useGetSocialClicksQuery()
+  const { data: socialClicksByCardRows = [] } = useGetSocialClicksByCardQuery()
+  const { data: teamNotices = [] } = useGetTeamNoticesQuery()
+  const [createProfile] = useCreateProfileMutation()
+
+  const liveCards = useMemo(
+    () => (profilesResult?.items ?? []).map(mapApiProfileToVCardRecord),
+    [profilesResult?.items]
+  )
+  const capacity = profilesResult?.capacity
+  const headerQuotaLimit = capacity?.limit ?? 0
+  const headerCardCount = capacity?.used ?? liveCards.length
+  const headerCanCreate = capacity?.canCreate ?? false
+  const headerCreateDisabledReason =
+    headerQuotaLimit <= 0
+      ? 'No active package with card capacity. Upgrade your package to create cards.'
+      : `Maximum of ${headerQuotaLimit} corporate cards reached`
+  const headerActiveCount = liveCards.filter((c) => c.isActive).length
+  const headerTotalViews = stats?.totalViews ?? 0
+  const headerUniqueViews = stats?.uniqueViews ?? 0
+  const headerShares = stats?.shares ?? 0
+
+  const [cardOrder, setCardOrder] = useState<string[]>(() => loadCardOrder(CORPORATE_CARD_ORDER_KEY))
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
   const [showContactSavesModal, setShowContactSavesModal] = useState(false)
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
@@ -63,18 +98,34 @@ export default function CorporateOwnerDashboardHome() {
   const [qrUrl, setQrUrl] = useState('')
   const [qrTitle, setQrTitle] = useState('vCard QR Code')
   const [upgradeAlert, setUpgradeAlert] = useState(false)
-  const [dupAlert, setDupAlert] = useState<string | null>(null)
 
-  const directory = useCorporateDirectory()
-  const { data: stats } = useGetDashboardStatsQuery({ period })
-  const { data: contactsRaw } = useGetContactsQuery()
-  const [exportOverview, { isLoading: exporting }] = useExportDashboardOverviewMutation()
+  const cards = useMemo(() => applyCardOrder(liveCards, cardOrder), [liveCards, cardOrder])
 
   const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
+  const quotaLimit = headerQuotaLimit
+  const metricQuotaLimit = capacity?.limit ?? 0
+  const metricTotalCards = capacity?.used ?? liveCards.length
+  const activeCount = headerActiveCount
+  const totalViews = headerTotalViews
   const savesCount = (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0)
+  const viewsTrend = formatTrendPercent(stats?.visitsChart?.trendPercent)
+  const canCreate = headerCanCreate
+  const createDisabledReason = headerCreateDisabledReason
+
+  const socialClicksByCard = useMemo(() => {
+    const map: Record<string, Array<{ platform: string; clickCount: number }>> = {}
+    for (const row of socialClicksByCardRows) {
+      map[row.profileId] = (row.channels || []).map((ch) => ({
+        platform: ch.label || ch.channel,
+        clickCount: ch.clickCount || 0,
+      }))
+    }
+    return map
+  }, [socialClicksByCardRows])
+
   const panelCard = useMemo(
-    () => (panelCardId ? (directory.cards.find((c) => c.id === panelCardId) ?? null) : null),
-    [directory.cards, panelCardId]
+    () => (panelCardId ? (cards.find((c) => c.id === panelCardId) ?? null) : null),
+    [cards, panelCardId]
   )
 
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
@@ -89,21 +140,44 @@ export default function CorporateOwnerDashboardHome() {
   }
 
   const handleExportCsv = () => {
-    exportCorporateCardsCsv(directory.cards)
+    exportCorporateCardsCsv(liveCards)
   }
 
-  const handleExportOverview = async () => {
-    try {
-      const blob = await exportOverview({ period }).unwrap()
-      downloadBlob(blob, `corporate-overview_${new Date().toISOString().slice(0, 10)}.pdf`)
-    } catch {
-      // quiet
+  const handleDuplicate = useCallback(
+    async (card: VCardRecord) => {
+      if (!canCreate) {
+        notify.warning(createDisabledReason)
+        return
+      }
+      const suffix = Math.floor(1000 + Math.random() * 9000)
+      const payload = mapVCardDataToProfilePayload(card)
+      try {
+        await createProfile({
+          ...payload,
+          name: `${payload.name || 'Card'} (Copy)`,
+          slug: `${payload.slug || 'card'}-${suffix}`,
+        }).unwrap()
+        notify.success('Card duplicated successfully.')
+        void refetchProfiles()
+      } catch (e) {
+        const message =
+          (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not duplicate card.'
+        notify.error(message)
+      }
+    },
+    [canCreate, createDisabledReason, createProfile, refetchProfiles]
+  )
+
+  const handleDragDrop = (ordered: VCardRecord[], targetIndex: number) => {
+    if (draggedIndex == null || draggedIndex === targetIndex) {
+      setDraggedIndex(null)
+      return
     }
-  }
-
-  const handleDuplicate = async (card: VCardRecord) => {
-    const ok = await directory.duplicateCard(card)
-    setDupAlert(ok ? 'Card duplicated successfully.' : 'Could not duplicate card. Check quota and try again.')
+    const next = reorderByIndex(ordered, draggedIndex, targetIndex)
+    const ids = next.map((c) => c.id).filter(Boolean)
+    setCardOrder(ids)
+    saveCardOrder(CORPORATE_CARD_ORDER_KEY, ids)
+    setDraggedIndex(null)
   }
 
   const noticeInitialText =
@@ -117,35 +191,37 @@ export default function CorporateOwnerDashboardHome() {
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-10 duration-500">
       <CorporateDashboardHeader
-        quotaLimit={directory.quotaLimit}
-        activeCount={directory.activeCount}
-        cardCount={directory.currentCount}
-        totalViews={stats?.totalViews ?? directory.totalViews}
-        uniqueViews={stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0}
-        shares={stats?.shares ?? 0}
-        canCreate={directory.canCreate}
-        createDisabledReason={directory.createDisabledReason}
+        quotaLimit={headerQuotaLimit}
+        activeCount={headerActiveCount}
+        cardCount={headerCardCount}
+        totalViews={headerTotalViews}
+        uniqueViews={headerUniqueViews}
+        shares={headerShares}
+        canCreate={headerCanCreate}
+        createDisabledReason={headerCreateDisabledReason}
         onExportCsv={handleExportCsv}
         onFeedback={() => setOwnerFeedbackMode('feedback')}
         onSupport={() => setOwnerFeedbackMode('support')}
       />
 
-      {directory.cards.length === 0 && !directory.isLoading ? (
-        <CorporateEmptyState canCreate={directory.canCreate} createDisabledReason={directory.createDisabledReason} />
+      {cards.length === 0 ? (
+        <CorporateEmptyState canCreate={canCreate} createDisabledReason={createDisabledReason} />
       ) : (
         <>
           <CorporateQuotaWarning
-            cardCount={directory.currentCount}
-            quotaLimit={directory.quotaLimit}
+            cardCount={metricTotalCards}
+            quotaLimit={quotaLimit}
             onRequestUpgrade={() => setUpgradeAlert(true)}
           />
 
           <CorporateMetricCards
-            totalViews={stats?.totalViews ?? directory.totalViews}
+            totalViews={totalViews}
             totalSaves={savesCount}
-            activeCount={directory.activeCount}
-            totalCards={directory.currentCount}
-            quotaLimit={directory.quotaLimit}
+            activeCount={activeCount}
+            totalCards={metricTotalCards}
+            quotaLimit={metricQuotaLimit}
+            viewsChangeText={viewsTrend.text}
+            viewsChangeNegative={viewsTrend.negative}
             onOpenContactSaves={() => openContactSaves('saves')}
           />
 
@@ -159,39 +235,39 @@ export default function CorporateOwnerDashboardHome() {
             }}
           />
 
-          <CorporateEngagementSection socialChannels={stats?.socialChannels} />
+          <CorporateEngagementSection cards={liveCards} />
 
           <CorporateControlsHub
-            cards={directory.orderedCards}
+            cards={cards}
             contacts={contacts}
-            socialChannels={stats?.socialChannels}
-            totalViews={stats?.totalViews ?? directory.totalViews}
-            canCreate={directory.canCreate}
-            createDisabledReason={directory.createDisabledReason}
-            quotaLimit={directory.quotaLimit}
-            draggedIndex={directory.draggedIndex}
-            onDragStart={directory.handleDragStart}
-            onDragDrop={directory.handleDragDrop}
+            socialChannels={
+              socialClickRows.length
+                ? socialClickRows.map((r) => ({
+                    channel: r.channel,
+                    label: r.label,
+                    count: r.clickCount,
+                  }))
+                : stats?.socialChannels
+            }
+            socialClicksByCard={socialClicksByCard}
+            teamNotices={teamNotices}
+            totalViews={totalViews}
+            activeCount={activeCount}
+            canCreate={canCreate}
+            createDisabledReason={createDisabledReason}
+            quotaLimit={quotaLimit}
+            draggedIndex={draggedIndex}
+            onDragStart={setDraggedIndex}
+            onDragDrop={handleDragDrop}
             onPanel={(card) => setPanelCardId(card.id)}
             onNotice={setNoticeCard}
             onOpenQr={openQr}
-            onDuplicate={handleDuplicate}
+            onDuplicate={(card) => void handleDuplicate(card)}
             onTrends={setTrendsCard}
             noticeVersion={noticeVersion}
             activeTab={hubTab}
             onActiveTabChange={setHubTab}
           />
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => void handleExportOverview()}
-              disabled={exporting}
-              className="text-xs font-bold text-slate-500 underline hover:text-slate-800 disabled:opacity-50 dark:hover:text-slate-200"
-            >
-              {exporting ? 'Exporting overview PDF…' : 'Export overview PDF'}
-            </button>
-          </div>
         </>
       )}
 
@@ -210,7 +286,7 @@ export default function CorporateOwnerDashboardHome() {
         <ContactSavesModal
           count={savesCount}
           contacts={contacts}
-          notesCount={stats?.notesLast30Days ?? 0}
+          notesCount={contacts.filter((c) => c.message || (c as { source?: string }).source === 'note').length}
           tab={contactSavesModalTab}
           onTabChange={setContactSavesModalTab}
           onClose={() => setShowContactSavesModal(false)}
@@ -224,8 +300,8 @@ export default function CorporateOwnerDashboardHome() {
         onClose={() => setPanelCardId(null)}
         onNotice={setNoticeCard}
         onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
-        canDuplicate={directory.canCreate}
-        duplicateDisabledReason={directory.createDisabledReason}
+        canDuplicate={canCreate}
+        duplicateDisabledReason={createDisabledReason}
       />
 
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />
@@ -261,14 +337,6 @@ export default function CorporateOwnerDashboardHome() {
         description="Contact support to increase your corporate card quota. We will review your directory usage and enterprise plan options."
         onClose={() => setUpgradeAlert(false)}
         confirmLabel="Got it"
-      />
-
-      <AlertModal
-        open={!!dupAlert}
-        title="Duplicate card"
-        description={dupAlert || ''}
-        onClose={() => setDupAlert(null)}
-        variant="success"
       />
     </div>
   )

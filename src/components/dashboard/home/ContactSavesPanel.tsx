@@ -12,6 +12,9 @@ export type DashboardContact = {
   message?: string | null
   createdAt?: string
   profile?: { id?: string; name?: string | null; slug?: string | null } | null
+  source?: 'guest_save' | 'contact' | 'note'
+  privateNotes?: string
+  lastReply?: string
 }
 
 type ContactSavesPanelProps = {

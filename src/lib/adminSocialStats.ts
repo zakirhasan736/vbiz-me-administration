@@ -8,7 +8,7 @@ export type SocialClickStat = {
   tone: string
 }
 
-type ClickRow = { label?: string; url?: string; clickCount?: number }
+type ClickRow = { label?: string; channel?: string; url?: string; clickCount?: number }
 
 type SocialInputItem = { platform?: unknown; label?: unknown; url?: unknown }
 
@@ -91,9 +91,14 @@ export function getCardSocialClickStats(
 
   return socials.map((s, idx) => {
     const platform = resolveSocialPlatform(s.platform)
-    const hit = linkClicks.find(
-      (l) => (l.label || '').toLowerCase().includes(s.platform.toLowerCase()) || (!!s.url && l.url === s.url)
-    )
+    const hit = linkClicks.find((l) => {
+      const channel = (l.channel || '').toLowerCase()
+      const rowLabel = (l.label || '').toLowerCase()
+      if (channel && (channel === platform || channel.includes(platform))) return true
+      if (rowLabel.includes(s.platform.toLowerCase())) return true
+      if (s.url && l.url === s.url) return true
+      return false
+    })
     return {
       key: `${platform}-${idx}-${s.url || s.platform}`,
       platform,

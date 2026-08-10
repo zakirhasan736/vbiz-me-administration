@@ -34,6 +34,7 @@ import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
 import { createCardTabNameToNavId, getDefaultCreateCardNavIds } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
+import { notify } from '@/lib/toast/toast'
 import {
   getNavItemCompletionPercent,
   getOverallCardCompletionPercent,
@@ -721,8 +722,13 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                         setIsSaving(true)
                         try {
                           await saveVCard()
+                          notify.success('vCard created successfully.')
                         } catch (e) {
-                          alert('Error saving Profile: ' + (e as Error).message)
+                          const message =
+                            (e as { data?: { message?: string } })?.data?.message ||
+                            (e as Error)?.message ||
+                            'Could not create vCard.'
+                          notify.error(message)
                         } finally {
                           setIsSaving(false)
                         }
@@ -743,8 +749,13 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                         setIsSaving(true)
                         try {
                           await flushSave()
+                          notify.success('Profile saved.')
                         } catch (e) {
-                          alert('Error saving Profile: ' + (e as Error).message)
+                          const message =
+                            (e as { data?: { message?: string } })?.data?.message ||
+                            (e as Error)?.message ||
+                            'Could not save profile.'
+                          notify.error(message)
                         } finally {
                           setIsSaving(false)
                         }

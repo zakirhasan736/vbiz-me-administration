@@ -1,3 +1,4 @@
+import type { LiveSocialClickRow } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 
 export type SocialPlatformKey = 'facebook' | 'twitter' | 'instagram' | 'whatsapp' | 'linkedin' | 'youtube' | 'web'
@@ -59,8 +60,24 @@ function toneFor(platform: SocialPlatformKey): string {
   }
 }
 
-/** Build social click chips from configured handles (clicks stay 0 until live data exists). */
-export function getCardSocialClickStats(card: VCardRecord): SocialClickStat[] {
+type ClickRow = { label?: string; channel?: string; url?: string; clickCount?: number }
+
+function clickCountForPlatform(platform: SocialPlatformKey, label: string, linkClicks: ClickRow[]): number {
+  const hit = linkClicks.find((l) => {
+    const channel = (l.channel || '').toLowerCase()
+    const rowLabel = (l.label || '').toLowerCase()
+    if (channel && (channel === platform || channel.includes(platform))) return true
+    if (rowLabel && (rowLabel === label.toLowerCase() || rowLabel.includes(platform))) return true
+    return false
+  })
+  return Number(hit?.clickCount || 0)
+}
+
+/** Build social click chips from configured handles, merging live channel click counts when provided. */
+export function getCardSocialClickStats(
+  card: VCardRecord,
+  linkClicks: Array<ClickRow | LiveSocialClickRow> = []
+): SocialClickStat[] {
   const handles = card.social?.handles || {}
   const entries = Object.entries(handles).filter(([, value]) => !!String(value || '').trim())
 
@@ -68,11 +85,12 @@ export function getCardSocialClickStats(card: VCardRecord): SocialClickStat[] {
 
   return entries.map(([platformKey, url], idx) => {
     const platform = resolveSocialPlatform(platformKey)
+    const label = displayName(platform)
     return {
       key: `${platform}-${idx}-${url || platformKey}`,
       platform,
-      label: displayName(platform),
-      clickCount: 0,
+      label,
+      clickCount: clickCountForPlatform(platform, label, linkClicks),
       tone: toneFor(platform),
     }
   })

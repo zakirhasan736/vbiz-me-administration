@@ -128,7 +128,7 @@ export type PostDocumentPayload = {
   type?: string
 }
 
-type Envelope<T> = { success: boolean; data: T; message?: string }
+type Envelope<T> = { success: boolean; data: T; message?: string; totalDoc?: number }
 
 export type DashboardSocialChannel =
   | 'facebook'
@@ -192,6 +192,64 @@ export type DashboardStatsQuery = {
 
 export type ProfilesListQuery = {
   scope?: 'created'
+  q?: string
+  status?: 'all' | 'active' | 'inactive' | 'suspended'
+  sortBy?: 'createdAt' | 'updatedAt' | 'name' | 'viewCount'
+  sortDir?: 'asc' | 'desc'
+  skip?: number
+  limit?: number
+}
+
+export type WeeklyEngagementQuery = {
+  scope?: 'created'
+  profileId?: string
+}
+
+export type ProfileContact = {
+  id: string
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+  message?: string | null
+  createdAt?: string
+  profile?: { id?: string; name?: string | null; slug?: string | null } | null
+  source?: 'guest_save' | 'contact' | 'note'
+  privateNotes?: string
+  lastReply?: string
+  lastReplyAt?: string
+}
+
+export type TeamNotice = {
+  id: string
+  text: string
+  type: 'broadcast' | 'system'
+  audience: 'all' | 'savers'
+  targetCardId?: string
+  recipientCount?: number
+  createdAt: string
+  status?: string
+}
+
+export type SocialClicksByCardRow = {
+  profileId: string
+  channels: LiveSocialClickRow[]
+}
+
+export type SocialClicksQuery = {
+  profileId?: string
+  scope?: 'created'
+}
+
+export type CardCapacity = {
+  limit: number
+  used: number
+  canCreate: boolean
+}
+
+export type ProfilesListResult = {
+  items: ApiProfile[]
+  total: number
+  capacity: CardCapacity
 }
 
 export type DashboardEngagementRow = {
@@ -235,6 +293,27 @@ export type WeeklyEngagement = {
   days: WeeklyEngagementDay[]
   totals: { views: number; clicks: number; avgCtr: number }
   profileName: string
+}
+
+export type ConsolidatedEngagementSeries = {
+  key: string
+  label: string
+  color: string
+}
+
+export type ConsolidatedEngagementMonth = {
+  name: string
+  total: number
+  [seriesKey: string]: string | number
+}
+
+export type ConsolidatedEngagement = {
+  months: ConsolidatedEngagementMonth[]
+  series: ConsolidatedEngagementSeries[]
+}
+
+export type ConsolidatedEngagementQuery = {
+  scope?: 'created'
 }
 
 export const BLOG_POST_TYPE = 'blog'
@@ -401,7 +480,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     saves: 0,
     avatarImageUrl,
     backgroundImageUrl,
-    isActive: true,
+    isActive: profile.isPublic !== false,
   }
 }
 
@@ -461,15 +540,48 @@ function isLocalTempId(id: string): boolean {
 
 const profilesApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getProfiles: builder.query<ApiProfile[], ProfilesListQuery | void>({
+    getProfiles: builder.query<ProfilesListResult, ProfilesListQuery | void>({
       query: (params) => {
-        if (params?.scope) return `/profiles?scope=${encodeURIComponent(params.scope)}`
-        return '/profiles'
+        const search = new URLSearchParams()
+        if (params?.scope) search.set('scope', params.scope)
+        if (params?.q) search.set('q', params.q)
+        if (params?.status && params.status !== 'all') search.set('status', params.status)
+        if (params?.sortBy) search.set('sortBy', params.sortBy)
+        if (params?.sortDir) search.set('sortDir', params.sortDir)
+        if (params?.skip != null) search.set('skip', String(params.skip))
+        if (params?.limit != null) search.set('limit', String(params.limit))
+        const qs = search.toString()
+        return qs ? `/profiles?${qs}` : '/profiles'
       },
-      transformResponse: (res: Envelope<ApiProfile[]>) => res.data || [],
+      transformResponse: (res: Envelope<ProfilesListResult | ApiProfile[]>) => {
+        const payload = res.data
+        if (Array.isArray(payload)) {
+          return {
+            items: payload,
+            total: res.totalDoc ?? payload.length,
+            capacity: {
+              limit: Number.MAX_SAFE_INTEGER,
+              used: payload.length,
+              canCreate: true,
+            },
+          }
+        }
+        return {
+          items: payload?.items || [],
+          total: payload?.total ?? res.totalDoc ?? 0,
+          capacity: payload?.capacity || {
+            limit: Number.MAX_SAFE_INTEGER,
+            used: payload?.items?.length || 0,
+            canCreate: true,
+          },
+        }
+      },
       providesTags: (result) =>
         result
-          ? [...result.map((p) => ({ type: 'profiles' as const, id: p.id })), { type: 'profiles' as const, id: 'LIST' }]
+          ? [
+              ...result.items.map((p) => ({ type: 'profiles' as const, id: p.id })),
+              { type: 'profiles' as const, id: 'LIST' },
+            ]
           : [{ type: 'profiles', id: 'LIST' }],
     }),
     getProfile: builder.query<ApiProfile, string>({
@@ -634,14 +746,46 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<DashboardEngagementPage>) => res.data,
       providesTags: ['dashboard'],
     }),
-    getWeeklyEngagement: builder.query<WeeklyEngagement, ProfilesListQuery | void>({
+    getWeeklyEngagement: builder.query<WeeklyEngagement, WeeklyEngagementQuery | void>({
       query: (params) => {
-        if (params?.scope) {
-          return `/profiles/dashboard/weekly-engagement?scope=${encodeURIComponent(params.scope)}`
-        }
-        return '/profiles/dashboard/weekly-engagement'
+        const search = new URLSearchParams()
+        if (params?.scope) search.set('scope', params.scope)
+        if (params?.profileId) search.set('profileId', params.profileId)
+        const qs = search.toString()
+        return qs ? `/profiles/dashboard/weekly-engagement?${qs}` : '/profiles/dashboard/weekly-engagement'
       },
       transformResponse: (res: Envelope<WeeklyEngagement>) => res.data,
+      providesTags: ['dashboard'],
+    }),
+    getConsolidatedEngagement: builder.query<ConsolidatedEngagement, ConsolidatedEngagementQuery | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.scope) search.set('scope', params.scope)
+        const qs = search.toString()
+        return qs ? `/profiles/dashboard/consolidated-engagement?${qs}` : '/profiles/dashboard/consolidated-engagement'
+      },
+      transformResponse: (res: Envelope<ConsolidatedEngagement>) => res.data || { months: [], series: [] },
+      providesTags: ['dashboard'],
+    }),
+    getSocialClicks: builder.query<LiveSocialClickRow[], SocialClicksQuery | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.scope) search.set('scope', params.scope)
+        if (params?.profileId) search.set('profileId', params.profileId)
+        const qs = search.toString()
+        return qs ? `/profiles/dashboard/social-clicks?${qs}` : '/profiles/dashboard/social-clicks'
+      },
+      transformResponse: (res: Envelope<LiveSocialClickRow[]>) => res.data || [],
+      providesTags: ['dashboard'],
+    }),
+    getSocialClicksByCard: builder.query<SocialClicksByCardRow[], SocialClicksQuery | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.scope) search.set('scope', params.scope)
+        const qs = search.toString()
+        return qs ? `/profiles/dashboard/social-clicks-by-card?${qs}` : '/profiles/dashboard/social-clicks-by-card'
+      },
+      transformResponse: (res: Envelope<SocialClicksByCardRow[]>) => res.data || [],
       providesTags: ['dashboard'],
     }),
     exportDashboardOverview: builder.mutation<Blob, DashboardStatsQuery | void>({
@@ -662,10 +806,55 @@ const profilesApi = api.injectEndpoints({
       query: () => '/profiles/subscriptions',
       transformResponse: (res: Envelope<unknown[]>) => res.data || [],
     }),
-    getContacts: builder.query<unknown[], string | void>({
+    getContacts: builder.query<ProfileContact[], string | void>({
       query: (profileId) =>
         profileId ? `/profiles/contacts?profileId=${encodeURIComponent(profileId)}` : '/profiles/contacts',
-      transformResponse: (res: Envelope<unknown[]>) => res.data || [],
+      transformResponse: (res: Envelope<ProfileContact[]>) => res.data || [],
+      providesTags: ['dashboard'],
+    }),
+    patchContact: builder.mutation<
+      ProfileContact,
+      { id: string; privateNotes?: string; lastReply?: string; source?: ProfileContact['source'] }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/profiles/contacts/${encodeURIComponent(id)}`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: Envelope<ProfileContact>) => res.data,
+      invalidatesTags: ['dashboard'],
+    }),
+    exportContactsCsv: builder.mutation<Blob, string | void>({
+      query: (profileId) => ({
+        url: profileId
+          ? `/profiles/contacts/export?profileId=${encodeURIComponent(profileId)}`
+          : '/profiles/contacts/export',
+        method: 'GET',
+        responseHandler: async (response: Response) => response.blob(),
+      }),
+    }),
+    getTeamNotices: builder.query<TeamNotice[], void>({
+      query: () => '/profiles/team-notices',
+      transformResponse: (res: Envelope<TeamNotice[]>) => res.data || [],
+      providesTags: ['dashboard'],
+    }),
+    createTeamNotice: builder.mutation<
+      TeamNotice,
+      {
+        text: string
+        type: 'broadcast' | 'system'
+        audience: 'all' | 'savers'
+        targetProfileId?: string
+      }
+    >({
+      query: (body) => ({ url: '/profiles/team-notices', method: 'POST', body }),
+      transformResponse: (res: Envelope<TeamNotice>) => res.data,
+      invalidatesTags: ['dashboard'],
+    }),
+    deleteTeamNotice: builder.mutation<{ id: string; deleted: boolean }, string>({
+      query: (id) => ({ url: `/profiles/team-notices/${encodeURIComponent(id)}`, method: 'DELETE' }),
+      transformResponse: (res: Envelope<{ id: string; deleted: boolean }>) => res.data,
+      invalidatesTags: ['dashboard'],
     }),
     uploadMedia: builder.mutation<
       { url: string; publicId: string; attachment?: unknown },
@@ -711,10 +900,18 @@ export const {
   useGetDashboardStatsQuery,
   useGetRecentEngagementQuery,
   useGetWeeklyEngagementQuery,
+  useGetConsolidatedEngagementQuery,
+  useGetSocialClicksQuery,
+  useGetSocialClicksByCardQuery,
   useExportDashboardOverviewMutation,
   useGetPackagesQuery,
   useGetSubscriptionsQuery,
   useGetContactsQuery,
+  usePatchContactMutation,
+  useExportContactsCsvMutation,
+  useGetTeamNoticesQuery,
+  useCreateTeamNoticeMutation,
+  useDeleteTeamNoticeMutation,
   useUploadMediaMutation,
 } = profilesApi
 

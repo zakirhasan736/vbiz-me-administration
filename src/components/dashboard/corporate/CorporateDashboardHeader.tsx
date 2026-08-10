@@ -33,9 +33,9 @@ export function CorporateDashboardHeader({
   onSupport,
 }: CorporateDashboardHeaderProps) {
   return (
-    <div className="relative z-60 overflow-visible rounded-[36px] border border-slate-700 bg-gradient-to-br from-slate-900 to-slate-800 p-8 text-white shadow-xl md:p-10 dark:border-white/10 dark:from-slate-800 dark:to-slate-900">
-      <div className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 h-[400px] w-[400px] overflow-hidden rounded-full bg-white/5 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-0 -mb-20 -ml-20 h-[250px] w-[250px] rounded-full bg-white/5 blur-2xl" />
+    <div className="relative z-60 overflow-visible rounded-[36px] border border-slate-700 bg-linear-to-br from-slate-900 to-slate-800 p-8 text-white shadow-xl md:p-10 dark:border-white/10 dark:from-slate-800 dark:to-slate-900">
+      <div className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 h-100 w-100 overflow-hidden rounded-full bg-white/5 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-0 -mb-20 -ml-20 h-62.5 w-62.5 rounded-full bg-white/5 blur-2xl" />
 
       <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div className="max-w-2xl space-y-3">
@@ -126,7 +126,7 @@ export function CorporateEmptyState({
   createDisabledReason: string
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-[32px] border border-slate-200 bg-white px-4 py-24 text-center shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
+    <div className="flex flex-col items-center justify-center rounded-4xl border border-slate-200 bg-white px-4 py-24 text-center shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
       <div className="bg-primary-50 dark:bg-primary-500/10 mb-6 flex h-24 w-24 items-center justify-center rounded-full">
         <Plus className="text-primary-500 h-12 w-12" strokeWidth={1.5} />
       </div>
@@ -169,7 +169,7 @@ export function CorporateQuotaWarning({
   if (cardCount < threshold) return null
 
   return (
-    <div className="flex flex-col justify-between gap-4 rounded-[24px] border border-red-500/20 bg-gradient-to-r from-red-500/15 via-pink-500/10 to-transparent p-6 shadow-sm md:flex-row md:items-center">
+    <div className="flex flex-col justify-between gap-4 rounded-3xl border border-red-500/20 bg-linear-to-r from-red-500/15 via-pink-500/10 to-transparent p-6 shadow-sm md:flex-row md:items-center">
       <div className="flex gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-red-500/25 bg-red-500/10">
           <AlertCircle className="h-6 w-6 text-red-500" />

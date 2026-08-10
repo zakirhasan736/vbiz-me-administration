@@ -2,6 +2,12 @@
 
 import { AlertModal } from '@/components/AlertModal'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
+import {
+  useGetContactsQuery,
+  useGetSocialClicksQuery,
+  useGetWeeklyEngagementQuery,
+  type WeeklyEngagementDay,
+} from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { getVCardPublicPath, getVCardPublicUrl } from '@/utils/vcard'
@@ -27,6 +33,7 @@ import {
   User,
   X,
 } from 'lucide-react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -34,14 +41,14 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { ContactSaveChip, SocialClickChip } from './SocialClickChip'
 import { getCardSocialClickStats } from './socialStats'
 
-const WEEKLY = [
-  { day: 'Mon', views: 120, clicks: 68 },
-  { day: 'Tue', views: 150, clicks: 82 },
-  { day: 'Wed', views: 180, clicks: 95 },
-  { day: 'Thu', views: 140, clicks: 70 },
-  { day: 'Fri', views: 210, clicks: 110 },
-  { day: 'Sat', views: 160, clicks: 88 },
-  { day: 'Sun', views: 190, clicks: 102 },
+const EMPTY_WEEKLY: WeeklyEngagementDay[] = [
+  { day: 'Mon', fullDay: 'Monday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Tue', fullDay: 'Tuesday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Wed', fullDay: 'Wednesday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Thu', fullDay: 'Thursday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Fri', fullDay: 'Friday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Sat', fullDay: 'Saturday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Sun', fullDay: 'Sunday', views: 0, clicks: 0, ctr: 0 },
 ]
 
 type Props = {
@@ -98,19 +105,32 @@ export function VCardDetailSidebar({
   const [copied, setCopied] = useState(false)
   const [alertState, setAlertState] = useState<{ title: string; description: string } | null>(null)
 
-  const socials = useMemo(() => (card ? getCardSocialClickStats(card) : []), [card])
+  const { data: socialClickRows = [] } = useGetSocialClicksQuery({ profileId: card?.id }, { skip: !card?.id })
+  const { data: contactSaves = [] } = useGetContactsQuery(card?.id, { skip: !card?.id })
+  const { data: weekly, isFetching: weeklyLoading } = useGetWeeklyEngagementQuery(
+    { profileId: card?.id },
+    { skip: !card?.id }
+  )
+  const weeklyDays = weekly?.days ?? EMPTY_WEEKLY
+
+  const socials = useMemo(() => (card ? getCardSocialClickStats(card, socialClickRows) : []), [card, socialClickRows])
 
   if (!card || typeof document === 'undefined') return null
 
   const views = Number(card.views) || 0
-  const clicks = Math.max(0, Math.round(views * 0.65))
+  const clicks = socialClickRows.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
+  const saves = contactSaves.length
   const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
-  const saves = Number(card.saves) || 0
   const status = card.isActive ? 'active' : 'inactive'
   const slug = card.slug?.trim() || 'profile'
   const publicPath = getVCardPublicPath(slug)
   const publicUrl = getVCardPublicUrl(slug) || publicPath
   const activeNotice = typeof window !== 'undefined' ? localStorage.getItem(`notice_${card.id}`) : null
+  const department =
+    typeof (card.personal as { department?: unknown } | undefined)?.department === 'string'
+      ? String((card.personal as { department?: string }).department).trim()
+      : ''
+  const avatarSrc = card.avatarImageUrl?.trim() || null
   const initials =
     card.personal?.fullName
       ?.split(' ')
@@ -146,8 +166,18 @@ export function VCardDetailSidebar({
         <div className="shrink-0 border-b border-slate-100 bg-white dark:border-white/10 dark:bg-[#0a0e17]">
           <div className="h-1 bg-linear-to-r from-indigo-500 via-violet-500 to-emerald-400" />
           <div className="flex items-start gap-3 px-5 py-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-sm font-black text-indigo-600 dark:border-indigo-500/25 dark:bg-indigo-500/15 dark:text-indigo-300">
-              {initials}
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-indigo-100 bg-indigo-50 text-sm font-black text-indigo-600 dark:border-indigo-500/25 dark:bg-indigo-500/15 dark:text-indigo-300">
+              {avatarSrc ? (
+                <Image
+                  src={avatarSrc}
+                  alt={card.personal?.fullName || 'Avatar'}
+                  className="h-full w-full object-cover"
+                  width={48}
+                  height={48}
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-violet-600 uppercase dark:text-violet-400">
@@ -172,10 +202,12 @@ export function VCardDetailSidebar({
                 >
                   {status}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-md border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase dark:border-white/10 dark:bg-white/5">
-                  <Briefcase className="h-3 w-3" />
-                  General
-                </span>
+                {department ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase dark:border-white/10 dark:bg-white/5">
+                    <Briefcase className="h-3 w-3" />
+                    {department}
+                  </span>
+                ) : null}
               </div>
             </div>
             <button
@@ -280,15 +312,32 @@ export function VCardDetailSidebar({
                   <Save className="h-3.5 w-3.5" /> Contact saves ({saves})
                 </p>
               </div>
-              {saves > 0 ? (
-                <div className="flex items-start gap-3 bg-white px-3.5 py-3 dark:bg-white/2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/15">
-                    <User className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                  </div>
-                  <p className="text-xs font-semibold text-slate-500">
-                    {saves.toLocaleString()} contact save{saves === 1 ? '' : 's'} recorded.
-                  </p>
-                </div>
+              {contactSaves.length > 0 ? (
+                <ul className="max-h-60 divide-y divide-slate-100 overflow-x-hidden overflow-y-auto dark:divide-white/5">
+                  {contactSaves.map((person) => (
+                    <li key={person.id} className="flex min-w-0 items-start gap-3 bg-white px-3.5 py-3 dark:bg-white/2">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/15">
+                        <User className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                          {person.name || 'Unknown'}
+                        </p>
+                        <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
+                          <Mail className="h-3 w-3 text-indigo-400" />
+                          {person.email || 'No email'}
+                        </p>
+                        <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
+                          <Phone className="h-3 w-3 text-emerald-400" />
+                          {person.phone || 'No phone'}
+                        </p>
+                      </div>
+                      <span title="Saved contact" className="mt-1 shrink-0">
+                        <Save className="h-3.5 w-3.5 text-emerald-500" />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               ) : (
                 <p className="px-3.5 py-4 text-xs font-semibold text-slate-400">Nobody has saved this contact yet.</p>
               )}
@@ -404,10 +453,15 @@ export function VCardDetailSidebar({
           )}
 
           <Section title="7-day analytics" icon={TrendingUp}>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/2">
+            <div
+              className={cn(
+                'rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/2',
+                weeklyLoading && 'opacity-60'
+              )}
+            >
               <div className="h-37.5 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={WEEKLY} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <AreaChart data={weeklyDays} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="sideViewsClean" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.25} />
@@ -469,9 +523,16 @@ export function VCardDetailSidebar({
 
 /** Small trends popup for CTR / stats click */
 export function VCardTrendsPopup({ card, onClose }: { card: VCardRecord | null; onClose: () => void }) {
+  const { data: socialClickRows = [] } = useGetSocialClicksQuery({ profileId: card?.id }, { skip: !card?.id })
+  const { data: weekly, isFetching: weeklyLoading } = useGetWeeklyEngagementQuery(
+    { profileId: card?.id },
+    { skip: !card?.id }
+  )
+  const weeklyDays = weekly?.days ?? EMPTY_WEEKLY
+
   if (!card || typeof document === 'undefined') return null
   const views = Number(card.views) || 0
-  const clicks = Math.max(0, Math.round(views * 0.65))
+  const clicks = socialClickRows.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
   const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
 
   return createPortal(
@@ -492,9 +553,14 @@ export function VCardTrendsPopup({ card, onClose }: { card: VCardRecord | null; 
             <X className="h-4 w-4 text-slate-500" />
           </button>
         </div>
-        <div className="h-50 w-full rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-white/5 dark:bg-slate-900/60">
+        <div
+          className={cn(
+            'h-50 w-full rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-white/5 dark:bg-slate-900/60',
+            weeklyLoading && 'opacity-60'
+          )}
+        >
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={WEEKLY} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+            <AreaChart data={weeklyDays} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="trendViewsClean" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3} />

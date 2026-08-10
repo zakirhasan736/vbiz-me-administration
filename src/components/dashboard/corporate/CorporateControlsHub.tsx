@@ -2,35 +2,58 @@
 
 import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
-import { ContactSavesPanel, LeadNotesPanel, type DashboardContact } from '@/components/dashboard/home'
-import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
-import { getCardSocialClickStats } from '@/components/dashboard/vcard/socialStats'
 import {
-  addCorporateBroadcast,
-  deleteCorporateBroadcast,
-  loadCorporateBroadcasts,
-  type CorporateBroadcast,
-} from '@/lib/corporateBroadcasts'
-import type { DashboardSocialChannel } from '@/redux/features/profiles/profiles.api'
+  CorporateContactSavesPanel,
+  type CorporateLeadRecord,
+} from '@/components/dashboard/corporate/CorporateContactSavesPanel'
+import { CorporateLeadNotesRepliesPanel } from '@/components/dashboard/corporate/CorporateLeadNotesRepliesPanel'
+import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
+import type { DashboardSocialChannel, TeamNotice } from '@/redux/features/profiles/profiles.api'
+import {
+  useCreateTeamNoticeMutation,
+  useDeleteTeamNoticeMutation,
+  useExportContactsCsvMutation,
+} from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
-import { Bell, Download, Globe, MessageCircle, Save, Sliders, Trash2, TrendingUp, Users } from 'lucide-react'
-import { useEffect, useMemo, useState, type DragEvent } from 'react'
+import {
+  Bell,
+  Download,
+  Facebook,
+  Globe,
+  Instagram,
+  Linkedin,
+  MessageCircle,
+  Save,
+  Sliders,
+  Trash2,
+  TrendingUp,
+  Twitter,
+  Users,
+  Youtube,
+} from 'lucide-react'
+import { useMemo, useState, type DragEvent } from 'react'
 
-type HubTab = 'directory' | 'leads' | 'socials'
+export type HubTab = 'directory' | 'leads' | 'socials'
 type LeadsTab = 'saves' | 'notes'
 
 type SocialChannelStat = {
-  channel: DashboardSocialChannel
+  channel: DashboardSocialChannel | string
   label: string
   count: number
+  trendPercent?: number
 }
+
+type SocialClickRow = { platform: string; clickCount: number }
 
 type CorporateControlsHubProps = {
   cards: VCardRecord[]
-  contacts: DashboardContact[]
+  contacts: CorporateLeadRecord[]
   socialChannels?: SocialChannelStat[]
+  socialClicksByCard?: Record<string, SocialClickRow[]>
+  teamNotices?: TeamNotice[]
   totalViews: number
+  activeCount?: number
   canCreate: boolean
   createDisabledReason: string
   quotaLimit: number
@@ -50,14 +73,18 @@ type CorporateControlsHubProps = {
   onToggleSelect?: (id: string) => void
 }
 
+const DEPT_COLORS = ['bg-amber-500', 'bg-pink-500', 'bg-indigo-500', 'bg-slate-400', 'bg-emerald-500', 'bg-cyan-500']
+
 export function CorporateControlsHub({
   cards,
   contacts,
   socialChannels = [],
+  socialClicksByCard = {},
+  teamNotices = [],
   totalViews,
+  activeCount,
   canCreate,
   createDisabledReason,
-  quotaLimit,
   draggedIndex,
   onDragStart,
   onDragDrop,
@@ -79,7 +106,6 @@ export function CorporateControlsHub({
 
   const [leadsInboxTab, setLeadsInboxTab] = useState<LeadsTab>('saves')
   const [filterLeadCardId, setFilterLeadCardId] = useState('all')
-  const [broadcasts, setBroadcasts] = useState<CorporateBroadcast[]>([])
   const [newBroadcastText, setNewBroadcastText] = useState('')
   const [newBroadcastAudience, setNewBroadcastAudience] = useState<'all' | 'savers'>('all')
   const [newBroadcastType, setNewBroadcastType] = useState<'broadcast' | 'system'>('broadcast')
@@ -87,70 +113,109 @@ export function CorporateControlsHub({
   const [alert, setAlert] = useState<{ title: string; description: string } | null>(null)
   const [deleteBroadcastId, setDeleteBroadcastId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const load = () => setBroadcasts(loadCorporateBroadcasts())
-    load()
-    window.addEventListener('corporate_broadcasts_change', load)
-    return () => window.removeEventListener('corporate_broadcasts_change', load)
-  }, [])
+  const [createTeamNotice, { isLoading: creatingNotice }] = useCreateTeamNoticeMutation()
+  const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
+  const [exportContactsCsv, { isLoading: exportingCsv }] = useExportContactsCsvMutation()
 
   const filteredContacts = useMemo(() => {
     if (filterLeadCardId === 'all') return contacts
     return contacts.filter((c) => c.profile?.id === filterLeadCardId)
   }, [contacts, filterLeadCardId])
 
+  const savesContacts = useMemo(() => filteredContacts.filter((c) => c.source !== 'note'), [filteredContacts])
+  const notesContacts = useMemo(
+    () => filteredContacts.filter((c) => Boolean((c.message || '').trim()) || c.source === 'note'),
+    [filteredContacts]
+  )
+
   const aggregatedSocial = useMemo(() => {
     const map: Record<string, number> = {}
+    const cardClickEntries = Object.values(socialClicksByCard)
+    const hasCardClicks = cardClickEntries.some((rows) => rows.length > 0)
+
+    if (hasCardClicks) {
+      for (const rows of cardClickEntries) {
+        for (const row of rows) {
+          map[row.platform] = (map[row.platform] || 0) + row.clickCount
+        }
+      }
+      return map
+    }
+
     for (const ch of socialChannels) {
-      const label = ch.label || ch.channel
+      const label = ch.label || String(ch.channel)
       map[label] = (map[label] || 0) + ch.count
     }
-    for (const card of cards) {
-      for (const stat of getCardSocialClickStats(card)) {
-        map[stat.label] = (map[stat.label] || 0) + stat.clickCount
-      }
-    }
     return map
-  }, [socialChannels, cards])
+  }, [socialChannels, socialClicksByCard])
 
   const totalSocialClicks = Object.values(aggregatedSocial).reduce((a, b) => a + b, 0)
   const topChannel = Object.entries(aggregatedSocial).sort((a, b) => b[1] - a[1])[0]
 
-  const handleCreateBroadcast = (e: React.FormEvent) => {
+  const designationBreakdown = useMemo(() => {
+    const totals = new Map<string, number>()
+    for (const card of cards) {
+      const label = (card.personal?.designation || '').trim() || 'Unspecified'
+      const clicks = (socialClicksByCard[card.id] || []).reduce((sum, row) => sum + (row.clickCount || 0), 0)
+      totals.set(label, (totals.get(label) || 0) + clicks)
+    }
+    const grand = [...totals.values()].reduce((a, b) => a + b, 0)
+    return [...totals.entries()]
+      .map(([dept, count], index) => ({
+        dept,
+        count: `${count.toLocaleString()} clicks`,
+        pct: grand > 0 ? Math.round((count / grand) * 100) : 0,
+        color: DEPT_COLORS[index % DEPT_COLORS.length],
+        sortCount: count,
+      }))
+      .sort((a, b) => b.sortCount - a.sortCount)
+  }, [cards, socialClicksByCard])
+
+  const handleCreateBroadcast = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newBroadcastText.trim()) return
-    addCorporateBroadcast({
-      text: newBroadcastText.trim(),
-      type: newBroadcastType,
-      audience: newBroadcastAudience,
-      targetCardId: newBroadcastAudience === 'savers' ? broadcastCardFilter : undefined,
-      recipientCount: newBroadcastAudience === 'savers' ? filteredContacts.length : undefined,
-    })
-    setNewBroadcastText('')
-    setAlert({
-      title: newBroadcastAudience === 'savers' ? 'Sent to savers' : 'Notice published',
-      description: 'Your announcement has been saved and will appear on team cards.',
-    })
+    if (!newBroadcastText.trim() || creatingNotice) return
+    try {
+      const created = await createTeamNotice({
+        text: newBroadcastText.trim(),
+        type: newBroadcastType,
+        audience: newBroadcastAudience,
+        targetProfileId:
+          newBroadcastAudience === 'savers' && broadcastCardFilter !== 'all' ? broadcastCardFilter : undefined,
+      }).unwrap()
+      setNewBroadcastText('')
+      setAlert({
+        title: newBroadcastAudience === 'savers' ? 'Sent to savers' : 'Notice published',
+        description:
+          newBroadcastAudience === 'savers'
+            ? `Notified ${created.recipientCount ?? 0} saved contact${(created.recipientCount ?? 0) === 1 ? '' : 's'}.`
+            : 'Your announcement is now available as a public card banner.',
+      })
+    } catch (err) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message ||
+        (err as Error)?.message ||
+        'Could not publish notice.'
+      setAlert({ title: 'Publish failed', description: message })
+    }
   }
 
-  const exportLeadsCsv = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Card', 'Created']
-    const rows = filteredContacts.map((c) => [
-      c.name || '',
-      c.email || '',
-      c.phone || '',
-      c.profile?.name || '',
-      c.createdAt || '',
-    ])
-    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `corporate-leads_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
+  const handleExportLeadsCsv = async () => {
+    try {
+      const blob = await exportContactsCsv(filterLeadCardId === 'all' ? undefined : filterLeadCardId).unwrap()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `corporate-leads_${new Date().toISOString().slice(0, 10)}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      const message =
+        (err as { data?: { message?: string } })?.data?.message || (err as Error)?.message || 'Could not export CSV.'
+      setAlert({ title: 'Export failed', description: message })
+    }
   }
+
+  const activeProfilesLabel = activeCount ?? cards.filter((c) => c.isActive).length
 
   return (
     <>
@@ -158,7 +223,7 @@ export function CorporateControlsHub({
         id="corporate-controls-hub"
         className="animate-in fade-in relative overflow-hidden rounded-[36px] border border-slate-200/80 bg-white shadow-xl shadow-slate-200/20 duration-500 dark:border-white/10 dark:bg-[#0b0f19] dark:shadow-none"
       >
-        <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-slate-50 px-4 pt-4 md:gap-6 md:px-8 md:pt-0 dark:border-white/5 dark:bg-white/[0.02]">
+        <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-slate-50 px-4 pt-4 md:gap-6 md:px-8 md:pt-0 dark:border-white/5 dark:bg-white/2">
           <TabButton
             active={activeTab === 'directory'}
             onClick={() => setActiveTab('directory')}
@@ -188,7 +253,7 @@ export function CorporateControlsHub({
 
         {activeTab === 'directory' && (
           <div>
-            <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/30 px-8 py-5 sm:flex-row sm:items-center dark:border-white/5 dark:bg-white/[0.005]">
+            <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/30 px-8 py-5 sm:flex-row sm:items-center dark:border-white/5 dark:bg-white/0.5">
               <div>
                 <h3 className="text-slate-850 text-sm font-black tracking-wider uppercase dark:text-slate-200">
                   Managed Team Cards
@@ -198,7 +263,7 @@ export function CorporateControlsHub({
                 </p>
               </div>
               <span className="text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/10 rounded-full border px-3.5 py-1.5 text-[11px] font-black uppercase">
-                {cards.length} Active Profiles
+                {activeProfilesLabel} Active Profiles
               </span>
             </div>
             <div className="grid grid-cols-1 gap-6 bg-slate-50/20 p-8 md:grid-cols-2 lg:grid-cols-3 dark:bg-black/10">
@@ -226,6 +291,7 @@ export function CorporateControlsHub({
                   onOpenQr={onOpenQr}
                   onPanel={onPanel}
                   onNotice={onNotice}
+                  onTrends={onTrends ? () => onTrends(card) : undefined}
                   noticeVersion={noticeVersion}
                   canDuplicate={canCreate}
                   duplicateDisabledReason={createDisabledReason}
@@ -238,7 +304,7 @@ export function CorporateControlsHub({
 
         {activeTab === 'leads' && (
           <div className="animate-in fade-in space-y-8 p-8 duration-300">
-            <div className="rounded-2xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/[0.01]">
+            <div className="rounded-2xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-white/5 dark:bg-white/1">
               <div className="border-slate-150 mb-6 flex flex-col justify-between gap-4 border-b pb-4 md:flex-row md:items-center dark:border-white/5">
                 <div>
                   <h3 className="flex items-center gap-2 text-sm font-black tracking-wider text-slate-900 uppercase dark:text-white">
@@ -252,7 +318,7 @@ export function CorporateControlsHub({
               </div>
 
               <form
-                onSubmit={handleCreateBroadcast}
+                onSubmit={(e) => void handleCreateBroadcast(e)}
                 className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-12"
               >
                 <div className="space-y-1.5 lg:col-span-4">
@@ -312,21 +378,26 @@ export function CorporateControlsHub({
                 </div>
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-amber-600 py-3 text-xs font-black tracking-wider text-white uppercase transition-all hover:bg-amber-700 active:scale-95 lg:col-span-2"
+                  disabled={creatingNotice}
+                  className="w-full rounded-xl bg-amber-600 py-3 text-xs font-black tracking-wider text-white uppercase transition-all hover:bg-amber-700 active:scale-95 disabled:opacity-60 lg:col-span-2"
                 >
-                  {newBroadcastAudience === 'savers' ? 'Send to Savers' : 'Publish Notice'}
+                  {creatingNotice
+                    ? 'Publishing…'
+                    : newBroadcastAudience === 'savers'
+                      ? 'Send to Savers'
+                      : 'Publish Notice'}
                 </button>
               </form>
 
               <div className="mt-6">
                 <h4 className="mb-3 text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                  Recent messages ({broadcasts.length})
+                  Recent messages ({teamNotices.length})
                 </h4>
-                {broadcasts.length === 0 ? (
+                {teamNotices.length === 0 ? (
                   <p className="text-[11px] font-bold text-slate-400 italic">No announcements published yet.</p>
                 ) : (
                   <div className="max-h-48 space-y-2 overflow-y-auto pr-2">
-                    {broadcasts.map((msg) => (
+                    {teamNotices.map((msg) => (
                       <div
                         key={msg.id}
                         className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-white p-3 text-xs dark:border-white/5 dark:bg-slate-900"
@@ -388,7 +459,7 @@ export function CorporateControlsHub({
                     className={cn(
                       'min-w-0 flex-1 rounded-xl px-2 py-2.5 text-[10px] font-black tracking-wider uppercase sm:px-4 sm:text-[11px]',
                       leadsInboxTab === 'notes'
-                        ? 'bg-white text-rose-600 shadow-sm dark:bg-slate-800 dark:text-rose-300'
+                        ? 'bg-white text-rose-700 shadow-sm dark:bg-slate-800 dark:text-rose-300'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     )}
                   >
@@ -397,37 +468,36 @@ export function CorporateControlsHub({
                     </span>
                   </button>
                 </div>
-                <div className="flex min-w-0 flex-col gap-2 pb-3 sm:flex-row">
+                <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <select
                     value={filterLeadCardId}
                     onChange={(e) => setFilterLeadCardId(e.target.value)}
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold outline-none dark:border-white/10 dark:bg-slate-900"
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none sm:max-w-xs dark:border-white/10 dark:bg-slate-900 dark:text-white"
                   >
-                    <option value="all">All Source Cards</option>
+                    <option value="all">All cards</option>
                     {cards.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.personal.fullName || 'Unnamed Card'}
+                        {c.personal.fullName || c.slug || c.id}
                       </option>
                     ))}
                   </select>
                   <button
                     type="button"
-                    disabled={filteredContacts.length === 0}
-                    onClick={exportLeadsCsv}
-                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-black tracking-wider text-white uppercase hover:bg-emerald-700 disabled:opacity-40"
+                    disabled={exportingCsv}
+                    onClick={() => void handleExportLeadsCsv()}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black tracking-wider text-slate-700 uppercase hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
                   >
-                    <Download className="h-3.5 w-3.5" /> Export CSV
+                    <Download className="h-3.5 w-3.5" />
+                    {exportingCsv ? 'Exporting…' : 'Export CSV'}
                   </button>
                 </div>
               </div>
-              <div className="min-w-0 overflow-x-hidden p-2 sm:p-4">
+
+              <div className="p-3 sm:p-5">
                 {leadsInboxTab === 'saves' ? (
-                  <ContactSavesPanel contacts={filteredContacts} className="rounded-2xl border-0 shadow-none" />
+                  <CorporateContactSavesPanel contacts={savesContacts} className="rounded-2xl border-0 shadow-none" />
                 ) : (
-                  <LeadNotesPanel
-                    contacts={filteredContacts}
-                    notesCount={filteredContacts.filter((c) => c.message).length}
-                  />
+                  <CorporateLeadNotesRepliesPanel contacts={notesContacts} />
                 )}
               </div>
             </div>
@@ -443,7 +513,8 @@ export function CorporateControlsHub({
                   Social Clicks Breakdown & Platform Engagement
                 </h3>
                 <p className="mt-1 text-xs font-semibold text-slate-400">
-                  Aggregate social platform interaction metrics across your corporate directory.
+                  Aggregate social platform interaction metrics, click-through performance, and card-by-card social
+                  handle traffic statistics.
                 </p>
               </div>
               <span className="rounded-full border border-purple-100 bg-purple-50 px-3 py-1 text-[10px] font-black tracking-wider text-purple-600 uppercase dark:border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-400">
@@ -465,7 +536,7 @@ export function CorporateControlsHub({
               <KpiCard
                 label="Avg Clicks Per Card"
                 value={cards.length ? Math.round(totalSocialClicks / cards.length).toString() : '0'}
-                hint="Highly balanced distribution"
+                hint="Across managed directory cards"
               />
               <KpiCard
                 label="Est. Reach Rate"
@@ -474,47 +545,180 @@ export function CorporateControlsHub({
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="space-y-4 lg:col-span-2">
-                {Object.entries(aggregatedSocial).map(([platform, count]) => {
-                  const pct = totalSocialClicks ? ((count / totalSocialClicks) * 100).toFixed(1) : '0'
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+              <div className="space-y-6 lg:col-span-2">
+                <div className="space-y-4 rounded-3xl border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-[#0b0f19]">
+                  <h4 className="mb-2 text-xs font-black tracking-wider text-slate-400 uppercase">
+                    Platform Clicks Breakdown List
+                  </h4>
+                  <div className="space-y-4">
+                    {Object.keys(aggregatedSocial).length === 0 ? (
+                      <p className="text-xs font-semibold text-slate-400 italic">No social clicks recorded yet.</p>
+                    ) : (
+                      (Object.entries(aggregatedSocial) as [string, number][]).map(([platform, count]) => {
+                        const percentage = totalSocialClicks ? ((count / totalSocialClicks) * 100).toFixed(1) : '0.0'
+                        const styling = platformStyling(platform)
+                        return (
+                          <div
+                            key={platform}
+                            className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition-all hover:bg-slate-100/30 dark:border-white/5 dark:bg-white/0.5"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={cn(
+                                    'flex h-10 w-10 items-center justify-center rounded-xl border',
+                                    styling.bg,
+                                    styling.color,
+                                    styling.border
+                                  )}
+                                >
+                                  <PlatformIcon platform={platform} />
+                                </div>
+                                <div>
+                                  <span className="block text-sm font-extrabold text-slate-800 dark:text-white">
+                                    {platform}
+                                  </span>
+                                  <span className="block text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                                    {percentage}% Share
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="block text-xl font-black text-slate-900 dark:text-white">
+                                  {count.toLocaleString()} clicks
+                                </span>
+                                <span className="mt-0.5 block text-[10px] font-bold text-slate-400">
+                                  Verified Click interactions
+                                </span>
+                              </div>
+                            </div>
+                            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200/50 dark:bg-white/5">
+                              <div
+                                className={cn('h-full rounded-full transition-all duration-500', styling.fill)}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-4 rounded-3xl border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-[#0b0f19]">
+                  <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase">
+                    Department Engagement Breakdown
+                  </h4>
+                  <p className="text-[11px] leading-snug font-semibold text-slate-400">
+                    Distribution of click engagement across designations (same basis as Consolidated).
+                  </p>
+                  <div className="space-y-4 pt-2">
+                    {designationBreakdown.length === 0 ? (
+                      <p className="text-xs font-semibold text-slate-400 italic">No engagement data yet.</p>
+                    ) : (
+                      designationBreakdown.map((d) => (
+                        <div key={d.dept} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <span>{d.dept}</span>
+                            <span>
+                              {d.count} ({d.pct}%)
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
+                            <div className={cn('h-full rounded-full', d.color)} style={{ width: `${d.pct}%` }} />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-3xl border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-[#0b0f19]">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                <div>
+                  <h4 className="text-sm font-black tracking-wider text-slate-800 uppercase dark:text-slate-200">
+                    Card-by-Card Social Performance Grid
+                  </h4>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-400">
+                    Detailed view of social link performance for each managed profile
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3">
+                {cards.map((card) => {
+                  const cardClicksList = socialClicksByCard[card.id] || []
+                  const sumClicks = cardClicksList.reduce((acc, cur) => acc + (cur.clickCount || 0), 0)
+                  const views = card.views || 0
                   return (
                     <div
-                      key={platform}
-                      className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-4 dark:border-white/5 dark:bg-white/[0.005]"
+                      key={card.id}
+                      className="flex flex-col justify-between space-y-4 rounded-2xl border border-slate-200/80 bg-slate-50/30 p-5 transition-all hover:border-indigo-500/30 dark:border-white/5 dark:bg-white/0.5"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-extrabold text-slate-800 dark:text-white">{platform}</span>
-                        <span className="text-xl font-black text-slate-900 dark:text-white">
-                          {count.toLocaleString()} clicks
-                        </span>
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h5 className="text-[14px] leading-tight font-black text-slate-900 dark:text-white">
+                              {card.personal?.fullName}
+                            </h5>
+                            <span className="mt-0.5 block text-[11px] font-semibold text-slate-400">
+                              {card.personal?.designation || 'Specialist'}
+                            </span>
+                            <span className="mt-1.5 inline-block rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-indigo-500 uppercase dark:border-indigo-500/20 dark:bg-indigo-500/10">
+                              {card.personal?.profession || 'Directory'}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="block text-lg font-black text-slate-900 dark:text-white">
+                              {sumClicks || 0}
+                            </span>
+                            <span className="mt-0.5 block text-[9px] font-black text-slate-400 uppercase">
+                              Total Clicks
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-white/5">
+                          <span className="mb-1 block text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                            Active channels and click details:
+                          </span>
+                          {cardClicksList.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {cardClicksList.map((ch) => (
+                                <span
+                                  key={ch.platform}
+                                  className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 dark:bg-white/5 dark:text-slate-300"
+                                >
+                                  {ch.platform}:{' '}
+                                  <strong className="font-extrabold text-slate-900 dark:text-white">
+                                    {ch.clickCount || 0}
+                                  </strong>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] font-medium text-slate-400 italic">
+                              No social clicks recorded for this card yet.
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-200/50 dark:bg-white/5">
-                        <div
-                          className="bg-primary-500 h-full rounded-full transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
+
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4 text-[11px] dark:border-white/5">
+                        <span className="text-slate-400">
+                          Views: <strong>{views}</strong>
+                        </span>
+                        <span className="font-extrabold text-indigo-500">
+                          CTR: {views ? ((sumClicks / views) * 100).toFixed(1) : 0}%
+                        </span>
                       </div>
                     </div>
                   )
                 })}
-              </div>
-              <div className="rounded-3xl border border-slate-200/60 bg-white p-6 dark:border-white/5 dark:bg-[#0b0f19]">
-                <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase">Card Performance</h4>
-                <div className="mt-4 space-y-3">
-                  {cards.slice(0, 6).map((card) => {
-                    const stats = getCardSocialClickStats(card)
-                    const sum = stats.reduce((a, s) => a + s.clickCount, 0)
-                    return (
-                      <div key={card.id} className="flex items-center justify-between text-xs">
-                        <span className="truncate font-bold text-slate-700 dark:text-slate-200">
-                          {card.personal.fullName || card.slug}
-                        </span>
-                        <span className="font-black text-indigo-500">{sum} clicks</span>
-                      </div>
-                    )
-                  })}
-                </div>
               </div>
             </div>
           </div>
@@ -526,7 +730,7 @@ export function CorporateControlsHub({
         title={alert?.title || ''}
         description={alert?.description || ''}
         onClose={() => setAlert(null)}
-        variant="success"
+        variant={alert?.title?.toLowerCase().includes('fail') ? 'danger' : 'success'}
       />
 
       <ConfirmModal
@@ -538,12 +742,82 @@ export function CorporateControlsHub({
         icon={Trash2}
         onCancel={() => setDeleteBroadcastId(null)}
         onConfirm={() => {
-          if (deleteBroadcastId) deleteCorporateBroadcast(deleteBroadcastId)
+          if (deleteBroadcastId) {
+            void deleteTeamNotice(deleteBroadcastId)
+          }
           setDeleteBroadcastId(null)
         }}
       />
     </>
   )
+}
+
+function platformStyling(platform: string) {
+  if (platform === 'Facebook') {
+    return {
+      color: 'text-[#1877F2]',
+      bg: 'bg-[#1877F2]/10',
+      border: 'border-[#1877F2]/20',
+      fill: 'bg-[#1877F2]',
+    }
+  }
+  if (platform === 'Instagram') {
+    return {
+      color: 'text-[#E4405F]',
+      bg: 'bg-[#E4405F]/10',
+      border: 'border-[#E4405F]/20',
+      fill: 'bg-[#E4405F]',
+    }
+  }
+  if (platform === 'WhatsApp') {
+    return {
+      color: 'text-[#25D366]',
+      bg: 'bg-[#25D366]/10',
+      border: 'border-[#25D366]/20',
+      fill: 'bg-[#25D366]',
+    }
+  }
+  if (platform === 'Twitter') {
+    return {
+      color: 'text-[#1DA1F2]',
+      bg: 'bg-[#1DA1F2]/10',
+      border: 'border-[#1DA1F2]/20',
+      fill: 'bg-[#1DA1F2]',
+    }
+  }
+  if (platform === 'YouTube') {
+    return {
+      color: 'text-[#FF0000]',
+      bg: 'bg-[#FF0000]/10',
+      border: 'border-[#FF0000]/20',
+      fill: 'bg-[#FF0000]',
+    }
+  }
+  if (platform.includes('Web')) {
+    return {
+      color: 'text-[#8b5cf6]',
+      bg: 'bg-[#8b5cf6]/10',
+      border: 'border-[#8b5cf6]/20',
+      fill: 'bg-[#8b5cf6]',
+    }
+  }
+  return {
+    color: 'text-[#0A66C2]',
+    bg: 'bg-[#0A66C2]/10',
+    border: 'border-[#0A66C2]/20',
+    fill: 'bg-[#0A66C2]',
+  }
+}
+
+function PlatformIcon({ platform }: { platform: string }) {
+  const cls = 'h-5 w-5'
+  if (platform === 'LinkedIn') return <Linkedin className={cls} />
+  if (platform === 'Facebook') return <Facebook className={cls} />
+  if (platform === 'Instagram') return <Instagram className={cls} />
+  if (platform === 'WhatsApp') return <MessageCircle className={cls} />
+  if (platform === 'Twitter') return <Twitter className={cls} />
+  if (platform === 'YouTube') return <Youtube className={cls} />
+  return <Globe className={cls} />
 }
 
 function TabButton({
@@ -603,17 +877,21 @@ function TabButton({
   )
 }
 
-function KpiCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+function KpiCard({ label, value, hint, trend }: { label: string; value: string; hint: string; trend?: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200/60 bg-slate-50 p-5 dark:border-white/5 dark:bg-white/[0.01]">
+    <div className="rounded-2xl border border-slate-200/60 bg-slate-50 p-5 dark:border-white/5 dark:bg-white/1">
       <span className="block text-[10px] font-black tracking-wider text-slate-400 uppercase">{label}</span>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-3xl font-black text-slate-900 dark:text-white">{value}</span>
-        <TrendingUp className="h-3 w-3 text-emerald-500" />
+        <span className="max-w-37.5 truncate text-3xl font-black text-slate-900 dark:text-white">{value}</span>
+        {trend ? (
+          <span className="flex items-center gap-0.5 text-xs font-bold text-emerald-500">
+            <TrendingUp className="h-3 w-3" /> {trend}
+          </span>
+        ) : (
+          <TrendingUp className="h-3 w-3 text-emerald-500" />
+        )}
       </div>
       <p className="mt-1 text-[11px] font-medium text-slate-400">{hint}</p>
     </div>
   )
 }
-
-export type { HubTab }

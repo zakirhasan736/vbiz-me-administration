@@ -2,70 +2,25 @@
 
 import type { DashboardSocialChannel } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
-import { Facebook, Globe, Instagram, Linkedin, MessageCircle, Twitter, Youtube, type LucideIcon } from 'lucide-react'
-
-const PLATFORM_UI: Array<{
-  key: string
-  title: string
-  channel?: DashboardSocialChannel
-  icon: LucideIcon
-  bg: string
-}> = [
-  {
-    key: 'Facebook',
-    title: 'FACEBOOK',
-    channel: 'facebook',
-    icon: Facebook,
-    bg: 'bg-blue-50/70 text-[#1877F2] border-blue-100/50 dark:bg-blue-500/10 dark:border-blue-500/20',
-  },
-  {
-    key: 'Twitter',
-    title: 'TWITTER',
-    channel: 'twitter',
-    icon: Twitter,
-    bg: 'bg-slate-50/70 text-slate-650 border-slate-100/50 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20',
-  },
-  {
-    key: 'Instagram',
-    title: 'INSTAGRAM',
-    channel: 'instagram',
-    icon: Instagram,
-    bg: 'bg-pink-50/70 text-pink-500 border-pink-100/50 dark:bg-pink-500/10 dark:border-pink-500/20',
-  },
-  {
-    key: 'WhatsApp',
-    title: 'WHATSAPP',
-    channel: 'whatsapp',
-    icon: MessageCircle,
-    bg: 'bg-emerald-50/70 text-emerald-500 border-emerald-100/50 dark:bg-emerald-500/10 dark:border-emerald-500/20',
-  },
-  {
-    key: 'LinkedIn',
-    title: 'LINKEDIN',
-    channel: 'linkedin',
-    icon: Linkedin,
-    bg: 'bg-blue-50/70 text-[#0A66C2] border-blue-100/50 dark:bg-[#0A66C2]/10 dark:border-[#0A66C2]/20',
-  },
-  {
-    key: 'YouTube',
-    title: 'YOUTUBE',
-    channel: 'youtube',
-    icon: Youtube,
-    bg: 'bg-red-50/70 text-red-500 border-red-100/50 dark:bg-red-500/10 dark:border-red-500/20',
-  },
-  {
-    key: 'Web Visits',
-    title: 'WEB VISITS',
-    channel: 'website',
-    icon: Globe,
-    bg: 'bg-purple-50/70 text-purple-600 border-purple-100/50 dark:bg-purple-500/10 dark:border-purple-500/20',
-  },
-]
+import {
+  Facebook,
+  Globe,
+  Instagram,
+  Linkedin,
+  MessageCircle,
+  Music2,
+  Pin,
+  Radio,
+  Twitter,
+  Youtube,
+  type LucideIcon,
+} from 'lucide-react'
 
 type SocialChannelStat = {
   channel: DashboardSocialChannel
   label: string
   count: number
+  trendPercent?: number
 }
 
 type CorporateSocialBreakdownProps = {
@@ -73,13 +28,53 @@ type CorporateSocialBreakdownProps = {
   onOpenSocialsTab?: () => void
 }
 
-export function CorporateSocialBreakdown({ channels = [], onOpenSocialsTab }: CorporateSocialBreakdownProps) {
-  const counts = new Map<string, number>()
-  for (const ch of channels) {
-    const label =
-      ch.channel === 'website' ? 'Web Visits' : ch.label || ch.channel.charAt(0).toUpperCase() + ch.channel.slice(1)
-    counts.set(label, (counts.get(label) || 0) + (ch.count || 0))
-  }
+const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; color: string; bg: string }> = {
+  facebook: { icon: Facebook, color: 'text-[#1877F2]', bg: 'bg-[#1877F2]/10' },
+  twitter: { icon: Twitter, color: 'text-[#1DA1F2]', bg: 'bg-[#1DA1F2]/10' },
+  instagram: { icon: Instagram, color: 'text-[#E4405F]', bg: 'bg-[#E4405F]/10' },
+  whatsapp: { icon: MessageCircle, color: 'text-[#25D366]', bg: 'bg-[#25D366]/10' },
+  linkedin: { icon: Linkedin, color: 'text-[#0A66C2]', bg: 'bg-[#0A66C2]/10' },
+  youtube: { icon: Youtube, color: 'text-[#FF0000]', bg: 'bg-[#FF0000]/10' },
+  tiktok: { icon: Music2, color: 'text-slate-900 dark:text-white', bg: 'bg-slate-900/10 dark:bg-white/10' },
+  truth: { icon: Radio, color: 'text-[#5415D0]', bg: 'bg-[#5415D0]/10' },
+  rumble: { icon: Radio, color: 'text-[#85C742]', bg: 'bg-[#85C742]/10' },
+  pinterest: { icon: Pin, color: 'text-[#E60023]', bg: 'bg-[#E60023]/10' },
+  website: { icon: Globe, color: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-500/10' },
+}
+
+const DEFAULT_CHANNELS: SocialChannelStat[] = (
+  [
+    'facebook',
+    'twitter',
+    'instagram',
+    'whatsapp',
+    'linkedin',
+    'youtube',
+    'tiktok',
+    'truth',
+    'rumble',
+    'pinterest',
+    'website',
+  ] as const
+).map((channel) => ({
+  channel,
+  label:
+    channel === 'whatsapp'
+      ? 'WhatsApp'
+      : channel === 'youtube'
+        ? 'YouTube'
+        : channel === 'tiktok'
+          ? 'TikTok'
+          : channel === 'truth'
+            ? 'Truth Social'
+            : channel === 'website'
+              ? 'Web Visits'
+              : channel.charAt(0).toUpperCase() + channel.slice(1),
+  count: 0,
+}))
+
+export function CorporateSocialBreakdown({ channels, onOpenSocialsTab }: CorporateSocialBreakdownProps) {
+  const rows = channels?.length ? channels : DEFAULT_CHANNELS
 
   return (
     <div className="animate-in fade-in space-y-5 duration-500">
@@ -108,29 +103,32 @@ export function CorporateSocialBreakdown({ channels = [], onOpenSocialsTab }: Co
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
-        {PLATFORM_UI.map((card) => {
-          const IconComp = card.icon
-          const value = counts.get(card.key) ?? 0
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        {rows.map((stat) => {
+          const ui = CHANNEL_UI[stat.channel] ?? CHANNEL_UI.website
+          const Icon = ui.icon
           return (
             <div
-              key={card.key}
-              className="border-slate-150/80 flex flex-col items-center justify-center rounded-3xl border bg-white p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:border-white/5 dark:bg-[#0b0f19]"
+              key={stat.channel}
+              className="group rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.05)] dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/10 dark:hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.4)]"
             >
               <div
                 className={cn(
-                  'mb-4 flex h-14 w-14 items-center justify-center rounded-[22px] border shadow-sm',
-                  card.bg
+                  'mb-5 flex h-12 w-12 items-center justify-center rounded-[14px] border border-black/5 shadow-sm transition-transform group-hover:scale-110 dark:border-white/5',
+                  ui.bg,
+                  ui.color
                 )}
               >
-                <IconComp className="h-6 w-6" />
+                <Icon className="h-6 w-6" strokeWidth={1.5} />
               </div>
-              <span className="text-xl leading-tight font-black text-slate-900 md:text-2xl dark:text-white">
-                {value.toLocaleString()}
-              </span>
-              <span className="mt-2.5 max-w-full truncate text-[10px] font-black tracking-wider text-slate-400/85 uppercase">
-                {card.title}
-              </span>
+              <div>
+                <p className="mb-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                  {(stat.count || 0).toLocaleString()}
+                </p>
+                <p className="text-[11px] leading-tight font-bold tracking-widest text-slate-500 uppercase">
+                  {stat.label}
+                </p>
+              </div>
             </div>
           )
         })}

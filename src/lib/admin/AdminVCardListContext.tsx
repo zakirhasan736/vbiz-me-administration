@@ -30,7 +30,7 @@ const EDITING_KEY = 'admin_editing_card_id'
 
 export function AdminVCardListProvider({ children }: { children: React.ReactNode }) {
   const user = useAppSelector((s) => s.user.user)
-  const { data: profiles = [], isLoading, refetch } = useGetProfilesQuery()
+  const { data: profilesResult, isLoading, refetch } = useGetProfilesQuery({ limit: 100 })
   const [createProfile] = useCreateProfileMutation()
   const [deleteProfile] = useDeleteProfileMutation()
   const [mockCards, setMockCards] = useState<AdminCard[]>(() => loadMockCards() as unknown as AdminCard[])
@@ -46,8 +46,8 @@ export function AdminVCardListProvider({ children }: { children: React.ReactNode
   }, [])
 
   const apiCards = useMemo(
-    () => profiles.map((p) => toAdminCardShape(mapApiProfileToVCardRecord(p), user?.id)),
-    [profiles, user?.id]
+    () => (profilesResult?.items ?? []).map((p) => toAdminCardShape(mapApiProfileToVCardRecord(p), user?.id)),
+    [profilesResult?.items, user?.id]
   )
 
   const vCardsList = useMemo(() => {

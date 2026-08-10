@@ -4,9 +4,13 @@ import { ContactSaveChip, SocialClickChip } from '@/components/admin/AdminSocial
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
 import { getCardSocialClickStats } from '@/lib/adminSocialStats'
-import { CONTACT_SAVES_EVENT, getContactSavesForOwner } from '@/lib/contactSaves'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
-import { useAuth } from '@/providers/AuthProvider'
+import {
+  useGetContactsQuery,
+  useGetSocialClicksQuery,
+  useGetWeeklyEngagementQuery,
+  type WeeklyEngagementDay,
+} from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import {
   Ban,
@@ -33,19 +37,20 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-const WEEKLY = [
-  { day: 'Mon', views: 120, clicks: 68 },
-  { day: 'Tue', views: 150, clicks: 82 },
-  { day: 'Wed', views: 180, clicks: 95 },
-  { day: 'Thu', views: 140, clicks: 70 },
-  { day: 'Fri', views: 210, clicks: 110 },
-  { day: 'Sat', views: 160, clicks: 88 },
-  { day: 'Sun', views: 190, clicks: 102 },
+const EMPTY_WEEKLY: WeeklyEngagementDay[] = [
+  { day: 'Mon', fullDay: 'Monday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Tue', fullDay: 'Tuesday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Wed', fullDay: 'Wednesday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Thu', fullDay: 'Thursday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Fri', fullDay: 'Friday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Sat', fullDay: 'Saturday', views: 0, clicks: 0, ctr: 0 },
+  { day: 'Sun', fullDay: 'Sunday', views: 0, clicks: 0, ctr: 0 },
 ]
 
 type Props = {
@@ -108,30 +113,18 @@ export default function VCardDetailSidebar({
   mode = 'corporate',
 }: Props) {
   const router = useRouter()
-  const { setCurrentEditingCardId, userRole, updateCorporateCardControls } = useVCard()
-  const { user } = useAuth()
+  const { setCurrentEditingCardId, updateCorporateCardControls } = useVCard()
   const [copied, setCopied] = useState(false)
-  const [savesTick, setSavesTick] = useState(0)
 
-  const roleScope = userRole === 'admin' ? 'admin' : userRole === 'corporate' ? 'corporate' : 'single'
+  const { data: socialClickRows = [] } = useGetSocialClicksQuery({ profileId: card?.id }, { skip: !card?.id })
+  const { data: contactSaves = [] } = useGetContactsQuery(card?.id, { skip: !card?.id })
+  const { data: weekly, isFetching: weeklyLoading } = useGetWeeklyEngagementQuery(
+    { profileId: card?.id },
+    { skip: !card?.id }
+  )
+  const weeklyDays = weekly?.days ?? EMPTY_WEEKLY
 
-  useEffect(() => {
-    const refresh = () => setSavesTick((n) => n + 1)
-    window.addEventListener(CONTACT_SAVES_EVENT, refresh)
-    window.addEventListener('storage', refresh)
-    return () => {
-      window.removeEventListener(CONTACT_SAVES_EVENT, refresh)
-      window.removeEventListener('storage', refresh)
-    }
-  }, [])
-
-  const saveRecords = useMemo(() => {
-    if (!card?.id) return []
-    return getContactSavesForOwner(user?.uid || card.ownerId, roleScope, card.id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card, user?.uid, roleScope, savesTick])
-
-  const socials = useMemo(() => (card ? getCardSocialClickStats(card, []) : []), [card])
+  const socials = useMemo(() => (card ? getCardSocialClickStats(card, socialClickRows) : []), [card, socialClickRows])
 
   if (!card || typeof document === 'undefined') return null
 
@@ -144,14 +137,19 @@ export default function VCardDetailSidebar({
   const phone = personalField(card.personal, 'phone')
   const whatsapp = personalField(card.personal, 'whatsapp')
   const views = Number(analytics.views || card.viewCount || 0)
-  const clicks = Number(analytics.clicks || Math.round(views * 0.65))
-  const ctr = analytics.ctr || (views ? ((clicks / views) * 100).toFixed(1) : '0')
+  const clicks = socialClickRows.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
+  const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
+  const saves = contactSaves.length
   const status = card.status || 'active'
   const publicUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}/v/${card.slug || 'profile'}`
       : `/v/${card.slug || 'profile'}`
   const activeNotice = typeof window !== 'undefined' ? localStorage.getItem(`notice_${card.id}`) : null
+  const avatarSrc =
+    (typeof card.avatarImageUrl === 'string' && card.avatarImageUrl.trim()) ||
+    (typeof card.personal?.avatar === 'string' && String(card.personal.avatar).trim()) ||
+    null
   const initials =
     fullName
       .split(' ')
@@ -191,16 +189,26 @@ export default function VCardDetailSidebar({
   }
 
   const panel = (
-    <div className="fixed inset-0 z-[9999] flex justify-end" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-9999 flex justify-end" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]" onClick={onClose} />
 
-      <aside className="animate-in slide-in-from-right relative z-[1] flex h-[100dvh] w-full max-w-[420px] flex-col border-l border-slate-200 bg-white shadow-2xl duration-300 sm:max-w-[440px] dark:border-white/10 dark:bg-[#0a0e17]">
+      <aside className="animate-in slide-in-from-right relative z-1 flex h-dvh w-full max-w-105 flex-col border-l border-slate-200 bg-white shadow-2xl duration-300 sm:max-w-110 dark:border-white/10 dark:bg-[#0a0e17]">
         {/* Header — always on top of app chrome */}
         <div className="shrink-0 border-b border-slate-100 bg-white dark:border-white/10 dark:bg-[#0a0e17]">
-          <div className="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
+          <div className="h-1 bg-linear-to-r from-indigo-500 via-violet-500 to-emerald-400" />
           <div className="flex items-start gap-3 px-5 py-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-sm font-black text-indigo-600 dark:border-indigo-500/25 dark:bg-indigo-500/15 dark:text-indigo-300">
-              {initials}
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-indigo-100 bg-indigo-50 text-sm font-black text-indigo-600 dark:border-indigo-500/25 dark:bg-indigo-500/15 dark:text-indigo-300">
+              {avatarSrc ? (
+                <Image
+                  src={avatarSrc}
+                  alt={fullName || 'Avatar'}
+                  className="h-full w-full object-cover"
+                  width={48}
+                  height={48}
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-violet-600 uppercase dark:text-violet-400">
@@ -227,10 +235,12 @@ export default function VCardDetailSidebar({
                 >
                   {status}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-md border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase dark:border-white/10 dark:bg-white/5">
-                  <Briefcase className="h-3 w-3" />
-                  {department || 'General'}
-                </span>
+                {department ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase dark:border-white/10 dark:bg-white/5">
+                    <Briefcase className="h-3 w-3" />
+                    {department}
+                  </span>
+                ) : null}
               </div>
             </div>
             <button
@@ -248,12 +258,12 @@ export default function VCardDetailSidebar({
             {[
               { label: 'Views', value: views, icon: Eye, tone: 'text-indigo-500' },
               { label: 'Clicks', value: clicks, icon: MousePointerClick, tone: 'text-sky-500' },
-              { label: 'Saves', value: saveRecords.length, icon: Save, tone: 'text-emerald-500' },
+              { label: 'Saves', value: saves, icon: Save, tone: 'text-emerald-500' },
               { label: 'CTR', value: `${ctr}%`, icon: TrendingUp, tone: 'text-violet-500' },
             ].map((m) => (
               <div
                 key={m.label}
-                className="rounded-xl border border-slate-100 bg-slate-50 px-2 py-2.5 text-center dark:border-white/5 dark:bg-white/[0.04]"
+                className="rounded-xl border border-slate-100 bg-slate-50 px-2 py-2.5 text-center dark:border-white/5 dark:bg-white/4"
               >
                 <m.icon className={cn('mx-auto mb-1 h-3.5 w-3.5', m.tone)} />
                 <p className="text-sm leading-none font-black text-slate-900 tabular-nums dark:text-white">
@@ -269,14 +279,14 @@ export default function VCardDetailSidebar({
           {/* Contact — plain readable rows */}
           <Section title="Contact details" icon={Mail}>
             <div className="border-slate-150 divide-y divide-slate-100 overflow-hidden rounded-2xl border dark:divide-white/5 dark:border-white/10">
-              <div className="flex items-center gap-3 bg-white px-3.5 py-3 dark:bg-white/[0.02]">
+              <div className="flex items-center gap-3 bg-white px-3.5 py-3 dark:bg-white/2">
                 <Mail className="h-4 w-4 shrink-0 text-indigo-500" />
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Email</p>
                   <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{email || '—'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-white px-3.5 py-3 dark:bg-white/[0.02]">
+              <div className="flex items-center gap-3 bg-white px-3.5 py-3 dark:bg-white/2">
                 <Phone className="h-4 w-4 shrink-0 text-emerald-500" />
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Phone</p>
@@ -285,7 +295,7 @@ export default function VCardDetailSidebar({
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-white px-3.5 py-3 dark:bg-white/[0.02]">
+              <div className="flex items-center gap-3 bg-white px-3.5 py-3 dark:bg-white/2">
                 <Building2 className="h-4 w-4 shrink-0 text-slate-400" />
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Company</p>
@@ -301,11 +311,11 @@ export default function VCardDetailSidebar({
               {socials.map((s) => (
                 <SocialClickChip key={s.key} stat={s} compact />
               ))}
-              <ContactSaveChip count={saveRecords.length} compact />
+              <ContactSaveChip count={saves} compact />
             </div>
             <div className="border-slate-150 overflow-hidden rounded-2xl border dark:border-white/10">
               {/* Social links list */}
-              <div className="border-b border-slate-100 bg-slate-50 px-3.5 py-2.5 dark:border-white/5 dark:bg-white/[0.03]">
+              <div className="border-b border-slate-100 bg-slate-50 px-3.5 py-2.5 dark:border-white/5 dark:bg-white/3">
                 <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
                   Social links ({socials.length})
                 </p>
@@ -315,7 +325,7 @@ export default function VCardDetailSidebar({
                   {socials.map((s) => (
                     <li
                       key={s.key}
-                      className="flex min-w-0 items-center justify-between gap-2 bg-white px-3.5 py-3 dark:bg-white/[0.02]"
+                      className="flex min-w-0 items-center justify-between gap-2 bg-white px-3.5 py-3 dark:bg-white/2"
                     >
                       <div className="min-w-0 flex-1 overflow-hidden">
                         <SocialClickChip stat={s} />
@@ -333,28 +343,27 @@ export default function VCardDetailSidebar({
               {/* Contact saves people list */}
               <div className="flex items-center justify-between border-y border-emerald-100/80 bg-emerald-50/80 px-3.5 py-2.5 dark:border-emerald-500/15 dark:bg-emerald-500/10">
                 <p className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
-                  <Save className="h-3.5 w-3.5" /> Contact saves ({saveRecords.length})
+                  <Save className="h-3.5 w-3.5" /> Contact saves ({saves})
                 </p>
               </div>
-              {saveRecords.length > 0 ? (
-                <ul className="max-h-[240px] divide-y divide-slate-100 overflow-x-hidden overflow-y-auto dark:divide-white/5">
-                  {saveRecords.map((person) => (
-                    <li
-                      key={person.id}
-                      className="flex min-w-0 items-start gap-3 bg-white px-3.5 py-3 dark:bg-white/[0.02]"
-                    >
+              {contactSaves.length > 0 ? (
+                <ul className="max-h-60 divide-y divide-slate-100 overflow-x-hidden overflow-y-auto dark:divide-white/5">
+                  {contactSaves.map((person) => (
+                    <li key={person.id} className="flex min-w-0 items-start gap-3 bg-white px-3.5 py-3 dark:bg-white/2">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/15">
                         <User className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{person.fullName}</p>
+                        <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                          {person.name || 'Unknown'}
+                        </p>
                         <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
                           <Mail className="h-3 w-3 text-indigo-400" />
                           {person.email || 'No email'}
                         </p>
                         <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
                           <Phone className="h-3 w-3 text-emerald-400" />
-                          {person.phoneNumber || 'No phone'}
+                          {person.phone || 'No phone'}
                         </p>
                       </div>
                       <span title="Saved contact" className="mt-1 shrink-0">
@@ -487,10 +496,15 @@ export default function VCardDetailSidebar({
           )}
 
           <Section title="7-day analytics" icon={TrendingUp}>
-            <div className="border-slate-150 rounded-2xl border bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/[0.02]">
-              <div className="h-[150px] w-full">
+            <div
+              className={cn(
+                'border-slate-150 rounded-2xl border bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/2',
+                weeklyLoading && 'opacity-60'
+              )}
+            >
+              <div className="h-37.5 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={WEEKLY} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <AreaChart data={weeklyDays} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="sideViewsClean" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.25} />
@@ -540,14 +554,21 @@ export default function VCardDetailSidebar({
 
 /** Small trends popup for CTR / stats click */
 export function VCardTrendsPopup({ card, onClose }: { card: AdminCard | null; onClose: () => void }) {
+  const { data: socialClickRows = [] } = useGetSocialClicksQuery({ profileId: card?.id }, { skip: !card?.id })
+  const { data: weekly, isFetching: weeklyLoading } = useGetWeeklyEngagementQuery(
+    { profileId: card?.id },
+    { skip: !card?.id }
+  )
+  const weeklyDays = weekly?.days ?? EMPTY_WEEKLY
+
   if (!card || typeof document === 'undefined') return null
   const analytics = cardAnalytics(card)
   const views = Number(analytics.views || card.viewCount || 0)
-  const clicks = Number(analytics.clicks || Math.round(views * 0.65))
-  const ctr = analytics.ctr || (views ? ((clicks / views) * 100).toFixed(1) : '0')
+  const clicks = socialClickRows.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
+  const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" onClick={onClose} />
       <div className="animate-in zoom-in-95 relative w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]">
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -566,9 +587,14 @@ export function VCardTrendsPopup({ card, onClose }: { card: AdminCard | null; on
             <X className="h-4 w-4 text-slate-500" />
           </button>
         </div>
-        <div className="h-[200px] w-full rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-white/5 dark:bg-slate-900/60">
+        <div
+          className={cn(
+            'h-50 w-full rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-white/5 dark:bg-slate-900/60',
+            weeklyLoading && 'opacity-60'
+          )}
+        >
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={WEEKLY} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+            <AreaChart data={weeklyDays} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="trendViewsClean" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3} />

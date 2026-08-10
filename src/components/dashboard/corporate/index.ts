@@ -1,8 +1,11 @@
+export { CorporateContactSavesPanel } from './CorporateContactSavesPanel'
 export { CorporateControlsHub, type HubTab } from './CorporateControlsHub'
 export { CorporateDashboardHeader, CorporateEmptyState, CorporateQuotaWarning } from './CorporateDashboardHeader'
 export { CorporateEngagementSection } from './CorporateEngagementSection'
+export { CorporateLeadNotesRepliesPanel } from './CorporateLeadNotesRepliesPanel'
 export { CorporateMetricCards } from './CorporateMetricCards'
 export { CorporateSocialBreakdown } from './CorporateSocialBreakdown'
+export { CorporateWeeklyEngagement } from './CorporateWeeklyEngagement'
 export { TeamVCardsBulkBar } from './TeamVCardsBulkBar'
 export {
   TeamVCardsCreatePlaceholder,

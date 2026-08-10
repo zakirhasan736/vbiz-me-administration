@@ -1,8 +1,8 @@
 'use client'
 
-import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { exportCardsJson } from '@/lib/corporateExport'
+import { notify } from '@/lib/toast/toast'
 import { useDeleteProfileMutation } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { Download, Trash2, X } from 'lucide-react'
@@ -19,7 +19,6 @@ type TeamVCardsBulkBarProps = {
 export function TeamVCardsBulkBar({ selectedIds, cards, onClear, onBulkStatus, onDeleted }: TeamVCardsBulkBarProps) {
   const [deleteProfile] = useDeleteProfileMutation()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [alert, setAlert] = useState<{ title: string; description: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
   if (selectedIds.length === 0) return null
@@ -35,9 +34,13 @@ export function TeamVCardsBulkBar({ selectedIds, cards, onClear, onBulkStatus, o
       setConfirmDelete(false)
       onClear()
       onDeleted()
-      setAlert({ title: 'Deleted', description: 'Selected cards were removed successfully.' })
-    } catch {
-      setAlert({ title: 'Error', description: 'Could not delete all selected cards.' })
+      notify.success('Selected cards were removed successfully.')
+    } catch (e) {
+      const message =
+        (e as { data?: { message?: string } })?.data?.message ||
+        (e as Error)?.message ||
+        'Could not delete all selected cards.'
+      notify.error(message)
     } finally {
       setBusy(false)
     }
@@ -66,6 +69,7 @@ export function TeamVCardsBulkBar({ selectedIds, cards, onClear, onBulkStatus, o
             onClick={() => {
               exportCardsJson(selectedCards)
               onClear()
+              notify.success('Exported selected cards as JSON.')
             }}
             className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-xs font-black tracking-wider text-white uppercase transition-all hover:bg-white hover:text-slate-900 active:scale-95"
           >
@@ -111,13 +115,6 @@ export function TeamVCardsBulkBar({ selectedIds, cards, onClear, onBulkStatus, o
         icon={Trash2}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => void handleDelete()}
-      />
-
-      <AlertModal
-        open={!!alert}
-        title={alert?.title || ''}
-        description={alert?.description || ''}
-        onClose={() => setAlert(null)}
       />
     </>
   )

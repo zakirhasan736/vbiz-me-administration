@@ -6,6 +6,7 @@ import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { notify } from '@/lib/toast/toast'
 import { useVCard } from '@/lib/VCardContext'
 import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
 import {
@@ -209,7 +210,7 @@ function TemplateDesigner() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
       if (file.size > 2 * 1024 * 1024) {
-        alert('File size exceeds 2MB limit!')
+        notify.error('File size exceeds 2MB limit.')
         return
       }
       setLogoFile(file)

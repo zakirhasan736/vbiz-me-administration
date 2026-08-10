@@ -60,7 +60,7 @@ export default function AdminMyCards() {
   const ownerId = reduxUser?.id || user?.uid
   const router = useRouter()
   const { vCardsList, createCorporateCard, setCurrentEditingCardId, deleteCorporateCard } = useVCard()
-  const { data: createdProfiles = [] } = useGetProfilesQuery({ scope: 'created' })
+  const { data: createdProfilesResult } = useGetProfilesQuery({ scope: 'created', limit: 100 })
   const { data: stats } = useGetDashboardStatsQuery({ period: 'all', scope: 'created' })
 
   const [panelCard, setPanelCard] = useState<AdminCard | null>(null)
@@ -69,6 +69,8 @@ export default function AdminMyCards() {
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
   const [qrModalTitle, setQrModalTitle] = useState('vCard QR Code')
   const [noticeCardId, setNoticeCardId] = useState<string | null>(null)
+
+  const createdProfiles = useMemo(() => createdProfilesResult?.items ?? [], [createdProfilesResult?.items])
 
   const openQrModal = (url: string, name?: string) => {
     setSelectedVCardUrl(url)

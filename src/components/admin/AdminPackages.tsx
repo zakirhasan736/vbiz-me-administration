@@ -16,7 +16,19 @@ import { cn } from '@/utils/cn'
 import { CheckCircle2, Edit2, Layers, Package, Plus, Trash2, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
-type FeatureDraft = { featureKey: string; featureValue: string }
+const MAX_CARDS_FEATURE_KEY = 'max_cards'
+
+const DEFAULT_FEATURE_LABELS = [
+  'Allow 2D explainer',
+  'Background video upload',
+  'Background music upload',
+  'Intro video upload',
+  'Music upload',
+  'Video upload',
+  'YouTube background music',
+  'Extra profile fields',
+  'Social links',
+]
 
 type FormState = {
   name: string
@@ -26,7 +38,8 @@ type FormState = {
   yearlyPrice: string
   sortOrder: string
   isActive: boolean
-  features: FeatureDraft[]
+  maxCards: string
+  features: string[]
 }
 
 const emptyForm = (): FormState => ({
@@ -37,10 +50,46 @@ const emptyForm = (): FormState => ({
   yearlyPrice: '0',
   sortOrder: '0',
   isActive: true,
-  features: [{ featureKey: '', featureValue: '' }],
+  maxCards: '',
+  features: [...DEFAULT_FEATURE_LABELS],
 })
 
+function isSystemFeatureKey(key: string) {
+  return key.trim().toLowerCase() === MAX_CARDS_FEATURE_KEY
+}
+
+/** Turn snake_case / kebab-case keys into readable labels; leave already-plain text alone. */
+function humanizeFeatureLabel(key: string) {
+  const trimmed = key.trim()
+  if (!trimmed) return ''
+  if (!/[_-]/.test(trimmed) && /[A-Z]/.test(trimmed[0])) return trimmed
+  if (!/[_-]/.test(trimmed)) return trimmed
+  const words = trimmed
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map((w) => {
+      const lower = w.toLowerCase()
+      if (lower === '2d') return '2D'
+      if (lower === 'yt') return 'YouTube'
+      if (lower === 'bg') return 'background'
+      if (lower === 'mb') return 'MB'
+      return lower
+    })
+  if (words.length === 0) return trimmed
+  const first = words[0]
+  const titled = [first.charAt(0).toUpperCase() + first.slice(1), ...words.slice(1)]
+  return titled.join(' ')
+}
+
+function marketingFeatures(pkg: AdminPackageRow) {
+  return pkg.features.filter((f) => !isSystemFeatureKey(f.featureKey))
+}
+
 function formFromPackage(pkg: AdminPackageRow): FormState {
+  const maxCardsFeat = pkg.features.find((f) => isSystemFeatureKey(f.featureKey))
+  const labels = marketingFeatures(pkg).map((f) => humanizeFeatureLabel(f.featureKey))
   return {
     name: pkg.name,
     slug: pkg.slug || '',
@@ -49,17 +98,24 @@ function formFromPackage(pkg: AdminPackageRow): FormState {
     yearlyPrice: String(pkg.yearlyPrice),
     sortOrder: String(pkg.sortOrder),
     isActive: pkg.isActive,
-    features:
-      pkg.features.length > 0
-        ? pkg.features.map((f) => ({
-            featureKey: f.featureKey,
-            featureValue: f.featureValue || '',
-          }))
-        : [{ featureKey: '', featureValue: '' }],
+    maxCards: maxCardsFeat?.featureValue?.trim() || '',
+    features: labels.length > 0 ? labels : [''],
   }
 }
 
 function toBody(form: FormState): UpsertAdminPackageBody {
+  const marketing = form.features
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .filter((text) => !isSystemFeatureKey(text))
+    .map((featureKey) => ({ featureKey, featureValue: null as string | null }))
+
+  const maxCardsNum = Math.max(0, Math.round(Number(form.maxCards)))
+  const features =
+    form.maxCards.trim() !== '' && Number.isFinite(maxCardsNum)
+      ? [...marketing, { featureKey: MAX_CARDS_FEATURE_KEY, featureValue: String(maxCardsNum) }]
+      : marketing
+
   return {
     name: form.name.trim(),
     slug: form.slug.trim() || null,
@@ -68,22 +124,12 @@ function toBody(form: FormState): UpsertAdminPackageBody {
     yearlyPrice: Math.max(0, Math.round(Number(form.yearlyPrice) || 0)),
     sortOrder: Math.max(0, Math.round(Number(form.sortOrder) || 0)),
     isActive: form.isActive,
-    features: form.features
-      .filter((f) => f.featureKey.trim())
-      .map((f) => ({
-        featureKey: f.featureKey.trim(),
-        featureValue: f.featureValue.trim() || null,
-      })),
+    features,
   }
 }
 
 function formatMoney(centsOrUnits: number) {
   return `$${centsOrUnits}`
-}
-
-function featureLabel(f: { featureKey: string; featureValue?: string | null }) {
-  if (f.featureValue) return `${f.featureKey}: ${f.featureValue}`
-  return f.featureKey
 }
 
 export default function AdminPackages() {
@@ -199,7 +245,10 @@ export default function AdminPackages() {
             Packages & Upgrades
           </h1>
           <p className="mt-1 text-xs font-semibold text-slate-400 md:text-sm">
-            Create and manage subscription packages, feature points, pricing, and subscriber counts.
+            Create and manage subscription packages, feature lists, pricing, and subscriber counts. The first active
+            package (lowest sort order) is auto-assigned to new corporate owners — set{' '}
+            <span className="font-bold text-slate-500 dark:text-slate-300">Max cards</span> on the package to control
+            their card limit.
           </p>
         </div>
         <button
@@ -284,16 +333,16 @@ export default function AdminPackages() {
               <div className="my-4 h-px bg-slate-100 dark:bg-white/5" />
 
               <div className="mb-6 space-y-2">
-                {pkg.features.length === 0 && (
-                  <p className="text-xs font-semibold text-slate-400">No feature points listed</p>
+                {marketingFeatures(pkg).length === 0 && (
+                  <p className="text-xs font-semibold text-slate-400">No features listed</p>
                 )}
-                {pkg.features.map((feat) => (
+                {marketingFeatures(pkg).map((feat) => (
                   <div
                     key={feat.id || feat.featureKey}
                     className="flex items-start gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300"
                   >
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                    <span>{featureLabel(feat)}</span>
+                    <span>{humanizeFeatureLabel(feat.featureKey)}</span>
                   </div>
                 ))}
               </div>
@@ -332,7 +381,7 @@ export default function AdminPackages() {
                     {modalMode === 'create' ? 'Create Package' : 'Edit Package'}
                   </h2>
                   <p className="mt-1 text-xs font-semibold text-slate-400">
-                    Set pricing, status, and the feature points shown for this plan.
+                    Set pricing, status, max cards, and the features shown for this plan.
                   </p>
                 </div>
                 <button
@@ -416,6 +465,21 @@ export default function AdminPackages() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Max cards</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.maxCards}
+                    onChange={(e) => setForm((f) => ({ ...f, maxCards: e.target.value }))}
+                    placeholder="e.g. 15"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                  />
+                  <p className="text-[10px] font-semibold text-slate-400">
+                    Card limit for corporate owners on this package. Leave blank for no limit entitlement.
+                  </p>
+                </div>
+
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                   <input
                     type="checkbox"
@@ -428,47 +492,33 @@ export default function AdminPackages() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Feature points
-                    </label>
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Features</label>
                     <button
                       type="button"
                       onClick={() =>
                         setForm((f) => ({
                           ...f,
-                          features: [...f.features, { featureKey: '', featureValue: '' }],
+                          features: [...f.features, ''],
                         }))
                       }
                       className="text-[10px] font-black tracking-wider text-indigo-600 uppercase"
                     >
-                      + Add point
+                      + Add feature
                     </button>
                   </div>
                   {form.features.map((feat, idx) => (
                     <div key={idx} className="flex gap-2">
                       <input
-                        value={feat.featureKey}
+                        value={feat}
                         onChange={(e) =>
                           setForm((f) => {
                             const features = [...f.features]
-                            features[idx] = { ...features[idx], featureKey: e.target.value }
+                            features[idx] = e.target.value
                             return { ...f, features }
                           })
                         }
-                        placeholder="Feature key / label"
-                        className="w-1/2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      />
-                      <input
-                        value={feat.featureValue}
-                        onChange={(e) =>
-                          setForm((f) => {
-                            const features = [...f.features]
-                            features[idx] = { ...features[idx], featureValue: e.target.value }
-                            return { ...f, features }
-                          })
-                        }
-                        placeholder="Value (optional)"
-                        className="w-1/2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        placeholder="Allow 2D explainer video"
+                        className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                       />
                       <button
                         type="button"
@@ -478,7 +528,7 @@ export default function AdminPackages() {
                             features: f.features.filter((_, i) => i !== idx),
                           }))
                         }
-                        className="rounded-xl px-2 text-rose-500 hover:bg-rose-50"
+                        className="rounded-xl px-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

@@ -26,7 +26,7 @@ const DashboardVCardsView = () => {
   const dispatch = useAppDispatch()
   const role = useAppSelector((state) => state.user.user?.role)
   const isPersonal = role === 'vcard-owner'
-  const { data: profiles = [], isLoading, isError, refetch } = useGetProfilesQuery()
+  const { data: profilesResult, isLoading, isError, refetch } = useGetProfilesQuery({ limit: 100 })
   const [updateProfileCard] = useUpdateProfileCardMutation()
 
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
@@ -40,7 +40,8 @@ const DashboardVCardsView = () => {
   const [sort, setSort] = useState<VCardSortOption>('newest')
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
 
-  const cards = useMemo(() => profiles.map(mapApiProfileToVCardRecord), [profiles])
+  const capacity = profilesResult?.capacity
+  const cards = useMemo(() => (profilesResult?.items ?? []).map(mapApiProfileToVCardRecord), [profilesResult?.items])
 
   useEffect(() => {
     if (isLoading) return
@@ -52,7 +53,7 @@ const DashboardVCardsView = () => {
     [cards, panelCardId]
   )
 
-  const canCreate = !isPersonal || cards.length < 1
+  const canCreate = capacity ? capacity.canCreate : !isPersonal || cards.length < 1
 
   const filtered = useMemo(() => {
     let list = filterVCardsByQuery(cards, query)
@@ -119,7 +120,7 @@ const DashboardVCardsView = () => {
     try {
       await updateProfileCard({
         id: card.id,
-        body: { status: nextStatus === 'active' ? '1' : '0' },
+        body: { isPublic: nextStatus === 'active' },
       }).unwrap()
       void refetch()
     } catch {

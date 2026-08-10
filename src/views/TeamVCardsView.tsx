@@ -1,6 +1,5 @@
 'use client'
 
-import { AlertModal } from '@/components/AlertModal'
 import { PromptModal } from '@/components/PromptModal'
 import {
   TeamVCardsBulkBar,
@@ -21,6 +20,7 @@ import {
   type NoticeType,
 } from '@/components/dashboard/vcard'
 import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
+import { notify } from '@/lib/toast/toast'
 import type { VCardRecord } from '@/types/vcard'
 import { getVCardPublicUrl } from '@/utils/vcard'
 import { useRouter } from 'next/navigation'
@@ -28,11 +28,12 @@ import { useMemo, useState, type DragEvent } from 'react'
 
 export default function TeamVCardsView() {
   const router = useRouter()
-  const directory = useCorporateDirectory()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<CorporateStatusFilter>('all')
   const [sort, setSort] = useState<CorporateSortOption>('newest')
+  const directory = useCorporateDirectory({ searchTerm, statusFilter, sort })
+
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [panelCardId, setPanelCardId] = useState<string | null>(null)
   const [trendsCard, setTrendsCard] = useState<VCardRecord | null>(null)
@@ -42,12 +43,8 @@ export default function TeamVCardsView() {
   const [isQrOpen, setIsQrOpen] = useState(false)
   const [qrUrl, setQrUrl] = useState('')
   const [qrTitle, setQrTitle] = useState('vCard QR Code')
-  const [alert, setAlert] = useState<string | null>(null)
 
-  const filteredCards = useMemo(
-    () => directory.filteredCards(searchTerm, statusFilter, sort),
-    [directory, searchTerm, statusFilter, sort]
-  )
+  const filteredCards = directory.filteredCards
 
   const panelCard = useMemo(
     () => (panelCardId ? (directory.cards.find((c) => c.id === panelCardId) ?? null) : null),
@@ -68,17 +65,19 @@ export default function TeamVCardsView() {
   }
 
   const goCreate = () => {
-    if (!directory.canCreate) return
+    if (!directory.canCreate) {
+      notify.warning(directory.createDisabledReason)
+      return
+    }
     router.push('/vcards/create/home')
   }
 
   const handleDuplicate = async (card: VCardRecord) => {
     if (!directory.canCreate) {
-      setAlert(directory.createDisabledReason)
+      notify.warning(directory.createDisabledReason)
       return
     }
-    const ok = await directory.duplicateCard(card)
-    setAlert(ok ? 'Card duplicated successfully.' : 'Could not duplicate card.')
+    await directory.duplicateCard(card)
   }
 
   const promptDefault =
@@ -111,8 +110,21 @@ export default function TeamVCardsView() {
         quotaPercentage={directory.quotaPercentage}
       />
 
+      {directory.isError ? (
+        <div className="rounded-4xl border border-rose-200 bg-rose-50 p-6 text-center dark:border-rose-500/30 dark:bg-rose-500/10">
+          <p className="text-sm font-bold text-rose-600 dark:text-rose-300">Could not load team vCards.</p>
+          <button
+            type="button"
+            className="mt-2 text-xs font-bold tracking-wider text-rose-700 uppercase underline dark:text-rose-200"
+            onClick={() => void directory.refetch()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       {directory.isLoading ? (
-        <div className="flex flex-col items-center justify-center rounded-[32px] border border-dashed border-slate-300 py-20 text-center dark:border-white/10">
+        <div className="flex flex-col items-center justify-center rounded-4xl border border-dashed border-slate-300 py-20 text-center dark:border-white/10">
           <div className="border-primary-500 mb-4 h-10 w-10 animate-spin rounded-full border-4 border-t-transparent" />
           <p className="text-sm font-bold tracking-widest text-slate-500 uppercase">Loading vCards…</p>
         </div>
@@ -175,7 +187,6 @@ export default function TeamVCardsView() {
         onBulkStatus={async (active) => {
           await directory.bulkUpdateStatus(selectedIds, active)
           setSelectedIds([])
-          setAlert(`Updated status to ${active ? 'ACTIVE' : 'INACTIVE'} for selected profiles.`)
         }}
         onDeleted={() => void directory.refetch()}
       />
@@ -209,6 +220,7 @@ export default function TeamVCardsView() {
           else localStorage.removeItem(`notice_${promptNoticeCard.id}`)
           setNoticeVersion((n) => n + 1)
           setPromptNoticeCard(null)
+          notify.success(trimmed ? 'Notice saved.' : 'Notice cleared.')
         }}
       />
 
@@ -228,16 +240,16 @@ export default function TeamVCardsView() {
             localStorage.removeItem(`notice_type_${noticeCard.id}`)
           }
           setNoticeVersion((n) => n + 1)
+          notify.success(text ? 'Notice saved.' : 'Notice cleared.')
         }}
         onClear={() => {
           if (!noticeCard) return
           localStorage.removeItem(`notice_${noticeCard.id}`)
           localStorage.removeItem(`notice_type_${noticeCard.id}`)
           setNoticeVersion((n) => n + 1)
+          notify.success('Notice cleared.')
         }}
       />
-
-      <AlertModal open={!!alert} title="Team vCards" description={alert || ''} onClose={() => setAlert(null)} />
     </div>
   )
 }
