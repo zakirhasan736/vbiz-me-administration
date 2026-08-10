@@ -170,6 +170,7 @@ export default function TeamVCardsView() {
               canDuplicate={directory.canCreate}
               duplicateDisabledReason={directory.createDisabledReason}
               onDuplicate={() => void handleDuplicate(card)}
+              onTrends={() => setTrendsCard(card)}
             />
           ))}
           <TeamVCardsCreatePlaceholder

@@ -234,7 +234,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-rose-500 transition-all hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
             >
               <LogOut className="h-5 w-5" />
-              <span>Sign Out</span>
+              <span>Log Out</span>
             </button>
           </div>
         </aside>

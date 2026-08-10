@@ -2,6 +2,7 @@
 
 import { AiDropFillZone, type ParsedEntry } from '@/components/AiDropFillZone'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
+import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
 import { createDefaultServiceEntry, normalizeServiceList } from '@/lib/vcardServices'
@@ -242,7 +243,7 @@ export function ServicesEditorPanel({
                   />
                 </div>
 
-                <div className="mb-8">
+                <div className="mb-8 space-y-1.5">
                   <MediaFileUploader
                     label="Featured Image"
                     accent="primary"
@@ -253,6 +254,11 @@ export function ServicesEditorPanel({
                     hint="Max file size: 2MB"
                     value={service.featuredImage}
                     onChange={(next) => updateService(service.id, 'featuredImage', next?.url || '')}
+                  />
+                  <MediaSourceActions
+                    mode="image"
+                    compact
+                    onSelect={(asset) => updateService(service.id, 'featuredImage', asset.url)}
                   />
                 </div>
 

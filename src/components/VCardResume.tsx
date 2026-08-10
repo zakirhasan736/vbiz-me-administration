@@ -140,7 +140,7 @@ export function TabResume() {
           label="Resume document upload"
           hint="Image, PDF, TXT, DOC / DOCX — max 5MB each"
           accent="teal"
-          mediaAssist={false}
+          mediaAssist="image"
         />
       </div>
     </div>

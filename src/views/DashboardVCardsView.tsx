@@ -5,6 +5,7 @@ import {
   NoticeModal,
   QrCodeModal,
   VCardDetailSidebar,
+  VCardTrendsPopup,
   VCardsGrid,
   VCardsListHeader,
   type NoticeType,
@@ -33,6 +34,7 @@ const DashboardVCardsView = () => {
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
   const [qrModalTitle, setQrModalTitle] = useState('vCard QR Code')
   const [panelCardId, setPanelCardId] = useState<string | null>(null)
+  const [trendsCard, setTrendsCard] = useState<VCardRecord | null>(null)
   const [noticeCard, setNoticeCard] = useState<VCardRecord | null>(null)
   const [noticeVersion, setNoticeVersion] = useState(0)
   const [query, setQuery] = useState('')
@@ -176,6 +178,7 @@ const DashboardVCardsView = () => {
         canCreate={canCreate}
         showLimitPlaceholder={isPersonal && !canCreate && cards.length > 0}
         isPersonal={isPersonal}
+        onTrends={setTrendsCard}
       />
 
       <QrCodeModal
@@ -202,6 +205,8 @@ const DashboardVCardsView = () => {
         canDuplicate={canCreate}
         duplicateDisabledReason="Single card owners can create only one vCard"
       />
+
+      <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />
 
       <AlertModal
         open={Boolean(alertMessage)}

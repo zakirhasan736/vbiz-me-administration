@@ -62,6 +62,7 @@ export function VCardTeamCard({
   selected = false,
   onToggleSelect,
   onCardClick,
+  onTrends,
   onDuplicate,
 }: VCardTeamCardProps) {
   const router = useRouter()
@@ -69,6 +70,7 @@ export function VCardTeamCard({
   const [deleteProfile, { isLoading: isDeleting }] = useDeleteProfileMutation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [statsHovered, setStatsHovered] = useState(false)
   const [alertState, setAlertState] = useState<{
     title: string
     description: string
@@ -319,10 +321,13 @@ export function VCardTeamCard({
           </div>
         </div>
 
-        <div className="group/stats relative">
+        <div className="group/stats relative" onMouseEnter={() => setStatsHovered(true)}>
           <button
             type="button"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              onTrends?.()
+            }}
             className="grid w-full grid-cols-3 gap-1 rounded-lg border border-slate-200 bg-slate-100 px-1.5 py-1.5 text-left transition-colors hover:bg-slate-200/70 dark:border-white/10 dark:bg-slate-900 dark:hover:bg-slate-800"
             title="View 7-day trend"
           >
@@ -351,9 +356,11 @@ export function VCardTeamCard({
               </span>
             </div>
           </button>
-          <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden -translate-x-1/2 group-hover/stats:block">
-            <TrafficSparkline slug={slug} totalViews={views} />
-          </div>
+          {statsHovered ? (
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden -translate-x-1/2 group-hover/stats:block">
+              <TrafficSparkline profileId={card.id} slug={slug} />
+            </div>
+          ) : null}
         </div>
 
         <div className="border-t border-slate-100 pt-2 dark:border-white/5">

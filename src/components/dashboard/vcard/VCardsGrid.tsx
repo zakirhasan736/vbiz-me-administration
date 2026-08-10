@@ -12,6 +12,7 @@ type VCardsGridProps = {
   canCreate?: boolean
   showLimitPlaceholder?: boolean
   isPersonal?: boolean
+  onTrends?: (card: VCardRecord) => void
 }
 
 export function VCardsGrid({
@@ -23,6 +24,7 @@ export function VCardsGrid({
   canCreate = true,
   showLimitPlaceholder = false,
   isPersonal = false,
+  onTrends,
 }: VCardsGridProps) {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -37,6 +39,7 @@ export function VCardsGrid({
             noticeVersion={noticeVersion}
             canDuplicate={canCreate}
             duplicateDisabledReason="Single card owners can create only one vCard"
+            onTrends={onTrends ? () => onTrends(card) : undefined}
           />
         ) : (
           <VCardGridCard key={card.id} card={card} onOpenQr={onOpenQr} isPersonal={isPersonal} />

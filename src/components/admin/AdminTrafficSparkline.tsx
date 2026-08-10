@@ -1,42 +1,27 @@
-import React from 'react'
+'use client'
 
-export function TrafficSparkline({ slug, totalViews }: { slug: string; totalViews: number }) {
-  const data = React.useMemo(() => {
-    let seed = 0
-    const cleanSlug = slug || 'card'
-    for (let i = 0; i < cleanSlug.length; i++) {
-      seed += cleanSlug.charCodeAt(i)
-    }
+import { useGetWeeklyEngagementQuery } from '@/redux/features/profiles/profiles.api'
+import { useMemo } from 'react'
 
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    const points: number[] = []
+const FALLBACK_DAYS = [
+  { day: 'Mon', views: 0 },
+  { day: 'Tue', views: 0 },
+  { day: 'Wed', views: 0 },
+  { day: 'Thu', views: 0 },
+  { day: 'Fri', views: 0 },
+  { day: 'Sat', views: 0 },
+  { day: 'Sun', views: 0 },
+]
 
-    // Distribute totalViews across 7 days deterministically
-    const remaining = totalViews || 14
-    const factors = [0.1, 0.15, 0.08, 0.2, 0.25, 0.12, 0.1]
+export function TrafficSparkline({ profileId, slug }: { profileId: string; slug: string }) {
+  const { data: weekly, isFetching } = useGetWeeklyEngagementQuery({ profileId }, { skip: !profileId })
 
-    const shuffledFactors = [...factors]
-    for (let i = shuffledFactors.length - 1; i > 0; i--) {
-      const j = (seed + i) % (i + 1)
-      const temp = shuffledFactors[i]
-      shuffledFactors[i] = shuffledFactors[j]
-      shuffledFactors[j] = temp
-    }
+  const data = useMemo(() => {
+    const days = weekly?.days?.length ? weekly.days : FALLBACK_DAYS
+    return days.map((d) => ({ day: d.day, views: Number(d.views) || 0 }))
+  }, [weekly?.days])
 
-    let sum = 0
-    for (let i = 0; i < 7; i++) {
-      const val = Math.max(1, Math.round(remaining * shuffledFactors[i]))
-      points.push(val)
-      sum += val
-    }
-
-    if (totalViews > 0 && sum !== totalViews) {
-      const diff = totalViews - sum
-      points[6] = Math.max(0, points[6] + diff)
-    }
-
-    return points.map((val, i) => ({ day: days[i], views: val }))
-  }, [slug, totalViews])
+  const weekViews = weekly?.totals?.views ?? data.reduce((sum, d) => sum + d.views, 0)
 
   const points = data.map((d) => d.views)
   const max = Math.max(...points, 5)
@@ -54,19 +39,19 @@ export function TrafficSparkline({ slug, totalViews }: { slug: string; totalView
   })
 
   const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ')
-  const areaPath = `${linePath} L ${coords[6].x.toFixed(1)} ${svgHeight} L ${coords[0].x.toFixed(1)} ${svgHeight} Z`
+  const areaPath = `${linePath} L ${coords[6]!.x.toFixed(1)} ${svgHeight} L ${coords[0]!.x.toFixed(1)} ${svgHeight} Z`
+  const gradId = `grad-${slug || profileId || 'card'}`
 
   return (
     <div className="animate-in fade-in zoom-in-95 relative z-50 w-48 rounded-xl border border-slate-200/80 bg-white p-3 text-left shadow-xl duration-150 dark:border-white/10 dark:bg-slate-900">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">7-Day Traffic</span>
         <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-500 dark:bg-indigo-500/10">
-          +{totalViews || 14} Views
+          {isFetching && !weekly ? '…' : `+${weekViews} Views`}
         </span>
       </div>
 
-      {/* Sparkline chart */}
-      <div className="relative mb-2 flex h-12 items-end justify-center">
+      <div className={`relative mb-2 flex h-12 items-end justify-center ${isFetching && !weekly ? 'opacity-50' : ''}`}>
         <svg
           width="100%"
           height="100%"
@@ -75,14 +60,12 @@ export function TrafficSparkline({ slug, totalViews }: { slug: string; totalView
           className="overflow-visible"
         >
           <defs>
-            <linearGradient id={`grad-${slug}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4" />
               <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
             </linearGradient>
           </defs>
-          {/* Fill Area */}
-          <path d={areaPath} fill={`url(#grad-${slug})`} />
-          {/* Stroke Line */}
+          <path d={areaPath} fill={`url(#${gradId})`} />
           <path
             d={linePath}
             fill="none"
@@ -91,23 +74,21 @@ export function TrafficSparkline({ slug, totalViews }: { slug: string; totalView
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-
-          {/* Points */}
           {coords.map((c, i) => (
             <circle
               key={i}
               cx={c.x}
               cy={c.y}
               r="2"
-              className="hover:r-3.5 cursor-pointer fill-indigo-600 stroke-white stroke-2 transition-all duration-150 dark:fill-indigo-400 dark:stroke-slate-900"
-              aria-label={`${data[i].day}: ${data[i].views} views`}
-            />
+              className="fill-indigo-600 stroke-white stroke-2 dark:fill-indigo-400 dark:stroke-slate-900"
+            >
+              <title>{`${data[i]!.day}: ${data[i]!.views} views`}</title>
+            </circle>
           ))}
         </svg>
       </div>
 
-      {/* Days labels */}
-      <div className="border-slate-150 flex justify-between border-t px-0.5 pt-1.5 text-[8px] font-black tracking-widest text-slate-400 uppercase dark:border-white/5">
+      <div className="flex justify-between border-t border-slate-100 px-0.5 pt-1.5 text-[8px] font-black tracking-widest text-slate-400 uppercase dark:border-white/5">
         {data.map((d, i) => (
           <span key={i} title={`${d.views} views`}>
             {d.day[0]}

@@ -102,6 +102,7 @@ function readEditorNavOrderIds(cardKey: string): string[] {
 export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps) {
   const router = useRouter()
   const role = useAppSelector((state) => state.user.user?.role)
+  const isDirectoryEditor = role === 'corporate-owner' || role === 'admin' || role === 'super-admin'
   const directoryHref =
     role === 'corporate-owner'
       ? '/teamvcard'
@@ -114,6 +115,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
       : role === 'admin' || role === 'super-admin'
         ? 'Back to My Cards'
         : 'Back to My vCards'
+  const exitDirectoryLabel =
+    role === 'admin' || role === 'super-admin' ? 'Exit to Admin Directory' : 'Exit to Corporate Directory'
   const {
     vCardData,
     updateData,
@@ -372,13 +375,48 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
           title="Take a create-card tour"
           body="Guided walkthrough of Generate, Portfolio, Services, Skill, AI Auto-fill, My Info, and every major tab — start anytime."
         />
-        <Link
-          href={directoryHref}
-          className="hover:border-primary-500/30 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm backdrop-blur transition-all hover:text-slate-900 dark:border-white/10 dark:bg-[#0b0f19]/80 dark:text-slate-300 dark:hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {directoryLabel}
-        </Link>
+        {isDirectoryEditor ? (
+          <div className="animate-in slide-in-from-top-4 flex w-full flex-col justify-between gap-4 rounded-3xl border border-amber-500/25 bg-amber-500/10 p-5 px-6 text-amber-800 duration-300 sm:flex-row sm:items-center dark:text-amber-200/95">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-xs font-black tracking-wider text-amber-600 dark:text-amber-400">
+                {isCreateMode ? 'NEW' : 'EDIT'}
+              </span>
+              <div>
+                <p className="text-[15px] font-bold">
+                  {isCreateMode ? (
+                    'Creating Profile'
+                  ) : (
+                    <>
+                      Editing Profile:{' '}
+                      <span className="font-extrabold text-amber-900 dark:text-amber-100">
+                        {vCardData.personal?.fullName || 'Employee Profile'}
+                      </span>
+                    </>
+                  )}
+                </p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {isCreateMode
+                    ? 'Unsaved Profile'
+                    : `${vCardData.personal?.designation || 'Role'} • ${vCardData.personal?.profession || 'General'}`}
+                </p>
+              </div>
+            </div>
+            <Link
+              href={directoryHref}
+              className="rounded-xl bg-amber-500/20 px-5 py-2.5 text-[13px] font-bold text-amber-900 transition-all hover:bg-amber-500/30 active:scale-95 dark:bg-amber-500/10 dark:text-amber-200"
+            >
+              {exitDirectoryLabel}
+            </Link>
+          </div>
+        ) : (
+          <Link
+            href={directoryHref}
+            className="hover:border-primary-500/30 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm backdrop-blur transition-all hover:text-slate-900 dark:border-white/10 dark:bg-[#0b0f19]/80 dark:text-slate-300 dark:hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {directoryLabel}
+          </Link>
+        )}
 
         <div
           data-tour="card-complete"

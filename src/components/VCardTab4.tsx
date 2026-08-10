@@ -1,6 +1,7 @@
 'use client'
 
 import { useCanvaConnection } from '@/components/canva'
+import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { MAX_MEDIA_UPLOAD_MB } from '@/lib/media/uploadMediaWithProgress'
@@ -651,7 +652,9 @@ export function Tab4HomeMedia() {
                 previewKind="auto"
                 previewClassName="aspect-video max-h-56"
                 placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
-              />
+              >
+                <MediaSourceActions mode="both" onSelect={(asset) => setCustomValue(FIELD_BG, asset.url)} />
+              </VCardMediaField>
             </div>
           </div>
         </section>

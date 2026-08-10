@@ -210,10 +210,10 @@ export default function AdminTeam() {
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
             <ShieldCheck className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
-            Admin Team
+            Admin Team & Access
           </h1>
           <p className="mt-1 text-xs font-semibold text-slate-400 md:text-sm">
-            Create admins, assign route access, and manage active status. The last super admin cannot be removed.
+            Role-based module access for the admin area — assign permissions per teammate.
           </p>
         </div>
         <button

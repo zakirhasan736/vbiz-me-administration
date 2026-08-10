@@ -136,7 +136,7 @@ export function UserDropdown() {
                 className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                Log Out
               </button>
             </div>
           </div>

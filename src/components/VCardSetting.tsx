@@ -27,19 +27,28 @@ import type { VCardAppearance } from '@/types/vcard'
 import type { DisplayFieldConfig, VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { cn } from '@/utils/cn'
 import {
+  BarChart2,
+  Bot,
+  CheckCircle2,
+  FileText,
   Globe,
   Home,
   Image as ImageIcon,
   LayoutTemplate,
   Link2,
+  Loader2,
   Menu,
   Palette,
+  Search,
   Settings2,
+  Sparkles,
   Star,
+  Upload,
+  X,
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 
 const settingTabs = [
   { id: 'info', label: 'My Info Color Settings', icon: Palette },
@@ -49,7 +58,15 @@ const settingTabs = [
   { id: 'home', label: 'Home Page Settings', icon: Home },
   { id: 'navbar', label: 'Nav Bar settings', icon: Menu },
   { id: 'template', label: 'Template', icon: LayoutTemplate },
+  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+  { id: 'seo', label: 'SEO', icon: Search },
+  { id: 'ai-assistance', label: 'AI Assistance', icon: Bot },
 ]
+
+const cardInputClasses =
+  'w-full rounded-[.875rem] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[.8125rem] font-medium text-slate-900 shadow-sm outline-none transition-all focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-slate-800 dark:text-white'
+
+const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'analytics', 'seo', 'ai-assistance'])
 
 const settingTabTourIds: Record<string, string> = {
   home: 'tour-card-home-tab',
@@ -690,6 +707,327 @@ const FieldCard: React.FC<{
   )
 }
 
+function CardToggleRow({
+  title,
+  description,
+  checked,
+  onChange,
+}: {
+  title: string
+  description: string
+  checked: boolean
+  onChange: () => void
+}) {
+  return (
+    <label className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200/70 bg-white p-4 sm:items-center dark:border-white/10 dark:bg-white/2">
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-slate-900 dark:text-white">{title}</p>
+        <p className="mt-0.5 text-[.75rem] leading-relaxed font-medium text-slate-500">{description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onChange}
+        className={cn(
+          'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
+          checked ? 'bg-primary-500' : 'bg-slate-200 dark:bg-slate-700'
+        )}
+      >
+        <span
+          className={cn(
+            'inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform',
+            checked ? 'translate-x-5.5' : 'translate-x-1'
+          )}
+        />
+      </button>
+    </label>
+  )
+}
+
+function CardAnalyticsPanel() {
+  const [utm, setUtm] = useState(true)
+  return (
+    <div className="max-w-3xl space-y-6">
+      <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
+        Pixel and measurement settings for this vCard only — available to users with access to Card Settings.
+      </p>
+      <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
+        <h4 className="text-sm font-black text-slate-900 dark:text-white">Facebook</h4>
+        <input type="text" placeholder="Pixel ID (Example: 1234567890)" className={cardInputClasses} />
+        <input type="text" placeholder="Facebook Conversions API Access Token" className={cardInputClasses} />
+      </div>
+      <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
+        <h4 className="text-sm font-black text-slate-900 dark:text-white">Google</h4>
+        <input type="text" placeholder="Google Measurement ID (Example: G-XXXXXXX)" className={cardInputClasses} />
+      </div>
+      <CardToggleRow
+        title="UTM Parameters"
+        description="Mark social traffic correctly in Google Analytics. Campaign names follow each link title."
+        checked={utm}
+        onChange={() => setUtm((v) => !v)}
+      />
+    </div>
+  )
+}
+
+function CardSeoPanel() {
+  const [hideSearch, setHideSearch] = useState(false)
+  return (
+    <div className="max-w-3xl space-y-6">
+      <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
+        SEO for this specific card — only users who can open Card Settings can edit these fields.
+      </p>
+      <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
+        <h4 className="text-sm font-black text-slate-900 dark:text-white">Custom metadata</h4>
+        <input type="text" placeholder="Meta title (Example: @yourname)" className={cardInputClasses} />
+        <textarea
+          placeholder="Meta description (Example: Make your link do more.)"
+          className={cn(cardInputClasses, 'min-h-27.5 resize-none')}
+        />
+      </div>
+      <CardToggleRow
+        title="Hide profile from search engines"
+        description="Adds a noindex tag so search engines skip this public vCard."
+        checked={hideSearch}
+        onChange={() => setHideSearch((v) => !v)}
+      />
+    </div>
+  )
+}
+
+function AiAgentTrainModal({
+  open,
+  onClose,
+  onTrained,
+}: {
+  open: boolean
+  onClose: () => void
+  onTrained: (summary: string) => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [about, setAbout] = useState('')
+  const [step, setStep] = useState<'form' | 'training' | 'done'>('form')
+
+  if (!open) return null
+
+  const handleTrain = () => {
+    if (!about.trim() && files.length === 0) {
+      alert('Upload a document or write about your business first.')
+      return
+    }
+    setStep('training')
+    window.setTimeout(() => {
+      setStep('done')
+      const summary =
+        about.trim().slice(0, 120) || (files[0] ? `Trained from ${files[0].name}` : 'Business profile trained')
+      window.setTimeout(() => {
+        onTrained(summary)
+        setStep('form')
+        setFiles([])
+        setAbout('')
+        onClose()
+      }, 900)
+    }, 1600)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-120 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] border border-slate-200 bg-white p-6 shadow-2xl sm:rounded-[1.75rem] sm:p-7 dark:border-white/10 dark:bg-[#0b0f19]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 rounded-xl p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="mb-5 flex items-center gap-3 pr-8">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-100 bg-violet-50 dark:border-violet-500/20 dark:bg-violet-500/15">
+            <Bot className="h-6 w-6 text-violet-600 dark:text-violet-300" />
+          </span>
+          <div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">Train AI Assistance</h3>
+            <p className="text-[.75rem] font-semibold text-slate-500">
+              Upload docs or describe your business — the assistant reads this and uses it when talking to guests.
+            </p>
+          </div>
+        </div>
+
+        {step === 'form' && (
+          <div className="space-y-5">
+            <div>
+              <p className="mb-2 text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">
+                Information document upload
+              </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.txt,.md"
+                multiple
+                className="hidden"
+                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 text-center transition-colors hover:border-violet-400/50 dark:border-white/15 dark:bg-white/3"
+              >
+                <Upload className="mx-auto mb-2 h-6 w-6 text-violet-500" />
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Drop or choose files</p>
+                <p className="mt-1 text-[.6875rem] font-semibold text-slate-400">PDF, DOC, DOCX, TXT</p>
+              </button>
+              {files.length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {files.map((f) => (
+                    <li
+                      key={f.name + f.size}
+                      className="flex items-center gap-2 text-[.75rem] font-semibold text-slate-600 dark:text-slate-300"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                      <span className="truncate">{f.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div>
+              <p className="mb-2 text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">
+                Write about your business
+              </p>
+              <textarea
+                value={about}
+                onChange={(e) => setAbout(e.target.value)}
+                placeholder="Services, audience, tone, FAQs, offers — anything the agent should know…"
+                className={cn(cardInputClasses, 'min-h-35 resize-none')}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTrain}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 py-3.5 text-[.8125rem] font-black tracking-wider text-white uppercase hover:bg-violet-700 active:scale-[0.98]"
+            >
+              <Sparkles className="h-4 w-4" /> Read & train assistant
+            </button>
+          </div>
+        )}
+
+        {step === 'training' && (
+          <div className="py-12 text-center">
+            <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-violet-500" />
+            <p className="text-sm font-black text-slate-900 dark:text-white">Reading & training…</p>
+            <p className="mt-1 text-[.75rem] font-semibold text-slate-500">
+              The assistant is learning how to talk about your business with guests.
+            </p>
+          </div>
+        )}
+
+        {step === 'done' && (
+          <div className="py-12 text-center">
+            <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-emerald-500" />
+            <p className="text-sm font-black text-slate-900 dark:text-white">Assistant trained</p>
+            <p className="mt-1 text-[.75rem] font-semibold text-slate-500">
+              Ready to chat with guests using your business knowledge.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CardAiAssistancePanel() {
+  const [active, setActive] = useState(false)
+  const [showTrain, setShowTrain] = useState(false)
+  const [lastTrain, setLastTrain] = useState<string | null>(null)
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
+        AI Assistance talks with guests on this public vCard. Separate from Canva Integration. Turn it active, train
+        with documents or a business brief, then guests can chat with your assistant.
+      </p>
+
+      <div className="rounded-2xl border border-violet-200/70 bg-linear-to-br from-violet-50/80 via-white to-indigo-50/40 p-5 dark:border-violet-500/25 dark:from-violet-500/10 dark:via-[#0b0f19] dark:to-indigo-500/5">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white">
+              <Bot className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900 dark:text-white">AI Assistance</p>
+              <p className="mt-0.5 text-[.75rem] font-semibold text-slate-500">
+                {active
+                  ? 'Active — guests can talk to your assistant on this card'
+                  : 'Inactive — turn on so guests can chat with your assistant'}
+              </p>
+              {lastTrain && (
+                <p className="mt-1 truncate text-[.6875rem] font-semibold text-violet-600 dark:text-violet-300">
+                  Last train: {lastTrain}
+                </p>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActive((v) => !v)}
+            className={cn(
+              'relative inline-flex h-8 w-14 shrink-0 items-center self-start rounded-full transition-colors sm:self-center',
+              active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+            )}
+            title={active ? 'Deactivate AI Assistance' : 'Activate AI Assistance'}
+          >
+            <span
+              className={cn(
+                'inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform',
+                active ? 'translate-x-6.5' : 'translate-x-1'
+              )}
+            />
+          </button>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            disabled={!active}
+            onClick={() => setShowTrain(true)}
+            className={cn(
+              'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-[.6875rem] font-black tracking-wider uppercase',
+              active
+                ? 'bg-violet-600 text-white hover:bg-violet-700'
+                : 'cursor-not-allowed bg-slate-100 text-slate-400 dark:bg-white/5'
+            )}
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Train with docs / business brief
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2 rounded-2xl border border-slate-200/80 p-4 dark:border-white/10">
+        <p className="text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">How it works</p>
+        <ol className="list-decimal space-y-1.5 pl-4 text-[.75rem] font-semibold text-slate-600 dark:text-slate-300">
+          <li>Turn AI Assistance Active for this card.</li>
+          <li>Train with document uploads and/or write about your business.</li>
+          <li>Guests chat with the assistant on your public vCard using that knowledge.</li>
+        </ol>
+      </div>
+
+      <AiAgentTrainModal
+        open={showTrain}
+        onClose={() => setShowTrain(false)}
+        onTrained={(summary) => setLastTrain(summary)}
+      />
+    </div>
+  )
+}
+
 type TabSettingProps = {
   basePath: EditorBasePath
   settingsTab?: SettingsTabId
@@ -753,10 +1091,27 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
         return renderFieldCards(NAV_BAR_FIELDS, { showBgCol: true })
       case 'template':
         return <TemplateDesigner />
+      case 'analytics':
+        return <CardAnalyticsPanel />
+      case 'seo':
+        return <CardSeoPanel />
+      case 'ai-assistance':
+        return <CardAiAssistancePanel />
       default:
         return null
     }
   }
+
+  const headerSubtitle =
+    activeTab === 'analytics'
+      ? 'Per-card pixels and measurement — only users with Card Settings access can edit.'
+      : activeTab === 'seo'
+        ? 'Per-card SEO metadata for this public profile.'
+        : activeTab === 'ai-assistance'
+          ? 'Guest-facing assistant for this card — chats with visitors about your business.'
+          : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
+
+  const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)
 
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col pb-12 duration-500">
@@ -858,10 +1213,10 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
                   {settingTabs.find((t) => t.id === activeTab)?.label}
                 </h2>
                 <p className="text-[.875rem] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                  Configure how elements are displayed on your vCard. Changes take effect automatically.
+                  {headerSubtitle}
                 </p>
               </div>
-              {activeTab !== 'template' && (
+              {showEnableAll && (
                 <div className="relative z-10 flex items-center gap-4 self-start rounded-3xl border border-slate-200 bg-white px-6 py-4 shadow-sm dark:border-white/5 dark:bg-[#070a13]">
                   <span className="text-[.8125rem] font-bold text-slate-900 dark:text-white">Enable All</span>
                   <Toggle

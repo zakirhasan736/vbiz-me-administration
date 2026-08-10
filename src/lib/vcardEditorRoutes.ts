@@ -5,7 +5,18 @@ export const DEFAULT_EDITOR_SECTION = 'home'
 export const DEFAULT_PERSONAL_SUB_TAB = 1
 export const DEFAULT_SETTINGS_TAB = 'info'
 
-export const SETTINGS_TAB_IDS = ['info', 'social', 'icons', 'general', 'home', 'navbar', 'template'] as const
+export const SETTINGS_TAB_IDS = [
+  'info',
+  'social',
+  'icons',
+  'general',
+  'home',
+  'navbar',
+  'template',
+  'analytics',
+  'seo',
+  'ai-assistance',
+] as const
 
 export type SettingsTabId = (typeof SETTINGS_TAB_IDS)[number]
 

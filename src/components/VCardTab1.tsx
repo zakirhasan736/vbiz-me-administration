@@ -1,5 +1,6 @@
 'use client'
 
+import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { useVCard } from '@/lib/VCardContext'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
@@ -48,7 +49,14 @@ export function Tab1MediaProfile() {
           selectPlaceholder="Select file"
           previewKind="auto"
           placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
-        />
+        >
+          <MediaSourceActions
+            mode="both"
+            compact
+            className="mt-3"
+            onSelect={(asset) => setCustomValue(FIELD_BG, asset.url)}
+          />
+        </VCardMediaField>
 
         <VCardMediaField
           value={profilePicUrl}
@@ -69,7 +77,17 @@ export function Tab1MediaProfile() {
           videoAutoPlay
           previewClassName="h-75"
           placeholderImage="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80"
-        />
+        >
+          <MediaSourceActions
+            mode="image"
+            compact
+            className="mt-3"
+            onSelect={(asset) => {
+              setCustomValue(FIELD_AVATAR, asset.url)
+              updateMeta({ avatarImageUrl: asset.url })
+            }}
+          />
+        </VCardMediaField>
 
         <div className="space-y-6">
           <VCardMediaField
@@ -86,7 +104,14 @@ export function Tab1MediaProfile() {
             selectPlaceholder="Select video"
             previewKind="video"
             emptyIcon={<Film className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
-          />
+          >
+            <MediaSourceActions
+              mode="video"
+              compact
+              className="mt-3"
+              onSelect={(asset) => setCustomValue(FIELD_INTRO, asset.url)}
+            />
+          </VCardMediaField>
 
           <div className="rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 shadow-sm dark:border-white/5 dark:bg-white/2">
             <div className="mb-5 flex items-center gap-4">

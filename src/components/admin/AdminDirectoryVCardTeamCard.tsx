@@ -97,6 +97,7 @@ export default function VCardTeamCard({
   const [deleteProfile, { isLoading: isDeletingProfile }] = useDeleteProfileMutation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [statsHovered, setStatsHovered] = useState(false)
   const [isDeletingLocal, setIsDeletingLocal] = useState(false)
   const [alertState, setAlertState] = useState<{
     title: string
@@ -318,7 +319,7 @@ export default function VCardTeamCard({
           </div>
         </div>
 
-        <div className="group/stats relative">
+        <div className="group/stats relative" onMouseEnter={() => setStatsHovered(true)}>
           <button
             type="button"
             onClick={(e) => {
@@ -353,9 +354,11 @@ export default function VCardTeamCard({
               </span>
             </div>
           </button>
-          <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden -translate-x-1/2 group-hover/stats:block">
-            <TrafficSparkline slug={slug} totalViews={views} />
-          </div>
+          {statsHovered ? (
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden -translate-x-1/2 group-hover/stats:block">
+              <TrafficSparkline profileId={cardId} slug={slug} />
+            </div>
+          ) : null}
         </div>
 
         <div className="border-t border-slate-100 pt-2 dark:border-white/5">
