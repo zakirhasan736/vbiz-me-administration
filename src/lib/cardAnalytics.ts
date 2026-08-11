@@ -127,13 +127,21 @@ export function aggregatePlatformSocialClicks(
     whatsapp: 0,
     linkedin: 0,
     youtube: 0,
+    tiktok: 0,
     web: 0,
   }
 
   for (const card of cards) {
     const id = card.id || ''
     const clicks = clicksByCardId[id] || []
-    const stats = getCardSocialClickStats(card, clicks)
+    const stats = getCardSocialClickStats(
+      card,
+      clicks.map((c) => ({
+        channel: c.label || c.url || 'web',
+        label: c.label || c.url || 'web',
+        clickCount: Number(c.clickCount) || 0,
+      }))
+    )
     for (const s of stats) {
       totals[s.platform] = (totals[s.platform] || 0) + (s.clickCount || 0)
     }

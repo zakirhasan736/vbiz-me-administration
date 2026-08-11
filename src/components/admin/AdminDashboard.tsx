@@ -142,9 +142,9 @@ export default function AdminDashboard() {
 
   const themeClasses = getThemeClasses(themeConfig.accent)
 
-  // Dynamic values based on vCardsList (no inflated fallbacks)
-  const totalCardsCount = vCardsList.length
-  const activeCardsCount = vCardsList.filter((c) => c.status === 'active' || !c.status).length
+  // Prefer live dashboard stats; fall back to loaded profile list.
+  const totalCardsCount = stats?.cards ?? vCardsList.length
+  const activeCardsCount = vCardsList.filter((c) => c.status === 'active' || !c.status).length || totalCardsCount
 
   const { data: meetingsPage } = useGetMeetingsQuery({ limit: 100 })
   const [createMeeting, { isLoading: isCreatingMeeting }] = useCreateMeetingMutation()

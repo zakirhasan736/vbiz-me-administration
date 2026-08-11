@@ -1,6 +1,8 @@
+import type { LiveSocialClickRow } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 
-export type SocialPlatformKey = 'facebook' | 'twitter' | 'instagram' | 'whatsapp' | 'linkedin' | 'youtube' | 'web'
+export type SocialPlatformKey =
+  'facebook' | 'twitter' | 'instagram' | 'whatsapp' | 'linkedin' | 'youtube' | 'tiktok' | 'web'
 
 export type SocialClickStat = {
   key: string
@@ -18,6 +20,7 @@ export function resolveSocialPlatform(platform: string): SocialPlatformKey {
   if (p.includes('whatsapp')) return 'whatsapp'
   if (p.includes('linkedin')) return 'linkedin'
   if (p.includes('youtube')) return 'youtube'
+  if (p.includes('tiktok')) return 'tiktok'
   return 'web'
 }
 
@@ -35,6 +38,8 @@ function displayName(platform: SocialPlatformKey): string {
       return 'LinkedIn'
     case 'youtube':
       return 'YouTube'
+    case 'tiktok':
+      return 'TikTok'
     default:
       return 'Web'
   }
@@ -54,26 +59,61 @@ function toneFor(platform: SocialPlatformKey): string {
       return 'bg-blue-50/70 dark:bg-[#0A66C2]/10 text-[#0A66C2] border-blue-100/50 dark:border-[#0A66C2]/20'
     case 'youtube':
       return 'bg-red-50/70 dark:bg-red-500/10 text-red-500 border-red-100/50 dark:border-red-500/20'
+    case 'tiktok':
+      return 'bg-slate-50/70 dark:bg-slate-500/10 text-slate-800 dark:text-slate-200 border-slate-200/50 dark:border-slate-500/20'
     default:
       return 'bg-purple-50/70 dark:bg-purple-500/10 text-purple-600 border-purple-100/50 dark:border-purple-500/20'
   }
 }
 
-/** Build social click chips from configured handles (clicks stay 0 until live data exists). */
-export function getCardSocialClickStats(card: VCardRecord): SocialClickStat[] {
+function clickCountFor(platform: SocialPlatformKey, platformKey: string, liveClicks: LiveSocialClickRow[]): number {
+  const hit = liveClicks.find((row) => {
+    const channel = (row.channel || '').toLowerCase()
+    const label = (row.label || '').toLowerCase()
+    return (
+      channel === platform ||
+      channel === platformKey.toLowerCase() ||
+      label.includes(platform) ||
+      label.includes(platformKey.toLowerCase())
+    )
+  })
+  return Number(hit?.clickCount || 0)
+}
+
+/** Build social click chips from card handles + live EventLog click rows. */
+export function getCardSocialClickStats(card: VCardRecord, liveClicks: LiveSocialClickRow[] = []): SocialClickStat[] {
   const handles = card.social?.handles || {}
   const entries = Object.entries(handles).filter(([, value]) => !!String(value || '').trim())
+  const seen = new Set<string>()
+  const rows: SocialClickStat[] = []
 
-  if (entries.length === 0) return []
-
-  return entries.map(([platformKey, url], idx) => {
+  for (const [platformKey, url] of entries) {
     const platform = resolveSocialPlatform(platformKey)
-    return {
-      key: `${platform}-${idx}-${url || platformKey}`,
+    const key = `${platform}-${url || platformKey}`
+    if (seen.has(platform)) continue
+    seen.add(platform)
+    rows.push({
+      key,
       platform,
       label: displayName(platform),
-      clickCount: 0,
+      clickCount: clickCountFor(platform, platformKey, liveClicks),
       tone: toneFor(platform),
-    }
-  })
+    })
+  }
+
+  for (const row of liveClicks) {
+    const platform = resolveSocialPlatform(row.channel || row.label || 'web')
+    if (seen.has(platform)) continue
+    if (!row.clickCount) continue
+    seen.add(platform)
+    rows.push({
+      key: row.channel || platform,
+      platform,
+      label: row.label || displayName(platform),
+      clickCount: Number(row.clickCount) || 0,
+      tone: toneFor(platform),
+    })
+  }
+
+  return rows.sort((a, b) => b.clickCount - a.clickCount)
 }

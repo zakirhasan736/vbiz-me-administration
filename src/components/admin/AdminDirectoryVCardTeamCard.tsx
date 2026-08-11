@@ -1,6 +1,6 @@
 'use client'
 
-import { ContactSaveChip, SocialClickChip } from '@/components/admin/AdminSocialClickChip'
+import { ContactSaveChip, ShareCountChip, SocialClickChip } from '@/components/admin/AdminSocialClickChip'
 import { TrafficSparkline } from '@/components/admin/AdminTrafficSparkline'
 import VCardCardActions from '@/components/admin/AdminVCardCardActions'
 import { AlertModal } from '@/components/AlertModal'
@@ -114,9 +114,14 @@ export default function VCardTeamCard({
     saveCount: card.saveCount,
   })
   const views = resolved.viewCount
-  const clicks = analyticsClicks(card) || Math.max(0, Math.round(views * 0.65))
+  const liveSocials = Array.isArray(card.socialClicks) ? card.socialClicks : []
+  const clicks =
+    analyticsClicks(card) ||
+    liveSocials.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0) ||
+    Number(card.shareCount) ||
+    0
   const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
-  const socialStats = getCardSocialClickStats(card, [])
+  const socialStats = getCardSocialClickStats(card, liveSocials)
   const saves = contactSaves !== undefined ? contactSaves : Number(card.saveCount || resolved.saveCount || 0)
   const noticeText = typeof window !== 'undefined' && card.id ? localStorage.getItem(`notice_${card.id}`) : null
   const slug = card.slug || 'profile'
@@ -360,10 +365,11 @@ export default function VCardTeamCard({
 
         <div className="border-t border-slate-100 pt-2 dark:border-white/5">
           <div className="flex flex-wrap items-center gap-1">
-            {socialStats.slice(0, 5).map((soc) => (
+            {socialStats.map((soc) => (
               <SocialClickChip key={soc.key} stat={soc} compact />
             ))}
             <ContactSaveChip count={saves} compact />
+            <ShareCountChip count={Number(card.shareCount || clicks) || 0} compact />
             {showNotice && (
               <button
                 type="button"

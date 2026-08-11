@@ -28,6 +28,13 @@ export type ApiProfile = {
   template?: string
   isPublic?: boolean
   viewCount?: number
+  clickCount?: number
+  saveCount?: number
+  shareCount?: number
+  socialClicks?: Array<{ channel: string; label: string; clickCount: number }>
+  userId?: string | null
+  companyUserId?: string | null
+  user?: { id?: string; name?: string | null; email?: string; role?: string | null } | null
   createdAt?: string
   updatedAt?: string
   facebook?: string | null
@@ -36,6 +43,9 @@ export type ApiProfile = {
   tiktok?: string | null
   youtube?: string | null
   linkedin?: string | null
+  rumble?: string | null
+  truth?: string | null
+  status?: { id?: string; name?: string | null } | null
   gender?: { id?: string; name?: string | null } | null
   maritalStatus?: { id?: string; name?: string | null } | null
   education?: Array<{
@@ -192,6 +202,7 @@ export type DashboardStatsQuery = {
 
 export type ProfilesListQuery = {
   scope?: 'created'
+  profileId?: string
 }
 
 export type DashboardEngagementRow = {
@@ -223,9 +234,22 @@ export type LiveSocialClickRow = {
   clickCount: number
 }
 
+export type ProfileContactRow = {
+  id: string
+  source: 'contact' | 'guest'
+  fullName: string
+  email?: string | null
+  phone?: string | null
+  message?: string | null
+  profileId: string
+  profile?: { id: string; name?: string | null; slug?: string | null } | null
+  createdAt: string
+}
+
 export type WeeklyEngagementDay = {
   day: string
   fullDay: string
+  date?: string
   views: number
   clicks: number
   ctr: number
@@ -235,6 +259,7 @@ export type WeeklyEngagement = {
   days: WeeklyEngagementDay[]
   totals: { views: number; clicks: number; avgCtr: number }
   profileName: string
+  range?: { from: string; to: string }
 }
 
 export const BLOG_POST_TYPE = 'blog'
@@ -333,6 +358,9 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
         tiktok: profile.tiktok || '',
         youtube: profile.youtube || '',
         linkedin: profile.linkedin || '',
+        website: profile.website || '',
+        rumble: profile.rumble || '',
+        truth: profile.truth || '',
       },
       customLinks: (profile.socialLinks || []).map((s) => ({
         id: s.id,
@@ -398,10 +426,13 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     createdAt: profile.createdAt || new Date().toISOString(),
     updatedAt: profile.updatedAt || new Date().toISOString(),
     views: profile.viewCount || 0,
-    saves: 0,
+    saves: Number(profile.saveCount) || 0,
+    clickCount: Number(profile.clickCount) || 0,
+    shareCount: Number(profile.shareCount ?? profile.clickCount) || 0,
+    socialClicks: profile.socialClicks || [],
     avatarImageUrl,
     backgroundImageUrl,
-    isActive: true,
+    isActive: (profile.status?.name || 'active').toLowerCase() !== 'inactive',
   }
 }
 
@@ -636,12 +667,23 @@ const profilesApi = api.injectEndpoints({
     }),
     getWeeklyEngagement: builder.query<WeeklyEngagement, ProfilesListQuery | void>({
       query: (params) => {
-        if (params?.scope) {
-          return `/profiles/dashboard/weekly-engagement?scope=${encodeURIComponent(params.scope)}`
-        }
-        return '/profiles/dashboard/weekly-engagement'
+        const search = new URLSearchParams()
+        if (params?.scope) search.set('scope', params.scope)
+        if (params?.profileId) search.set('profileId', params.profileId)
+        const qs = search.toString()
+        return qs ? `/profiles/dashboard/weekly-engagement?${qs}` : '/profiles/dashboard/weekly-engagement'
       },
       transformResponse: (res: Envelope<WeeklyEngagement>) => res.data,
+      providesTags: ['dashboard'],
+    }),
+    getSocialClicks: builder.query<LiveSocialClickRow[], { profileId?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.profileId) search.set('profileId', params.profileId)
+        const qs = search.toString()
+        return qs ? `/profiles/dashboard/social-clicks?${qs}` : '/profiles/dashboard/social-clicks'
+      },
+      transformResponse: (res: Envelope<LiveSocialClickRow[]>) => res.data || [],
       providesTags: ['dashboard'],
     }),
     exportDashboardOverview: builder.mutation<Blob, DashboardStatsQuery | void>({
@@ -662,10 +704,10 @@ const profilesApi = api.injectEndpoints({
       query: () => '/profiles/subscriptions',
       transformResponse: (res: Envelope<unknown[]>) => res.data || [],
     }),
-    getContacts: builder.query<unknown[], string | void>({
+    getContacts: builder.query<ProfileContactRow[], string | void>({
       query: (profileId) =>
         profileId ? `/profiles/contacts?profileId=${encodeURIComponent(profileId)}` : '/profiles/contacts',
-      transformResponse: (res: Envelope<unknown[]>) => res.data || [],
+      transformResponse: (res: Envelope<ProfileContactRow[]>) => res.data || [],
     }),
     uploadMedia: builder.mutation<
       { url: string; publicId: string; attachment?: unknown },
@@ -711,6 +753,7 @@ export const {
   useGetDashboardStatsQuery,
   useGetRecentEngagementQuery,
   useGetWeeklyEngagementQuery,
+  useGetSocialClicksQuery,
   useExportDashboardOverviewMutation,
   useGetPackagesQuery,
   useGetSubscriptionsQuery,

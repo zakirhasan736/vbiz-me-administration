@@ -17,15 +17,29 @@ export type AdminProfileRow = {
   designation: string | null
   phone: string | null
   whatsapp: string | null
+  website?: string | null
   avatar: string | null
   isPublic: boolean
   viewCount: number
+  clickCount?: number
+  saveCount?: number
+  shareCount?: number
+  facebook?: string | null
+  instagram?: string | null
+  twitter?: string | null
+  tiktok?: string | null
+  youtube?: string | null
+  linkedin?: string | null
+  rumble?: string | null
+  truth?: string | null
+  socialClicks?: Array<{ channel: string; label: string; clickCount: number }>
   createdAt: string
   updatedAt: string
   status: { id: string; name: string } | null
   profession: { id: string; name: string } | null
   user: { id: string; name: string | null; email: string; role: string } | null
-  companyUser: { id: string; name: string | null; email: string } | null
+  companyUser: { id: string; name: string | null; email: string; role?: string } | null
+  createdBy?: { id: string; name: string | null; email: string; role?: string } | null
 }
 
 export type AdminProfilesListPage = {

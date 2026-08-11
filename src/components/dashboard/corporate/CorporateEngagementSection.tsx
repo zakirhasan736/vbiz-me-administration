@@ -1,19 +1,10 @@
 'use client'
 
 import { EngagementAnalyticsSection } from '@/components/dashboard/home/EngagementAnalyticsSection'
-import type { DashboardSocialChannel } from '@/redux/features/profiles/profiles.api'
+import { useGetDashboardStatsQuery, type DashboardSocialChannel } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-
-const CORPORATE_CHART_DATA = [
-  { name: 'Apr', Engineering: 45, Marketing: 25, Sales: 15 },
-  { name: 'May', Engineering: 55, Marketing: 35, Sales: 20 },
-  { name: 'Jun', Engineering: 70, Marketing: 45, Sales: 30 },
-  { name: 'Jul', Engineering: 90, Marketing: 60, Sales: 40 },
-  { name: 'Aug', Engineering: 120, Marketing: 80, Sales: 50 },
-  { name: 'Sep', Engineering: 1240, Marketing: 890, Sales: 1062 },
-]
 
 type SeedChannel = {
   channel: DashboardSocialChannel
@@ -28,6 +19,14 @@ type CorporateEngagementSectionProps = {
 
 export function CorporateEngagementSection({ socialChannels }: CorporateEngagementSectionProps) {
   const [tab, setTab] = useState<'consolidated' | 'weekly'>('consolidated')
+  const { data: stats } = useGetDashboardStatsQuery({ period: '90' })
+
+  const chartData = useMemo(() => {
+    const points = stats?.visitsChart?.points ?? []
+    return points.map((p) => ({ name: p.name, Views: p.total }))
+  }, [stats?.visitsChart?.points])
+
+  const liveChannels = socialChannels?.length ? socialChannels : stats?.socialChannels
 
   return (
     <div className="overflow-hidden rounded-[32px] border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
@@ -77,36 +76,25 @@ export function CorporateEngagementSection({ socialChannels }: CorporateEngageme
                   Consolidated Engagement Activity
                 </h3>
                 <p className="mt-0.5 text-xs font-semibold text-slate-400">
-                  Aggregated visitor views split across key organizational departments
+                  Live visitor views across your organization cards (last 90 days)
                 </p>
               </div>
               <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
                 <span className="flex items-center gap-1.5">
-                  <div className="bg-primary-500 h-2.5 w-2.5 rounded-full" /> Engineering
+                  <div className="h-2.5 w-2.5 rounded-full bg-indigo-500" /> Views
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-pink-500" /> Marketing
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Sales
+                <span className="text-slate-400">
+                  Total {(stats?.visitsChart?.total ?? stats?.totalViews ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
             <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={CORPORATE_CHART_DATA} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorEng" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorCorpViews" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorMark" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ec4899" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -129,16 +117,14 @@ export function CorporateEngagementSection({ socialChannels }: CorporateEngageme
                     dx={-10}
                   />
                   <Tooltip />
-                  <Area type="monotone" dataKey="Engineering" stroke="#4f46e5" strokeWidth={3} fill="url(#colorEng)" />
-                  <Area type="monotone" dataKey="Marketing" stroke="#ec4899" strokeWidth={3} fill="url(#colorMark)" />
-                  <Area type="monotone" dataKey="Sales" stroke="#f59e0b" strokeWidth={3} fill="url(#colorSales)" />
+                  <Area type="monotone" dataKey="Views" stroke="#4f46e5" strokeWidth={3} fill="url(#colorCorpViews)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
         ) : (
           <div className="animate-in fade-in -m-5 duration-200 sm:-m-8">
-            <EngagementAnalyticsSection socialChannels={socialChannels} />
+            <EngagementAnalyticsSection socialChannels={liveChannels} />
           </div>
         )}
       </div>

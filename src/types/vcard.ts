@@ -186,6 +186,9 @@ export type VCardData = {
 export type VCardListMeta = {
   views: number
   saves: number
+  clickCount?: number
+  shareCount?: number
+  socialClicks?: Array<{ channel: string; label: string; clickCount: number }>
   /** Dashboard card image (Media & Profile) */
   avatarImageUrl: string
   /** Dashboard card cover (Background Video/Image) */

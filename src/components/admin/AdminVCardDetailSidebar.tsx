@@ -1,16 +1,18 @@
 'use client'
 
-import { ContactSaveChip, SocialClickChip } from '@/components/admin/AdminSocialClickChip'
+import { SocialClickChip } from '@/components/admin/AdminSocialClickChip'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
 import { getCardSocialClickStats } from '@/lib/adminSocialStats'
-import { CONTACT_SAVES_EVENT, getContactSavesForOwner } from '@/lib/contactSaves'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
-import { useAuth } from '@/providers/AuthProvider'
+import {
+  useGetContactsQuery,
+  useGetSocialClicksQuery,
+  useGetWeeklyEngagementQuery,
+} from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import {
   Ban,
-  Briefcase,
   Building2,
   Calendar,
   Check,
@@ -29,24 +31,13 @@ import {
   Shield,
   ShieldAlert,
   TrendingUp,
-  User,
   X,
   type LucideIcon,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-
-const WEEKLY = [
-  { day: 'Mon', views: 120, clicks: 68 },
-  { day: 'Tue', views: 150, clicks: 82 },
-  { day: 'Wed', views: 180, clicks: 95 },
-  { day: 'Thu', views: 140, clicks: 70 },
-  { day: 'Fri', views: 210, clicks: 110 },
-  { day: 'Sat', views: 160, clicks: 88 },
-  { day: 'Sun', views: 190, clicks: 102 },
-]
 
 type Props = {
   card: AdminCard | null
@@ -108,30 +99,23 @@ export default function VCardDetailSidebar({
   mode = 'corporate',
 }: Props) {
   const router = useRouter()
-  const { setCurrentEditingCardId, userRole, updateCorporateCardControls } = useVCard()
-  const { user } = useAuth()
+  const { setCurrentEditingCardId, updateCorporateCardControls } = useVCard()
   const [copied, setCopied] = useState(false)
-  const [savesTick, setSavesTick] = useState(0)
 
-  const roleScope = userRole === 'admin' ? 'admin' : userRole === 'corporate' ? 'corporate' : 'single'
+  const { data: weekly } = useGetWeeklyEngagementQuery(card?.id ? { profileId: card.id } : undefined, {
+    skip: !card?.id,
+  })
+  const { data: socialClickRows = [] } = useGetSocialClicksQuery(card?.id ? { profileId: card.id } : undefined, {
+    skip: !card?.id,
+  })
+  const { data: contactRows = [] } = useGetContactsQuery(card?.id, { skip: !card?.id })
 
-  useEffect(() => {
-    const refresh = () => setSavesTick((n) => n + 1)
-    window.addEventListener(CONTACT_SAVES_EVENT, refresh)
-    window.addEventListener('storage', refresh)
-    return () => {
-      window.removeEventListener(CONTACT_SAVES_EVENT, refresh)
-      window.removeEventListener('storage', refresh)
-    }
-  }, [])
-
-  const saveRecords = useMemo(() => {
-    if (!card?.id) return []
-    return getContactSavesForOwner(user?.uid || card.ownerId, roleScope, card.id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card, user?.uid, roleScope, savesTick])
-
-  const socials = useMemo(() => (card ? getCardSocialClickStats(card, []) : []), [card])
+  const socials = useMemo(
+    () =>
+      card ? getCardSocialClickStats(card, socialClickRows.length ? socialClickRows : card.socialClicks || []) : [],
+    [card, socialClickRows]
+  )
+  const weeklyDays = weekly?.days ?? []
 
   if (!card || typeof document === 'undefined') return null
 
@@ -139,13 +123,29 @@ export default function VCardDetailSidebar({
   const fullName = personalField(card.personal, 'fullName')
   const designation = personalField(card.personal, 'designation')
   const company = personalField(card.personal, 'company')
-  const department = personalField(card.personal, 'department')
   const email = personalField(card.personal, 'email')
   const phone = personalField(card.personal, 'phone')
   const whatsapp = personalField(card.personal, 'whatsapp')
+  const website = personalField(card.personal, 'website')
+  // Header metrics: all-time totals (not 7-day).
   const views = Number(analytics.views || card.viewCount || 0)
-  const clicks = Number(analytics.clicks || Math.round(views * 0.65))
-  const ctr = analytics.ctr || (views ? ((clicks / views) * 100).toFixed(1) : '0')
+  const liveClickTotal = socialClickRows.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
+  const cardSocialTotal = Array.isArray(card.socialClicks)
+    ? card.socialClicks.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
+    : 0
+  const clicks = Number(analytics.clicks ?? liveClickTotal ?? cardSocialTotal ?? card.shareCount ?? 0)
+  const saves = contactRows.length || Number(card.saveCount) || 0
+  const shares = Number(card.shareCount ?? clicks) || 0
+  const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0.0'
+  // 7-day block only.
+  const weekViews = Number(weekly?.totals?.views || 0)
+  const weekClicks = Number(weekly?.totals?.clicks || 0)
+  const weekCtr =
+    weekly?.totals?.avgCtr != null
+      ? String(weekly.totals.avgCtr)
+      : weekViews > 0
+        ? ((weekClicks / weekViews) * 100).toFixed(1)
+        : '0.0'
   const status = card.status || 'active'
   const publicUrl =
     typeof window !== 'undefined'
@@ -227,10 +227,6 @@ export default function VCardDetailSidebar({
                 >
                   {status}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-md border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase dark:border-white/10 dark:bg-white/5">
-                  <Briefcase className="h-3 w-3" />
-                  {department || 'General'}
-                </span>
               </div>
             </div>
             <button
@@ -243,12 +239,12 @@ export default function VCardDetailSidebar({
             </button>
           </div>
 
-          {/* Quick metrics — always visible */}
+          {/* Quick metrics — all-time totals */}
           <div className="grid grid-cols-4 gap-2 px-5 pb-4">
             {[
               { label: 'Views', value: views, icon: Eye, tone: 'text-indigo-500' },
               { label: 'Clicks', value: clicks, icon: MousePointerClick, tone: 'text-sky-500' },
-              { label: 'Saves', value: saveRecords.length, icon: Save, tone: 'text-emerald-500' },
+              { label: 'Saves', value: saves, icon: Save, tone: 'text-emerald-500' },
               { label: 'CTR', value: `${ctr}%`, icon: TrendingUp, tone: 'text-violet-500' },
             ].map((m) => (
               <div
@@ -260,6 +256,7 @@ export default function VCardDetailSidebar({
                   {typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
                 </p>
                 <p className="mt-1 text-[9px] font-bold text-slate-400 uppercase">{m.label}</p>
+                <p className="text-[8px] font-semibold text-slate-400">All time</p>
               </div>
             ))}
           </div>
@@ -292,81 +289,61 @@ export default function VCardDetailSidebar({
                   <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{company || '—'}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-3 bg-white px-3.5 py-3 dark:bg-white/[0.02]">
+                <ExternalLink className="h-4 w-4 shrink-0 text-violet-500" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Website</p>
+                  <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{website || '—'}</p>
+                </div>
+              </div>
             </div>
           </Section>
 
-          {/* Socials list + Contact saves list together */}
-          <Section title="Socials & contact saves" icon={Share2}>
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {socials.map((s) => (
-                <SocialClickChip key={s.key} stat={s} compact />
-              ))}
-              <ContactSaveChip count={saveRecords.length} compact />
-            </div>
-            <div className="border-slate-150 overflow-hidden rounded-2xl border dark:border-white/10">
-              {/* Social links list */}
-              <div className="border-b border-slate-100 bg-slate-50 px-3.5 py-2.5 dark:border-white/5 dark:bg-white/[0.03]">
-                <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                  Social links ({socials.length})
-                </p>
-              </div>
+          <Section title="Socials" icon={Share2}>
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 dark:divide-white/5 dark:border-white/10">
+              <li className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/[0.02]">
+                <span className="inline-flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-sky-200/80 bg-sky-50 text-sky-600 dark:border-sky-500/25 dark:bg-sky-500/15 dark:text-sky-300">
+                    <Share2 className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">Shares</span>
+                </span>
+                <span className="shrink-0 text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                  {shares.toLocaleString()}
+                </span>
+              </li>
+              <li className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/[0.02]">
+                <span className="inline-flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-200/80 bg-emerald-50 text-emerald-600 dark:border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    <Save className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">Saves</span>
+                </span>
+                <span className="shrink-0 text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                  {saves.toLocaleString()}
+                </span>
+              </li>
               {socials.length > 0 ? (
-                <ul className="divide-y divide-slate-100 dark:divide-white/5">
-                  {socials.map((s) => (
-                    <li
-                      key={s.key}
-                      className="flex min-w-0 items-center justify-between gap-2 bg-white px-3.5 py-3 dark:bg-white/[0.02]"
-                    >
-                      <div className="min-w-0 flex-1 overflow-hidden">
-                        <SocialClickChip stat={s} />
-                      </div>
-                      <span className="shrink-0 text-[11px] font-bold text-slate-500 tabular-nums">
-                        {s.clickCount.toLocaleString()}
+                socials.map((s) => (
+                  <li
+                    key={s.key}
+                    className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/[0.02]"
+                  >
+                    <span className="inline-flex min-w-0 items-center gap-2.5">
+                      <SocialClickChip stat={s} showCount={false} />
+                      <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+                        {s.label}
                       </span>
-                    </li>
-                  ))}
-                </ul>
+                    </span>
+                    <span className="shrink-0 text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                      {s.clickCount.toLocaleString()}
+                    </span>
+                  </li>
+                ))
               ) : (
-                <p className="px-3.5 py-4 text-xs font-semibold text-slate-400">No social links on this card.</p>
+                <li className="px-3.5 py-3 text-xs font-semibold text-slate-400">No social links on this card.</li>
               )}
-
-              {/* Contact saves people list */}
-              <div className="flex items-center justify-between border-y border-emerald-100/80 bg-emerald-50/80 px-3.5 py-2.5 dark:border-emerald-500/15 dark:bg-emerald-500/10">
-                <p className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
-                  <Save className="h-3.5 w-3.5" /> Contact saves ({saveRecords.length})
-                </p>
-              </div>
-              {saveRecords.length > 0 ? (
-                <ul className="max-h-[240px] divide-y divide-slate-100 overflow-x-hidden overflow-y-auto dark:divide-white/5">
-                  {saveRecords.map((person) => (
-                    <li
-                      key={person.id}
-                      className="flex min-w-0 items-start gap-3 bg-white px-3.5 py-3 dark:bg-white/[0.02]"
-                    >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/15">
-                        <User className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{person.fullName}</p>
-                        <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
-                          <Mail className="h-3 w-3 text-indigo-400" />
-                          {person.email || 'No email'}
-                        </p>
-                        <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
-                          <Phone className="h-3 w-3 text-emerald-400" />
-                          {person.phoneNumber || 'No phone'}
-                        </p>
-                      </div>
-                      <span title="Saved contact" className="mt-1 shrink-0">
-                        <Save className="h-3.5 w-3.5 text-emerald-500" />
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="px-3.5 py-4 text-xs font-semibold text-slate-400">Nobody has saved this contact yet.</p>
-              )}
-            </div>
+            </ul>
           </Section>
 
           {/* Manage actions — clear primary buttons */}
@@ -488,9 +465,26 @@ export default function VCardDetailSidebar({
 
           <Section title="7-day analytics" icon={TrendingUp}>
             <div className="border-slate-150 rounded-2xl border bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/[0.02]">
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Views', value: weekViews },
+                  { label: 'Clicks', value: weekClicks },
+                  { label: 'CTR', value: `${weekCtr}%` },
+                ].map((m) => (
+                  <div
+                    key={m.label}
+                    className="rounded-xl border border-slate-100 bg-white px-2 py-2 text-center dark:border-white/10 dark:bg-white/[0.04]"
+                  >
+                    <p className="text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                      {typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
+                    </p>
+                    <p className="mt-0.5 text-[9px] font-bold text-slate-400 uppercase">{m.label}</p>
+                  </div>
+                ))}
+              </div>
               <div className="h-[150px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={WEEKLY} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <AreaChart data={weeklyDays} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="sideViewsClean" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.25} />
@@ -540,11 +534,20 @@ export default function VCardDetailSidebar({
 
 /** Small trends popup for CTR / stats click */
 export function VCardTrendsPopup({ card, onClose }: { card: AdminCard | null; onClose: () => void }) {
+  const { data: weekly } = useGetWeeklyEngagementQuery(card?.id ? { profileId: card.id } : undefined, {
+    skip: !card?.id,
+  })
+  const weeklyDays = weekly?.days ?? []
+
   if (!card || typeof document === 'undefined') return null
-  const analytics = cardAnalytics(card)
-  const views = Number(analytics.views || card.viewCount || 0)
-  const clicks = Number(analytics.clicks || Math.round(views * 0.65))
-  const ctr = analytics.ctr || (views ? ((clicks / views) * 100).toFixed(1) : '0')
+  const weekViews = Number(weekly?.totals?.views || 0)
+  const weekClicks = Number(weekly?.totals?.clicks || 0)
+  const weekCtr =
+    weekly?.totals?.avgCtr != null
+      ? String(weekly.totals.avgCtr)
+      : weekViews > 0
+        ? ((weekClicks / weekViews) * 100).toFixed(1)
+        : '0.0'
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -559,7 +562,7 @@ export function VCardTrendsPopup({ card, onClose }: { card: AdminCard | null; on
               {personalField(card.personal, 'fullName')}
             </h3>
             <p className="mt-0.5 text-xs font-semibold text-slate-400">
-              Views {views.toLocaleString()} · Clicks {clicks.toLocaleString()} · CTR {ctr}%
+              Views {weekViews.toLocaleString()} · Clicks {weekClicks.toLocaleString()} · CTR {weekCtr}%
             </p>
           </div>
           <button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-white/10">
@@ -568,7 +571,7 @@ export function VCardTrendsPopup({ card, onClose }: { card: AdminCard | null; on
         </div>
         <div className="h-[200px] w-full rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-white/5 dark:bg-slate-900/60">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={WEEKLY} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+            <AreaChart data={weeklyDays} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="trendViewsClean" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3} />

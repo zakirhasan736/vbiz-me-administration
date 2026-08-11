@@ -7,9 +7,9 @@ import VCardDetailSidebar, { VCardTrendsPopup } from '@/components/admin/AdminVC
 import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import { useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
+import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { type AdminCard } from '@/lib/admin/adminCardShape'
 import { mapAdminProfileRowToCard } from '@/lib/admin/mapAdminProfileRow'
-import { getContactSavesForOwner } from '@/lib/contactSaves'
 import { appendAuditLog } from '@/lib/mockStore'
 import { notifyOwners } from '@/lib/notifications'
 import { notify } from '@/lib/toast/toast'
@@ -560,15 +560,15 @@ export default function AdminVCards() {
       ) : (
         <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {cards.map((card, i) => {
-            const isCorporate = Boolean(card.companyUserId)
-            const contactSaves =
-              getContactSavesForOwner(user?.uid || card.ownerId, 'admin', card.id).length || Number(card.saveCount || 0)
+            const contactSaves = Number(card.saveCount || 0)
+            const badge = resolveDirectoryBadge(card)
 
             return (
               <VCardTeamCard
                 key={card.id || i}
                 card={card}
-                badgeLabel={isCorporate ? 'Corporate' : 'Single'}
+                badgeLabel={badge.label}
+                badgeTone={badge.tone}
                 contactSaves={contactSaves}
                 showCheckbox
                 selected={selectedCardIds.includes(card.id)}

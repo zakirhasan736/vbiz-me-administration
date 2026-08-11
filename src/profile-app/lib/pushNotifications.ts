@@ -181,15 +181,14 @@ export async function registerServiceWorker() {
       scope: '/',
       updateViaCache: 'none',
     })
-    // Pick up a newer sw.js as soon as it is deployed.
-    void registration.update()
+    // Pick up a newer sw.js as soon as it is deployed (storage/blocked SW must not surface as unhandledRejection).
+    void registration.update().catch(() => null)
     // Activate updated worker immediately so notification icons are not stuck on next.svg.
     if (registration.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' })
     }
     return registration
-  } catch (error) {
-    console.error('Service Worker registration failed:', error)
+  } catch {
     return null
   }
 }
