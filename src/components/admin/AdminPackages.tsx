@@ -83,19 +83,51 @@ function humanizeFeatureLabel(key: string) {
   return titled.join(' ')
 }
 
-function marketingFeatures(pkg: AdminPackageRow) {
+/** Laravel facilities: feature_key + limit_value / unlimited / boolean. */
+function formatFacilityLine(feat: { featureKey: string; featureValue?: string | null }): string {
+  const key = feat.featureKey.trim()
+  const label = humanizeFeatureLabel(key)
+  const raw = (feat.featureValue ?? '').trim()
+  const isAllow = key.toLowerCase().startsWith('allow_')
+
+  if (!raw) return label
+  if (raw.toLowerCase() === 'unlimited') return `${label}: Unlimited`
+
+  if (isAllow) {
+    const on = raw === '1' || raw.toLowerCase() === 'true' || raw.toLowerCase() === 'yes'
+    return on ? label : `${label}: No`
+  }
+
+  if (key.toLowerCase().includes('file_size')) return `${label}: ${raw} MB`
+  return `${label}: ${raw}`
+}
+
+function packageFacilities(pkg: AdminPackageRow) {
   return pkg.features.filter((f) => !isSystemFeatureKey(f.featureKey))
+}
+
+/** Laravel / Stripe store package prices in cents (e.g. 800 → $8.00). */
+function centsToDollarsInput(cents: number): string {
+  const dollars = Math.max(0, Number(cents) || 0) / 100
+  return Number.isInteger(dollars) ? String(dollars) : dollars.toFixed(2)
+}
+
+function dollarsInputToCents(value: string): number {
+  return Math.max(0, Math.round((Number(value) || 0) * 100))
 }
 
 function formFromPackage(pkg: AdminPackageRow): FormState {
   const maxCardsFeat = pkg.features.find((f) => isSystemFeatureKey(f.featureKey))
-  const labels = marketingFeatures(pkg).map((f) => humanizeFeatureLabel(f.featureKey))
+  const labels = packageFacilities(pkg).map((f) => {
+    const value = (f.featureValue ?? '').trim()
+    return value ? `${f.featureKey}=${value}` : f.featureKey
+  })
   return {
     name: pkg.name,
     slug: pkg.slug || '',
     description: pkg.description || '',
-    monthlyPrice: String(pkg.monthlyPrice),
-    yearlyPrice: String(pkg.yearlyPrice),
+    monthlyPrice: centsToDollarsInput(pkg.monthlyPrice),
+    yearlyPrice: centsToDollarsInput(pkg.yearlyPrice),
     sortOrder: String(pkg.sortOrder),
     isActive: pkg.isActive,
     maxCards: maxCardsFeat?.featureValue?.trim() || '',
@@ -107,8 +139,16 @@ function toBody(form: FormState): UpsertAdminPackageBody {
   const marketing = form.features
     .map((text) => text.trim())
     .filter(Boolean)
-    .filter((text) => !isSystemFeatureKey(text))
-    .map((featureKey) => ({ featureKey, featureValue: null as string | null }))
+    .filter((text) => !isSystemFeatureKey(text.split('=')[0] || text))
+    .map((text) => {
+      const eq = text.indexOf('=')
+      if (eq === -1) return { featureKey: text, featureValue: null as string | null }
+      return {
+        featureKey: text.slice(0, eq).trim(),
+        featureValue: text.slice(eq + 1).trim() || null,
+      }
+    })
+    .filter((f) => f.featureKey)
 
   const maxCardsNum = Math.max(0, Math.round(Number(form.maxCards)))
   const features =
@@ -120,16 +160,17 @@ function toBody(form: FormState): UpsertAdminPackageBody {
     name: form.name.trim(),
     slug: form.slug.trim() || null,
     description: form.description.trim() || null,
-    monthlyPrice: Math.max(0, Math.round(Number(form.monthlyPrice) || 0)),
-    yearlyPrice: Math.max(0, Math.round(Number(form.yearlyPrice) || 0)),
+    monthlyPrice: dollarsInputToCents(form.monthlyPrice),
+    yearlyPrice: dollarsInputToCents(form.yearlyPrice),
     sortOrder: Math.max(0, Math.round(Number(form.sortOrder) || 0)),
     isActive: form.isActive,
     features,
   }
 }
 
-function formatMoney(centsOrUnits: number) {
-  return `$${centsOrUnits}`
+function formatMoney(cents: number) {
+  const dollars = Math.max(0, Number(cents) || 0) / 100
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(dollars)
 }
 
 export default function AdminPackages() {
@@ -327,22 +368,36 @@ export default function AdminPackages() {
                   </span>
                   <span className="text-sm font-bold text-slate-400"> / mo</span>
                 </div>
-                <div className="text-sm font-bold text-slate-400">{formatMoney(pkg.yearlyPrice)} / yr</div>
+                {pkg.yearlyPrice > 0 ? (
+                  <div className="text-sm font-bold text-slate-400">{formatMoney(pkg.yearlyPrice)} / yr</div>
+                ) : null}
+              </div>
+
+              <div className="mb-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
+                  <Users className="h-3.5 w-3.5" />
+                  {pkg.subscriberCount} subscriber{pkg.subscriberCount === 1 ? '' : 's'}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
+                  <Layers className="h-3.5 w-3.5" />
+                  {packageFacilities(pkg).length} facilities
+                </span>
               </div>
 
               <div className="my-4 h-px bg-slate-100 dark:bg-white/5" />
 
               <div className="mb-6 space-y-2">
-                {marketingFeatures(pkg).length === 0 && (
-                  <p className="text-xs font-semibold text-slate-400">No features listed</p>
+                <p className="mb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Facilities</p>
+                {packageFacilities(pkg).length === 0 && (
+                  <p className="text-xs font-semibold text-slate-400">No facilities listed</p>
                 )}
-                {marketingFeatures(pkg).map((feat) => (
+                {packageFacilities(pkg).map((feat) => (
                   <div
                     key={feat.id || feat.featureKey}
                     className="flex items-start gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300"
                   >
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                    <span>{humanizeFeatureLabel(feat.featureKey)}</span>
+                    <span>{formatFacilityLine(feat)}</span>
                   </div>
                 ))}
               </div>
@@ -439,11 +494,12 @@ export default function AdminPackages() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Monthly price
+                      Monthly price (USD)
                     </label>
                     <input
                       type="number"
                       min={0}
+                      step="0.01"
                       required
                       value={form.monthlyPrice}
                       onChange={(e) => setForm((f) => ({ ...f, monthlyPrice: e.target.value }))}
@@ -452,16 +508,19 @@ export default function AdminPackages() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Yearly price
+                      Yearly price (USD)
                     </label>
                     <input
                       type="number"
                       min={0}
-                      required
+                      step="0.01"
                       value={form.yearlyPrice}
                       onChange={(e) => setForm((f) => ({ ...f, yearlyPrice: e.target.value }))}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                     />
+                    <p className="text-[10px] font-semibold text-slate-400">
+                      Optional. Laravel plans were monthly-only (leave 0 if unused).
+                    </p>
                   </div>
                 </div>
 
@@ -492,7 +551,9 @@ export default function AdminPackages() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Features</label>
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      Facilities (key=value)
+                    </label>
                     <button
                       type="button"
                       onClick={() =>
@@ -503,9 +564,12 @@ export default function AdminPackages() {
                       }
                       className="text-[10px] font-black tracking-wider text-indigo-600 uppercase"
                     >
-                      + Add feature
+                      + Add facility
                     </button>
                   </div>
+                  <p className="text-[10px] font-semibold text-slate-400">
+                    Use Laravel keys, e.g. max_social_links=10, allow_video_upload=1, max_extra_fields=unlimited
+                  </p>
                   {form.features.map((feat, idx) => (
                     <div key={idx} className="flex gap-2">
                       <input
@@ -517,7 +581,7 @@ export default function AdminPackages() {
                             return { ...f, features }
                           })
                         }
-                        placeholder="Allow 2D explainer video"
+                        placeholder="max_social_links=10"
                         className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                       />
                       <button

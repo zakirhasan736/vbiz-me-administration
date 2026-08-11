@@ -1,9 +1,10 @@
 'use client'
 
+import { CardLifecycleTabs } from '@/components/dashboard/vcard/CardLifecycleTabs'
+import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { cn } from '@/utils/cn'
 import { AlertTriangle, Plus, Search, Sparkles, X } from 'lucide-react'
-import Link from 'next/link'
-import type { CorporateSortOption, CorporateStatusFilter } from './useCorporateDirectory'
+import type { CorporateSortOption } from './useCorporateDirectory'
 
 type TeamVCardsHeaderProps = {
   canCreate: boolean
@@ -28,12 +29,17 @@ export function TeamVCardsHeader({ canCreate, createDisabledReason }: TeamVCards
         </div>
         <div className="z-10 flex flex-col items-stretch gap-2 sm:items-end">
           {canCreate ? (
-            <Link
-              href="/vcards/create/home"
-              className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm transition-all hover:shadow-md active:scale-95 dark:bg-white dark:text-slate-900"
-            >
-              <Plus className="h-4.5 w-4.5" /> Create New Card
-            </Link>
+            <CreateCardLauncher>
+              {(open) => (
+                <button
+                  type="button"
+                  onClick={open}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm transition-all hover:shadow-md active:scale-95 dark:bg-white dark:text-slate-900"
+                >
+                  <Plus className="h-4.5 w-4.5" /> Create New Card
+                </button>
+              )}
+            </CreateCardLauncher>
           ) : (
             <>
               <button
@@ -58,8 +64,10 @@ export function TeamVCardsHeader({ canCreate, createDisabledReason }: TeamVCards
 type TeamVCardsToolbarProps = {
   searchTerm: string
   onSearchChange: (v: string) => void
-  statusFilter: CorporateStatusFilter
-  onStatusChange: (v: CorporateStatusFilter) => void
+  lifecycleTab: 'active' | 'draft'
+  onLifecycleTabChange: (v: 'active' | 'draft') => void
+  activeCount: number
+  draftCount: number
   sort: CorporateSortOption
   onSortChange: (v: CorporateSortOption) => void
 }
@@ -67,15 +75,23 @@ type TeamVCardsToolbarProps = {
 export function TeamVCardsToolbar({
   searchTerm,
   onSearchChange,
-  statusFilter,
-  onStatusChange,
+  lifecycleTab,
+  onLifecycleTabChange,
+  activeCount,
+  draftCount,
   sort,
   onSortChange,
 }: TeamVCardsToolbarProps) {
-  const hasFilters = searchTerm || statusFilter !== 'all' || sort !== 'newest'
+  const hasFilters = searchTerm || lifecycleTab !== 'active' || sort !== 'newest'
 
   return (
     <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm md:flex-row dark:border-white/10 dark:bg-[#0b0f19]">
+      <CardLifecycleTabs
+        value={lifecycleTab}
+        onChange={onLifecycleTabChange}
+        activeCount={activeCount}
+        draftCount={draftCount}
+      />
       <div className="relative w-full md:flex-1">
         <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
@@ -86,12 +102,6 @@ export function TeamVCardsToolbar({
         />
       </div>
       <div className="flex w-full flex-wrap items-center gap-3 md:w-auto">
-        <FilterSelect label="Status" value={statusFilter} onChange={(v) => onStatusChange(v as CorporateStatusFilter)}>
-          <option value="all">All Statuses</option>
-          <option value="active">Active Only</option>
-          <option value="inactive">Inactive Only</option>
-          <option value="suspended">Suspended Only</option>
-        </FilterSelect>
         <FilterSelect label="Sort By" value={sort} onChange={(v) => onSortChange(v as CorporateSortOption)}>
           <option value="newest">Newest Created</option>
           <option value="oldest">Oldest Created</option>
@@ -103,7 +113,7 @@ export function TeamVCardsToolbar({
             type="button"
             onClick={() => {
               onSearchChange('')
-              onStatusChange('all')
+              onLifecycleTabChange('active')
               onSortChange('newest')
             }}
             className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
@@ -212,19 +222,23 @@ export function TeamVCardsCreatePlaceholder({
 }) {
   if (canCreate) {
     return (
-      <button
-        type="button"
-        onClick={onCreate}
-        className="group hover:border-primary-500/30 flex min-h-[350px] cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/[0.02]"
-      >
-        <div className="group-hover:bg-primary-500 mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
-          <Plus className="h-6 w-6" strokeWidth={2.5} />
-        </div>
-        <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
-        <p className="mt-1 max-w-[200px] text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Add a dynamic digital business card to your directory.
-        </p>
-      </button>
+      <CreateCardLauncher>
+        {(open) => (
+          <button
+            type="button"
+            onClick={open}
+            className="group hover:border-primary-500/30 flex min-h-[350px] cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/[0.02]"
+          >
+            <div className="group-hover:bg-primary-500 mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
+              <Plus className="h-6 w-6" strokeWidth={2.5} />
+            </div>
+            <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
+            <p className="mt-1 max-w-[200px] text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+              Add a dynamic digital business card to your directory.
+            </p>
+          </button>
+        )}
+      </CreateCardLauncher>
     )
   }
 
@@ -270,18 +284,24 @@ export function TeamVCardsEmptyState({
         >
           Clear Filters
         </button>
+      ) : canCreate ? (
+        <CreateCardLauncher>
+          {(open) => (
+            <button
+              type="button"
+              onClick={open}
+              className="bg-primary-600 hover:bg-primary-700 shadow-primary-500/20 flex items-center gap-2 rounded-xl px-8 py-3.5 text-[14px] font-bold text-white shadow-sm transition-all active:scale-95"
+            >
+              <Plus className="h-5 w-5" /> Create New Card
+            </button>
+          )}
+        </CreateCardLauncher>
       ) : (
         <button
           type="button"
-          onClick={onCreate}
-          disabled={!canCreate}
-          title={!canCreate ? createDisabledReason : undefined}
-          className={cn(
-            'flex items-center gap-2 rounded-xl px-8 py-3.5 text-[14px] font-bold shadow-sm transition-all',
-            canCreate
-              ? 'bg-primary-600 hover:bg-primary-700 shadow-primary-500/20 text-white active:scale-95'
-              : 'cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-white/10'
-          )}
+          disabled
+          title={createDisabledReason}
+          className="flex cursor-not-allowed items-center gap-2 rounded-xl bg-slate-200 px-8 py-3.5 text-[14px] font-bold text-slate-400 shadow-sm dark:bg-white/10"
         >
           <Plus className="h-5 w-5" /> Create New Card
         </button>

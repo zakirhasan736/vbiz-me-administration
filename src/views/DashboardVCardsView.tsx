@@ -8,9 +8,9 @@ import {
   VCardTrendsPopup,
   VCardsGrid,
   VCardsListHeader,
+  type CardLifecycleTab,
   type NoticeType,
   type VCardSortOption,
-  type VCardStatusFilter,
 } from '@/components/dashboard/vcard'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import {
@@ -38,7 +38,7 @@ const DashboardVCardsView = () => {
   const [noticeCard, setNoticeCard] = useState<VCardRecord | null>(null)
   const [noticeVersion, setNoticeVersion] = useState(0)
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<VCardStatusFilter>('all')
+  const [lifecycleTab, setLifecycleTab] = useState<CardLifecycleTab>('active')
   const [sort, setSort] = useState<VCardSortOption>('newest')
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
 
@@ -55,12 +55,15 @@ const DashboardVCardsView = () => {
     [cards, panelCardId]
   )
 
+  const activeCount = useMemo(() => cards.filter((c) => !c.isDraft).length, [cards])
+  const draftCount = useMemo(() => cards.filter((c) => c.isDraft).length, [cards])
+
   const canCreate = capacity ? capacity.canCreate : !isPersonal || cards.length < 1
 
   const filtered = useMemo(() => {
     let list = filterVCardsByQuery(cards, query)
-    if (status === 'active') list = list.filter((c) => c.isActive)
-    if (status === 'inactive') list = list.filter((c) => !c.isActive)
+    if (lifecycleTab === 'active') list = list.filter((c) => !c.isDraft)
+    if (lifecycleTab === 'draft') list = list.filter((c) => c.isDraft)
 
     const sorted = [...list]
     if (sort === 'name') {
@@ -75,7 +78,7 @@ const DashboardVCardsView = () => {
       sorted.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
     }
     return sorted
-  }, [cards, query, status, sort])
+  }, [cards, query, lifecycleTab, sort])
 
   const openQrModal = (url: string, name?: string) => {
     setSelectedVCardUrl(url)
@@ -120,9 +123,10 @@ const DashboardVCardsView = () => {
 
   const handleToggleStatus = async (card: VCardRecord, nextStatus: string) => {
     try {
+      const activate = nextStatus === 'active'
       await updateProfileCard({
         id: card.id,
-        body: { isPublic: nextStatus === 'active' },
+        body: activate ? { isDraft: false, isPublic: true } : { isDraft: true, isPublic: false },
       }).unwrap()
       void refetch()
     } catch {
@@ -143,8 +147,10 @@ const DashboardVCardsView = () => {
       <VCardsListHeader
         query={query}
         onQueryChange={setQuery}
-        status={status}
-        onStatusChange={setStatus}
+        lifecycleTab={lifecycleTab}
+        onLifecycleTabChange={setLifecycleTab}
+        activeCount={activeCount}
+        draftCount={draftCount}
         sort={sort}
         onSortChange={setSort}
         canCreate={canCreate}
@@ -164,8 +170,14 @@ const DashboardVCardsView = () => {
 
       {!isLoading && filtered.length === 0 && cards.length > 0 ? (
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-[#0b0f19]">
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No cards match your filters</p>
-          <p className="mt-1 text-xs font-medium text-slate-400">Try clearing filters or adjusting your search.</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+            {lifecycleTab === 'draft' ? 'No draft cards' : 'No active cards match your filters'}
+          </p>
+          <p className="mt-1 text-xs font-medium text-slate-400">
+            {lifecycleTab === 'draft'
+              ? 'Incomplete cards appear here after you create them.'
+              : 'Try clearing filters or check the Draft tab.'}
+          </p>
         </div>
       ) : null}
 
@@ -175,7 +187,7 @@ const DashboardVCardsView = () => {
         onPanel={(card) => setPanelCardId(card.id)}
         onNotice={openNotice}
         noticeVersion={noticeVersion}
-        canCreate={canCreate}
+        canCreate={canCreate && lifecycleTab === 'active'}
         showLimitPlaceholder={isPersonal && !canCreate && cards.length > 0}
         isPersonal={isPersonal}
         onTrends={setTrendsCard}

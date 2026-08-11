@@ -8,6 +8,7 @@ import {
 } from '@/components/dashboard/corporate/CorporateContactSavesPanel'
 import { CorporateLeadNotesRepliesPanel } from '@/components/dashboard/corporate/CorporateLeadNotesRepliesPanel'
 import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
+import { noticeForCard, noticeTypeFromTeamNotice } from '@/lib/cardNotice'
 import type { DashboardSocialChannel, TeamNotice } from '@/redux/features/profiles/profiles.api'
 import {
   useCreateTeamNoticeMutation,
@@ -108,14 +109,31 @@ export function CorporateControlsHub({
   const [filterLeadCardId, setFilterLeadCardId] = useState('all')
   const [newBroadcastText, setNewBroadcastText] = useState('')
   const [newBroadcastAudience, setNewBroadcastAudience] = useState<'all' | 'savers'>('all')
-  const [newBroadcastType, setNewBroadcastType] = useState<'broadcast' | 'system'>('broadcast')
-  const [broadcastCardFilter, setBroadcastCardFilter] = useState('all')
+  const [newBroadcastType, setNewBroadcastType] = useState<'broadcast' | 'system' | 'info' | 'warning' | 'success'>(
+    'info'
+  )
+  const [broadcastCardFilter, setBroadcastCardFilter] = useState('')
   const [alert, setAlert] = useState<{ title: string; description: string } | null>(null)
   const [deleteBroadcastId, setDeleteBroadcastId] = useState<string | null>(null)
 
   const [createTeamNotice, { isLoading: creatingNotice }] = useCreateTeamNoticeMutation()
   const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
   const [exportContactsCsv, { isLoading: exportingCsv }] = useExportContactsCsvMutation()
+
+  const resolvedBroadcastCardFilter = broadcastCardFilter || cards[0]?.id || ''
+
+  const cardNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const c of cards) {
+      map.set(c.id, c.personal?.fullName || c.slug || c.id)
+    }
+    return map
+  }, [cards])
+
+  const visibleTeamNotices = useMemo(() => {
+    if (!resolvedBroadcastCardFilter) return teamNotices
+    return teamNotices.filter((n) => !n.targetCardId || n.targetCardId === resolvedBroadcastCardFilter)
+  }, [teamNotices, resolvedBroadcastCardFilter])
 
   const filteredContacts = useMemo(() => {
     if (filterLeadCardId === 'all') return contacts
@@ -174,21 +192,29 @@ export function CorporateControlsHub({
   const handleCreateBroadcast = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newBroadcastText.trim() || creatingNotice) return
+    if (!resolvedBroadcastCardFilter) {
+      setAlert({
+        title: 'Select a card',
+        description: 'Announcements must target one team card — they are never published to every card.',
+      })
+      return
+    }
     try {
       const created = await createTeamNotice({
         text: newBroadcastText.trim(),
         type: newBroadcastType,
         audience: newBroadcastAudience,
-        targetProfileId:
-          newBroadcastAudience === 'savers' && broadcastCardFilter !== 'all' ? broadcastCardFilter : undefined,
+        targetProfileId: resolvedBroadcastCardFilter,
       }).unwrap()
       setNewBroadcastText('')
+      if (!broadcastCardFilter) setBroadcastCardFilter(resolvedBroadcastCardFilter)
+      const cardLabel = cardNameById.get(resolvedBroadcastCardFilter) || 'selected card'
       setAlert({
         title: newBroadcastAudience === 'savers' ? 'Sent to savers' : 'Notice published',
         description:
           newBroadcastAudience === 'savers'
-            ? `Notified ${created.recipientCount ?? 0} saved contact${(created.recipientCount ?? 0) === 1 ? '' : 's'}.`
-            : 'Your announcement is now available as a public card banner.',
+            ? `Notified ${created.recipientCount ?? 0} saver${(created.recipientCount ?? 0) === 1 ? '' : 's'} for ${cardLabel}.`
+            : `Announcement is scoped to ${cardLabel} only.`,
       })
     } catch (err) {
       const message =
@@ -267,37 +293,42 @@ export function CorporateControlsHub({
               </span>
             </div>
             <div className="grid grid-cols-1 gap-6 bg-slate-50/20 p-8 md:grid-cols-2 lg:grid-cols-3 dark:bg-black/10">
-              {cards.map((card, idx) => (
-                <VCardTeamCard
-                  key={card.id}
-                  card={card}
-                  mode="corporate"
-                  badgeLabel="Corporate"
-                  showDragHandle
-                  dragged={draggedIndex === idx}
-                  onDragStart={(e: DragEvent) => {
-                    onDragStart(idx)
-                    e.dataTransfer.effectAllowed = 'move'
-                  }}
-                  onDragOver={(e: DragEvent) => e.preventDefault()}
-                  onDrop={(e: DragEvent) => {
-                    e.preventDefault()
-                    onDragDrop(cards, idx)
-                  }}
-                  showCheckbox={showBulkSelect}
-                  selected={selectedIds.includes(card.id)}
-                  onToggleSelect={() => onToggleSelect?.(card.id)}
-                  onCardClick={() => onPanel(card)}
-                  onOpenQr={onOpenQr}
-                  onPanel={onPanel}
-                  onNotice={onNotice}
-                  onTrends={onTrends ? () => onTrends(card) : undefined}
-                  noticeVersion={noticeVersion}
-                  canDuplicate={canCreate}
-                  duplicateDisabledReason={createDisabledReason}
-                  onDuplicate={() => onDuplicate(card)}
-                />
-              ))}
+              {cards.map((card, idx) => {
+                const serverNotice = noticeForCard(card.id, teamNotices)
+                return (
+                  <VCardTeamCard
+                    key={card.id}
+                    card={card}
+                    mode="corporate"
+                    badgeLabel="Corporate"
+                    showDragHandle
+                    dragged={draggedIndex === idx}
+                    onDragStart={(e: DragEvent) => {
+                      onDragStart(idx)
+                      e.dataTransfer.effectAllowed = 'move'
+                    }}
+                    onDragOver={(e: DragEvent) => e.preventDefault()}
+                    onDrop={(e: DragEvent) => {
+                      e.preventDefault()
+                      onDragDrop(cards, idx)
+                    }}
+                    showCheckbox={showBulkSelect}
+                    selected={selectedIds.includes(card.id)}
+                    onToggleSelect={() => onToggleSelect?.(card.id)}
+                    onCardClick={() => onPanel(card)}
+                    onOpenQr={onOpenQr}
+                    onPanel={onPanel}
+                    onNotice={onNotice}
+                    onTrends={onTrends ? () => onTrends(card) : undefined}
+                    noticeVersion={noticeVersion}
+                    cardNoticeText={serverNotice?.text ?? null}
+                    cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
+                    canDuplicate={canCreate}
+                    duplicateDisabledReason={createDisabledReason}
+                    onDuplicate={() => onDuplicate(card)}
+                  />
+                )
+              })}
             </div>
           </div>
         )}
@@ -312,7 +343,7 @@ export function CorporateControlsHub({
                     Team Announcements
                   </h3>
                   <p className="mt-1 text-xs font-semibold text-slate-400">
-                    Publish notices shown on all public team vCards (office moves, events, urgent alerts).
+                    Publish info / warning / success notices for one team card at a time (never all cards).
                   </p>
                 </div>
               </div>
@@ -340,40 +371,44 @@ export function CorporateControlsHub({
                     onChange={(e) => setNewBroadcastAudience(e.target.value as 'all' | 'savers')}
                     className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
                   >
-                    <option value="all">Public card banners</option>
-                    <option value="savers">People who saved contact</option>
+                    <option value="all">This card (owner dashboard)</option>
+                    <option value="savers">Savers of this card</option>
                   </select>
                 </div>
-                {newBroadcastAudience === 'savers' && (
-                  <div className="space-y-1.5 lg:col-span-2">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Card filter
-                    </label>
-                    <select
-                      value={broadcastCardFilter}
-                      onChange={(e) => setBroadcastCardFilter(e.target.value)}
-                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
-                    >
-                      <option value="all">All team cards</option>
-                      {cards.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.personal.fullName || c.slug || c.id}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 <div className="space-y-1.5 lg:col-span-2">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Alert Theme Type
-                  </label>
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Target card</label>
                   <select
-                    value={newBroadcastType}
-                    onChange={(e) => setNewBroadcastType(e.target.value as 'broadcast' | 'system')}
+                    required
+                    value={resolvedBroadcastCardFilter}
+                    onChange={(e) => setBroadcastCardFilter(e.target.value)}
                     className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
                   >
-                    <option value="broadcast">Announcement (Neutral)</option>
-                    <option value="system">Critical System Alert (Amber)</option>
+                    {!resolvedBroadcastCardFilter ? (
+                      <option value="" disabled>
+                        Select a card…
+                      </option>
+                    ) : null}
+                    {cards.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.personal.fullName || c.slug || c.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5 lg:col-span-2">
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Notice type</label>
+                  <select
+                    value={newBroadcastType}
+                    onChange={(e) =>
+                      setNewBroadcastType(e.target.value as 'broadcast' | 'system' | 'info' | 'warning' | 'success')
+                    }
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                  >
+                    <option value="info">Info</option>
+                    <option value="warning">Warning</option>
+                    <option value="success">Success</option>
+                    <option value="system">Critical alert</option>
+                    <option value="broadcast">Announcement</option>
                   </select>
                 </div>
                 <button
@@ -391,13 +426,15 @@ export function CorporateControlsHub({
 
               <div className="mt-6">
                 <h4 className="mb-3 text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                  Recent messages ({teamNotices.length})
+                  Recent messages for{' '}
+                  {resolvedBroadcastCardFilter ? cardNameById.get(resolvedBroadcastCardFilter) || 'selected card' : '…'}{' '}
+                  ({visibleTeamNotices.length})
                 </h4>
-                {teamNotices.length === 0 ? (
-                  <p className="text-[11px] font-bold text-slate-400 italic">No announcements published yet.</p>
+                {visibleTeamNotices.length === 0 ? (
+                  <p className="text-[11px] font-bold text-slate-400 italic">No announcements for this card yet.</p>
                 ) : (
                   <div className="max-h-48 space-y-2 overflow-y-auto pr-2">
-                    {teamNotices.map((msg) => (
+                    {visibleTeamNotices.map((msg) => (
                       <div
                         key={msg.id}
                         className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-white p-3 text-xs dark:border-white/5 dark:bg-slate-900"
@@ -406,16 +443,23 @@ export function CorporateControlsHub({
                           <span
                             className={cn(
                               'rounded px-2 py-0.5 text-[8px] font-black tracking-wider uppercase',
-                              msg.audience === 'savers'
-                                ? 'border border-emerald-500/20 bg-emerald-500/15 text-emerald-600'
-                                : msg.type === 'system'
-                                  ? 'border border-amber-500/20 bg-amber-500/15 text-amber-600'
+                              msg.type === 'warning' || msg.type === 'system'
+                                ? 'border border-amber-500/20 bg-amber-500/15 text-amber-600'
+                                : msg.type === 'success'
+                                  ? 'border border-emerald-500/20 bg-emerald-500/15 text-emerald-600'
                                   : 'border border-indigo-500/20 bg-indigo-500/15 text-indigo-600'
                             )}
                           >
-                            {msg.audience === 'savers' ? 'savers' : msg.type}
+                            {msg.type}
                           </span>
-                          <p className="truncate pr-4 font-semibold text-slate-700 dark:text-zinc-200">{msg.text}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate pr-4 font-semibold text-slate-700 dark:text-zinc-200">{msg.text}</p>
+                            {msg.targetCardId ? (
+                              <p className="truncate text-[10px] font-bold text-slate-400">
+                                {cardNameById.get(msg.targetCardId) || 'Card'}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
                           <span className="text-[10px] font-bold text-slate-400">

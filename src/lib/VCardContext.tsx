@@ -3,7 +3,9 @@
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
+import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
 import { DEFAULT_EDITOR_SECTION, buildEditorPath } from '@/lib/vcardEditorRoutes'
+import { storageKeyForEditorNavOrder } from '@/lib/vcardNavbar'
 import { loadAndSyncSectionPosts, mapApiPostsToSectionPosts } from '@/lib/vcardPostsSync'
 import { VCARD_SECTION_SCHEMAS } from '@/lib/vcardSectionSchemas'
 import { skillGroupsToApiItems } from '@/lib/vcardSkills'
@@ -79,7 +81,7 @@ interface VCardContextType {
   avatarImageUrl: string
   updateData: (path: string, value: unknown) => void
   updateMeta: (patch: { avatarImageUrl?: string }) => void
-  saveVCard: () => Promise<void>
+  saveVCard: (opts?: { skipNavigate?: boolean }) => Promise<string | void>
   flushSave: () => Promise<void>
   saveStatus: VCardSaveStatus
   saveError: string | null
@@ -704,37 +706,76 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     [persistDirtyBuckets]
   )
 
-  const saveVCard = useCallback(async () => {
-    if (isCreateMode) {
-      const draft = createDraftRef.current
-      const slug = (draft.slug || '').trim()
-      const name = (draft.personal?.fullName || '').trim()
-      if (!name) throw new Error('Please enter your name before creating the vCard.')
-      if (!slug) throw new Error('Please set a public URL slug before creating the vCard.')
+  const saveVCard = useCallback(
+    async (opts?: { skipNavigate?: boolean }) => {
+      if (isCreateMode) {
+        const draftRaw = createDraftRef.current
+        let draft = draftRaw
+        try {
+          const rawOrder = localStorage.getItem(storageKeyForEditorNavOrder('draft'))
+          const parsed = rawOrder ? (JSON.parse(rawOrder) as string[]) : null
+          const order =
+            (Array.isArray(draft.displaySettings?.editorNavOrder) && draft.displaySettings.editorNavOrder.length
+              ? draft.displaySettings.editorNavOrder
+              : null) || (Array.isArray(parsed) && parsed.length ? parsed : null)
+          if (order?.length) {
+            draft = {
+              ...draft,
+              displaySettings: applyEnabledNavOrderToDisplaySettings(getDisplaySettingsFromVCard(draft), order),
+            }
+            createDraftRef.current = draft
+            setCreateDraft(draft)
+          }
+        } catch {
+          /* ignore order hydrate */
+        }
 
-      const created = await createProfile(mapVCardDataToProfilePayload(draft)).unwrap()
-      const mapped = mapApiProfileToVCardRecord(created)
-      const seed = {
-        ...toVCardData(mapped),
-        ...draft,
-        slug: mapped.slug || draft.slug,
+        const slug = (draft.slug || '').trim()
+        const name = (draft.personal?.fullName || '').trim()
+        if (!name) throw new Error('Please enter your name before creating the vCard.')
+        if (!slug) throw new Error('Please set a public URL slug before creating the vCard.')
+
+        const created = await createProfile({
+          ...mapVCardDataToProfilePayload(draft),
+          isDraft: true,
+          isPublic: false,
+        }).unwrap()
+        const mapped = mapApiProfileToVCardRecord(created)
+        const seed = {
+          ...toVCardData(mapped),
+          ...draft,
+          slug: mapped.slug || draft.slug,
+          displaySettings: draft.displaySettings || mapped.displaySettings,
+        }
+        dispatch(addVCard({ id: mapped.id, seed }))
+        editDataRef.current = seed
+
+        await persistCollections(created.id, draft)
+        invalidatePublicTags()
+
+        try {
+          const order = seed.displaySettings?.editorNavOrder
+          if (Array.isArray(order) && order.length) {
+            localStorage.setItem(storageKeyForEditorNavOrder(created.id), JSON.stringify(order))
+          }
+        } catch {
+          /* ignore */
+        }
+
+        if (!opts?.skipNavigate) {
+          router.push(buildEditorPath('/vcards/edit', { sectionId: DEFAULT_EDITOR_SECTION }, created.id))
+        }
+        return created.id as string
       }
-      dispatch(addVCard({ id: mapped.id, seed }))
-      editDataRef.current = seed
 
-      await persistCollections(created.id, draft)
-      invalidatePublicTags()
-
-      router.push(buildEditorPath('/vcards/edit', { sectionId: DEFAULT_EDITOR_SECTION }, created.id))
-      return
-    }
-
-    if (!cardId) throw new Error('No vCard selected')
-    for (const bucket of ALL_DIRTY_BUCKETS) dirtyBucketsRef.current.add(bucket)
-    saveGateRef.current.dirty = true
-    setSaveStatus('dirty')
-    await flushSave()
-  }, [isCreateMode, cardId, createProfile, persistCollections, invalidatePublicTags, dispatch, router, flushSave])
+      if (!cardId) throw new Error('No vCard selected')
+      for (const bucket of ALL_DIRTY_BUCKETS) dirtyBucketsRef.current.add(bucket)
+      saveGateRef.current.dirty = true
+      setSaveStatus('dirty')
+      await flushSave()
+    },
+    [isCreateMode, cardId, createProfile, persistCollections, invalidatePublicTags, dispatch, router, flushSave]
+  )
 
   const value = useMemo(
     () => ({

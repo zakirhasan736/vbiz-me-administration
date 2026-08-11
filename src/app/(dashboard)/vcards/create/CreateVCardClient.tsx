@@ -11,7 +11,7 @@ import {
 } from '@/lib/vcardEditorRoutes'
 import { useGetProfilesQuery } from '@/redux/features/profiles/profiles.api'
 import VCardEdit from '@/views/VCardEdit'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef } from 'react'
 
 type Props = {
@@ -20,6 +20,12 @@ type Props = {
 
 export default function CreateVCardClient({ segments }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const agentQuery = searchParams.get('agent') === '1' ? 'agent=1' : ''
+  const resetParam = searchParams.get('reset')
+  const resetQuery = resetParam ? `reset=${encodeURIComponent(resetParam)}` : ''
+  const createQuery = [agentQuery, resetQuery].filter(Boolean).join('&')
+  const createQuerySuffix = createQuery ? `?${createQuery}` : ''
   const role = useAppSelector((state) => state.user.user?.role)
   const { data: profilesResult, isLoading } = useGetProfilesQuery({ limit: 100 })
   const parsed = parseEditorSegments(segments)
@@ -57,14 +63,23 @@ export default function CreateVCardClient({ segments }: Props) {
     }
 
     if (!segments || segments.length === 0) {
-      router.replace(buildEditorPath('/vcards/create', { sectionId: DEFAULT_EDITOR_SECTION }))
+      router.replace(`${buildEditorPath('/vcards/create', { sectionId: DEFAULT_EDITOR_SECTION })}${createQuerySuffix}`)
       return
     }
 
     if (!isValidEditorSection(parsed.sectionId)) {
-      router.replace(buildEditorPath('/vcards/create', { sectionId: DEFAULT_EDITOR_SECTION }))
+      router.replace(`${buildEditorPath('/vcards/create', { sectionId: DEFAULT_EDITOR_SECTION })}${createQuerySuffix}`)
     }
-  }, [blockedByCorporateLimit, blockedByPersonalLimit, capacity, parsed.sectionId, profiles, router, segments])
+  }, [
+    createQuerySuffix,
+    blockedByCorporateLimit,
+    blockedByPersonalLimit,
+    capacity,
+    parsed.sectionId,
+    profiles,
+    router,
+    segments,
+  ])
 
   if (blockedByLimit || isLoading) {
     return (

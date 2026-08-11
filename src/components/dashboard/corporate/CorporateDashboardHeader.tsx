@@ -1,9 +1,9 @@
 'use client'
 
+import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import type { DashboardSocialChannel } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import { AlertCircle, Download, MessageCircle, Plus, type LucideIcon } from 'lucide-react'
-import Link from 'next/link'
 
 type CorporateDashboardHeaderProps = {
   quotaLimit: number
@@ -65,12 +65,17 @@ export function CorporateDashboardHeader({
           <HeaderButton icon={MessageCircle} label="Feedback" onClick={onFeedback} iconClass="text-emerald-500" />
           <HeaderButton icon={AlertCircle} label="Contact Support" onClick={onSupport} iconClass="text-indigo-400" />
           {canCreate ? (
-            <Link
-              href="/vcards/create/home"
-              className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-bold text-slate-900 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
-            >
-              <Plus className="h-4 w-4" /> Create Corporate Card
-            </Link>
+            <CreateCardLauncher>
+              {(open) => (
+                <button
+                  type="button"
+                  onClick={open}
+                  className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-bold text-slate-900 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+                >
+                  <Plus className="h-4 w-4" /> Create Corporate Card
+                </button>
+              )}
+            </CreateCardLauncher>
           ) : (
             <button
               type="button"
@@ -136,12 +141,17 @@ export function CorporateEmptyState({
         sharing features.
       </p>
       {canCreate ? (
-        <Link
-          href="/vcards/create/home"
-          className="bg-primary-600 hover:bg-primary-700 shadow-primary-500/20 flex items-center gap-2 rounded-xl px-8 py-3.5 text-[14px] font-bold text-white shadow-sm transition-all active:scale-95"
-        >
-          <Plus className="h-5 w-5" /> Add New VCard
-        </Link>
+        <CreateCardLauncher>
+          {(open) => (
+            <button
+              type="button"
+              onClick={open}
+              className="bg-primary-600 hover:bg-primary-700 shadow-primary-500/20 flex items-center gap-2 rounded-xl px-8 py-3.5 text-[14px] font-bold text-white shadow-sm transition-all active:scale-95"
+            >
+              <Plus className="h-5 w-5" /> Add New VCard
+            </button>
+          )}
+        </CreateCardLauncher>
       ) : (
         <button
           type="button"

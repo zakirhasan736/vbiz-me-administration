@@ -64,8 +64,10 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
       </div>
 
       <AiDropFillZone
+        section="blogs"
+        currentDraft={{ blogs: posts }}
         accent="violet"
-        hint="Drop or paste posts — headline then summary; separate with blank lines or ---"
+        hint="Drop or paste posts — AI extracts headlines & summaries (OCR for images)"
         onParsed={applyParsed}
       />
 

@@ -85,7 +85,9 @@ export function ServicesEditorPanel({
       </div>
 
       <AiDropFillZone
-        hint="Drop or paste service list — each block becomes a service (title + description)"
+        section="services"
+        currentDraft={{ services }}
+        hint="Drop or paste service list — AI fills services (title + description), OCR for images"
         onParsed={applyParsed}
       />
 

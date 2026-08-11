@@ -21,9 +21,21 @@ function pickSocials(row: AdminProfileRow): Record<string, string> {
   return socials
 }
 
+/** True when the card belongs under Draft (flag or legacy status name). */
+export function isAdminProfileDraft(row: Pick<AdminProfileRow, 'isDraft' | 'status'>): boolean {
+  if (row.isDraft === true) return true
+  return (
+    String(row.status?.name || '')
+      .trim()
+      .toLowerCase() === 'draft'
+  )
+}
+
 /** Map admin list API row → AdminCard shape used by directory UI. */
 export function mapAdminProfileRowToCard(row: AdminProfileRow): AdminCard {
-  const statusName = (row.status?.name || 'active').toLowerCase()
+  const isDraft = isAdminProfileDraft(row)
+  const rawStatus = (row.status?.name || 'active').toLowerCase()
+  const statusName = isDraft ? 'draft' : rawStatus === 'draft' ? 'active' : rawStatus
   const professionName = row.profession?.name || ''
   const views = Number(row.viewCount) || 0
   const clicks = Number(row.clickCount) || 0
@@ -36,6 +48,7 @@ export function mapAdminProfileRowToCard(row: AdminProfileRow): AdminCard {
     ownerId: row.user?.id,
     status: statusName,
     isPublic: row.isPublic,
+    isDraft,
     personal: {
       fullName: row.name,
       email: row.email,

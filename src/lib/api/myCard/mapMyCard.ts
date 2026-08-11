@@ -348,6 +348,7 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
   return {
     slug: card.profile.slug,
     isPublic: card.features.is_public !== false,
+    isDraft: card.features.is_draft === true,
     personal: mapPersonal(card),
     theme: resolveTheme(card),
     appearance: {

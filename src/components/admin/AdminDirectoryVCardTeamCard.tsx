@@ -292,6 +292,8 @@ export default function VCardTeamCard({
                 'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase',
                 status === 'active' &&
                   'border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
+                status === 'draft' &&
+                  'border-amber-500/20 bg-amber-500/5 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
                 status === 'inactive' &&
                   'border-slate-500/20 bg-slate-500/5 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400',
                 status === 'suspended' &&
@@ -302,6 +304,7 @@ export default function VCardTeamCard({
                 className={cn(
                   'h-1.5 w-1.5 rounded-full',
                   status === 'active' && 'bg-emerald-500',
+                  status === 'draft' && 'bg-amber-500',
                   status === 'inactive' && 'bg-slate-400',
                   status === 'suspended' && 'bg-rose-500'
                 )}

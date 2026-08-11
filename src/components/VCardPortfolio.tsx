@@ -85,8 +85,10 @@ export function TabPortfolio() {
       </div>
 
       <AiDropFillZone
+        section="portfolio"
+        currentDraft={{ portfolio: portfolios }}
         accent="violet"
-        hint="Paste projects as title then description — blank line or --- between each"
+        hint="Paste or upload projects — AI fills title + description (OCR for images)"
         onParsed={applyParsed}
       />
 

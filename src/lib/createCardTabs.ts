@@ -25,39 +25,112 @@ export type CreateCardTabDef = {
   icon: LucideIcon
   description: string
   pinEnd?: boolean
+  /** AI should try to extract content for this tab when sources support it */
+  aiPriority?: 'core' | 'content' | 'optional'
 }
 
-/** Backoffice DEFAULT_ENABLED_TABS order — used for tour activateTab + defaults. */
+/** Always last two tabs on every card (order fixed). */
+export const PINNED_END_NAV_IDS = ['global-connection', 'my-info'] as const
+
+/** Backoffice DEFAULT_ENABLED_TABS order — used for tour activateTab + manual create defaults. */
 export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
-  { name: 'Personal', navId: 'home', icon: User, description: 'Profile, contact details, media & socials' },
-  { name: 'Education', navId: 'education', icon: GraduationCap, description: 'Degrees, schools, and years' },
-  { name: 'Experience', navId: 'work', icon: Briefcase, description: 'Work history and roles' },
-  { name: 'Skill', navId: 'skills', icon: Star, description: 'Skill groups and proficiency' },
-  { name: 'Services', navId: 'services', icon: Layers, description: 'Offerings, pricing, and delivery' },
-  { name: 'Reviews', navId: 'reviews', icon: MessageSquareQuote, description: 'Guest & client reviews' },
-  { name: 'News/Blogs', navId: 'blog', icon: Newspaper, description: 'Articles, news, and blog posts' },
-  { name: 'Profile', navId: 'profile', icon: IdCard, description: 'Public profile headline, bio & photo' },
-  { name: 'Portfolio', navId: 'gallery', icon: ImageIcon, description: 'Projects and case studies' },
+  {
+    name: 'Personal',
+    navId: 'home',
+    icon: User,
+    description: 'Profile, contact details, media & socials',
+    aiPriority: 'core',
+  },
+  {
+    name: 'Education',
+    navId: 'education',
+    icon: GraduationCap,
+    description: 'Degrees, schools, and years',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Experience',
+    navId: 'work',
+    icon: Briefcase,
+    description: 'Work history and roles',
+    aiPriority: 'content',
+  },
+  { name: 'Skill', navId: 'skills', icon: Star, description: 'Skill groups and proficiency', aiPriority: 'content' },
+  {
+    name: 'Services',
+    navId: 'services',
+    icon: Layers,
+    description: 'Offerings, pricing, and delivery',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Reviews',
+    navId: 'reviews',
+    icon: MessageSquareQuote,
+    description: 'Guest & client reviews',
+    aiPriority: 'content',
+  },
+  {
+    name: 'News/Blogs',
+    navId: 'blog',
+    icon: Newspaper,
+    description: 'Articles, news, and blog posts',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Profile',
+    navId: 'profile',
+    icon: IdCard,
+    description: 'Public profile headline, bio & photo',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Portfolio',
+    navId: 'gallery',
+    icon: ImageIcon,
+    description: 'Projects and case studies',
+    aiPriority: 'content',
+  },
+  {
+    name: 'FAQ',
+    navId: 'faq',
+    icon: MessageSquareQuote,
+    description: 'Common questions and answers',
+    aiPriority: 'content',
+  },
   {
     name: 'Certifications/Licenses',
     navId: 'certificates',
     icon: BadgeCheck,
     description: 'Credentials & licenses with documents',
+    aiPriority: 'content',
   },
-  { name: 'Resume', navId: 'resume', icon: FileText, description: 'Resume / CV document upload' },
-  { name: 'Content & media', navId: 'content-media', icon: Images, description: 'Gallery, videos, and media library' },
+  {
+    name: 'Resume',
+    navId: 'resume',
+    icon: FileText,
+    description: 'Resume / CV document upload',
+    aiPriority: 'optional',
+  },
+  {
+    name: 'Content & media',
+    navId: 'content-media',
+    icon: Images,
+    description: 'Gallery, videos, and media library',
+    aiPriority: 'optional',
+  },
   {
     name: 'Global Connection',
     navId: 'global-connection',
     icon: Globe2,
-    description: 'Shared global contact directory',
+    description: 'Shared global contact directory (same list for all cards)',
     pinEnd: true,
   },
   {
     name: 'My Info',
     navId: 'my-info',
     icon: Contact,
-    description: 'Call / text / email actions on public card',
+    description: 'Call / text / email actions from personal info',
     pinEnd: true,
   },
 ]
@@ -84,6 +157,43 @@ export function getCreateCardDisplayLabel(navId: string, fallback: string): stri
   return CREATE_CARD_TAB_BY_NAV_ID[navId]?.name ?? fallback
 }
 
+/** Full default set for manual create. */
 export function getDefaultCreateCardNavIds(): string[] {
   return CREATE_CARD_DEFAULT_TABS.map((t) => t.navId)
+}
+
+/**
+ * Minimal seed for AI create: Personal + pinned end tabs only.
+ * Extra tabs come only from AI suggestions / extracted content.
+ */
+export function getAiSeedCreateCardNavIds(): string[] {
+  return ['home', ...PINNED_END_NAV_IDS]
+}
+
+/** Tabs AI should try to fill when source data exists. */
+export function getAiContentCandidateNavIds(): string[] {
+  return CREATE_CARD_DEFAULT_TABS.filter((t) => t.aiPriority === 'core' || t.aiPriority === 'content').map(
+    (t) => t.navId
+  )
+}
+
+/**
+ * Keep Global Connection second-to-last and My Info last.
+ * Dedupes and drops unknown empties.
+ */
+export function normalizeNavOrderWithPinnedEnds(navIds: string[]): string[] {
+  const pinned = new Set<string>(PINNED_END_NAV_IDS)
+  const middle = navIds.filter((id) => id && !pinned.has(id))
+  const uniqueMiddle = Array.from(new Set(middle.length ? middle : ['home']))
+  if (!uniqueMiddle.includes('home')) uniqueMiddle.unshift('home')
+  return [...uniqueMiddle, ...PINNED_END_NAV_IDS]
+}
+
+/** Human-readable catalog for AI prompts / chat. */
+export function getCardTabCatalogForAi(): string {
+  return CREATE_CARD_DEFAULT_TABS.map((t) => {
+    const pin = t.pinEnd ? ' [ALWAYS LAST — do not remove]' : ''
+    const prio = t.aiPriority ? ` (AI ${t.aiPriority})` : ''
+    return `- ${t.name} (navId=${t.navId})${prio}${pin}: ${t.description}`
+  }).join('\n')
 }

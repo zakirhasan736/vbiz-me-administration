@@ -127,7 +127,7 @@ export function VCardDetailSidebar({
       : weekViews > 0
         ? ((weekClicks / weekViews) * 100).toFixed(1)
         : '0.0'
-  const status = card.isActive ? 'active' : 'inactive'
+  const status = card.isDraft ? 'draft' : card.isActive ? 'active' : 'inactive'
   const slug = card.slug?.trim() || 'profile'
   const publicPath = getVCardPublicPath(slug)
   const publicUrl = getVCardPublicUrl(slug) || publicPath
@@ -156,7 +156,7 @@ export function VCardDetailSidebar({
   }
 
   const handlePauseToggle = () => {
-    onToggleStatus?.(card, status === 'active' ? 'inactive' : 'active')
+    onToggleStatus?.(card, status === 'active' ? 'draft' : 'active')
   }
 
   const panel = (
@@ -187,6 +187,8 @@ export function VCardDetailSidebar({
                     'rounded-md border px-2 py-0.5 text-[10px] font-black uppercase',
                     status === 'active' &&
                       'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+                    status === 'draft' &&
+                      'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
                     status === 'inactive' &&
                       'border-slate-200 bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300'
                   )}
@@ -365,7 +367,7 @@ export function VCardDetailSidebar({
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200"
                 >
                   <Shield className="h-3.5 w-3.5" />
-                  {status === 'active' ? 'Pause' : 'Activate'}
+                  {status === 'active' ? 'Move to draft' : 'Activate'}
                 </button>
               )}
             </div>

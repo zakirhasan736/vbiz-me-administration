@@ -5,13 +5,15 @@ import { ModalPortal } from '@/components/ModalPortal'
 import VCardTeamCard from '@/components/admin/AdminDirectoryVCardTeamCard'
 import VCardDetailSidebar, { VCardTrendsPopup } from '@/components/admin/AdminVCardDetailSidebar'
 import VCardQrModal from '@/components/admin/AdminVCardQrModal'
+import { CardLifecycleTabs } from '@/components/dashboard/vcard/CardLifecycleTabs'
+import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { type AdminCard } from '@/lib/admin/adminCardShape'
 import { mapAdminProfileRowToCard } from '@/lib/admin/mapAdminProfileRow'
 import { appendAuditLog } from '@/lib/mockStore'
-import { notifyOwners } from '@/lib/notifications'
+import { notifyCardOwner } from '@/lib/notifications'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
@@ -66,6 +68,7 @@ export default function AdminVCards() {
   const [debouncedQ, setDebouncedQ] = useState('')
   const [professionFilter, setProfessionFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [lifecycleTab, setLifecycleTab] = useState<'active' | 'draft'>('active')
   const [page, setPage] = useState(0)
   const [showAll, setShowAll] = useState(false)
   const listTopRef = useRef<HTMLDivElement>(null)
@@ -89,11 +92,12 @@ export default function AdminVCards() {
       q: debouncedQ || undefined,
       status: statusFilter !== 'All' ? statusFilter : undefined,
       profession: professionFilter !== 'All' ? professionFilter : undefined,
+      lifecycle: lifecycleTab,
       skip: showAll ? 0 : page * PAGE_SIZE,
       limit: PAGE_SIZE,
       showAll,
     }),
-    [debouncedQ, statusFilter, professionFilter, page, showAll]
+    [debouncedQ, statusFilter, professionFilter, lifecycleTab, page, showAll]
   )
 
   const {
@@ -105,8 +109,16 @@ export default function AdminVCards() {
   } = useGetAdminProfilesQuery(listQuery)
 
   const { data: filterOptions } = useGetAdminProfileFiltersQuery()
+  const { data: activeMeta } = useGetAdminProfilesQuery({ lifecycle: 'active', limit: 1, skip: 0 })
+  const { data: draftMeta } = useGetAdminProfilesQuery({ lifecycle: 'draft', limit: 1, skip: 0 })
+  const activeCount = activeMeta?.total ?? 0
+  const draftCount = draftMeta?.total ?? 0
 
-  const cards = useMemo(() => (listData?.items || []).map(mapAdminProfileRowToCard), [listData?.items])
+  const cards = useMemo(() => {
+    const mapped = (listData?.items || []).map(mapAdminProfileRowToCard)
+    // Keep Active / Draft tabs mutually exclusive even if API cache is stale
+    return mapped.filter((c) => (lifecycleTab === 'draft' ? Boolean(c.isDraft) : !c.isDraft))
+  }, [listData?.items, lifecycleTab])
 
   const total = listData?.total ?? 0
   const totalPages = showAll ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -264,8 +276,9 @@ export default function AdminVCards() {
       q: debouncedQ || undefined,
       status: statusFilter !== 'All' ? statusFilter : undefined,
       profession: professionFilter !== 'All' ? professionFilter : undefined,
+      lifecycle: lifecycleTab,
     }),
-    [debouncedQ, statusFilter, professionFilter]
+    [debouncedQ, statusFilter, professionFilter, lifecycleTab]
   )
 
   const handleFilteredExport = async () => {
@@ -342,14 +355,20 @@ export default function AdminVCards() {
 
     appendAuditLog({
       action: 'Individual Backoffice Notice',
-      details: `Dispatched customized notice banner to ${ownerName}`,
+      details: `Dispatched customized notice banner to ${ownerName} (${selectedCard.id})`,
       type: 'settings',
     })
     if (cardNoticeText.trim()) {
-      notifyOwners({
+      const ownerAudience =
+        selectedCard.ownerRole === 'corporate-owner' || selectedCard.companyUserRole === 'corporate-owner'
+          ? 'corporate'
+          : 'single'
+      notifyCardOwner({
+        ownerAudience,
         category: 'system',
         title: 'Card-specific announcement',
         body: `[${cardNoticeType.toUpperCase()}] ${ownerName}: ${cardNoticeText.trim().slice(0, 120)}`,
+        profileId: selectedCard.id,
         forceBrowser: true,
       })
     }
@@ -374,10 +393,16 @@ export default function AdminVCards() {
         setIsScheduleModalOpen(false)
       }, 1500)
 
-      notifyOwners({
+      const ownerAudience =
+        selectedCard.ownerRole === 'corporate-owner' || selectedCard.companyUserRole === 'corporate-owner'
+          ? 'corporate'
+          : 'single'
+      notifyCardOwner({
+        ownerAudience,
         category: 'event',
         title: 'Card schedule booked',
         body: `${meetingType} with ${hostName} on ${meetingDate} at ${meetingTime}`,
+        profileId: selectedCard.id,
         forceBrowser: true,
       })
     } catch {
@@ -417,6 +442,17 @@ export default function AdminVCards() {
             Displaying {cards.length} of {total} verified digital cards
             {isListFetching ? ' · refreshing…' : ''}.
           </p>
+          <div className="mt-3">
+            <CardLifecycleTabs
+              value={lifecycleTab}
+              onChange={(tab) => {
+                setLifecycleTab(tab)
+                resetListState()
+              }}
+              activeCount={activeCount}
+              draftCount={draftCount}
+            />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
           <button
@@ -427,15 +463,20 @@ export default function AdminVCards() {
           >
             <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export CSV'}
           </button>
-          <button
-            onClick={() => {
-              setCurrentEditingCardId(null)
-              router.push('/vcards/create/home')
-            }}
-            className="flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm shadow-indigo-600/10 transition-all hover:bg-indigo-700 active:scale-[0.98]"
-          >
-            <Plus className="h-4 w-4" /> Create New Card
-          </button>
+          <CreateCardLauncher>
+            {(open) => (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentEditingCardId(null)
+                  open()
+                }}
+                className="flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm shadow-indigo-600/10 transition-all hover:bg-indigo-700 active:scale-[0.98]"
+              >
+                <Plus className="h-4 w-4" /> Create New Card
+              </button>
+            )}
+          </CreateCardLauncher>
         </div>
       </div>
 
@@ -483,11 +524,13 @@ export default function AdminVCards() {
             className="w-full cursor-pointer bg-transparent text-xs font-black text-slate-500 uppercase outline-none dark:text-slate-300"
           >
             <option value="All">All Statuses</option>
-            {(filterOptions?.statuses || []).map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
-            ))}
+            {(filterOptions?.statuses || [])
+              .filter((s) => s.name.trim().toLowerCase() !== 'draft')
+              .map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
           </select>
         </div>
 
@@ -607,26 +650,45 @@ export default function AdminVCards() {
 
           {!isListLoading && cards.length === 0 && (
             <div className="col-span-full rounded-2xl border border-dashed border-slate-200 px-6 py-16 text-center dark:border-white/10">
-              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No cards match these filters.</p>
-              <p className="mt-1 text-xs font-semibold text-slate-400">Clear filters or create a new card.</p>
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                {lifecycleTab === 'draft' ? 'No draft cards.' : 'No active cards match these filters.'}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-400">
+                {lifecycleTab === 'draft'
+                  ? 'Incomplete cards appear here until they are published.'
+                  : 'Clear filters, check Draft, or create a new card.'}
+              </p>
             </div>
           )}
 
-          <div
-            onClick={() => {
-              setCurrentEditingCardId(null)
-              router.push('/vcards/create/home')
-            }}
-            className="group flex min-h-[350px] cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/[0.02]"
-          >
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
-              <Plus className="h-6 w-6" strokeWidth={2.5} />
-            </div>
-            <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
-            <p className="mt-1 max-w-[200px] text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-              Add a dynamic digital business card to your directory.
-            </p>
-          </div>
+          <CreateCardLauncher>
+            {(open) => (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setCurrentEditingCardId(null)
+                  open()
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setCurrentEditingCardId(null)
+                    open()
+                  }
+                }}
+                className="group flex min-h-[350px] cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/[0.02]"
+              >
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
+                  <Plus className="h-6 w-6" strokeWidth={2.5} />
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
+                <p className="mt-1 max-w-[200px] text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                  Add a dynamic digital business card to your directory.
+                </p>
+              </div>
+            )}
+          </CreateCardLauncher>
         </div>
       )}
 

@@ -159,6 +159,8 @@ export type VCardSkillGroup = {
 export type VCardData = {
   slug: string
   isPublic: boolean
+  /** Incomplete / unpublished cards appear under Draft tabs. */
+  isDraft: boolean
   personal: VCardPersonal
   theme: VCardTheme
   /** Template, layout, and button styles for this card (from account defaults on create). */
@@ -194,6 +196,7 @@ export type VCardListMeta = {
   /** Dashboard card cover (Background Video/Image) */
   backgroundImageUrl: string
   isActive: boolean
+  isDraft: boolean
 }
 
 export type VCardRecord = VCardData &
@@ -207,6 +210,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
   const base: VCardData = {
     slug: '',
     isPublic: true,
+    isDraft: true,
     personal: {
       fullName: '',
       email: '',

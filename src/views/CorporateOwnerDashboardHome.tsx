@@ -26,6 +26,13 @@ import {
   VCardTrendsPopup,
 } from '@/components/dashboard/vcard'
 import { useAppSelector } from '@/hooks/redux'
+import {
+  clearLocalCardNotice,
+  noticeForCard,
+  noticeTypeFromTeamNotice,
+  readLocalCardNotice,
+  writeLocalCardNotice,
+} from '@/lib/cardNotice'
 import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
 import { notify } from '@/lib/toast/toast'
@@ -33,6 +40,8 @@ import {
   mapApiProfileToVCardRecord,
   mapVCardDataToProfilePayload,
   useCreateProfileMutation,
+  useCreateTeamNoticeMutation,
+  useDeleteTeamNoticeMutation,
   useGetContactsQuery,
   useGetDashboardStatsQuery,
   useGetProfilesQuery,
@@ -65,6 +74,8 @@ export default function CorporateOwnerDashboardHome() {
   const { data: socialClicksByCardRows = [] } = useGetSocialClicksByCardQuery()
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
   const [createProfile] = useCreateProfileMutation()
+  const [createTeamNotice] = useCreateTeamNoticeMutation()
+  const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
 
   const liveCards = useMemo(
     () => (profilesResult?.items ?? []).map(mapApiProfileToVCardRecord),
@@ -180,13 +191,15 @@ export default function CorporateOwnerDashboardHome() {
     setDraggedIndex(null)
   }
 
-  const noticeInitialText =
-    noticeCard && typeof window !== 'undefined' ? localStorage.getItem(`notice_${noticeCard.id}`) || '' : ''
-  const noticeInitialType = (
-    noticeCard && typeof window !== 'undefined'
-      ? localStorage.getItem(`notice_type_${noticeCard.id}`) || 'info'
-      : 'info'
-  ) as NoticeType
+  const noticeInitialText = noticeCard
+    ? noticeForCard(noticeCard.id, teamNotices)?.text || readLocalCardNotice(noticeCard.id).text
+    : ''
+  const noticeServer = noticeCard ? noticeForCard(noticeCard.id, teamNotices) : null
+  const noticeInitialType: NoticeType = noticeCard
+    ? noticeServer
+      ? noticeTypeFromTeamNotice(noticeServer)
+      : readLocalCardNotice(noticeCard.id).type
+    : 'info'
 
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-10 duration-500">
@@ -314,20 +327,46 @@ export default function CorporateOwnerDashboardHome() {
         onClose={() => setNoticeCard(null)}
         onSave={(text, type) => {
           if (!noticeCard) return
-          if (text) {
-            localStorage.setItem(`notice_${noticeCard.id}`, text)
-            localStorage.setItem(`notice_type_${noticeCard.id}`, type)
-          } else {
-            localStorage.removeItem(`notice_${noticeCard.id}`)
-            localStorage.removeItem(`notice_type_${noticeCard.id}`)
-          }
-          setNoticeVersion((n) => n + 1)
+          void (async () => {
+            try {
+              if (text.trim()) {
+                writeLocalCardNotice(noticeCard.id, text, type)
+                await createTeamNotice({
+                  text: text.trim(),
+                  type,
+                  audience: 'all',
+                  targetProfileId: noticeCard.id,
+                }).unwrap()
+                notify.success(`Notice saved for ${noticeCard.personal.fullName || 'this card'} only.`)
+              } else {
+                clearLocalCardNotice(noticeCard.id)
+                const existing = noticeForCard(noticeCard.id, teamNotices)
+                if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
+              }
+              setNoticeVersion((n) => n + 1)
+            } catch (e) {
+              const message =
+                (e as { data?: { message?: string } })?.data?.message ||
+                (e as Error)?.message ||
+                'Could not save card notice.'
+              notify.error(message)
+            }
+          })()
         }}
         onClear={() => {
           if (!noticeCard) return
-          localStorage.removeItem(`notice_${noticeCard.id}`)
-          localStorage.removeItem(`notice_type_${noticeCard.id}`)
-          setNoticeVersion((n) => n + 1)
+          void (async () => {
+            clearLocalCardNotice(noticeCard.id)
+            const existing = noticeForCard(noticeCard.id, teamNotices)
+            if (existing?.id) {
+              try {
+                await deleteTeamNotice(existing.id).unwrap()
+              } catch {
+                /* ignore */
+              }
+            }
+            setNoticeVersion((n) => n + 1)
+          })()
         }}
       />
 

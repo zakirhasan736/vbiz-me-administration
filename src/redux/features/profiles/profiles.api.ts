@@ -27,6 +27,7 @@ export type ApiProfile = {
   dob?: string | null
   template?: string
   isPublic?: boolean
+  isDraft?: boolean
   viewCount?: number
   clickCount?: number
   saveCount?: number
@@ -206,7 +207,7 @@ export type DashboardStatsQuery = {
 export type ProfilesListQuery = {
   scope?: 'created'
   q?: string
-  status?: 'all' | 'active' | 'inactive' | 'suspended'
+  status?: 'all' | 'active' | 'inactive' | 'suspended' | 'draft'
   sortBy?: 'createdAt' | 'updatedAt' | 'name' | 'viewCount'
   sortDir?: 'asc' | 'desc'
   skip?: number
@@ -235,7 +236,7 @@ export type ProfileContact = {
 export type TeamNotice = {
   id: string
   text: string
-  type: 'broadcast' | 'system'
+  type: 'broadcast' | 'system' | 'info' | 'warning' | 'success'
   audience: 'all' | 'savers'
   targetCardId?: string
   recipientCount?: number
@@ -395,6 +396,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   const data = createDefaultVCardData({
     slug: profile.slug || '',
     isPublic: profile.isPublic ?? true,
+    isDraft: profile.isDraft === true,
     personal: {
       fullName: profile.name,
       email: profile.email,
@@ -498,7 +500,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     socialClicks: profile.socialClicks || [],
     avatarImageUrl,
     backgroundImageUrl,
-    isActive: profile.isPublic !== false,
+    isActive: profile.isDraft !== true && profile.isPublic !== false,
+    isDraft: profile.isDraft === true,
   }
 }
 
@@ -523,7 +526,8 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     about: data.personal.about,
     prof: data.personal.profession,
     dob: dob || null,
-    isPublic: data.isPublic,
+    isPublic: data.isDraft ? false : data.isPublic,
+    isDraft: data.isDraft !== false,
     avatar,
     template:
       data.appearance?.profileTemplate === 'v1'
@@ -860,7 +864,7 @@ const profilesApi = api.injectEndpoints({
       TeamNotice,
       {
         text: string
-        type: 'broadcast' | 'system'
+        type: 'broadcast' | 'system' | 'info' | 'warning' | 'success'
         audience: 'all' | 'savers'
         targetProfileId?: string
       }

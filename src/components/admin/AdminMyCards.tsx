@@ -4,7 +4,9 @@ import VCardTeamCard from '@/components/admin/AdminDirectoryVCardTeamCard'
 import VCardDetailSidebar, { VCardTrendsPopup } from '@/components/admin/AdminVCardDetailSidebar'
 import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
+import { CardLifecycleTabs, type CardLifecycleTab } from '@/components/dashboard/vcard/CardLifecycleTabs'
 import { PromptModal } from '@/components/PromptModal'
+import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppSelector } from '@/hooks/redux'
 import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
@@ -69,6 +71,7 @@ export default function AdminMyCards() {
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
   const [qrModalTitle, setQrModalTitle] = useState('vCard QR Code')
   const [noticeCardId, setNoticeCardId] = useState<string | null>(null)
+  const [lifecycleTab, setLifecycleTab] = useState<CardLifecycleTab>('active')
 
   const createdProfiles = useMemo(() => createdProfilesResult?.items ?? [], [createdProfilesResult?.items])
 
@@ -121,6 +124,13 @@ export default function AdminMyCards() {
     )
   }, [createdProfiles, ownerId])
 
+  const activeCount = useMemo(() => myCards.filter((c) => !c.isDraft).length, [myCards])
+  const draftCount = useMemo(() => myCards.filter((c) => Boolean(c.isDraft)).length, [myCards])
+  const visibleCards = useMemo(
+    () => myCards.filter((c) => (lifecycleTab === 'draft' ? Boolean(c.isDraft) : !c.isDraft)),
+    [myCards, lifecycleTab]
+  )
+
   const socialChannels = useMemo(() => {
     if (stats?.socialChannels?.length) return stats.socialChannels
     return (Object.keys(CHANNEL_UI) as DashboardSocialChannel[]).map((channel) => ({
@@ -144,25 +154,8 @@ export default function AdminMyCards() {
 
   const socialTotal = socialChannels.reduce((sum, row) => sum + (row.count || 0), 0) || Number(stats?.shares || 0)
 
-  const handleCreate = async () => {
-    await createCorporateCard({
-      personal: {
-        fullName: 'Admin Team Member',
-        email: user?.email || reduxUser?.email || 'team@vbiz.me',
-        dob: '',
-        gender: 'Male',
-        relationship: 'Single',
-        profession: 'Administration',
-        designation: 'Team Member',
-        company: 'vBiz Admin',
-        phone: '',
-        whatsapp: '',
-        address: '',
-        about: '',
-        department: 'Admin',
-      },
-      slug: `admin-card-${String(createdProfiles.length + myCards.length + 1).padStart(4, '0')}`,
-    })
+  const handleCreate = () => {
+    setCurrentEditingCardId(null)
   }
 
   const handleDuplicate = async (card: AdminCard) => {
@@ -262,15 +255,30 @@ export default function AdminMyCards() {
       {myCards.length > 0 && <VCardWeeklyEngagement vCardsList={myCards} aggregateAll scope="created" />}
 
       <div>
-        <div className="mb-4 flex items-center justify-between gap-3 px-1">
-          <h2 className="text-sm font-black tracking-wider text-slate-400 uppercase">Card list</h2>
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black tracking-wider text-white uppercase hover:bg-indigo-700"
-          >
-            <Plus className="h-4 w-4" /> Create card
-          </button>
+        <div className="mb-4 flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <h2 className="text-sm font-black tracking-wider text-slate-400 uppercase">Card list</h2>
+            <CardLifecycleTabs
+              value={lifecycleTab}
+              onChange={setLifecycleTab}
+              activeCount={activeCount}
+              draftCount={draftCount}
+            />
+          </div>
+          <CreateCardLauncher>
+            {(open) => (
+              <button
+                type="button"
+                onClick={() => {
+                  handleCreate()
+                  open()
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black tracking-wider text-white uppercase hover:bg-indigo-700"
+              >
+                <Plus className="h-4 w-4" /> Create card
+              </button>
+            )}
+          </CreateCardLauncher>
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -279,16 +287,29 @@ export default function AdminMyCards() {
               <p className="mb-4 text-sm font-semibold text-slate-500">
                 No admin portfolio cards yet. Create a team member card to get started.
               </p>
-              <button
-                type="button"
-                onClick={handleCreate}
-                className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white uppercase"
-              >
-                Create first card
-              </button>
+              <CreateCardLauncher>
+                {(open) => (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCreate()
+                      open()
+                    }}
+                    className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white uppercase"
+                  >
+                    Create first card
+                  </button>
+                )}
+              </CreateCardLauncher>
+            </div>
+          ) : visibleCards.length === 0 ? (
+            <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
+              <p className="text-sm font-semibold text-slate-500">
+                {lifecycleTab === 'draft' ? 'No draft cards in your portfolio.' : 'No active cards yet — check Draft.'}
+              </p>
             </div>
           ) : (
-            myCards.map((card) => {
+            visibleCards.map((card) => {
               const contactSaves = Number(card.saveCount || 0)
               const badge = resolveMyCardsBadge(card)
 
@@ -331,19 +352,26 @@ export default function AdminMyCards() {
             })
           )}
 
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
-          >
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
-              <Plus className="h-6 w-6" strokeWidth={2.5} />
-            </div>
-            <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
-            <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-              Add a team member card to your admin portfolio.
-            </p>
-          </button>
+          <CreateCardLauncher>
+            {(open) => (
+              <button
+                type="button"
+                onClick={() => {
+                  handleCreate()
+                  open()
+                }}
+                className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
+              >
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
+                  <Plus className="h-6 w-6" strokeWidth={2.5} />
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
+                <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                  Add a team member card to your admin portfolio.
+                </p>
+              </button>
+            )}
+          </CreateCardLauncher>
         </div>
       </div>
 

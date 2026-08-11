@@ -79,8 +79,10 @@ export function TabReviews() {
       </div>
 
       <AiDropFillZone
+        section="reviews"
+        currentDraft={{ reviews }}
         accent="amber"
-        hint="Paste reviews as Author then quote — blank line or --- between each"
+        hint="Paste or upload reviews — AI maps author + quote (OCR for images)"
         onParsed={applyParsed}
       />
 

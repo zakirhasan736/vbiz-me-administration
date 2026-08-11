@@ -1,8 +1,9 @@
 'use client'
 
+import { CardLifecycleTabs, type CardLifecycleTab } from '@/components/dashboard/vcard/CardLifecycleTabs'
+import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { cn } from '@/utils/cn'
 import { Plus, Search, X } from 'lucide-react'
-import Link from 'next/link'
 
 export type VCardStatusFilter = 'all' | 'active' | 'inactive'
 export type VCardSortOption = 'newest' | 'name' | 'views'
@@ -10,8 +11,10 @@ export type VCardSortOption = 'newest' | 'name' | 'views'
 type VCardsListHeaderProps = {
   query: string
   onQueryChange: (value: string) => void
-  status: VCardStatusFilter
-  onStatusChange: (value: VCardStatusFilter) => void
+  lifecycleTab: CardLifecycleTab
+  onLifecycleTabChange: (value: CardLifecycleTab) => void
+  activeCount: number
+  draftCount: number
   sort: VCardSortOption
   onSortChange: (value: VCardSortOption) => void
   canCreate: boolean
@@ -22,19 +25,21 @@ type VCardsListHeaderProps = {
 export function VCardsListHeader({
   query,
   onQueryChange,
-  status,
-  onStatusChange,
+  lifecycleTab,
+  onLifecycleTabChange,
+  activeCount,
+  draftCount,
   sort,
   onSortChange,
   canCreate,
   isPersonal = false,
   createDisabledReason,
 }: VCardsListHeaderProps) {
-  const hasFilters = query.trim().length > 0 || status !== 'all' || sort !== 'newest'
+  const hasFilters = query.trim().length > 0 || lifecycleTab !== 'active' || sort !== 'newest'
 
   const clearFilters = () => {
     onQueryChange('')
-    onStatusChange('all')
+    onLifecycleTabChange('active')
     onSortChange('newest')
   }
 
@@ -59,19 +64,24 @@ export function VCardsListHeader({
             </h1>
             <p className="mt-2 max-w-xl text-sm font-medium text-slate-500 dark:text-slate-400">
               {isPersonal
-                ? 'Manage your personal digital business card — create once, then polish and share.'
-                : 'Manage and edit your digital business cards.'}
+                ? 'Manage your personal digital business card — drafts stay here until you activate them.'
+                : 'Manage and edit your digital business cards. Active is the live directory; Draft holds incomplete cards.'}
             </p>
           </div>
 
           {canCreate ? (
-            <Link
-              href="/vcards/create/home"
-              data-tour-id="tour-create-vcard"
-              className="bg-primary-600 hover:bg-primary-700 hover:shadow-primary-500/20 inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-95"
-            >
-              <Plus className="h-4 w-4" /> Create New Card
-            </Link>
+            <CreateCardLauncher>
+              {(open) => (
+                <button
+                  type="button"
+                  onClick={open}
+                  data-tour-id="tour-create-vcard"
+                  className="bg-primary-600 hover:bg-primary-700 hover:shadow-primary-500/20 inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-95"
+                >
+                  <Plus className="h-4 w-4" /> Create New Card
+                </button>
+              )}
+            </CreateCardLauncher>
           ) : (
             <button
               type="button"
@@ -87,6 +97,12 @@ export function VCardsListHeader({
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-3 shadow-sm backdrop-blur sm:flex-row sm:flex-wrap sm:items-center dark:border-white/10 dark:bg-[#0b0f19]/80">
+        <CardLifecycleTabs
+          value={lifecycleTab}
+          onChange={onLifecycleTabChange}
+          activeCount={activeCount}
+          draftCount={draftCount}
+        />
         <div className="relative min-w-0 flex-1 sm:min-w-56">
           <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -97,16 +113,6 @@ export function VCardsListHeader({
             className="focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-[13px] font-medium text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:ring-2 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-100"
           />
         </div>
-        <select
-          value={status}
-          onChange={(e) => onStatusChange(e.target.value as VCardStatusFilter)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[13px] font-bold text-slate-700 outline-none dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-300"
-          aria-label="Status filter"
-        >
-          <option value="all">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
         <select
           value={sort}
           onChange={(e) => onSortChange(e.target.value as VCardSortOption)}

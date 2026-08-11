@@ -203,6 +203,9 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
     displaySettings: {
       globalEnabled: snapshot?.globalEnabled ?? true,
       fields,
+      ...(Array.isArray(snapshot?.editorNavOrder) && snapshot.editorNavOrder.length
+        ? { editorNavOrder: snapshot.editorNavOrder.filter((id): id is string => typeof id === 'string') }
+        : {}),
     },
     settingsMap,
     avatarImageUrl,

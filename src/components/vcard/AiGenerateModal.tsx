@@ -1,6 +1,8 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
+import { cardAgentForm } from '@/lib/ai/cardAgentClient'
+import { mapBlueprintToVCardData, type CardBlueprint } from '@/lib/ai/cardBlueprint'
 import { Loader2, Sparkles, X } from 'lucide-react'
 import { useState } from 'react'
 
@@ -21,23 +23,6 @@ type AiGenerateModalProps = {
   onApply: (data: AiProfilePayload) => void
 }
 
-function demoProfileFromUrl(url: string): AiProfilePayload {
-  const host = url.replace(/^https?:\/\//, '').split('/')[0] || 'example.com'
-  return {
-    fullName: host
-      .split('.')[0]
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, (c: string) => c.toUpperCase()),
-    title: 'Founder & Product Lead',
-    company: host,
-    bio: `Professional profile generated from ${host}. Customize this demo content to match your real brand story.`,
-    email: `hello@${host}`,
-    phone: '+1 (555) 010-2000',
-    location: 'Remote / Global',
-    website: url.startsWith('http') ? url : `https://${url}`,
-  }
-}
-
 export function AiGenerateModal({ open, onClose, onApply }: AiGenerateModalProps) {
   const [urlInput, setUrlInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -54,21 +39,25 @@ export function AiGenerateModal({ open, onClose, onApply }: AiGenerateModalProps
     setIsLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/ai/scrape-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlInput.trim() }),
+      const form = new FormData()
+      form.set('websiteUrl', urlInput.trim())
+      const data = await cardAgentForm<{ blueprint: CardBlueprint }>('analyze', form)
+      const mapped = mapBlueprintToVCardData(data.blueprint)
+      const personal = mapped.data.personal
+      onApply({
+        fullName: personal.fullName,
+        title: personal.designation,
+        company: personal.company,
+        bio: personal.about,
+        email: personal.email,
+        phone: personal.phone,
+        location: personal.address,
+        website: personal.website || urlInput.trim(),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to parse website')
-      onApply(data)
       setUrlInput('')
       onClose()
-    } catch {
-      onApply(demoProfileFromUrl(urlInput.trim()))
-      setUrlInput('')
-      setError('')
-      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to generate profile')
     } finally {
       setIsLoading(false)
     }
@@ -89,7 +78,7 @@ export function AiGenerateModal({ open, onClose, onApply }: AiGenerateModalProps
           <div>
             <h3 className="text-lg font-black text-slate-950 dark:text-white">AI Auto-Creation Workflow</h3>
             <p className="mt-0.5 text-xs font-semibold text-slate-400">
-              Scrape & populate vCard fields instantly using Gemini
+              Scrape a website into personal fields (GPT-4o-mini). Prefer Generate for the full AI agent.
             </p>
           </div>
         </div>

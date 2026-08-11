@@ -13,7 +13,7 @@ import type { VCardRecord } from '@/types/vcard'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export type CorporateSortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc'
-export type CorporateStatusFilter = 'all' | 'active' | 'inactive' | 'suspended'
+export type CorporateStatusFilter = 'all' | 'active' | 'inactive' | 'suspended' | 'draft'
 
 function sortToApi(sort: CorporateSortOption): {
   sortBy: 'createdAt' | 'updatedAt' | 'name' | 'viewCount'
@@ -29,6 +29,7 @@ export function useCorporateDirectory(filters: {
   searchTerm: string
   statusFilter: CorporateStatusFilter
   sort: CorporateSortOption
+  lifecycleTab?: 'active' | 'draft'
 }) {
   const [debouncedSearch, setDebouncedSearch] = useState(filters.searchTerm)
 
@@ -38,6 +39,7 @@ export function useCorporateDirectory(filters: {
   }, [filters.searchTerm])
 
   const { sortBy, sortDir } = sortToApi(filters.sort)
+  const lifecycleTab = filters.lifecycleTab || 'active'
 
   const {
     data: profilesResult,
@@ -46,7 +48,7 @@ export function useCorporateDirectory(filters: {
     refetch,
   } = useGetProfilesQuery({
     q: debouncedSearch.trim() || undefined,
-    status: filters.statusFilter,
+    status: 'all',
     sortBy,
     sortDir,
     skip: 0,
@@ -71,16 +73,28 @@ export function useCorporateDirectory(filters: {
     quotaLimit <= 0
       ? 'No active package with card capacity. Upgrade your package to create cards.'
       : `Maximum of ${quotaLimit} corporate cards reached`
-  const activeCount = cards.filter((c) => c.isActive).length
+  const activeCount = cards.filter((c) => !c.isDraft).length
+  const draftCount = cards.filter((c) => c.isDraft).length
   const totalViews = cards.reduce((sum, c) => sum + (c.views || 0), 0)
 
   const orderedCards = useMemo(() => applyCardOrder(cards, cardOrder), [cards, cardOrder])
 
+  const filteredCards = useMemo(() => {
+    let list = orderedCards
+    if (lifecycleTab === 'active') list = list.filter((c) => !c.isDraft)
+    if (lifecycleTab === 'draft') list = list.filter((c) => c.isDraft)
+    if (filters.statusFilter === 'active') list = list.filter((c) => c.isActive)
+    if (filters.statusFilter === 'inactive' || filters.statusFilter === 'suspended') {
+      list = list.filter((c) => !c.isActive && !c.isDraft)
+    }
+    return list
+  }, [orderedCards, lifecycleTab, filters.statusFilter])
+
   const handleDragStart = (index: number) => setDraggedIndex(index)
 
-  const handleDragDrop = (filteredCards: VCardRecord[], targetIndex: number) => {
+  const handleDragDrop = (list: VCardRecord[], targetIndex: number) => {
     if (draggedIndex === null) return
-    const next = reorderByIndex(filteredCards, draggedIndex, targetIndex)
+    const next = reorderByIndex(list, draggedIndex, targetIndex)
     const ids = next.map((c) => c.id).filter(Boolean)
     setCardOrder(ids)
     saveCardOrder(CORPORATE_CARD_ORDER_KEY, ids)
@@ -97,8 +111,10 @@ export function useCorporateDirectory(filters: {
           ...payload,
           name: `${payload.name || 'Card'} (Copy)`,
           slug: `${payload.slug || 'card'}-${suffix}`,
+          isDraft: true,
+          isPublic: false,
         }).unwrap()
-        notify.success('Card duplicated successfully.')
+        notify.success('Card duplicated as draft.')
         void refetch()
         return true
       } catch (e) {
@@ -114,8 +130,15 @@ export function useCorporateDirectory(filters: {
   const bulkUpdateStatus = useCallback(
     async (ids: string[], active: boolean) => {
       try {
-        await Promise.all(ids.map((id) => updateProfileCard({ id, body: { isPublic: active } }).unwrap()))
-        notify.success(active ? 'Cards activated.' : 'Cards deactivated.')
+        await Promise.all(
+          ids.map((id) =>
+            updateProfileCard({
+              id,
+              body: active ? { isDraft: false, isPublic: true } : { isDraft: true, isPublic: false },
+            }).unwrap()
+          )
+        )
+        notify.success(active ? 'Cards activated.' : 'Cards moved to draft.')
         void refetch()
       } catch (e) {
         const message =
@@ -129,7 +152,7 @@ export function useCorporateDirectory(filters: {
   return {
     cards,
     orderedCards,
-    filteredCards: orderedCards,
+    filteredCards,
     isLoading,
     isError,
     refetch,
@@ -139,6 +162,7 @@ export function useCorporateDirectory(filters: {
     canCreate,
     createDisabledReason,
     activeCount,
+    draftCount,
     totalViews,
     cardOrder,
     draggedIndex,

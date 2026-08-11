@@ -160,14 +160,14 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
         )}
         <div className={cn('absolute z-10', isPersonal ? 'top-14 left-4' : 'top-4 left-4')}>
           <Badge
-            variant={card.isActive ? 'success' : 'default'}
+            variant={card.isDraft ? 'default' : card.isActive ? 'success' : 'default'}
             className="rounded-full border border-black/5 bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90"
           >
             <div
-              className={`h-1.5 w-1.5 rounded-full shadow-[0_0_8px_0_rgba(16,185,129,0.5)] ${card.isActive ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'}`}
+              className={`h-1.5 w-1.5 rounded-full shadow-[0_0_8px_0_rgba(16,185,129,0.5)] ${card.isDraft ? 'bg-amber-500' : card.isActive ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'}`}
             ></div>
             <span className="mt-0.5 text-[10px] font-bold tracking-widest text-slate-700 uppercase dark:text-slate-300">
-              {card.isActive ? 'Active' : 'Draft'}
+              {card.isDraft ? 'Draft' : card.isActive ? 'Active' : 'Inactive'}
             </span>
           </Badge>
         </div>

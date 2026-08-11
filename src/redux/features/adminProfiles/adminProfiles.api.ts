@@ -20,6 +20,7 @@ export type AdminProfileRow = {
   website?: string | null
   avatar: string | null
   isPublic: boolean
+  isDraft?: boolean
   viewCount: number
   clickCount?: number
   saveCount?: number
@@ -59,6 +60,7 @@ export type AdminProfilesListQuery = {
   q?: string
   status?: string
   profession?: string
+  lifecycle?: 'active' | 'draft'
   skip?: number
   limit?: number
   showAll?: boolean
@@ -70,6 +72,7 @@ export type AdminProfilesExportQuery = {
   q?: string
   status?: string
   profession?: string
+  lifecycle?: 'active' | 'draft'
   sortBy?: AdminProfilesListQuery['sortBy']
   sortDir?: AdminProfilesListQuery['sortDir']
 }
@@ -80,6 +83,7 @@ function appendFilterParams(search: URLSearchParams, params?: AdminProfilesExpor
   if (params?.profession && params.profession.toLowerCase() !== 'all') {
     search.set('profession', params.profession)
   }
+  if (params?.lifecycle) search.set('lifecycle', params.lifecycle)
   if (params?.sortBy) search.set('sortBy', params.sortBy)
   if (params?.sortDir) search.set('sortDir', params.sortDir)
 }

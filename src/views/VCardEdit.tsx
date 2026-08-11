@@ -5,6 +5,7 @@ import { EditorNavInfoPanel } from '@/components/EditorNavInfoPanel'
 import { TakeTourBanner } from '@/components/tour/TakeTourBanner'
 import { AddTabsModal } from '@/components/vcard/AddTabsModal'
 import { AiGenerateModal, type AiProfilePayload } from '@/components/vcard/AiGenerateModal'
+import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
 import { SectionPostsEditorPanel } from '@/components/vcard/SectionPostsEditorPanel'
 import { TabBlog } from '@/components/VCardBlog'
 import { TabCertificates } from '@/components/VCardCertificates'
@@ -31,7 +32,12 @@ import { Tab5ExtraFields } from '@/components/VCardTab5'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
-import { createCardTabNameToNavId, getDefaultCreateCardNavIds } from '@/lib/createCardTabs'
+import {
+  createCardTabNameToNavId,
+  getAiSeedCreateCardNavIds,
+  getDefaultCreateCardNavIds,
+  normalizeNavOrderWithPinnedEnds,
+} from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import { notify } from '@/lib/toast/toast'
@@ -41,7 +47,7 @@ import {
   getPersonalSubCompletions,
 } from '@/lib/vcardCompletion'
 import { useVCard } from '@/lib/VCardContext'
-import { getDisplaySettingsFromVCard, patchDisplayField } from '@/lib/vcardDisplaySettings'
+import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
 import {
   buildEditorPath,
   buildEditorSectionPath,
@@ -55,7 +61,6 @@ import {
   getEditorNavLabel,
   getNavItemById,
   isPersonalEditorNavId,
-  LOCKED_NAV_ITEM_IDS,
   NAV_BAR_NAV_ITEMS,
   sortNavItemsByOrder,
   storageKeyForEditorNavOrder,
@@ -79,8 +84,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 type VCardEditProps = {
   basePath: EditorBasePath
@@ -88,19 +93,23 @@ type VCardEditProps = {
   cardId?: string
 }
 
-function readEditorNavOrderIds(cardKey: string): string[] {
+function readEditorNavOrderIds(cardKey: string, preferAiSeed = false): string[] {
   try {
     const raw = localStorage.getItem(storageKeyForEditorNavOrder(cardKey))
-    if (!raw) return getDefaultCreateCardNavIds()
+    if (!raw) return preferAiSeed ? getAiSeedCreateCardNavIds() : getDefaultCreateCardNavIds()
     const parsed = JSON.parse(raw) as string[]
-    return Array.isArray(parsed) && parsed.length ? parsed : getDefaultCreateCardNavIds()
+    if (Array.isArray(parsed) && parsed.length) {
+      return preferAiSeed ? normalizeNavOrderWithPinnedEnds(parsed) : parsed
+    }
+    return preferAiSeed ? getAiSeedCreateCardNavIds() : getDefaultCreateCardNavIds()
   } catch {
-    return getDefaultCreateCardNavIds()
+    return preferAiSeed ? getAiSeedCreateCardNavIds() : getDefaultCreateCardNavIds()
   }
 }
 
 export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const role = useAppSelector((state) => state.user.user?.role)
   const isDirectoryEditor = role === 'corporate-owner' || role === 'admin' || role === 'super-admin'
   const directoryHref =
@@ -134,34 +143,125 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const [isSaving, setIsSaving] = useState(false)
   const [showAddTabs, setShowAddTabs] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
+  const { openAgent } = useCreateAgentUi()
   const { isActive: isTourActive, currentStep, registerActivateTab } = useDashboardTour()
+
+  const isAiCreateFlow = isCreateMode && searchParams.get('agent') === '1'
+
+  useEffect(() => {
+    if (isAiCreateFlow) openAgent()
+  }, [isAiCreateFlow, openAgent])
 
   const cardKey = contextCardId || cardId || 'draft'
   const isClient = typeof window !== 'undefined'
   const [navOrderIds, setNavOrderIds] = useState(() =>
-    isClient ? readEditorNavOrderIds(cardKey) : getDefaultCreateCardNavIds()
+    isClient
+      ? readEditorNavOrderIds(
+          cardKey,
+          isCreateMode &&
+            typeof window !== 'undefined' &&
+            new URLSearchParams(window.location.search).get('agent') === '1'
+        )
+      : getDefaultCreateCardNavIds()
   )
   const [navOrderReady, setNavOrderReady] = useState(isClient)
   const [navOrderCardKey, setNavOrderCardKey] = useState(cardKey)
+  const [aiTabsSeeded, setAiTabsSeeded] = useState(false)
+  const [pendingAiDisplayOrder, setPendingAiDisplayOrder] = useState<string[] | null>(null)
+  const appliedAiDisplayKeyRef = useRef<string | null>(null)
 
   if (!navOrderReady && isClient) {
     setNavOrderReady(true)
-    setNavOrderIds(readEditorNavOrderIds(cardKey))
+    setNavOrderIds(readEditorNavOrderIds(cardKey, isAiCreateFlow))
   }
 
   if (cardKey !== navOrderCardKey) {
     setNavOrderCardKey(cardKey)
-    setNavOrderIds(isClient ? readEditorNavOrderIds(cardKey) : getDefaultCreateCardNavIds())
+    setNavOrderIds(isClient ? readEditorNavOrderIds(cardKey, isAiCreateFlow) : getDefaultCreateCardNavIds())
+    setAiTabsSeeded(false)
+    setPendingAiDisplayOrder(null)
   }
+
+  // AI create: seed Personal + pinned ends once (render-phase, same pattern as cardKey sync)
+  if (isAiCreateFlow && !aiTabsSeeded && isClient) {
+    setAiTabsSeeded(true)
+    try {
+      const seed = getAiSeedCreateCardNavIds()
+      const raw = localStorage.getItem(storageKeyForEditorNavOrder(cardKey))
+      const parsed = raw ? (JSON.parse(raw) as string[]) : null
+      const defaults = getDefaultCreateCardNavIds()
+      const isFullManualDefault =
+        Array.isArray(parsed) && parsed.length >= defaults.length - 1 && defaults.every((id) => parsed.includes(id))
+
+      if (!raw || isFullManualDefault) {
+        setNavOrderIds(seed)
+        localStorage.setItem(storageKeyForEditorNavOrder(cardKey), JSON.stringify(seed))
+        setPendingAiDisplayOrder(seed)
+      } else if (Array.isArray(parsed) && parsed.length) {
+        const normalized = normalizeNavOrderWithPinnedEnds(parsed)
+        setNavOrderIds(normalized)
+        setPendingAiDisplayOrder(normalized)
+      }
+    } catch {
+      const seed = getAiSeedCreateCardNavIds()
+      setNavOrderIds(seed)
+      setPendingAiDisplayOrder(seed)
+    }
+  }
+
+  const displayNavOrder = useMemo(() => {
+    if (!Array.isArray(display.editorNavOrder) || !display.editorNavOrder.length) return null
+    return normalizeNavOrderWithPinnedEnds(display.editorNavOrder)
+  }, [display.editorNavOrder])
+
+  const effectiveNavOrderIds = displayNavOrder ?? navOrderIds
+
+  // One-shot: push AI seed visibility into draft displaySettings
+  useEffect(() => {
+    if (!pendingAiDisplayOrder) return
+    const key = `${cardKey}:${pendingAiDisplayOrder.join('|')}`
+    if (appliedAiDisplayKeyRef.current === key) return
+    appliedAiDisplayKeyRef.current = key
+    updateData(
+      'displaySettings',
+      applyEnabledNavOrderToDisplaySettings(getDisplaySettingsFromVCard(vCardData), pendingAiDisplayOrder)
+    )
+  }, [pendingAiDisplayOrder, cardKey, updateData, vCardData])
+
+  // Persist display order to localStorage when it arrives from the API/draft
+  useEffect(() => {
+    if (!displayNavOrder?.length) return
+    try {
+      localStorage.setItem(storageKeyForEditorNavOrder(cardKey), JSON.stringify(displayNavOrder))
+    } catch {
+      /* ignore */
+    }
+  }, [displayNavOrder, cardKey])
+
+  useEffect(() => {
+    const openPreview = () => setShowPreview(true)
+    const onNavOrder = (e: Event) => {
+      const detail = (e as CustomEvent<string[]>).detail
+      if (Array.isArray(detail) && detail.length) {
+        setNavOrderIds(normalizeNavOrderWithPinnedEnds(detail))
+      }
+    }
+    window.addEventListener('vbiz-open-live-preview', openPreview)
+    window.addEventListener('vbiz-create-nav-order', onNavOrder as EventListener)
+    return () => {
+      window.removeEventListener('vbiz-open-live-preview', openPreview)
+      window.removeEventListener('vbiz-create-nav-order', onNavOrder as EventListener)
+    }
+  }, [])
 
   const visibleNavItems = useMemo(() => {
     const filtered = filterEditorMainNavItems(filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display))
-    const ordered = sortNavItemsByOrder(filtered, navOrderIds)
-    if (!navOrderIds.length) return ordered
-    const idSet = new Set(navOrderIds)
+    const ordered = sortNavItemsByOrder(filtered, effectiveNavOrderIds)
+    if (!effectiveNavOrderIds.length) return ordered
+    const idSet = new Set(effectiveNavOrderIds)
     const preferred = ordered.filter((item) => idSet.has(item.id))
     return preferred.length ? preferred : ordered
-  }, [display, navOrderIds])
+  }, [display, effectiveNavOrderIds])
 
   const enabledNavIds = useMemo(() => visibleNavItems.map((item) => item.id), [visibleNavItems])
   const personalSubs = useMemo(() => getPersonalSubCompletions(vCardData, completionMeta), [vCardData, completionMeta])
@@ -335,21 +435,17 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   }
 
   const applyAddTabs = (nextIds: string[]) => {
-    let next = display
-    const idSet = new Set(nextIds)
-    for (const item of NAV_BAR_NAV_ITEMS) {
-      const visible = LOCKED_NAV_ITEM_IDS.has(item.id) || idSet.has(item.id)
-      next = patchDisplayField(next, item.label, { visible })
-    }
+    const normalized = normalizeNavOrderWithPinnedEnds(nextIds)
+    const next = applyEnabledNavOrderToDisplaySettings(display, normalized)
     updateData('displaySettings', next)
-    setNavOrderIds(nextIds)
-    localStorage.setItem(storageKeyForEditorNavOrder(cardKey), JSON.stringify(nextIds))
+    setNavOrderIds(normalized)
+    localStorage.setItem(storageKeyForEditorNavOrder(cardKey), JSON.stringify(normalized))
 
-    const added = nextIds.filter((id) => !enabledNavIds.includes(id))
+    const added = normalized.filter((id) => !enabledNavIds.includes(id))
     if (added.length) {
       router.push(sectionHref(added[0]))
-    } else if (!nextIds.includes(activeNavId) && nextIds[0]) {
-      router.push(sectionHref(nextIds[0]))
+    } else if (!normalized.includes(activeNavId) && normalized[0]) {
+      router.push(sectionHref(normalized[0]))
     }
     setShowAddTabs(false)
   }
@@ -615,7 +711,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 type="button"
                 data-tour="ai-generate"
                 data-tour-id="tour-ai-generate"
-                onClick={() => setShowAiModal(true)}
+                onClick={() => openAgent()}
                 className="flex items-center gap-1.5 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-3 py-2 text-[14px] font-bold whitespace-nowrap text-white shadow-sm transition-all hover:from-emerald-700 hover:to-teal-700 active:scale-95"
                 title="Generate with AI"
               >

@@ -12,6 +12,11 @@ export type VCardDisplaySettings = {
   /** Master switch; when false, all fields are hidden unless individually forced on */
   globalEnabled: boolean
   fields: Record<string, DisplayFieldConfig>
+  /**
+   * Editor tab strip order (nav item ids). Persisted in display_settings_json
+   * so AI / Add Tabs selections survive create → edit.
+   */
+  editorNavOrder?: string[]
 }
 
 /** Legacy placeholders from the first settings UI — treated as "use app theme". */

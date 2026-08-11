@@ -12,6 +12,7 @@ export type AdminCard = Record<string, unknown> & {
   createdByRole?: string | null
   status?: string
   isPublic?: boolean
+  isDraft?: boolean
   personal?: Record<string, unknown>
   socials?: Record<string, string>
   socialClicks?: Array<{ channel: string; label: string; clickCount: number }>
@@ -49,8 +50,9 @@ export function toAdminCardShape(
     companyUserRole: extras?.companyUserRole ?? null,
     createdById: extras?.createdById ?? null,
     createdByRole: extras?.createdByRole ?? null,
-    status: record.isActive ? 'active' : 'inactive',
+    status: record.isDraft ? 'draft' : record.isActive ? 'active' : 'inactive',
     isPublic: record.isPublic,
+    isDraft: Boolean(record.isDraft),
     personal: record.personal as unknown as Record<string, unknown>,
     socials: {
       facebook: handles.facebook || '',

@@ -1,4 +1,11 @@
-import { NAV_BAR_FIELDS, NAV_LABELS_HIDDEN_BY_DEFAULT, TAB_ID_TO_NAV_LABEL } from '@/lib/vcardNavbar'
+import { normalizeNavOrderWithPinnedEnds, PINNED_END_NAV_IDS } from '@/lib/createCardTabs'
+import {
+  LOCKED_NAV_ITEM_IDS,
+  NAV_BAR_FIELDS,
+  NAV_BAR_NAV_ITEMS,
+  NAV_LABELS_HIDDEN_BY_DEFAULT,
+  TAB_ID_TO_NAV_LABEL,
+} from '@/lib/vcardNavbar'
 import type { VCardData, VCardPersonal } from '@/types/vcard'
 import {
   createDefaultDisplaySettings,
@@ -150,9 +157,13 @@ export function resolveDisplaySettings(raw?: VCardDisplaySettings | null): VCard
   for (const [key, config] of Object.entries(raw.fields || {})) {
     fields[key] = stripFieldDisplayColors({ ...fields[key], ...config })
   }
+  const editorNavOrder = Array.isArray(raw.editorNavOrder)
+    ? raw.editorNavOrder.filter((id): id is string => typeof id === 'string' && Boolean(id))
+    : undefined
   return {
     globalEnabled: raw.globalEnabled ?? true,
     fields,
+    ...(editorNavOrder?.length ? { editorNavOrder } : {}),
   }
 }
 
@@ -205,7 +216,32 @@ export function patchDisplayField(
       ...settings.fields,
       [key]: { ...current, ...patch },
     },
+    ...(settings.editorNavOrder?.length ? { editorNavOrder: settings.editorNavOrder } : {}),
   }
+}
+
+/**
+ * Enable only the given editor nav ids (by visibility) and persist their order
+ * into displaySettings for DB round-trip.
+ */
+export function applyEnabledNavOrderToDisplaySettings(
+  settings: VCardDisplaySettings,
+  navIds: string[]
+): VCardDisplaySettings {
+  const normalized = normalizeNavOrderWithPinnedEnds(navIds)
+  const idSet = new Set(normalized)
+  const pinned = new Set<string>(PINNED_END_NAV_IDS)
+  let next: VCardDisplaySettings = {
+    ...settings,
+    fields: { ...settings.fields },
+    editorNavOrder: normalized,
+  }
+  for (const item of NAV_BAR_NAV_ITEMS) {
+    const visible = LOCKED_NAV_ITEM_IDS.has(item.id) || pinned.has(item.id) || idSet.has(item.id)
+    next = patchDisplayField(next, item.label, { visible })
+  }
+  next.editorNavOrder = normalized
+  return next
 }
 
 export function setCategoryEnableAll(

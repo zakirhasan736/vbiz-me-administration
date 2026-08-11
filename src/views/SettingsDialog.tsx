@@ -773,7 +773,9 @@ export default function SettingsDialog() {
                     >
                       <span className="text-sm font-bold text-slate-900 dark:text-white">{pkg.name}</span>
                       <span className="text-sm font-medium text-slate-500">
-                        {pkg.monthlyPrice != null ? `$${pkg.monthlyPrice}/mo` : '—'}
+                        {pkg.monthlyPrice != null
+                          ? `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(pkg.monthlyPrice) || 0) / 100)}/mo`
+                          : '—'}
                       </span>
                     </div>
                   ))}

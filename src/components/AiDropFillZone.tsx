@@ -1,5 +1,6 @@
 'use client'
 
+import { cardAgentForm } from '@/lib/ai/cardAgentClient'
 import { cn } from '@/utils/cn'
 import { Sparkles, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
@@ -9,7 +10,10 @@ export type ParsedEntry = {
   description: string
 }
 
-/** Split pasted/dropped text into title + description blocks */
+export type AiDropFillSection =
+  'services' | 'blogs' | 'portfolio' | 'reviews' | 'skills' | 'education' | 'experience' | 'faqs' | 'personal'
+
+/** Local fallback when the API is unavailable */
 export function parseEntriesFromText(raw: string): ParsedEntry[] {
   const text = raw.replace(/\r\n/g, '\n').trim()
   if (!text) return []
@@ -44,15 +48,95 @@ export function parseEntriesFromText(raw: string): ParsedEntry[] {
   })
 }
 
+function entriesFromSectionPayload(section: AiDropFillSection, payload: Record<string, unknown>): ParsedEntry[] {
+  if (section === 'reviews') {
+    const reviews = Array.isArray(payload.reviews) ? payload.reviews : []
+    return reviews
+      .map((row) => {
+        const r = row as { author?: string; text?: string; rating?: number }
+        return {
+          title: String(r.author || 'Reviewer').trim() || 'Reviewer',
+          description: String(r.text || '').trim(),
+        }
+      })
+      .filter((e) => e.title || e.description)
+  }
+
+  if (section === 'faqs') {
+    const faqs = Array.isArray(payload.faqs) ? payload.faqs : []
+    return faqs
+      .map((row) => {
+        const r = row as { question?: string; answer?: string }
+        return {
+          title: String(r.question || '').trim() || 'Question',
+          description: String(r.answer || '').trim(),
+        }
+      })
+      .filter((e) => e.title || e.description)
+  }
+
+  const listKey =
+    section === 'blogs'
+      ? 'blogs'
+      : section === 'portfolio'
+        ? 'portfolio'
+        : section === 'services'
+          ? 'services'
+          : section === 'education'
+            ? 'education'
+            : section === 'experience'
+              ? 'experience'
+              : section === 'skills'
+                ? 'skills'
+                : null
+
+  if (!listKey) return []
+
+  const rows = Array.isArray(payload[listKey]) ? (payload[listKey] as unknown[]) : []
+  return rows
+    .map((row) => {
+      const r = row as Record<string, unknown>
+      if (section === 'skills') {
+        const skills = Array.isArray(r.skills) ? r.skills.map(String).join(', ') : ''
+        return {
+          title: String(r.type || 'Skills').trim() || 'Skills',
+          description: skills,
+        }
+      }
+      if (section === 'education') {
+        return {
+          title: String(r.institute || r.degree || 'Education').trim(),
+          description: [r.degree, r.fromDate, r.toDate].filter(Boolean).map(String).join(' · '),
+        }
+      }
+      if (section === 'experience') {
+        return {
+          title: String(r.jobTitle || r.company || 'Role').trim(),
+          description: [r.company, r.description].filter(Boolean).map(String).join(' — '),
+        }
+      }
+      return {
+        title: String(r.title || 'Untitled').trim() || 'Untitled',
+        description: String(r.description || '').trim(),
+      }
+    })
+    .filter((e) => e.title || e.description)
+}
+
 type Props = {
   onParsed: (entries: ParsedEntry[]) => void
+  /** When set, uploads/paste go through GPT-4o-mini fill-section (OCR for images). */
+  section?: AiDropFillSection
+  currentDraft?: unknown
   accent?: string
   hint?: string
 }
 
-/** Drop a .txt/.md file or paste text to auto-fill list entries */
+/** Drop a doc/image or paste text — AI fills list entries via fill-section when `section` is set. */
 export function AiDropFillZone({
   onParsed,
+  section = 'services',
+  currentDraft,
   accent = 'indigo',
   hint = 'Drop a document or paste text — AI arranges titles & details into entries',
 }: Props) {
@@ -63,7 +147,7 @@ export function AiDropFillZone({
   const [paste, setPaste] = useState('')
   const [msg, setMsg] = useState('')
 
-  const apply = (text: string) => {
+  const applyLocal = (text: string) => {
     const entries = parseEntriesFromText(text)
     if (!entries.length) {
       setMsg('Couldn’t find entries. Use blank lines or --- between items.')
@@ -75,17 +159,49 @@ export function AiDropFillZone({
     setPasteOpen(false)
   }
 
-  const readFile = async (file: File) => {
+  const fillViaAgent = async (text: string, files: File[]) => {
     setBusy(true)
     setMsg('')
     try {
-      const text = await file.text()
-      apply(text)
-    } catch {
-      setMsg('Could not read that file. Try .txt or .md')
+      const form = new FormData()
+      form.set('section', section)
+      if (text.trim()) form.set('text', text.trim())
+      form.set('currentDraft', JSON.stringify(currentDraft || {}))
+      for (const file of files) form.append('files', file)
+
+      const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
+      const payload =
+        json.payload && typeof json.payload === 'object'
+          ? (json.payload as Record<string, unknown>)
+          : (json as Record<string, unknown>)
+      const entries = entriesFromSectionPayload(section, payload)
+      if (!entries.length && text.trim()) {
+        applyLocal(text)
+        return
+      }
+      if (!entries.length) {
+        setMsg('AI returned no entries. Try more specific text or another file.')
+        return
+      }
+      onParsed(entries)
+      setMsg(`AI filled ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}.`)
+      setPaste('')
+      setPasteOpen(false)
+    } catch (err) {
+      if (text.trim() && files.length === 0) {
+        applyLocal(text)
+        setMsg(`AI unavailable (${err instanceof Error ? err.message : 'error'}). Used local parse.`)
+        return
+      }
+      setMsg(err instanceof Error ? err.message : 'Could not fill section')
     } finally {
       setBusy(false)
     }
+  }
+
+  const readFiles = async (files: File[]) => {
+    if (!files.length) return
+    await fillViaAgent('', files)
   }
 
   return (
@@ -99,11 +215,11 @@ export function AiDropFillZone({
         onDrop={(e) => {
           e.preventDefault()
           setDragOver(false)
-          const file = e.dataTransfer.files?.[0]
-          if (file) readFile(file)
+          const dropped = Array.from(e.dataTransfer.files || [])
+          if (dropped.length) void readFiles(dropped)
           else {
             const text = e.dataTransfer.getData('text/plain')
-            if (text) apply(text)
+            if (text) void fillViaAgent(text, [])
           }
         }}
         className={cn(
@@ -148,11 +264,12 @@ export function AiDropFillZone({
         <input
           ref={inputRef}
           type="file"
-          accept=".txt,.md,.csv,text/plain"
+          accept=".txt,.md,.csv,.pdf,.docx,text/plain,application/pdf,image/*,.png,.jpg,.jpeg,.webp"
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) void readFile(file)
+            const files = Array.from(e.target.files || [])
+            if (files.length) void readFiles(files)
             e.target.value = ''
           }}
         />
@@ -177,10 +294,11 @@ export function AiDropFillZone({
             </button>
             <button
               type="button"
-              onClick={() => apply(paste)}
-              className="rounded-xl bg-indigo-600 px-3 py-2 text-[12px] font-bold text-white"
+              disabled={busy || !paste.trim()}
+              onClick={() => void fillViaAgent(paste, [])}
+              className="rounded-xl bg-indigo-600 px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50"
             >
-              Fill entries
+              {busy ? 'Filling…' : 'Fill entries'}
             </button>
           </div>
         </div>

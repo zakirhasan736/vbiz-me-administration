@@ -10,7 +10,6 @@ import {
   TeamVCardsToolbar,
   useCorporateDirectory,
   type CorporateSortOption,
-  type CorporateStatusFilter,
 } from '@/components/dashboard/corporate'
 import {
   NoticeModal,
@@ -20,19 +19,33 @@ import {
   type NoticeType,
 } from '@/components/dashboard/vcard'
 import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
+import {
+  clearLocalCardNotice,
+  noticeForCard,
+  noticeTypeFromTeamNotice,
+  readLocalCardNotice,
+  writeLocalCardNotice,
+} from '@/lib/cardNotice'
 import { notify } from '@/lib/toast/toast'
+import {
+  useCreateTeamNoticeMutation,
+  useDeleteTeamNoticeMutation,
+  useGetTeamNoticesQuery,
+} from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { getVCardPublicUrl } from '@/utils/vcard'
-import { useRouter } from 'next/navigation'
 import { useMemo, useState, type DragEvent } from 'react'
 
 export default function TeamVCardsView() {
-  const router = useRouter()
-
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<CorporateStatusFilter>('all')
+  const [lifecycleTab, setLifecycleTab] = useState<'active' | 'draft'>('active')
   const [sort, setSort] = useState<CorporateSortOption>('newest')
-  const directory = useCorporateDirectory({ searchTerm, statusFilter, sort })
+  const directory = useCorporateDirectory({
+    searchTerm,
+    statusFilter: 'all',
+    sort,
+    lifecycleTab,
+  })
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [panelCardId, setPanelCardId] = useState<string | null>(null)
@@ -44,6 +57,10 @@ export default function TeamVCardsView() {
   const [qrUrl, setQrUrl] = useState('')
   const [qrTitle, setQrTitle] = useState('vCard QR Code')
 
+  const { data: teamNotices = [] } = useGetTeamNoticesQuery()
+  const [createTeamNotice] = useCreateTeamNoticeMutation()
+  const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
+
   const filteredCards = directory.filteredCards
 
   const panelCard = useMemo(
@@ -51,7 +68,7 @@ export default function TeamVCardsView() {
     [directory.cards, panelCardId]
   )
 
-  const hasFilters = Boolean(searchTerm) || statusFilter !== 'all' || sort !== 'newest'
+  const hasFilters = Boolean(searchTerm) || lifecycleTab !== 'active' || sort !== 'newest'
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -67,9 +84,7 @@ export default function TeamVCardsView() {
   const goCreate = () => {
     if (!directory.canCreate) {
       notify.warning(directory.createDisabledReason)
-      return
     }
-    router.push('/vcards/create/home')
   }
 
   const handleDuplicate = async (card: VCardRecord) => {
@@ -80,16 +95,19 @@ export default function TeamVCardsView() {
     await directory.duplicateCard(card)
   }
 
-  const promptDefault =
-    promptNoticeCard && typeof window !== 'undefined' ? localStorage.getItem(`notice_${promptNoticeCard.id}`) || '' : ''
+  const promptDefault = promptNoticeCard
+    ? noticeForCard(promptNoticeCard.id, teamNotices)?.text || readLocalCardNotice(promptNoticeCard.id).text
+    : ''
 
-  const noticeInitialText =
-    noticeCard && typeof window !== 'undefined' ? localStorage.getItem(`notice_${noticeCard.id}`) || '' : ''
-  const noticeInitialType = (
-    noticeCard && typeof window !== 'undefined'
-      ? localStorage.getItem(`notice_type_${noticeCard.id}`) || 'info'
-      : 'info'
-  ) as NoticeType
+  const noticeInitialText = noticeCard
+    ? noticeForCard(noticeCard.id, teamNotices)?.text || readLocalCardNotice(noticeCard.id).text
+    : ''
+  const noticeServer = noticeCard ? noticeForCard(noticeCard.id, teamNotices) : null
+  const noticeInitialType: NoticeType = noticeCard
+    ? noticeServer
+      ? noticeTypeFromTeamNotice(noticeServer)
+      : readLocalCardNotice(noticeCard.id).type
+    : 'info'
 
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 duration-500">
@@ -98,8 +116,10 @@ export default function TeamVCardsView() {
       <TeamVCardsToolbar
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        lifecycleTab={lifecycleTab}
+        onLifecycleTabChange={setLifecycleTab}
+        activeCount={directory.activeCount}
+        draftCount={directory.draftCount}
         sort={sort}
         onSortChange={setSort}
       />
@@ -135,49 +155,56 @@ export default function TeamVCardsView() {
           createDisabledReason={directory.createDisabledReason}
           onClearFilters={() => {
             setSearchTerm('')
-            setStatusFilter('all')
+            setLifecycleTab('active')
             setSort('newest')
           }}
           onCreate={goCreate}
         />
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredCards.map((card, idx) => (
-            <VCardTeamCard
-              key={card.id}
-              card={card}
-              mode="corporate"
-              badgeLabel="Corporate"
-              showCheckbox
-              selected={selectedIds.includes(card.id)}
-              onToggleSelect={() => toggleSelect(card.id)}
-              showDragHandle
-              dragged={directory.draggedIndex === idx}
-              onDragStart={(e: DragEvent) => {
-                directory.handleDragStart(idx)
-                e.dataTransfer.effectAllowed = 'move'
-              }}
-              onDragOver={(e: DragEvent) => e.preventDefault()}
-              onDrop={(e: DragEvent) => {
-                e.preventDefault()
-                directory.handleDragDrop(filteredCards, idx)
-              }}
-              onCardClick={() => setPanelCardId(card.id)}
-              onOpenQr={() => openQr(card)}
-              onPanel={(c) => setPanelCardId(c.id)}
-              onNotice={(c) => setPromptNoticeCard(c)}
-              noticeVersion={noticeVersion}
-              canDuplicate={directory.canCreate}
-              duplicateDisabledReason={directory.createDisabledReason}
-              onDuplicate={() => void handleDuplicate(card)}
-              onTrends={() => setTrendsCard(card)}
+          {filteredCards.map((card, idx) => {
+            const serverNotice = noticeForCard(card.id, teamNotices)
+            return (
+              <VCardTeamCard
+                key={card.id}
+                card={card}
+                mode="corporate"
+                badgeLabel="Corporate"
+                showCheckbox
+                selected={selectedIds.includes(card.id)}
+                onToggleSelect={() => toggleSelect(card.id)}
+                showDragHandle
+                dragged={directory.draggedIndex === idx}
+                onDragStart={(e: DragEvent) => {
+                  directory.handleDragStart(idx)
+                  e.dataTransfer.effectAllowed = 'move'
+                }}
+                onDragOver={(e: DragEvent) => e.preventDefault()}
+                onDrop={(e: DragEvent) => {
+                  e.preventDefault()
+                  directory.handleDragDrop(filteredCards, idx)
+                }}
+                onCardClick={() => setPanelCardId(card.id)}
+                onOpenQr={() => openQr(card)}
+                onPanel={(c) => setPanelCardId(c.id)}
+                onNotice={(c) => setPromptNoticeCard(c)}
+                noticeVersion={noticeVersion}
+                cardNoticeText={serverNotice?.text ?? null}
+                cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
+                canDuplicate={directory.canCreate}
+                duplicateDisabledReason={directory.createDisabledReason}
+                onDuplicate={() => void handleDuplicate(card)}
+                onTrends={() => setTrendsCard(card)}
+              />
+            )
+          })}
+          {lifecycleTab === 'active' ? (
+            <TeamVCardsCreatePlaceholder
+              canCreate={directory.canCreate}
+              quotaLimit={directory.quotaLimit}
+              onCreate={goCreate}
             />
-          ))}
-          <TeamVCardsCreatePlaceholder
-            canCreate={directory.canCreate}
-            quotaLimit={directory.quotaLimit}
-            onCreate={goCreate}
-          />
+          ) : null}
         </div>
       )}
 
@@ -208,7 +235,7 @@ export default function TeamVCardsView() {
       <PromptModal
         open={!!promptNoticeCard}
         title="Card notice"
-        description="Shown on the public vCard as an announcement banner."
+        description="Shown only for this card on the corporate owner dashboard (info notice)."
         label="Notice text"
         placeholder="e.g. Out of office until Monday"
         defaultValue={promptDefault}
@@ -217,11 +244,32 @@ export default function TeamVCardsView() {
         onConfirm={(text) => {
           if (!promptNoticeCard) return
           const trimmed = text.trim()
-          if (trimmed) localStorage.setItem(`notice_${promptNoticeCard.id}`, trimmed)
-          else localStorage.removeItem(`notice_${promptNoticeCard.id}`)
-          setNoticeVersion((n) => n + 1)
-          setPromptNoticeCard(null)
-          notify.success(trimmed ? 'Notice saved.' : 'Notice cleared.')
+          void (async () => {
+            try {
+              if (trimmed) {
+                writeLocalCardNotice(promptNoticeCard.id, trimmed, 'info')
+                await createTeamNotice({
+                  text: trimmed,
+                  type: 'info',
+                  audience: 'all',
+                  targetProfileId: promptNoticeCard.id,
+                }).unwrap()
+              } else {
+                clearLocalCardNotice(promptNoticeCard.id)
+                const existing = noticeForCard(promptNoticeCard.id, teamNotices)
+                if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
+              }
+              setNoticeVersion((n) => n + 1)
+              setPromptNoticeCard(null)
+              notify.success(trimmed ? 'Notice saved for this card only.' : 'Notice cleared.')
+            } catch (e) {
+              const message =
+                (e as { data?: { message?: string } })?.data?.message ||
+                (e as Error)?.message ||
+                'Could not save notice.'
+              notify.error(message)
+            }
+          })()
         }}
       />
 
@@ -233,22 +281,47 @@ export default function TeamVCardsView() {
         onClose={() => setNoticeCard(null)}
         onSave={(text, type) => {
           if (!noticeCard) return
-          if (text) {
-            localStorage.setItem(`notice_${noticeCard.id}`, text)
-            localStorage.setItem(`notice_type_${noticeCard.id}`, type)
-          } else {
-            localStorage.removeItem(`notice_${noticeCard.id}`)
-            localStorage.removeItem(`notice_type_${noticeCard.id}`)
-          }
-          setNoticeVersion((n) => n + 1)
-          notify.success(text ? 'Notice saved.' : 'Notice cleared.')
+          void (async () => {
+            try {
+              if (text.trim()) {
+                writeLocalCardNotice(noticeCard.id, text, type)
+                await createTeamNotice({
+                  text: text.trim(),
+                  type,
+                  audience: 'all',
+                  targetProfileId: noticeCard.id,
+                }).unwrap()
+              } else {
+                clearLocalCardNotice(noticeCard.id)
+                const existing = noticeForCard(noticeCard.id, teamNotices)
+                if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
+              }
+              setNoticeVersion((n) => n + 1)
+              notify.success(text ? 'Notice saved for this card only.' : 'Notice cleared.')
+            } catch (e) {
+              const message =
+                (e as { data?: { message?: string } })?.data?.message ||
+                (e as Error)?.message ||
+                'Could not save notice.'
+              notify.error(message)
+            }
+          })()
         }}
         onClear={() => {
           if (!noticeCard) return
-          localStorage.removeItem(`notice_${noticeCard.id}`)
-          localStorage.removeItem(`notice_type_${noticeCard.id}`)
-          setNoticeVersion((n) => n + 1)
-          notify.success('Notice cleared.')
+          void (async () => {
+            clearLocalCardNotice(noticeCard.id)
+            const existing = noticeForCard(noticeCard.id, teamNotices)
+            if (existing?.id) {
+              try {
+                await deleteTeamNotice(existing.id).unwrap()
+              } catch {
+                /* ignore */
+              }
+            }
+            setNoticeVersion((n) => n + 1)
+            notify.success('Notice cleared.')
+          })()
         }}
       />
     </div>

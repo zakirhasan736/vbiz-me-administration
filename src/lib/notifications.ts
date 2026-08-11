@@ -291,8 +291,11 @@ export function notifyOwners(input: {
   href?: string
   meta?: Record<string, string>
   forceBrowser?: boolean
+  /** When set, only notify this owner audience (not both single + corporate). */
+  audience?: NotificationAudience
 }) {
-  ;(['single', 'corporate'] as const).forEach((audience) => {
+  const audiences = input.audience ? [input.audience] : (['single', 'corporate'] as const)
+  audiences.forEach((audience) => {
     pushNotification({
       audience,
       category: input.category,
@@ -302,6 +305,27 @@ export function notifyOwners(input: {
       meta: input.meta,
       forceBrowser: input.forceBrowser,
     })
+  })
+}
+
+/** Notify only the card owner audience for a specific profile (never broadcast to all roles). */
+export function notifyCardOwner(input: {
+  ownerAudience: 'single' | 'corporate'
+  category: NotificationCategory
+  title: string
+  body: string
+  profileId: string
+  href?: string
+  forceBrowser?: boolean
+}) {
+  pushNotification({
+    audience: input.ownerAudience,
+    category: input.category,
+    title: input.title,
+    body: input.body,
+    href: input.href || `/vcards/edit/home/${input.profileId}`,
+    meta: { profileId: input.profileId },
+    forceBrowser: input.forceBrowser,
   })
 }
 

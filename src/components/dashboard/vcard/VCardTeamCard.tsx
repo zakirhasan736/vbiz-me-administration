@@ -25,6 +25,9 @@ type VCardTeamCardProps = {
   onNotice: (card: VCardRecord) => void
   /** Bumps when notice modal saves/clears so chip refreshes */
   noticeVersion?: number
+  /** Server-scoped notice text for this card only (preferred over localStorage). */
+  cardNoticeText?: string | null
+  cardNoticeType?: 'info' | 'warning' | 'success' | null
   /** Single-card owners cannot duplicate past the 1-card limit */
   canDuplicate?: boolean
   duplicateDisabledReason?: string
@@ -49,6 +52,8 @@ export function VCardTeamCard({
   onPanel,
   onNotice,
   noticeVersion = 0,
+  cardNoticeText,
+  cardNoticeType,
   canDuplicate = false,
   duplicateDisabledReason = 'Single card owners can create only one vCard',
   mode = 'personal',
@@ -76,11 +81,13 @@ export function VCardTeamCard({
     description: string
     variant?: 'default' | 'danger'
   } | null>(null)
-  // Read during render; noticeVersion re-render after modal save/clear (no sync setState in effect)
-  const noticeText =
+  // Prefer server notice for this card id; fall back to per-card localStorage only.
+  const localNoticeText =
     noticeVersion >= 0 && typeof window !== 'undefined' && card.id ? localStorage.getItem(`notice_${card.id}`) : null
+  const noticeText = (cardNoticeText !== undefined ? cardNoticeText : localNoticeText) || null
+  const noticeTone = cardNoticeType || 'info'
 
-  const status = card.isActive ? 'active' : 'inactive'
+  const status = card.isDraft ? 'draft' : card.isActive ? 'active' : 'inactive'
   const views = Number(card.views) || 0
   const liveSocials = Array.isArray(card.socialClicks) ? card.socialClicks : []
   const clicks =
@@ -301,12 +308,17 @@ export function VCardTeamCard({
                 'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase',
                 status === 'active' &&
                   'border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
+                status === 'draft' &&
+                  'border-amber-500/20 bg-amber-500/5 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
                 status === 'inactive' &&
                   'border-slate-500/20 bg-slate-500/5 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400'
               )}
             >
               <span
-                className={cn('h-1.5 w-1.5 rounded-full', status === 'active' ? 'bg-emerald-500' : 'bg-slate-400')}
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  status === 'active' ? 'bg-emerald-500' : status === 'draft' ? 'bg-amber-500' : 'bg-slate-400'
+                )}
               />
               {status}
             </span>
@@ -384,7 +396,11 @@ export function VCardTeamCard({
               className={cn(
                 'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase transition-colors',
                 noticeText
-                  ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
+                  ? noticeTone === 'success'
+                    ? 'border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-200'
+                    : noticeTone === 'warning'
+                      ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
+                      : 'border-indigo-300/60 bg-indigo-100 text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/25 dark:text-indigo-200'
                   : 'border-amber-200/80 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25'
               )}
               title={noticeText || 'Card announcement'}

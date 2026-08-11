@@ -1,3 +1,4 @@
+export { CardLifecycleTabs, type CardLifecycleTab } from './CardLifecycleTabs'
 export { CreateVCardCard } from './CreateVCardCard'
 export { NoticeModal, type NoticeType } from './NoticeModal'
 export { QrCodeModal } from './QrCodeModal'
