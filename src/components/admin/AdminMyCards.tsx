@@ -6,9 +6,9 @@ import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
 import { PromptModal } from '@/components/PromptModal'
 import { useAppSelector } from '@/hooks/redux'
+import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
-import { getContactSavesForOwner } from '@/lib/contactSaves'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
@@ -59,7 +59,7 @@ export default function AdminMyCards() {
   const reduxUser = useAppSelector((s) => s.user.user)
   const ownerId = reduxUser?.id || user?.uid
   const router = useRouter()
-  const { vCardsList, createCorporateCard, setCurrentEditingCardId, deleteCorporateCard } = useVCard()
+  const { createCorporateCard, setCurrentEditingCardId, deleteCorporateCard } = useVCard()
   const { data: createdProfilesResult } = useGetProfilesQuery({ scope: 'created', limit: 100 })
   const { data: stats } = useGetDashboardStatsQuery({ period: 'all', scope: 'created' })
 
@@ -109,17 +109,17 @@ export default function AdminMyCards() {
   }
 
   const myCards = useMemo(() => {
-    const apiCards = createdProfiles.map((p) => toAdminCardShape(mapApiProfileToVCardRecord(p), ownerId))
-    // Only local mock portfolio cards — do not pull unscoped API cards from context
-    const mockMine = vCardsList.filter(
-      (c) => Boolean((c as { adminPortfolio?: boolean }).adminPortfolio) && String(c.id || '').startsWith('admin_')
+    return createdProfiles.map((p) =>
+      toAdminCardShape(mapApiProfileToVCardRecord(p), ownerId, {
+        profileUserId: p.userId || ownerId,
+        companyUserId: p.companyUserId || null,
+        companyUserRole: p.companyUser?.role || null,
+        createdById: p.createdById || p.createdBy?.id || null,
+        createdByRole: p.createdBy?.role || null,
+        ownerRole: p.user?.role || null,
+      })
     )
-    const byId = new Map<string, (typeof apiCards)[number]>()
-    for (const c of [...mockMine, ...apiCards]) {
-      if (c.id) byId.set(c.id, c)
-    }
-    return Array.from(byId.values())
-  }, [createdProfiles, vCardsList, ownerId])
+  }, [createdProfiles, ownerId])
 
   const socialChannels = useMemo(() => {
     if (stats?.socialChannels?.length) return stats.socialChannels
@@ -187,7 +187,8 @@ export default function AdminMyCards() {
           My Cards
         </h1>
         <p className="mt-1 text-sm font-semibold text-slate-500">
-          Cards you created — stats and engagement for your admin portfolio only. Full directory lives under vCards.
+          Analytics and details for your admin portfolio cards only. Full network totals stay on the Dashboard; the full
+          directory lives under vCards.
         </p>
       </div>
 
@@ -288,15 +289,15 @@ export default function AdminMyCards() {
             </div>
           ) : (
             myCards.map((card) => {
-              const contactSaves =
-                getContactSavesForOwner(ownerId || card.ownerId, 'admin', card.id).length || Number(card.saveCount || 0)
+              const contactSaves = Number(card.saveCount || 0)
+              const badge = resolveMyCardsBadge(card)
 
               return (
                 <VCardTeamCard
                   key={card.id}
                   card={card}
-                  badgeLabel="My card"
-                  badgeTone="violet"
+                  badgeLabel={badge.label}
+                  badgeTone={badge.tone}
                   contactSaves={contactSaves}
                   showDragHandle={false}
                   showNotice

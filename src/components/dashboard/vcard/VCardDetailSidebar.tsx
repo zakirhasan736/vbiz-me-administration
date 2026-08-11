@@ -6,13 +6,11 @@ import {
   useGetContactsQuery,
   useGetSocialClicksQuery,
   useGetWeeklyEngagementQuery,
-  type WeeklyEngagementDay,
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { getVCardPublicPath, getVCardPublicUrl } from '@/utils/vcard'
 import {
-  Briefcase,
   Building2,
   Calendar,
   Check,
@@ -30,26 +28,14 @@ import {
   Shield,
   ShieldAlert,
   TrendingUp,
-  User,
   X,
 } from 'lucide-react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { ContactSaveChip, SocialClickChip } from './SocialClickChip'
+import { SocialClickChip } from './SocialClickChip'
 import { getCardSocialClickStats } from './socialStats'
-
-const EMPTY_WEEKLY: WeeklyEngagementDay[] = [
-  { day: 'Mon', fullDay: 'Monday', views: 0, clicks: 0, ctr: 0 },
-  { day: 'Tue', fullDay: 'Tuesday', views: 0, clicks: 0, ctr: 0 },
-  { day: 'Wed', fullDay: 'Wednesday', views: 0, clicks: 0, ctr: 0 },
-  { day: 'Thu', fullDay: 'Thursday', views: 0, clicks: 0, ctr: 0 },
-  { day: 'Fri', fullDay: 'Friday', views: 0, clicks: 0, ctr: 0 },
-  { day: 'Sat', fullDay: 'Saturday', views: 0, clicks: 0, ctr: 0 },
-  { day: 'Sun', fullDay: 'Sunday', views: 0, clicks: 0, ctr: 0 },
-]
 
 type Props = {
   card: VCardRecord | null
@@ -105,32 +91,47 @@ export function VCardDetailSidebar({
   const [copied, setCopied] = useState(false)
   const [alertState, setAlertState] = useState<{ title: string; description: string } | null>(null)
 
-  const { data: socialClickRows = [] } = useGetSocialClicksQuery({ profileId: card?.id }, { skip: !card?.id })
-  const { data: contactSaves = [] } = useGetContactsQuery(card?.id, { skip: !card?.id })
-  const { data: weekly, isFetching: weeklyLoading } = useGetWeeklyEngagementQuery(
-    { profileId: card?.id },
-    { skip: !card?.id }
-  )
-  const weeklyDays = weekly?.days ?? EMPTY_WEEKLY
+  const { data: weekly } = useGetWeeklyEngagementQuery(card?.id ? { profileId: card.id } : undefined, {
+    skip: !card?.id,
+  })
+  const { data: socialClickRows = [] } = useGetSocialClicksQuery(card?.id ? { profileId: card.id } : undefined, {
+    skip: !card?.id,
+  })
+  const { data: contactRows = [] } = useGetContactsQuery(card?.id, { skip: !card?.id })
 
-  const socials = useMemo(() => (card ? getCardSocialClickStats(card, socialClickRows) : []), [card, socialClickRows])
+  const socials = useMemo(
+    () =>
+      card ? getCardSocialClickStats(card, socialClickRows.length ? socialClickRows : card.socialClicks || []) : [],
+    [card, socialClickRows]
+  )
+  const weeklyDays = weekly?.days ?? []
 
   if (!card || typeof document === 'undefined') return null
 
+  // Header metrics: all-time totals (not 7-day).
   const views = Number(card.views) || 0
-  const clicks = socialClickRows.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
-  const saves = contactSaves.length
-  const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
+  const liveClickTotal = socialClickRows.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
+  const cardSocialTotal = Array.isArray(card.socialClicks)
+    ? card.socialClicks.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
+    : 0
+  const clicks = Number(card.clickCount) || liveClickTotal || cardSocialTotal || Number(card.shareCount) || 0
+  const saves = contactRows.length || Number(card.saves) || 0
+  const shares = Number(card.shareCount ?? clicks) || 0
+  const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0.0'
+  // 7-day block only.
+  const weekViews = Number(weekly?.totals?.views || 0)
+  const weekClicks = Number(weekly?.totals?.clicks || 0)
+  const weekCtr =
+    weekly?.totals?.avgCtr != null
+      ? String(weekly.totals.avgCtr)
+      : weekViews > 0
+        ? ((weekClicks / weekViews) * 100).toFixed(1)
+        : '0.0'
   const status = card.isActive ? 'active' : 'inactive'
   const slug = card.slug?.trim() || 'profile'
   const publicPath = getVCardPublicPath(slug)
   const publicUrl = getVCardPublicUrl(slug) || publicPath
   const activeNotice = typeof window !== 'undefined' ? localStorage.getItem(`notice_${card.id}`) : null
-  const department =
-    typeof (card.personal as { department?: unknown } | undefined)?.department === 'string'
-      ? String((card.personal as { department?: string }).department).trim()
-      : ''
-  const avatarSrc = card.avatarImageUrl?.trim() || null
   const initials =
     card.personal?.fullName
       ?.split(' ')
@@ -166,18 +167,8 @@ export function VCardDetailSidebar({
         <div className="shrink-0 border-b border-slate-100 bg-white dark:border-white/10 dark:bg-[#0a0e17]">
           <div className="h-1 bg-linear-to-r from-indigo-500 via-violet-500 to-emerald-400" />
           <div className="flex items-start gap-3 px-5 py-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-indigo-100 bg-indigo-50 text-sm font-black text-indigo-600 dark:border-indigo-500/25 dark:bg-indigo-500/15 dark:text-indigo-300">
-              {avatarSrc ? (
-                <Image
-                  src={avatarSrc}
-                  alt={card.personal?.fullName || 'Avatar'}
-                  className="h-full w-full object-cover"
-                  width={48}
-                  height={48}
-                />
-              ) : (
-                initials
-              )}
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-sm font-black text-indigo-600 dark:border-indigo-500/25 dark:bg-indigo-500/15 dark:text-indigo-300">
+              {initials}
             </div>
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-violet-600 uppercase dark:text-violet-400">
@@ -202,12 +193,6 @@ export function VCardDetailSidebar({
                 >
                   {status}
                 </span>
-                {department ? (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-100 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500 uppercase dark:border-white/10 dark:bg-white/5">
-                    <Briefcase className="h-3 w-3" />
-                    {department}
-                  </span>
-                ) : null}
               </div>
             </div>
             <button
@@ -236,6 +221,7 @@ export function VCardDetailSidebar({
                   {typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
                 </p>
                 <p className="mt-1 text-[9px] font-bold text-slate-400 uppercase">{m.label}</p>
+                <p className="text-[8px] font-semibold text-slate-400">All time</p>
               </div>
             ))}
           </div>
@@ -271,77 +257,63 @@ export function VCardDetailSidebar({
                   </p>
                 </div>
               </div>
+              <div className="flex items-center gap-3 bg-white px-3.5 py-3 dark:bg-white/2">
+                <ExternalLink className="h-4 w-4 shrink-0 text-violet-500" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Website</p>
+                  <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    {card.personal?.website || '—'}
+                  </p>
+                </div>
+              </div>
             </div>
           </Section>
 
-          <Section title="Socials & contact saves" icon={Share2}>
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {socials.map((s) => (
-                <SocialClickChip key={s.key} stat={s} compact />
-              ))}
-              <ContactSaveChip count={saves} compact />
-            </div>
-            <div className="overflow-hidden rounded-2xl border border-slate-100 dark:border-white/10">
-              <div className="border-b border-slate-100 bg-slate-50 px-3.5 py-2.5 dark:border-white/5 dark:bg-white/3">
-                <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                  Social links ({socials.length})
-                </p>
-              </div>
+          <Section title="Socials" icon={Share2}>
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 dark:divide-white/5 dark:border-white/10">
+              <li className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/2">
+                <span className="inline-flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-sky-200/80 bg-sky-50 text-sky-600 dark:border-sky-500/25 dark:bg-sky-500/15 dark:text-sky-300">
+                    <Share2 className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">Shares</span>
+                </span>
+                <span className="shrink-0 text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                  {shares.toLocaleString()}
+                </span>
+              </li>
+              <li className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/2">
+                <span className="inline-flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-200/80 bg-emerald-50 text-emerald-600 dark:border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    <Save className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">Saves</span>
+                </span>
+                <span className="shrink-0 text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                  {saves.toLocaleString()}
+                </span>
+              </li>
               {socials.length > 0 ? (
-                <ul className="divide-y divide-slate-100 dark:divide-white/5">
-                  {socials.map((s) => (
-                    <li
-                      key={s.key}
-                      className="flex min-w-0 items-center justify-between gap-2 bg-white px-3.5 py-3 dark:bg-white/2"
-                    >
-                      <div className="min-w-0 flex-1 overflow-hidden">
-                        <SocialClickChip stat={s} />
-                      </div>
-                      <span className="shrink-0 text-[11px] font-bold text-slate-500 tabular-nums">
-                        {s.clickCount.toLocaleString()}
+                socials.map((s) => (
+                  <li
+                    key={s.key}
+                    className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/2"
+                  >
+                    <span className="inline-flex min-w-0 items-center gap-2.5">
+                      <SocialClickChip stat={s} showCount={false} />
+                      <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+                        {s.label}
                       </span>
-                    </li>
-                  ))}
-                </ul>
+                    </span>
+                    <span className="shrink-0 text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                      {s.clickCount.toLocaleString()}
+                    </span>
+                  </li>
+                ))
               ) : (
-                <p className="px-3.5 py-4 text-xs font-semibold text-slate-400">No social links on this card.</p>
+                <li className="px-3.5 py-3 text-xs font-semibold text-slate-400">No social links on this card.</li>
               )}
-
-              <div className="flex items-center justify-between border-y border-emerald-100/80 bg-emerald-50/80 px-3.5 py-2.5 dark:border-emerald-500/15 dark:bg-emerald-500/10">
-                <p className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
-                  <Save className="h-3.5 w-3.5" /> Contact saves ({saves})
-                </p>
-              </div>
-              {contactSaves.length > 0 ? (
-                <ul className="max-h-60 divide-y divide-slate-100 overflow-x-hidden overflow-y-auto dark:divide-white/5">
-                  {contactSaves.map((person) => (
-                    <li key={person.id} className="flex min-w-0 items-start gap-3 bg-white px-3.5 py-3 dark:bg-white/2">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/15">
-                        <User className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
-                          {person.name || 'Unknown'}
-                        </p>
-                        <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
-                          <Mail className="h-3 w-3 text-indigo-400" />
-                          {person.email || 'No email'}
-                        </p>
-                        <p className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] font-semibold text-slate-500">
-                          <Phone className="h-3 w-3 text-emerald-400" />
-                          {person.phone || 'No phone'}
-                        </p>
-                      </div>
-                      <span title="Saved contact" className="mt-1 shrink-0">
-                        <Save className="h-3.5 w-3.5 text-emerald-500" />
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="px-3.5 py-4 text-xs font-semibold text-slate-400">Nobody has saved this contact yet.</p>
-              )}
-            </div>
+            </ul>
           </Section>
 
           <Section title="Manage card" icon={Edit2}>
@@ -453,12 +425,24 @@ export function VCardDetailSidebar({
           )}
 
           <Section title="7-day analytics" icon={TrendingUp}>
-            <div
-              className={cn(
-                'rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/2',
-                weeklyLoading && 'opacity-60'
-              )}
-            >
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/2">
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Views', value: weekViews },
+                  { label: 'Clicks', value: weekClicks },
+                  { label: 'CTR', value: `${weekCtr}%` },
+                ].map((m) => (
+                  <div
+                    key={m.label}
+                    className="rounded-xl border border-slate-100 bg-white px-2 py-2 text-center dark:border-white/10 dark:bg-white/4"
+                  >
+                    <p className="text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                      {typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
+                    </p>
+                    <p className="mt-0.5 text-[9px] font-bold text-slate-400 uppercase">{m.label}</p>
+                  </div>
+                ))}
+              </div>
               <div className="h-37.5 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={weeklyDays} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
@@ -523,17 +507,20 @@ export function VCardDetailSidebar({
 
 /** Small trends popup for CTR / stats click */
 export function VCardTrendsPopup({ card, onClose }: { card: VCardRecord | null; onClose: () => void }) {
-  const { data: socialClickRows = [] } = useGetSocialClicksQuery({ profileId: card?.id }, { skip: !card?.id })
-  const { data: weekly, isFetching: weeklyLoading } = useGetWeeklyEngagementQuery(
-    { profileId: card?.id },
-    { skip: !card?.id }
-  )
-  const weeklyDays = weekly?.days ?? EMPTY_WEEKLY
+  const { data: weekly } = useGetWeeklyEngagementQuery(card?.id ? { profileId: card.id } : undefined, {
+    skip: !card?.id,
+  })
+  const weeklyDays = weekly?.days ?? []
 
   if (!card || typeof document === 'undefined') return null
-  const views = Number(card.views) || 0
-  const clicks = socialClickRows.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
-  const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
+  const weekViews = Number(weekly?.totals?.views || 0)
+  const weekClicks = Number(weekly?.totals?.clicks || 0)
+  const weekCtr =
+    weekly?.totals?.avgCtr != null
+      ? String(weekly.totals.avgCtr)
+      : weekViews > 0
+        ? ((weekClicks / weekViews) * 100).toFixed(1)
+        : '0.0'
 
   return createPortal(
     <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
@@ -546,19 +533,14 @@ export function VCardTrendsPopup({ card, onClose }: { card: VCardRecord | null; 
             </p>
             <h3 className="text-base font-black text-slate-900 dark:text-white">{card.personal?.fullName}</h3>
             <p className="mt-0.5 text-xs font-semibold text-slate-400">
-              Views {views.toLocaleString()} · Clicks {clicks.toLocaleString()} · CTR {ctr}%
+              Views {weekViews.toLocaleString()} · Clicks {weekClicks.toLocaleString()} · CTR {weekCtr}%
             </p>
           </div>
           <button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-white/10">
             <X className="h-4 w-4 text-slate-500" />
           </button>
         </div>
-        <div
-          className={cn(
-            'h-50 w-full rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-white/5 dark:bg-slate-900/60',
-            weeklyLoading && 'opacity-60'
-          )}
-        >
+        <div className="h-50 w-full rounded-2xl border border-slate-100 bg-slate-50 p-2 dark:border-white/5 dark:bg-slate-900/60">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={weeklyDays} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <defs>

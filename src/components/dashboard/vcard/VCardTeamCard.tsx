@@ -13,7 +13,7 @@ import { Building, GripVertical, Megaphone, MoreHorizontal, Trash2 } from 'lucid
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useState, type DragEvent } from 'react'
-import { ContactSaveChip, SocialClickChip } from './SocialClickChip'
+import { ContactSaveChip, ShareCountChip, SocialClickChip } from './SocialClickChip'
 import { TrafficSparkline } from './TrafficSparkline'
 import { VCardCardActions } from './VCardCardActions'
 import { getCardSocialClickStats } from './socialStats'
@@ -82,10 +82,15 @@ export function VCardTeamCard({
 
   const status = card.isActive ? 'active' : 'inactive'
   const views = Number(card.views) || 0
-  const clicks = Math.max(0, Math.round(views * 0.65))
+  const liveSocials = Array.isArray(card.socialClicks) ? card.socialClicks : []
+  const clicks =
+    Number(card.clickCount) ||
+    liveSocials.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0) ||
+    Number(card.shareCount) ||
+    0
   const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
   const saves = Number(card.saves) || 0
-  const socialStats = getCardSocialClickStats(card)
+  const socialStats = getCardSocialClickStats(card, liveSocials)
   const slug = card.slug?.trim() || 'profile'
   const publicPath = getVCardPublicPath(slug)
   const fullUrl = getVCardPublicUrl(slug)
@@ -365,10 +370,11 @@ export function VCardTeamCard({
 
         <div className="border-t border-slate-100 pt-2 dark:border-white/5">
           <div className="flex flex-wrap items-center gap-1">
-            {socialStats.slice(0, 5).map((soc) => (
+            {socialStats.map((soc) => (
               <SocialClickChip key={soc.key} stat={soc} compact />
             ))}
             <ContactSaveChip count={saves} compact />
+            <ShareCountChip count={Number(card.shareCount || clicks) || 0} compact />
             <button
               type="button"
               onClick={(e) => {

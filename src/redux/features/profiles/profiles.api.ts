@@ -28,6 +28,16 @@ export type ApiProfile = {
   template?: string
   isPublic?: boolean
   viewCount?: number
+  clickCount?: number
+  saveCount?: number
+  shareCount?: number
+  socialClicks?: Array<{ channel: string; label: string; clickCount: number }>
+  userId?: string | null
+  companyUserId?: string | null
+  createdById?: string | null
+  user?: { id?: string; name?: string | null; email?: string; role?: string | null } | null
+  companyUser?: { id?: string; name?: string | null; role?: string | null } | null
+  createdBy?: { id?: string; name?: string | null; role?: string | null } | null
   createdAt?: string
   updatedAt?: string
   facebook?: string | null
@@ -36,6 +46,9 @@ export type ApiProfile = {
   tiktok?: string | null
   youtube?: string | null
   linkedin?: string | null
+  rumble?: string | null
+  truth?: string | null
+  status?: { id?: string; name?: string | null } | null
   gender?: { id?: string; name?: string | null } | null
   maritalStatus?: { id?: string; name?: string | null } | null
   education?: Array<{
@@ -412,6 +425,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
         tiktok: profile.tiktok || '',
         youtube: profile.youtube || '',
         linkedin: profile.linkedin || '',
+        rumble: profile.rumble || '',
+        truth: profile.truth || '',
       },
       customLinks: (profile.socialLinks || []).map((s) => ({
         id: s.id,
@@ -477,7 +492,10 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     createdAt: profile.createdAt || new Date().toISOString(),
     updatedAt: profile.updatedAt || new Date().toISOString(),
     views: profile.viewCount || 0,
-    saves: 0,
+    saves: Number(profile.saveCount) || 0,
+    clickCount: Number(profile.clickCount) || 0,
+    shareCount: Number(profile.shareCount ?? profile.clickCount) || 0,
+    socialClicks: profile.socialClicks || [],
     avatarImageUrl,
     backgroundImageUrl,
     isActive: profile.isPublic !== false,

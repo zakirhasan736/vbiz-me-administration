@@ -71,13 +71,22 @@ export function VCardWeeklyEngagement({
   scope,
 }: VCardWeeklyEngagementProps) {
   const [chartType, setChartType] = useState<'area' | 'trend'>('area')
-  const { data: weekly, isLoading: weeklyLoading } = useGetWeeklyEngagementQuery(scope ? { scope } : undefined)
-
   const [selectedCardId, setSelectedCardId] = useState<string>(() => {
     if (defaultSelectedId && vCardsList.some((c) => c.id === defaultSelectedId)) {
       return defaultSelectedId
     }
     return vCardsList[0]?.id || ''
+  })
+
+  const weeklyQueryArgs = useMemo(() => {
+    if (aggregateAll) return scope ? { scope } : undefined
+    const id = hideCardSelector ? defaultSelectedId || vCardsList[0]?.id : selectedCardId || vCardsList[0]?.id
+    if (!id) return scope ? { scope } : undefined
+    return { profileId: id, ...(scope ? { scope } : {}) }
+  }, [aggregateAll, scope, hideCardSelector, defaultSelectedId, selectedCardId, vCardsList])
+
+  const { data: weekly, isLoading: weeklyLoading } = useGetWeeklyEngagementQuery(weeklyQueryArgs, {
+    skip: !aggregateAll && !(weeklyQueryArgs && 'profileId' in weeklyQueryArgs && weeklyQueryArgs.profileId),
   })
 
   /** Metadata card for scope badge / status / department — chart uses API weekly data. */
@@ -275,7 +284,7 @@ export function VCardWeeklyEngagement({
             {/* Recharts Container */}
             <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 lg:col-span-8 dark:border-white/5 dark:bg-white/2">
               <div className="mb-6 flex flex-col justify-between gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center">
-                <span>Weekly Frequency (Mon - Sun)</span>
+                <span>Last 7 days (by weekday)</span>
                 <div className="flex flex-wrap items-center gap-4">
                   {chartType === 'area' ? (
                     <>
@@ -516,7 +525,7 @@ export function VCardWeeklyEngagement({
                     <div className="flex gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 text-[11px] leading-relaxed font-semibold text-indigo-800 dark:bg-indigo-500/10 dark:text-indigo-300">
                       <Info className="mt-0.5 h-4.5 w-4.5 shrink-0 text-indigo-500" />
                       <span>
-                        {peakDay.fullDay} is the highest activity day this week, with {peakDay.views} views and{' '}
+                        {peakDay.fullDay} had the highest activity in the last 7 days, with {peakDay.views} views and{' '}
                         {peakDay.clicks} link clicks.
                       </span>
                     </div>
@@ -524,7 +533,7 @@ export function VCardWeeklyEngagement({
                     <div className="flex gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 text-[11px] leading-relaxed font-semibold text-indigo-800 dark:bg-indigo-500/10 dark:text-indigo-300">
                       <Info className="mt-0.5 h-4.5 w-4.5 shrink-0 text-indigo-500" />
                       <span>
-                        No engagement recorded for this week yet. Share your vCards to start seeing weekly trends.
+                        No engagement recorded in the last 7 days yet. Share your vCards to start seeing weekly trends.
                       </span>
                     </div>
                   )}

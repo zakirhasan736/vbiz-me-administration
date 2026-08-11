@@ -1,14 +1,14 @@
 'use client'
 
 import { useAppSelector } from '@/hooks/redux'
-import { deleteMockCard, loadMockCards, saveMockCards, upsertMockCard } from '@/lib/mockStore'
 import {
   mapApiProfileToVCardRecord,
   useCreateProfileMutation,
   useDeleteProfileMutation,
   useGetProfilesQuery,
+  useUpdateProfileCardMutation,
 } from '@/redux/features/profiles/profiles.api'
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { type AdminCard, toAdminCardShape } from './adminCardShape'
 
 type AdminVCardListContextType = {
@@ -33,30 +33,28 @@ export function AdminVCardListProvider({ children }: { children: React.ReactNode
   const { data: profilesResult, isLoading, refetch } = useGetProfilesQuery({ limit: 100 })
   const [createProfile] = useCreateProfileMutation()
   const [deleteProfile] = useDeleteProfileMutation()
-  const [mockCards, setMockCards] = useState<AdminCard[]>(() => loadMockCards() as unknown as AdminCard[])
+  const [updateProfile] = useUpdateProfileCardMutation()
   const [currentEditingCardId, setCurrentEditingCardIdState] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     return localStorage.getItem(EDITING_KEY)
   })
 
-  useEffect(() => {
-    const refresh = () => setMockCards(loadMockCards() as unknown as AdminCard[])
-    window.addEventListener('vbiz_mock_cards_update', refresh)
-    return () => window.removeEventListener('vbiz_mock_cards_update', refresh)
-  }, [])
+  const profiles = useMemo(() => profilesResult?.items ?? [], [profilesResult?.items])
 
-  const apiCards = useMemo(
-    () => (profilesResult?.items ?? []).map((p) => toAdminCardShape(mapApiProfileToVCardRecord(p), user?.id)),
-    [profilesResult?.items, user?.id]
+  const vCardsList = useMemo(
+    () =>
+      profiles.map((p) =>
+        toAdminCardShape(mapApiProfileToVCardRecord(p), user?.id, {
+          profileUserId: p.userId || user?.id,
+          companyUserId: p.companyUserId || null,
+          companyUserRole: p.companyUser?.role || null,
+          createdById: p.createdById || p.createdBy?.id || null,
+          createdByRole: p.createdBy?.role || null,
+          ownerRole: p.user?.role || null,
+        })
+      ),
+    [profiles, user?.id]
   )
-
-  const vCardsList = useMemo(() => {
-    const byId = new Map<string, AdminCard>()
-    for (const c of [...mockCards, ...apiCards]) {
-      if (c.id) byId.set(c.id, c)
-    }
-    return Array.from(byId.values())
-  }, [mockCards, apiCards])
 
   const setCurrentEditingCardId = useCallback((id: string | null) => {
     setCurrentEditingCardIdState(id)
@@ -68,58 +66,21 @@ export function AdminVCardListProvider({ children }: { children: React.ReactNode
 
   const createCorporateCard = useCallback(
     async (card?: Partial<AdminCard>) => {
-      const id = `admin_${Date.now()}`
-      const slug = (card?.slug as string) || `admin-card-${Date.now().toString().slice(-4)}`
       const personal = (card?.personal as Record<string, string>) || {}
-      const next: AdminCard = {
-        id,
+      const slug = (card?.slug as string) || `admin-card-${Date.now().toString().slice(-4)}`
+      await createProfile({
+        name: String(personal.fullName || 'Admin Team Member'),
+        email: String(personal.email || user?.email || ''),
         slug,
-        ownerId: user?.id,
-        adminPortfolio: true,
-        status: 'active',
-        isPublic: true,
-        personal: {
-          fullName: personal.fullName || 'Admin Team Member',
-          email: personal.email || user?.email || 'team@vbiz.me',
-          company: personal.company || 'vBiz Admin',
-          designation: personal.designation || 'Team Member',
-          department: personal.department || 'Admin',
-          ...personal,
-        },
-        socials: (card?.socials as Record<string, string>) || {},
-        viewCount: 0,
-        saveCount: 0,
-        shareCount: 0,
-        ...card,
-      }
-
-      try {
-        await createProfile({
-          name: String(next.personal?.fullName || 'Admin Team Member'),
-          email: String(next.personal?.email || user?.email || ''),
-          slug,
-        }).unwrap()
-        await refetch()
-      } catch {
-        upsertMockCard(next as never)
-        setMockCards(loadMockCards() as unknown as AdminCard[])
-      }
+      }).unwrap()
+      await refetch()
     },
     [createProfile, refetch, user]
   )
 
   const deleteCorporateCard = useCallback(
     async (id: string) => {
-      // Pre-populated mock profiles are not API-backed
-      if (!id.startsWith('vcard_')) {
-        try {
-          await deleteProfile(id).unwrap()
-        } catch {
-          // May already be deleted by the card UI mutation
-        }
-      }
-      deleteMockCard(id)
-      setMockCards(loadMockCards() as unknown as AdminCard[])
+      await deleteProfile(id).unwrap()
       await refetch()
     },
     [deleteProfile, refetch]
@@ -127,32 +88,36 @@ export function AdminVCardListProvider({ children }: { children: React.ReactNode
 
   const updateCorporateCardControls = useCallback(
     async (id: string, updates: Partial<AdminCard>) => {
-      const existing = vCardsList.find((c) => c.id === id)
-      if (!existing) return
-      const merged = { ...existing, ...updates }
-      upsertMockCard(merged as never)
-      setMockCards(loadMockCards() as unknown as AdminCard[])
+      const personal = (updates.personal as Record<string, string> | undefined) || undefined
+      await updateProfile({
+        id,
+        body: {
+          ...(typeof updates.isPublic === 'boolean' ? { isPublic: updates.isPublic } : {}),
+          ...(typeof updates.slug === 'string' ? { slug: updates.slug } : {}),
+          ...(personal?.fullName ? { name: personal.fullName } : {}),
+          ...(personal?.email ? { email: personal.email } : {}),
+          ...(personal?.company ? { companyName: personal.company } : {}),
+          ...(personal?.designation ? { designation: personal.designation } : {}),
+          ...(personal?.phone ? { phone: personal.phone } : {}),
+          ...(personal?.whatsapp ? { whatsapp: personal.whatsapp } : {}),
+        },
+      }).unwrap()
+      await refetch()
     },
-    [vCardsList]
+    [refetch, updateProfile]
   )
 
   const bulkUpdateCorporateCards = useCallback(
     async (ids: string[], updates: Partial<AdminCard>) => {
-      const cards = loadMockCards() as unknown as AdminCard[]
-      const next = cards.map((c) => (ids.includes(c.id) ? { ...c, ...updates } : c))
-      saveMockCards(next as never)
-      setMockCards(next)
       for (const id of ids) {
-        const hit = vCardsList.find((c) => c.id === id)
-        if (hit) await updateCorporateCardControls(id, updates)
+        await updateCorporateCardControls(id, updates)
       }
     },
-    [updateCorporateCardControls, vCardsList]
+    [updateCorporateCardControls]
   )
 
   const fetchCorporateCards = useCallback(async () => {
     await refetch()
-    setMockCards(loadMockCards() as unknown as AdminCard[])
   }, [refetch])
 
   const value: AdminVCardListContextType = {
