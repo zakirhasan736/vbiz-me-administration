@@ -34,6 +34,7 @@ export function VBizProfileAppV1({
   ownerName = DEMO_PROFILE_PROPS.ownerName,
   liveAgentCardData = DEMO_PROFILE_PROPS.liveAgentCardData,
   liveAgentSystemPrompt,
+  liveAgentEnabled = false,
   design: designProp,
   shareSlug,
   profileSlug,
@@ -213,13 +214,15 @@ export function VBizProfileAppV1({
         </main>
       </div>
 
-      <LiveAgent
-        embedded={embedded}
-        accentColor={design.accentColor}
-        cardData={liveAgentCardData}
-        systemInstruction={liveAgentSystemPrompt}
-        readyToConnect={introAllowed}
-      />
+      {liveAgentEnabled ? (
+        <LiveAgent
+          embedded={embedded}
+          accentColor={design.accentColor}
+          cardData={liveAgentCardData}
+          systemInstruction={liveAgentSystemPrompt}
+          readyToConnect={introAllowed}
+        />
+      ) : null}
 
       {!embedded && (
         <ProfileHomeModals

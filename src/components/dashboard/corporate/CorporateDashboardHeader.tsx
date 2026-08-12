@@ -33,7 +33,7 @@ export function CorporateDashboardHeader({
   onSupport,
 }: CorporateDashboardHeaderProps) {
   return (
-    <div className="relative z-60 overflow-visible rounded-[36px] border border-slate-700 bg-linear-to-br from-slate-900 to-slate-800 p-8 text-white shadow-xl md:p-10 dark:border-white/10 dark:from-slate-800 dark:to-slate-900">
+    <div className="relative z-40 overflow-visible rounded-[36px] border border-slate-700 bg-linear-to-br from-slate-900 to-slate-800 p-8 text-white shadow-xl md:p-10 dark:border-white/10 dark:from-slate-800 dark:to-slate-900">
       <div className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 h-100 w-100 overflow-hidden rounded-full bg-white/5 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 left-0 -mb-20 -ml-20 h-62.5 w-62.5 rounded-full bg-white/5 blur-2xl" />
 

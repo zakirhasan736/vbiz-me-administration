@@ -5,13 +5,16 @@ import { TrafficSparkline } from '@/components/admin/AdminTrafficSparkline'
 import VCardCardActions from '@/components/admin/AdminVCardCardActions'
 import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { VCardOverflowMenu } from '@/components/dashboard/vcard/VCardOverflowMenu'
+import { VCardVisibilityToggle } from '@/components/dashboard/vcard/VCardVisibilityToggle'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
 import { getCardSocialClickStats } from '@/lib/adminSocialStats'
 import { resolveCardAnalytics } from '@/lib/cardAnalytics'
-import { useDeleteProfileMutation } from '@/redux/features/profiles/profiles.api'
+import { notify } from '@/lib/toast/toast'
+import { useDeleteProfileMutation, useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
-import { Building, GripVertical, Megaphone, MoreHorizontal, Trash2 } from 'lucide-react'
-import { useState, type DragEvent, type ReactNode } from 'react'
+import { Building, GripVertical, Megaphone, Trash2 } from 'lucide-react'
+import { useRef, useState, type DragEvent, type ReactNode } from 'react'
 
 function personalField(personal: AdminCard['personal'], key: string): string {
   const value = personal?.[key]
@@ -49,6 +52,7 @@ export type VCardTeamCardProps = {
   onCall: () => void
   onSchedule: () => void
   onEdit: () => void
+  onSettings?: () => void
   onView: () => void
   onPanel: () => void
   onQr: () => void
@@ -85,6 +89,7 @@ export default function VCardTeamCard({
   onCall,
   onSchedule,
   onEdit,
+  onSettings,
   onView,
   onPanel,
   onQr,
@@ -94,9 +99,12 @@ export default function VCardTeamCard({
   onDeleted,
   className,
 }: VCardTeamCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
   const [deleteProfile, { isLoading: isDeletingProfile }] = useDeleteProfileMutation()
+  const [updateProfileCard, { isLoading: isUpdatingVisibility }] = useUpdateProfileCardMutation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [optimisticPublic, setOptimisticPublic] = useState<{ cardId: string; value: boolean } | null>(null)
   const [statsHovered, setStatsHovered] = useState(false)
   const [isDeletingLocal, setIsDeletingLocal] = useState(false)
   const [alertState, setAlertState] = useState<{
@@ -127,6 +135,8 @@ export default function VCardTeamCard({
   const noticeText = typeof window !== 'undefined' && card.id ? localStorage.getItem(`notice_${card.id}`) : null
   const slug = card.slug || 'profile'
   const cardId = String(card.id || '')
+  const serverIsPublic = card.isPublic ?? true
+  const isPublic = optimisticPublic?.cardId === cardId ? optimisticPublic.value : serverIsPublic
   const fullName = personalField(card.personal, 'fullName')
   const designation = personalField(card.personal, 'designation')
   const company = personalField(card.personal, 'company')
@@ -149,6 +159,17 @@ export default function VCardTeamCard({
         : 'bg-slate-50 dark:bg-slate-900 text-slate-400 border-slate-150 dark:border-white/5'
 
   const isDeleting = isDeletingProfile || isDeletingLocal
+
+  const handleVisibilityChange = async (next: boolean) => {
+    setOptimisticPublic({ cardId, value: next })
+    try {
+      await updateProfileCard({ id: cardId, body: { isPublic: next } }).unwrap()
+      setOptimisticPublic(null)
+    } catch {
+      setOptimisticPublic(null)
+      notify.error('Could not update card visibility. Please try again.')
+    }
+  }
 
   const handleDeleteConfirm = async () => {
     setIsDeletingLocal(true)
@@ -173,6 +194,7 @@ export default function VCardTeamCard({
 
   return (
     <div
+      ref={cardRef}
       draggable={!!showDragHandle && !!onDragStart}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -218,39 +240,14 @@ export default function VCardTeamCard({
         </div>
       )}
 
-      <div className="absolute top-2.5 right-2.5 z-20">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            setMenuOpen((v) => !v)
-          }}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200/60 bg-white/90 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 dark:border-white/10 dark:bg-black/50"
-          aria-label="Card actions"
-        >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
-        {menuOpen ? (
-          <div
-            className="absolute top-9 right-0 min-w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={(e) => {
-                e.stopPropagation()
-                setMenuOpen(false)
-                setDeleteOpen(true)
-              }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete card
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <VCardOverflowMenu
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        cardRef={cardRef}
+        isDeleting={isDeleting}
+        onDelete={() => setDeleteOpen(true)}
+        onSettings={onSettings}
+      />
 
       <div className="flex flex-1 flex-col gap-2 p-3.5 pb-4">
         <div>
@@ -313,17 +310,26 @@ export default function VCardTeamCard({
             </span>
           </div>
 
-          <div className="mt-2">
-            <h3 className="truncate text-sm leading-snug font-extrabold text-slate-900 dark:text-white">
-              {fullName || 'No Name Given'}
-            </h3>
-            <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
-              {designation || 'Executive Team'}
-            </p>
-            <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-              <Building className="h-3 w-3 shrink-0 text-slate-400" />
-              <span className="truncate">{company || department || 'Company'}</span>
+          <div className="mt-2 flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-sm leading-snug font-extrabold text-slate-900 dark:text-white">
+                {fullName || 'No Name Given'}
+              </h3>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
+                {designation || 'Executive Team'}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                <Building className="h-3 w-3 shrink-0 text-slate-400" />
+                <span className="truncate">{company || department || 'Company'}</span>
+              </div>
             </div>
+            <VCardVisibilityToggle
+              id={`admin-vcard-visibility-${cardId}`}
+              checked={isPublic}
+              disabled={isUpdatingVisibility || !cardId}
+              compact
+              onChange={(next) => void handleVisibilityChange(next)}
+            />
           </div>
         </div>
 

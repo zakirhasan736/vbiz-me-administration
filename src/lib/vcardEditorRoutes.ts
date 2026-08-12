@@ -13,7 +13,6 @@ export const SETTINGS_TAB_IDS = [
   'home',
   'navbar',
   'template',
-  'analytics',
   'seo',
   'ai-assistance',
 ] as const

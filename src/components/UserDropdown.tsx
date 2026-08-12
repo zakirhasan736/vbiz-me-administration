@@ -1,13 +1,14 @@
 'use client'
 
 import { ContactModal, type OwnerFeedbackMode } from '@/components/dashboard/home/ContactModal'
+import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { logout, useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
-import { LifeBuoy, LogOut, MessageSquareHeart, Settings, UserCircle } from 'lucide-react'
+import { Compass, LifeBuoy, LogOut, MessageSquareHeart, Settings, UserCircle } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { LogoutConfirmModal } from './LogoutConfirmModal'
 
@@ -23,12 +24,14 @@ function accountTypeLabel(role: string | undefined) {
 
 export function UserDropdown() {
   const router = useRouter()
+  const pathname = usePathname()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
   const { user } = useAuth()
   const role = useAppSelector((state) => state.user.user?.role)
+  const { startTour, isActive: isTourActive } = useDashboardTour()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -100,7 +103,7 @@ export function UserDropdown() {
                 </Link>
               ) : (
                 <Link href="/settings" onClick={() => setIsProfileOpen(false)} className={menuItemClassName}>
-                  <Settings className="h-4 w-4" /> Account Settings
+                  <Settings className="h-4 w-4" /> Settings
                 </Link>
               )}
               {role !== 'admin' && role !== 'super-admin' ? (
@@ -126,6 +129,21 @@ export function UserDropdown() {
                     <LifeBuoy className="h-4 w-4 text-indigo-500" /> Contact Support
                   </button>
                 </>
+              ) : null}
+              {role === 'vcard-owner' && !isTourActive ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileOpen(false)
+                    if (pathname !== '/') {
+                      router.push('/')
+                    }
+                    startTour('dashboard')
+                  }}
+                  className={menuItemClassName}
+                >
+                  <Compass className="h-4 w-4" /> Take a tour
+                </button>
               ) : null}
               <button
                 type="button"

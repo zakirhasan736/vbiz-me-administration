@@ -1,3 +1,4 @@
+import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import { fetchMyCardBySlug } from '@/lib/api/myCard/fetchMyCardBySlug'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { fetchNavBarLinks } from '@/lib/api/navbar/fetchNavBarLinks'
@@ -26,14 +27,17 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const profileId = myCard.profile.id
   const template = resolveProfileTemplateFromMyCard(myCard)
+  const liveAgentEnabled = isAiAssistanceEnabled(
+    myCard.settings?.[AI_ASSISTANCE_SETTING_KEY] ?? myCard.features?.aiAssistance
+  )
 
   const [navBarLinks, liveAgent, profileSettings] = await Promise.all([
     fetchNavBarLinks(profileId),
-    resolveLiveAgentPromptFromProfileId(profileId),
+    liveAgentEnabled ? resolveLiveAgentPromptFromProfileId(profileId) : Promise.resolve(null),
     resolveProfileSettingsTheme(profileId, template),
   ])
 
-  const agent = liveAgent ?? fallbackLiveAgentPrompt()
+  const agent = liveAgentEnabled ? (liveAgent ?? fallbackLiveAgentPrompt()) : null
 
   return (
     <PublicProfileLayout
@@ -41,8 +45,8 @@ export default async function PublicProfilePage({ params }: Props) {
       initialMyCard={myCard}
       initialNavBarLinks={navBarLinks}
       initialProfileSettings={profileSettings}
-      liveAgentCardData={agent.cardData}
-      liveAgentSystemPrompt={agent.systemPrompt}
+      liveAgentCardData={agent?.cardData}
+      liveAgentSystemPrompt={agent?.systemPrompt}
     />
   )
 }

@@ -40,6 +40,7 @@ export function VBizProfileApp({
   avatarVideoUrl,
   liveAgentCardData = DEMO_PROFILE_PROPS.liveAgentCardData,
   liveAgentSystemPrompt,
+  liveAgentEnabled = false,
   design: designProp,
   shareSlug,
   profileSlug,
@@ -251,14 +252,16 @@ export function VBizProfileApp({
         )}
       </AnimatePresence>
 
-      <LiveAgent
-        embedded={embedded}
-        accentColor={design.accentColor}
-        cardData={liveAgentCardData}
-        systemInstruction={liveAgentSystemPrompt}
-        readyToConnect={introAllowed}
-        wrapperClassName="right-3 top-1/2 -translate-y-1/2 md:right-6 md:top-auto md:bottom-[60px] md:translate-y-0 lg:right-10 lg:bottom-[60px]"
-      />
+      {liveAgentEnabled ? (
+        <LiveAgent
+          embedded={embedded}
+          accentColor={design.accentColor}
+          cardData={liveAgentCardData}
+          systemInstruction={liveAgentSystemPrompt}
+          readyToConnect={introAllowed}
+          wrapperClassName="right-3 top-1/2 -translate-y-1/2 md:right-6 md:top-auto md:bottom-[60px] md:translate-y-0 lg:right-10 lg:bottom-[60px]"
+        />
+      ) : null}
 
       {!embedded && (
         <ProfileHomeModals

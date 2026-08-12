@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppSelector } from '@/hooks/redux'
+import { useGoogleFont } from '@/hooks/useGoogleFont'
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import type { MappedProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
 import { CardScopeProvider } from '@/lib/card-scope'
@@ -80,6 +81,8 @@ export default function PublicProfileLayout({
       themeFromApi: fromApi,
     }
   }, [record, designSettings, actionButtons, settingsAppearance, themeConfig, fromApi])
+
+  useGoogleFont(profileProps?.design?.fontFamily)
 
   if (isLoading) {
     return (

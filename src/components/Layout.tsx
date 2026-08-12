@@ -7,7 +7,7 @@ import { useAppSelector } from '@/hooks/redux'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { roleToAudience } from '@/lib/notifications'
 import { cn } from '@/utils/cn'
-import { Contact, LayoutDashboard, Menu, Moon, Settings, Sun, X } from 'lucide-react'
+import { Contact, LayoutDashboard, Menu, Moon, Sun, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -86,14 +86,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       ? [
           { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
           { name: 'My Cards', path: '/admin/mycards', icon: Contact, tourId: 'tour-nav-vcards' },
-          { name: 'Settings', path: '/admin/settings', icon: Settings, tourId: 'tour-nav-settings' },
         ]
       : [
           { name: 'Dashboard', path: '/', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
           ...(role === 'corporate-owner'
             ? [{ name: 'Team vCards', path: '/teamvcard', icon: Contact, tourId: 'tour-nav-teamvcard' }]
             : [{ name: 'My vCards', path: '/vcards', icon: Contact, tourId: 'tour-nav-vcards' }]),
-          { name: 'Settings', path: '/settings', icon: Settings, tourId: 'tour-nav-settings' },
         ]
 
   // Admin console provides its own shell; avoid double chrome on /admin/*
@@ -107,8 +105,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="selection:bg-primary-500/30 relative flex min-h-screen flex-col overflow-x-hidden bg-slate-50 font-sans text-slate-900 dark:bg-[#070a13] dark:text-slate-100">
       <div className="bg-primary-500/20 dark:bg-primary-600/10 pointer-events-none fixed top-0 left-1/2 -z-10 h-[40vh] w-full max-w-4xl -translate-x-1/2 rounded-full blur-[120px]" />
-
-      <AnnouncementBanner enabled={showAnnouncementBanner} />
 
       <header className="sticky top-4 z-50 mx-4 mt-3 rounded-2xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl md:mx-8 lg:mx-auto lg:max-w-7xl dark:border-white/10 dark:bg-[#0b0f19]/70">
         <div className="flex h-16 min-w-0 items-center justify-between gap-2 px-4 md:gap-3 md:px-6">
@@ -226,6 +222,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         )}
       </header>
+
+      <AnnouncementBanner enabled={showAnnouncementBanner} />
 
       <main id="main-scroll" className="wrapper relative min-h-0 min-w-0 flex-1 overflow-x-hidden py-8">
         {children}
