@@ -6,16 +6,19 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   NOTIFICATION_PREFERENCE_OPTIONS,
   SERVICE_WORKER_PATH,
+  assertValidVapidPublicKey,
   fetchPushStatus,
   followStorageKey,
   getNotificationPermission,
   getReadyRegistration,
   isPushSupported,
+  mapPushSubscribeError,
   readFollowState,
   readStoredSubscription,
   registerServiceWorker,
   resolvePushEndpoint,
   resolvePushSubscriptionPayload,
+  resolveVapidPublicKey,
   sendTestNotification,
   subscribeToCard,
   subscriptionStorageKey,
@@ -30,16 +33,19 @@ export {
   DEFAULT_NOTIFICATION_PREFERENCES,
   NOTIFICATION_PREFERENCE_OPTIONS,
   SERVICE_WORKER_PATH,
+  assertValidVapidPublicKey,
   fetchPushStatus,
   followStorageKey,
   getNotificationPermission,
   getReadyRegistration,
   isPushSupported,
+  mapPushSubscribeError,
   readFollowState,
   readStoredSubscription,
   registerServiceWorker,
   resolvePushEndpoint,
   resolvePushSubscriptionPayload,
+  resolveVapidPublicKey,
   sendTestNotification,
   subscribeToCard,
   subscriptionStorageKey,
@@ -118,9 +124,6 @@ export async function subscribeUserToPush(options: {
   cardOwnerId?: string
   preferences?: Partial<NotificationPreferences>
 }) {
-  if (!isVapidConfigured()) {
-    throw new Error('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not configured.')
-  }
   await registerServiceWorker()
   return subscribeToCard(options)
 }

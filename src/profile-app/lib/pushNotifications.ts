@@ -174,6 +174,90 @@ export const urlBase64ToUint8Array = (base64String: string) => {
   return outputArray
 }
 
+/** Uncompressed P-256 VAPID public keys decode to 65 bytes (0x04 || x || y). */
+export function assertValidVapidPublicKey(base64String: string): Uint8Array {
+  const trimmed = base64String.trim()
+  if (!trimmed) {
+    throw new Error('Push public key is empty. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY or configure the API.')
+  }
+  let keyBytes: Uint8Array
+  try {
+    keyBytes = urlBase64ToUint8Array(trimmed)
+  } catch {
+    throw new Error('Push public key is invalid. Check NEXT_PUBLIC_VAPID_PUBLIC_KEY / server VAPID_PUBLIC_KEY.')
+  }
+  if (keyBytes.length !== 65 || keyBytes[0] !== 0x04) {
+    throw new Error(
+      'Push public key has the wrong format (expected a 65-byte uncompressed VAPID key). Regenerate with web-push generate-vapid-keys.'
+    )
+  }
+  return keyBytes
+}
+
+function uint8ArraysEqual(a: Uint8Array, b: Uint8Array) {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+function subscriptionMatchesVapidKey(subscription: PushSubscription, vapidKeyBytes: Uint8Array) {
+  const existingKey = subscription.options?.applicationServerKey
+  if (!existingKey) return false
+  return uint8ArraysEqual(new Uint8Array(existingKey), vapidKeyBytes)
+}
+
+export function mapPushSubscribeError(error: unknown): Error {
+  if (!(error instanceof Error)) {
+    return new Error('Could not enable notifications.')
+  }
+
+  const name = 'name' in error ? String((error as { name?: string }).name) : ''
+  const message = error.message || ''
+  const lower = message.toLowerCase()
+
+  if (name === 'NotAllowedError' || lower.includes('permission')) {
+    return new Error(
+      'Notifications are blocked for this site. Tap the lock icon in your browser address bar, allow Notifications, then try again.'
+    )
+  }
+
+  if (name === 'AbortError' || lower.includes('push service') || lower.includes('registration failed')) {
+    return new Error(
+      'Your browser could not reach its push service. Try Chrome or Edge, turn off VPN/ad-blockers that block Google push, or in Brave enable “Use Google services for push messaging”. Then clear this site’s notification data and try again.'
+    )
+  }
+
+  if (name === 'InvalidStateError' || lower.includes('service worker')) {
+    return new Error('The notification service worker is not ready yet. Refresh the page and try again.')
+  }
+
+  return error
+}
+
+/** Prefer live server public key so FE/BE stay aligned; fall back to build-time env. */
+export async function resolveVapidPublicKey(): Promise<string> {
+  try {
+    const response = await fetch(pushApiUrl('/vapid-public-key'), {
+      headers: { Accept: 'application/json' },
+    })
+    if (response.ok) {
+      const json = unwrapPublicPayload<{ publicKey?: string; public_key?: string }>(await response.json())
+      const liveKey = (json.publicKey || json.public_key || '').trim()
+      if (liveKey) return liveKey
+    }
+  } catch {
+    /* fall through to env */
+  }
+
+  const envKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim()
+  if (!envKey) {
+    throw new Error('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not configured.')
+  }
+  return envKey
+}
+
 export async function registerServiceWorker() {
   if (!isPushSupported()) return null
   try {
@@ -197,6 +281,31 @@ export async function getReadyRegistration() {
   if (!isPushSupported()) return null
   const registration = await registerServiceWorker()
   if (!registration) return null
+
+  const ready = await navigator.serviceWorker.ready
+
+  // Ensure an active worker controls the page before PushManager.subscribe.
+  if (!ready.active) {
+    if (ready.waiting) {
+      ready.waiting.postMessage({ type: 'SKIP_WAITING' })
+    }
+    await new Promise<void>((resolve) => {
+      const onControllerChange = () => {
+        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+        resolve()
+      }
+      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+      window.setTimeout(() => {
+        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+        resolve()
+      }, 3000)
+    })
+  }
+
+  if (!ready.active && !(await navigator.serviceWorker.ready).active) {
+    return null
+  }
+
   return navigator.serviceWorker.ready
 }
 
@@ -291,90 +400,104 @@ export async function subscribeToCard(options: {
   cardOwnerId?: string
   preferences?: Partial<NotificationPreferences>
 }) {
-  if (!isPushSupported()) {
-    throw new Error('Push notifications are not supported in this browser.')
-  }
-
-  // Always (re)ask the browser when the user clicks Enable. If it was previously
-  // denied the browser will not re-prompt, so guide the user to re-enable it.
-  let permission: NotificationPermission = Notification.permission
-  if (permission !== 'granted') {
-    permission = await Notification.requestPermission()
-  }
-
-  if (permission === 'denied') {
-    throw new Error(
-      'Notifications are blocked for this site. Tap the lock icon in your browser address bar, allow Notifications, then try again.'
-    )
-  }
-
-  if (permission !== 'granted') {
-    throw new Error('Please choose "Allow" on the notification prompt to enable updates.')
-  }
-
-  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-  if (!vapidPublicKey) {
-    throw new Error('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not configured.')
-  }
-
-  const registration = await getReadyRegistration()
-  if (!registration) {
-    throw new Error('Could not register the service worker.')
-  }
-
-  let subscription = await registration.pushManager.getSubscription()
-  if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    })
-  }
-
-  const payload = writeStoredSubscription(subscription)
-  const preferences = {
-    ...DEFAULT_NOTIFICATION_PREFERENCES,
-    ...options.preferences,
-  }
-
-  const response = await fetch(pushApiUrl('/subscribe'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      profile_slug: options.cardSlug,
-      endpoint: payload.endpoint,
-      keys: payload.keys,
-      browser: detectBrowser(),
-      platform: detectPlatform(),
-    }),
-  })
-
-  if (!response.ok) {
-    let message = 'Could not save subscription.'
-    try {
-      const error = (await response.json()) as { message?: string; error?: string }
-      message = error.message || error.error || message
-    } catch {
-      /* ignore */
-    }
-    throw new Error(message)
-  }
-
-  clearNotificationDeclinedForCard(options.cardSlug)
-  writeFollowState(options.cardSlug, {
-    following: true,
-    preferences,
-    subscribedAt: new Date().toISOString(),
-  })
-  setCachedCardPushStatus(options.cardSlug, { following: true, preferences })
-
-  // Ensure backend preference flags are enabled so pushes are not filtered out.
   try {
-    await updateCardPreferences(options.cardSlug, preferences)
-  } catch (preferenceError) {
-    console.warn('Push subscribed, but preferences update failed:', preferenceError)
-  }
+    if (!isPushSupported()) {
+      throw new Error('Push notifications are not supported in this browser.')
+    }
 
-  return { subscription, preferences }
+    // Always (re)ask the browser when the user clicks Enable. If it was previously
+    // denied the browser will not re-prompt, so guide the user to re-enable it.
+    let permission: NotificationPermission = Notification.permission
+    if (permission !== 'granted') {
+      permission = await Notification.requestPermission()
+    }
+
+    if (permission === 'denied') {
+      throw new Error(
+        'Notifications are blocked for this site. Tap the lock icon in your browser address bar, allow Notifications, then try again.'
+      )
+    }
+
+    if (permission !== 'granted') {
+      throw new Error('Please choose "Allow" on the notification prompt to enable updates.')
+    }
+
+    const vapidPublicKey = await resolveVapidPublicKey()
+    const vapidKeyBytes = assertValidVapidPublicKey(vapidPublicKey)
+
+    const registration = await getReadyRegistration()
+    if (!registration?.active) {
+      throw new Error('Could not register the service worker.')
+    }
+
+    let subscription: PushSubscription | null = await registration.pushManager.getSubscription()
+    if (subscription && !subscriptionMatchesVapidKey(subscription, vapidKeyBytes)) {
+      await subscription.unsubscribe().catch(() => null)
+      clearStoredSubscription()
+      subscription = null
+    }
+
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        // Copy into a plain ArrayBuffer-backed view for DOM BufferSource typing.
+        applicationServerKey: vapidKeyBytes.slice().buffer as ArrayBuffer,
+      })
+    }
+
+    const payload = writeStoredSubscription(subscription)
+    const preferences = {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      ...options.preferences,
+    }
+
+    const response = await fetch(pushApiUrl('/subscribe'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        profile_slug: options.cardSlug,
+        endpoint: payload.endpoint,
+        keys: payload.keys,
+        browser: detectBrowser(),
+        platform: detectPlatform(),
+      }),
+    })
+
+    if (!response.ok) {
+      let message = 'Could not save subscription.'
+      try {
+        const error = (await response.json()) as { message?: string; error?: string }
+        message = error.message || error.error || message
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message)
+    }
+
+    clearNotificationDeclinedForCard(options.cardSlug)
+    writeFollowState(options.cardSlug, {
+      following: true,
+      preferences,
+      subscribedAt: new Date().toISOString(),
+    })
+    setCachedCardPushStatus(options.cardSlug, { following: true, preferences })
+
+    // Ensure backend preference flags are enabled so pushes are not filtered out.
+    try {
+      await updateCardPreferences(options.cardSlug, preferences)
+    } catch (preferenceError) {
+      console.warn('Push subscribed, but preferences update failed:', preferenceError)
+    }
+
+    return { subscription, preferences }
+  } catch (error) {
+    console.error('[push] subscribeToCard failed', {
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    throw mapPushSubscribeError(error)
+  }
 }
 
 export async function updateCardBackendPreferences(

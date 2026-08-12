@@ -24,6 +24,8 @@ export type Meeting = {
   notes: string | null
   status: MeetingStatus
   profileId: string | null
+  googleEventId?: string | null
+  meetLink?: string | null
   createdById: string | null
   createdAt: string
   updatedAt: string

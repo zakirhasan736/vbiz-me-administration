@@ -1,6 +1,11 @@
 'use client'
 
-import { fetchPushStatus, unsubscribeFromCard, updateCardBackendPreferences } from '@/lib/push/config'
+import {
+  fetchPushStatus,
+  sendTestNotification,
+  unsubscribeFromCard,
+  updateCardBackendPreferences,
+} from '@/lib/push/config'
 import {
   BACKEND_NOTIFICATION_PREFERENCE_OPTIONS,
   DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
@@ -9,7 +14,7 @@ import {
 } from '@/lib/push/preferenceMapping'
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
-import { Bell, BellOff, BellRing, Loader2, Save, X } from 'lucide-react'
+import { Bell, BellOff, BellRing, Loader2, Save, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export const NotificationSettingsModal = ({
@@ -29,6 +34,7 @@ export const NotificationSettingsModal = ({
   )
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [unfollowing, setUnfollowing] = useState(false)
   const [unfollowed, setUnfollowed] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -85,6 +91,24 @@ export const NotificationSettingsModal = ({
       notify.error(failureMessage)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSendTest = async () => {
+    setTesting(true)
+    setError(null)
+    setMessage(null)
+    try {
+      await sendTestNotification(cardSlug)
+      const successMessage = 'Test notification sent. Check your system tray.'
+      setMessage(successMessage)
+      notify.success(successMessage)
+    } catch (e) {
+      const failureMessage = e instanceof Error ? e.message : 'Could not send test notification.'
+      setError(failureMessage)
+      notify.error(failureMessage)
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -213,6 +237,15 @@ export const NotificationSettingsModal = ({
                 data-role="primary"
               >
                 <Save size={16} /> {saving ? 'Saving…' : 'Save Preferences'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSendTest()}
+                disabled={testing || loading}
+                className="vbiz-modal-btn-secondary vbiz-btn flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-medium transition-all active:scale-[0.98] disabled:opacity-60"
+                data-role="secondary"
+              >
+                <Send size={16} /> {testing ? 'Sending…' : 'Send test notification'}
               </button>
               <button
                 type="button"

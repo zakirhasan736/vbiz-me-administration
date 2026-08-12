@@ -41,7 +41,7 @@ export default function PublicProfileLayout({
   liveAgentCardData,
   liveAgentSystemPrompt,
 }: Props) {
-  const { record, isLoading, isError, error, actionButtons } = useProfile(slug, { initialMyCard })
+  const { record, isLoading, isError, error, actionButtons, myCard } = useProfile(slug, { initialMyCard })
   const designSettings = useAppSelector((s) => s.designSettings)
 
   const earlyTemplate: ProfileTemplateId =
@@ -79,8 +79,9 @@ export default function PublicProfileLayout({
       design,
       themeConfig,
       themeFromApi: fromApi,
+      teamNotices: myCard?.team_notices ?? initialMyCard?.team_notices ?? null,
     }
-  }, [record, designSettings, actionButtons, settingsAppearance, themeConfig, fromApi])
+  }, [record, designSettings, actionButtons, settingsAppearance, themeConfig, fromApi, myCard, initialMyCard])
 
   useGoogleFont(profileProps?.design?.fontFamily)
 

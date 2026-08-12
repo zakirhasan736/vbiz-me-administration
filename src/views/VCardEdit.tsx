@@ -32,6 +32,7 @@ import { Tab5ExtraFields } from '@/components/VCardTab5'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
+import { getCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import {
   createCardTabNameToNavId,
   getAiSeedCreateCardNavIds,
@@ -145,6 +146,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const { isActive: isTourActive, currentStep, registerActivateTab } = useDashboardTour()
 
   const isAiCreateFlow = isCreateMode && searchParams.get('agent') === '1'
+  const [createOwner, setCreateOwner] = useState<CreateCardOwnerSession | null>(null)
+  const [createOwnerMode, setCreateOwnerMode] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (isAiCreateFlow) openAgent()
@@ -152,6 +155,12 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   const cardKey = contextCardId || cardId || 'draft'
   const isClient = typeof window !== 'undefined'
+
+  // Create-owner banner: sync from sessionStorage during render (same pattern as navOrder/cardKey)
+  if (isClient && createOwnerMode !== isCreateMode) {
+    setCreateOwnerMode(isCreateMode)
+    setCreateOwner(isCreateMode ? getCreateCardOwner() : null)
+  }
   const [navOrderIds, setNavOrderIds] = useState(() =>
     isClient
       ? readEditorNavOrderIds(
@@ -469,6 +478,18 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
           title="Take a create-card tour"
           body="Guided walkthrough of Generate, Portfolio, Services, Skill, AI Auto-fill, My Info, and every major tab — start anytime."
         />
+        {isCreateMode && createOwner ? (
+          <div className="animate-in slide-in-from-top-4 flex w-full flex-col gap-1 rounded-3xl border border-indigo-500/25 bg-indigo-500/10 p-5 px-6 text-indigo-900 duration-300 dark:text-indigo-100">
+            <p className="text-[15px] font-bold">
+              Creating for <span className="font-extrabold">{createOwner.name || createOwner.email}</span>
+            </p>
+            <p className="text-xs font-semibold text-indigo-700/80 dark:text-indigo-200/80">
+              {[createOwner.email, createOwner.role === 'corporate-owner' ? 'Corporate owner' : 'Single owner']
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+        ) : null}
         {isDirectoryEditor ? (
           <div className="animate-in slide-in-from-top-4 flex w-full flex-col justify-between gap-4 rounded-3xl border border-amber-500/25 bg-amber-500/10 p-5 px-6 text-amber-800 duration-300 sm:flex-row sm:items-center dark:text-amber-200/95">
             <div className="flex items-center gap-3">

@@ -1,12 +1,14 @@
 'use client'
 
+import { ConfirmModal } from '@/components/ConfirmModal'
 import {
+  useDeleteSupportTicketMutation,
   useGetSupportTicketsQuery,
   useUpdateSupportTicketMutation,
 } from '@/redux/features/adminSupport/adminSupport.api'
 import type { TicketStatus } from '@/types/support'
 import { cn } from '@/utils/cn'
-import { Inbox, LifeBuoy, Loader2, Star } from 'lucide-react'
+import { Ban, Inbox, LifeBuoy, Loader2, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 /**
@@ -17,16 +19,19 @@ export default function AdminSupport() {
   const [filter, setFilter] = useState<'all' | TicketStatus>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [reply, setReply] = useState('')
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const { data, isLoading, isError, isFetching } = useGetSupportTicketsQuery({
     status: filter === 'all' ? undefined : filter,
     limit: 100,
   })
   const [updateTicket, { isLoading: isUpdating }] = useUpdateSupportTicketMutation()
+  const [deleteTicket, { isLoading: isDeleting }] = useDeleteSupportTicketMutation()
 
   const tickets = data?.items ?? []
   const openCount = data?.openCount ?? 0
   const selected = (selectedId ? tickets.find((t) => t.id === selectedId) : undefined) ?? tickets[0] ?? null
+  const busy = isUpdating || isDeleting
 
   const handleStatus = async (status: TicketStatus) => {
     if (!selected) return
@@ -41,6 +46,32 @@ export default function AdminSupport() {
       setReply('')
     } catch {
       // RTK error surface; keep reply so admin can retry
+    }
+  }
+
+  const handleToggleBlocked = async () => {
+    if (!selected) return
+    try {
+      await updateTicket({
+        id: selected.id,
+        body: { blocked: !selected.blocked },
+      }).unwrap()
+    } catch {
+      // keep UI as-is on failure
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!selected) return
+    const deletedId = selected.id
+    const nextId = tickets.find((t) => t.id !== deletedId)?.id ?? null
+    try {
+      await deleteTicket(deletedId).unwrap()
+      setSelectedId(nextId)
+      setReply('')
+      setConfirmDeleteOpen(false)
+    } catch {
+      // keep confirm open so admin can retry
     }
   }
 
@@ -111,16 +142,23 @@ export default function AdminSupport() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-xs font-black text-slate-900 dark:text-white">{t.subject}</p>
-                    <span
-                      className={cn(
-                        'shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                        t.status === 'open' && 'bg-rose-500/15 text-rose-600',
-                        t.status === 'in_progress' && 'bg-amber-500/15 text-amber-600',
-                        t.status === 'closed' && 'bg-emerald-500/15 text-emerald-600'
+                    <div className="flex shrink-0 items-center gap-1">
+                      {t.blocked && (
+                        <span className="rounded-md bg-slate-900/90 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-white uppercase dark:bg-white/20">
+                          Blocked
+                        </span>
                       )}
-                    >
-                      {t.status.replace('_', ' ')}
-                    </span>
+                      <span
+                        className={cn(
+                          'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                          t.status === 'open' && 'bg-rose-500/15 text-rose-600',
+                          t.status === 'in_progress' && 'bg-amber-500/15 text-amber-600',
+                          t.status === 'closed' && 'bg-emerald-500/15 text-emerald-600'
+                        )}
+                      >
+                        {t.status.replace('_', ' ')}
+                      </span>
+                    </div>
                   </div>
                   <p className="mt-1 truncate text-[10px] font-semibold text-slate-400">
                     {t.fromName} · {t.fromRole} · {t.channel}
@@ -151,6 +189,11 @@ export default function AdminSupport() {
                   <span className="rounded-lg bg-indigo-50 px-2 py-1 text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:bg-indigo-500/10">
                     {selected.type}
                   </span>
+                  {selected.blocked && (
+                    <span className="rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black tracking-wider text-white uppercase dark:bg-white/20">
+                      Blocked
+                    </span>
+                  )}
                   {typeof selected.rating === 'number' && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600">
                       <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
@@ -163,6 +206,11 @@ export default function AdminSupport() {
                   From {selected.fromName} ({selected.fromRole}){selected.fromEmail ? ` · ${selected.fromEmail}` : ''} ·{' '}
                   {new Date(selected.createdAt).toLocaleString()}
                 </p>
+                {selected.blocked && (
+                  <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-300">
+                    This owner cannot send new support or feedback tickets while this ticket is blocked.
+                  </p>
+                )}
               </div>
               <div className="flex-1 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold whitespace-pre-wrap text-slate-700 dark:border-white/5 dark:bg-slate-900/60 dark:text-slate-200">
                 {selected.details}
@@ -178,13 +226,13 @@ export default function AdminSupport() {
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                   placeholder="Reply note to the owner..."
-                  disabled={isUpdating}
+                  disabled={busy}
                   className="h-20 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold outline-none disabled:opacity-60 dark:border-white/10 dark:bg-slate-900"
                 />
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    disabled={isUpdating}
+                    disabled={busy}
                     onClick={() => void handleStatus('in_progress')}
                     className="rounded-xl bg-amber-500 px-4 py-2 text-[10px] font-black tracking-wider text-white uppercase disabled:opacity-60"
                   >
@@ -192,7 +240,7 @@ export default function AdminSupport() {
                   </button>
                   <button
                     type="button"
-                    disabled={isUpdating}
+                    disabled={busy}
                     onClick={() => void handleStatus('closed')}
                     className="rounded-xl bg-emerald-600 px-4 py-2 text-[10px] font-black tracking-wider text-white uppercase disabled:opacity-60"
                   >
@@ -200,11 +248,32 @@ export default function AdminSupport() {
                   </button>
                   <button
                     type="button"
-                    disabled={isUpdating}
+                    disabled={busy}
                     onClick={() => void handleStatus('open')}
                     className="rounded-xl bg-slate-200 px-4 py-2 text-[10px] font-black tracking-wider text-slate-700 uppercase disabled:opacity-60 dark:bg-white/10 dark:text-slate-200"
                   >
                     Reopen
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void handleToggleBlocked()}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[10px] font-black tracking-wider text-white uppercase disabled:opacity-60',
+                      selected.blocked ? 'bg-slate-700' : 'bg-rose-700'
+                    )}
+                  >
+                    <Ban className="h-3.5 w-3.5" />
+                    {selected.blocked ? 'Unblock' : 'Block'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setConfirmDeleteOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500/15 px-4 py-2 text-[10px] font-black tracking-wider text-rose-700 uppercase disabled:opacity-60 dark:text-rose-300"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
                   </button>
                 </div>
               </div>
@@ -212,6 +281,24 @@ export default function AdminSupport() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmDeleteOpen}
+        title="Delete support ticket?"
+        description={
+          selected
+            ? `Permanently delete “${selected.subject}” from ${selected.fromName}? This cannot be undone.`
+            : 'Permanently delete this support ticket? This cannot be undone.'
+        }
+        confirmLabel="Delete"
+        variant="danger"
+        icon={Trash2}
+        isLoading={isDeleting}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => {
+          if (!isDeleting) setConfirmDeleteOpen(false)
+        }}
+      />
     </div>
   )
 }

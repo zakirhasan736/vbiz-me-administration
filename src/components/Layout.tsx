@@ -103,10 +103,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const showAnnouncementBanner = role === 'vcard-owner' || role === 'corporate-owner'
 
   return (
-    <div className="selection:bg-primary-500/30 relative flex min-h-screen flex-col overflow-x-hidden bg-slate-50 font-sans text-slate-900 dark:bg-[#070a13] dark:text-slate-100">
+    <div className="selection:bg-primary-500/30 relative flex min-h-screen flex-col overflow-x-clip bg-slate-50 font-sans text-slate-900 dark:bg-[#070a13] dark:text-slate-100">
       <div className="bg-primary-500/20 dark:bg-primary-600/10 pointer-events-none fixed top-0 left-1/2 -z-10 h-[40vh] w-full max-w-4xl -translate-x-1/2 rounded-full blur-[120px]" />
 
-      <header className="sticky top-4 z-50 mx-4 mt-3 rounded-2xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl md:mx-8 lg:mx-auto lg:max-w-7xl dark:border-white/10 dark:bg-[#0b0f19]/70">
+      <header
+        className={cn(
+          'z-50 mx-4 mt-3 rounded-2xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl md:mx-8 lg:mx-auto lg:max-w-7xl dark:border-white/10 dark:bg-[#0b0f19]/70',
+          // Editor (Card Settings): let the app navbar scroll away; only the settings sidebar sticks.
+          isEditorRoute ? 'relative' : 'sticky top-4'
+        )}
+      >
         <div className="flex h-16 min-w-0 items-center justify-between gap-2 px-4 md:gap-3 md:px-6">
           <div className="flex min-w-0 items-center gap-4 lg:gap-8">
             <Link href={brandHref} className="group flex items-center gap-2">
@@ -225,7 +231,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
       <AnnouncementBanner enabled={showAnnouncementBanner} />
 
-      <main id="main-scroll" className="wrapper relative min-h-0 min-w-0 flex-1 overflow-x-hidden py-8">
+      <main id="main-scroll" className="wrapper relative min-h-0 min-w-0 flex-1 overflow-x-clip py-8">
         {children}
       </main>
     </div>

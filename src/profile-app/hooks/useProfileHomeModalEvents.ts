@@ -17,17 +17,20 @@ export function useProfileHomeModalEvents(
     const handleOpenNotepad = () => setActiveModal('notepad')
     const handleOpenMyInfo = () => setActiveModal('info')
     const handleOpenShare = () => setActiveModal('share')
+    const handleOpenWallet = () => setActiveModal('wallet')
 
     window.addEventListener('saveContactAction', handleSaveContact)
     window.addEventListener('openNotepadAction', handleOpenNotepad)
     window.addEventListener('openMyInfoModal', handleOpenMyInfo)
     window.addEventListener('openShareModal', handleOpenShare)
+    window.addEventListener('openWalletModal', handleOpenWallet)
 
     return () => {
       window.removeEventListener('saveContactAction', handleSaveContact)
       window.removeEventListener('openNotepadAction', handleOpenNotepad)
       window.removeEventListener('openMyInfoModal', handleOpenMyInfo)
       window.removeEventListener('openShareModal', handleOpenShare)
+      window.removeEventListener('openWalletModal', handleOpenWallet)
     }
   }, [setActiveModal])
 }

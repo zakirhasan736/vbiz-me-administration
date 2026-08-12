@@ -1,5 +1,6 @@
 'use client'
 
+import { CardNoticeAfterIntro } from '@/profile-app/components/CardNoticeAfterIntro'
 import { CardPushMediaSync } from '@/profile-app/components/CardPushMediaSync'
 import { CinematicScrollbarBinder } from '@/profile-app/components/CinematicScrollbarBinder'
 import { EmbeddedDraftCacheSync } from '@/profile-app/components/EmbeddedDraftCacheSync'
@@ -101,6 +102,12 @@ export function ProfileApp(props: VBizProfileAppProps) {
             {!props.embedded && <CardPushMediaSync />}
             {!props.embedded && <ProfileBrandPreloader />}
             {!props.embedded && <ProfileIntroOverlay explainerVideoUrl={props.explainerVideoUrl} />}
+            <CardNoticeAfterIntro
+              embedded={props.embedded}
+              profileSlug={props.profileSlug ?? props.shareSlug}
+              ownerName={props.ownerName}
+              teamNotices={props.teamNotices}
+            />
             <CinematicScrollbarBinder />
             {shell}
           </ProfileIntroProvider>

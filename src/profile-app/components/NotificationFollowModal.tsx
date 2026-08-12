@@ -1,6 +1,12 @@
 'use client'
 
-import { DEFAULT_NOTIFICATION_PREFERENCES, isPushSupported, subscribeToCard } from '@/lib/push/config'
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  isPushSupported,
+  mapPushSubscribeError,
+  sendTestNotification,
+  subscribeToCard,
+} from '@/lib/push/config'
 import { markNotificationDeclined, markNotificationSubscribed } from '@/lib/push/notificationRouting'
 import { notify } from '@/lib/toast/toast'
 import { ArrowRight, Bell, Check, ShieldCheck, Sparkles, X } from 'lucide-react'
@@ -16,6 +22,10 @@ type NotificationFollowModalProps = {
   onSubscribed?: () => void
 }
 
+function isPushServiceGuidance(message: string) {
+  return message.toLowerCase().includes('push service') || message.toLowerCase().includes('google services')
+}
+
 /** Shared "Follow" enable-notifications popup — first visit, alert button, and post-save flows. */
 export function NotificationFollowModal({
   isOpen,
@@ -27,6 +37,7 @@ export function NotificationFollowModal({
 }: NotificationFollowModalProps) {
   const [showSuccess, setShowSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubscribe = async () => {
@@ -48,12 +59,9 @@ export function NotificationFollowModal({
       notify.success("You're subscribed! We'll notify you when this card is updated.")
       setShowSuccess(true)
       onSubscribed?.()
-      window.setTimeout(() => {
-        setShowSuccess(false)
-        onClose()
-      }, 2000)
     } catch (subscribeError) {
-      const message = subscribeError instanceof Error ? subscribeError.message : 'Could not enable notifications.'
+      const mapped = mapPushSubscribeError(subscribeError)
+      const message = mapped.message || 'Could not enable notifications.'
       setError(message)
       notify.error(message)
     } finally {
@@ -61,8 +69,26 @@ export function NotificationFollowModal({
     }
   }
 
+  const handleSendTest = async () => {
+    setTesting(true)
+    try {
+      await sendTestNotification(cardSlug)
+      notify.success('Test notification sent. Check your system tray.')
+    } catch (testError) {
+      const message = testError instanceof Error ? testError.message : 'Could not send test notification.'
+      notify.error(message)
+    } finally {
+      setTesting(false)
+    }
+  }
+
   const handleDecline = () => {
     markNotificationDeclined(cardSlug)
+    onClose()
+  }
+
+  const handleDone = () => {
+    setShowSuccess(false)
     onClose()
   }
 
@@ -81,7 +107,7 @@ export function NotificationFollowModal({
             <div className="relative z-10 p-6">
               <button
                 type="button"
-                onClick={handleDecline}
+                onClick={showSuccess ? handleDone : handleDecline}
                 className="vbiz-modal-close absolute top-4 right-4 rounded-full border p-1.5 transition-all focus:outline-none"
               >
                 <X size={16} />
@@ -124,9 +150,15 @@ export function NotificationFollowModal({
                   </div>
 
                   {error ? (
-                    <p className="mb-4 text-center text-xs text-red-400" role="alert">
-                      {error}
-                    </p>
+                    <div className="mb-4 space-y-1.5 text-center" role="alert">
+                      <p className="text-xs text-red-400">{error}</p>
+                      {isPushServiceGuidance(error) ? (
+                        <p className="vbiz-description text-[10px] leading-relaxed opacity-80">
+                          Still stuck? Open DevTools → Application → Clear site data for this origin, then retry in
+                          Chrome.
+                        </p>
+                      ) : null}
+                    </div>
                   ) : null}
 
                   <div className="flex flex-col gap-2.5">
@@ -153,7 +185,7 @@ export function NotificationFollowModal({
                   </p>
                 </>
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
                   <motion.div
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -162,9 +194,26 @@ export function NotificationFollowModal({
                     <Check size={36} strokeWidth={3} />
                   </motion.div>
                   <h3 className="vbiz-title mb-2 text-xl font-bold">You&apos;re All Set!</h3>
-                  <p className="vbiz-description text-sm font-medium">
+                  <p className="vbiz-description mb-6 text-sm font-medium">
                     We&apos;ll notify you the moment an update is published.
                   </p>
+                  <div className="flex w-full flex-col gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => void handleSendTest()}
+                      disabled={testing}
+                      className="vbiz-modal-btn-primary w-full rounded-full py-3 text-sm font-bold transition-all disabled:opacity-60"
+                    >
+                      {testing ? 'Sending…' : 'Send test notification'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDone}
+                      className="vbiz-modal-btn-secondary w-full rounded-full py-3 text-sm font-bold transition-all"
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

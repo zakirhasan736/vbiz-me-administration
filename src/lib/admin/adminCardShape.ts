@@ -5,8 +5,10 @@ export type AdminCard = Record<string, unknown> & {
   id: string
   slug?: string
   ownerId?: string
+  ownerEmail?: string | null
   ownerRole?: string | null
   companyUserId?: string | null
+  companyUserEmail?: string | null
   companyUserRole?: string | null
   createdById?: string | null
   createdByRole?: string | null

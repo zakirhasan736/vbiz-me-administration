@@ -7,6 +7,7 @@ import { NotificationAskModal } from '@/profile-app/components/NotificationAskMo
 import { NotificationFollowModal } from '@/profile-app/components/NotificationFollowModal'
 import { NotificationSettingsModal } from '@/profile-app/components/NotificationSettingsModal'
 import { SaveContactModal } from '@/profile-app/components/SaveContactModal'
+import { SaveToWalletModal } from '@/profile-app/components/SaveToWalletModal'
 import { ShareModal } from '@/profile-app/components/ShareModal'
 import dynamic from 'next/dynamic'
 
@@ -16,7 +17,7 @@ const NotepadModal = dynamic(
 )
 
 export type ProfileHomeModalId =
-  'contact' | 'follow' | 'notification' | 'done' | 'settings' | 'notepad' | 'share' | 'info' | null
+  'contact' | 'follow' | 'notification' | 'done' | 'settings' | 'notepad' | 'share' | 'info' | 'wallet' | null
 
 type ProfileHomeModalsProps = {
   activeModal: ProfileHomeModalId
@@ -85,6 +86,7 @@ export function ProfileHomeModals({
       <DoneModal isOpen={activeModal === 'done'} onClose={onClose} />
       <ShareModal isOpen={activeModal === 'share'} onClose={onClose} />
       <InfoModal isOpen={activeModal === 'info'} onClose={onClose} theme={theme} />
+      <SaveToWalletModal isOpen={activeModal === 'wallet'} onClose={onClose} />
     </>
   )
 }

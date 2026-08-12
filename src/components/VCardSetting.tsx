@@ -1295,7 +1295,7 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
         {/* Left Sidebar for Settings */}
         <div
           className={cn(
-            'hidden-scrollbar z-10 flex shrink-0 flex-col gap-2 overflow-y-auto border-b border-black/5 bg-transparent transition-all duration-300 md:sticky md:top-28 md:max-h-[calc(100vh-8rem)] md:self-start md:border-r md:border-b-0 dark:border-white/5',
+            'z-10 flex shrink-0 flex-col gap-2 border-b border-black/5 bg-transparent transition-all duration-300 md:sticky md:top-4 md:self-start md:border-r md:border-b-0 dark:border-white/5',
             isSidebarCollapsed ? 'w-full p-2 md:w-22.5 md:p-4' : 'w-full p-8 md:w-75'
           )}
         >
@@ -1401,7 +1401,7 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
           <div className="bg-primary-500/5 pointer-events-none absolute top-0 right-0 h-125 w-125 rounded-full blur-[9.375rem]" />
 
           <div id={contentTourId} data-tour-id={contentTourId} className="relative z-10 flex min-h-0 flex-1 flex-col">
-            {/* Sticky Header */}
+            {/* Section header */}
             <div className="relative z-10 flex shrink-0 flex-col justify-between gap-6 p-4 sm:p-8 md:flex-row md:items-start md:p-10">
               <div className="relative z-10 max-w-xl">
                 <h2 className="mb-2 text-2xl font-black text-slate-900 dark:text-white">

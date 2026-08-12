@@ -201,14 +201,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="flex-1 space-y-1 overflow-y-auto p-4">
-            <div className="mb-2 flex items-center justify-between gap-2 px-3 py-2">
+            <div className="mb-2 px-3 py-2">
               <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Main Menu</span>
-              <span
-                className="max-w-27.5 truncate rounded-md bg-indigo-50 px-2 py-0.5 text-[9px] font-black tracking-wider text-indigo-600 uppercase dark:bg-indigo-500/10 dark:text-indigo-300"
-                title={activeRoleLabel}
-              >
-                {activeRoleLabel}
-              </span>
             </div>
             {navItems.map((item) => navLink(item))}
           </div>

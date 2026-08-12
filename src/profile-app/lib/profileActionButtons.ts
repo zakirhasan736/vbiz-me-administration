@@ -1,4 +1,3 @@
-import { openGoogleWalletInNewTab } from '@/profile-app/lib/googleWallet'
 import { openVbizmeLogin, openVbizmePricing, reloadProfileCard } from '@/profile-app/lib/profileExternalLinks'
 import type { MyCardActionButton, MyCardActionButtons } from '@interfaces/api/myCard'
 import { ArrowUpRight, Download, Eye, Globe, QrCode, RefreshCw, Share2, User, type LucideIcon } from 'lucide-react'
@@ -146,7 +145,11 @@ export function handleHomeCtaClick(
       openVbizmePricing()
       return
     case 'google_wallet':
-      void openGoogleWalletInNewTab(handlers?.cardSlug)
+      if (handlers?.onAction) {
+        handlers.onAction('wallet')
+        return
+      }
+      window.dispatchEvent(new CustomEvent('openWalletModal'))
       return
     default:
       return

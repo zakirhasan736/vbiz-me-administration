@@ -51,6 +51,8 @@ const meetingsApi = api.injectEndpoints({
         { type: 'meetings', id: 'LIST' },
         { type: 'activity', id: 'FEED' },
         { type: 'activity', id: 'AUDIT' },
+        { type: 'adminAnnouncements', id: 'LIST' },
+        { type: 'adminAnnouncements', id: 'ACTIVE' },
       ],
     }),
     updateMeeting: builder.mutation<Meeting, { id: string; body: UpdateMeetingPayload }>({

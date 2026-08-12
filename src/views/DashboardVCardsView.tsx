@@ -13,14 +13,19 @@ import {
   type VCardSortOption,
 } from '@/components/dashboard/vcard'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { clearLocalCardNotice, noticeForCard, noticeTypeFromTeamNotice, writeLocalCardNotice } from '@/lib/cardNotice'
+import { notify } from '@/lib/toast/toast'
 import {
   mapApiProfileToVCardRecord,
+  useCreateTeamNoticeMutation,
+  useDeleteTeamNoticeMutation,
   useGetProfilesQuery,
+  useGetTeamNoticesQuery,
   useUpdateProfileCardMutation,
 } from '@/redux/features/profiles/profiles.api'
 import { replaceAllVCards } from '@/redux/features/vcards/vcards.slice'
 import type { VCardRecord } from '@/types/vcard'
-import { filterVCardsByQuery, getVCardPublicPath } from '@/utils/vcard'
+import { filterVCardsByQuery } from '@/utils/vcard'
 import { useEffect, useMemo, useState } from 'react'
 
 const DashboardVCardsView = () => {
@@ -29,6 +34,9 @@ const DashboardVCardsView = () => {
   const isPersonal = role === 'vcard-owner'
   const { data: profilesResult, isLoading, isError, refetch } = useGetProfilesQuery({ limit: 100 })
   const [updateProfileCard] = useUpdateProfileCardMutation()
+  const { data: teamNotices = [] } = useGetTeamNoticesQuery()
+  const [createTeamNotice] = useCreateTeamNoticeMutation()
+  const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
 
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
@@ -90,37 +98,6 @@ const DashboardVCardsView = () => {
     setNoticeCard(card)
   }
 
-  const handleEmailCard = (card: VCardRecord) => {
-    const email = card.personal.email?.trim()
-    if (!email) {
-      setAlertMessage('No email on this card.')
-      return
-    }
-    window.open(`mailto:${email}`, '_blank')
-  }
-
-  const handleCallCard = (card: VCardRecord) => {
-    const phone = card.personal.phone?.trim() || card.personal.whatsapp?.trim()
-    if (!phone) {
-      setAlertMessage('No phone on this card.')
-      return
-    }
-    window.open(`tel:${phone.replace(/\s/g, '')}`, '_self')
-  }
-
-  const handleScheduleCard = (card: VCardRecord) => {
-    const name = card.personal.fullName || 'Contact'
-    const title = encodeURIComponent(`Meeting with ${name}`)
-    const path = getVCardPublicPath(card.slug?.trim() || 'profile')
-    const details = encodeURIComponent(
-      `vBiz card: ${typeof window !== 'undefined' ? window.location.origin : ''}${path}`
-    )
-    window.open(
-      `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}`,
-      '_blank'
-    )
-  }
-
   const handleToggleStatus = async (card: VCardRecord, nextStatus: string) => {
     try {
       const activate = nextStatus === 'active'
@@ -134,13 +111,9 @@ const DashboardVCardsView = () => {
     }
   }
 
-  const noticeInitialText =
-    noticeCard && typeof window !== 'undefined' ? localStorage.getItem(`notice_${noticeCard.id}`) || '' : ''
-  const noticeInitialType = (
-    noticeCard && typeof window !== 'undefined'
-      ? localStorage.getItem(`notice_type_${noticeCard.id}`) || 'info'
-      : 'info'
-  ) as NoticeType
+  const noticeServer = noticeCard ? noticeForCard(noticeCard.id, teamNotices) : null
+  const noticeInitialText = noticeServer?.text || ''
+  const noticeInitialType: NoticeType = noticeServer ? noticeTypeFromTeamNotice(noticeServer) : 'info'
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -187,6 +160,7 @@ const DashboardVCardsView = () => {
         onPanel={(card) => setPanelCardId(card.id)}
         onNotice={openNotice}
         noticeVersion={noticeVersion}
+        teamNotices={teamNotices}
         canCreate={canCreate && lifecycleTab === 'active'}
         showLimitPlaceholder={isPersonal && !canCreate && cards.length > 0}
         isPersonal={isPersonal}
@@ -204,9 +178,6 @@ const DashboardVCardsView = () => {
       <VCardDetailSidebar
         card={panelCard}
         onClose={() => setPanelCardId(null)}
-        onEmail={handleEmailCard}
-        onCall={handleCallCard}
-        onSchedule={handleScheduleCard}
         onNotice={openNotice}
         onDuplicate={() => {
           setAlertMessage(
@@ -235,20 +206,49 @@ const DashboardVCardsView = () => {
         onClose={() => setNoticeCard(null)}
         onSave={(text, type) => {
           if (!noticeCard) return
-          if (text) {
-            localStorage.setItem(`notice_${noticeCard.id}`, text)
-            localStorage.setItem(`notice_type_${noticeCard.id}`, type)
-          } else {
-            localStorage.removeItem(`notice_${noticeCard.id}`)
-            localStorage.removeItem(`notice_type_${noticeCard.id}`)
-          }
-          setNoticeVersion((n) => n + 1)
+          void (async () => {
+            try {
+              if (text.trim()) {
+                writeLocalCardNotice(noticeCard.id, text, type)
+                await createTeamNotice({
+                  text: text.trim(),
+                  type,
+                  audience: 'all',
+                  targetProfileId: noticeCard.id,
+                }).unwrap()
+              } else {
+                clearLocalCardNotice(noticeCard.id)
+                const existing = noticeForCard(noticeCard.id, teamNotices)
+                if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
+              }
+              setNoticeVersion((n) => n + 1)
+              notify.success(
+                text ? 'Notice saved for this card. Visitors will see it after the intro.' : 'Notice cleared.'
+              )
+            } catch (e) {
+              const message =
+                (e as { data?: { message?: string } })?.data?.message ||
+                (e as Error)?.message ||
+                'Could not save notice.'
+              notify.error(message)
+            }
+          })()
         }}
         onClear={() => {
           if (!noticeCard) return
-          localStorage.removeItem(`notice_${noticeCard.id}`)
-          localStorage.removeItem(`notice_type_${noticeCard.id}`)
-          setNoticeVersion((n) => n + 1)
+          void (async () => {
+            clearLocalCardNotice(noticeCard.id)
+            const existing = noticeForCard(noticeCard.id, teamNotices)
+            if (existing?.id) {
+              try {
+                await deleteTeamNotice(existing.id).unwrap()
+              } catch {
+                /* ignore */
+              }
+            }
+            setNoticeVersion((n) => n + 1)
+            notify.success('Notice cleared.')
+          })()
         }}
       />
     </div>

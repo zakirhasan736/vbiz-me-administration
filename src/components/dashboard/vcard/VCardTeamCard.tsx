@@ -130,36 +130,6 @@ export function VCardTeamCard({
     }
   }
 
-  const handleEmail = () => {
-    const email = card.personal.email?.trim()
-    if (!email) {
-      setAlertState({ title: 'No email', description: 'No email on this card.' })
-      return
-    }
-    window.open(`mailto:${email}`, '_blank')
-  }
-
-  const handleCall = () => {
-    const phone = card.personal.phone?.trim() || card.personal.whatsapp?.trim()
-    if (!phone) {
-      setAlertState({ title: 'No phone', description: 'No phone on this card.' })
-      return
-    }
-    window.open(`tel:${phone.replace(/\s/g, '')}`, '_self')
-  }
-
-  const handleSchedule = () => {
-    const name = card.personal.fullName || 'Contact'
-    const title = encodeURIComponent(`Meeting with ${name}`)
-    const details = encodeURIComponent(
-      `vBiz card: ${typeof window !== 'undefined' ? window.location.origin : ''}${publicPath}`
-    )
-    window.open(
-      `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}`,
-      '_blank'
-    )
-  }
-
   const handleView = () => {
     if (!slug || slug === 'profile') {
       setAlertState({ title: 'URL slug required', description: 'Set a URL slug in the editor first.' })
@@ -422,9 +392,6 @@ export function VCardTeamCard({
         </div>
 
         <VCardCardActions
-          onEmail={handleEmail}
-          onCall={handleCall}
-          onSchedule={handleSchedule}
           onEdit={goEdit}
           onView={handleView}
           onPanel={() => onPanel(card)}

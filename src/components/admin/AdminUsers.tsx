@@ -2,6 +2,7 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
+import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { notify } from '@/lib/toast/toast'
 import {
   useCreateAdminUserMutation,
@@ -13,14 +14,24 @@ import {
   type AdminUserAccountStatus,
   type AdminUserRow,
 } from '@/redux/features/adminUsers/adminUsers.api'
+import {
+  appendUsers,
+  replaceUsers,
+  resetFilters,
+  resetListToStart as resetListToStartAction,
+  setDebouncedQ,
+  setRoleFilter,
+  setSearchQuery,
+  setSkip,
+  setStatusFilter,
+  setTotal,
+} from '@/redux/features/adminUsers/adminUsersList.slice'
 import { cn } from '@/utils/cn'
 import {
   Activity,
   Ban,
   Briefcase,
   Building,
-  ChevronLeft,
-  ChevronRight,
   Edit2,
   Pause,
   Play,
@@ -31,7 +42,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 const PAGE_SIZE = 8
 
@@ -72,11 +83,14 @@ function rtkErrorMessage(err: unknown, fallback: string) {
 }
 
 export default function AdminUsers() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedQ, setDebouncedQ] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'All' | OwnerRole>('All')
-  const [statusFilter, setStatusFilter] = useState<'All' | AdminUserAccountStatus>('All')
-  const [page, setPage] = useState(0)
+  const dispatch = useAppDispatch()
+  const searchQuery = useAppSelector((s) => s.adminUsersList.searchQuery)
+  const debouncedQ = useAppSelector((s) => s.adminUsersList.debouncedQ)
+  const roleFilter = useAppSelector((s) => s.adminUsersList.roleFilter)
+  const statusFilter = useAppSelector((s) => s.adminUsersList.statusFilter)
+  const skip = useAppSelector((s) => s.adminUsersList.skip)
+  const users = useAppSelector((s) => s.adminUsersList.users)
+  const total = useAppSelector((s) => s.adminUsersList.total)
 
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null)
   const [editPassword, setEditPassword] = useState('')
@@ -96,20 +110,29 @@ export default function AdminUsers() {
   const [newCompany, setNewCompany] = useState('')
   const [newRole, setNewRole] = useState<OwnerRole>('corporate-owner')
 
+  const filterKey = `${debouncedQ}|${roleFilter}|${statusFilter}`
+  const prevFilterKeyRef = useRef(filterKey)
+
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQ(searchQuery.trim()), 300)
+    const t = window.setTimeout(() => dispatch(setDebouncedQ(searchQuery.trim())), 300)
     return () => window.clearTimeout(t)
-  }, [searchQuery])
+  }, [dispatch, searchQuery])
+
+  useEffect(() => {
+    if (prevFilterKeyRef.current === filterKey) return
+    prevFilterKeyRef.current = filterKey
+    dispatch(resetListToStartAction())
+  }, [dispatch, filterKey])
 
   const listQuery = useMemo(
     () => ({
       q: debouncedQ || undefined,
       role: roleFilter !== 'All' ? roleFilter : undefined,
       accountStatus: statusFilter !== 'All' ? statusFilter : undefined,
-      skip: page * PAGE_SIZE,
+      skip,
       limit: PAGE_SIZE,
     }),
-    [debouncedQ, roleFilter, statusFilter, page]
+    [debouncedQ, roleFilter, statusFilter, skip]
   )
 
   const {
@@ -127,15 +150,38 @@ export default function AdminUsers() {
   const [setUserStatus, { isLoading: isSettingStatus }] = useSetAdminUserStatusMutation()
   const [deleteUser, { isLoading: isDeleting }] = useDeleteAdminUserMutation()
 
-  const users = listData?.items ?? []
-  const total = listData?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  useEffect(() => {
+    if (!listData) return
+    dispatch(setTotal(listData.total))
+    if (listData.skip === 0) {
+      dispatch(replaceUsers(listData.items))
+      return
+    }
+    if (listData.skip !== skip) return
+    dispatch(appendUsers(listData.items))
+  }, [dispatch, listData, skip])
+
+  const hasMore = users.length < total
+  const isLoadingMore = isListFetching && skip > 0
+  const showListSkeletons = isListLoading && users.length === 0
+  const isFilterRefetching = isListFetching && !isListLoading && skip === 0 && users.length === 0
+
+  const resetListToStart = () => {
+    if (skip === 0) return
+    dispatch(resetListToStartAction())
+  }
+
+  const handleShowMore = () => {
+    if (!hasMore || isListFetching) return
+    dispatch(setSkip(users.length))
+  }
 
   const handleSetStatus = async (id: string, accountStatus: AdminUserAccountStatus, name?: string | null) => {
     try {
       await setUserStatus({ id, body: { accountStatus } }).unwrap()
       const label = accountStatus === 'ACTIVE' ? 'activated' : accountStatus === 'PAUSED' ? 'paused' : 'suspended'
       notify.success(`Account for ${name || 'user'} has been ${label}.`)
+      resetListToStart()
     } catch (err) {
       notify.error(rtkErrorMessage(err, 'Failed to update account status.'))
     }
@@ -152,6 +198,7 @@ export default function AdminUsers() {
             await deleteUser(user.id).unwrap()
             if (editingUser?.id === user.id) setEditingUser(null)
             notify.success(`Deleted ${user.name || user.email}.`)
+            resetListToStart()
           } catch (err) {
             notify.error(rtkErrorMessage(err, 'Failed to delete user.'))
           } finally {
@@ -190,6 +237,7 @@ export default function AdminUsers() {
       setIsAddUserOpen(false)
       resetCreateForm()
       notify.success('User account provisioned.')
+      resetListToStart()
     } catch (err) {
       notify.error(rtkErrorMessage(err, 'Failed to create user.'))
     }
@@ -239,6 +287,7 @@ export default function AdminUsers() {
       }).unwrap()
       closeEditModal()
       notify.success(editPassword ? 'User updated and password reset.' : 'User updated.')
+      resetListToStart()
     } catch (err) {
       notify.error(rtkErrorMessage(err, 'Failed to update user.'))
     }
@@ -323,8 +372,7 @@ export default function AdminUsers() {
             type="text"
             value={searchQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value)
-              setPage(0)
+              dispatch(setSearchQuery(e.target.value))
             }}
             placeholder="Search owners by name, email domain, or company organization..."
             className="w-full bg-transparent text-sm font-semibold text-slate-700 placeholder-slate-400 outline-none dark:text-white"
@@ -335,8 +383,7 @@ export default function AdminUsers() {
           <select
             value={roleFilter}
             onChange={(e) => {
-              setRoleFilter(e.target.value as 'All' | OwnerRole)
-              setPage(0)
+              dispatch(setRoleFilter(e.target.value as 'All' | OwnerRole))
             }}
             className="w-full cursor-pointer bg-transparent text-xs font-black text-slate-500 uppercase outline-none dark:text-slate-300"
           >
@@ -350,8 +397,7 @@ export default function AdminUsers() {
           <select
             value={statusFilter}
             onChange={(e) => {
-              setStatusFilter(e.target.value as 'All' | AdminUserAccountStatus)
-              setPage(0)
+              dispatch(setStatusFilter(e.target.value as 'All' | AdminUserAccountStatus))
             }}
             className="w-full cursor-pointer bg-transparent text-xs font-black text-slate-500 uppercase outline-none dark:text-slate-300"
           >
@@ -365,10 +411,8 @@ export default function AdminUsers() {
         <button
           type="button"
           onClick={() => {
-            setSearchQuery('')
-            setRoleFilter('All')
-            setStatusFilter('All')
-            setPage(0)
+            dispatch(resetFilters())
+            prevFilterKeyRef.current = '|All|All'
           }}
           className="w-full rounded-xl border border-slate-200 px-5 py-3 text-xs font-black text-slate-500 uppercase transition-all hover:bg-slate-100 md:w-auto dark:border-white/5 dark:hover:bg-white/5"
         >
@@ -388,10 +432,10 @@ export default function AdminUsers() {
       <div
         className={cn(
           'grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-          isListFetching && !isListLoading && 'opacity-70 transition-opacity'
+          isFilterRefetching && 'opacity-70 transition-opacity'
         )}
       >
-        {isListLoading
+        {showListSkeletons
           ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
               <div key={i} className="min-h-70 animate-pulse rounded-2xl bg-slate-100 dark:bg-white/5" />
             ))
@@ -546,34 +590,28 @@ export default function AdminUsers() {
             })}
       </div>
 
-      {!isListLoading && !isListError && users.length === 0 && (
+      {!showListSkeletons && !isListError && users.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-200 px-6 py-12 text-center dark:border-white/10">
           <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No users match these filters.</p>
         </div>
       )}
 
-      <div className="flex flex-col justify-end gap-4 border-t border-slate-100 pt-2 sm:flex-row sm:items-center dark:border-white/5">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col items-center justify-center gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
+        {!showListSkeletons && !isListError && total > 0 && (
           <span className="text-xs font-semibold text-slate-500">
-            Page {Math.min(page + 1, totalPages)} of {totalPages}
+            Showing {users.length} of {total}
           </span>
+        )}
+        {hasMore && !isListError && (
           <button
             type="button"
-            disabled={page <= 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black tracking-wider text-slate-600 uppercase hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
+            disabled={isListFetching}
+            onClick={handleShowMore}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-black tracking-wider text-slate-600 uppercase hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
           >
-            <ChevronLeft className="h-4 w-4" /> Prev
+            {isLoadingMore ? 'Loading…' : 'Show more'}
           </button>
-          <button
-            type="button"
-            disabled={page + 1 >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black tracking-wider text-slate-600 uppercase hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
-          >
-            Next <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        )}
       </div>
 
       {editingUser && (

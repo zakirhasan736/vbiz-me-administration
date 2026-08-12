@@ -15,6 +15,7 @@ export type SupportTicket = {
   fromName: string
   fromEmail?: string
   adminReply?: string
+  blocked: boolean
   meta?: Record<string, string>
   createdById?: string
   createdAt: string
@@ -32,6 +33,7 @@ export type SupportTicketListPage = {
 export type SupportTicketListQuery = {
   status?: TicketStatus
   channel?: TicketChannel
+  blocked?: boolean
   skip?: number
   limit?: number
 }
@@ -51,4 +53,5 @@ export type CreateSupportTicketPayload = {
 export type UpdateSupportTicketPayload = {
   status?: TicketStatus
   adminReply?: string | null
+  blocked?: boolean
 }

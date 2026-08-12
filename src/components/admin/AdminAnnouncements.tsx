@@ -1,6 +1,7 @@
 'use client'
 
 import { ConfirmModal } from '@/components/ConfirmModal'
+import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { notifyOwners } from '@/lib/notifications'
 import {
   useClearLiveAnnouncementMutation,
@@ -89,7 +90,7 @@ export default function AdminAnnouncements() {
   }
 
   const [eventTitle, setEventTitle] = useState('')
-  const [eventHost, setEventHost] = useState('')
+  const [eventOwner, setEventOwner] = useState<ProfileOwnerSelection | null>(null)
   const [eventType, setEventType] = useState<MeetingType>('Growth Meeting')
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('10:00 AM')
@@ -204,27 +205,29 @@ export default function AdminAnnouncements() {
 
   const handleCreateEvent = async (e: FormEvent) => {
     e.preventDefault()
-    if (!eventHost.trim() || !eventDate) return
+    if (!eventOwner || !eventDate) return
 
     try {
-      await createMeeting({
-        host: eventHost.trim(),
+      const created = await createMeeting({
+        host: eventOwner.hostName,
         type: eventType,
         date: eventDate,
         time: eventTime,
         notes: eventNotes || eventTitle || 'Upcoming admin event',
         status: 'Scheduled',
+        profileId: eventOwner.profileId,
       }).unwrap()
 
+      const meetSuffix = created.meetLink ? ` · Meet: ${created.meetLink}` : ''
       notifyOwners({
         category: 'event',
         title: 'Upcoming admin event',
-        body: `${eventType} with ${eventHost} on ${eventDate} at ${eventTime}`,
+        body: `${eventType} with ${eventOwner.hostName} on ${eventDate} at ${eventTime}${meetSuffix}`,
         forceBrowser: true,
       })
 
       setEventTitle('')
-      setEventHost('')
+      setEventOwner(null)
       setEventNotes('')
     } catch {
       /* keep form values */
@@ -567,12 +570,11 @@ export default function AdminAnnouncements() {
               placeholder="Event title (optional)"
               className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
             />
-            <input
-              required
-              value={eventHost}
-              onChange={(e) => setEventHost(e.target.value)}
-              placeholder="Host / owner name"
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
+            <ProfileOwnerPicker
+              value={eventOwner}
+              onChange={setEventOwner}
+              label="Host / owner"
+              listClassName="max-h-40"
             />
             <select
               value={eventType}
@@ -608,7 +610,8 @@ export default function AdminAnnouncements() {
             />
             <button
               type="submit"
-              className="w-full rounded-xl bg-indigo-600 py-3 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700"
+              disabled={!eventOwner}
+              className="w-full rounded-xl bg-indigo-600 py-3 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700 disabled:opacity-60"
             >
               Publish upcoming event
             </button>
@@ -641,6 +644,19 @@ export default function AdminAnnouncements() {
                       <p className="mt-1 text-xs font-semibold text-slate-500">
                         {m.date} · {m.time}
                         {m.notes ? ` · ${m.notes}` : ''}
+                        {m.meetLink ? (
+                          <>
+                            {' · '}
+                            <a
+                              href={m.meetLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-indigo-600 hover:underline dark:text-indigo-400"
+                            >
+                              Google Meet
+                            </a>
+                          </>
+                        ) : null}
                       </p>
                     </div>
                     <button

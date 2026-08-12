@@ -6,8 +6,10 @@ import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
 import { CardLifecycleTabs, type CardLifecycleTab } from '@/components/dashboard/vcard/CardLifecycleTabs'
 import { PromptModal } from '@/components/PromptModal'
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppSelector } from '@/hooks/redux'
+import { useLastGoodData } from '@/hooks/useLastGoodData'
 import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
@@ -63,7 +65,8 @@ export default function AdminMyCards() {
   const router = useRouter()
   const { createCorporateCard, setCurrentEditingCardId, deleteCorporateCard } = useVCard()
   const { data: createdProfilesResult } = useGetProfilesQuery({ scope: 'created', limit: 100 })
-  const { data: stats } = useGetDashboardStatsQuery({ period: 'all', scope: 'created' })
+  const { data: statsRaw } = useGetDashboardStatsQuery({ period: 'all', scope: 'created' })
+  const stats = useLastGoodData(statsRaw)
 
   const [panelCard, setPanelCard] = useState<AdminCard | null>(null)
   const [trendsCard, setTrendsCard] = useState<AdminCard | null>(null)
@@ -131,26 +134,28 @@ export default function AdminMyCards() {
     [myCards, lifecycleTab]
   )
 
-  const socialChannels = useMemo(() => {
-    if (stats?.socialChannels?.length) return stats.socialChannels
-    return (Object.keys(CHANNEL_UI) as DashboardSocialChannel[]).map((channel) => ({
-      channel,
-      label:
-        channel === 'whatsapp'
-          ? 'WhatsApp'
-          : channel === 'youtube'
-            ? 'YouTube'
-            : channel === 'tiktok'
-              ? 'TikTok'
-              : channel === 'truth'
-                ? 'Truth Social'
-                : channel === 'website'
-                  ? 'Website'
-                  : channel.charAt(0).toUpperCase() + channel.slice(1),
-      count: 0,
-      trendPercent: 0,
-    }))
-  }, [stats])
+  const defaultSocialChannels = useMemo(
+    () =>
+      (Object.keys(CHANNEL_UI) as DashboardSocialChannel[]).map((channel) => ({
+        channel,
+        label:
+          channel === 'whatsapp'
+            ? 'WhatsApp'
+            : channel === 'youtube'
+              ? 'YouTube'
+              : channel === 'tiktok'
+                ? 'TikTok'
+                : channel === 'truth'
+                  ? 'Truth Social'
+                  : channel === 'website'
+                    ? 'Website'
+                    : channel.charAt(0).toUpperCase() + channel.slice(1),
+        count: 0,
+        trendPercent: 0,
+      })),
+    []
+  )
+  const socialChannels = stats?.socialChannels?.length ? stats.socialChannels : defaultSocialChannels
 
   const socialTotal = socialChannels.reduce((sum, row) => sum + (row.count || 0), 0) || Number(stats?.shares || 0)
 
@@ -188,40 +193,49 @@ export default function AdminMyCards() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">My cards</p>
-          <p className="mt-2 text-3xl font-black text-slate-900 dark:text-white">{stats?.cards ?? myCards.length}</p>
+          <AnimatedNumber
+            value={stats?.cards ?? myCards.length}
+            className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+          />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
             <Eye className="h-3.5 w-3.5" /> Total views
           </p>
-          <p className="mt-2 text-3xl font-black text-slate-900 dark:text-white">
-            {(stats?.totalViews ?? 0).toLocaleString()}
-          </p>
+          <AnimatedNumber
+            value={stats?.totalViews ?? 0}
+            className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+          />
           <p className="mt-1 text-[10px] font-bold text-slate-400">
-            Unique {(stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0).toLocaleString()}
+            Unique <AnimatedNumber value={stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0} />
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
             <Share2 className="h-3.5 w-3.5" /> Shares
           </p>
-          <p className="mt-2 text-3xl font-black text-slate-900 dark:text-white">
-            {(stats?.shares ?? 0).toLocaleString()}
-          </p>
+          <AnimatedNumber
+            value={stats?.shares ?? 0}
+            className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+          />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
             <Save className="h-3.5 w-3.5" /> Contact saves
           </p>
-          <p className="mt-2 text-3xl font-black text-slate-900 dark:text-white">
-            {(stats?.contactsLast30Days ?? 0).toLocaleString()}
-          </p>
+          <AnimatedNumber
+            value={stats?.contactsLast30Days ?? 0}
+            className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+          />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
             <Share2 className="h-3.5 w-3.5" /> Social clicks
           </p>
-          <p className="mt-2 text-3xl font-black text-slate-900 dark:text-white">{socialTotal.toLocaleString()}</p>
+          <AnimatedNumber
+            value={socialTotal}
+            className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+          />
         </div>
       </div>
 
@@ -244,7 +258,7 @@ export default function AdminMyCards() {
                 <Icon className={cn('mb-2 h-4 w-4', ui.tone)} />
                 <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{row.label}</p>
                 <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">
-                  {(row.count || 0).toLocaleString()}
+                  <AnimatedNumber value={row.count || 0} />
                 </p>
               </div>
             )
@@ -282,6 +296,27 @@ export default function AdminMyCards() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <CreateCardLauncher>
+            {(open) => (
+              <button
+                type="button"
+                onClick={() => {
+                  handleCreate()
+                  open()
+                }}
+                className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
+              >
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
+                  <Plus className="h-6 w-6" strokeWidth={2.5} />
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
+                <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                  Add a team member card to your admin portfolio.
+                </p>
+              </button>
+            )}
+          </CreateCardLauncher>
+
           {myCards.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
               <p className="mb-4 text-sm font-semibold text-slate-500">
@@ -355,27 +390,6 @@ export default function AdminMyCards() {
               )
             })
           )}
-
-          <CreateCardLauncher>
-            {(open) => (
-              <button
-                type="button"
-                onClick={() => {
-                  handleCreate()
-                  open()
-                }}
-                className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
-              >
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
-                  <Plus className="h-6 w-6" strokeWidth={2.5} />
-                </div>
-                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
-                <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                  Add a team member card to your admin portfolio.
-                </p>
-              </button>
-            )}
-          </CreateCardLauncher>
         </div>
       </div>
 

@@ -3,6 +3,7 @@
 import { ModalPortal } from '@/components/ModalPortal'
 import {
   NOTIFICATIONS_EVENT,
+  deleteNotification,
   ensureNotificationPermission,
   listNotifications,
   markAllNotificationsRead,
@@ -16,6 +17,7 @@ import {
   AlertCircle,
   Bell,
   Calendar,
+  Check,
   CheckCheck,
   CreditCard,
   LifeBuoy,
@@ -25,6 +27,7 @@ import {
   Phone,
   Save,
   Sparkles,
+  Trash2,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRef, useState, useSyncExternalStore, type ElementType } from 'react'
@@ -210,31 +213,63 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
                 items.map((n) => {
                   const Icon = CATEGORY_ICON[n.category] || AlertCircle
                   return (
-                    <button
+                    <div
                       key={n.id}
-                      type="button"
-                      onClick={() => handleOpenItem(n)}
                       className={cn(
-                        'flex w-full gap-2.5 rounded-xl border p-3 text-left transition-colors',
+                        'flex w-full gap-2 rounded-xl border p-3 text-left transition-colors',
                         n.read
                           ? 'border-slate-100 bg-slate-50/50 opacity-80 dark:border-white/5 dark:bg-white/1'
                           : 'border-primary-500/10 bg-primary-500/5 dark:border-primary-500/20 dark:bg-primary-500/10'
                       )}
                     >
-                      <Icon className="mt-0.5 h-4.5 w-4.5 shrink-0 text-slate-500" />
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 text-xs font-black text-slate-900 dark:text-white">
-                          <span className="truncate">{n.title}</span>
-                          {!n.read && <span className="bg-primary-500 h-1.5 w-1.5 shrink-0 rounded-full" />}
-                        </p>
-                        <p className="mt-0.5 text-[11px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                          {n.body}
-                        </p>
-                        <span className="mt-1.5 block text-[9px] font-bold text-slate-400">
-                          {formatWhen(n.createdAt)} · {n.category.replace('_', ' ')}
-                        </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenItem(n)}
+                        className="flex min-w-0 flex-1 gap-2.5 text-left"
+                      >
+                        <Icon className="mt-0.5 h-4.5 w-4.5 shrink-0 text-slate-500" />
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-1.5 text-xs font-black text-slate-900 dark:text-white">
+                            <span className="truncate">{n.title}</span>
+                            {!n.read && <span className="bg-primary-500 h-1.5 w-1.5 shrink-0 rounded-full" />}
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                            {n.body}
+                          </p>
+                          <span className="mt-1.5 block text-[9px] font-bold text-slate-400">
+                            {formatWhen(n.createdAt)} · {n.category.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </button>
+                      <div className="flex shrink-0 flex-col gap-1">
+                        {!n.read && (
+                          <button
+                            type="button"
+                            title="Mark as read"
+                            aria-label="Mark as read"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              markNotificationRead(n.id)
+                            }}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/80 hover:text-emerald-600 dark:hover:bg-white/10 dark:hover:text-emerald-400"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          title="Delete"
+                          aria-label="Delete notification"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteNotification(n.id)
+                          }}
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/80 hover:text-red-500 dark:hover:bg-white/10 dark:hover:text-red-400"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                    </button>
+                    </div>
                   )
                 })
               )}

@@ -152,6 +152,7 @@ export function selectAuthToken(state: RootState): string | undefined {
   return state.user?.token || undefined
 }
 
-export const { useGetAdminProfilesQuery, useGetAdminProfileFiltersQuery } = adminProfilesApi
+export const { useGetAdminProfilesQuery, useLazyGetAdminProfilesQuery, useGetAdminProfileFiltersQuery } =
+  adminProfilesApi
 
 export default adminProfilesApi

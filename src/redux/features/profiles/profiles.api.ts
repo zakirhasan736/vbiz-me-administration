@@ -269,6 +269,32 @@ export type CardCapacity = {
   canCreate: boolean
 }
 
+export type OwnerPackageFeature = {
+  id?: string
+  featureKey: string
+  featureValue?: string | null
+}
+
+export type OwnerPackage = {
+  id: string
+  name: string
+  slug?: string | null
+  description?: string | null
+  monthlyPrice: number
+  yearlyPrice: number
+  sortOrder?: number
+  features?: OwnerPackageFeature[]
+}
+
+export type OwnerSubscription = {
+  id: string
+  packageId?: string | null
+  endsAt?: string | null
+  stripeStatus?: string | null
+  createdAt: string
+  package?: OwnerPackage | null
+}
+
 export type ProfilesListResult = {
   items: ApiProfile[]
   total: number
@@ -643,7 +669,10 @@ const profilesApi = api.injectEndpoints({
       },
       transformResponse: (res: Envelope<{ slug: string; available: boolean; suggestion: string }>) => res.data,
     }),
-    createProfile: builder.mutation<ApiProfile, Partial<ReturnType<typeof mapVCardDataToProfilePayload>>>({
+    createProfile: builder.mutation<
+      ApiProfile,
+      Partial<ReturnType<typeof mapVCardDataToProfilePayload>> & { ownerUserId?: string }
+    >({
       query: (body) => ({ url: '/profiles', method: 'POST', body }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       invalidatesTags: [
@@ -841,13 +870,13 @@ const profilesApi = api.injectEndpoints({
         }
       },
     }),
-    getPackages: builder.query<unknown[], void>({
+    getPackages: builder.query<OwnerPackage[], void>({
       query: () => '/profiles/packages',
-      transformResponse: (res: Envelope<unknown[]>) => res.data || [],
+      transformResponse: (res: Envelope<OwnerPackage[]>) => res.data || [],
     }),
-    getSubscriptions: builder.query<unknown[], void>({
+    getSubscriptions: builder.query<OwnerSubscription[], void>({
       query: () => '/profiles/subscriptions',
-      transformResponse: (res: Envelope<unknown[]>) => res.data || [],
+      transformResponse: (res: Envelope<OwnerSubscription[]>) => res.data || [],
     }),
     getContacts: builder.query<ProfileContact[], string | void>({
       query: (profileId) =>

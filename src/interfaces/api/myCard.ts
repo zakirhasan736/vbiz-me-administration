@@ -102,6 +102,17 @@ export type MyCardBackgroundAudio = {
 }
 
 /** Payload from `GET /v/{slug}` (Postman: MyCard). */
+export type MyCardTeamNotice = {
+  id: string
+  text: string
+  type: 'broadcast' | 'system' | 'info' | 'warning' | 'success'
+  audience: 'all' | 'savers'
+  targetCardId?: string
+  recipientCount?: number
+  createdAt: string
+  status: string
+}
+
 export type MyCardData = {
   profile: MyCardProfile
   settings: Record<string, string>
@@ -116,6 +127,8 @@ export type MyCardData = {
   background_audio?: MyCardBackgroundAudio
   /** Optional dynamic global theme (Primary/Secondary/Accent + button/social appearance). */
   theme_config?: unknown
+  /** Active per-card notices from the card owner / corporate owner (public modal). */
+  team_notices?: MyCardTeamNotice[]
 }
 
 export type MyCardResponse = ApiResponse<MyCardData>

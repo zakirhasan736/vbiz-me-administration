@@ -23,6 +23,7 @@ const adminSupportApi = api.injectEndpoints({
         search.set('limit', String(params?.limit ?? 50))
         if (params?.status) search.set('status', params.status)
         if (params?.channel) search.set('channel', params.channel)
+        if (params?.blocked !== undefined) search.set('blocked', String(params.blocked))
         return `/admin/support-tickets?${search.toString()}`
       },
       transformResponse: (res: Envelope<SupportTicketListPage>) => res.data,
@@ -56,6 +57,17 @@ const adminSupportApi = api.injectEndpoints({
         { type: 'adminSupport', id },
       ],
     }),
+    deleteSupportTicket: builder.mutation<{ id: string }, string>({
+      query: (id) => ({
+        url: `/admin/support-tickets/${id}`,
+        method: 'DELETE',
+      }),
+      transformResponse: (res: Envelope<{ id: string }>) => res.data,
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'adminSupport', id: 'LIST' },
+        { type: 'adminSupport', id },
+      ],
+    }),
   }),
 })
 
@@ -64,6 +76,7 @@ export const {
   useGetSupportTicketQuery,
   useCreateSupportTicketMutation,
   useUpdateSupportTicketMutation,
+  useDeleteSupportTicketMutation,
 } = adminSupportApi
 
 export default adminSupportApi

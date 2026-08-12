@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
 import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
@@ -735,11 +736,14 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (!name) throw new Error('Please enter your name before creating the vCard.')
         if (!slug) throw new Error('Please set a public URL slug before creating the vCard.')
 
+        const assignedOwner = getCreateCardOwner()
         const created = await createProfile({
           ...mapVCardDataToProfilePayload(draft),
           isDraft: true,
           isPublic: false,
+          ...(assignedOwner?.userId ? { ownerUserId: assignedOwner.userId } : {}),
         }).unwrap()
+        clearCreateCardOwner()
         const mapped = mapApiProfileToVCardRecord(created)
         const seed = {
           ...toVCardData(mapped),

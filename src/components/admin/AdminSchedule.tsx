@@ -2,6 +2,7 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
+import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { notifyOwners } from '@/lib/notifications'
 import {
   useCreateMeetingMutation,
@@ -11,7 +12,7 @@ import {
 } from '@/redux/features/meetings/meetings.api'
 import { MEETING_TYPES, type Meeting, type MeetingStatus, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
-import { Calendar, CheckCircle2, Clock, Plus, Search, Trash2, X, XCircle } from 'lucide-react'
+import { Calendar, CheckCircle2, Clock, ExternalLink, Plus, Search, Trash2, X, XCircle } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 
 function todayIsoDate(): string {
@@ -31,7 +32,7 @@ export default function AdminSchedule() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [hostName, setHostName] = useState('')
+  const [owner, setOwner] = useState<ProfileOwnerSelection | null>(null)
   const [meetType, setMeetType] = useState<MeetingType>('Growth Meeting')
   const [meetDate, setMeetDate] = useState(todayIsoDate())
   const [meetTime, setMeetTime] = useState('10:00 AM')
@@ -70,26 +71,28 @@ export default function AdminSchedule() {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!hostName.trim() || isCreating) return
+    if (!owner || isCreating) return
 
     try {
-      await createMeeting({
-        host: hostName.trim(),
+      const created = await createMeeting({
+        host: owner.hostName,
         type: meetType,
         date: meetDate,
         time: meetTime,
         notes: meetNotes.trim() || 'Advisory consultation session.',
         status: 'Scheduled',
+        profileId: owner.profileId,
       }).unwrap()
 
       setIsAddOpen(false)
-      setHostName('')
+      setOwner(null)
       setMeetNotes('')
 
+      const meetSuffix = created.meetLink ? ` · Meet: ${created.meetLink}` : ''
       notifyOwners({
         category: 'event',
         title: 'New admin event scheduled',
-        body: `${meetType} with ${hostName} on ${meetDate} at ${meetTime}`,
+        body: `${meetType} with ${owner.hostName} on ${meetDate} at ${meetTime}${meetSuffix}`,
         forceBrowser: true,
       })
     } catch {
@@ -193,13 +196,23 @@ export default function AdminSchedule() {
                     </span>
                   </div>
 
-                  <div className="mt-4 flex items-center gap-4 text-xs font-semibold text-slate-500">
+                  <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-4 w-4 text-slate-400" /> {mtg.date}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-4 w-4 text-slate-400" /> {mtg.time}
                     </span>
+                    {mtg.meetLink ? (
+                      <a
+                        href={mtg.meetLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-indigo-600 hover:underline dark:text-indigo-400"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Google Meet
+                      </a>
+                    ) : null}
                   </div>
 
                   {mtg.notes ? (
@@ -248,7 +261,7 @@ export default function AdminSchedule() {
           <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsAddOpen(false)} />
 
-            <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
+            <div className="animate-in zoom-in-95 relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
@@ -286,19 +299,7 @@ export default function AdminSchedule() {
                   </select>
                 </div>
 
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    vCard Profile Owner
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={hostName}
-                    onChange={(e) => setHostName(e.target.value)}
-                    placeholder="e.g. Richard Hendricks"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
+                <ProfileOwnerPicker value={owner} onChange={setOwner} />
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col space-y-1.5">
@@ -348,7 +349,7 @@ export default function AdminSchedule() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isCreating}
+                    disabled={isCreating || !owner}
                     className="flex-1 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95 disabled:opacity-60"
                   >
                     {isCreating ? 'Saving…' : 'Save Schedule Event'}

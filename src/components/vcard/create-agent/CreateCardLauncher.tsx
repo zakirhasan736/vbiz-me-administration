@@ -1,6 +1,8 @@
 'use client'
 
+import AssignCardOwnerModal from '@/components/admin/AssignCardOwnerModal'
 import { CreateCardModeModal } from '@/components/vcard/create-agent/CreateCardModeModal'
+import { clearCreateCardOwner, setCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import { useRouter } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
 
@@ -10,6 +12,8 @@ type CreateCardLauncherProps = {
   onBlocked?: () => void
   createHref?: string
   aiHref?: string
+  /** When true (admin directory create), require owner assignment before Manual/AI. */
+  requireOwnerAssignment?: boolean
 }
 
 function withFreshReset(href: string) {
@@ -26,30 +30,46 @@ export function CreateCardLauncher({
   onBlocked,
   createHref = '/vcards/create/home',
   aiHref = '/vcards/create/home?agent=1',
+  requireOwnerAssignment = false,
 }: CreateCardLauncherProps) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [modeOpen, setModeOpen] = useState(false)
 
   const launch = () => {
     if (!canCreate) {
       onBlocked?.()
       return
     }
-    setOpen(true)
+    if (requireOwnerAssignment) {
+      setAssignOpen(true)
+      return
+    }
+    clearCreateCardOwner()
+    setModeOpen(true)
+  }
+
+  const openModeAfterAssign = (owner: CreateCardOwnerSession) => {
+    setCreateCardOwner(owner)
+    setAssignOpen(false)
+    setModeOpen(true)
   }
 
   return (
     <>
       {children(launch)}
+      {requireOwnerAssignment ? (
+        <AssignCardOwnerModal open={assignOpen} onClose={() => setAssignOpen(false)} onConfirm={openModeAfterAssign} />
+      ) : null}
       <CreateCardModeModal
-        open={open}
-        onClose={() => setOpen(false)}
+        open={modeOpen}
+        onClose={() => setModeOpen(false)}
         onChooseManual={() => {
-          setOpen(false)
+          setModeOpen(false)
           router.push(withFreshReset(createHref))
         }}
         onChooseAi={() => {
-          setOpen(false)
+          setModeOpen(false)
           router.push(withFreshReset(aiHref))
         }}
       />

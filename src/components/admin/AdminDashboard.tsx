@@ -1,9 +1,12 @@
 'use client'
 
+import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ContactSavesModal, type ContactSavesModalTab, type DashboardContact } from '@/components/dashboard/home'
 import { ModalPortal } from '@/components/ModalPortal'
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
+import { useLastGoodData } from '@/hooks/useLastGoodData'
 import { getAdminThemeConfig, getThemeClasses } from '@/lib/admin/adminTheme'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { isWithinPeriod, periodCutoff } from '@/lib/dashboardPeriod'
@@ -118,7 +121,8 @@ export default function AdminDashboard() {
   const [period, setPeriod] = useState<DashboardPeriod>('all')
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
 
-  const { data: stats } = useGetDashboardStatsQuery({ period })
+  const { data: statsRaw } = useGetDashboardStatsQuery({ period })
+  const stats = useLastGoodData(statsRaw)
   const { data: contactsRaw } = useGetContactsQuery()
 
   const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
@@ -153,7 +157,7 @@ export default function AdminDashboard() {
   const [showMtgModal, setShowMtgModal] = useState(false)
   const [showContactSavesModal, setShowContactSavesModal] = useState(false)
   const [cancelMeetingId, setCancelMeetingId] = useState<string | null>(null)
-  const [mtgHost, setMtgHost] = useState('')
+  const [mtgOwner, setMtgOwner] = useState<ProfileOwnerSelection | null>(null)
   const [mtgType, setMtgType] = useState<MeetingType>('Growth Meeting')
   const [mtgDate, setMtgDate] = useState('')
   const [mtgTime, setMtgTime] = useState('')
@@ -161,26 +165,28 @@ export default function AdminDashboard() {
 
   const handleScheduleMeeting = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!mtgHost || !mtgDate || !mtgTime || isCreatingMeeting) return
+    if (!mtgOwner || !mtgDate || !mtgTime || isCreatingMeeting) return
 
     try {
-      await createMeeting({
-        host: mtgHost.trim(),
+      const created = await createMeeting({
+        host: mtgOwner.hostName,
         type: mtgType,
         date: mtgDate,
         time: mtgTime,
         location: mtgLocation.trim() || null,
         status: 'Scheduled',
+        profileId: mtgOwner.profileId,
       }).unwrap()
 
+      const meetSuffix = created.meetLink ? ` · Meet: ${created.meetLink}` : ''
       notifyOwners({
         category: 'event',
         title: 'New admin event scheduled',
-        body: `${mtgType} with ${mtgHost} on ${mtgDate} at ${mtgTime}`,
+        body: `${mtgType} with ${mtgOwner.hostName} on ${mtgDate} at ${mtgTime}${meetSuffix}`,
         forceBrowser: true,
       })
 
-      setMtgHost('')
+      setMtgOwner(null)
       setMtgDate('')
       setMtgTime('')
       setShowMtgModal(false)
@@ -276,9 +282,10 @@ export default function AdminDashboard() {
                   </h2>
                 </div>
                 <div className="mt-2 flex items-baseline gap-4">
-                  <span className="text-6xl font-black tracking-tighter text-slate-900 tabular-nums dark:text-white">
-                    {platformViews.toLocaleString()}
-                  </span>
+                  <AnimatedNumber
+                    value={platformViews}
+                    className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white"
+                  />
                   <span className="flex items-center gap-1.5 rounded-[10px] border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[13px] font-bold text-emerald-600 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
                     <TrendingUp className="h-4 w-4" /> Live
                   </span>
@@ -286,15 +293,21 @@ export default function AdminDashboard() {
                 <div className="mt-3 flex flex-wrap gap-3">
                   <span className="text-[11px] font-bold text-slate-500">
                     Unique:{' '}
-                    <strong className="text-slate-800 dark:text-white">{platformUniqueViews.toLocaleString()}</strong>
+                    <strong className="text-slate-800 dark:text-white">
+                      <AnimatedNumber value={platformUniqueViews} />
+                    </strong>
                   </span>
                   <span className="text-[11px] font-bold text-slate-500">
                     Shares:{' '}
-                    <strong className="text-slate-800 dark:text-white">{platformShares.toLocaleString()}</strong>
+                    <strong className="text-slate-800 dark:text-white">
+                      <AnimatedNumber value={platformShares} />
+                    </strong>
                   </span>
                   <span className="text-[11px] font-bold text-slate-500">
                     Saves:{' '}
-                    <strong className="text-slate-800 dark:text-white">{totalSavedContacts.toLocaleString()}</strong>
+                    <strong className="text-slate-800 dark:text-white">
+                      <AnimatedNumber value={totalSavedContacts} />
+                    </strong>
                   </span>
                 </div>
               </div>
@@ -414,22 +427,24 @@ export default function AdminDashboard() {
           </div>
 
           <div className="my-6 flex items-baseline gap-3">
-            <span className="text-6xl font-black tracking-tighter text-slate-900 tabular-nums dark:text-white">
-              {totalSavedContacts.toLocaleString()}
-            </span>
+            <AnimatedNumber
+              value={totalSavedContacts}
+              className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white"
+            />
             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">guests saved a contact</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 dark:border-white/5">
             <div>
               <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">Cards</span>
-              <span className="mt-1 block text-xl font-extrabold text-slate-800 dark:text-white">
-                {totalCardsCount}
-              </span>
+              <AnimatedNumber
+                value={totalCardsCount}
+                className="mt-1 block text-xl font-extrabold text-slate-800 dark:text-white"
+              />
             </div>
             <div>
               <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">Active</span>
-              <span className="mt-1 block text-xl font-extrabold text-emerald-500">{activeCardsCount}</span>
+              <AnimatedNumber value={activeCardsCount} className="mt-1 block text-xl font-extrabold text-emerald-500" />
             </div>
           </div>
         </button>
@@ -465,7 +480,7 @@ export default function AdminDashboard() {
               <button type="button" onClick={() => openContactSaves('saves')} className="w-full text-left">
                 <SocialMetricsCard
                   title="Saved Contacts"
-                  value={String(totalSavedContacts)}
+                  value={totalSavedContacts}
                   icon={Save}
                   bg={cn(themeClasses.lightBg, themeClasses.lightText)}
                 />
@@ -476,7 +491,7 @@ export default function AdminDashboard() {
                   <SocialMetricsCard
                     key={stat.channel}
                     title={stat.label}
-                    value={String(stat.count)}
+                    value={stat.count}
                     icon={ui.icon}
                     bg={ui.bg}
                   />
@@ -618,13 +633,23 @@ export default function AdminDashboard() {
                             <p className="mt-1 truncate text-sm font-extrabold text-slate-900 dark:text-white">
                               {mtg.host}
                             </p>
-                            <p className="mt-0.5 inline-flex items-center gap-3 text-[11px] font-semibold text-slate-400">
+                            <p className="mt-0.5 inline-flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-400">
                               <span className="inline-flex items-center gap-1">
                                 <Calendar className="h-3 w-3" /> {mtg.date}
                               </span>
                               <span className="inline-flex items-center gap-1">
                                 <Clock className="h-3 w-3" /> {mtg.time}
                               </span>
+                              {mtg.meetLink ? (
+                                <a
+                                  href={mtg.meetLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-indigo-600 hover:underline dark:text-indigo-400"
+                                >
+                                  <Video className="h-3 w-3" /> Meet
+                                </a>
+                              ) : null}
                             </p>
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-2">
@@ -705,17 +730,12 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Owner / host name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={mtgHost}
-                    onChange={(e) => setMtgHost(e.target.value)}
-                    placeholder="e.g. Zakir Hosen"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                <div className="sm:col-span-2">
+                  <ProfileOwnerPicker
+                    value={mtgOwner}
+                    onChange={setMtgOwner}
+                    label="Owner / host"
+                    listClassName="max-h-40"
                   />
                 </div>
                 <div className="space-y-1">
@@ -775,7 +795,7 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isCreatingMeeting}
+                  disabled={isCreatingMeeting || !mtgOwner}
                   className={cn(
                     'rounded-xl px-5 py-2.5 text-[11px] font-black text-white uppercase disabled:opacity-60',
                     themeClasses.bg
@@ -804,7 +824,7 @@ export default function AdminDashboard() {
 
 type SocialMetricsCardProps = {
   title: string
-  value: string
+  value: number
   icon: LucideIcon
   bg: string
 }
@@ -820,7 +840,9 @@ function SocialMetricsCard({ title, value, icon: Icon, bg }: SocialMetricsCardPr
       >
         <Icon className="h-5 w-5" strokeWidth={1.5} />
       </div>
-      <h4 className="text-lg leading-tight font-black tracking-tight text-slate-900 dark:text-white">{value}</h4>
+      <h4 className="text-lg leading-tight font-black tracking-tight text-slate-900 dark:text-white">
+        <AnimatedNumber value={value} />
+      </h4>
       <p className="mt-1 w-full truncate text-[10px] font-bold tracking-wider text-slate-400 uppercase" title={title}>
         {title}
       </p>

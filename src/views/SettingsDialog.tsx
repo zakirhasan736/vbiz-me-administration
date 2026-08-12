@@ -2,6 +2,7 @@
 
 import { CanvaConnectRow } from '@/components/canva'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
+import { BillingPackagesModal } from '@/components/settings/BillingPackagesModal'
 import ChangePasswordForm from '@/components/settings/ChangePasswordForm'
 import SetPasswordForm from '@/components/settings/SetPasswordForm'
 import { Button, Input, Switch, Textarea } from '@/components/ui'
@@ -10,7 +11,12 @@ import { useAppSelector } from '@/hooks/redux'
 import { getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs } from '@/lib/notifications'
 import { useTheme } from '@/lib/ThemeProvider'
 import { logout, useAuth } from '@/providers/AuthProvider'
-import { useGetPackagesQuery, useGetSubscriptionsQuery } from '@/redux/features/profiles/profiles.api'
+import {
+  useGetPackagesQuery,
+  useGetSubscriptionsQuery,
+  type OwnerPackage,
+  type OwnerSubscription,
+} from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -30,6 +36,24 @@ import { motion } from 'motion/react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type MouseEventHandler, type ReactNode } from 'react'
+
+function isActiveSubscription(sub: OwnerSubscription, now = Date.now()) {
+  if (sub.endsAt == null || sub.endsAt === '') return true
+  const ends = new Date(sub.endsAt).getTime()
+  return Number.isFinite(ends) && ends > now
+}
+
+function formatPackagePrice(monthlyPrice?: number | null) {
+  return `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(monthlyPrice) || 0) / 100)}/mo`
+}
+
+function packageMaxCards(pkg: OwnerPackage | null | undefined) {
+  const value = pkg?.features?.find((f) => f.featureKey === 'max_cards')?.featureValue
+  if (value == null || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n)) return null
+  return n === 1 ? '1 card' : `${n} cards`
+}
 
 const sectionsGroups = [
   {
@@ -168,10 +192,19 @@ export default function SettingsDialog() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [billingPackagesOpen, setBillingPackagesOpen] = useState(false)
   const { isActive: isTourActive, settingsAssist, currentStep } = useDashboardTour()
   const hasPassword = reduxUser?.hasPassword !== false
   const { data: packages = [] } = useGetPackagesQuery()
   const { data: subscriptions = [] } = useGetSubscriptionsQuery()
+
+  const activeSubscription = subscriptions.find((sub) => isActiveSubscription(sub))
+  const currentPackage =
+    activeSubscription?.package ??
+    (activeSubscription?.packageId ? packages.find((pkg) => pkg.id === activeSubscription.packageId) : undefined) ??
+    null
+  const hasActivePlan = Boolean(currentPackage)
+  const currentPlanCards = packageMaxCards(currentPackage)
 
   const activeTab = isTourActive && currentStep?.id && settingsAssist.activeTab ? settingsAssist.activeTab : selectedTab
 
@@ -711,29 +744,48 @@ export default function SettingsDialog() {
               <div>
                 <h4 className="mb-2 text-[15px] font-black text-slate-900 dark:text-white">Subscription & Billing</h4>
                 <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                  Plans and subscriptions from your Node backend.
+                  View available plans and manage your subscription.
                 </p>
-                <div className="mb-6 space-y-3">
-                  {(packages as Array<{ id: string; name: string; monthlyPrice?: number }>).map((pkg) => (
-                    <div
-                      key={pkg.id}
-                      className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 dark:border-white/10"
-                    >
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">{pkg.name}</span>
-                      <span className="text-sm font-medium text-slate-500">
-                        {pkg.monthlyPrice != null
-                          ? `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(pkg.monthlyPrice) || 0) / 100)}/mo`
-                          : '—'}
-                      </span>
+
+                <div className="mb-6 rounded-2xl border border-slate-200 px-4 py-4 dark:border-white/10">
+                  {hasActivePlan && currentPackage ? (
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Current plan</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{currentPackage.name}</p>
+                        {currentPackage.description ? (
+                          <p className="mt-1 line-clamp-2 text-[13px] font-medium text-slate-500 dark:text-slate-400">
+                            {currentPackage.description}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">
+                          {formatPackagePrice(currentPackage.monthlyPrice)}
+                        </p>
+                        {currentPlanCards ? (
+                          <p className="mt-1 text-[12px] font-medium text-slate-400">{currentPlanCards}</p>
+                        ) : null}
+                      </div>
                     </div>
-                  ))}
-                  {packages.length === 0 && (
-                    <p className="text-sm text-slate-500">No packages imported yet. Run the Laravel data migration.</p>
+                  ) : (
+                    <div>
+                      <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Current plan</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">No active plan</p>
+                      <p className="mt-1 text-[13px] font-medium text-slate-500 dark:text-slate-400">
+                        Upgrade to unlock more cards and features for your account.
+                      </p>
+                    </div>
                   )}
                 </div>
-                <p className="mb-4 text-[13px] font-medium text-slate-500">
-                  Active subscriptions: {(subscriptions as unknown[]).length}
-                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setBillingPackagesOpen(true)}
+                  className="w-full rounded-2xl bg-slate-900 py-3 text-[14px] font-semibold text-white transition-all hover:bg-slate-800 active:scale-[0.98] sm:w-auto sm:px-6 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                >
+                  {hasActivePlan ? 'Manage Package' : 'Upgrade Plan'}
+                </button>
               </div>
             </Section>
           </div>
@@ -746,6 +798,13 @@ export default function SettingsDialog() {
             isLoading={isLoggingOut}
           />
         )}
+
+        <BillingPackagesModal
+          open={billingPackagesOpen}
+          onClose={() => setBillingPackagesOpen(false)}
+          packages={packages}
+          currentPackageId={currentPackage?.id}
+        />
       </div>
     </div>
   )

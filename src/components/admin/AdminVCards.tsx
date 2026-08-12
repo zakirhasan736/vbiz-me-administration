@@ -7,7 +7,7 @@ import VCardDetailSidebar, { VCardTrendsPopup } from '@/components/admin/AdminVC
 import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import { CardLifecycleTabs } from '@/components/dashboard/vcard/CardLifecycleTabs'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
-import { useAppSelector } from '@/hooks/redux'
+import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { type AdminCard } from '@/lib/admin/adminCardShape'
@@ -17,18 +17,35 @@ import { notifyCardOwner } from '@/lib/notifications'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import {
+  useCreateAnnouncementMutation,
+  useGetAnnouncementsQuery,
+  useUpdateAnnouncementMutation,
+} from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
+import {
   exportAdminProfilesCsv,
   useGetAdminProfileFiltersQuery,
   useGetAdminProfilesQuery,
+  useLazyGetAdminProfilesQuery,
 } from '@/redux/features/adminProfiles/adminProfiles.api'
+import {
+  appendItems,
+  clearFilters,
+  setDebouncedQ,
+  setLifecycleTab,
+  setListSnapshot,
+  setProfessionFilter,
+  setSearchQuery,
+  setShowAll,
+  setStatusFilter,
+  setTotal,
+} from '@/redux/features/adminVCardsList/adminVCardsList.slice'
 import { useCreateMeetingMutation } from '@/redux/features/meetings/meetings.api'
 import { useDeleteProfileMutation } from '@/redux/features/profiles/profiles.api'
+import type { AnnouncementType } from '@/types/announcement'
 import { MEETING_TYPES, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
 import {
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   Contact,
   Delete,
   Download,
@@ -59,31 +76,28 @@ const PAGE_SIZE = 20
 export default function AdminVCards() {
   const { updateCorporateCardControls, createCorporateCard, setCurrentEditingCardId } = useVCard()
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const token = useAppSelector((s) => s.user.token)
+  const {
+    searchQuery,
+    debouncedQ,
+    professionFilter,
+    statusFilter,
+    lifecycleTab,
+    showAll,
+    accumulatedItems,
+    listSyncKey: storedListSyncKey,
+    total: storedTotal,
+  } = useAppSelector((s) => s.adminVCardsList)
   const [deleteProfile] = useDeleteProfileMutation()
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedQ, setDebouncedQ] = useState('')
-  const [professionFilter, setProfessionFilter] = useState('All')
-  const [statusFilter, setStatusFilter] = useState('All')
-  const [lifecycleTab, setLifecycleTab] = useState<'active' | 'draft'>('active')
-  const [page, setPage] = useState(0)
-  const [showAll, setShowAll] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const listTopRef = useRef<HTMLDivElement>(null)
-  const skipPageScrollRef = useRef(true)
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQ(searchQuery.trim()), 300)
+    const t = window.setTimeout(() => dispatch(setDebouncedQ(searchQuery.trim())), 300)
     return () => window.clearTimeout(t)
-  }, [searchQuery])
-
-  useEffect(() => {
-    if (skipPageScrollRef.current) {
-      skipPageScrollRef.current = false
-      return
-    }
-    listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [page])
+  }, [dispatch, searchQuery])
 
   const listQuery = useMemo(
     () => ({
@@ -91,11 +105,11 @@ export default function AdminVCards() {
       status: statusFilter !== 'All' ? statusFilter : undefined,
       profession: professionFilter !== 'All' ? professionFilter : undefined,
       lifecycle: lifecycleTab,
-      skip: showAll ? 0 : page * PAGE_SIZE,
+      skip: 0,
       limit: PAGE_SIZE,
       showAll,
     }),
-    [debouncedQ, statusFilter, professionFilter, lifecycleTab, page, showAll]
+    [debouncedQ, statusFilter, professionFilter, lifecycleTab, showAll]
   )
 
   const {
@@ -106,20 +120,90 @@ export default function AdminVCards() {
     refetch: refetchList,
   } = useGetAdminProfilesQuery(listQuery)
 
+  const [fetchMoreProfiles] = useLazyGetAdminProfilesQuery()
+
   const { data: filterOptions } = useGetAdminProfileFiltersQuery()
   const { data: activeMeta } = useGetAdminProfilesQuery({ lifecycle: 'active', limit: 1, skip: 0 })
   const { data: draftMeta } = useGetAdminProfilesQuery({ lifecycle: 'draft', limit: 1, skip: 0 })
   const activeCount = activeMeta?.total ?? 0
   const draftCount = draftMeta?.total ?? 0
 
+  const listSyncKey = useMemo(
+    () => [debouncedQ, statusFilter, professionFilter, lifecycleTab, showAll ? 'all' : 'page'].join('|'),
+    [debouncedQ, statusFilter, professionFilter, lifecycleTab, showAll]
+  )
+
+  useEffect(() => {
+    if (!listData || isListFetching) return
+    const keyChanged = storedListSyncKey !== listSyncKey
+    if (!keyChanged && !showAll) {
+      // Same filters after remount / soft nav — keep Show more progress; refresh total only.
+      if (typeof listData.total === 'number' && listData.total !== storedTotal) {
+        dispatch(setTotal(listData.total))
+      }
+      return
+    }
+    dispatch(
+      setListSnapshot({
+        items: listData.items,
+        total: listData.total,
+        listSyncKey,
+      })
+    )
+  }, [dispatch, listData, listSyncKey, showAll, isListFetching, storedListSyncKey, storedTotal])
+
   const cards = useMemo(() => {
-    const mapped = (listData?.items || []).map(mapAdminProfileRowToCard)
+    const mapped = accumulatedItems.map(mapAdminProfileRowToCard)
     // Keep Active / Draft tabs mutually exclusive even if API cache is stale
     return mapped.filter((c) => (lifecycleTab === 'draft' ? Boolean(c.isDraft) : !c.isDraft))
-  }, [listData?.items, lifecycleTab])
+  }, [accumulatedItems, lifecycleTab])
 
-  const total = listData?.total ?? 0
-  const totalPages = showAll ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const total = listData?.total ?? storedTotal
+  const hasMore = !showAll && accumulatedItems.length < total
+  const hasCachedList = accumulatedItems.length > 0 && storedListSyncKey === listSyncKey
+  const showListSkeleton = isListLoading && !hasCachedList
+
+  const refreshListFromStart = async () => {
+    try {
+      const result = await refetchList()
+      if (result.data) {
+        dispatch(
+          setListSnapshot({
+            items: result.data.items,
+            total: result.data.total,
+            listSyncKey,
+          })
+        )
+      }
+    } catch (err) {
+      console.error('List refresh failed:', err)
+    }
+  }
+
+  const handleShowMore = async () => {
+    if (!hasMore || isLoadingMore || showAll) return
+    setIsLoadingMore(true)
+    try {
+      const result = await fetchMoreProfiles({
+        q: debouncedQ || undefined,
+        status: statusFilter !== 'All' ? statusFilter : undefined,
+        profession: professionFilter !== 'All' ? professionFilter : undefined,
+        lifecycle: lifecycleTab,
+        skip: accumulatedItems.length,
+        limit: PAGE_SIZE,
+        showAll: false,
+      }).unwrap()
+      dispatch(appendItems(result.items))
+      if (typeof result.total === 'number') {
+        dispatch(setTotal(result.total))
+      }
+    } catch (err) {
+      console.error('Show more failed:', err)
+      notify.info('Could not load more cards.')
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }
 
   const [panelCard, setPanelCard] = useState<AdminCard | null>(null)
   const [selectedCard, setSelectedCard] = useState<AdminCard | null>(null)
@@ -132,12 +216,6 @@ export default function AdminVCards() {
     setSelectedVCardUrl(url)
     setQrModalTitle(name ? `${name} · QR` : 'vCard QR Code')
     setIsQrModalOpen(true)
-  }
-
-  const openPanel = (card: AdminCard) => {
-    setPanelCard(card)
-    setCardNoticeText(localStorage.getItem(`notice_${card.id}`) || '')
-    setCardNoticeType(localStorage.getItem(`notice_type_${card.id}`) || 'info')
   }
 
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
@@ -155,10 +233,43 @@ export default function AdminVCards() {
   const [isNoticeSaved, setIsNoticeSaved] = useState(false)
 
   const [meetingType, setMeetingType] = useState<MeetingType>('Growth Meeting')
-  const [meetingDate, setMeetingDate] = useState('2026-08-04')
+  const [meetingDate, setMeetingDate] = useState(() => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  })
   const [meetingTime, setMeetingTime] = useState('10:00 AM')
+  const [meetingNotes, setMeetingNotes] = useState('')
   const [isMeetingSaved, setIsMeetingSaved] = useState(false)
   const [createMeeting, { isLoading: isCreatingMeeting }] = useCreateMeetingMutation()
+  const [createAnnouncement, { isLoading: isCreatingNotice }] = useCreateAnnouncementMutation()
+  const [updateAnnouncement, { isLoading: isUpdatingNotice }] = useUpdateAnnouncementMutation()
+  const { data: announcementsPage } = useGetAnnouncementsQuery({ status: 'active', limit: 100 })
+
+  const findCardNotice = (profileId: string) =>
+    (announcementsPage?.items || []).find(
+      (a) =>
+        a.targetType === 'specific' &&
+        a.status === 'active' &&
+        a.meta?.source === 'card_notice' &&
+        a.meta?.profileId === profileId
+    )
+
+  const collectOwnerEmails = (card: AdminCard): string[] => {
+    const emails = [card.ownerEmail, card.companyUserEmail]
+      .map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : ''))
+      .filter(Boolean)
+    return [...new Set(emails)]
+  }
+
+  const openPanel = (card: AdminCard) => {
+    setPanelCard(card)
+    const existing = findCardNotice(card.id)
+    setCardNoticeText(existing?.body || '')
+    setCardNoticeType(existing?.type || 'info')
+  }
 
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([])
   const [confirmState, setConfirmState] = useState<{
@@ -170,8 +281,7 @@ export default function AdminVCards() {
   const [isExporting, setIsExporting] = useState(false)
   const [isBatchDeleting, setIsBatchDeleting] = useState(false)
 
-  const resetListState = (opts?: { keepPage?: boolean }) => {
-    if (!opts?.keepPage) setPage(0)
+  const resetListState = () => {
     setSelectedCardIds([])
   }
 
@@ -196,7 +306,7 @@ export default function AdminVCards() {
       if (panelCard && ids.includes(panelCard.id)) setPanelCard(null)
       if (trendsCard && ids.includes(trendsCard.id)) setTrendsCard(null)
       notify.info('Selected cards deleted successfully.')
-      void refetchList()
+      void refreshListFromStart()
     } catch (err) {
       console.error('Batch delete failed:', err)
       notify.info('Error executing bulk delete.')
@@ -238,8 +348,9 @@ export default function AdminVCards() {
 
   const openNoticeForCard = (card: AdminCard) => {
     setSelectedCard(card)
-    setCardNoticeText(localStorage.getItem(`notice_${card.id}`) || '')
-    setCardNoticeType(localStorage.getItem(`notice_type_${card.id}`) || 'info')
+    const existing = findCardNotice(card.id)
+    setCardNoticeText(existing?.body || '')
+    setCardNoticeType(existing?.type || 'info')
     setIsNoticeModalOpen(true)
   }
 
@@ -262,7 +373,7 @@ export default function AdminVCards() {
         details: `Admin duplicated ${fullName} → ${card.slug}-${uniqueSuffix}`,
         type: 'create',
       })
-      void refetchList()
+      void refreshListFromStart()
     } catch (e) {
       console.error(e)
       notify.info('Error duplicating card.')
@@ -337,38 +448,62 @@ export default function AdminVCards() {
       details: `Modified ${personalField(card.personal, 'fullName')}'s account status to ${targetStatus.toUpperCase()}`,
       type: 'status',
     })
-    void refetchList()
+    void refreshListFromStart()
   }
 
-  const handleSaveCardNotice = () => {
-    if (!selectedCard) return
+  const handleSaveCardNotice = async () => {
+    if (!selectedCard || isCreatingNotice || isUpdatingNotice) return
     const ownerName = personalField(selectedCard.personal, 'fullName')
-    localStorage.setItem(`notice_${selectedCard.id}`, cardNoticeText)
-    localStorage.setItem(`notice_type_${selectedCard.id}`, cardNoticeType)
-    setIsNoticeSaved(true)
-    setTimeout(() => {
-      setIsNoticeSaved(false)
-      setIsNoticeModalOpen(false)
-    }, 1500)
+    const targetEmails = collectOwnerEmails(selectedCard)
+    const trimmed = cardNoticeText.trim()
+    const existing = findCardNotice(selectedCard.id)
+    const noticeType = (
+      ['info', 'warning', 'success'].includes(cardNoticeType) ? cardNoticeType : 'info'
+    ) as AnnouncementType
 
-    appendAuditLog({
-      action: 'Individual Backoffice Notice',
-      details: `Dispatched customized notice banner to ${ownerName} (${selectedCard.id})`,
-      type: 'settings',
-    })
-    if (cardNoticeText.trim()) {
-      const ownerAudience =
-        selectedCard.ownerRole === 'corporate-owner' || selectedCard.companyUserRole === 'corporate-owner'
-          ? 'corporate'
-          : 'single'
-      notifyCardOwner({
-        ownerAudience,
-        category: 'system',
-        title: 'Card-specific announcement',
-        body: `[${cardNoticeType.toUpperCase()}] ${ownerName}: ${cardNoticeText.trim().slice(0, 120)}`,
-        profileId: selectedCard.id,
-        forceBrowser: true,
+    if (!trimmed) {
+      if (existing) {
+        try {
+          await updateAnnouncement({ id: existing.id, body: { status: 'archived' } }).unwrap()
+          notify.info('Card notice cleared.')
+        } catch {
+          notify.info('Could not clear card notice.')
+          return
+        }
+      }
+      setIsNoticeModalOpen(false)
+      return
+    }
+
+    if (!targetEmails.length) {
+      notify.info('No back-office owner email on this card. Cannot send a targeted notice.')
+      return
+    }
+
+    try {
+      await createAnnouncement({
+        type: noticeType,
+        title: `Card notice · ${ownerName || selectedCard.slug || 'vCard'}`,
+        body: trimmed,
+        status: 'active',
+        targetType: 'specific',
+        targetEmails,
+        meta: { profileId: selectedCard.id, source: 'card_notice' },
+      }).unwrap()
+
+      setIsNoticeSaved(true)
+      setTimeout(() => {
+        setIsNoticeSaved(false)
+        setIsNoticeModalOpen(false)
+      }, 1500)
+
+      appendAuditLog({
+        action: 'Individual Backoffice Notice',
+        details: `Dispatched customized notice banner to ${ownerName} (${selectedCard.id})`,
+        type: 'settings',
       })
+    } catch {
+      notify.info('Could not publish card notice. Check announcements permission.')
     }
   }
 
@@ -376,11 +511,12 @@ export default function AdminVCards() {
     if (!selectedCard || isCreatingMeeting) return
     const hostName = personalField(selectedCard.personal, 'fullName') || 'vCard Owner'
     try {
-      await createMeeting({
+      const created = await createMeeting({
         host: hostName,
         type: meetingType,
         date: meetingDate,
         time: meetingTime,
+        notes: meetingNotes.trim() || null,
         status: 'Scheduled',
         profileId: selectedCard.id || null,
       }).unwrap()
@@ -389,17 +525,19 @@ export default function AdminVCards() {
       setTimeout(() => {
         setIsMeetingSaved(false)
         setIsScheduleModalOpen(false)
+        setMeetingNotes('')
       }, 1500)
 
       const ownerAudience =
         selectedCard.ownerRole === 'corporate-owner' || selectedCard.companyUserRole === 'corporate-owner'
           ? 'corporate'
           : 'single'
+      const meetSuffix = created.meetLink ? ` · Meet: ${created.meetLink}` : ''
       notifyCardOwner({
         ownerAudience,
         category: 'event',
         title: 'Card schedule booked',
-        body: `${meetingType} with ${hostName} on ${meetingDate} at ${meetingTime}`,
+        body: `${meetingType} with ${hostName} on ${meetingDate} at ${meetingTime}${meetSuffix}`,
         profileId: selectedCard.id,
         forceBrowser: true,
       })
@@ -444,7 +582,7 @@ export default function AdminVCards() {
             <CardLifecycleTabs
               value={lifecycleTab}
               onChange={(tab) => {
-                setLifecycleTab(tab)
+                dispatch(setLifecycleTab(tab))
                 resetListState()
               }}
               activeCount={activeCount}
@@ -461,7 +599,7 @@ export default function AdminVCards() {
           >
             <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export CSV'}
           </button>
-          <CreateCardLauncher>
+          <CreateCardLauncher requireOwnerAssignment>
             {(open) => (
               <button
                 type="button"
@@ -486,7 +624,7 @@ export default function AdminVCards() {
             type="text"
             value={searchQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value)
+              dispatch(setSearchQuery(e.target.value))
               resetListState()
             }}
             placeholder="Query cards by name, designation, company, or email..."
@@ -498,7 +636,7 @@ export default function AdminVCards() {
           <select
             value={professionFilter}
             onChange={(e) => {
-              setProfessionFilter(e.target.value)
+              dispatch(setProfessionFilter(e.target.value))
               resetListState()
             }}
             className="w-full cursor-pointer bg-transparent text-xs font-black text-slate-500 uppercase outline-none dark:text-slate-300"
@@ -516,7 +654,7 @@ export default function AdminVCards() {
           <select
             value={statusFilter}
             onChange={(e) => {
-              setStatusFilter(e.target.value)
+              dispatch(setStatusFilter(e.target.value))
               resetListState()
             }}
             className="w-full cursor-pointer bg-transparent text-xs font-black text-slate-500 uppercase outline-none dark:text-slate-300"
@@ -534,9 +672,7 @@ export default function AdminVCards() {
 
         <button
           onClick={() => {
-            setSearchQuery('')
-            setProfessionFilter('All')
-            setStatusFilter('All')
+            dispatch(clearFilters())
             resetListState()
           }}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-5 py-3 text-xs font-black text-slate-500 uppercase transition-all hover:bg-slate-100 md:w-auto dark:border-white/5 dark:hover:bg-white/5"
@@ -573,26 +709,40 @@ export default function AdminVCards() {
         </div>
       )}
 
-      <div className="flex items-center gap-3 px-2 pt-2 pb-2">
-        <input
-          type="checkbox"
-          checked={selectedCardIds.length === cards.length && cards.length > 0}
-          onChange={handleSelectAll}
-          className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-        />
-        <span className="text-xs font-bold tracking-widest text-slate-500 uppercase">Select All Cards</span>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-2 pt-2 pb-2">
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={selectedCardIds.length === cards.length && cards.length > 0}
+            onChange={handleSelectAll}
+            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+          />
+          <span className="text-xs font-bold tracking-widest text-slate-500 uppercase">Select All Cards</span>
+        </div>
+        <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold tracking-wider text-slate-500 uppercase select-none">
+          <input
+            type="checkbox"
+            checked={showAll}
+            onChange={(e) => {
+              dispatch(setShowAll(e.target.checked))
+              resetListState()
+            }}
+            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+          />
+          Show all cards
+        </label>
       </div>
 
       {isListError && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-800/40 dark:bg-rose-900/20 dark:text-rose-300">
           Could not load platform cards.{' '}
-          <button type="button" className="underline" onClick={() => void refetchList()}>
+          <button type="button" className="underline" onClick={() => void refreshListFromStart()}>
             Retry
           </button>
         </div>
       )}
 
-      {isListLoading ? (
+      {showListSkeleton ? (
         <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="min-h-87.5 animate-pulse rounded-[28px] bg-slate-100 dark:bg-white/5" />
@@ -600,6 +750,35 @@ export default function AdminVCards() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <CreateCardLauncher requireOwnerAssignment>
+            {(open) => (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setCurrentEditingCardId(null)
+                  open()
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setCurrentEditingCardId(null)
+                    open()
+                  }
+                }}
+                className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
+              >
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
+                  <Plus className="h-6 w-6" strokeWidth={2.5} />
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
+                <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                  Add a dynamic digital business card to your directory.
+                </p>
+              </div>
+            )}
+          </CreateCardLauncher>
+
           {cards.map((card, i) => {
             const contactSaves = Number(card.saveCount || 0)
             const badge = resolveDirectoryBadge(card)
@@ -644,13 +823,13 @@ export default function AdminVCards() {
                   if (panelCard?.id === id) setPanelCard(null)
                   if (trendsCard?.id === id) setTrendsCard(null)
                   notify.info('Card deleted successfully.')
-                  void refetchList()
+                  void refreshListFromStart()
                 }}
               />
             )
           })}
 
-          {!isListLoading && cards.length === 0 && (
+          {!showListSkeleton && cards.length === 0 && (
             <div className="col-span-full rounded-2xl border border-dashed border-slate-200 px-6 py-16 text-center dark:border-white/10">
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
                 {lifecycleTab === 'draft' ? 'No draft cards.' : 'No active cards match these filters.'}
@@ -662,82 +841,25 @@ export default function AdminVCards() {
               </p>
             </div>
           )}
-
-          <CreateCardLauncher>
-            {(open) => (
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  setCurrentEditingCardId(null)
-                  open()
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setCurrentEditingCardId(null)
-                    open()
-                  }
-                }}
-                className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
-              >
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
-                  <Plus className="h-6 w-6" strokeWidth={2.5} />
-                </div>
-                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
-                <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                  Add a dynamic digital business card to your directory.
-                </p>
-              </div>
-            )}
-          </CreateCardLauncher>
         </div>
       )}
 
-      <div className="flex flex-col justify-between gap-4 border-t border-slate-100 pt-2 sm:flex-row sm:items-center dark:border-white/5">
-        <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold tracking-wider text-slate-500 uppercase select-none">
-          <input
-            type="checkbox"
-            checked={showAll}
-            onChange={(e) => {
-              setShowAll(e.target.checked)
-              resetListState()
-            }}
-            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-          />
-          Show all cards
-        </label>
-
-        {!showAll && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-slate-500">
-              Page {Math.min(page + 1, totalPages)} of {totalPages} · {total} total
-            </span>
-            <button
-              type="button"
-              disabled={page <= 0}
-              onClick={() => {
-                setPage((p) => Math.max(0, p - 1))
-                resetListState({ keepPage: true })
-              }}
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black tracking-wider text-slate-600 uppercase hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
-            >
-              <ChevronLeft className="h-4 w-4" /> Prev
-            </button>
-            <button
-              type="button"
-              disabled={page + 1 >= totalPages}
-              onClick={() => {
-                setPage((p) => p + 1)
-                resetListState({ keepPage: true })
-              }}
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black tracking-wider text-slate-600 uppercase hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
-            >
-              Next <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+      <div className="flex flex-col items-center justify-center gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
+        {!showListSkeleton && !isListError && total > 0 && (
+          <span className="text-xs font-semibold text-slate-500">
+            {showAll ? `Showing all ${total} matching cards` : `Showing ${cards.length} of ${total}`}
+          </span>
         )}
-        {showAll && <span className="text-xs font-semibold text-slate-500">Showing all {total} matching cards</span>}
+        {hasMore && !isListError && (
+          <button
+            type="button"
+            disabled={isLoadingMore || isListFetching}
+            onClick={() => void handleShowMore()}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-black tracking-wider text-slate-600 uppercase hover:bg-slate-50 disabled:opacity-40 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
+          >
+            {isLoadingMore ? 'Loading…' : 'Show more'}
+          </button>
+        )}
       </div>
 
       <VCardDetailSidebar
@@ -987,8 +1109,9 @@ export default function AdminVCards() {
                   </button>
                   <button
                     type="button"
-                    onClick={handleSaveCardNotice}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95"
+                    onClick={() => void handleSaveCardNotice()}
+                    disabled={isCreatingNotice || isUpdatingNotice}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95 disabled:opacity-60"
                   >
                     {isNoticeSaved ? <>Notice Posted ✓</> : <>Save & Lock Notice</>}
                   </button>
@@ -1060,6 +1183,18 @@ export default function AdminVCards() {
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                     />
                   </div>
+                </div>
+
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                    Description / Notes
+                  </label>
+                  <textarea
+                    value={meetingNotes}
+                    onChange={(e) => setMeetingNotes(e.target.value)}
+                    placeholder="e.g. Review QR dimensions and conversion goals..."
+                    className="min-h-22.5 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                  />
                 </div>
 
                 <div className="mt-6 flex gap-3 border-t border-slate-100 pt-4 dark:border-white/5">

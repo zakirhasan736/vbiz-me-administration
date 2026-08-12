@@ -1,10 +1,12 @@
 'use client'
 
+import { useAppSelector } from '@/hooks/redux'
+import { seedActiveAnnouncementNotification } from '@/lib/notifications'
 import { useGetActiveAnnouncementQuery } from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
 import type { AnnouncementType } from '@/types/announcement'
 import { cn } from '@/utils/cn'
 import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
 const DISMISS_PREFIX = 'announcement:'
 const DISMISS_SUFFIX = ':dismissed'
@@ -71,6 +73,7 @@ type AnnouncementBannerProps = {
 }
 
 export default function AnnouncementBanner({ enabled = true }: AnnouncementBannerProps) {
+  const userRole = useAppSelector((state) => state.user.user?.role)
   const { data: announcement } = useGetActiveAnnouncementQuery(undefined, {
     skip: !enabled,
     pollingInterval: 60_000,
@@ -80,17 +83,30 @@ export default function AnnouncementBanner({ enabled = true }: AnnouncementBanne
 
   const dismissed = useIsAnnouncementDismissed(announcement?.id)
 
+  useEffect(() => {
+    if (!enabled || !announcement?.id) return
+    const audience = userRole === 'corporate-owner' ? 'corporate' : userRole === 'vcard-owner' ? 'single' : null
+    if (!audience) return
+    seedActiveAnnouncementNotification({
+      audience,
+      announcementId: announcement.id,
+      title: announcement.title,
+      body: announcement.body,
+      profileId: announcement.meta?.profileId,
+    })
+  }, [enabled, announcement, userRole])
+
   if (!enabled || !announcement || dismissed) {
     return null
   }
 
   const styles = typeStyles[announcement.type] ?? typeStyles.info
   const Icon = styles.Icon
-  const role = announcement.type === 'warning' ? 'alert' : 'status'
+  const ariaRole = announcement.type === 'warning' ? 'alert' : 'status'
 
   return (
     <div
-      role={role}
+      role={ariaRole}
       aria-live={announcement.type === 'warning' ? 'assertive' : 'polite'}
       className={cn(
         'relative z-40 mx-4 mt-4 overflow-hidden rounded-2xl border shadow-sm md:mx-8 lg:mx-auto lg:max-w-7xl',

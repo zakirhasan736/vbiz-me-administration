@@ -73,9 +73,11 @@ export function mapAdminProfileRowToCard(row: AdminProfileRow): AdminCard {
       ctr,
     },
     companyUserId: row.companyUser?.id || null,
+    companyUserEmail: row.companyUser?.email || null,
     companyUserRole: row.companyUser?.role || null,
     createdById: row.createdBy?.id || null,
     createdByRole: row.createdBy?.role || null,
     ownerRole: row.user?.role || null,
+    ownerEmail: row.user?.email || null,
   }
 }

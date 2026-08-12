@@ -35,10 +35,44 @@ function slugFromUrl(url) {
   if (!url || typeof url !== 'string') return ''
   try {
     const path = url.startsWith('http') ? new URL(url).pathname : url
-    const segment = path.replace(/^\/+|\/+$/g, '').split('/')[0]
-    return segment || ''
+    const parts = path
+      .replace(/^\/+|\/+$/g, '')
+      .split('/')
+      .filter(Boolean)
+    if (parts[0] === 'v' && parts[1]) return parts[1]
+    if (parts[0] && parts[0] !== 'v') return parts[0]
+    return ''
   } catch {
     return ''
+  }
+}
+
+function cardPathFromSlug(slug) {
+  const trimmed = String(slug || '').trim()
+  return trimmed ? `/v/${encodeURIComponent(trimmed)}` : '/'
+}
+
+/** Prefer `/v/{slug}`; rewrite legacy `/{slug}` payload URLs. */
+function normalizeCardUrl(rawUrl, slug) {
+  const fallback = cardPathFromSlug(slug)
+  if (!rawUrl || typeof rawUrl !== 'string') return fallback
+  try {
+    const absolute = rawUrl.startsWith('http')
+    const parsed = absolute ? new URL(rawUrl) : new URL(rawUrl, self.location.origin)
+    const parts = parsed.pathname
+      .replace(/^\/+|\/+$/g, '')
+      .split('/')
+      .filter(Boolean)
+    if (parts[0] === 'v' && parts[1]) {
+      return absolute ? parsed.href : `${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+    if (parts.length === 1 && parts[0]) {
+      parsed.pathname = `/v/${parts[0]}`
+      return absolute ? parsed.href : `${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+    return absolute ? parsed.href : rawUrl.startsWith('/') ? rawUrl : fallback
+  } catch {
+    return fallback
   }
 }
 
@@ -100,8 +134,8 @@ async function readCachedCardMedia(slug) {
 function normalizePushPayload(raw) {
   const slug = firstNonEmpty(raw.slug, raw.profile_slug, raw.cardSlug, slugFromUrl(raw.url))
   const category = raw.category || PUSH_TYPE_TO_CATEGORY[raw.type] || 'company'
-  // Always open the card on this origin (works in local + production).
-  const url = raw.url || (slug ? `/${slug}` : '/')
+  // Always open the card on this origin under `/v/{slug}` (works in local + production).
+  const url = normalizeCardUrl(raw.url, slug)
 
   const avatarImageUrl = firstNonEmpty(
     raw.logo,
@@ -162,7 +196,7 @@ function buildNotificationCopy(payload) {
   const detail = rawBody || `${name} ${action}.`
   let displayLink = ''
   if (payload.slug) {
-    displayLink = isLocalDevHost() ? `${PUBLIC_CARD_HOST}/${payload.slug}` : `${self.location.host}/${payload.slug}`
+    displayLink = isLocalDevHost() ? `${PUBLIC_CARD_HOST}/v/${payload.slug}` : `${self.location.host}/v/${payload.slug}`
   }
 
   const body = displayLink ? `${detail}\nOpen card · ${displayLink}` : `${detail}\nTap to open card`
@@ -276,7 +310,7 @@ self.addEventListener('push', (event) => {
     (async () => {
       payload = await resolveCardMedia(payload)
       const copy = buildNotificationCopy(payload)
-      const openUrl = toAbsoluteUrl(payload.url || (payload.slug ? `/${payload.slug}` : '/'))
+      const openUrl = toAbsoluteUrl(normalizeCardUrl(payload.url, payload.slug))
 
       const richPayload = {
         title: copy.title,
@@ -328,9 +362,10 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
   const rawUrl = event.notification.data?.url || '/'
+  const slug = event.notification.data?.slug || slugFromUrl(rawUrl)
   let targetUrl = '/'
   try {
-    targetUrl = rawUrl.startsWith('http') ? rawUrl : new URL(rawUrl, self.location.origin).href
+    targetUrl = toAbsoluteUrl(normalizeCardUrl(rawUrl, slug))
   } catch {
     targetUrl = self.location.origin + '/'
   }

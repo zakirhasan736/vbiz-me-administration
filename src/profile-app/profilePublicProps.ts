@@ -29,7 +29,7 @@ import type {
   VCardSocial,
 } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
-import type { MyCardActionButtons } from '@interfaces/api/myCard'
+import type { MyCardActionButtons, MyCardTeamNotice } from '@interfaces/api/myCard'
 
 export const DEFAULT_COVER = 'https://app.vbizme.com/storage/ecard/backgroundVideos/91/Untitled%20design-36.mp4'
 /** Demo / fallback intro played in the avatar circle when no profile image is set. */
@@ -87,6 +87,8 @@ export type VBizProfileAppProps = {
   onPreviewThemeChange?: (theme: 'light' | 'dark') => void
   profileViews?: number
   actionButtons?: MyCardActionButtons | null
+  /** Active owner/corporate notices for the public card modal. */
+  teamNotices?: MyCardTeamNotice[] | null
   /** Server-prefetched navbar catalog (`GET /post-types?profile_id=`). */
   initialNavBarLinks?: NavBarLinksData | null
   /** Dynamic global theme (Primary/Secondary/Accent + button/social appearance). Optional. */

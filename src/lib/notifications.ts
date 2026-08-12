@@ -178,6 +178,11 @@ export function markNotificationRead(id: string) {
   persist(list)
 }
 
+export function deleteNotification(id: string) {
+  const list = loadNotifications().filter((n) => n.id !== id)
+  persist(list)
+}
+
 export function markAllNotificationsRead(audience: NotificationAudience) {
   const list = loadNotifications().map((n) => (n.audience === audience ? { ...n, read: true } : n))
   persist(list)
@@ -326,6 +331,36 @@ export function notifyCardOwner(input: {
     href: input.href || `/vcards/edit/home/${input.profileId}`,
     meta: { profileId: input.profileId },
     forceBrowser: input.forceBrowser,
+  })
+}
+
+/**
+ * Seed the owner bell from a server-backed active announcement (once per announcement id).
+ * Global admin publish only writes localStorage on the admin browser — owners need this.
+ */
+export function seedActiveAnnouncementNotification(input: {
+  audience: 'single' | 'corporate'
+  announcementId: string
+  title: string
+  body: string
+  profileId?: string
+}) {
+  const already = loadNotifications().some(
+    (n) => n.audience === input.audience && n.meta?.announcementId === input.announcementId
+  )
+  if (already) return null
+
+  return pushNotification({
+    audience: input.audience,
+    category: 'system',
+    title: input.title,
+    body: input.body,
+    href: '/',
+    meta: {
+      announcementId: input.announcementId,
+      ...(input.profileId ? { profileId: input.profileId } : {}),
+    },
+    forceBrowser: true,
   })
 }
 

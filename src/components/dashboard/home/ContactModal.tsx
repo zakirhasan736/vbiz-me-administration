@@ -126,8 +126,9 @@ export function ContactModal({
         }).unwrap()
       }
       setSent(true)
-    } catch {
-      setSubmitError('Could not send your message. Please try again.')
+    } catch (err) {
+      const apiMessage = (err as { data?: { message?: string } })?.data?.message
+      setSubmitError(apiMessage || 'Could not send your message. Please try again.')
     } finally {
       setSending(false)
     }

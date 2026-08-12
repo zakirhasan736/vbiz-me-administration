@@ -3,6 +3,8 @@ import { FLUSH, PAUSE, PERSIST, persistReducer, persistStore, PURGE, REGISTER, R
 import storage from 'redux-persist/lib/storage'
 import { api } from './api/api'
 import { publicApi } from './api/publicApi'
+import adminUsersListReducer from './features/adminUsers/adminUsersList.slice'
+import adminVCardsListReducer from './features/adminVCardsList/adminVCardsList.slice'
 import userReducer from './features/auth/user.slice'
 import designSettingsReducer from './features/designSettings/designSettings.slice'
 import myCardReducer from './features/myCard/myCard.slice'
@@ -30,6 +32,8 @@ const rootReducer = combineReducers({
   [publicApi.reducerPath]: publicApi.reducer,
   user: persistAuthReducer,
   myCard: myCardReducer,
+  adminUsersList: adminUsersListReducer,
+  adminVCardsList: adminVCardsListReducer,
   vcards: persistVcardsReducer,
   designSettings: persistDesignReducer,
 })

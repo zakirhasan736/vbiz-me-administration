@@ -1,5 +1,7 @@
 'use client'
 
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
+import { useLastGoodData } from '@/hooks/useLastGoodData'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
 import { useGetWeeklyEngagementQuery } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
@@ -85,9 +87,10 @@ export function VCardWeeklyEngagement({
     return { profileId: id, ...(scope ? { scope } : {}) }
   }, [aggregateAll, scope, hideCardSelector, defaultSelectedId, selectedCardId, vCardsList])
 
-  const { data: weekly, isLoading: weeklyLoading } = useGetWeeklyEngagementQuery(weeklyQueryArgs, {
+  const { data: weeklyRaw, isLoading: weeklyLoading } = useGetWeeklyEngagementQuery(weeklyQueryArgs, {
     skip: !aggregateAll && !(weeklyQueryArgs && 'profileId' in weeklyQueryArgs && weeklyQueryArgs.profileId),
   })
+  const weekly = useLastGoodData(weeklyRaw)
 
   /** Metadata card for scope badge / status / department — chart uses API weekly data. */
   const activeCard = useMemo((): EngagementCard | null => {
@@ -247,7 +250,7 @@ export function VCardWeeklyEngagement({
                   Weekly Views
                 </span>
                 <span className="mt-0.5 block text-xl font-black text-slate-900 dark:text-white">
-                  {totals.views.toLocaleString()}
+                  <AnimatedNumber value={totals.views} />
                 </span>
               </div>
             </div>
@@ -261,7 +264,7 @@ export function VCardWeeklyEngagement({
                   Weekly Clicks
                 </span>
                 <span className="mt-0.5 block text-xl font-black text-slate-900 dark:text-white">
-                  {totals.clicks.toLocaleString()}
+                  <AnimatedNumber value={totals.clicks} />
                 </span>
               </div>
             </div>

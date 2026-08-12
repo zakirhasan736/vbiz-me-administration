@@ -1,5 +1,5 @@
 import type { SavedGuestUser } from '@/interfaces/api/saveGuestUser'
-import { baseUrl } from '@/redux/api/api'
+import { baseUrl } from '@/redux/api/publicApi'
 
 export class SaveGuestUserError extends Error {
   status?: number
