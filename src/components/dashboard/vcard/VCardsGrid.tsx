@@ -30,29 +30,32 @@ export function VCardsGrid({
   isPersonal = false,
   onTrends,
 }: VCardsGridProps) {
+  const cardNodes = cards.map((card) => {
+    const serverNotice = noticeForCard(card.id, teamNotices)
+    return isPersonal ? (
+      <VCardTeamCard
+        key={card.id}
+        card={card}
+        onOpenQr={onOpenQr}
+        onPanel={onPanel ?? (() => undefined)}
+        onNotice={onNotice ?? (() => undefined)}
+        noticeVersion={noticeVersion}
+        cardNoticeText={serverNotice?.text ?? null}
+        cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
+        canDuplicate={canCreate}
+        duplicateDisabledReason="Single card owners can create only one vCard"
+        onTrends={onTrends ? () => onTrends(card) : undefined}
+      />
+    ) : (
+      <VCardGridCard key={card.id} card={card} onOpenQr={onOpenQr} isPersonal={isPersonal} />
+    )
+  })
+
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {canCreate ? <CreateVCardCard canCreate /> : showLimitPlaceholder ? <CreateVCardCard canCreate={false} /> : null}
-      {cards.map((card) => {
-        const serverNotice = noticeForCard(card.id, teamNotices)
-        return isPersonal ? (
-          <VCardTeamCard
-            key={card.id}
-            card={card}
-            onOpenQr={onOpenQr}
-            onPanel={onPanel ?? (() => undefined)}
-            onNotice={onNotice ?? (() => undefined)}
-            noticeVersion={noticeVersion}
-            cardNoticeText={serverNotice?.text ?? null}
-            cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
-            canDuplicate={canCreate}
-            duplicateDisabledReason="Single card owners can create only one vCard"
-            onTrends={onTrends ? () => onTrends(card) : undefined}
-          />
-        ) : (
-          <VCardGridCard key={card.id} card={card} onOpenQr={onOpenQr} isPersonal={isPersonal} />
-        )
-      })}
+      {canCreate ? <CreateVCardCard canCreate /> : null}
+      {cardNodes}
+      {!canCreate && showLimitPlaceholder ? <CreateVCardCard canCreate={false} /> : null}
     </div>
   )
 }
