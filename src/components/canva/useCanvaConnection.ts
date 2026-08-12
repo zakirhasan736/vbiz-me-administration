@@ -1,6 +1,6 @@
 'use client'
 
-import { disconnectCanvaAction, getCanvaConnectionStatusAction, startCanvaAuthAction } from '@/lib/canva/actions'
+import { disconnectCanvaApi, fetchCanvaAuthorizeUrl, fetchCanvaStatus } from '@/lib/canva/backendClient'
 import type { CanvaConnectionStatus } from '@/lib/canva/types'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -41,6 +41,7 @@ export function useCanvaConnection({ userId, returnTo, enabled = true }: UseCanv
   const [resolvedKey, setResolvedKey] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [justConnected, setJustConnected] = useState(false)
 
   const isLoading = (requestKey !== null && resolvedKey !== requestKey) || isRefreshing
   const isConnected = requestKey ? status.connected : false
@@ -50,7 +51,7 @@ export function useCanvaConnection({ userId, returnTo, enabled = true }: UseCanv
 
     let cancelled = false
 
-    void getCanvaConnectionStatusAction(requestKey)
+    void fetchCanvaStatus()
       .then((nextStatus) => {
         if (cancelled) return
         applyStatusSuccess(requestKey, nextStatus, setStatus, setResolvedKey, setError)
@@ -84,8 +85,11 @@ export function useCanvaConnection({ userId, returnTo, enabled = true }: UseCanv
 
     if (canvaResult === 'connected' && requestKey) {
       let cancelled = false
+      void Promise.resolve().then(() => {
+        if (!cancelled) setJustConnected(true)
+      })
 
-      void getCanvaConnectionStatusAction(requestKey)
+      void fetchCanvaStatus()
         .then((nextStatus) => {
           if (cancelled) return
           applyStatusSuccess(requestKey, nextStatus, setStatus, setResolvedKey, setError)
@@ -114,7 +118,7 @@ export function useCanvaConnection({ userId, returnTo, enabled = true }: UseCanv
     setError(null)
 
     try {
-      const nextStatus = await getCanvaConnectionStatusAction(requestKey)
+      const nextStatus = await fetchCanvaStatus()
       applyStatusSuccess(requestKey, nextStatus, setStatus, setResolvedKey, setError)
     } catch (err) {
       applyStatusFailure(requestKey, err, setStatus, setResolvedKey, setError)
@@ -134,7 +138,12 @@ export function useCanvaConnection({ userId, returnTo, enabled = true }: UseCanv
     const nextReturnTo =
       returnTo || (typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/')
 
-    await startCanvaAuthAction(userId, nextReturnTo)
+    try {
+      const url = await fetchCanvaAuthorizeUrl(nextReturnTo)
+      window.location.href = url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start Canva connection')
+    }
   }, [returnTo, userId])
 
   const disconnect = useCallback(async () => {
@@ -144,7 +153,7 @@ export function useCanvaConnection({ userId, returnTo, enabled = true }: UseCanv
     setError(null)
 
     try {
-      await disconnectCanvaAction(requestKey)
+      await disconnectCanvaApi()
       setStatus({ connected: false })
       setResolvedKey(requestKey)
     } catch (err) {
@@ -154,11 +163,17 @@ export function useCanvaConnection({ userId, returnTo, enabled = true }: UseCanv
     }
   }, [requestKey])
 
+  const clearJustConnected = useCallback(() => {
+    setJustConnected(false)
+  }, [])
+
   return {
     isConnected,
     status: requestKey ? status : { connected: false },
     isLoading,
     error,
+    justConnected,
+    clearJustConnected,
     connect,
     disconnect,
     refreshStatus,

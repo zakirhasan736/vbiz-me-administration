@@ -189,6 +189,7 @@ export function DocumentUploadArea({
         <MediaSourceActions
           mode={mediaAssist}
           compact
+          profileId={profileId}
           onSelect={(asset) => {
             const doc: UploadedDoc = {
               id: `canva_${Date.now()}`,

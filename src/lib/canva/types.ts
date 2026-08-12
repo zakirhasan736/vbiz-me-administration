@@ -1,22 +1,17 @@
-export type CanvaTokenResponse = {
-  access_token: string
-  refresh_token: string
-  token_type: string
-  expires_in: number
-  scope: string
-}
-
-export type StoredCanvaTokens = {
-  accessToken: string
-  refreshToken: string
-  expiresAt: number
-  scope: string
-  connectedAt: number
-}
-
 export type CanvaConnectionStatus = {
   connected: boolean
+  configured?: boolean
   scope?: string
   connectedAt?: number
   expiresAt?: number
+}
+
+export type CanvaExportFormat = 'png' | 'jpg' | 'mp4' | 'pdf'
+
+export type CanvaLibraryItem = {
+  id: string
+  name: string
+  thumb?: string
+  updatedAt?: number
+  pageCount?: number
 }
