@@ -30,6 +30,18 @@ const validationSchema = yup.object().shape({
   password: yup.string().required('Password is required'),
 })
 
+type LoginMutationError = IQueryMutationErrorResponse & { error?: string }
+
+const getLoginErrorMessage = (error: LoginMutationError | undefined) => {
+  const apiMessage = error?.data?.message?.trim()
+  if (apiMessage) return apiMessage
+
+  const fetchMessage = error?.error?.trim()
+  if (fetchMessage) return fetchMessage
+
+  return 'Login failed. Please check your connection and try again.'
+}
+
 const LoginView = () => {
   const [passwordSetup, setPasswordSetup] = useState<TPasswordSetupRequiredData | null>(null)
   const [login, { isLoading }] = useLoginMutation()
@@ -49,23 +61,23 @@ const LoginView = () => {
 
   const handleSubmit = async (values: typeof initialValues) => {
     const res = await login(values)
-    const error = res.error as IQueryMutationErrorResponse | undefined
+    const error = res.error as LoginMutationError | undefined
 
     if (error) {
       if (isPasswordSetupRequired(error)) {
         const data = getPasswordSetupRequiredData(error)
         if (data) {
           setPasswordSetup(data)
-          toast.info(error.data.message)
+          toast.info(getLoginErrorMessage(error))
           return
         }
       }
       if (isEmailNotVerified(error) && handleEmailNotVerified(error)) {
-        toast.info(error.data.message)
+        toast.info(getLoginErrorMessage(error))
         router.push('/verify-email')
         return
       }
-      toast.error(error.data.message)
+      toast.error(getLoginErrorMessage(error))
       return
     }
 
