@@ -3,19 +3,22 @@
 import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { useAppDispatch } from '@/hooks/redux'
-import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
-import { useDeleteProfileMutation } from '@/redux/features/profiles/profiles.api'
-import { removeVCard } from '@/redux/features/vcards/vcards.slice'
+import { notify } from '@/lib/toast/toast'
+import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
+import { useDeleteProfileMutation, useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
+import { removeVCard, updateVCard } from '@/redux/features/vcards/vcards.slice'
 import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { getVCardPublicPath, getVCardPublicUrl } from '@/utils/vcard'
-import { Building, GripVertical, Megaphone, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Building, GripVertical, Megaphone, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useState, type DragEvent } from 'react'
+import { useRef, useState, type DragEvent } from 'react'
 import { ContactSaveChip, ShareCountChip, SocialClickChip } from './SocialClickChip'
 import { TrafficSparkline } from './TrafficSparkline'
 import { VCardCardActions } from './VCardCardActions'
+import { VCardOverflowMenu } from './VCardOverflowMenu'
+import { VCardVisibilityToggle } from './VCardVisibilityToggle'
 import { getCardSocialClickStats } from './socialStats'
 
 type VCardTeamCardProps = {
@@ -72,9 +75,14 @@ export function VCardTeamCard({
 }: VCardTeamCardProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
+  const cardRef = useRef<HTMLDivElement>(null)
   const [deleteProfile, { isLoading: isDeleting }] = useDeleteProfileMutation()
+  const [updateProfileCard, { isLoading: isUpdatingVisibility }] = useUpdateProfileCardMutation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const serverIsPublic = card.isPublic ?? true
+  const [optimisticPublic, setOptimisticPublic] = useState<{ cardId: string; value: boolean } | null>(null)
+  const isPublic = optimisticPublic?.cardId === card.id ? optimisticPublic.value : serverIsPublic
   const [statsHovered, setStatsHovered] = useState(false)
   const [alertState, setAlertState] = useState<{
     title: string
@@ -105,8 +113,22 @@ export function VCardTeamCard({
   const initial = card.personal.fullName?.trim()?.[0]?.toUpperCase() || 'P'
   const avatarSrc = card.avatarImageUrl?.trim() || null
   const editPath = buildEditorSectionPath('/vcards/edit', 'home', card.id)
+  const settingsPath = buildEditorSettingsPath('/vcards/edit', 'info', card.id)
 
   const goEdit = () => router.push(editPath)
+  const goSettings = () => router.push(settingsPath)
+
+  const handleVisibilityChange = async (next: boolean) => {
+    setOptimisticPublic({ cardId: card.id, value: next })
+    try {
+      await updateProfileCard({ id: card.id, body: { isPublic: next } }).unwrap()
+      dispatch(updateVCard({ id: card.id, patch: { isPublic: next } }))
+      setOptimisticPublic(null)
+    } catch {
+      setOptimisticPublic(null)
+      notify.error('Could not update card visibility. Please try again.')
+    }
+  }
 
   const handleEmail = () => {
     const email = card.personal.email?.trim()
@@ -180,6 +202,7 @@ export function VCardTeamCard({
 
   return (
     <div
+      ref={cardRef}
       draggable={showDragHandle}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -225,36 +248,14 @@ export function VCardTeamCard({
         </div>
       ) : null}
 
-      <div className="absolute top-2.5 right-2.5 z-10">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            setMenuOpen((v) => !v)
-          }}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200/60 bg-white/90 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 dark:border-white/10 dark:bg-black/50"
-          aria-label="Card actions"
-        >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
-        {menuOpen ? (
-          <div className="absolute top-9 right-0 min-w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={(e) => {
-                e.stopPropagation()
-                setMenuOpen(false)
-                setDeleteOpen(true)
-              }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete card
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <VCardOverflowMenu
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        cardRef={cardRef}
+        isDeleting={isDeleting}
+        onDelete={() => setDeleteOpen(true)}
+        onSettings={goSettings}
+      />
 
       <div className="flex flex-1 flex-col gap-2 p-3.5 pb-4">
         <div>
@@ -324,17 +325,26 @@ export function VCardTeamCard({
             </span>
           </div>
 
-          <div className="mt-2">
-            <h3 className="truncate text-sm leading-snug font-extrabold text-slate-900 dark:text-white">
-              {card.personal.fullName || 'No Name Given'}
-            </h3>
-            <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
-              {card.personal.designation || 'Executive Team'}
-            </p>
-            <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-              <Building className="h-3 w-3 shrink-0 text-slate-400" />
-              <span className="truncate">{card.personal.company || 'Company'}</span>
+          <div className="mt-2 flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-sm leading-snug font-extrabold text-slate-900 dark:text-white">
+                {card.personal.fullName || 'No Name Given'}
+              </h3>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
+                {card.personal.designation || 'Executive Team'}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                <Building className="h-3 w-3 shrink-0 text-slate-400" />
+                <span className="truncate">{card.personal.company || 'Company'}</span>
+              </div>
             </div>
+            <VCardVisibilityToggle
+              id={`vcard-visibility-${card.id}`}
+              checked={isPublic}
+              disabled={isUpdatingVisibility}
+              compact
+              onChange={(next) => void handleVisibilityChange(next)}
+            />
           </div>
         </div>
 

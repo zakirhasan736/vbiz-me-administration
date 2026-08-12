@@ -1,12 +1,15 @@
 'use client'
 
 import { CanvaConnectRow } from '@/components/canva'
-import { Switch } from '@/components/ui'
+import { Button, Switch } from '@/components/ui'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { notify } from '@/lib/toast/toast'
+import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
 import {
@@ -23,13 +26,14 @@ import {
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
+import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import type { VCardAppearance } from '@/types/vcard'
 import type { DisplayFieldConfig, VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { cn } from '@/utils/cn'
 import {
-  BarChart2,
   Bot,
   CheckCircle2,
+  Compass,
   FileText,
   Globe,
   Home,
@@ -44,11 +48,16 @@ import {
   Sparkles,
   Star,
   Upload,
+  User,
   X,
   Zap,
 } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
-import React, { useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+
+const FIELD_PROFILE_IMAGE = 'Profile Image/Video'
+const MAX_PROFILE_IMAGE_BYTES = 15 * 1024 * 1024
 
 const settingTabs = [
   { id: 'info', label: 'My Info Color Settings', icon: Palette },
@@ -58,7 +67,6 @@ const settingTabs = [
   { id: 'home', label: 'Home Page Settings', icon: Home },
   { id: 'navbar', label: 'Nav Bar settings', icon: Menu },
   { id: 'template', label: 'Template', icon: LayoutTemplate },
-  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
   { id: 'seo', label: 'SEO', icon: Search },
   { id: 'ai-assistance', label: 'AI Assistance', icon: Bot },
 ]
@@ -66,7 +74,8 @@ const settingTabs = [
 const cardInputClasses =
   'w-full rounded-[.875rem] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[.8125rem] font-medium text-slate-900 shadow-sm outline-none transition-all focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-slate-800 dark:text-white'
 
-const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'analytics', 'seo', 'ai-assistance'])
+const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'seo', 'ai-assistance'])
+const FIELD_CARD_TABS = new Set(['info', 'social', 'icons', 'general', 'home', 'navbar'])
 
 const settingTabTourIds: Record<string, string> = {
   home: 'tour-card-home-tab',
@@ -206,7 +215,8 @@ function Toggle({
 
 function TemplateDesigner() {
   const { user } = useAuth()
-  const { vCardData, updateData, cardId, isCreateMode } = useVCard()
+  const { vCardData, updateData, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
+  const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const accountDesign = useAppSelector((s) => s.designSettings)
 
   const cardAppearance: VCardAppearance = vCardData.appearance ?? appearanceFromDesignSettings(accountDesign)
@@ -216,6 +226,98 @@ function TemplateDesigner() {
   }
 
   const layoutStyle = cardAppearance.layoutStyle
+
+  const profilePicUrl = getCustomValue(FIELD_PROFILE_IMAGE) || avatarImageUrl || ''
+  const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
+
+  const profileImageInputRef = useRef<HTMLInputElement>(null)
+  const profileUploadAbortRef = useRef<AbortController | null>(null)
+  const [profileLocalPreview, setProfileLocalPreview] = useState<string | null>(null)
+  const [profileUploading, setProfileUploading] = useState(false)
+  const [profileUploadProgress, setProfileUploadProgress] = useState(0)
+  const [profileUploadError, setProfileUploadError] = useState<string | null>(null)
+
+  const profileDisplayUrl = profileLocalPreview || profilePicUrl
+
+  const clearProfileLocalPreview = useCallback(() => {
+    setProfileLocalPreview((prev) => {
+      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return null
+    })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      profileUploadAbortRef.current?.abort()
+      if (profileLocalPreview?.startsWith('blob:')) URL.revokeObjectURL(profileLocalPreview)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- revoke only on unmount
+  }, [])
+
+  const applyProfileImage = useCallback(
+    (url: string | null) => {
+      setCustomValue(FIELD_PROFILE_IMAGE, url || '')
+      updateMeta({ avatarImageUrl: url || '' })
+    },
+    [setCustomValue, updateMeta]
+  )
+
+  const handleProfileImageUpload = useCallback(
+    async (file: File) => {
+      setProfileUploadError(null)
+
+      if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+        setProfileUploadError('File size exceeds 15MB')
+        return
+      }
+
+      profileUploadAbortRef.current?.abort()
+      const controller = new AbortController()
+      profileUploadAbortRef.current = controller
+
+      clearProfileLocalPreview()
+      const blobUrl = URL.createObjectURL(file)
+      setProfileLocalPreview(blobUrl)
+      setProfileUploading(true)
+      setProfileUploadProgress(0)
+
+      try {
+        const result = await uploadMediaWithProgress({
+          file,
+          profileId: profileId || undefined,
+          attachmentType: FIELD_PROFILE_IMAGE,
+          signal: controller.signal,
+          onProgress: setProfileUploadProgress,
+        })
+        clearProfileLocalPreview()
+        applyProfileImage(result.url)
+      } catch (err) {
+        if (controller.signal.aborted) return
+        const message =
+          err instanceof MediaUploadError ? err.message : err instanceof Error ? err.message : 'Upload failed'
+        setProfileUploadError(message)
+      } finally {
+        if (profileUploadAbortRef.current === controller) profileUploadAbortRef.current = null
+        setProfileUploading(false)
+      }
+    },
+    [applyProfileImage, clearProfileLocalPreview, profileId]
+  )
+
+  const handleRemoveProfileImage = () => {
+    profileUploadAbortRef.current?.abort()
+    profileUploadAbortRef.current = null
+    setProfileUploading(false)
+    setProfileUploadProgress(0)
+    setProfileUploadError(null)
+    clearProfileLocalPreview()
+    if (profileImageInputRef.current) profileImageInputRef.current.value = ''
+    applyProfileImage(null)
+  }
+
+  const openProfileImagePicker = () => {
+    if (!profileUploading) profileImageInputRef.current?.click()
+  }
 
   const [titleStyle, setTitleStyle] = useState('Text')
   const [titleSize, setTitleSize] = useState('Small')
@@ -305,15 +407,103 @@ function TemplateDesigner() {
 
       {/* Profile image */}
       <SettingSection title="Profile image">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-slate-100 shadow-sm dark:border-white/10 dark:bg-slate-800">
-            <svg className="h-6 w-6 text-slate-400 dark:text-slate-500" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-            </svg>
-          </div>
-          <button className="flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-[.8125rem] font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
-            + Add
+        <div className="flex w-full min-w-0 flex-col items-start gap-5 rounded-[20px] border border-slate-200/50 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:gap-6 sm:rounded-3xl sm:p-6 dark:border-white/5 dark:bg-white/2">
+          <input
+            ref={profileImageInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*"
+            disabled={profileUploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void handleProfileImageUpload(file)
+            }}
+          />
+          <button
+            type="button"
+            onClick={openProfileImagePicker}
+            disabled={profileUploading}
+            className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#0b0f19]"
+          >
+            {profileDisplayUrl ? (
+              profileDisplayUrl.startsWith('blob:') ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profileDisplayUrl}
+                  alt="Profile"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <Image
+                  src={profileDisplayUrl}
+                  alt="Profile"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  width={96}
+                  height={96}
+                />
+              )
+            ) : (
+              <User className="h-8 w-8 text-slate-400 dark:text-slate-500" />
+            )}
+            <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-900/40 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
+              <span className="text-[11px] font-bold tracking-wider text-white uppercase">Change</span>
+            </div>
           </button>
+          <div className="w-full min-w-0 sm:flex-1">
+            <h4 className="mb-1 text-lg leading-tight font-black tracking-tight text-slate-900 sm:text-[20px] dark:text-white">
+              Profile photo
+            </h4>
+            <p className="mb-4 text-[13px] font-medium text-slate-500 sm:text-[14px] dark:text-slate-400">
+              Image only • Max 15MB
+            </p>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-10 px-4 font-bold sm:px-5"
+                disabled={profileUploading}
+                onClick={openProfileImagePicker}
+              >
+                {profileUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading…
+                  </>
+                ) : (
+                  'Upload new'
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-10 px-4 font-bold text-slate-500 hover:bg-red-50 hover:text-red-600 sm:px-5 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                disabled={profileUploading || !profilePicUrl}
+                onClick={handleRemoveProfileImage}
+              >
+                Remove
+              </Button>
+            </div>
+            {profileUploading ? (
+              <div className="mt-4 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                  <span>Uploading…</span>
+                  <span>{Math.min(100, Math.max(0, profileUploadProgress))}%</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                  <div
+                    className="bg-primary-500 h-full rounded-full transition-[width] duration-150 ease-out"
+                    style={{ width: `${Math.min(100, Math.max(0, profileUploadProgress))}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+            {profileUploadError ? (
+              <p className="mt-3 text-[12px] font-medium text-rose-600 dark:text-rose-400">{profileUploadError}</p>
+            ) : null}
+          </div>
         </div>
       </SettingSection>
 
@@ -639,7 +829,7 @@ const FieldCard: React.FC<{
   toggleLabel = '',
 }) => {
   return (
-    <div className="relative flex flex-col rounded-[1.25rem] border border-black/5 bg-white p-5 shadow-sm transition-all hover:border-black/10 hover:shadow-md dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/10">
+    <div className="relative flex h-full min-w-0 flex-col rounded-[1.25rem] border border-black/5 bg-white p-5 shadow-sm transition-all hover:border-black/10 hover:shadow-md dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/10">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="-m-1 hidden cursor-grab p-1 text-slate-400 transition-colors hover:text-slate-600 sm:block dark:text-slate-500 dark:hover:text-slate-300">
@@ -665,7 +855,7 @@ const FieldCard: React.FC<{
       </div>
 
       {(showInput || showTextCol || showBgCol || iconColLabel) && (
-        <div className="mt-5 flex flex-col gap-3 sm:pl-9">
+        <div className="mt-5 flex flex-col gap-3">
           {showInput && (
             <input
               type="text"
@@ -677,7 +867,7 @@ const FieldCard: React.FC<{
           )}
 
           {(showTextCol || showBgCol || iconColLabel) && (
-            <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-1 flex flex-col gap-3">
               {showTextCol && (
                 <ColorPicker
                   label="Text color"
@@ -707,70 +897,27 @@ const FieldCard: React.FC<{
   )
 }
 
-function CardToggleRow({
-  title,
-  description,
-  checked,
-  onChange,
-}: {
-  title: string
-  description: string
-  checked: boolean
-  onChange: () => void
-}) {
-  return (
-    <label className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200/70 bg-white p-4 sm:items-center dark:border-white/10 dark:bg-white/2">
-      <div className="min-w-0">
-        <p className="text-sm font-bold text-slate-900 dark:text-white">{title}</p>
-        <p className="mt-0.5 text-[.75rem] leading-relaxed font-medium text-slate-500">{description}</p>
-      </div>
-      <button
-        type="button"
-        onClick={onChange}
-        className={cn(
-          'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors',
-          checked ? 'bg-primary-500' : 'bg-slate-200 dark:bg-slate-700'
-        )}
-      >
-        <span
-          className={cn(
-            'inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform',
-            checked ? 'translate-x-5.5' : 'translate-x-1'
-          )}
-        />
-      </button>
-    </label>
-  )
-}
-
-function CardAnalyticsPanel() {
-  const [utm, setUtm] = useState(true)
-  return (
-    <div className="max-w-3xl space-y-6">
-      <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
-        Pixel and measurement settings for this vCard only — available to users with access to Card Settings.
-      </p>
-      <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
-        <h4 className="text-sm font-black text-slate-900 dark:text-white">Facebook</h4>
-        <input type="text" placeholder="Pixel ID (Example: 1234567890)" className={cardInputClasses} />
-        <input type="text" placeholder="Facebook Conversions API Access Token" className={cardInputClasses} />
-      </div>
-      <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
-        <h4 className="text-sm font-black text-slate-900 dark:text-white">Google</h4>
-        <input type="text" placeholder="Google Measurement ID (Example: G-XXXXXXX)" className={cardInputClasses} />
-      </div>
-      <CardToggleRow
-        title="UTM Parameters"
-        description="Mark social traffic correctly in Google Analytics. Campaign names follow each link title."
-        checked={utm}
-        onChange={() => setUtm((v) => !v)}
-      />
-    </div>
-  )
-}
-
 function CardSeoPanel() {
-  const [hideSearch, setHideSearch] = useState(false)
+  const [keywords, setKeywords] = useState<string[]>([])
+  const [keywordInput, setKeywordInput] = useState('')
+
+  const addKeyword = (raw: string) => {
+    const value = raw.trim()
+    if (!value) return
+    setKeywords((prev) => (prev.includes(value) ? prev : [...prev, value]))
+    setKeywordInput('')
+  }
+
+  const removeKeyword = (keyword: string) => {
+    setKeywords((prev) => prev.filter((item) => item !== keyword))
+  }
+
+  const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    addKeyword(keywordInput)
+  }
+
   return (
     <div className="max-w-3xl space-y-6">
       <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
@@ -783,13 +930,42 @@ function CardSeoPanel() {
           placeholder="Meta description (Example: Make your link do more.)"
           className={cn(cardInputClasses, 'min-h-27.5 resize-none')}
         />
+        <div
+          className={cn(
+            cardInputClasses,
+            'focus-within:border-primary-500 focus-within:ring-primary-500 flex min-h-13 flex-wrap items-center gap-2 py-2.5 focus-within:ring-1'
+          )}
+        >
+          {keywords.map((keyword) => (
+            <span
+              key={keyword}
+              className="border-primary-200/80 bg-primary-50 text-primary-700 dark:border-primary-500/25 dark:bg-primary-500/10 dark:text-primary-300 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[.75rem] font-semibold"
+            >
+              {keyword}
+              <button
+                type="button"
+                onClick={() => removeKeyword(keyword)}
+                className="hover:bg-primary-100 hover:text-primary-900 dark:hover:bg-primary-500/20 dark:hover:text-primary-200 rounded-md p-0.5 transition-colors"
+                aria-label={`Remove keyword ${keyword}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          <input
+            type="text"
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            onKeyDown={handleKeywordKeyDown}
+            placeholder={
+              keywords.length > 0
+                ? 'Add another keyword and press Enter'
+                : 'Meta keywords (Example: business, networking, vcard)'
+            }
+            className="min-w-30 flex-1 bg-transparent py-1 text-[.8125rem] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
+          />
+        </div>
       </div>
-      <CardToggleRow
-        title="Hide profile from search engines"
-        description="Adds a noindex tag so search engines skip this public vCard."
-        checked={hideSearch}
-        onChange={() => setHideSearch((v) => !v)}
-      />
     </div>
   )
 }
@@ -944,7 +1120,8 @@ function AiAgentTrainModal({
 }
 
 function CardAiAssistancePanel() {
-  const [active, setActive] = useState(false)
+  const { vCardData, updateData } = useVCard()
+  const active = isAiAssistanceEnabled(vCardData.aiAssistanceEnabled)
   const [showTrain, setShowTrain] = useState(false)
   const [lastTrain, setLastTrain] = useState<string | null>(null)
 
@@ -977,7 +1154,7 @@ function CardAiAssistancePanel() {
           </div>
           <button
             type="button"
-            onClick={() => setActive((v) => !v)}
+            onClick={() => updateData('aiAssistanceEnabled', !active)}
             className={cn(
               'relative inline-flex h-8 w-14 shrink-0 items-center self-start rounded-full transition-colors sm:self-center',
               active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
@@ -1038,7 +1215,7 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
   const { vCardData, updateData } = useVCard()
   const display = getDisplaySettingsFromVCard(vCardData)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const { isActive: isTourActive, editorAssist, currentStep } = useDashboardTour()
+  const { isActive: isTourActive, editorAssist, currentStep, startTour } = useDashboardTour()
 
   const activeTab = isTourActive && currentStep?.id && editorAssist.settingsTab ? editorAssist.settingsTab : settingsTab
 
@@ -1091,8 +1268,6 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
         return renderFieldCards(NAV_BAR_FIELDS, { showBgCol: true })
       case 'template':
         return <TemplateDesigner />
-      case 'analytics':
-        return <CardAnalyticsPanel />
       case 'seo':
         return <CardSeoPanel />
       case 'ai-assistance':
@@ -1103,26 +1278,24 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
   }
 
   const headerSubtitle =
-    activeTab === 'analytics'
-      ? 'Per-card pixels and measurement — only users with Card Settings access can edit.'
-      : activeTab === 'seo'
-        ? 'Per-card SEO metadata for this public profile.'
-        : activeTab === 'ai-assistance'
-          ? 'Guest-facing assistant for this card — chats with visitors about your business.'
-          : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
+    activeTab === 'seo'
+      ? 'Per-card SEO metadata for this public profile.'
+      : activeTab === 'ai-assistance'
+        ? 'Guest-facing assistant for this card — chats with visitors about your business.'
+        : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
 
   const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)
 
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col pb-12 duration-500">
-      <div className="relative flex min-h-212.5 w-full flex-col overflow-hidden rounded-[2.5rem] border border-black/10 bg-slate-100/80 shadow-sm backdrop-blur-2xl md:flex-row dark:border-white/10 dark:bg-[#0b0f19]/80">
+      <div className="relative flex min-h-212.5 w-full flex-col overflow-hidden rounded-[2.5rem] border border-black/10 bg-slate-100/80 shadow-sm backdrop-blur-2xl md:flex-row md:overflow-visible dark:border-white/10 dark:bg-[#0b0f19]/80">
         {/* Subtle inner top highlight */}
         <div className="absolute inset-x-0 top-0 z-20 h-0.5 bg-linear-to-r from-transparent via-white/20 to-transparent" />
 
         {/* Left Sidebar for Settings */}
         <div
           className={cn(
-            'hidden-scrollbar z-10 flex shrink-0 flex-col gap-2 overflow-y-auto border-b border-black/5 bg-transparent transition-all duration-300 md:border-r md:border-b-0 dark:border-white/5',
+            'hidden-scrollbar z-10 flex shrink-0 flex-col gap-2 overflow-y-auto border-b border-black/5 bg-transparent transition-all duration-300 md:sticky md:top-28 md:max-h-[calc(100vh-8rem)] md:self-start md:border-r md:border-b-0 dark:border-white/5',
             isSidebarCollapsed ? 'w-full p-2 md:w-22.5 md:p-4' : 'w-full p-8 md:w-75'
           )}
         >
@@ -1199,10 +1372,32 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
               </span>
             </Link>
           ))}
+
+          {!isTourActive ? (
+            <button
+              type="button"
+              onClick={() => startTour('create_card')}
+              title="Take a tour"
+              className={cn(
+                'group relative mt-1 flex w-full items-center overflow-hidden rounded-[1.25rem] border border-transparent px-5 py-4 text-left text-[.8438rem] font-bold text-slate-600 transition-all duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200',
+                isSidebarCollapsed ? 'justify-center px-0' : 'gap-3.5'
+              )}
+            >
+              <Compass className="h-4.5 w-4.5 shrink-0 text-slate-500" />
+              <span
+                className={cn(
+                  'truncate whitespace-nowrap transition-all duration-300',
+                  isSidebarCollapsed ? 'w-0 opacity-0 md:hidden' : 'opacity-100'
+                )}
+              >
+                Take a tour
+              </span>
+            </button>
+          ) : null}
         </div>
 
         {/* Right Content Area */}
-        <div className="relative z-0 flex h-full flex-1 flex-col bg-transparent pb-10">
+        <div className="relative z-0 flex flex-1 flex-col bg-transparent pb-10">
           <div className="bg-primary-500/5 pointer-events-none absolute top-0 right-0 h-125 w-125 rounded-full blur-[9.375rem]" />
 
           <div id={contentTourId} data-tour-id={contentTourId} className="relative z-10 flex min-h-0 flex-1 flex-col">
@@ -1237,11 +1432,15 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
             </div>
 
             {/* Scrollable Grid */}
-            <div className="relative z-10 flex-1 overflow-y-auto scroll-smooth px-4 pb-32 sm:px-8 md:px-10">
+            <div className="relative z-10 flex-1 px-4 pb-32 sm:px-8 md:px-10">
               <div
                 className={cn(
                   'animate-in fade-in slide-in-from-bottom-8 fill-mode-both duration-700',
-                  activeTab === 'template' ? '' : 'mx-auto flex w-full max-w-4xl flex-col gap-4'
+                  activeTab === 'template'
+                    ? ''
+                    : FIELD_CARD_TABS.has(activeTab)
+                      ? 'mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-2'
+                      : 'mx-auto flex w-full max-w-4xl flex-col gap-4'
                 )}
               >
                 {renderContent()}

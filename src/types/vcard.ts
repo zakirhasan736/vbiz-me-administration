@@ -183,6 +183,8 @@ export type VCardData = {
   displaySettings?: VCardDisplaySettings
   /** Dynamic global theme (Primary/Secondary/Accent + button & social appearance). Optional — backend `theme_config`. */
   themeConfig?: CardThemeConfig
+  /** Guest-facing Live Agent on this card. Default off; persisted as `aiAssistance_checkbox`. */
+  aiAssistanceEnabled?: boolean
 }
 
 export type VCardListMeta = {
@@ -246,6 +248,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     extraFields: [],
     education: [],
     experience: [],
+    aiAssistanceEnabled: false,
   }
   if (!overrides) return base
   return {

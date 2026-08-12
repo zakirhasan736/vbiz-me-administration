@@ -1,4 +1,5 @@
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
+import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import { buildProfilePath } from '@/lib/profileRoutes'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesignFromData } from '@/lib/resolvedProfileDesign'
@@ -55,6 +56,8 @@ export type VBizProfileAppProps = {
   liveAgentCardData?: LiveAgentCardData
   /** Pre-built on the server from `GET /profile-ai-data/{profile_id}`. */
   liveAgentSystemPrompt?: string
+  /** Guest-facing Live Agent. Off unless the card owner enabled AI Assistance. */
+  liveAgentEnabled?: boolean
   design?: ResolvedProfileDesign
   personal?: VCardPersonal
   social?: VCardSocial
@@ -177,6 +180,7 @@ export function vCardDataToProfileProps(
     shareSlug: slug || undefined,
     themeConfig,
     themeFromApi: meta?.themeFromApi,
+    liveAgentEnabled: isAiAssistanceEnabled(data.aiAssistanceEnabled),
   }
 }
 

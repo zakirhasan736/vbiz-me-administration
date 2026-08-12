@@ -1,5 +1,14 @@
-import { hydrateDisplaySettingsFromProfile } from '@/lib/api/myCard/hydrateDisplaySettingsFromProfile'
-import { mapVCardEditorSettingsPayload } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import {
+  hydrateDisplaySettingsFromProfile,
+  settingsRowsToMap,
+} from '@/lib/api/myCard/hydrateDisplaySettingsFromProfile'
+import {
+  mapVCardEditorSettingsPayload,
+  parseThemeJson,
+  THEME_SETTING_KEY,
+} from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
 import type { VCardData, VCardFaqEntry, VCardGeneralPost, VCardRecord } from '@/types/vcard'
@@ -392,11 +401,22 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     attachments: profile.attachments,
     avatar: profile.avatar,
   })
+  const settingsMap = settingsRowsToMap(profile.settings)
+  const profileTemplate = templateToAppearance(profile.profileSettings?.profileTemplate || profile.template)
+  const staticTheme = getStaticProfileTheme(profileTemplate)
+  const savedTheme = parseThemeJson(settingsMap[THEME_SETTING_KEY])
+  const theme = {
+    primaryColor: savedTheme?.primaryColor || staticTheme.primaryColor,
+    accentColor: savedTheme?.accentColor || staticTheme.accentColor,
+    darkMode: typeof savedTheme?.darkMode === 'boolean' ? savedTheme.darkMode : staticTheme.darkMode,
+    fontFamily: savedTheme?.fontFamily || staticTheme.fontFamily,
+  }
 
   const data = createDefaultVCardData({
     slug: profile.slug || '',
     isPublic: profile.isPublic ?? true,
     isDraft: profile.isDraft === true,
+    theme,
     personal: {
       fullName: profile.name,
       email: profile.email,
@@ -414,7 +434,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       explainerVideoUrl,
     },
     appearance: {
-      profileTemplate: templateToAppearance(profile.profileSettings?.profileTemplate || profile.template),
+      profileTemplate,
       layoutStyle: profile.profileSettings?.layoutStyle || 'classic',
       buttonStyle: profile.profileSettings?.buttonStyle || 'solid',
       cornerStyle: profile.profileSettings?.cornerStyle || 'round',
@@ -486,6 +506,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     }),
     skills: skillTagsToGroups(profile.skillTags),
     displaySettings,
+    aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY]),
   })
 
   return {

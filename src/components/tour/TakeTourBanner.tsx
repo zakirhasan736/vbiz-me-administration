@@ -2,11 +2,12 @@
 
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
-import { isTourCompleted, type TourKey } from '@/lib/dashboardTour'
+import { dismissTourBanner, isTourBannerDismissed, isTourCompleted, type TourKey } from '@/lib/dashboardTour'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
-import { Compass, Sparkles } from 'lucide-react'
+import { Compass, Sparkles, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 type TakeTourBannerProps = {
   variant?: 'banner' | 'compact'
@@ -66,16 +67,23 @@ export function TakeTourBanner({
   const { user, loading } = useAuth()
   const role = useAppSelector((state) => state.user.user?.role)
   const { startTour, isActive, activeTourKey } = useDashboardTour()
+  const [dismissed, setDismissed] = useState(() => (user?.uid ? isTourBannerDismissed(tourKey, user.uid) : false))
 
   const handleStart = () => {
     startTour(tourKey)
     onStart?.()
   }
 
+  const handleDismiss = () => {
+    if (!user?.uid) return
+    dismissTourBanner(tourKey, user.uid)
+    setDismissed(true)
+  }
+
   if (loading || !user?.uid || isActive) return null
   if (tourKey === 'dashboard' && role !== 'vcard-owner') return null
+  if (dismissed || isTourBannerDismissed(tourKey, user.uid)) return null
   if (!alwaysShow && !isTourCompleted(tourKey, user.uid)) return null
-  // Hide invite while the matching tour key is active (already gated by isActive)
 
   if (variant === 'compact') {
     return <TakeTourTrigger className={className} onStart={onStart} tourKey={tourKey} />
@@ -101,13 +109,23 @@ export function TakeTourBanner({
           <p className="mt-0.5 text-[12px] leading-relaxed font-semibold text-slate-500 dark:text-slate-400">{body}</p>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={handleStart}
-        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-indigo-700 sm:flex-none"
-      >
-        <Sparkles className="h-4 w-4" /> Start tour
-      </button>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={handleStart}
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-indigo-700 sm:flex-none"
+        >
+          <Sparkles className="h-4 w-4" /> Start tour
+        </button>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-200/60 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-slate-200"
+          aria-label="Dismiss tour invite"
+        >
+          <X className="h-4 w-4" strokeWidth={2.25} />
+        </button>
+      </div>
     </div>
   )
 }

@@ -15,8 +15,7 @@ import { mapAdminProfileRowToCard } from '@/lib/admin/mapAdminProfileRow'
 import { appendAuditLog } from '@/lib/mockStore'
 import { notifyCardOwner } from '@/lib/notifications'
 import { notify } from '@/lib/toast/toast'
-import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
-import { useAuth } from '@/providers/AuthProvider'
+import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import {
   exportAdminProfilesCsv,
   useGetAdminProfileFiltersQuery,
@@ -59,7 +58,6 @@ const PAGE_SIZE = 20
 
 export default function AdminVCards() {
   const { updateCorporateCardControls, createCorporateCard, setCurrentEditingCardId } = useVCard()
-  const { user } = useAuth()
   const router = useRouter()
   const token = useAppSelector((s) => s.user.token)
   const [deleteProfile] = useDeleteProfileMutation()
@@ -597,7 +595,7 @@ export default function AdminVCards() {
       {isListLoading ? (
         <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="min-h-[350px] animate-pulse rounded-[28px] bg-slate-100 dark:bg-white/5" />
+            <div key={i} className="min-h-87.5 animate-pulse rounded-[28px] bg-slate-100 dark:bg-white/5" />
           ))}
         </div>
       ) : (
@@ -627,6 +625,10 @@ export default function AdminVCards() {
                 onEdit={() => {
                   setCurrentEditingCardId(card.id || null)
                   router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
+                }}
+                onSettings={() => {
+                  setCurrentEditingCardId(card.id || null)
+                  router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
                 }}
                 onView={() => window.open(`/v/${card.slug || 'profile'}`, '_blank')}
                 onPanel={() => openPanel(card)}
@@ -677,13 +679,13 @@ export default function AdminVCards() {
                     open()
                   }
                 }}
-                className="group flex min-h-[350px] cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/[0.02]"
+                className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
               >
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
                   <Plus className="h-6 w-6" strokeWidth={2.5} />
                 </div>
                 <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
-                <p className="mt-1 max-w-[200px] text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
                   Add a dynamic digital business card to your directory.
                 </p>
               </div>
@@ -767,7 +769,7 @@ export default function AdminVCards() {
               className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
               onClick={() => setIsCallPadOpen(false)}
             />
-            <div className="animate-in zoom-in-95 relative w-full max-w-sm rounded-[32px] border border-slate-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]">
+            <div className="animate-in zoom-in-95 relative w-full max-w-sm rounded-4xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h2 className="flex items-center gap-2 text-lg font-black text-slate-900 dark:text-white">
@@ -785,7 +787,7 @@ export default function AdminVCards() {
                   <X className="h-4 w-4 text-slate-500" />
                 </button>
               </div>
-              <div className="mb-4 flex min-h-[64px] items-center justify-center rounded-2xl bg-slate-900 px-4 py-5 text-center font-mono text-xl tracking-wider text-white">
+              <div className="mb-4 flex min-h-16 items-center justify-center rounded-2xl bg-slate-900 px-4 py-5 text-center font-mono text-xl tracking-wider text-white">
                 {callDigits || 'Enter number'}
               </div>
               <div className="mb-4 grid grid-cols-3 gap-2">
@@ -846,7 +848,7 @@ export default function AdminVCards() {
               onClick={() => setIsEmailModalOpen(false)}
             ></div>
 
-            <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
+            <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
               <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
                 <Mail className="h-5 w-5 text-indigo-600" /> Email vCard Owner
               </h2>
@@ -889,7 +891,7 @@ export default function AdminVCards() {
                     value={emailBody}
                     onChange={(e) => setEmailBody(e.target.value)}
                     placeholder="Type your email message or guidelines..."
-                    className="min-h-[140px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    className="min-h-35 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
 
@@ -930,7 +932,7 @@ export default function AdminVCards() {
               onClick={() => setIsNoticeModalOpen(false)}
             ></div>
 
-            <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
+            <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
               <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
                 <ShieldAlert className="h-5 w-5 text-indigo-600" /> Card Specific Backoffice Notice
               </h2>
@@ -971,7 +973,7 @@ export default function AdminVCards() {
                     value={cardNoticeText}
                     onChange={(e) => setCardNoticeText(e.target.value)}
                     placeholder="e.g. Action required: Please update your corporate business address details."
-                    className="min-h-[100px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    className="min-h-25 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
 
@@ -1006,7 +1008,7 @@ export default function AdminVCards() {
               onClick={() => setIsScheduleModalOpen(false)}
             ></div>
 
-            <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
+            <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
               <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
                 <Calendar className="h-5 w-5 text-indigo-600" /> Schedule Growth Consultation
               </h2>

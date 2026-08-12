@@ -124,8 +124,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
       : role === 'admin' || role === 'super-admin'
         ? 'Back to My Cards'
         : 'Back to My vCards'
-  const exitDirectoryLabel =
-    role === 'admin' || role === 'super-admin' ? 'Exit to Admin Directory' : 'Exit to Corporate Directory'
   const {
     vCardData,
     updateData,
@@ -497,12 +495,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 </p>
               </div>
             </div>
-            <Link
-              href={directoryHref}
-              className="rounded-xl bg-amber-500/20 px-5 py-2.5 text-[13px] font-bold text-amber-900 transition-all hover:bg-amber-500/30 active:scale-95 dark:bg-amber-500/10 dark:text-amber-200"
-            >
-              {exitDirectoryLabel}
-            </Link>
           </div>
         ) : (
           <Link
@@ -692,6 +684,18 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 </button>
               )}
 
+              <button
+                type="button"
+                data-tour="ai-generate"
+                data-tour-id="tour-ai-generate"
+                onClick={() => openAgent()}
+                className="flex items-center gap-1.5 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-3 py-2 text-[14px] font-bold whitespace-nowrap text-white shadow-sm transition-all hover:from-emerald-700 hover:to-teal-700 active:scale-95"
+                title="Generate with AI"
+              >
+                <Sparkles className="h-5 w-5 text-emerald-200" />
+                Generate
+              </button>
+
               <Link
                 id="tour-editor-settings"
                 href={settingsHref}
@@ -706,35 +710,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               >
                 <Settings className="h-5 w-5" strokeWidth={2} />
               </Link>
-
-              <button
-                type="button"
-                data-tour="ai-generate"
-                data-tour-id="tour-ai-generate"
-                onClick={() => openAgent()}
-                className="flex items-center gap-1.5 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-3 py-2 text-[14px] font-bold whitespace-nowrap text-white shadow-sm transition-all hover:from-emerald-700 hover:to-teal-700 active:scale-95"
-                title="Generate with AI"
-              >
-                <Sparkles className="h-5 w-5 text-emerald-200" />
-                Generate
-              </button>
-
-              <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 whitespace-nowrap shadow-sm dark:border-white/5 dark:bg-white/5">
-                <span className="pointer-events-none text-[10px] font-semibold tracking-widest text-slate-500 uppercase dark:text-slate-400">
-                  Visibility
-                </span>
-                <label className="group flex cursor-pointer items-center justify-center">
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="checkbox"
-                      checked={vCardData.isPublic}
-                      onChange={(e) => updateData('isPublic', e.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <div className="peer h-6 w-10 shrink-0 overflow-hidden rounded-full bg-slate-200 shadow-sm peer-checked:bg-emerald-500 peer-focus:outline-none after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-4 peer-checked:after:border-white dark:bg-slate-700"></div>
-                  </div>
-                </label>
-              </div>
             </div>
           </div>
         </div>

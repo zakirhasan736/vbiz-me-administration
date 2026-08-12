@@ -1,3 +1,4 @@
+import { fontFamilyToStack } from '@/lib/fonts'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import type { CardThemeConfig, ThemeMode } from '@/lib/theme/cardThemeContract'
 import { brandColorsFromThemeConfig } from '@/lib/theme/resolveCardTheme'
@@ -17,16 +18,7 @@ export type ResolvedProfileDesign = {
   darkMode: boolean
 }
 
-const FONT_STACKS: Record<string, string> = {
-  inter: "'Inter', ui-sans-serif, system-ui, sans-serif",
-  outfit: "'Outfit', ui-sans-serif, system-ui, sans-serif",
-  mono: "'JetBrains Mono', ui-monospace, monospace",
-  serif: "'Playfair Display', ui-serif, Georgia, serif",
-}
-
-export function fontFamilyToStack(id: string): string {
-  return FONT_STACKS[id] ?? FONT_STACKS.inter
-}
+export { fontFamilyToStack } from '@/lib/fonts'
 
 export function cornerStyleToRadius(cornerStyle: string): string {
   switch (cornerStyle) {
@@ -67,10 +59,11 @@ export type ResolveProfileDesignOptions = {
  * Merge account defaults with per-card appearance.
  * Colors: template static palette as fallback, then smart placement from `theme_config`
  * (light/dark sets from `/profiles/{id}/settings`).
+ * Typography: prefer per-card `theme.fontFamily` (preset id or Google family name).
  */
 export function resolveProfileDesign(
   designSettings: DesignSettingsState,
-  _cardTheme?: Partial<VCardTheme> | null,
+  cardTheme?: Partial<VCardTheme> | null,
   cardAppearance?: Partial<VCardAppearance> | null,
   options?: ResolveProfileDesignOptions
 ): ResolvedProfileDesign {
@@ -85,10 +78,16 @@ export function resolveProfileDesign(
     ? brandColorsFromThemeConfig(options.themeConfig, mode)
     : { primaryColor: staticTheme.primaryColor, accentColor: staticTheme.accentColor }
 
+  const fontFamily =
+    (typeof cardTheme?.fontFamily === 'string' && cardTheme.fontFamily.trim()) ||
+    staticTheme.fontFamily ||
+    designSettings.fontFamily ||
+    'inter'
+
   return {
     primaryColor: brand.primaryColor || staticTheme.primaryColor,
     accentColor: brand.accentColor || staticTheme.accentColor,
-    fontFamily: staticTheme.fontFamily || designSettings.fontFamily || 'inter',
+    fontFamily,
     profileTemplate: appearance.profileTemplate,
     layoutStyle: appearance.layoutStyle,
     buttonStyle: appearance.buttonStyle,

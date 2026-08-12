@@ -9,6 +9,7 @@ import '@/redux/features/adminTemplates/adminTemplates.api'
 import '@/redux/features/adminUsers/adminUsers.api'
 import '@/redux/features/auth/auth.api'
 import '@/redux/features/dynamicSection/dynamicSection.api'
+import '@/redux/features/fonts/fonts.api'
 import '@/redux/features/health/health.api'
 import '@/redux/features/meetings/meetings.api'
 import '@/redux/features/myCard/myCard.api'
@@ -92,6 +93,7 @@ export {
   useGetDynamicSectionQuery,
   useLazyGetDynamicSectionQuery,
 } from '@/redux/features/dynamicSection/dynamicSection.api'
+export { useGetGoogleFontsQuery } from '@/redux/features/fonts/fonts.api'
 export {
   useCreateMeetingMutation,
   useDeleteMeetingMutation,

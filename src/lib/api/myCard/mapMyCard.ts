@@ -1,10 +1,12 @@
+import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import { parseThemeJson, THEME_SETTING_KEY } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { createDefaultNavFieldConfig, NAV_BAR_FIELDS } from '@/lib/vcardNavbar'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
-import type { VCardData, VCardExtraField, VCardPersonal, VCardRecord, VCardSocial } from '@/types/vcard'
+import type { VCardData, VCardExtraField, VCardPersonal, VCardRecord, VCardSocial, VCardTheme } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { createDefaultFieldConfig } from '@/types/vcardDisplaySettings'
 import type { MyCardData, MyCardMyInfoField } from '@interfaces/api/myCard'
@@ -340,8 +342,16 @@ function resolveTemplate(card: MyCardData): ProfileTemplateId {
   return resolveProfileTemplateFromMyCard(card)
 }
 
-function resolveTheme(card: MyCardData) {
-  return getStaticProfileTheme(resolveTemplate(card))
+function resolveTheme(card: MyCardData): VCardTheme {
+  const staticTheme = getStaticProfileTheme(resolveTemplate(card))
+  const fromJson = parseThemeJson(card.settings?.[THEME_SETTING_KEY])
+  if (!fromJson) return staticTheme
+  return {
+    primaryColor: fromJson.primaryColor || staticTheme.primaryColor,
+    accentColor: fromJson.accentColor || staticTheme.accentColor,
+    darkMode: typeof fromJson.darkMode === 'boolean' ? fromJson.darkMode : staticTheme.darkMode,
+    fontFamily: fromJson.fontFamily || staticTheme.fontFamily,
+  }
 }
 
 export function mapMyCardToVCardData(card: MyCardData): VCardData {
@@ -370,6 +380,9 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
     themeConfig: hasDynamicTheme(card.theme_config)
       ? resolveCardThemeConfig(card.theme_config, resolveTemplate(card))
       : undefined,
+    aiAssistanceEnabled: isAiAssistanceEnabled(
+      card.settings?.[AI_ASSISTANCE_SETTING_KEY] ?? card.features?.aiAssistance
+    ),
   }
 }
 

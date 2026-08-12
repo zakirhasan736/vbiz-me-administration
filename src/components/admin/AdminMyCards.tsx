@@ -12,7 +12,7 @@ import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { notify } from '@/lib/toast/toast'
-import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
+import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
 import {
   mapApiProfileToVCardRecord,
@@ -331,6 +331,10 @@ export default function AdminMyCards() {
                   onEdit={() => {
                     setCurrentEditingCardId(card.id || null)
                     router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
+                  }}
+                  onSettings={() => {
+                    setCurrentEditingCardId(card.id || null)
+                    router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
                   }}
                   onView={() => window.open(`/v/${card.slug || 'profile'}`, '_blank')}
                   onPanel={() => setPanelCard(card)}

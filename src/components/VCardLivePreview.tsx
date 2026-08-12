@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppSelector } from '@/hooks/redux'
+import { useGoogleFont } from '@/hooks/useGoogleFont'
 import { useVCard } from '@/lib/VCardContext'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
@@ -68,6 +69,8 @@ export function VCardLivePreview({
       themeFromApi: fromApi,
     }
   }, [vCardData, designSettings, cardId, record?.avatarImageUrl, themeConfig, settingsAppearance, fromApi])
+
+  useGoogleFont(profileProps.design?.fontFamily)
 
   const designTheme: 'light' | 'dark' = profileProps.design?.darkMode ? 'dark' : 'light'
   const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>(designTheme)

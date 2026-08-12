@@ -1,4 +1,5 @@
-import type { VCardData, VCardExtraField } from '@/types/vcard'
+import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import type { VCardData, VCardExtraField, VCardTheme } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
 /** Mirrors public myCard checkbox → label maps (write path). */
@@ -164,11 +165,32 @@ export function mapThemeToApiSettings(data: Pick<VCardData, 'theme'>): Record<st
   return { [THEME_SETTING_KEY]: JSON.stringify(data.theme) }
 }
 
+/** Parse persisted `theme_json` setting back into a partial theme. */
+export function parseThemeJson(raw?: string | null): Partial<VCardTheme> | null {
+  if (!raw?.trim()) return null
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    const theme = parsed as Partial<VCardTheme>
+    return {
+      ...(typeof theme.primaryColor === 'string' ? { primaryColor: theme.primaryColor } : {}),
+      ...(typeof theme.accentColor === 'string' ? { accentColor: theme.accentColor } : {}),
+      ...(typeof theme.darkMode === 'boolean' ? { darkMode: theme.darkMode } : {}),
+      ...(typeof theme.fontFamily === 'string' && theme.fontFamily.trim()
+        ? { fontFamily: theme.fontFamily.trim() }
+        : {}),
+    }
+  } catch {
+    return null
+  }
+}
+
 /** Merge all persistable editor settings into one `settings` map for PATCH /profiles/:id. */
 export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, string> {
   return {
     ...mapDisplaySettingsToApiSettings(data.displaySettings),
     ...mapExtraFieldsToApiSettings(data.extraFields),
     ...mapThemeToApiSettings(data),
+    [AI_ASSISTANCE_SETTING_KEY]: isAiAssistanceEnabled(data.aiAssistanceEnabled) ? '1' : '0',
   }
 }

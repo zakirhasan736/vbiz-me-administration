@@ -60,13 +60,6 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
     setDraftIds((prev) => normalizeDraft(reorderByIndex(prev, from, to)))
   }
 
-  const setDraftOrder = (from: number, orderOneBased: number) => {
-    const max = draftIds.length
-    const to = Math.max(1, Math.min(max, Math.round(orderOneBased))) - 1
-    if (to === from) return
-    moveDraft(from, to)
-  }
-
   return (
     <Modal
       open={open}
@@ -94,7 +87,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Tab order</p>
-            <p className="text-[10px] font-semibold text-slate-400">3 per row · drag, ↑↓, or edit #</p>
+            <p className="text-[10px] font-semibold text-slate-400">3 per row · drag or ↑↓</p>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
             {draftItems.map((item, index) => {
@@ -115,24 +108,9 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                   }}
                   className="flex min-w-0 cursor-grab items-center gap-2 rounded-xl border border-transparent bg-white px-2.5 py-2 transition-colors hover:bg-slate-50 active:cursor-grabbing dark:bg-[#0f1420] dark:hover:bg-white/4"
                 >
-                  <input
-                    type="number"
-                    min={1}
-                    max={draftIds.length}
-                    defaultValue={orderNum}
-                    key={`${item.id}-${orderNum}`}
-                    title="Order #"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                    }}
-                    onBlur={(e) => {
-                      const n = Number(e.target.value)
-                      if (!Number.isNaN(n) && n !== orderNum) setDraftOrder(index, n)
-                      else e.target.value = String(orderNum)
-                    }}
-                    className="h-7 w-7 shrink-0 rounded-md border-0 bg-indigo-600/10 text-center text-[11px] font-black text-indigo-700 tabular-nums outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-indigo-500/20 dark:text-indigo-300"
-                  />
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-600/10 text-[11px] font-black text-indigo-700 tabular-nums dark:bg-indigo-500/20 dark:text-indigo-300">
+                    {orderNum}
+                  </span>
                   <item.icon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                   <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-800 dark:text-slate-100">
                     {item.label}

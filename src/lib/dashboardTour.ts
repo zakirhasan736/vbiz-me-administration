@@ -151,7 +151,7 @@ export const CREATE_CARD_TOUR_STEPS: DashboardTourStep[] = [
     placement: 'bottom',
     title: '+ Add — enable & reorder',
     description:
-      'Open Add to turn sections on or off and set Tab order (3-column grid). Drag, use ↑↓, or type a position number, then Apply.',
+      'Open Add to turn sections on or off and set Tab order (3-column grid). Drag or use ↑↓ to reorder, then Apply.',
     tips: ['Personal stays required.', 'Global Connection & My Info stay pinned near the end by default.'],
   },
   {
@@ -440,21 +440,45 @@ export function markTourCompleted(_uid?: string) {
   markTourDone('dashboard')
 }
 
-export function getTourBannerDismissKey(uid: string) {
+export function getTourBannerDismissKey(tourKey: TourKey, uid: string) {
+  return `${TOUR_STORAGE_PREFIX}banner_dismiss_${tourKey}_${uid}`
+}
+
+function getLegacyTourBannerDismissKey(uid: string) {
   return `${LEGACY_DASHBOARD_TOUR_PREFIX}banner_dismiss_${uid}`
 }
 
-export function isTourBannerDismissed(uid: string): boolean {
+export function isTourBannerDismissed(tourKey: TourKey, uid: string): boolean {
   if (typeof window === 'undefined') return false
-  return localStorage.getItem(getTourBannerDismissKey(uid)) === 'true'
+  try {
+    if (localStorage.getItem(getTourBannerDismissKey(tourKey, uid)) === 'true') return true
+    // Legacy dashboard-only dismiss key (pre per-tourKey)
+    if (tourKey === 'dashboard' && localStorage.getItem(getLegacyTourBannerDismissKey(uid)) === 'true') {
+      return true
+    }
+  } catch {
+    /* ignore */
+  }
+  return false
 }
 
-export function dismissTourBanner(uid: string) {
-  localStorage.setItem(getTourBannerDismissKey(uid), 'true')
+export function dismissTourBanner(tourKey: TourKey, uid: string) {
+  try {
+    localStorage.setItem(getTourBannerDismissKey(tourKey, uid), 'true')
+  } catch {
+    /* ignore */
+  }
 }
 
-export function clearTourBannerDismiss(uid: string) {
-  localStorage.removeItem(getTourBannerDismissKey(uid))
+export function clearTourBannerDismiss(tourKey: TourKey, uid: string) {
+  try {
+    localStorage.removeItem(getTourBannerDismissKey(tourKey, uid))
+    if (tourKey === 'dashboard') {
+      localStorage.removeItem(getLegacyTourBannerDismissKey(uid))
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 const TOUR_SETTINGS_SCOPE = '[data-tour-settings-scope]'

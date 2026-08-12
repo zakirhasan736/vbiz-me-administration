@@ -49,6 +49,28 @@ const DOCK_BOTTOM = 24
 const secondaryButtonClass =
   'flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13.5px] font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-[0.98] dark:border-white/10 dark:bg-[#1e2333] dark:text-slate-300 dark:hover:bg-[#252b3d]'
 
+/** Max dots before switching to first / siblings / last + ellipsis windowing. */
+const TOUR_DOTS_ALL_THRESHOLD = 7
+
+function getTourStepMarkers(stepNumber: number, totalSteps: number, siblingCount = 1): Array<number | 'ellipsis'> {
+  if (totalSteps <= 0) return []
+  if (totalSteps <= TOUR_DOTS_ALL_THRESHOLD) {
+    return Array.from({ length: totalSteps }, (_, i) => i + 1)
+  }
+
+  const pages: Array<number | 'ellipsis'> = []
+  const start = Math.max(2, stepNumber - siblingCount)
+  const end = Math.min(totalSteps - 1, stepNumber + siblingCount)
+
+  pages.push(1)
+  if (start > 2) pages.push('ellipsis')
+  for (let i = start; i <= end; i += 1) pages.push(i)
+  if (end < totalSteps - 1) pages.push('ellipsis')
+  if (totalSteps > 1) pages.push(totalSteps)
+
+  return pages
+}
+
 function dockedTooltipPosition(): TooltipPos {
   return {
     bottom: DOCK_BOTTOM,
@@ -522,25 +544,35 @@ function TourCard({
       aria-labelledby="dashboard-tour-title"
     >
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <span
-              key={i}
-              className={cn(
-                'h-1.5 rounded-full transition-all',
-                i + 1 === stepNumber
-                  ? 'w-5 bg-indigo-600 dark:bg-indigo-400'
-                  : i + 1 < stepNumber
-                    ? 'w-1.5 bg-indigo-400/70'
-                    : 'w-1.5 bg-slate-200 dark:bg-white/15'
-              )}
-            />
-          ))}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+          {getTourStepMarkers(stepNumber, totalSteps).map((item, index) =>
+            item === 'ellipsis' ? (
+              <span
+                key={`ellipsis-${index}`}
+                className="shrink-0 px-0.5 text-[10px] leading-none font-medium text-slate-400 dark:text-white/35"
+                aria-hidden
+              >
+                …
+              </span>
+            ) : (
+              <span
+                key={item}
+                className={cn(
+                  'h-1.5 shrink-0 rounded-full transition-all',
+                  item === stepNumber
+                    ? 'w-5 bg-indigo-600 dark:bg-indigo-400'
+                    : item < stepNumber
+                      ? 'w-1.5 bg-indigo-400/70'
+                      : 'w-1.5 bg-slate-200 dark:bg-white/15'
+                )}
+              />
+            )
+          )}
         </div>
         <button
           type="button"
           onClick={onSkip}
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
+          className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
         >
           Skip
           <X className="h-3.5 w-3.5" />

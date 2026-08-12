@@ -16,13 +16,11 @@ import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
   Bell,
-  Bot,
   Key,
   Layers,
   LogOut,
   Megaphone,
   Menu,
-  MessageCircle,
   Palette,
   Settings,
   Shield,
@@ -30,7 +28,6 @@ import {
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type MouseEventHandler, type ReactNode } from 'react'
 
@@ -50,10 +47,7 @@ const sectionsGroups = [
   },
   {
     groupName: 'Growth',
-    items: [
-      { id: 'integrations', label: 'Integrations', icon: Layers },
-      { id: 'ai-assistance', label: 'AI Assistance', icon: Bot },
-    ],
+    items: [{ id: 'integrations', label: 'Integrations', icon: Layers }],
   },
   {
     groupName: 'Banners',
@@ -624,8 +618,7 @@ export default function SettingsDialog() {
                 <div>
                   <h4 className="mb-2 text-[15px] font-black text-slate-900 dark:text-white">Design tools</h4>
                   <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                    Connect Canva for creatives. Guest-facing AI Assistance is a separate setting — train it per vCard
-                    in Card Settings.
+                    Connect Canva for creatives.
                   </p>
                   <CanvaConnectRow userId={user?.uid} variant="card" returnTo="/settings" />
                 </div>
@@ -652,51 +645,6 @@ export default function SettingsDialog() {
                       checked={toggles['main-tab-shop']}
                       onChange={() => toggle('main-tab-shop')}
                     />
-                  </div>
-                </div>
-              </div>
-            </Section>
-
-            <Section id="ai-assistance" active={activeTab === 'ai-assistance'} title="AI Assistance">
-              <div className="space-y-6">
-                <p className="text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                  AI Assistance chats with guests on your public vCard — answering questions about your business. Train
-                  it per card (documents + business brief) in Card Settings → AI Assistance.
-                </p>
-                <div className="rounded-3xl border border-violet-200/70 bg-linear-to-br from-violet-50/80 via-white to-indigo-50/40 p-6 dark:border-violet-500/25 dark:from-violet-500/10 dark:via-[#0b0f19] dark:to-indigo-500/5">
-                  <div className="flex items-start gap-4">
-                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white">
-                      <MessageCircle className="h-7 w-7" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-[15px] font-black text-slate-900 dark:text-white">
-                        Guest-facing AI assistant
-                      </h4>
-                      <p className="mt-1 text-[13px] leading-relaxed font-semibold text-slate-500">
-                        Separate from Canva. When active on a card, visitors can talk to your assistant and get answers
-                        trained from your business info.
-                      </p>
-                      <ul className="mt-4 space-y-2 text-[12px] font-semibold text-slate-600 dark:text-slate-300">
-                        <li className="flex items-start gap-2">
-                          <Bot className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
-                          Open a vCard → Card Settings → AI Assistance
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Bot className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
-                          Turn the assistant Active, then train with docs / write about your business
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Bot className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
-                          Guests chat with the trained assistant on that public card
-                        </li>
-                      </ul>
-                      <Link
-                        href="/vcards"
-                        className="mt-5 inline-flex rounded-xl bg-violet-600 px-5 py-2.5 text-[12px] font-black tracking-wider text-white uppercase hover:bg-violet-700"
-                      >
-                        Go to vCards
-                      </Link>
-                    </div>
                   </div>
                 </div>
               </div>
