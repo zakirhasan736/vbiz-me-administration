@@ -8,6 +8,7 @@ import {
   parseThemeJson,
   THEME_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import { resolveCardStatus } from '@/lib/cardStatus'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
@@ -216,7 +217,7 @@ export type DashboardStatsQuery = {
 export type ProfilesListQuery = {
   scope?: 'created'
   q?: string
-  status?: 'all' | 'active' | 'inactive' | 'suspended' | 'draft'
+  status?: 'all' | 'active' | 'inactive' | 'paused' | 'suspended' | 'draft'
   sortBy?: 'createdAt' | 'updatedAt' | 'name' | 'viewCount'
   sortDir?: 'asc' | 'desc'
   skip?: number
@@ -535,6 +536,12 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY]),
   })
 
+  const status = resolveCardStatus({
+    status: profile.status?.name,
+    isDraft: profile.isDraft,
+    isPublic: profile.isPublic,
+  })
+
   return {
     ...data,
     id: profile.id,
@@ -547,7 +554,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     socialClicks: profile.socialClicks || [],
     avatarImageUrl,
     backgroundImageUrl,
-    isActive: profile.isDraft !== true && profile.isPublic !== false,
+    status,
+    isActive: status === 'active',
     isDraft: profile.isDraft === true,
   }
 }
@@ -605,6 +613,62 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
 
 function isLocalTempId(id: string): boolean {
   return /^(pf_|sk_|post_|faq_|svc_|sec_|rev_)/.test(id)
+}
+
+/** Body that only flips public/draft — safe to patch list cache without full LIST refetch. */
+function isVisibilityStatusOnlyBody(body: Record<string, unknown>): boolean {
+  const keys = Object.keys(body)
+  return keys.length > 0 && keys.every((k) => k === 'isPublic' || k === 'isDraft')
+}
+
+function applyVisibilityStatusPatch(profile: { isPublic?: boolean; isDraft?: boolean }, body: Record<string, unknown>) {
+  const patchIsPublic = typeof body.isPublic === 'boolean'
+  const patchIsDraft = typeof body.isDraft === 'boolean'
+  if (patchIsDraft) {
+    profile.isDraft = body.isDraft as boolean
+    if (body.isDraft === true) {
+      profile.isPublic = false
+    } else if (!patchIsPublic) {
+      profile.isPublic = true
+    } else {
+      profile.isPublic = body.isPublic as boolean
+    }
+  } else if (patchIsPublic) {
+    profile.isPublic = body.isPublic as boolean
+  }
+}
+
+/** Injected endpoints are not on base `api` typings; cast util for cache patches. */
+function patchGetProfilesCache(
+  dispatch: (action: unknown) => { undo: () => void },
+  args: ProfilesListQuery | void,
+  recipe: (draft: ProfilesListResult) => void
+) {
+  return dispatch(
+    (
+      api.util.updateQueryData as unknown as (
+        endpointName: 'getProfiles',
+        endpointArgs: ProfilesListQuery | void,
+        updateRecipe: (draft: ProfilesListResult) => void
+      ) => unknown
+    )('getProfiles', args, recipe)
+  )
+}
+
+function patchGetProfileCache(
+  dispatch: (action: unknown) => { undo: () => void },
+  id: string,
+  recipe: (draft: ApiProfile) => void
+) {
+  return dispatch(
+    (
+      api.util.updateQueryData as unknown as (
+        endpointName: 'getProfile',
+        endpointArgs: string,
+        updateRecipe: (draft: ApiProfile) => void
+      ) => unknown
+    )('getProfile', id, recipe)
+  )
 }
 
 const profilesApi = api.injectEndpoints({
@@ -685,10 +749,58 @@ const profilesApi = api.injectEndpoints({
     updateProfileCard: builder.mutation<ApiProfile, { id: string; body: Record<string, unknown> }>({
       query: ({ id, body }) => ({ url: `/profiles/${id}`, method: 'PATCH', body }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: 'LIST' },
-      ],
+      async onQueryStarted({ id, body }, { dispatch, queryFulfilled, getState }) {
+        if (!isVisibilityStatusOnlyBody(body)) return
+
+        const patchResults: Array<{ undo: () => void }> = []
+        const runDispatch = dispatch as unknown as (action: unknown) => { undo: () => void }
+
+        const listEntries = api.util.selectInvalidatedBy(getState(), [{ type: 'profiles', id: 'LIST' }])
+        for (const entry of listEntries) {
+          if (entry.endpointName !== 'getProfiles') continue
+          patchResults.push(
+            patchGetProfilesCache(runDispatch, entry.originalArgs as ProfilesListQuery | void, (draft) => {
+              const item = draft.items.find((p) => p.id === id)
+              if (item) applyVisibilityStatusPatch(item, body)
+            })
+          )
+        }
+
+        patchResults.push(
+          patchGetProfileCache(runDispatch, id, (draft) => {
+            applyVisibilityStatusPatch(draft, body)
+          })
+        )
+
+        try {
+          const { data } = await queryFulfilled
+          if (!data) return
+
+          for (const entry of api.util.selectInvalidatedBy(getState(), [{ type: 'profiles', id: 'LIST' }])) {
+            if (entry.endpointName !== 'getProfiles') continue
+            patchGetProfilesCache(runDispatch, entry.originalArgs as ProfilesListQuery | void, (draft) => {
+              const item = draft.items.find((p) => p.id === id)
+              if (!item) return
+              item.isPublic = data.isPublic
+              item.isDraft = data.isDraft
+            })
+          }
+          patchGetProfileCache(runDispatch, id, (draft) => {
+            draft.isPublic = data.isPublic
+            draft.isDraft = data.isDraft
+          })
+        } catch {
+          patchResults.forEach((p) => p.undo())
+        }
+      },
+      invalidatesTags: (_r, _e, arg) => {
+        // Visibility/draft-only: cache patched in onQueryStarted — skip LIST refetch flicker.
+        if (isVisibilityStatusOnlyBody(arg.body)) return []
+        return [
+          { type: 'profiles', id: arg.id },
+          { type: 'profiles', id: 'LIST' },
+        ]
+      },
     }),
     deleteProfile: builder.mutation<{ id: string }, string>({
       query: (id) => ({ url: `/profiles/${id}`, method: 'DELETE' }),

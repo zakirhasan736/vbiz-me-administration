@@ -32,7 +32,7 @@ import { Tab5ExtraFields } from '@/components/VCardTab5'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
-import { getCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
+import { createCardOwnerKindLabel, getCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import {
   createCardTabNameToNavId,
   getAiSeedCreateCardNavIds,
@@ -112,6 +112,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const router = useRouter()
   const searchParams = useSearchParams()
   const role = useAppSelector((state) => state.user.user?.role)
+  const currentUserId = useAppSelector((state) => state.user.user?.id)
   const isDirectoryEditor = role === 'corporate-owner' || role === 'admin' || role === 'super-admin'
   const directoryHref =
     role === 'corporate-owner'
@@ -426,16 +427,43 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     segments
   )
 
+  useLayoutEffect(() => {
+    if (isSettingsOpen) return
+    const chipId = isPersonalEditorNavId(activeNavId) ? 'home' : activeNavId
+    const lastNavId = visibleNavItems[visibleNavItems.length - 1]?.id
+    const el = mainNavRef.current
+    if (!el) return
+    if (chipId === 'home') {
+      el.scrollLeft = 0
+    } else if (chipId === lastNavId) {
+      el.scrollLeft = el.scrollWidth - el.clientWidth
+    } else {
+      return
+    }
+    updateOverflow()
+  }, [activeNavId, cardKey, isSettingsOpen, mainNavRef, updateOverflow, visibleNavItems])
+
   useEffect(() => {
     const t = window.setTimeout(() => {
       updateOverflow()
       if (!isSettingsOpen) {
         const chipId = isPersonalEditorNavId(activeNavId) ? 'home' : activeNavId
-        scrollActiveIntoPeek(chipId)
+        const lastNavId = visibleNavItems[visibleNavItems.length - 1]?.id
+        if (chipId !== 'home' && chipId !== lastNavId) {
+          scrollActiveIntoPeek(chipId)
+        }
       }
     }, 60)
     return () => window.clearTimeout(t)
-  }, [visibleNavItems.length, activeNavId, isSettingsOpen, cardKey, scrollActiveIntoPeek, updateOverflow])
+  }, [
+    visibleNavItems.length,
+    activeNavId,
+    isSettingsOpen,
+    cardKey,
+    scrollActiveIntoPeek,
+    updateOverflow,
+    visibleNavItems,
+  ])
 
   const goToSubTab = (tabId: number) => {
     router.push(subTabHref(tabId))
@@ -484,9 +512,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               Creating for <span className="font-extrabold">{createOwner.name || createOwner.email}</span>
             </p>
             <p className="text-xs font-semibold text-indigo-700/80 dark:text-indigo-200/80">
-              {[createOwner.email, createOwner.role === 'corporate-owner' ? 'Corporate owner' : 'Single owner']
-                .filter(Boolean)
-                .join(' · ')}
+              {[createOwner.email, createCardOwnerKindLabel(createOwner, currentUserId)].filter(Boolean).join(' · ')}
             </p>
           </div>
         ) : null}

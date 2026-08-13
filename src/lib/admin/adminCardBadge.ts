@@ -12,7 +12,7 @@ function personalName(card: AdminCard): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : ''
 }
 
-function normalizeRole(role: unknown): string {
+export function normalizeRole(role: unknown): string {
   return String(role || '')
     .trim()
     .toLowerCase()
@@ -59,7 +59,7 @@ function portfolioParentRole(card: AdminCard): string {
   return ''
 }
 
-function isAdminPortfolioCard(card: AdminCard): boolean {
+export function isAdminPortfolioCard(card: AdminCard): boolean {
   return isStaffRole(portfolioParentRole(card))
 }
 

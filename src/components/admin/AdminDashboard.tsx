@@ -5,8 +5,8 @@ import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ContactSavesModal, type ContactSavesModalTab, type DashboardContact } from '@/components/dashboard/home'
 import { ModalPortal } from '@/components/ModalPortal'
-import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
-import { useLastGoodData } from '@/hooks/useLastGoodData'
+import { StatNumber } from '@/components/ui/StatNumber'
+import { useAdminDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { getAdminThemeConfig, getThemeClasses } from '@/lib/admin/adminTheme'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { isWithinPeriod, periodCutoff } from '@/lib/dashboardPeriod'
@@ -121,15 +121,19 @@ export default function AdminDashboard() {
   const [period, setPeriod] = useState<DashboardPeriod>('all')
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
 
-  const { data: statsRaw } = useGetDashboardStatsQuery({ period })
-  const stats = useLastGoodData(statsRaw)
+  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period })
+  const { overlay: liveKpis, connected: liveConnected } = useAdminDashboardLiveKpis(period)
   const { data: contactsRaw } = useGetContactsQuery()
 
   const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
-  const totalSavedContacts = (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0)
-  const platformUniqueViews = stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0
-  const platformShares = stats?.shares ?? 0
-  const platformViews = stats?.totalViews ?? 0
+  const statsReady = Boolean(stats) && !statsLoading
+  const savedContactsBase = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
+  const totalSavedContacts = statsReady ? (savedContactsBase || 0) + liveKpis.saves : undefined
+  const platformUniqueViews = statsReady
+    ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) + liveKpis.views
+    : undefined
+  const platformShares = statsReady ? (stats?.shares ?? 0) : undefined
+  const platformViews = statsReady ? (stats?.totalViews ?? 0) + liveKpis.views : undefined
   const adminChartData = stats?.visitsChart?.points ?? []
   const socialChannels = stats?.socialChannels?.length ? stats.socialChannels : DEFAULT_SOCIAL_CHANNELS
 
@@ -147,8 +151,10 @@ export default function AdminDashboard() {
   const themeClasses = getThemeClasses(themeConfig.accent)
 
   // Prefer live dashboard stats; fall back to loaded profile list.
-  const totalCardsCount = stats?.cards ?? vCardsList.length
-  const activeCardsCount = vCardsList.filter((c) => c.status === 'active' || !c.status).length || totalCardsCount
+  const totalCardsCount = statsReady ? (stats?.cards ?? vCardsList.length) : undefined
+  const activeCardsCount = statsReady
+    ? vCardsList.filter((c) => c.status === 'active' || !c.status).length || (stats?.cards ?? vCardsList.length)
+    : undefined
 
   const { data: meetingsPage } = useGetMeetingsQuery({ limit: 100 })
   const [createMeeting, { isLoading: isCreatingMeeting }] = useCreateMeetingMutation()
@@ -262,14 +268,14 @@ export default function AdminDashboard() {
       {/* Primary Analytics bento boxes (Chart + Stats) */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Main Chart Box */}
-        <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] lg:col-span-2 dark:border-white/10 dark:bg-[#0b0f19]">
+        <div className="group relative flex flex-col overflow-hidden rounded-4xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] lg:col-span-2 dark:border-white/10 dark:bg-[#0b0f19]">
           <div className="relative z-10 flex h-full flex-col justify-between p-8 pb-0">
             <div className="mb-6 flex flex-col justify-between gap-6 sm:flex-row sm:items-start">
               <div>
                 <div className="mb-3 flex items-center gap-2">
                   <span
                     className={cn(
-                      'flex h-10 w-10 items-center justify-center rounded-[12px] border shadow-sm',
+                      'flex h-10 w-10 items-center justify-center rounded-xl border shadow-sm',
                       themeClasses.lightBg,
                       themeClasses.lightText,
                       themeClasses.border
@@ -282,39 +288,47 @@ export default function AdminDashboard() {
                   </h2>
                 </div>
                 <div className="mt-2 flex items-baseline gap-4">
-                  <AnimatedNumber
+                  <StatNumber
+                    live
                     value={platformViews}
+                    loading={!statsReady}
                     className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white"
+                    skeletonClassName="h-14 w-28"
                   />
-                  <span className="flex items-center gap-1.5 rounded-[10px] border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[13px] font-bold text-emerald-600 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
+                  <span
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-[10px] border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[13px] font-bold text-emerald-600 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400',
+                      !liveConnected && 'opacity-60'
+                    )}
+                  >
                     <TrendingUp className="h-4 w-4" /> Live
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-3">
-                  <span className="text-[11px] font-bold text-slate-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500">
                     Unique:{' '}
                     <strong className="text-slate-800 dark:text-white">
-                      <AnimatedNumber value={platformUniqueViews} />
+                      <StatNumber live value={platformUniqueViews} loading={!statsReady} skeletonClassName="h-4 w-10" />
                     </strong>
                   </span>
-                  <span className="text-[11px] font-bold text-slate-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500">
                     Shares:{' '}
                     <strong className="text-slate-800 dark:text-white">
-                      <AnimatedNumber value={platformShares} />
+                      <StatNumber value={platformShares} loading={!statsReady} skeletonClassName="h-4 w-10" />
                     </strong>
                   </span>
-                  <span className="text-[11px] font-bold text-slate-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500">
                     Saves:{' '}
                     <strong className="text-slate-800 dark:text-white">
-                      <AnimatedNumber value={totalSavedContacts} />
+                      <StatNumber live value={totalSavedContacts} loading={!statsReady} skeletonClassName="h-4 w-10" />
                     </strong>
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="relative mt-2 -ml-4 h-[260px] w-full flex-1 sm:ml-0">
-              <div className="pointer-events-none absolute inset-0 top-auto bottom-0 z-10 h-8 bg-gradient-to-t from-white via-transparent to-transparent dark:from-[#0b0f19]"></div>
+            <div className="relative mt-2 -ml-4 h-65 w-full flex-1 sm:ml-0">
+              <div className="pointer-events-none absolute inset-0 top-auto bottom-0 z-10 h-8 bg-linear-to-t from-white via-transparent to-transparent dark:from-[#0b0f19]"></div>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={adminChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                   <defs>
@@ -405,11 +419,11 @@ export default function AdminDashboard() {
         <button
           type="button"
           onClick={() => openContactSaves('saves')}
-          className="group flex flex-col justify-between rounded-[32px] border border-slate-200/80 bg-white p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300/60 hover:shadow-lg sm:p-8 dark:border-white/10 dark:bg-[#0b0f19] dark:hover:border-emerald-500/30"
+          className="group flex flex-col justify-between rounded-4xl border border-slate-200/80 bg-white p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300/60 hover:shadow-lg sm:p-8 dark:border-white/10 dark:bg-[#0b0f19] dark:hover:border-emerald-500/30"
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm transition-transform group-hover:scale-105 dark:border-emerald-500/10 dark:bg-emerald-500/15 dark:text-emerald-400">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm transition-transform group-hover:scale-105 dark:border-emerald-500/10 dark:bg-emerald-500/15 dark:text-emerald-400">
                 <Save className="h-6 w-6" />
               </span>
               <div className="min-w-0">
@@ -427,9 +441,12 @@ export default function AdminDashboard() {
           </div>
 
           <div className="my-6 flex items-baseline gap-3">
-            <AnimatedNumber
+            <StatNumber
+              live
               value={totalSavedContacts}
+              loading={!statsReady}
               className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white"
+              skeletonClassName="h-14 w-28"
             />
             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">guests saved a contact</span>
           </div>
@@ -437,21 +454,28 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 dark:border-white/5">
             <div>
               <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">Cards</span>
-              <AnimatedNumber
+              <StatNumber
                 value={totalCardsCount}
+                loading={!statsReady}
                 className="mt-1 block text-xl font-extrabold text-slate-800 dark:text-white"
+                skeletonClassName="mt-1 h-7 w-16"
               />
             </div>
             <div>
               <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">Active</span>
-              <AnimatedNumber value={activeCardsCount} className="mt-1 block text-xl font-extrabold text-emerald-500" />
+              <StatNumber
+                value={activeCardsCount}
+                loading={!statsReady}
+                className="mt-1 block text-xl font-extrabold text-emerald-500"
+                skeletonClassName="mt-1 h-7 w-16"
+              />
             </div>
           </div>
         </button>
       </div>
 
       {/* All-card engagement: socials + weekly (no per-card selector) */}
-      <div className="space-y-6 rounded-[32px] border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]">
+      <div className="space-y-6 rounded-4xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]">
         {themeConfig.showSocials !== false && (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
@@ -480,7 +504,8 @@ export default function AdminDashboard() {
               <button type="button" onClick={() => openContactSaves('saves')} className="w-full text-left">
                 <SocialMetricsCard
                   title="Saved Contacts"
-                  value={totalSavedContacts}
+                  value={savedContactsBase}
+                  loading={!statsReady}
                   icon={Save}
                   bg={cn(themeClasses.lightBg, themeClasses.lightText)}
                 />
@@ -492,6 +517,7 @@ export default function AdminDashboard() {
                     key={stat.channel}
                     title={stat.label}
                     value={stat.count}
+                    loading={!statsReady}
                     icon={ui.icon}
                     bg={ui.bg}
                   />
@@ -544,7 +570,7 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-3 dark:border-white/5 dark:bg-white/[0.02]">
+              <div className="grid grid-cols-3 gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-3 dark:border-white/5 dark:bg-white/2">
                 <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-center dark:border-white/5 dark:bg-[#0b0f19]">
                   <p className="text-lg font-black text-slate-900 tabular-nums dark:text-white">
                     {filteredMeetings.length}
@@ -565,7 +591,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="max-h-[400px] flex-1 space-y-2.5 overflow-y-auto p-4">
+              <div className="max-h-100 flex-1 space-y-2.5 overflow-y-auto p-4">
                 <AnimatePresence>
                   {filteredMeetings.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 py-14 text-center dark:border-white/10">
@@ -596,7 +622,7 @@ export default function AdminDashboard() {
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.97 }}
-                          className="group flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 transition-colors hover:bg-white dark:border-white/5 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]"
+                          className="group flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 transition-colors hover:bg-white dark:border-white/5 dark:bg-white/2 dark:hover:bg-white/4"
                         >
                           <div
                             className={cn(
@@ -695,7 +721,7 @@ export default function AdminDashboard() {
       {/* Popup: Total saved contacts detail */}
       {showContactSavesModal && (
         <ContactSavesModal
-          count={totalSavedContacts}
+          count={totalSavedContacts ?? 0}
           contacts={contacts}
           notesCount={stats?.notesLast30Days ?? 0}
           tab={contactSavesModalTab}
@@ -824,12 +850,13 @@ export default function AdminDashboard() {
 
 type SocialMetricsCardProps = {
   title: string
-  value: number
+  value: number | undefined
+  loading?: boolean
   icon: LucideIcon
   bg: string
 }
 
-function SocialMetricsCard({ title, value, icon: Icon, bg }: SocialMetricsCardProps) {
+function SocialMetricsCard({ title, value, loading, icon: Icon, bg }: SocialMetricsCardProps) {
   return (
     <div className="group flex flex-col items-center rounded-3xl border border-slate-200/80 bg-white p-4 text-center shadow-sm transition-all duration-200 hover:-translate-y-1 dark:border-white/5 dark:bg-[#0b0f19]">
       <div
@@ -841,7 +868,7 @@ function SocialMetricsCard({ title, value, icon: Icon, bg }: SocialMetricsCardPr
         <Icon className="h-5 w-5" strokeWidth={1.5} />
       </div>
       <h4 className="text-lg leading-tight font-black tracking-tight text-slate-900 dark:text-white">
-        <AnimatedNumber value={value} />
+        <StatNumber value={value} loading={loading} skeletonClassName="mx-auto h-6 w-12" />
       </h4>
       <p className="mt-1 w-full truncate text-[10px] font-bold tracking-wider text-slate-400 uppercase" title={title}>
         {title}

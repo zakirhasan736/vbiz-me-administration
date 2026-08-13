@@ -11,6 +11,7 @@ import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { type AdminCard } from '@/lib/admin/adminCardShape'
+import { canAdminContactCard } from '@/lib/admin/canAdminContactCard'
 import { mapAdminProfileRowToCard } from '@/lib/admin/mapAdminProfileRow'
 import { appendAuditLog } from '@/lib/mockStore'
 import { notifyCardOwner } from '@/lib/notifications'
@@ -78,6 +79,7 @@ export default function AdminVCards() {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const token = useAppSelector((s) => s.user.token)
+  const ownerId = useAppSelector((s) => s.user.user?.id)
   const {
     searchQuery,
     debouncedQ,
@@ -276,6 +278,8 @@ export default function AdminVCards() {
     open: boolean
     title: string
     description: string
+    confirmLabel?: string
+    variant?: 'danger' | 'default'
     onConfirm: () => void
   } | null>(null)
   const [isExporting, setIsExporting] = useState(false)
@@ -347,6 +351,7 @@ export default function AdminVCards() {
   }
 
   const openNoticeForCard = (card: AdminCard) => {
+    setPanelCard(null)
     setSelectedCard(card)
     const existing = findCardNotice(card.id)
     setCardNoticeText(existing?.body || '')
@@ -437,18 +442,76 @@ export default function AdminVCards() {
   }
 
   const handleToggleStatus = async (card: AdminCard, targetStatus: string) => {
-    await updateCorporateCardControls(card.id, {
-      status: targetStatus as 'active' | 'inactive' | 'suspended',
-    })
-    setSelectedCard((prev) => (prev ? { ...prev, status: targetStatus } : null))
-    setPanelCard((prev) => (prev && prev.id === card.id ? { ...prev, status: targetStatus } : prev))
+    try {
+      await updateCorporateCardControls(card.id, {
+        status: targetStatus as 'active' | 'inactive' | 'paused' | 'suspended',
+      })
+      const nextPublic = targetStatus === 'active'
+      setSelectedCard((prev) =>
+        prev && prev.id === card.id ? { ...prev, status: targetStatus, isPublic: nextPublic, isDraft: false } : prev
+      )
+      setPanelCard((prev) =>
+        prev && prev.id === card.id ? { ...prev, status: targetStatus, isPublic: nextPublic, isDraft: false } : prev
+      )
 
-    appendAuditLog({
-      action: 'Card Status Override',
-      details: `Modified ${personalField(card.personal, 'fullName')}'s account status to ${targetStatus.toUpperCase()}`,
-      type: 'status',
+      appendAuditLog({
+        action: 'Card Status Override',
+        details: `Modified ${personalField(card.personal, 'fullName')}'s account status to ${targetStatus.toUpperCase()}`,
+        type: 'status',
+      })
+      notify.info(`Card marked ${targetStatus}.`)
+      void refreshListFromStart()
+    } catch {
+      notify.info('Could not update card status.')
+    }
+  }
+
+  const requestToggleStatus = (card: AdminCard, targetStatus: string) => {
+    setPanelCard(null)
+    setSelectedCard(card)
+    const name = personalField(card.personal, 'fullName') || 'this card'
+    const current = String(card.status || 'active').toLowerCase()
+
+    const copy =
+      targetStatus === 'suspended'
+        ? {
+            title: 'Suspend this card?',
+            description: `${name} will be hidden from the public. The owner will not be able to edit, duplicate, or change visibility. The card still counts toward their package capacity.`,
+            confirmLabel: 'Suspend',
+            variant: 'danger' as const,
+          }
+        : targetStatus === 'paused'
+          ? {
+              title: 'Pause this card?',
+              description: `${name} will be hidden from the public. The owner can still edit it, but cannot make it public until you resume.`,
+              confirmLabel: 'Pause',
+              variant: 'default' as const,
+            }
+          : current === 'suspended'
+            ? {
+                title: 'Unsuspend this card?',
+                description: `${name} will be public again. The owner will be able to edit, duplicate, and change visibility.`,
+                confirmLabel: 'Unsuspend',
+                variant: 'default' as const,
+              }
+            : {
+                title: 'Resume this card?',
+                description: `${name} will be public again.`,
+                confirmLabel: 'Resume',
+                variant: 'default' as const,
+              }
+
+    setConfirmState({
+      open: true,
+      title: copy.title,
+      description: copy.description,
+      confirmLabel: copy.confirmLabel,
+      variant: copy.variant,
+      onConfirm: () => {
+        setConfirmState(null)
+        void handleToggleStatus(card, targetStatus)
+      },
     })
-    void refreshListFromStart()
   }
 
   const handleSaveCardNotice = async () => {
@@ -782,6 +845,7 @@ export default function AdminVCards() {
           {cards.map((card, i) => {
             const contactSaves = Number(card.saveCount || 0)
             const badge = resolveDirectoryBadge(card)
+            const canContact = canAdminContactCard(card, ownerId)
 
             return (
               <VCardTeamCard
@@ -798,9 +862,9 @@ export default function AdminVCards() {
                 onNotice={() => openNoticeForCard(card)}
                 onCardClick={() => openPanel(card)}
                 onTrends={() => setTrendsCard(card)}
-                onEmail={() => openEmailForCard(card)}
-                onCall={() => openCallForCard(card)}
-                onSchedule={() => openScheduleForCard(card)}
+                onEmail={canContact ? () => openEmailForCard(card) : undefined}
+                onCall={canContact ? () => openCallForCard(card) : undefined}
+                onSchedule={canContact ? () => openScheduleForCard(card) : undefined}
                 onEdit={() => {
                   setCurrentEditingCardId(card.id || null)
                   router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
@@ -866,12 +930,12 @@ export default function AdminVCards() {
         card={panelCard}
         mode="admin"
         onClose={() => setPanelCard(null)}
-        onEmail={openEmailForCard}
-        onCall={openCallForCard}
-        onSchedule={openScheduleForCard}
+        onEmail={panelCard && canAdminContactCard(panelCard, ownerId) ? openEmailForCard : undefined}
+        onCall={panelCard && canAdminContactCard(panelCard, ownerId) ? openCallForCard : undefined}
+        onSchedule={panelCard && canAdminContactCard(panelCard, ownerId) ? openScheduleForCard : undefined}
         onNotice={openNoticeForCard}
         onDuplicate={handleDuplicateCard}
-        onToggleStatus={handleToggleStatus}
+        onToggleStatus={requestToggleStatus}
       />
 
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />
@@ -971,13 +1035,25 @@ export default function AdminVCards() {
             ></div>
 
             <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
-              <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
-                <Mail className="h-5 w-5 text-indigo-600" /> Email vCard Owner
-              </h2>
-              <p className="mt-1 text-xs font-semibold text-slate-400">
-                Dispatches direct instructions or growth analytics notifications to{' '}
-                {personalField(selectedCard.personal, 'fullName')}.
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
+                    <Mail className="h-5 w-5 text-indigo-600" /> Email vCard Owner
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">
+                    Dispatches direct instructions or growth analytics notifications to{' '}
+                    {personalField(selectedCard.personal, 'fullName')}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEmailModalOpen(false)}
+                  className="shrink-0 rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-white/10"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4 text-slate-500" />
+                </button>
+              </div>
 
               <div className="mt-6 space-y-4">
                 <div className="flex flex-col space-y-1.5">
@@ -1048,20 +1124,32 @@ export default function AdminVCards() {
       {/* MODAL: BACKOFFICE SPECIFIC NOTICE BANNER */}
       {isNoticeModalOpen && selectedCard && (
         <ModalPortal>
-          <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
             <div
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
               onClick={() => setIsNoticeModalOpen(false)}
             ></div>
 
             <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
-              <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
-                <ShieldAlert className="h-5 w-5 text-indigo-600" /> Card Specific Backoffice Notice
-              </h2>
-              <p className="mt-1 text-xs font-semibold text-slate-400">
-                This notice is specifically displayed in {personalField(selectedCard.personal, 'fullName')}&apos;s user
-                backoffice dashboard.
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
+                    <ShieldAlert className="h-5 w-5 text-indigo-600" /> Card Specific Backoffice Notice
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">
+                    This notice is specifically displayed in {personalField(selectedCard.personal, 'fullName')}&apos;s
+                    user backoffice dashboard.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNoticeModalOpen(false)}
+                  className="shrink-0 rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-white/10"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4 text-slate-500" />
+                </button>
+              </div>
 
               <div className="mt-6 space-y-4">
                 <div className="flex gap-3">
@@ -1132,13 +1220,25 @@ export default function AdminVCards() {
             ></div>
 
             <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
-              <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
-                <Calendar className="h-5 w-5 text-indigo-600" /> Schedule Growth Consultation
-              </h2>
-              <p className="mt-1 text-xs font-semibold text-slate-400">
-                Book a custom growth advisory meeting or call with {personalField(selectedCard.personal, 'fullName')} to
-                optimize conversions.
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
+                    <Calendar className="h-5 w-5 text-indigo-600" /> Schedule Growth Consultation
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">
+                    Book a custom growth advisory meeting or call with{' '}
+                    {personalField(selectedCard.personal, 'fullName')} to optimize conversions.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsScheduleModalOpen(false)}
+                  className="shrink-0 rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-white/10"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4 text-slate-500" />
+                </button>
+              </div>
 
               <div className="mt-6 space-y-4">
                 <div className="flex flex-col space-y-1.5">
@@ -1231,8 +1331,9 @@ export default function AdminVCards() {
           open
           title={confirmState.title}
           description={confirmState.description}
-          confirmLabel="Delete"
-          variant="danger"
+          confirmLabel={confirmState.confirmLabel || 'Delete'}
+          variant={confirmState.variant || 'danger'}
+          overlayClassName="z-10000"
           onConfirm={confirmState.onConfirm}
           onCancel={() => setConfirmState(null)}
         />

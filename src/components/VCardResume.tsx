@@ -96,7 +96,7 @@ export function TabResume() {
   }
 
   return (
-    <div className="animate-in fade-in mx-auto flex h-full w-full max-w-3xl flex-col space-y-6 pb-12 duration-500">
+    <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col space-y-6 pb-12 duration-500">
       <div className="rounded-3xl border border-teal-100 bg-teal-50/50 p-6 dark:border-teal-500/10 dark:bg-teal-500/2">
         <div className="flex items-center gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-teal-100 bg-teal-50 dark:border-teal-500/20 dark:bg-teal-500/10">

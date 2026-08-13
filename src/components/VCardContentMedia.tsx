@@ -38,7 +38,7 @@ export function TabContentMedia() {
   }))
 
   return (
-    <div className="animate-in fade-in max-w-3xl space-y-6 pb-12 duration-500">
+    <div className="animate-in fade-in mx-auto w-full max-w-7xl space-y-6 pb-12 duration-500">
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 dark:bg-violet-500/15">
           <Images className="h-5 w-5" />

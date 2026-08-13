@@ -3,6 +3,13 @@
 import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { useAppDispatch } from '@/hooks/redux'
+import {
+  isCardPaused,
+  isOwnerCardLocked,
+  PAUSED_CARD_MESSAGE,
+  resolveCardStatus,
+  SUSPENDED_CARD_MESSAGE,
+} from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import { useDeleteProfileMutation, useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
@@ -82,7 +89,10 @@ export function VCardTeamCard({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const serverIsPublic = card.isPublic ?? true
   const [optimisticPublic, setOptimisticPublic] = useState<{ cardId: string; value: boolean } | null>(null)
-  const isPublic = optimisticPublic?.cardId === card.id ? optimisticPublic.value : serverIsPublic
+  const isPublic =
+    optimisticPublic?.cardId === card.id && serverIsPublic !== optimisticPublic.value
+      ? optimisticPublic.value
+      : serverIsPublic
   const [statsHovered, setStatsHovered] = useState(false)
   const [alertState, setAlertState] = useState<{
     title: string
@@ -95,7 +105,16 @@ export function VCardTeamCard({
   const noticeText = (cardNoticeText !== undefined ? cardNoticeText : localNoticeText) || null
   const noticeTone = cardNoticeType || 'info'
 
-  const status = card.isDraft ? 'draft' : card.isActive ? 'active' : 'inactive'
+  const status = resolveCardStatus({
+    status: card.status,
+    isDraft: card.isDraft,
+    isPublic,
+    isActive: card.isActive,
+  })
+  const ownerLocked = isOwnerCardLocked(status)
+  const pausedByAdmin = isCardPaused(status)
+  const visibilityLocked = ownerLocked || pausedByAdmin
+
   const views = Number(card.views) || 0
   const liveSocials = Array.isArray(card.socialClicks) ? card.socialClicks : []
   const clicks =
@@ -119,11 +138,21 @@ export function VCardTeamCard({
   const goSettings = () => router.push(settingsPath)
 
   const handleVisibilityChange = async (next: boolean) => {
+    if (!card.id || visibilityLocked) return
     setOptimisticPublic({ cardId: card.id, value: next })
     try {
-      await updateProfileCard({ id: card.id, body: { isPublic: next } }).unwrap()
-      dispatch(updateVCard({ id: card.id, patch: { isPublic: next } }))
-      setOptimisticPublic(null)
+      await updateProfileCard({
+        id: card.id,
+        body: next
+          ? { isPublic: true, status: 'active', isDraft: false }
+          : { isPublic: false, status: 'inactive', isDraft: false },
+      }).unwrap()
+      dispatch(
+        updateVCard({
+          id: card.id,
+          patch: { isPublic: next, isActive: next, isDraft: false, status: next ? 'active' : 'inactive' },
+        })
+      )
     } catch {
       setOptimisticPublic(null)
       notify.error('Could not update card visibility. Please try again.')
@@ -163,6 +192,10 @@ export function VCardTeamCard({
   const isCorporate = mode === 'corporate'
   const label = badgeLabel || (isCorporate ? 'Corporate' : 'My card')
   const handleRootClick = () => {
+    if (ownerLocked) {
+      setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+      return
+    }
     if (onCardClick) {
       onCardClick()
       return
@@ -181,6 +214,8 @@ export function VCardTeamCard({
       className={cn(
         'group relative flex h-auto cursor-pointer flex-col rounded-2xl border border-slate-200/60 bg-white transition-all duration-300 hover:border-slate-400 hover:shadow-xl dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/20',
         status === 'inactive' && 'border-slate-200/80',
+        status === 'paused' && 'border-amber-500/25',
+        status === 'suspended' && 'border-rose-500/25',
         dragged && 'opacity-50 ring-2 ring-indigo-400'
       )}
     >
@@ -223,6 +258,8 @@ export function VCardTeamCard({
         onOpenChange={setMenuOpen}
         cardRef={cardRef}
         isDeleting={isDeleting}
+        actionsDisabled={ownerLocked}
+        actionsDisabledReason={SUSPENDED_CARD_MESSAGE}
         onDelete={() => setDeleteOpen(true)}
         onSettings={goSettings}
       />
@@ -282,13 +319,23 @@ export function VCardTeamCard({
                 status === 'draft' &&
                   'border-amber-500/20 bg-amber-500/5 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
                 status === 'inactive' &&
-                  'border-slate-500/20 bg-slate-500/5 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400'
+                  'border-slate-500/20 bg-slate-500/5 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400',
+                status === 'paused' &&
+                  'border-amber-500/20 bg-amber-500/5 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
+                status === 'suspended' &&
+                  'border-rose-500/20 bg-rose-500/5 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
               )}
             >
               <span
                 className={cn(
                   'h-1.5 w-1.5 rounded-full',
-                  status === 'active' ? 'bg-emerald-500' : status === 'draft' ? 'bg-amber-500' : 'bg-slate-400'
+                  status === 'active'
+                    ? 'bg-emerald-500'
+                    : status === 'draft' || status === 'paused'
+                      ? 'bg-amber-500'
+                      : status === 'suspended'
+                        ? 'bg-rose-500'
+                        : 'bg-slate-400'
                 )}
               />
               {status}
@@ -309,9 +356,10 @@ export function VCardTeamCard({
               </div>
             </div>
             <VCardVisibilityToggle
-              id={`vcard-visibility-${card.id}`}
+              id={card.id ? `vcard-visibility-${card.id}` : 'vcard-visibility-missing'}
               checked={isPublic}
-              disabled={isUpdatingVisibility}
+              disabled={isUpdatingVisibility || !card.id || visibilityLocked}
+              title={ownerLocked ? SUSPENDED_CARD_MESSAGE : pausedByAdmin ? PAUSED_CARD_MESSAGE : undefined}
               compact
               onChange={(next) => void handleVisibilityChange(next)}
             />
@@ -392,19 +440,37 @@ export function VCardTeamCard({
         </div>
 
         <VCardCardActions
-          onEdit={goEdit}
+          onEdit={() => {
+            if (ownerLocked) {
+              setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+              return
+            }
+            goEdit()
+          }}
           onView={handleView}
           onPanel={() => onPanel(card)}
           onQr={handleQr}
           onDuplicate={() => {
+            if (ownerLocked) {
+              setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+              return
+            }
             if (onDuplicate) {
               onDuplicate()
               return
             }
             if (!canDuplicate) setAlertState({ title: 'Cannot duplicate', description: duplicateDisabledReason })
           }}
-          duplicateDisabled={!canDuplicate && !onDuplicate}
-          duplicateTitle={canDuplicate || onDuplicate ? 'Duplicate this card' : duplicateDisabledReason}
+          duplicateDisabled={ownerLocked || (!canDuplicate && !onDuplicate)}
+          duplicateTitle={
+            ownerLocked
+              ? SUSPENDED_CARD_MESSAGE
+              : canDuplicate || onDuplicate
+                ? 'Duplicate this card'
+                : duplicateDisabledReason
+          }
+          editDisabled={ownerLocked}
+          editTitle={ownerLocked ? SUSPENDED_CARD_MESSAGE : 'Edit card'}
         />
       </div>
     </div>

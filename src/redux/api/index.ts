@@ -62,6 +62,7 @@ export {
   exportAdminProfilesCsv,
   useGetAdminProfileFiltersQuery,
   useGetAdminProfilesQuery,
+  useGetPortfolioMembersQuery,
 } from '@/redux/features/adminProfiles/adminProfiles.api'
 export {
   useCreateSupportTicketMutation,

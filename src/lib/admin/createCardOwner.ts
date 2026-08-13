@@ -39,3 +39,18 @@ export function clearCreateCardOwner(): void {
     /* ignore */
   }
 }
+
+function normalizeOwnerRole(role: string): string {
+  return role.trim().toLowerCase().replace(/_/g, '-')
+}
+
+/** Banner subtitle for the assigned create-card owner. */
+export function createCardOwnerKindLabel(owner: CreateCardOwnerSession, currentUserId?: string | null): string {
+  const role = normalizeOwnerRole(owner.role)
+  if (role === 'corporate-owner') return 'Corporate owner'
+  if (role === 'vcard-owner') return 'Single owner'
+  if (role === 'admin' || role === 'super-admin') {
+    return currentUserId && owner.userId === currentUserId ? 'You' : 'Team member'
+  }
+  return 'Single owner'
+}

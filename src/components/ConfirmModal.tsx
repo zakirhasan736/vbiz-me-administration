@@ -1,7 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
-import { Loader, type LucideIcon } from 'lucide-react'
+import { Loader, X, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 type ConfirmModalProps = {
@@ -19,6 +19,7 @@ type ConfirmModalProps = {
   icon?: LucideIcon
   labelledBy?: string
   describedBy?: string
+  overlayClassName?: string
 }
 
 export function ConfirmModal({
@@ -35,6 +36,7 @@ export function ConfirmModal({
   icon: Icon,
   labelledBy = 'confirm-modal-title',
   describedBy = 'confirm-modal-description',
+  overlayClassName,
 }: ConfirmModalProps) {
   const isDanger = variant === 'danger'
 
@@ -45,8 +47,18 @@ export function ConfirmModal({
       preventClose={isLoading}
       labelledBy={labelledBy}
       describedBy={describedBy}
-      className="p-6 sm:p-8"
+      overlayClassName={overlayClassName}
+      className="relative p-6 sm:p-8"
     >
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={isLoading}
+        className="absolute top-4 right-4 rounded-xl p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-white/10"
+        aria-label="Close"
+      >
+        <X className="h-4 w-4" />
+      </button>
       {Icon ? (
         <div
           className={

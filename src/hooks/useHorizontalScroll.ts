@@ -141,6 +141,15 @@ export function useHorizontalScroll<T extends HTMLElement = HTMLDivElement>(
         nextLeft = active.offsetLeft + active.offsetWidth / 2 - el.clientWidth / 2
       }
 
+      if (leftIdx === 0 && nextLeft <= buttons[0].offsetLeft) {
+        nextLeft = 0
+      }
+
+      const lastIdx = buttons.length - 1
+      if (rightIdx === lastIdx && nextLeft >= maxScroll - buttons[0].offsetLeft) {
+        nextLeft = maxScroll
+      }
+
       const left = Math.max(0, Math.min(nextLeft, maxScroll))
       el.scrollTo({
         left,

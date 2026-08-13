@@ -1,6 +1,7 @@
 'use client'
 
 import AssignCardOwnerModal from '@/components/admin/AssignCardOwnerModal'
+import AssignPortfolioOwnerModal from '@/components/admin/AssignPortfolioOwnerModal'
 import { CreateCardModeModal } from '@/components/vcard/create-agent/CreateCardModeModal'
 import { clearCreateCardOwner, setCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import { useRouter } from 'next/navigation'
@@ -12,8 +13,10 @@ type CreateCardLauncherProps = {
   onBlocked?: () => void
   createHref?: string
   aiHref?: string
-  /** When true (admin directory create), require owner assignment before Manual/AI. */
+  /** When true (admin directory create), require a client owner before Manual/AI. */
   requireOwnerAssignment?: boolean
+  /** When true (My Cards), pick self or a team member before Manual/AI. */
+  portfolioOwnerAssignment?: boolean
 }
 
 function withFreshReset(href: string) {
@@ -31,17 +34,19 @@ export function CreateCardLauncher({
   createHref = '/vcards/create/home',
   aiHref = '/vcards/create/home?agent=1',
   requireOwnerAssignment = false,
+  portfolioOwnerAssignment = false,
 }: CreateCardLauncherProps) {
   const router = useRouter()
   const [assignOpen, setAssignOpen] = useState(false)
   const [modeOpen, setModeOpen] = useState(false)
+  const needsAssignment = requireOwnerAssignment || portfolioOwnerAssignment
 
   const launch = () => {
     if (!canCreate) {
       onBlocked?.()
       return
     }
-    if (requireOwnerAssignment) {
+    if (needsAssignment) {
       setAssignOpen(true)
       return
     }
@@ -60,6 +65,13 @@ export function CreateCardLauncher({
       {children(launch)}
       {requireOwnerAssignment ? (
         <AssignCardOwnerModal open={assignOpen} onClose={() => setAssignOpen(false)} onConfirm={openModeAfterAssign} />
+      ) : null}
+      {portfolioOwnerAssignment ? (
+        <AssignPortfolioOwnerModal
+          open={assignOpen}
+          onClose={() => setAssignOpen(false)}
+          onConfirm={openModeAfterAssign}
+        />
       ) : null}
       <CreateCardModeModal
         open={modeOpen}

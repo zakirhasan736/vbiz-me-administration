@@ -103,7 +103,9 @@ const DashboardVCardsView = () => {
       const activate = nextStatus === 'active'
       await updateProfileCard({
         id: card.id,
-        body: activate ? { isDraft: false, isPublic: true } : { isDraft: true, isPublic: false },
+        body: activate
+          ? { status: 'active', isDraft: false, isPublic: true }
+          : { status: 'inactive', isDraft: false, isPublic: false },
       }).unwrap()
       void refetch()
     } catch {

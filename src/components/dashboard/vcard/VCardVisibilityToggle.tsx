@@ -4,11 +4,12 @@ type VCardVisibilityToggleProps = {
   id: string
   checked: boolean
   disabled?: boolean
+  title?: string
   onChange: (next: boolean) => void
   compact?: boolean
 }
 
-export function VCardVisibilityToggle({ id, checked, disabled, onChange, compact }: VCardVisibilityToggleProps) {
+export function VCardVisibilityToggle({ id, checked, disabled, title, onChange, compact }: VCardVisibilityToggleProps) {
   return (
     <div
       className={
@@ -17,6 +18,7 @@ export function VCardVisibilityToggle({ id, checked, disabled, onChange, compact
           : 'flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 whitespace-nowrap shadow-sm dark:border-white/5 dark:bg-white/5'
       }
       onClick={(e) => e.stopPropagation()}
+      title={title}
     >
       <span
         className={

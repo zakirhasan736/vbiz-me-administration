@@ -199,6 +199,8 @@ export type VCardListMeta = {
   backgroundImageUrl: string
   isActive: boolean
   isDraft: boolean
+  /** Canonical lifecycle: active | inactive | paused | suspended | draft */
+  status?: string
 }
 
 export type VCardRecord = VCardData &

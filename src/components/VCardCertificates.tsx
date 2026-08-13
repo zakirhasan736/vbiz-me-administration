@@ -40,7 +40,7 @@ export function TabCertificates() {
   const addCert = () => persist([createEmptyCert(), ...itemsRef.current])
 
   return (
-    <div className="animate-in fade-in mx-auto flex h-full w-full max-w-3xl flex-col space-y-6 pb-12 duration-500">
+    <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col space-y-6 pb-12 duration-500">
       <div className="rounded-3xl border border-indigo-100 bg-indigo-50/50 p-6 dark:border-indigo-500/10 dark:bg-indigo-500/2">
         <div className="mb-2 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">

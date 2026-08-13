@@ -34,6 +34,7 @@ import {
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
 import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
+import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -158,6 +159,10 @@ export default function CorporateOwnerDashboardHome() {
     async (card: VCardRecord) => {
       if (!canCreate) {
         notify.warning(createDisabledReason)
+        return
+      }
+      if (isOwnerCardLocked(card.status)) {
+        notify.error(SUSPENDED_CARD_MESSAGE)
         return
       }
       const suffix = Math.floor(1000 + Math.random() * 9000)

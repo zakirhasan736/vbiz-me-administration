@@ -1,6 +1,13 @@
 'use client'
 
 import { AlertModal } from '@/components/AlertModal'
+import {
+  isCardPaused,
+  isOwnerCardLocked,
+  PAUSED_CARD_MESSAGE,
+  resolveCardStatus,
+  SUSPENDED_CARD_MESSAGE,
+} from '@/lib/cardStatus'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
 import {
   useGetContactsQuery,
@@ -127,7 +134,14 @@ export function VCardDetailSidebar({
       : weekViews > 0
         ? ((weekClicks / weekViews) * 100).toFixed(1)
         : '0.0'
-  const status = card.isDraft ? 'draft' : card.isActive ? 'active' : 'inactive'
+  const status = resolveCardStatus({
+    status: card.status,
+    isDraft: card.isDraft,
+    isPublic: card.isPublic,
+    isActive: card.isActive,
+  })
+  const ownerLocked = isOwnerCardLocked(status)
+  const pausedByAdmin = isCardPaused(status)
   const slug = card.slug?.trim() || 'profile'
   const publicPath = getVCardPublicPath(slug)
   const publicUrl = getVCardPublicUrl(slug) || publicPath
@@ -141,6 +155,10 @@ export function VCardDetailSidebar({
       .toUpperCase() || 'VC'
 
   const handleEdit = () => {
+    if (ownerLocked) {
+      setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+      return
+    }
     onClose()
     router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
   }
@@ -156,7 +174,14 @@ export function VCardDetailSidebar({
   }
 
   const handlePauseToggle = () => {
-    onToggleStatus?.(card, status === 'active' ? 'draft' : 'active')
+    if (ownerLocked || pausedByAdmin) {
+      setAlertState({
+        title: ownerLocked ? 'Card suspended' : 'Card paused',
+        description: ownerLocked ? SUSPENDED_CARD_MESSAGE : PAUSED_CARD_MESSAGE,
+      })
+      return
+    }
+    onToggleStatus?.(card, status === 'active' ? 'inactive' : 'active')
   }
 
   const panel = (
@@ -190,7 +215,11 @@ export function VCardDetailSidebar({
                     status === 'draft' &&
                       'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
                     status === 'inactive' &&
-                      'border-slate-200 bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300'
+                      'border-slate-200 bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300',
+                    status === 'paused' &&
+                      'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+                    status === 'suspended' &&
+                      'border-rose-200 bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300'
                   )}
                 >
                   {status}
@@ -272,9 +301,9 @@ export function VCardDetailSidebar({
           </Section>
 
           <Section title="Socials" icon={Share2}>
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 dark:divide-white/5 dark:border-white/10">
-              <li className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/2">
-                <span className="inline-flex min-w-0 items-center gap-2.5">
+            <ul className="grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
+              <li className="flex items-center justify-between gap-2 border-r border-b border-slate-100 bg-white px-2.5 py-2 dark:border-white/5 dark:bg-white/2">
+                <span className="inline-flex min-w-0 items-center gap-2">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-sky-200/80 bg-sky-50 text-sky-600 dark:border-sky-500/25 dark:bg-sky-500/15 dark:text-sky-300">
                     <Share2 className="h-3.5 w-3.5" />
                   </span>
@@ -284,8 +313,8 @@ export function VCardDetailSidebar({
                   {shares.toLocaleString()}
                 </span>
               </li>
-              <li className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/2">
-                <span className="inline-flex min-w-0 items-center gap-2.5">
+              <li className="flex items-center justify-between gap-2 border-b border-slate-100 bg-white px-2.5 py-2 dark:border-white/5 dark:bg-white/2">
+                <span className="inline-flex min-w-0 items-center gap-2">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-emerald-200/80 bg-emerald-50 text-emerald-600 dark:border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-300">
                     <Save className="h-3.5 w-3.5" />
                   </span>
@@ -296,24 +325,35 @@ export function VCardDetailSidebar({
                 </span>
               </li>
               {socials.length > 0 ? (
-                socials.map((s) => (
-                  <li
-                    key={s.key}
-                    className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 dark:bg-white/2"
-                  >
-                    <span className="inline-flex min-w-0 items-center gap-2.5">
-                      <SocialClickChip stat={s} showCount={false} />
-                      <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
-                        {s.label}
+                socials.map((s, i) => {
+                  const isLeft = i % 2 === 0
+                  const lastRowStart = socials.length - (socials.length % 2 === 0 ? 2 : 1)
+                  const isLastRow = i >= lastRowStart
+                  return (
+                    <li
+                      key={s.key}
+                      className={cn(
+                        'flex items-center justify-between gap-2 bg-white px-2.5 py-2 dark:bg-white/2',
+                        isLeft && 'border-r border-slate-100 dark:border-white/5',
+                        !isLastRow && 'border-b border-slate-100 dark:border-white/5'
+                      )}
+                    >
+                      <span className="inline-flex min-w-0 items-center gap-2">
+                        <SocialClickChip stat={s} showCount={false} />
+                        <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+                          {s.label}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 text-sm font-black text-slate-900 tabular-nums dark:text-white">
-                      {s.clickCount.toLocaleString()}
-                    </span>
-                  </li>
-                ))
+                      <span className="shrink-0 text-sm font-black text-slate-900 tabular-nums dark:text-white">
+                        {s.clickCount.toLocaleString()}
+                      </span>
+                    </li>
+                  )
+                })
               ) : (
-                <li className="px-3.5 py-3 text-xs font-semibold text-slate-400">No social links on this card.</li>
+                <li className="col-span-2 px-2.5 py-3 text-xs font-semibold text-slate-400">
+                  No social links on this card.
+                </li>
               )}
             </ul>
           </Section>
@@ -331,7 +371,12 @@ export function VCardDetailSidebar({
               <button
                 type="button"
                 onClick={handleEdit}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2.5 text-xs font-black text-white uppercase"
+                disabled={ownerLocked}
+                title={ownerLocked ? SUSPENDED_CARD_MESSAGE : 'Edit card'}
+                className={cn(
+                  'inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-black text-white uppercase',
+                  ownerLocked ? 'cursor-not-allowed bg-indigo-400 opacity-60' : 'bg-indigo-600'
+                )}
               >
                 <Edit2 className="h-3.5 w-3.5" /> Edit
               </button>
@@ -346,15 +391,25 @@ export function VCardDetailSidebar({
               {onDuplicate && (
                 <button
                   type="button"
-                  disabled={!canDuplicate}
-                  title={canDuplicate ? 'Duplicate this card' : duplicateDisabledReason}
+                  disabled={!canDuplicate || ownerLocked}
+                  title={
+                    ownerLocked
+                      ? SUSPENDED_CARD_MESSAGE
+                      : canDuplicate
+                        ? 'Duplicate this card'
+                        : duplicateDisabledReason
+                  }
                   onClick={() => {
+                    if (ownerLocked) {
+                      setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+                      return
+                    }
                     if (canDuplicate) onDuplicate(card)
                     else setAlertState({ title: 'Cannot duplicate', description: duplicateDisabledReason })
                   }}
                   className={cn(
                     'inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200',
-                    !canDuplicate && 'cursor-not-allowed opacity-60'
+                    (!canDuplicate || ownerLocked) && 'cursor-not-allowed opacity-60'
                   )}
                 >
                   <Copy className="h-3.5 w-3.5" /> Duplicate
@@ -363,11 +418,16 @@ export function VCardDetailSidebar({
               {onToggleStatus && (
                 <button
                   type="button"
+                  disabled={ownerLocked || pausedByAdmin}
+                  title={ownerLocked ? SUSPENDED_CARD_MESSAGE : pausedByAdmin ? PAUSED_CARD_MESSAGE : undefined}
                   onClick={handlePauseToggle}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200"
+                  className={cn(
+                    'inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200',
+                    (ownerLocked || pausedByAdmin) && 'cursor-not-allowed opacity-60'
+                  )}
                 >
                   <Shield className="h-3.5 w-3.5" />
-                  {status === 'active' ? 'Move to draft' : 'Activate'}
+                  {status === 'active' ? 'Deactivate' : 'Activate'}
                 </button>
               )}
             </div>

@@ -6,10 +6,9 @@ import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
 import { CardLifecycleTabs, type CardLifecycleTab } from '@/components/dashboard/vcard/CardLifecycleTabs'
 import { PromptModal } from '@/components/PromptModal'
-import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
+import { StatNumber } from '@/components/ui/StatNumber'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppSelector } from '@/hooks/redux'
-import { useLastGoodData } from '@/hooks/useLastGoodData'
 import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
@@ -64,9 +63,8 @@ export default function AdminMyCards() {
   const ownerId = reduxUser?.id || user?.uid
   const router = useRouter()
   const { createCorporateCard, setCurrentEditingCardId, deleteCorporateCard } = useVCard()
-  const { data: createdProfilesResult } = useGetProfilesQuery({ scope: 'created', limit: 100 })
-  const { data: statsRaw } = useGetDashboardStatsQuery({ period: 'all', scope: 'created' })
-  const stats = useLastGoodData(statsRaw)
+  const { data: createdProfilesResult, isLoading: cardsLoading } = useGetProfilesQuery({ scope: 'created', limit: 100 })
+  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period: 'all', scope: 'created' })
 
   const [panelCard, setPanelCard] = useState<AdminCard | null>(null)
   const [trendsCard, setTrendsCard] = useState<AdminCard | null>(null)
@@ -77,41 +75,12 @@ export default function AdminMyCards() {
   const [lifecycleTab, setLifecycleTab] = useState<CardLifecycleTab>('active')
 
   const createdProfiles = useMemo(() => createdProfilesResult?.items ?? [], [createdProfilesResult?.items])
+  const showListSkeleton = cardsLoading && createdProfiles.length === 0
 
   const openQrModal = (url: string, name?: string) => {
     setSelectedVCardUrl(url)
     setQrModalTitle(name ? `${name} · QR` : 'vCard QR Code')
     setIsQrModalOpen(true)
-  }
-
-  const handleEmailCard = (card: AdminCard) => {
-    const email = card.personal?.email
-    if (!email) {
-      notify.info('No email on this card.')
-      return
-    }
-    window.open(`mailto:${email}`, '_blank')
-  }
-
-  const handleCallCard = (card: AdminCard) => {
-    const phone = card.personal?.phone || card.personal?.whatsapp
-    if (!phone) {
-      notify.info('No phone on this card.')
-      return
-    }
-    window.open(`tel:${String(phone).replace(/\s/g, '')}`, '_self')
-  }
-
-  const handleScheduleCard = (card: AdminCard) => {
-    const name = card.personal?.fullName || 'Contact'
-    const title = encodeURIComponent(`Meeting with ${name}`)
-    const details = encodeURIComponent(
-      `vBiz card: ${typeof window !== 'undefined' ? window.location.origin : ''}/v/${card.slug || ''}`
-    )
-    window.open(
-      `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}`,
-      '_blank'
-    )
   }
 
   const myCards = useMemo(() => {
@@ -193,48 +162,63 @@ export default function AdminMyCards() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">My cards</p>
-          <AnimatedNumber
+          <StatNumber
             value={stats?.cards ?? myCards.length}
+            loading={statsLoading && !stats}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+            skeletonClassName="mt-2 h-9 w-20"
           />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
             <Eye className="h-3.5 w-3.5" /> Total views
           </p>
-          <AnimatedNumber
-            value={stats?.totalViews ?? 0}
+          <StatNumber
+            value={stats?.totalViews}
+            loading={statsLoading && !stats}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+            skeletonClassName="mt-2 h-9 w-20"
           />
-          <p className="mt-1 text-[10px] font-bold text-slate-400">
-            Unique <AnimatedNumber value={stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0} />
-          </p>
+          <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-400">
+            Unique{' '}
+            <StatNumber
+              value={stats?.uniqueViews ?? stats?.viewsLast30Days}
+              loading={statsLoading && !stats}
+              skeletonClassName="h-3 w-8"
+            />
+          </div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
             <Share2 className="h-3.5 w-3.5" /> Shares
           </p>
-          <AnimatedNumber
-            value={stats?.shares ?? 0}
+          <StatNumber
+            value={stats?.shares}
+            loading={statsLoading && !stats}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+            skeletonClassName="mt-2 h-9 w-20"
           />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
             <Save className="h-3.5 w-3.5" /> Contact saves
           </p>
-          <AnimatedNumber
-            value={stats?.contactsLast30Days ?? 0}
+          <StatNumber
+            value={stats?.contactsLast30Days}
+            loading={statsLoading && !stats}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+            skeletonClassName="mt-2 h-9 w-20"
           />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
             <Share2 className="h-3.5 w-3.5" /> Social clicks
           </p>
-          <AnimatedNumber
-            value={socialTotal}
+          <StatNumber
+            value={stats ? socialTotal : undefined}
+            loading={statsLoading && !stats}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
+            skeletonClassName="mt-2 h-9 w-20"
           />
         </div>
       </div>
@@ -257,16 +241,22 @@ export default function AdminMyCards() {
               >
                 <Icon className={cn('mb-2 h-4 w-4', ui.tone)} />
                 <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{row.label}</p>
-                <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">
-                  <AnimatedNumber value={row.count || 0} />
-                </p>
+                <div className="mt-1 text-xl font-black text-slate-900 dark:text-white">
+                  <StatNumber
+                    value={stats ? row.count || 0 : undefined}
+                    loading={statsLoading && !stats}
+                    skeletonClassName="h-6 w-12"
+                  />
+                </div>
               </div>
             )
           })}
         </div>
       </div>
 
-      {myCards.length > 0 && <VCardWeeklyEngagement vCardsList={myCards} aggregateAll scope="created" />}
+      {(showListSkeleton || myCards.length > 0) && (
+        <VCardWeeklyEngagement vCardsList={myCards} aggregateAll scope="created" listLoading={showListSkeleton} />
+      )}
 
       <div>
         <div className="mb-4 flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
@@ -279,7 +269,7 @@ export default function AdminMyCards() {
               draftCount={draftCount}
             />
           </div>
-          <CreateCardLauncher>
+          <CreateCardLauncher portfolioOwnerAssignment>
             {(open) => (
               <button
                 type="button"
@@ -296,33 +286,13 @@ export default function AdminMyCards() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <CreateCardLauncher>
-            {(open) => (
-              <button
-                type="button"
-                onClick={() => {
-                  handleCreate()
-                  open()
-                }}
-                className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
-              >
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
-                  <Plus className="h-6 w-6" strokeWidth={2.5} />
-                </div>
-                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
-                <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                  Add a team member card to your admin portfolio.
-                </p>
-              </button>
-            )}
-          </CreateCardLauncher>
-
-          {myCards.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
-              <p className="mb-4 text-sm font-semibold text-slate-500">
-                No admin portfolio cards yet. Create a team member card to get started.
-              </p>
-              <CreateCardLauncher>
+          {showListSkeleton ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="min-h-87.5 animate-pulse rounded-[28px] bg-slate-100 dark:bg-white/5" />
+            ))
+          ) : (
+            <>
+              <CreateCardLauncher portfolioOwnerAssignment>
                 {(open) => (
                   <button
                     type="button"
@@ -330,65 +300,92 @@ export default function AdminMyCards() {
                       handleCreate()
                       open()
                     }}
-                    className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white uppercase"
+                    className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
                   >
-                    Create first card
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
+                      <Plus className="h-6 w-6" strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
+                    <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                      Add a card for yourself or a team member to your admin portfolio.
+                    </p>
                   </button>
                 )}
               </CreateCardLauncher>
-            </div>
-          ) : visibleCards.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
-              <p className="text-sm font-semibold text-slate-500">
-                {lifecycleTab === 'draft' ? 'No draft cards in your portfolio.' : 'No active cards yet — check Draft.'}
-              </p>
-            </div>
-          ) : (
-            visibleCards.map((card) => {
-              const contactSaves = Number(card.saveCount || 0)
-              const badge = resolveMyCardsBadge(card)
 
-              return (
-                <VCardTeamCard
-                  key={card.id}
-                  card={card}
-                  badgeLabel={badge.label}
-                  badgeTone={badge.tone}
-                  contactSaves={contactSaves}
-                  showDragHandle={false}
-                  showNotice
-                  onNotice={() => setNoticeCardId(card.id || null)}
-                  onCardClick={() => setPanelCard(card)}
-                  onTrends={() => setTrendsCard(card)}
-                  onEmail={() => handleEmailCard(card)}
-                  onCall={() => handleCallCard(card)}
-                  onSchedule={() => handleScheduleCard(card)}
-                  onEdit={() => {
-                    setCurrentEditingCardId(card.id || null)
-                    router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
-                  }}
-                  onSettings={() => {
-                    setCurrentEditingCardId(card.id || null)
-                    router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
-                  }}
-                  onView={() => window.open(`/v/${card.slug || 'profile'}`, '_blank')}
-                  onPanel={() => setPanelCard(card)}
-                  onQr={() =>
-                    openQrModal(
-                      `${window.location.origin}/v/${card.slug || 'profile'}`,
-                      String((card.personal as { fullName?: string })?.fullName || '')
-                    )
-                  }
-                  onDuplicate={() => void handleDuplicate(card)}
-                  onDeleted={async (id) => {
-                    await deleteCorporateCard(id)
-                    if (panelCard?.id === id) setPanelCard(null)
-                    if (trendsCard?.id === id) setTrendsCard(null)
-                    notify.info('Card deleted successfully.')
-                  }}
-                />
-              )
-            })
+              {myCards.length === 0 ? (
+                <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
+                  <p className="mb-4 text-sm font-semibold text-slate-500">
+                    No admin portfolio cards yet. Create a card for yourself or a team member to get started.
+                  </p>
+                  <CreateCardLauncher portfolioOwnerAssignment>
+                    {(open) => (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCreate()
+                          open()
+                        }}
+                        className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white uppercase"
+                      >
+                        Create first card
+                      </button>
+                    )}
+                  </CreateCardLauncher>
+                </div>
+              ) : visibleCards.length === 0 ? (
+                <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
+                  <p className="text-sm font-semibold text-slate-500">
+                    {lifecycleTab === 'draft'
+                      ? 'No draft cards in your portfolio.'
+                      : 'No active cards yet — check Draft.'}
+                  </p>
+                </div>
+              ) : (
+                visibleCards.map((card) => {
+                  const contactSaves = Number(card.saveCount || 0)
+                  const badge = resolveMyCardsBadge(card)
+
+                  return (
+                    <VCardTeamCard
+                      key={card.id}
+                      card={card}
+                      badgeLabel={badge.label}
+                      badgeTone={badge.tone}
+                      contactSaves={contactSaves}
+                      showDragHandle={false}
+                      showNotice
+                      onNotice={() => setNoticeCardId(card.id || null)}
+                      onCardClick={() => setPanelCard(card)}
+                      onTrends={() => setTrendsCard(card)}
+                      onEdit={() => {
+                        setCurrentEditingCardId(card.id || null)
+                        router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
+                      }}
+                      onSettings={() => {
+                        setCurrentEditingCardId(card.id || null)
+                        router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
+                      }}
+                      onView={() => window.open(`/v/${card.slug || 'profile'}`, '_blank')}
+                      onPanel={() => setPanelCard(card)}
+                      onQr={() =>
+                        openQrModal(
+                          `${window.location.origin}/v/${card.slug || 'profile'}`,
+                          String((card.personal as { fullName?: string })?.fullName || '')
+                        )
+                      }
+                      onDuplicate={() => void handleDuplicate(card)}
+                      onDeleted={async (id) => {
+                        await deleteCorporateCard(id)
+                        if (panelCard?.id === id) setPanelCard(null)
+                        if (trendsCard?.id === id) setTrendsCard(null)
+                        notify.info('Card deleted successfully.')
+                      }}
+                    />
+                  )
+                })
+              )}
+            </>
           )}
         </div>
       </div>
@@ -397,9 +394,6 @@ export default function AdminMyCards() {
         card={panelCard}
         mode="admin"
         onClose={() => setPanelCard(null)}
-        onEmail={handleEmailCard}
-        onCall={handleCallCard}
-        onSchedule={handleScheduleCard}
         onDuplicate={handleDuplicate}
       />
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />

@@ -56,6 +56,14 @@ export type AdminProfileFilterOptions = {
   professions: { id: string; name: string }[]
 }
 
+export type PortfolioMemberRow = {
+  id: string
+  name: string | null
+  email: string
+  role: string
+  staffRole: string | null
+}
+
 export type AdminProfilesListQuery = {
   q?: string
   status?: string
@@ -118,6 +126,11 @@ const adminProfilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<AdminProfileFilterOptions>) => res.data,
       providesTags: [{ type: 'adminProfiles', id: 'FILTERS' }],
     }),
+    getPortfolioMembers: builder.query<PortfolioMemberRow[], void>({
+      query: () => '/admin/portfolio-members',
+      transformResponse: (res: Envelope<PortfolioMemberRow[]>) => res.data,
+      providesTags: [{ type: 'adminTeam', id: 'PORTFOLIO' }],
+    }),
   }),
 })
 
@@ -152,7 +165,11 @@ export function selectAuthToken(state: RootState): string | undefined {
   return state.user?.token || undefined
 }
 
-export const { useGetAdminProfilesQuery, useLazyGetAdminProfilesQuery, useGetAdminProfileFiltersQuery } =
-  adminProfilesApi
+export const {
+  useGetAdminProfilesQuery,
+  useLazyGetAdminProfilesQuery,
+  useGetAdminProfileFiltersQuery,
+  useGetPortfolioMembersQuery,
+} = adminProfilesApi
 
 export default adminProfilesApi

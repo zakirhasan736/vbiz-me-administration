@@ -1,6 +1,7 @@
 'use client'
 
-import { CORPORATE_CARD_ORDER_KEY, applyCardOrder, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
+import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
+import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
 import {
   mapApiProfileToVCardRecord,
@@ -13,7 +14,7 @@ import type { VCardRecord } from '@/types/vcard'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export type CorporateSortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc'
-export type CorporateStatusFilter = 'all' | 'active' | 'inactive' | 'suspended' | 'draft'
+export type CorporateStatusFilter = 'all' | 'active' | 'inactive' | 'paused' | 'suspended' | 'draft'
 
 function sortToApi(sort: CorporateSortOption): {
   sortBy: 'createdAt' | 'updatedAt' | 'name' | 'viewCount'
@@ -83,10 +84,10 @@ export function useCorporateDirectory(filters: {
     let list = orderedCards
     if (lifecycleTab === 'active') list = list.filter((c) => !c.isDraft)
     if (lifecycleTab === 'draft') list = list.filter((c) => c.isDraft)
-    if (filters.statusFilter === 'active') list = list.filter((c) => c.isActive)
-    if (filters.statusFilter === 'inactive' || filters.statusFilter === 'suspended') {
-      list = list.filter((c) => !c.isActive && !c.isDraft)
-    }
+    if (filters.statusFilter === 'active') list = list.filter((c) => c.status === 'active' || c.isActive)
+    if (filters.statusFilter === 'inactive') list = list.filter((c) => c.status === 'inactive')
+    if (filters.statusFilter === 'paused') list = list.filter((c) => c.status === 'paused')
+    if (filters.statusFilter === 'suspended') list = list.filter((c) => c.status === 'suspended')
     return list
   }, [orderedCards, lifecycleTab, filters.statusFilter])
 
@@ -104,6 +105,10 @@ export function useCorporateDirectory(filters: {
   const duplicateCard = useCallback(
     async (card: VCardRecord) => {
       if (!canCreate) return false
+      if (isOwnerCardLocked(card.status)) {
+        notify.error(SUSPENDED_CARD_MESSAGE)
+        return false
+      }
       const suffix = Math.floor(1000 + Math.random() * 9000)
       const payload = mapVCardDataToProfilePayload(card)
       try {
@@ -134,7 +139,7 @@ export function useCorporateDirectory(filters: {
           ids.map((id) =>
             updateProfileCard({
               id,
-              body: active ? { isDraft: false, isPublic: true } : { isDraft: true, isPublic: false },
+              body: active ? { isDraft: false, isPublic: true, status: 'active' } : { isDraft: true, isPublic: false },
             }).unwrap()
           )
         )

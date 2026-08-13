@@ -24,9 +24,10 @@ function isFiniteNumber(value: unknown): value is number {
  */
 export function useAnimatedNumber(value: number | null | undefined, options?: { durationMs?: number }): number {
   const durationMs = options?.durationMs ?? DEFAULT_DURATION_MS
-  const [display, setDisplay] = useState(0)
-  const displayRef = useRef(0)
-  const hasValueRef = useRef(false)
+  const initial = isFiniteNumber(value) ? value : 0
+  const [display, setDisplay] = useState(initial)
+  const displayRef = useRef(initial)
+  const hasValueRef = useRef(isFiniteNumber(value))
   const frameRef = useRef<number | null>(null)
 
   useEffect(() => {

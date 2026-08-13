@@ -4,6 +4,7 @@ import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { Badge, Button, Card, Tooltip } from '@/components/ui'
 import { useAppDispatch } from '@/hooks/redux'
+import { isOwnerCardLocked, resolveCardStatus, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
 import { useDeleteProfileMutation } from '@/redux/features/profiles/profiles.api'
 import { removeVCard } from '@/redux/features/vcards/vcards.slice'
@@ -45,6 +46,13 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
   const coverSrc = card.backgroundImageUrl?.trim() || null
   const coverIsVideo = coverSrc ? isVideoMediaUrl(coverSrc) : false
   const cardName = card.personal.fullName || 'this vCard'
+  const status = resolveCardStatus({
+    status: card.status,
+    isDraft: card.isDraft,
+    isPublic: card.isPublic,
+    isActive: card.isActive,
+  })
+  const ownerLocked = isOwnerCardLocked(status)
 
   const handleCopyLink = async () => {
     if (!fullUrl) return
@@ -164,10 +172,26 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
             className="rounded-full border border-black/5 bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/90"
           >
             <div
-              className={`h-1.5 w-1.5 rounded-full shadow-[0_0_8px_0_rgba(16,185,129,0.5)] ${card.isDraft ? 'bg-amber-500' : card.isActive ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'}`}
+              className={`h-1.5 w-1.5 rounded-full shadow-[0_0_8px_0_rgba(16,185,129,0.5)] ${
+                status === 'draft' || status === 'paused'
+                  ? 'bg-amber-500'
+                  : status === 'active'
+                    ? 'animate-pulse bg-emerald-500'
+                    : status === 'suspended'
+                      ? 'bg-rose-500'
+                      : 'bg-slate-400'
+              }`}
             ></div>
             <span className="mt-0.5 text-[10px] font-bold tracking-widest text-slate-700 uppercase dark:text-slate-300">
-              {card.isDraft ? 'Draft' : card.isActive ? 'Active' : 'Inactive'}
+              {status === 'draft'
+                ? 'Draft'
+                : status === 'active'
+                  ? 'Active'
+                  : status === 'paused'
+                    ? 'Paused'
+                    : status === 'suspended'
+                      ? 'Suspended'
+                      : 'Inactive'}
             </span>
           </Badge>
         </div>
@@ -299,12 +323,23 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
         </div>
 
         <div className="mt-auto grid grid-cols-[1fr_1fr_auto] gap-2">
-          <Link
-            href={buildEditorSectionPath('/vcards/edit', 'home', card.id)}
-            className="hover:border-primary-500/50 hover:bg-primary-50 dark:hover:bg-primary-500/10 flex items-center justify-center rounded-xl border-2 border-slate-200 bg-transparent py-2.5 text-[13px] font-bold text-slate-700 shadow-sm transition-all dark:border-white/10 dark:text-slate-300"
-          >
-            Edit
-          </Link>
+          {ownerLocked ? (
+            <button
+              type="button"
+              disabled
+              title={SUSPENDED_CARD_MESSAGE}
+              className="flex cursor-not-allowed items-center justify-center rounded-xl border-2 border-slate-200 bg-transparent py-2.5 text-[13px] font-bold text-slate-400 opacity-60 dark:border-white/10"
+            >
+              Edit
+            </button>
+          ) : (
+            <Link
+              href={buildEditorSectionPath('/vcards/edit', 'home', card.id)}
+              className="hover:border-primary-500/50 hover:bg-primary-50 dark:hover:bg-primary-500/10 flex items-center justify-center rounded-xl border-2 border-slate-200 bg-transparent py-2.5 text-[13px] font-bold text-slate-700 shadow-sm transition-all dark:border-white/10 dark:text-slate-300"
+            >
+              Edit
+            </Link>
+          )}
           {slug ? (
             <Link
               href={publicPath}

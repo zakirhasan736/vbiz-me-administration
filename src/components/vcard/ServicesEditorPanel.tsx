@@ -269,12 +269,22 @@ export function ServicesEditorPanel({
                     <div className="relative flex items-center justify-center">
                       <input
                         type="checkbox"
+                        role="switch"
+                        aria-checked={service.active}
                         checked={service.active}
                         onChange={(e) => updateService(service.id, 'active', e.target.checked)}
-                        className="peer sr-only"
+                        className="sr-only"
                       />
-                      <div className="relative h-5.5 w-9.5 rounded-xl bg-slate-200 shadow-inner transition-colors peer-checked:bg-green-500 dark:bg-white/10">
-                        <div className="absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform peer-checked:translate-x-4" />
+                      <div
+                        className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
+                          service.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
+                            service.active ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
                       </div>
                     </div>
                     <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">

@@ -16,6 +16,8 @@ type Props = {
   onDuplicate: () => void
   duplicateDisabled?: boolean
   duplicateTitle?: string
+  editDisabled?: boolean
+  editTitle?: string
   className?: string
 }
 
@@ -36,6 +38,8 @@ export function VCardCardActions({
   onDuplicate,
   duplicateDisabled,
   duplicateTitle = 'Duplicate',
+  editDisabled,
+  editTitle = 'Edit card',
   className,
 }: Props) {
   const stop = (e: MouseEvent, fn: () => void) => {
@@ -91,9 +95,19 @@ export function VCardCardActions({
       <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
-          onClick={(e) => stop(e, onEdit)}
-          className="inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-600 py-1.5 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700"
-          title="Edit card"
+          onClick={(e) => {
+            if (editDisabled) {
+              e.stopPropagation()
+              return
+            }
+            stop(e, onEdit)
+          }}
+          disabled={editDisabled}
+          title={editTitle}
+          className={cn(
+            'inline-flex items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-black tracking-wider text-white uppercase',
+            editDisabled ? 'cursor-not-allowed bg-indigo-400 opacity-60' : 'bg-indigo-600 hover:bg-indigo-700'
+          )}
         >
           <Edit2 className="h-3 w-3" /> Edit
         </button>

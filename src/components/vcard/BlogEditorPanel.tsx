@@ -55,7 +55,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
   }
 
   return (
-    <div className="animate-in fade-in mx-auto flex h-full w-full max-w-3xl flex-col space-y-6 pb-12 duration-500">
+    <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col space-y-6 pb-12 duration-500">
       <div data-tour-id="tour-editor-panel-blog">
         <h2 className="text-xl font-black text-slate-900 dark:text-white">News / Blogs</h2>
         <p className="mt-1 text-sm font-semibold text-slate-500">

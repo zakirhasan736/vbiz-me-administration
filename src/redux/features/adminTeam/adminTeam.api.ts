@@ -46,6 +46,7 @@ const adminTeamApi = api.injectEndpoints({
           ? [
               ...result.map((m) => ({ type: 'adminTeam' as const, id: m.id })),
               { type: 'adminTeam' as const, id: 'LIST' },
+              { type: 'adminTeam' as const, id: 'PORTFOLIO' },
             ]
           : [{ type: 'adminTeam', id: 'LIST' }],
     }),
@@ -56,7 +57,10 @@ const adminTeamApi = api.injectEndpoints({
         body,
       }),
       transformResponse: (res: Envelope<AdminTeamMemberRow>) => res.data,
-      invalidatesTags: [{ type: 'adminTeam', id: 'LIST' }],
+      invalidatesTags: [
+        { type: 'adminTeam', id: 'LIST' },
+        { type: 'adminTeam', id: 'PORTFOLIO' },
+      ],
     }),
     updateAdminTeamMember: builder.mutation<AdminTeamMemberRow, { id: string; body: UpdateAdminTeamBody }>({
       query: ({ id, body }) => ({
@@ -68,6 +72,7 @@ const adminTeamApi = api.injectEndpoints({
       invalidatesTags: (_r, _e, arg) => [
         { type: 'adminTeam', id: arg.id },
         { type: 'adminTeam', id: 'LIST' },
+        { type: 'adminTeam', id: 'PORTFOLIO' },
       ],
     }),
     setAdminTeamStatus: builder.mutation<AdminTeamMemberRow, { id: string; isActive: boolean }>({
@@ -80,6 +85,7 @@ const adminTeamApi = api.injectEndpoints({
       invalidatesTags: (_r, _e, arg) => [
         { type: 'adminTeam', id: arg.id },
         { type: 'adminTeam', id: 'LIST' },
+        { type: 'adminTeam', id: 'PORTFOLIO' },
       ],
     }),
     removeAdminTeamMember: builder.mutation<null, string>({
@@ -88,7 +94,10 @@ const adminTeamApi = api.injectEndpoints({
         method: 'DELETE',
       }),
       transformResponse: (res: Envelope<null>) => res.data,
-      invalidatesTags: [{ type: 'adminTeam', id: 'LIST' }],
+      invalidatesTags: [
+        { type: 'adminTeam', id: 'LIST' },
+        { type: 'adminTeam', id: 'PORTFOLIO' },
+      ],
     }),
   }),
 })

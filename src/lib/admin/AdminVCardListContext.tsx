@@ -93,6 +93,7 @@ export function AdminVCardListProvider({ children }: { children: React.ReactNode
         id,
         body: {
           ...(typeof updates.isPublic === 'boolean' ? { isPublic: updates.isPublic } : {}),
+          ...(typeof updates.status === 'string' ? { status: updates.status } : {}),
           ...(typeof updates.slug === 'string' ? { slug: updates.slug } : {}),
           ...(personal?.fullName ? { name: personal.fullName } : {}),
           ...(personal?.email ? { email: personal.email } : {}),

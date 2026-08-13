@@ -3,9 +3,10 @@ import { Calendar, Copy, Edit2, ExternalLink, Mail, PanelRight, Phone, QrCode } 
 import type { MouseEvent } from 'react'
 
 type Props = {
-  onEmail: () => void
-  onCall: () => void
-  onSchedule: () => void
+  /** Admin-only contact actions — omit for own card on My Cards. */
+  onEmail?: () => void
+  onCall?: () => void
+  onSchedule?: () => void
   onEdit: () => void
   onView: () => void
   onPanel: () => void
@@ -18,7 +19,7 @@ type Props = {
 
 /**
  * Card bottom actions — fixed order for corporate + admin lists:
- * 1) Email · Call · Schedule
+ * 1) Email · Call · Schedule (admin only)
  * 2) Edit · View · Panel
  * 3) QR Code · Duplicate (two columns)
  */
@@ -40,37 +41,51 @@ export default function VCardCardActions({
     fn()
   }
 
+  const showContactActions = Boolean(onEmail || onCall || onSchedule)
+
   return (
     <div className={cn('mt-auto shrink-0 space-y-1.5 border-t border-slate-100 pt-2 dark:border-white/5', className)}>
-      {/* Row 1 */}
-      <div className="grid grid-cols-3 gap-1.5">
-        <button
-          type="button"
-          onClick={(e) => stop(e, onEmail)}
-          className="inline-flex items-center justify-center gap-0.5 rounded-lg bg-indigo-50 py-1.5 text-[9px] font-black tracking-wider text-indigo-700 uppercase hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25"
-          title="Email"
-        >
-          <Mail className="h-3 w-3" /> Email
-        </button>
-        <button
-          type="button"
-          onClick={(e) => stop(e, onCall)}
-          className="inline-flex items-center justify-center gap-0.5 rounded-lg bg-emerald-50 py-1.5 text-[9px] font-black tracking-wider text-emerald-700 uppercase hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
-          title="Call"
-        >
-          <Phone className="h-3 w-3" /> Call
-        </button>
-        <button
-          type="button"
-          onClick={(e) => stop(e, onSchedule)}
-          className="inline-flex items-center justify-center gap-0.5 rounded-lg bg-violet-50 py-1.5 text-[9px] font-black tracking-wider text-violet-700 uppercase hover:bg-violet-100 dark:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/25"
-          title="Schedule"
-        >
-          <Calendar className="h-3 w-3" /> Schedule
-        </button>
-      </div>
+      {showContactActions ? (
+        <div className="grid grid-cols-3 gap-1.5">
+          {onEmail ? (
+            <button
+              type="button"
+              onClick={(e) => stop(e, onEmail)}
+              className="inline-flex items-center justify-center gap-0.5 rounded-lg bg-indigo-50 py-1.5 text-[9px] font-black tracking-wider text-indigo-700 uppercase hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25"
+              title="Email"
+            >
+              <Mail className="h-3 w-3" /> Email
+            </button>
+          ) : (
+            <span />
+          )}
+          {onCall ? (
+            <button
+              type="button"
+              onClick={(e) => stop(e, onCall)}
+              className="inline-flex items-center justify-center gap-0.5 rounded-lg bg-emerald-50 py-1.5 text-[9px] font-black tracking-wider text-emerald-700 uppercase hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
+              title="Call"
+            >
+              <Phone className="h-3 w-3" /> Call
+            </button>
+          ) : (
+            <span />
+          )}
+          {onSchedule ? (
+            <button
+              type="button"
+              onClick={(e) => stop(e, onSchedule)}
+              className="inline-flex items-center justify-center gap-0.5 rounded-lg bg-violet-50 py-1.5 text-[9px] font-black tracking-wider text-violet-700 uppercase hover:bg-violet-100 dark:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/25"
+              title="Schedule"
+            >
+              <Calendar className="h-3 w-3" /> Schedule
+            </button>
+          ) : (
+            <span />
+          )}
+        </div>
+      ) : null}
 
-      {/* Row 2 */}
       <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
@@ -98,7 +113,6 @@ export default function VCardCardActions({
         </button>
       </div>
 
-      {/* Row 3: QR Code · Duplicate (two columns) */}
       <div className="grid grid-cols-2 gap-1.5">
         <button
           type="button"

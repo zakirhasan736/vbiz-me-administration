@@ -10,6 +10,8 @@ type VCardOverflowMenuProps = {
   onDelete: () => void
   onSettings?: () => void
   isDeleting?: boolean
+  actionsDisabled?: boolean
+  actionsDisabledReason?: string
   cardRef: React.RefObject<HTMLElement | null>
 }
 
@@ -19,6 +21,8 @@ export function VCardOverflowMenu({
   onDelete,
   onSettings,
   isDeleting,
+  actionsDisabled,
+  actionsDisabledReason,
   cardRef,
 }: VCardOverflowMenuProps) {
   const menuId = useId()
@@ -91,9 +95,11 @@ export function VCardOverflowMenu({
           <button
             type="button"
             role="menuitem"
-            disabled={isDeleting}
+            disabled={isDeleting || actionsDisabled}
+            title={actionsDisabled ? actionsDisabledReason : undefined}
             onClick={(e) => {
               e.stopPropagation()
+              if (actionsDisabled) return
               onOpenChange(false)
               onDelete()
             }}
@@ -108,10 +114,13 @@ export function VCardOverflowMenu({
               role="menuitem"
               onClick={(e) => {
                 e.stopPropagation()
+                if (actionsDisabled) return
                 onOpenChange(false)
                 onSettings()
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none dark:text-slate-200 dark:hover:bg-white/5 dark:focus:bg-white/5"
+              disabled={actionsDisabled}
+              title={actionsDisabled ? actionsDisabledReason : undefined}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none disabled:opacity-50 dark:text-slate-200 dark:hover:bg-white/5 dark:focus:bg-white/5"
             >
               <Settings className="h-3.5 w-3.5" aria-hidden />
               Settings

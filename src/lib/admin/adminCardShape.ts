@@ -1,3 +1,4 @@
+import { resolveCardStatus } from '@/lib/cardStatus'
 import type { VCardRecord } from '@/types/vcard'
 
 /** Backoffice-compatible card shape used by admin directory UI. */
@@ -52,7 +53,12 @@ export function toAdminCardShape(
     companyUserRole: extras?.companyUserRole ?? null,
     createdById: extras?.createdById ?? null,
     createdByRole: extras?.createdByRole ?? null,
-    status: record.isDraft ? 'draft' : record.isActive ? 'active' : 'inactive',
+    status: resolveCardStatus({
+      status: record.status,
+      isDraft: record.isDraft,
+      isPublic: record.isPublic,
+      isActive: record.isActive,
+    }),
     isPublic: record.isPublic,
     isDraft: Boolean(record.isDraft),
     personal: record.personal as unknown as Record<string, unknown>,

@@ -1,7 +1,7 @@
 'use client'
 
-import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
-import { useLastGoodData } from '@/hooks/useLastGoodData'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { StatNumber } from '@/components/ui/StatNumber'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
 import { useGetWeeklyEngagementQuery } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
@@ -62,6 +62,8 @@ interface VCardWeeklyEngagementProps {
   embedded?: boolean
   /** Scope weekly API to cards created by the current user (admin My Cards) */
   scope?: 'created'
+  /** Parent list is still loading — keep the visualizer chrome and skeleton numbers */
+  listLoading?: boolean
 }
 
 export function VCardWeeklyEngagement({
@@ -71,6 +73,7 @@ export function VCardWeeklyEngagement({
   aggregateAll = false,
   embedded = false,
   scope,
+  listLoading = false,
 }: VCardWeeklyEngagementProps) {
   const [chartType, setChartType] = useState<'area' | 'trend'>('area')
   const [selectedCardId, setSelectedCardId] = useState<string>(() => {
@@ -87,15 +90,15 @@ export function VCardWeeklyEngagement({
     return { profileId: id, ...(scope ? { scope } : {}) }
   }, [aggregateAll, scope, hideCardSelector, defaultSelectedId, selectedCardId, vCardsList])
 
-  const { data: weeklyRaw, isLoading: weeklyLoading } = useGetWeeklyEngagementQuery(weeklyQueryArgs, {
+  const { data: weekly, isLoading: weeklyLoading } = useGetWeeklyEngagementQuery(weeklyQueryArgs, {
     skip: !aggregateAll && !(weeklyQueryArgs && 'profileId' in weeklyQueryArgs && weeklyQueryArgs.profileId),
   })
-  const weekly = useLastGoodData(weeklyRaw)
+  const isWeeklyPending = weeklyLoading && !weekly
 
   /** Metadata card for scope badge / status / department — chart uses API weekly data. */
   const activeCard = useMemo((): EngagementCard | null => {
     if (aggregateAll) {
-      if (!vCardsList.length) return null
+      if (!vCardsList.length && !listLoading) return null
       const anyActive = vCardsList.some((c) => c.status === 'active')
       const departments = [
         ...new Set(
@@ -107,7 +110,7 @@ export function VCardWeeklyEngagement({
         id: '__all__',
         personal: {
           fullName: isMyCards ? 'My cards' : 'All directory cards',
-          designation: `${vCardsList.length} profiles`,
+          designation: listLoading && !vCardsList.length ? undefined : `${vCardsList.length} profiles`,
           department: departments.length === 1 ? departments[0] : departments.length > 1 ? 'Multiple' : undefined,
         },
         theme: asEngagementTheme(vCardsList[0]?.theme),
@@ -121,7 +124,7 @@ export function VCardWeeklyEngagement({
     const card = vCardsList.find((c) => c.id === selectedCardId)
     const resolved = card || vCardsList[0] || null
     return resolved ? toEngagementCard(resolved) : null
-  }, [vCardsList, selectedCardId, hideCardSelector, defaultSelectedId, aggregateAll, scope])
+  }, [vCardsList, selectedCardId, hideCardSelector, defaultSelectedId, aggregateAll, scope, listLoading])
 
   const weeklyDays = useMemo(() => weekly?.days ?? [], [weekly?.days])
   const totals = weekly?.totals ?? { views: 0, clicks: 0, avgCtr: 0 }
@@ -199,12 +202,14 @@ export function VCardWeeklyEngagement({
             <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
               {aggregateAll ? 'Scope' : 'Current card'}
             </span>
-            <span className="text-xs font-extrabold text-slate-800 dark:text-white">
+            <div className="text-xs font-extrabold text-slate-800 dark:text-white">
               {activeCard.personal?.fullName || 'My vCard'}
               {activeCard.personal?.designation ? (
                 <span className="font-semibold text-slate-400"> · {activeCard.personal.designation}</span>
+              ) : listLoading ? (
+                <Skeleton className="ml-2 inline-block h-3 w-20 align-middle" />
               ) : null}
-            </span>
+            </div>
           </div>
         ) : (
           <div className="flex shrink-0 items-center gap-3">
@@ -233,275 +238,281 @@ export function VCardWeeklyEngagement({
         )}
       </div>
 
-      {weeklyLoading && !weekly ? (
-        <div className="z-10 rounded-2xl border border-dashed border-slate-200/80 py-12 text-center text-sm font-semibold text-slate-400 dark:border-white/10">
-          Loading weekly engagement…
+      {/* Highlights Metrics Panel */}
+      <div className="z-10 my-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 dark:border-white/5 dark:bg-[#0b0f19]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
+            <Eye className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Weekly Views</span>
+            <span className="mt-0.5 block text-xl font-black text-slate-900 dark:text-white">
+              <StatNumber value={weekly?.totals.views} loading={isWeeklyPending} skeletonClassName="mt-0.5 h-6 w-14" />
+            </span>
+          </div>
         </div>
-      ) : (
-        <>
-          {/* Highlights Metrics Panel */}
-          <div className="z-10 my-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 dark:border-white/5 dark:bg-[#0b0f19]">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
-                <Eye className="h-5 w-5" />
-              </div>
-              <div>
-                <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">
-                  Weekly Views
-                </span>
-                <span className="mt-0.5 block text-xl font-black text-slate-900 dark:text-white">
-                  <AnimatedNumber value={totals.views} />
-                </span>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 dark:border-white/5 dark:bg-[#0b0f19]">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-                <MousePointer className="h-5 w-5" />
-              </div>
-              <div>
-                <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">
-                  Weekly Clicks
-                </span>
-                <span className="mt-0.5 block text-xl font-black text-slate-900 dark:text-white">
-                  <AnimatedNumber value={totals.clicks} />
-                </span>
-              </div>
-            </div>
+        <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 dark:border-white/5 dark:bg-[#0b0f19]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+            <MousePointer className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Weekly Clicks</span>
+            <span className="mt-0.5 block text-xl font-black text-slate-900 dark:text-white">
+              <StatNumber value={weekly?.totals.clicks} loading={isWeeklyPending} skeletonClassName="mt-0.5 h-6 w-14" />
+            </span>
+          </div>
+        </div>
 
-            <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 dark:border-white/5 dark:bg-[#0b0f19]">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500">
-                <Percent className="h-5 w-5" />
-              </div>
-              <div>
-                <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">
-                  Avg. CTR Rate
-                </span>
-                <span className="mt-0.5 block text-xl font-black text-slate-900 dark:text-white">{avgCtr}%</span>
+        <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 dark:border-white/5 dark:bg-[#0b0f19]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500">
+            <Percent className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Avg. CTR Rate</span>
+            <div className="mt-0.5 block text-xl font-black text-slate-900 dark:text-white">
+              {isWeeklyPending ? <Skeleton className="mt-0.5 h-6 w-14" /> : `${avgCtr}%`}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Dual Charts Frame */}
+      <div className="z-10 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
+        {/* Recharts Container */}
+        <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 lg:col-span-8 dark:border-white/5 dark:bg-white/2">
+          <div className="mb-6 flex flex-col justify-between gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center">
+            <span>Last 7 days (by weekday)</span>
+            <div className="flex flex-wrap items-center gap-4">
+              {chartType === 'area' ? (
+                <>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded bg-indigo-500" style={{ backgroundColor: primaryColor }} />
+                    Profile Views
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded bg-emerald-500" />
+                    Link Clicks
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded bg-indigo-500" style={{ backgroundColor: primaryColor }} />
+                    Daily Traffic
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded bg-blue-500" />
+                    CTR (%)
+                  </span>
+                </>
+              )}
+
+              <div className="flex shrink-0 items-center rounded-xl border border-slate-200/50 bg-slate-100 p-1 dark:border-white/5 dark:bg-slate-900/60">
+                <button
+                  type="button"
+                  onClick={() => setChartType('area')}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-[10px] font-black tracking-wider uppercase transition-all',
+                    chartType === 'area'
+                      ? 'bg-white text-slate-900 shadow-xs dark:bg-white/10 dark:text-white'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  )}
+                >
+                  Volume Area
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartType('trend')}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-[10px] font-black tracking-wider uppercase transition-all',
+                    chartType === 'trend'
+                      ? 'bg-white text-slate-900 shadow-xs dark:bg-white/10 dark:text-white'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  )}
+                >
+                  CTR Trend Line
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Main Dual Charts Frame */}
-          <div className="z-10 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
-            {/* Recharts Container */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 lg:col-span-8 dark:border-white/5 dark:bg-white/2">
-              <div className="mb-6 flex flex-col justify-between gap-3 text-xs font-bold text-slate-500 sm:flex-row sm:items-center">
-                <span>Last 7 days (by weekday)</span>
-                <div className="flex flex-wrap items-center gap-4">
-                  {chartType === 'area' ? (
-                    <>
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded bg-indigo-500" style={{ backgroundColor: primaryColor }} />
-                        Profile Views
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded bg-emerald-500" />
-                        Link Clicks
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded bg-indigo-500" style={{ backgroundColor: primaryColor }} />
-                        Daily Traffic
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded bg-blue-500" />
-                        CTR (%)
-                      </span>
-                    </>
-                  )}
+          <div className="h-70 w-full">
+            {isWeeklyPending ? (
+              <Skeleton className="h-full w-full rounded-2xl" />
+            ) : chartType === 'area' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={weeklyDays} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="chartViewsGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={primaryColor} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="chartClicksGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.08)" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    stroke="#94a3b8"
+                    fontSize={11}
+                    fontWeight={600}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis stroke="#94a3b8" fontSize={11} fontWeight={600} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload
+                        return (
+                          <div className="min-w-45 rounded-2xl border border-slate-200 bg-slate-900/95 p-4 text-left text-xs text-white shadow-xl dark:border-white/10 dark:bg-[#0b0f19]/95">
+                            <p className="mb-1.5 font-black tracking-widest text-indigo-400 uppercase">
+                              {data.fullDay}
+                            </p>
+                            <div className="space-y-1">
+                              <div className="flex justify-between gap-4 font-bold">
+                                <span className="text-slate-300">Profile Views:</span>
+                                <span className="text-white">{data.views}</span>
+                              </div>
+                              <div className="flex justify-between gap-4 font-bold">
+                                <span className="text-slate-300">Link Clicks:</span>
+                                <span className="text-white">{data.clicks}</span>
+                              </div>
+                              <div className="flex justify-between gap-4 border-t border-slate-100 pt-1.5 text-[11px] font-extrabold">
+                                <span className="text-emerald-400">CTR Efficiency:</span>
+                                <span className="text-emerald-400">{data.ctr}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="views"
+                    name="Views"
+                    stroke={primaryColor}
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#chartViewsGrad)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="clicks"
+                    name="Clicks"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#chartClicksGrad)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={weeklyDays} margin={{ top: 10, right: -10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.08)" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    stroke="#94a3b8"
+                    fontSize={11}
+                    fontWeight={600}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    stroke={primaryColor}
+                    fontSize={11}
+                    fontWeight={600}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="#3b82f6"
+                    fontSize={11}
+                    fontWeight={600}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `${value}%`}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload
+                        return (
+                          <div className="min-w-45 rounded-2xl border border-slate-200 bg-slate-900/95 p-4 text-left text-xs text-white shadow-xl dark:border-white/10 dark:bg-[#0b0f19]/95">
+                            <p className="mb-1.5 font-black tracking-widest text-indigo-400 uppercase">
+                              {data.fullDay}
+                            </p>
+                            <div className="space-y-1">
+                              <div className="flex justify-between gap-4 font-bold">
+                                <span className="text-slate-300">Daily Traffic:</span>
+                                <span className="text-white">{data.views} views</span>
+                              </div>
+                              <div className="flex justify-between gap-4 font-bold">
+                                <span className="text-slate-300">Conversion (CTR):</span>
+                                <span className="text-blue-400">{data.ctr}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="views"
+                    name="Daily Traffic"
+                    stroke={primaryColor}
+                    strokeWidth={3}
+                    dot={{ r: 4, strokeWidth: 2 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="ctr"
+                    name="CTR %"
+                    stroke="#3b82f6"
+                    strokeWidth={3}
+                    dot={{ r: 4, strokeWidth: 2 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
 
-                  <div className="flex shrink-0 items-center rounded-xl border border-slate-200/50 bg-slate-100 p-1 dark:border-white/5 dark:bg-slate-900/60">
-                    <button
-                      type="button"
-                      onClick={() => setChartType('area')}
-                      className={cn(
-                        'rounded-lg px-3 py-1.5 text-[10px] font-black tracking-wider uppercase transition-all',
-                        chartType === 'area'
-                          ? 'bg-white text-slate-900 shadow-xs dark:bg-white/10 dark:text-white'
-                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                      )}
-                    >
-                      Volume Area
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setChartType('trend')}
-                      className={cn(
-                        'rounded-lg px-3 py-1.5 text-[10px] font-black tracking-wider uppercase transition-all',
-                        chartType === 'trend'
-                          ? 'bg-white text-slate-900 shadow-xs dark:bg-white/10 dark:text-white'
-                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                      )}
-                    >
-                      CTR Trend Line
-                    </button>
+        {/* Dynamic Engagement Analysis Card */}
+        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/50 p-6 lg:col-span-4 dark:border-white/5 dark:bg-white/2">
+          <div className="space-y-4">
+            <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase">Acoustic Insights</h3>
+
+            <div className="space-y-3">
+              {isWeeklyPending ? (
+                <>
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="mt-0.5 h-8 w-8 shrink-0 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-44" />
+                      <Skeleton variant="text" className="w-full" />
+                      <Skeleton variant="text" className="w-5/6" />
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="h-70 w-full">
-                {chartType === 'area' ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={weeklyDays} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="chartViewsGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={primaryColor} stopOpacity={0.25} />
-                          <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="chartClicksGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.08)" vertical={false} />
-                      <XAxis
-                        dataKey="day"
-                        stroke="#94a3b8"
-                        fontSize={11}
-                        fontWeight={600}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis stroke="#94a3b8" fontSize={11} fontWeight={600} tickLine={false} axisLine={false} />
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload
-                            return (
-                              <div className="min-w-45 rounded-2xl border border-slate-200 bg-slate-900/95 p-4 text-left text-xs text-white shadow-xl dark:border-white/10 dark:bg-[#0b0f19]/95">
-                                <p className="mb-1.5 font-black tracking-widest text-indigo-400 uppercase">
-                                  {data.fullDay}
-                                </p>
-                                <div className="space-y-1">
-                                  <div className="flex justify-between gap-4 font-bold">
-                                    <span className="text-slate-300">Profile Views:</span>
-                                    <span className="text-white">{data.views}</span>
-                                  </div>
-                                  <div className="flex justify-between gap-4 font-bold">
-                                    <span className="text-slate-300">Link Clicks:</span>
-                                    <span className="text-white">{data.clicks}</span>
-                                  </div>
-                                  <div className="flex justify-between gap-4 border-t border-slate-100 pt-1.5 text-[11px] font-extrabold">
-                                    <span className="text-emerald-400">CTR Efficiency:</span>
-                                    <span className="text-emerald-400">{data.ctr}%</span>
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          }
-                          return null
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="views"
-                        name="Views"
-                        stroke={primaryColor}
-                        strokeWidth={2.5}
-                        fillOpacity={1}
-                        fill="url(#chartViewsGrad)"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="clicks"
-                        name="Clicks"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#chartClicksGrad)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={weeklyDays} margin={{ top: 10, right: -10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.08)" vertical={false} />
-                      <XAxis
-                        dataKey="day"
-                        stroke="#94a3b8"
-                        fontSize={11}
-                        fontWeight={600}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        stroke={primaryColor}
-                        fontSize={11}
-                        fontWeight={600}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        stroke="#3b82f6"
-                        fontSize={11}
-                        fontWeight={600}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `${value}%`}
-                      />
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload
-                            return (
-                              <div className="min-w-45 rounded-2xl border border-slate-200 bg-slate-900/95 p-4 text-left text-xs text-white shadow-xl dark:border-white/10 dark:bg-[#0b0f19]/95">
-                                <p className="mb-1.5 font-black tracking-widest text-indigo-400 uppercase">
-                                  {data.fullDay}
-                                </p>
-                                <div className="space-y-1">
-                                  <div className="flex justify-between gap-4 font-bold">
-                                    <span className="text-slate-300">Daily Traffic:</span>
-                                    <span className="text-white">{data.views} views</span>
-                                  </div>
-                                  <div className="flex justify-between gap-4 font-bold">
-                                    <span className="text-slate-300">Conversion (CTR):</span>
-                                    <span className="text-blue-400">{data.ctr}%</span>
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          }
-                          return null
-                        }}
-                      />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="views"
-                        name="Daily Traffic"
-                        stroke={primaryColor}
-                        strokeWidth={3}
-                        dot={{ r: 4, strokeWidth: 2 }}
-                        activeDot={{ r: 6 }}
-                      />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="ctr"
-                        name="CTR %"
-                        stroke="#3b82f6"
-                        strokeWidth={3}
-                        dot={{ r: 4, strokeWidth: 2 }}
-                        activeDot={{ r: 6 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
-
-            {/* Dynamic Engagement Analysis Card */}
-            <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/50 p-6 lg:col-span-4 dark:border-white/5 dark:bg-white/2">
-              <div className="space-y-4">
-                <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase">Acoustic Insights</h3>
-
-                <div className="space-y-3">
+                  <Skeleton className="h-16 w-full rounded-xl" />
+                </>
+              ) : (
+                <>
                   <div className="flex items-start gap-3">
                     {avgCtr >= 35 ? (
                       <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500">
@@ -540,36 +551,38 @@ export function VCardWeeklyEngagement({
                       </span>
                     </div>
                   )}
-                </div>
-              </div>
-
-              <div className="mt-4 border-t border-slate-100 pt-4 dark:border-white/5">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
-                  <span>Card Status:</span>
-                  <span
-                    className={cn(
-                      'rounded border px-2 py-0.5 text-[10px] font-black uppercase',
-                      activeCard.status === 'active'
-                        ? 'border-emerald-500/15 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'border-amber-500/25 bg-amber-500/10 text-amber-500'
-                    )}
-                  >
-                    {activeCard.status || 'active'}
-                  </span>
-                </div>
-                {activeCard.personal?.department ? (
-                  <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-400">
-                    <span>Department:</span>
-                    <span className="font-extrabold text-slate-800 dark:text-white">
-                      {activeCard.personal.department}
-                    </span>
-                  </div>
-                ) : null}
-              </div>
+                </>
+              )}
             </div>
           </div>
-        </>
-      )}
+
+          <div className="mt-4 border-t border-slate-100 pt-4 dark:border-white/5">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+              <span>Card Status:</span>
+              {listLoading && !vCardsList.length ? (
+                <Skeleton className="h-5 w-16 rounded" />
+              ) : (
+                <span
+                  className={cn(
+                    'rounded border px-2 py-0.5 text-[10px] font-black uppercase',
+                    activeCard.status === 'active'
+                      ? 'border-emerald-500/15 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      : 'border-amber-500/25 bg-amber-500/10 text-amber-500'
+                  )}
+                >
+                  {activeCard.status || 'active'}
+                </span>
+              )}
+            </div>
+            {activeCard.personal?.department ? (
+              <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-400">
+                <span>Department:</span>
+                <span className="font-extrabold text-slate-800 dark:text-white">{activeCard.personal.department}</span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

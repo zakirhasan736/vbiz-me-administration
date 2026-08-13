@@ -10,6 +10,7 @@ import { VCardVisibilityToggle } from '@/components/dashboard/vcard/VCardVisibil
 import type { AdminCard } from '@/lib/admin/adminCardShape'
 import { getCardSocialClickStats } from '@/lib/adminSocialStats'
 import { resolveCardAnalytics } from '@/lib/cardAnalytics'
+import { PAUSED_CARD_MESSAGE, resolveCardStatus } from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
 import { useDeleteProfileMutation, useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
@@ -48,9 +49,9 @@ export type VCardTeamCardProps = {
   onNotice?: () => void
   onCardClick?: () => void
   onTrends?: () => void
-  onEmail: () => void
-  onCall: () => void
-  onSchedule: () => void
+  onEmail?: () => void
+  onCall?: () => void
+  onSchedule?: () => void
   onEdit: () => void
   onSettings?: () => void
   onView: () => void
@@ -113,7 +114,20 @@ export default function VCardTeamCard({
     variant?: 'default' | 'danger'
   } | null>(null)
 
-  const status = (card.status || 'active') as string
+  const slug = card.slug || 'profile'
+  const cardId = String(card.id || '')
+  const serverIsPublic = card.isPublic ?? true
+  const isPublic =
+    optimisticPublic?.cardId === cardId && serverIsPublic !== optimisticPublic.value
+      ? optimisticPublic.value
+      : serverIsPublic
+  const isDraft = Boolean(card.isDraft)
+  const status = resolveCardStatus({
+    status: typeof card.status === 'string' ? card.status : undefined,
+    isDraft,
+    isPublic,
+  })
+
   const resolved = resolveCardAnalytics({
     id: card.id,
     slug: card.slug,
@@ -133,10 +147,6 @@ export default function VCardTeamCard({
   const socialStats = getCardSocialClickStats(card, liveSocials)
   const saves = contactSaves !== undefined ? contactSaves : Number(card.saveCount || resolved.saveCount || 0)
   const noticeText = typeof window !== 'undefined' && card.id ? localStorage.getItem(`notice_${card.id}`) : null
-  const slug = card.slug || 'profile'
-  const cardId = String(card.id || '')
-  const serverIsPublic = card.isPublic ?? true
-  const isPublic = optimisticPublic?.cardId === cardId ? optimisticPublic.value : serverIsPublic
   const fullName = personalField(card.personal, 'fullName')
   const designation = personalField(card.personal, 'designation')
   const company = personalField(card.personal, 'company')
@@ -161,10 +171,10 @@ export default function VCardTeamCard({
   const isDeleting = isDeletingProfile || isDeletingLocal
 
   const handleVisibilityChange = async (next: boolean) => {
+    if (!cardId) return
     setOptimisticPublic({ cardId, value: next })
     try {
       await updateProfileCard({ id: cardId, body: { isPublic: next } }).unwrap()
-      setOptimisticPublic(null)
     } catch {
       setOptimisticPublic(null)
       notify.error('Could not update card visibility. Please try again.')
@@ -205,7 +215,9 @@ export default function VCardTeamCard({
         dragged && 'opacity-40',
         status === 'suspended'
           ? 'border-rose-500/20 hover:border-rose-400/40'
-          : 'border-slate-200/60 hover:border-slate-400 dark:border-white/5 dark:hover:border-white/20',
+          : status === 'paused'
+            ? 'border-amber-500/20 hover:border-amber-400/40'
+            : 'border-slate-200/60 hover:border-slate-400 dark:border-white/5 dark:hover:border-white/20',
         className
       )}
     >
@@ -293,6 +305,8 @@ export default function VCardTeamCard({
                   'border-amber-500/20 bg-amber-500/5 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
                 status === 'inactive' &&
                   'border-slate-500/20 bg-slate-500/5 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400',
+                status === 'paused' &&
+                  'border-amber-500/20 bg-amber-500/5 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
                 status === 'suspended' &&
                   'border-rose-500/20 bg-rose-500/5 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
               )}
@@ -303,6 +317,7 @@ export default function VCardTeamCard({
                   status === 'active' && 'bg-emerald-500',
                   status === 'draft' && 'bg-amber-500',
                   status === 'inactive' && 'bg-slate-400',
+                  status === 'paused' && 'bg-amber-500',
                   status === 'suspended' && 'bg-rose-500'
                 )}
               />
@@ -324,9 +339,16 @@ export default function VCardTeamCard({
               </div>
             </div>
             <VCardVisibilityToggle
-              id={`admin-vcard-visibility-${cardId}`}
+              id={cardId ? `admin-vcard-visibility-${cardId}` : 'admin-vcard-visibility-missing'}
               checked={isPublic}
-              disabled={isUpdatingVisibility || !cardId}
+              disabled={isUpdatingVisibility || !cardId || status === 'paused' || status === 'suspended'}
+              title={
+                status === 'suspended'
+                  ? 'Suspended cards stay hidden until unsuspended'
+                  : status === 'paused'
+                    ? PAUSED_CARD_MESSAGE
+                    : undefined
+              }
               compact
               onChange={(next) => void handleVisibilityChange(next)}
             />

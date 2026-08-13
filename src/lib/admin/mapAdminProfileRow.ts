@@ -1,4 +1,5 @@
 import type { AdminCard } from '@/lib/admin/adminCardShape'
+import { resolveCardStatus } from '@/lib/cardStatus'
 import type { AdminProfileRow } from '@/redux/features/adminProfiles/adminProfiles.api'
 
 function pickSocials(row: AdminProfileRow): Record<string, string> {
@@ -34,8 +35,11 @@ export function isAdminProfileDraft(row: Pick<AdminProfileRow, 'isDraft' | 'stat
 /** Map admin list API row → AdminCard shape used by directory UI. */
 export function mapAdminProfileRowToCard(row: AdminProfileRow): AdminCard {
   const isDraft = isAdminProfileDraft(row)
-  const rawStatus = (row.status?.name || 'active').toLowerCase()
-  const statusName = isDraft ? 'draft' : rawStatus === 'draft' ? 'active' : rawStatus
+  const statusName = resolveCardStatus({
+    status: row.status?.name,
+    isDraft,
+    isPublic: row.isPublic,
+  })
   const professionName = row.profession?.name || ''
   const views = Number(row.viewCount) || 0
   const clicks = Number(row.clickCount) || 0
