@@ -19,6 +19,8 @@ import {
   PINNED_END_NAV_IDS,
   resolveCreateCardTabName,
 } from '@/lib/createCardTabs'
+import { ensureNotificationPermission, saveNotificationPrefs } from '@/lib/notifications'
+import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import type { SettingsTabId } from '@/lib/vcardEditorRoutes'
 import type { VCardData } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -79,6 +81,13 @@ type LaunchTab = {
   label: string
   percent: number
   fields: LaunchField[]
+}
+
+type AcceptedFeature = {
+  key: keyof OptionalFeatures
+  title: string
+  settingsSection: SettingsTabId
+  note: string
 }
 
 type AiCardAgentWizardProps = {
@@ -245,6 +254,181 @@ function countFilled(fields: LaunchField[]): number {
   return fields.filter((field) => field.filled).length
 }
 
+function launchPercent(fields: LaunchField[]): number {
+  if (!fields.length) return 100
+  return Math.round((countFilled(fields) / fields.length) * 100)
+}
+
+function displayCustom(data: VCardData, key: string): string {
+  return getFieldConfig(getDisplaySettingsFromVCard(data), key).customValue?.trim() || ''
+}
+
+function getResumeState(data: VCardData): { summary: string; documents: unknown[] } {
+  const block = (data as { sections?: Record<string, unknown> }).sections?.Resume as
+    | {
+        summary?: string
+        body?: string
+        documents?: unknown[]
+        document?: unknown
+        url?: string
+      }
+    | undefined
+  const legacy = (data as { resume?: { url?: string; summary?: string } }).resume
+  const documents = Array.isArray(block?.documents)
+    ? block.documents
+    : block?.document
+      ? [block.document]
+      : block?.url || legacy?.url
+        ? [block?.url || legacy?.url]
+        : []
+  return {
+    summary: String(block?.summary || block?.body || legacy?.summary || ''),
+    documents,
+  }
+}
+
+function hasCertificateDocument(data: VCardData): boolean {
+  const posts = data.sectionPosts?.['Certifications/Licenses'] || []
+  return posts.some((item) => {
+    const documents = item.metas?.documents
+    return hasText(item.featuredImage) || hasText(documents)
+  })
+}
+
+function fieldHasContent(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(fieldHasContent)
+  if (value && typeof value === 'object') return Object.values(value).some(fieldHasContent)
+  return hasText(value)
+}
+
+function payloadHasContent(section: string, payload: Record<string, unknown>): boolean {
+  if (section === 'personal') return fieldHasContent(payload.personal) || fieldHasContent(payload.socialHandles)
+  const value = payload[section === 'blogs' ? 'blogs' : section === 'faqs' ? 'faqs' : section]
+  return Array.isArray(value) ? value.some(fieldHasContent) : fieldHasContent(value)
+}
+
+function sectionContentCount(data: VCardData, section: string): number {
+  const personal = data.personal || ({} as VCardData['personal'])
+  if (section === 'personal') {
+    return [
+      personal.fullName,
+      personal.email,
+      personal.phone,
+      personal.designation,
+      personal.company,
+      personal.about,
+      personal.website,
+      personal.address,
+    ].filter(hasText).length
+  }
+  if (section === 'services') return data.services?.length || 0
+  if (section === 'blogs') return data.generalPosts?.length || 0
+  if (section === 'portfolio') return data.portfolio?.length || 0
+  if (section === 'reviews') return data.reviews?.length || 0
+  if (section === 'skills') return data.skills?.reduce((sum, group) => sum + (group.skills?.length || 0), 0) || 0
+  if (section === 'education') return data.education?.length || 0
+  if (section === 'experience') return data.experience?.length || 0
+  if (section === 'faqs') return data.faqs?.length || 0
+  return 0
+}
+
+function splitSkillHints(values: string[]): string[] {
+  const seen = new Set<string>()
+  const skills: string[] = []
+  for (const raw of values) {
+    for (const part of raw.split(/[,/|&]+/)) {
+      const skill = part.trim().replace(/\s+/g, ' ')
+      if (skill.length < 3 || seen.has(skill.toLowerCase())) continue
+      seen.add(skill.toLowerCase())
+      skills.push(skill)
+      if (skills.length >= 8) return skills
+    }
+  }
+  return skills
+}
+
+function buildSmartSectionPayload(section: string, data: VCardData): Record<string, unknown> | null {
+  const personal = data.personal || ({} as VCardData['personal'])
+  const company = personal.company?.trim() || personal.fullName?.trim() || ''
+  const role = personal.designation?.trim() || personal.profession?.trim() || ''
+  const about = personal.about?.trim() || ''
+  const serviceTitles = (data.services || []).map((item) => item.title).filter(hasText)
+  const serviceDescriptions = (data.services || []).map((item) => item.description).filter(hasText)
+  const businessSummary =
+    about || serviceDescriptions[0] || (serviceTitles.length ? `Provides ${serviceTitles.join(', ')}.` : '')
+
+  if (section === 'experience' && (company || role || businessSummary)) {
+    return {
+      experience: [
+        {
+          company: company || 'Current business',
+          jobTitle: role || 'Business Owner',
+          description: businessSummary || `Professional work connected to ${company || 'this business'}.`,
+          fromDate: '',
+          toDate: '',
+          tillNow: true,
+        },
+      ],
+    }
+  }
+
+  if (section === 'skills') {
+    const skills = splitSkillHints([role, personal.profession || '', ...serviceTitles])
+    if (skills.length) return { skills: [{ type: 'Core', skills }] }
+  }
+
+  if (section === 'services' && !data.services?.length && (role || businessSummary)) {
+    return {
+      services: [
+        {
+          title: role || `${company || 'Business'} Services`,
+          description: businessSummary || 'Core services based on the business profile.',
+          url: personal.website || '',
+        },
+      ],
+    }
+  }
+
+  if (section === 'portfolio' && (serviceTitles.length || businessSummary)) {
+    return {
+      portfolio: [
+        {
+          title: serviceTitles[0] ? `${serviceTitles[0]} Work` : 'Featured Work',
+          description: businessSummary || 'Representative work based on the current business profile.',
+          url: personal.website || '',
+        },
+      ],
+    }
+  }
+
+  if (section === 'blogs' && businessSummary) {
+    return {
+      blogs: [
+        {
+          title: `About ${company || personal.fullName || 'this business'}`,
+          description: businessSummary,
+          category: 'News',
+        },
+      ],
+    }
+  }
+
+  if (section === 'faqs' && (serviceTitles.length || personal.email || personal.phone || businessSummary)) {
+    const serviceAnswer = serviceTitles.length
+      ? `We offer ${serviceTitles.join(', ')}.`
+      : businessSummary || 'Services are tailored to client needs.'
+    const contactAnswer = [personal.email, personal.phone, personal.website].filter(hasText).join(' | ')
+    return {
+      faqs: [
+        { question: 'What services are available?', answer: serviceAnswer },
+        contactAnswer ? { question: 'How can clients get in touch?', answer: contactAnswer } : null,
+      ].filter(Boolean),
+    }
+  }
+
+  return null
+}
+
 function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
   const uniqueIds = Array.from(new Set(navIds.length ? navIds : ['home']))
   return uniqueIds.map((navId) => {
@@ -252,6 +436,9 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
     const fields: LaunchField[] = []
     const personal = data.personal || ({} as VCardData['personal'])
     const socialCount = Object.values(data.social?.handles || {}).filter(hasText).length
+    const profileMedia = displayCustom(data, 'Profile Image/Video')
+    const backgroundMedia = displayCustom(data, 'Background Video/Image')
+    const resumeState = getResumeState(data)
 
     if (navId === 'home') {
       fields.push(
@@ -260,8 +447,18 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
         { label: 'Email or phone', filled: hasText(personal.email) || hasText(personal.phone) },
         { label: 'About / bio', filled: hasText(personal.about) },
         { label: 'Company or title', filled: hasText(personal.company) || hasText(personal.designation) },
-        { label: 'Profile image/video', filled: false, hint: 'Optional upload or Canva asset.', upload: true },
-        { label: 'Background media', filled: false, hint: 'Optional upload or Canva asset.', upload: true },
+        {
+          label: 'Profile image/video',
+          filled: hasText(profileMedia) || hasText(personal.explainerVideoUrl),
+          hint: 'Optional upload or Canva asset.',
+          upload: true,
+        },
+        {
+          label: 'Background media',
+          filled: hasText(backgroundMedia),
+          hint: 'Optional upload or Canva asset.',
+          upload: true,
+        },
         { label: 'Social links', filled: socialCount > 0, hint: 'LinkedIn, Instagram, Facebook, or website.' }
       )
     } else if (navId === 'services') {
@@ -326,17 +523,32 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       fields.push(
         { label: 'Profile story', filled: hasText(personal.about) },
         { label: 'Headline/title', filled: hasText(personal.designation) || hasText(personal.profession) },
-        { label: 'Profile photo', filled: false, hint: 'Optional upload or Canva asset.', upload: true }
+        {
+          label: 'Profile photo',
+          filled: hasText(profileMedia),
+          hint: 'Optional upload or Canva asset.',
+          upload: true,
+        }
       )
     } else if (navId === 'resume') {
       fields.push(
-        { label: 'Resume summary', filled: hasText(personal.about) },
-        { label: 'Resume document', filled: false, hint: 'Optional upload after create.', upload: true }
+        { label: 'Resume summary', filled: hasText(resumeState.summary) || hasText(personal.about) },
+        {
+          label: 'Resume document',
+          filled: resumeState.documents.length > 0,
+          hint: 'Optional upload after create.',
+          upload: true,
+        }
       )
     } else if (navId === 'certificates') {
       fields.push(
         { label: 'Certification entries', filled: Boolean(data.sectionPosts?.['Certifications/Licenses']?.length) },
-        { label: 'Certificate document/image', filled: false, hint: 'Optional upload after create.', upload: true }
+        {
+          label: 'Certificate document/image',
+          filled: hasCertificateDocument(data),
+          hint: 'Optional upload after create.',
+          upload: true,
+        }
       )
     } else if (navId === 'global-connection') {
       fields.push({ label: 'Global directory', filled: true, hint: 'Default shared connection area.' })
@@ -350,10 +562,7 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       fields.push({ label: `${label} content`, filled: false, hint: 'Optional custom section content.' })
     }
 
-    const requiredFields = fields.filter((field) => !field.upload)
-    const percent = requiredFields.length
-      ? Math.round((countFilled(requiredFields) / requiredFields.length) * 100)
-      : 100
+    const percent = launchPercent(fields)
     return { navId, label, percent, fields }
   })
 }
@@ -387,7 +596,7 @@ export function AiCardAgentWizard({
   const [featureQueue, setFeatureQueue] = useState<typeof OPTIONAL_ITEMS>([])
   const [featureIndex, setFeatureIndex] = useState(0)
   const [acceptedFeatures, setAcceptedFeatures] = useState<SettingsTabId[]>([])
-  const [acceptedFeatureTitles, setAcceptedFeatureTitles] = useState<string[]>([])
+  const [acceptedFeatureDetails, setAcceptedFeatureDetails] = useState<AcceptedFeature[]>([])
   const [createProgress, setCreateProgress] = useState(0)
   const [createdCardId, setCreatedCardId] = useState<string | null>(null)
   const [gateGap, setGateGap] = useState<GapItem | null>(null)
@@ -432,7 +641,7 @@ export function AiCardAgentWizard({
     setFeatureQueue([])
     setFeatureIndex(0)
     setAcceptedFeatures([])
-    setAcceptedFeatureTitles([])
+    setAcceptedFeatureDetails([])
     setCreateProgress(0)
     setCreatedCardId(null)
     setGateGap(null)
@@ -691,6 +900,18 @@ export function AiCardAgentWizard({
     pushMsg('assistant', `Removed “${getCreateCardDisplayLabel(navId, navId)}” — easy to add again later.`)
   }
 
+  const resolveSectionFillPayload = useCallback((section: string, rawPayload?: Record<string, unknown>) => {
+    const payload = rawPayload || {}
+    if (payloadHasContent(section, payload)) return { payload, usedFallback: false }
+
+    const fallback = buildSmartSectionPayload(section, draftRef.current)
+    if (fallback && payloadHasContent(section, fallback)) {
+      return { payload: fallback, usedFallback: true }
+    }
+
+    return { payload, usedFallback: false }
+  }, [])
+
   const approveGateSection = async () => {
     if (!gateGap) return
     const gap = gateGap
@@ -716,12 +937,25 @@ export function AiCardAgentWizard({
       appendStoredSourcesToForm(form, gap.tab)
 
       const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
-      const merged = mergeSectionPayload(draftRef.current, section, json.payload || {})
+      const beforeCount = sectionContentCount(draftRef.current, section)
+      const { payload, usedFallback } = resolveSectionFillPayload(section, json.payload)
+      if (!payloadHasContent(section, payload)) {
+        throw new Error('No reliable data found for this section yet.')
+      }
+      const merged = mergeSectionPayload(draftRef.current, section, payload)
+      const afterCount = sectionContentCount(merged, section)
       applyDraft(merged, activeNav)
       setComposer('')
       setFiles([])
       const report = await refreshGaps(activeNav, merged)
-      pushMsg('assistant', `Filled ${gap.tab} from the saved sources. Card is now ${report.score}% complete.`)
+      pushMsg(
+        'assistant',
+        usedFallback
+          ? `I drafted ${gap.tab} from the current card context because the saved sources did not contain a direct ${gap.tab} section. Card is now ${report.score}% complete.`
+          : afterCount > beforeCount
+            ? `Filled ${gap.tab} from the saved sources. Card is now ${report.score}% complete.`
+            : `Updated ${gap.tab} from the saved sources. Card is now ${report.score}% complete.`
+      )
       setGateGap(null)
       askNextGap(report)
     } catch (e) {
@@ -784,12 +1018,25 @@ export function AiCardAgentWizard({
       for (const file of files) form.append('files', file)
 
       const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
-      const merged = mergeSectionPayload(draftRef.current, section, json.payload || {})
+      const beforeCount = sectionContentCount(draftRef.current, section)
+      const { payload, usedFallback } = resolveSectionFillPayload(section, json.payload)
+      if (!payloadHasContent(section, payload)) {
+        throw new Error('No reliable data found for this section yet.')
+      }
+      const merged = mergeSectionPayload(draftRef.current, section, payload)
+      const afterCount = sectionContentCount(merged, section)
       applyDraft(merged, activeNav)
       setComposer('')
       setFiles([])
       const report = await refreshGaps(activeNav, merged)
-      pushMsg('assistant', `Updated ${section}. Card is now ${report.score}% complete.`)
+      pushMsg(
+        'assistant',
+        usedFallback
+          ? `I drafted ${section} from the current card context. Card is now ${report.score}% complete.`
+          : afterCount > beforeCount
+            ? `Added ${section} details. Card is now ${report.score}% complete.`
+            : `Updated ${section}. Card is now ${report.score}% complete.`
+      )
       askNextGap(report)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not fill section'
@@ -800,20 +1047,56 @@ export function AiCardAgentWizard({
     }
   }
 
-  const answerFeature = (yes: boolean) => {
+  const answerFeature = async (yes: boolean) => {
     const item = featureQueue[featureIndex]
-    if (!item) return
+    if (!item || busy) return
     pushMsg('user', yes ? `Yes — enable ${item.title}` : `No — skip ${item.title}`)
     const nextAccepted = yes ? [...acceptedFeatures, item.settingsSection] : acceptedFeatures
     if (yes) {
+      let note = ''
+      if (item.key === 'aiAssistance') {
+        updateData('aiAssistanceEnabled', true)
+        note =
+          'AI Assistance is turned on for this draft. After create, open Settings > AI Assistance to train it with business instructions, documents, and payment or lead-handling rules.'
+      } else if (item.key === 'canva') {
+        note =
+          'Canva uses secure authorization from Settings > Canva Integration. Connect Canva there, create profile images, backgrounds, gallery assets, or intro media, then import or upload those assets into the empty media fields.'
+      } else if (item.key === 'seo') {
+        note =
+          'SEO can be polished from Settings > SEO after create. Use the card name, location, services, reviews, and a short meta description.'
+      } else if (item.key === 'pushNotifications') {
+        saveNotificationPrefs({ browserPush: true })
+        const permission = await ensureNotificationPermission()
+        note =
+          permission === 'granted'
+            ? 'Browser push notifications are enabled. You can fine tune categories from Settings > General notifications.'
+            : permission === 'denied'
+              ? 'Browser push is switched on in preferences, but the browser blocked permission. Re-enable it from browser site settings, then check Settings > General notifications.'
+              : 'Browser push is switched on in preferences, but this browser does not support notification permission here. Check Settings > General notifications after create.'
+      } else if (item.key === 'emailNotifications') {
+        saveNotificationPrefs({ emailNotifications: true })
+        note =
+          'Email notifications are enabled in preferences. After create, review Settings > General notifications to choose which alerts should send email.'
+      }
       setAcceptedFeatures(nextAccepted)
-      setAcceptedFeatureTitles((prev) => [...prev, item.title])
-      pushMsg(
-        'assistant',
-        item.key === 'canva'
-          ? 'Noted. Canva will open through secure authorization from settings. After connecting, use Canva to create profile images, wallpapers, gallery assets, or intro media, then import/upload them into the empty media fields.'
-          : `Noted. I’ll deep-link you into ${item.title} settings when we finish (or you can open it anytime from card settings).`
-      )
+      pushMsg('assistant', note || `Noted. ${item.title} can be configured after the card is created.`)
+      setAcceptedFeatureDetails((prev) => [
+        ...prev,
+        {
+          key: item.key,
+          title: item.title,
+          settingsSection: item.settingsSection,
+          note,
+        },
+      ])
+      if (!note) {
+        pushMsg(
+          'assistant',
+          item.key === 'canva'
+            ? 'Noted. Canva will open through secure authorization from settings. After connecting, use Canva to create profile images, wallpapers, gallery assets, or intro media, then import/upload them into the empty media fields.'
+            : `Noted. I’ll deep-link you into ${item.title} settings when we finish (or you can open it anytime from card settings).`
+        )
+      }
     } else {
       pushMsg('assistant', `Okay, skipping ${item.title}.`)
     }
@@ -900,9 +1183,19 @@ export function AiCardAgentWizard({
 
   const fillLaunchTab = async (tab: LaunchTab) => {
     const section = sectionFromNavId(tab.navId)
+    const missingTextFields = tab.fields.filter((field) => !field.filled && !field.upload)
     setCoachSection(section)
     setError('')
     pushMsg('user', `Fill ${tab.label} before launch`)
+
+    if (!missingTextFields.length) {
+      pushMsg(
+        'assistant',
+        `${tab.label} only has media or document uploads left. AI cannot upload those files here; leave them for Canva or upload manually after create.`
+      )
+      setOpenLaunchTabs((prev) => prev.filter((id) => id !== tab.navId))
+      return
+    }
 
     if (!hasStoredSources()) {
       setPhase('coach')
@@ -922,12 +1215,25 @@ export function AiCardAgentWizard({
       appendStoredSourcesToForm(form, tab.label)
 
       const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
-      const merged = mergeSectionPayload(draftRef.current, section, json.payload || {})
+      const beforeCount = sectionContentCount(draftRef.current, section)
+      const { payload, usedFallback } = resolveSectionFillPayload(section, json.payload)
+      if (!payloadHasContent(section, payload)) {
+        throw new Error('No reliable data found for this tab yet.')
+      }
+      const merged = mergeSectionPayload(draftRef.current, section, payload)
+      const afterCount = sectionContentCount(merged, section)
       applyDraft(merged, activeNav)
       const report = await refreshGaps(activeNav, merged)
       setScore(report.score)
       setPhase('preview')
-      pushMsg('assistant', `Updated ${tab.label}. Review the checklist again before launch.`)
+      pushMsg(
+        'assistant',
+        usedFallback
+          ? `I drafted ${tab.label} from the current card context because the saved sources did not include direct data for it. Review the checklist again before launch.`
+          : afterCount > beforeCount
+            ? `Added ${tab.label} details. Review the checklist again before launch.`
+            : `Updated ${tab.label}. Review the checklist again before launch.`
+      )
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not fill tab'
       setError(msg)
@@ -954,8 +1260,8 @@ export function AiCardAgentWizard({
     if (phase === 'features') {
       const t = composer.trim().toLowerCase()
       if (!t) return
-      if (/^(y|yes|sure|ok|please|enable|yeah)/.test(t)) answerFeature(true)
-      else if (/^(n|no|skip|later|nah)/.test(t)) answerFeature(false)
+      if (/^(y|yes|sure|ok|please|enable|yeah)/.test(t)) void answerFeature(true)
+      else if (/^(n|no|skip|later|nah)/.test(t)) void answerFeature(false)
       else {
         pushMsg('user', composer.trim())
         pushMsg('assistant', 'Please reply yes or no for this feature, or use the buttons.')
@@ -995,6 +1301,12 @@ export function AiCardAgentWizard({
   const launchOverallPercent = launchTabs.length
     ? Math.round(launchTabs.reduce((sum, tab) => sum + tab.percent, 0) / launchTabs.length)
     : score
+  const headerPercent =
+    phase === 'creating' || phase === 'celebrate'
+      ? Math.min(100, Math.round(createProgress))
+      : phase === 'preview'
+        ? launchOverallPercent
+        : score
   // Keep the popup open for the whole AI create journey until Continue after celebrate.
   const sessionLocked =
     phase === 'working' ||
@@ -1040,14 +1352,15 @@ export function AiCardAgentWizard({
       preventClose={sessionLocked}
       closeOnOverlayClick={!sessionLocked}
       closeOnEscape={!sessionLocked}
-      className="relative flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
+      overlayClassName="items-start overflow-y-auto p-2 py-3 sm:items-center sm:p-4"
+      className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)] dark:border-white/10 dark:bg-[#0b0f19]"
     >
       {(phase === 'celebrate' || (phase === 'creating' && createProgress > 96)) && <ConfettiBurst />}
-      <div className="relative overflow-hidden border-b border-slate-100 px-5 py-4 dark:border-white/5">
+      <div className="relative shrink-0 overflow-hidden border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 dark:border-white/5">
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-emerald-500/10 via-transparent to-indigo-500/10" />
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 sm:h-11 sm:w-11">
               <Sparkles className="h-5 w-5" />
             </span>
             <div className="min-w-0">
@@ -1062,7 +1375,7 @@ export function AiCardAgentWizard({
               <span className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
                 Complete
               </span>
-              <span className="ml-2 text-sm font-black text-emerald-700 dark:text-emerald-300">{score}%</span>
+              <span className="ml-2 text-sm font-black text-emerald-700 dark:text-emerald-300">{headerPercent}%</span>
             </div>
             <button
               type="button"
@@ -1087,7 +1400,7 @@ export function AiCardAgentWizard({
             width: `${
               phase === 'creating' || phase === 'celebrate'
                 ? Math.min(100, Math.round(createProgress))
-                : Math.max(score, phase === 'intake' ? 0 : 4)
+                : Math.max(phase === 'preview' ? launchOverallPercent : score, phase === 'intake' ? 0 : 4)
             }%`,
           }}
         />
@@ -1367,7 +1680,7 @@ export function AiCardAgentWizard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => answerFeature(true)}
+              onClick={() => void answerFeature(true)}
               className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white"
             >
               Yes — {featureQueue[featureIndex].title}
@@ -1375,7 +1688,7 @@ export function AiCardAgentWizard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => answerFeature(false)}
+              onClick={() => void answerFeature(false)}
               className="rounded-xl bg-slate-200 px-4 py-2 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
             >
               No thanks
@@ -1422,8 +1735,11 @@ export function AiCardAgentWizard({
             <div className="space-y-2">
               {launchTabs.map((tab) => {
                 const isOpen = openLaunchTabs.includes(tab.navId)
-                const visibleFields = tab.percent >= 100 ? tab.fields.filter((field) => field.upload) : tab.fields
-                const missingCount = tab.fields.filter((field) => !field.filled).length
+                const missingFields = tab.fields.filter((field) => !field.filled)
+                const completedFields = tab.fields.filter((field) => field.filled)
+                const visibleFields = [...missingFields, ...completedFields]
+                const missingTextFields = missingFields.filter((field) => !field.upload)
+                const missingCount = missingFields.length
                 return (
                   <div
                     key={tab.navId}
@@ -1456,13 +1772,12 @@ export function AiCardAgentWizard({
                           {missingCount ? `${missingCount} empty field${missingCount === 1 ? '' : 's'}` : 'Complete'}
                         </span>
                       </span>
-                      {tab.percent >= 100 ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      ) : (
+                      <span className="flex items-center gap-1">
+                        {tab.percent >= 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
                         <ChevronDown
                           className={cn('h-4 w-4 text-slate-400 transition-transform', isOpen && 'rotate-180')}
                         />
-                      )}
+                      </span>
                     </button>
                     {isOpen ? (
                       <div className="space-y-2 border-t border-slate-100 px-3 py-3 dark:border-white/10">
@@ -1500,14 +1815,20 @@ export function AiCardAgentWizard({
                         )}
                         {tab.percent < 100 ? (
                           <div className="flex flex-wrap gap-2 pt-1">
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => void fillLaunchTab(tab)}
-                              className="rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
-                            >
-                              Fill with AI
-                            </button>
+                            {missingTextFields.length ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void fillLaunchTab(tab)}
+                                className="rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
+                              >
+                                Fill with AI
+                              </button>
+                            ) : (
+                              <span className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                                Upload or Canva asset can be added later
+                              </span>
+                            )}
                             <button
                               type="button"
                               onClick={() => setOpenLaunchTabs((prev) => prev.filter((id) => id !== tab.navId))}
@@ -1524,15 +1845,21 @@ export function AiCardAgentWizard({
               })}
             </div>
 
-            {acceptedFeatureTitles.length ? (
+            {acceptedFeatureDetails.length ? (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
                 <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
                   Approved extras
                 </p>
-                <p className="mt-1 text-[11px] font-semibold text-emerald-900/80 dark:text-emerald-100">
-                  {acceptedFeatureTitles.join(', ')}. Canva opens by secure authorization from settings; payments,
-                  notifications, and AI assistance can be configured after the card is created.
-                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {acceptedFeatureDetails.map((feature) => (
+                    <li
+                      key={`${feature.key}-${feature.title}`}
+                      className="text-[11px] font-semibold text-emerald-900/80 dark:text-emerald-100"
+                    >
+                      <span className="font-black">{feature.title}:</span> {feature.note}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : null}
 
@@ -1546,14 +1873,17 @@ export function AiCardAgentWizard({
                   <Eye className="h-3.5 w-3.5" /> Open live preview
                 </button>
               ) : null}
-              {acceptedFeatures.map((section, index) => (
+              {acceptedFeatureDetails.map((feature, index) => (
                 <button
-                  key={`${section}-${index}`}
+                  key={`${feature.key}-${index}`}
                   type="button"
-                  onClick={() => onOpenSettings?.(section)}
+                  onClick={() => {
+                    pushMsg('assistant', `${feature.title}: ${feature.note}`)
+                    if (feature.key !== 'canva') onOpenSettings?.(feature.settingsSection)
+                  }}
                   className="rounded-xl bg-white/80 px-3 py-2 text-[11px] font-black text-slate-700 dark:bg-slate-900/80 dark:text-slate-200"
                 >
-                  Open {acceptedFeatureTitles[index] || section}
+                  {feature.key === 'canva' ? 'Show Canva instructions' : `Open ${feature.title}`}
                 </button>
               ))}
               <button

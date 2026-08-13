@@ -1,4 +1,3 @@
-import { DEFAULT_DEMO_FAQS } from '@/lib/vcardFaq'
 import { createDefaultVCardData, type VCardData, type VCardRecord } from '@/types/vcard'
 import { createSelector, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 
@@ -143,81 +142,10 @@ const vcardsSlice = createSlice({
       }
       reindexSlugs(state)
     },
-    seedDemoIfEmpty(state) {
-      if (state.ids.length > 0) return
-      const id = newId()
-      const now = new Date().toISOString()
-      const data = createDefaultVCardData({
-        slug: 'zakir',
-        personal: {
-          ...createDefaultVCardData().personal,
-          fullName: 'Zakir Hosen',
-          designation: 'FrontEnd Developer',
-        },
-        services: [
-          {
-            id: 'svc_demo_1',
-            type: 'Web Development',
-            title: 'Custom Web Apps',
-            description: 'Full-stack builds from landing pages to dashboards, tailored to your brand.',
-            url: '',
-            featuredImage: '',
-            active: true,
-          },
-          {
-            id: 'svc_demo_2',
-            type: 'App Design',
-            title: 'UI/UX Design',
-            description: 'Mobile-first interfaces with polished motion and accessible layouts.',
-            url: '',
-            featuredImage: '',
-            active: true,
-          },
-        ],
-        faqs: DEFAULT_DEMO_FAQS,
-        generalPosts: [
-          {
-            id: 'post_demo_1',
-            category: 'News',
-            title: 'Impressions That Last — Connections That Matter',
-            description:
-              'Explore actionable insights into building a magnetic digital presence and turning passive networking into active business relationships.',
-            customUrl: '',
-            featuredImage: 'https://images.unsplash.com/photo-1555529733-0e67056058e1?q=80&w=1200&fit=crop',
-            date: '2026-09-22',
-            active: true,
-          },
-          {
-            id: 'post_demo_2',
-            category: 'Announcement',
-            title: 'New vBiz profile features',
-            description: 'Share updates, articles, and announcements directly from your vCard back office Blog tab.',
-            customUrl: '',
-            featuredImage: '',
-            date: '2026-05-01',
-            active: true,
-          },
-        ],
-      })
-      state.byId[id] = {
-        ...data,
-        id,
-        createdAt: now,
-        updatedAt: now,
-        views: 1200,
-        saves: 342,
-        avatarImageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
-        backgroundImageUrl: '',
-        isActive: true,
-      }
-      state.ids = [id]
-      reindexSlugs(state)
-    },
   },
 })
 
-export const { addVCard, updateVCard, replaceVCardData, removeVCard, replaceAllVCards, seedDemoIfEmpty } =
-  vcardsSlice.actions
+export const { addVCard, updateVCard, replaceVCardData, removeVCard, replaceAllVCards } = vcardsSlice.actions
 
 export default vcardsSlice.reducer
 
