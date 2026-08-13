@@ -41,6 +41,10 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
         ],
       },
+      {
+        source: '/v/:slug/manifest.webmanifest',
+        headers: [{ key: 'Content-Type', value: 'application/manifest+json' }],
+      },
     ]
   },
 }

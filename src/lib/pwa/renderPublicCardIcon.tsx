@@ -1,15 +1,10 @@
 import { fetchMyCardBySlug } from '@/lib/api/myCard/fetchMyCardBySlug'
 import { resolvePwaAvatarUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
+import { createSolidPng } from '@/lib/pwa/solidPng'
 import { ImageResponse } from 'next/og'
-import { NextRequest, NextResponse } from 'next/server'
-
-type RouteContext = {
-  params: Promise<{ slug: string }>
-}
+import { NextResponse } from 'next/server'
 
 const ALLOWED_HOST_SUFFIXES = ['app.vbizme.com', 'vbizme.com', 'amazonaws.com', 'cloudinary.com', 'nextcreavo.com']
-
-export const runtime = 'nodejs'
 
 function isAllowedAvatarHost(hostname: string): boolean {
   const host = hostname.toLowerCase()
@@ -55,66 +50,70 @@ async function avatarDataUrl(avatarUrl: string, origin: string): Promise<string 
   }
 }
 
-function pngIcon(size: number, photoSrc: string | null, initials: string) {
-  return new ImageResponse(
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#0b0f19',
-        overflow: 'hidden',
-      }}
-    >
-      {photoSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoSrc} width={size} height={size} style={{ objectFit: 'cover' }} alt="" />
-      ) : (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '100%',
-            height: '100%',
-            color: 'white',
-            fontSize: Math.round(size * 0.38),
-            fontWeight: 700,
-            letterSpacing: -2,
-          }}
-        >
-          {initials}
-        </div>
-      )}
-    </div>,
-    {
-      width: size,
-      height: size,
-      headers: {
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
-      },
-    }
-  )
+function pngResponse(buffer: Buffer): NextResponse {
+  return new NextResponse(new Uint8Array(buffer), {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+    },
+  })
 }
 
-export async function GET(request: NextRequest, context: RouteContext) {
-  const { slug: rawSlug } = await context.params
-  const slug = rawSlug?.trim()
-  if (!slug) {
-    return NextResponse.json({ error: 'Missing slug' }, { status: 400 })
-  }
+function solidFallback(size: number) {
+  return pngResponse(createSolidPng(size))
+}
 
-  const size = request.nextUrl.searchParams.get('size') === '512' ? 512 : 192
+export async function renderPublicCardPwaIcon(slug: string, size: 192 | 512, origin: string): Promise<Response> {
   const card = await fetchMyCardBySlug(slug)
   const name = card ? resolvePwaDisplayName(card.profile?.name, slug) : slug
   const avatarUrl = card ? resolvePwaAvatarUrl(card) : null
+  const initials = initialsFromName(name)
 
   try {
-    const photoSrc = avatarUrl ? await avatarDataUrl(avatarUrl, request.nextUrl.origin) : null
-    return pngIcon(size, photoSrc, initialsFromName(name))
+    const photoSrc = avatarUrl ? await avatarDataUrl(avatarUrl, origin) : null
+    return new ImageResponse(
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#0b0f19',
+          overflow: 'hidden',
+        }}
+      >
+        {photoSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoSrc} width={size} height={size} style={{ objectFit: 'cover' }} alt="" />
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+              color: 'white',
+              fontSize: Math.round(size * 0.38),
+              fontWeight: 700,
+            }}
+          >
+            {initials}
+          </div>
+        )}
+      </div>,
+      {
+        width: size,
+        height: size,
+        headers: {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        },
+      }
+    )
   } catch {
-    return pngIcon(size, null, initialsFromName(name))
+    return solidFallback(size)
   }
 }

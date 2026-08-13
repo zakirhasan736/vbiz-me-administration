@@ -20,9 +20,7 @@ export function SaveCardPwaModal({ isOpen, onClose, ownerName, avatarUrl, cardSl
   const added = isInstalled || nativeAdded
 
   const label = ownerName?.trim() || 'this card'
-  const iconSrc = cardSlug?.trim()
-    ? `/api/pwa/icon/${encodeURIComponent(cardSlug.trim())}?size=192`
-    : avatarUrl || '/favicon.ico'
+  const iconSrc = cardSlug?.trim() ? `/v/${encodeURIComponent(cardSlug.trim())}/icon/192` : avatarUrl || '/favicon.ico'
 
   const handleClose = () => {
     setInstallMessage(null)
@@ -114,11 +112,11 @@ export function SaveCardPwaModal({ isOpen, onClose, ownerName, avatarUrl, cardSl
           ) : (
             <ol className="list-decimal space-y-1.5 pl-5">
               <li>
-                Tap <strong>Add to Home Screen</strong> above if the install sheet appears
+                Look in the <strong>address bar</strong> (right side) for the install / download icon
               </li>
               <li>
-                Or open the browser menu (⋮ or ⋯) and tap <strong>Install app</strong> /{' '}
-                <strong>Add to Home Screen</strong>
+                Or tap <strong>⋮</strong> → <strong>Cast, save, and share</strong> →{' '}
+                <strong>Install page as app</strong> / <strong>Install app</strong>
               </li>
               <li>Confirm — this card opens like an app</li>
               <li>

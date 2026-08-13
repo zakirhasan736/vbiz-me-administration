@@ -25,15 +25,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: name,
     description: `${name}'s digital business card`,
     applicationName: name,
+    themeColor: '#0b0f19',
     appleWebApp: {
       capable: true,
       title: name,
       statusBarStyle: 'black-translucent',
     },
     icons: {
-      apple: `/api/pwa/icon/${encodeURIComponent(trimmed)}?size=192`,
+      apple: `/v/${encodeURIComponent(trimmed)}/icon/192`,
+      icon: [
+        { url: `/v/${encodeURIComponent(trimmed)}/icon/192`, sizes: '192x192', type: 'image/png' },
+        { url: `/v/${encodeURIComponent(trimmed)}/icon/512`, sizes: '512x512', type: 'image/png' },
+      ],
     },
     manifest: buildPwaManifestUrl(trimmed),
+    other: {
+      'mobile-web-app-capable': 'yes',
+    },
   }
 }
 

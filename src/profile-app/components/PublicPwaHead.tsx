@@ -13,11 +13,11 @@ async function ensurePublicCardServiceWorker() {
   try {
     await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
   } catch {
-    /* install still works via browser menu / iOS Share */
+    /* Chrome can still offer Install from the address bar once the manifest is valid */
   }
 }
 
-/** Injects per-card manifest + apple-touch-icon so Save / Install uses avatar + name. */
+/** Injects per-card manifest + apple-touch-icon so Chrome / iOS can install this card. */
 export function PublicPwaHead({ slug, ownerName }: PublicPwaHeadProps) {
   useEffect(() => {
     const trimmed = slug.trim()
@@ -33,7 +33,7 @@ export function PublicPwaHead({ slug, ownerName }: PublicPwaHeadProps) {
     manifestLink.href = manifestHref
     manifestLink.dataset.pwaManifest = 'card'
 
-    const iconHref = `/api/pwa/icon/${encodeURIComponent(trimmed)}?size=192`
+    const iconHref = `/v/${encodeURIComponent(trimmed)}/icon/192`
     let appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
     if (!appleLink) {
       appleLink = document.createElement('link')

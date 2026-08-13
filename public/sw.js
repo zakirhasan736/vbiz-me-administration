@@ -288,10 +288,161 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting()
+    return
+  }
+  if (event.data?.type === 'CACHE_PUBLIC_CARD' && Array.isArray(event.data.urls)) {
+    event.waitUntil(cachePublicCardUrls(event.data.urls))
   }
 })
 
-/** Network-first GET handler so Chrome treats this worker as installable. Push behaviour is unchanged. */
+const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v1'
+const CARD_DATA_CACHE = 'vbiz-public-card-data-v1'
+const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v1'
+const NEXT_STATIC_CACHE = 'vbiz-next-static-v1'
+
+function isPublicCardPage(pathname) {
+  const parts = String(pathname || '')
+    .replace(/^\/+|\/+$/g, '')
+    .split('/')
+    .filter(Boolean)
+  if (parts[0] !== 'v' || !parts[1]) return false
+  if (!parts[2]) return true
+  return parts[2] !== 'icon' && parts[2] !== 'manifest.webmanifest'
+}
+
+function isPublicCardMeta(pathname) {
+  return pathname.startsWith('/v/') && (pathname.includes('/icon/') || pathname.endsWith('manifest.webmanifest'))
+}
+
+function isCacheableResponse(res) {
+  return res && (res.ok || res.type === 'opaque')
+}
+
+function isPublicCardDataRequest(url) {
+  const pathname = String(url.pathname || '').toLowerCase()
+  if (url.origin === self.location.origin && pathname.startsWith('/_next/data/')) return true
+  if (url.origin === self.location.origin && pathname.startsWith('/api/pwa/')) return true
+  return pathname.includes('/api/v1/public/')
+}
+
+function isPublicCardAssetRequest(url) {
+  const pathname = String(url.pathname || '').toLowerCase()
+  if (pathname.startsWith('/_next/static/')) return false
+  if (url.origin === self.location.origin && pathname.startsWith('/_next/image')) return true
+  return /\.(?:avif|png|jpe?g|webp|gif|svg|ico|bmp|mp4|webm|mov|m4v|mp3|wav|ogg|woff2?|ttf|otf|css)$/i.test(pathname)
+}
+
+function cacheNameForUrl(url) {
+  if (url.origin === self.location.origin && url.pathname.startsWith('/_next/static/')) return NEXT_STATIC_CACHE
+  if (isPublicCardDataRequest(url)) return CARD_DATA_CACHE
+  if (isPublicCardAssetRequest(url)) return CARD_ASSET_CACHE
+  return CARD_SHELL_CACHE
+}
+
+async function matchCachedRequest(cache, request) {
+  const hit = await cache.match(request)
+  if (hit) return hit
+
+  try {
+    const url = new URL(request.url)
+    const byHref = await cache.match(url.href)
+    if (byHref) return byHref
+    if (url.origin === self.location.origin) {
+      return (await cache.match(`${url.pathname}${url.search}`)) || (await cache.match(url.pathname))
+    }
+  } catch {
+    /* fall through */
+  }
+
+  return null
+}
+
+function offlineCardDataResponse(request) {
+  let path = ''
+  try {
+    path = new URL(request.url).pathname
+  } catch {
+    path = ''
+  }
+
+  return new Response(
+    JSON.stringify({
+      success: false,
+      data: null,
+      offline: true,
+      path,
+      message:
+        'This card section is not available offline yet. Open the card once while online so vBiz can cache the latest section data.',
+    }),
+    {
+      status: 503,
+      statusText: 'Offline',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+        'X-vBiz-Offline': '1',
+      },
+    }
+  )
+}
+
+async function cachePublicCardUrls(urls) {
+  await Promise.all(
+    urls.map(async (raw) => {
+      try {
+        const url = new URL(raw, self.location.origin)
+        let request = new Request(url.href, {
+          credentials: url.origin === self.location.origin ? 'same-origin' : 'omit',
+          mode: url.origin === self.location.origin ? 'same-origin' : 'cors',
+        })
+        let res
+        try {
+          res = await fetch(request)
+        } catch (error) {
+          if (url.origin === self.location.origin || !isPublicCardAssetRequest(url)) throw error
+          request = new Request(url.href, { credentials: 'omit', mode: 'no-cors' })
+          res = await fetch(request)
+        }
+        if (!isCacheableResponse(res)) return
+        const cache = await caches.open(cacheNameForUrl(url))
+        await cache.put(request, res.clone())
+      } catch {
+        /* skip failed URLs */
+      }
+    })
+  )
+}
+
+async function networkFirst(request, cacheName, fallback) {
+  const cache = await caches.open(cacheName)
+  try {
+    const res = await fetch(request)
+    if (isCacheableResponse(res)) await cache.put(request, res.clone())
+    return res
+  } catch {
+    const hit = await matchCachedRequest(cache, request)
+    if (hit) return hit
+    return fallback ? fallback(request) : Response.error()
+  }
+}
+
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName)
+  const hit = await matchCachedRequest(cache, request)
+  if (hit) return hit
+  try {
+    const res = await fetch(request)
+    if (isCacheableResponse(res)) await cache.put(request, res.clone())
+    return res
+  } catch {
+    return Response.error()
+  }
+}
+
+/**
+ * Public-card PWA: cache v1/v2/v3 shell + hashed Next assets.
+ * Do not intercept HMR. Push behaviour is unchanged.
+ */
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   let url
@@ -300,18 +451,32 @@ self.addEventListener('fetch', (event) => {
   } catch {
     return
   }
-  if (url.origin !== self.location.origin) return
-  event.respondWith(
-    fetch(event.request).catch(async () => {
-      try {
-        const cached = await caches.match(event.request)
-        if (cached) return cached
-      } catch {
-        /* ignore cache errors */
-      }
-      return Response.error()
-    })
-  )
+  const sameOrigin = url.origin === self.location.origin
+  if (sameOrigin && (url.pathname.startsWith('/_next/webpack') || url.pathname.includes('hot-update'))) return
+
+  if (sameOrigin && url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(cacheFirst(event.request, NEXT_STATIC_CACHE))
+    return
+  }
+
+  if (sameOrigin && event.request.mode === 'navigate' && isPublicCardPage(url.pathname)) {
+    event.respondWith(networkFirst(event.request, CARD_SHELL_CACHE))
+    return
+  }
+
+  if (sameOrigin && isPublicCardMeta(url.pathname)) {
+    event.respondWith(networkFirst(event.request, CARD_SHELL_CACHE))
+    return
+  }
+
+  if (isPublicCardDataRequest(url)) {
+    event.respondWith(networkFirst(event.request, CARD_DATA_CACHE, offlineCardDataResponse))
+    return
+  }
+
+  if (isPublicCardAssetRequest(url)) {
+    event.respondWith(cacheFirst(event.request, CARD_ASSET_CACHE))
+  }
 })
 
 self.addEventListener('push', (event) => {

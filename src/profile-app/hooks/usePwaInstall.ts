@@ -10,6 +10,7 @@ type BeforeInstallPromptEvent = Event & {
 type VbizPwaBridge = {
   prompt: BeforeInstallPromptEvent | null
   installed: boolean
+  available?: boolean
 }
 
 declare global {
@@ -49,7 +50,7 @@ export function usePwaInstall() {
 
   useEffect(() => {
     const onBeforeInstall = (event: Event) => {
-      event.preventDefault()
+      // Do not preventDefault — Chrome then hides the address-bar / ⋮ Install controls.
       setDeferredPrompt(event as BeforeInstallPromptEvent)
     }
 
