@@ -1,5 +1,5 @@
 import type { NavBarLinksData, PostTypeNavLink, StaticNavLink } from '@/interfaces/navbarLinks.interface'
-import { NAV_ITEM_BY_ID, type NavBarNavItem } from '@/lib/vcardNavbar'
+import { CUSTOM_TAB_ID_PREFIX, NAV_ITEM_BY_ID, type NavBarNavItem } from '@/lib/vcardNavbar'
 import { FileText } from 'lucide-react'
 
 const STATIC_LINK_TO_NAV_ID: Record<string, string> = {
@@ -115,8 +115,10 @@ function withNavMeta(def: NavBarNavItem, options: { title?: string; apiSectionNa
 
 function createFallbackNavItem(postType: PostTypeNavLink): NavBarNavItem {
   const title = postType.title?.trim() || postType.name?.trim() || `Section ${postType.id}`
+  const slug = postType.slug?.trim()
+  const id = slug?.startsWith(CUSTOM_TAB_ID_PREFIX) ? slug : `post-type-${postType.id}`
   return {
-    id: `post-type-${postType.id}`,
+    id,
     label: title,
     displayLabel: title,
     apiSectionName: resolveApiSectionName(postType.name, postType.title, postType.slug),

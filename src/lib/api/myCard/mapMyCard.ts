@@ -1,12 +1,25 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
-import { parseThemeJson, THEME_SETTING_KEY } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import {
+  CUSTOM_TABS_SETTING_KEY,
+  parseThemeJson,
+  TAB_LABEL_OVERRIDES_SETTING_KEY,
+  THEME_SETTING_KEY,
+} from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { createDefaultNavFieldConfig, NAV_BAR_FIELDS } from '@/lib/vcardNavbar'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
-import type { VCardData, VCardExtraField, VCardPersonal, VCardRecord, VCardSocial, VCardTheme } from '@/types/vcard'
+import type {
+  VCardCustomTab,
+  VCardData,
+  VCardExtraField,
+  VCardPersonal,
+  VCardRecord,
+  VCardSocial,
+  VCardTheme,
+} from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { createDefaultFieldConfig } from '@/types/vcardDisplaySettings'
 import type { MyCardData, MyCardMyInfoField } from '@interfaces/api/myCard'
@@ -124,6 +137,39 @@ function parseDisplaySettingsSnapshot(raw?: string): VCardDisplaySettings | null
     return parsed
   } catch {
     return null
+  }
+}
+
+function parseCustomTabs(raw?: string): VCardCustomTab[] {
+  if (!raw?.trim()) return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((tab): tab is Partial<VCardCustomTab> => Boolean(tab && typeof tab === 'object'))
+      .map((tab) => ({
+        id: typeof tab.id === 'string' ? tab.id : '',
+        label: typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab',
+        items: Array.isArray(tab.items) ? tab.items : [],
+      }))
+      .filter((tab) => tab.id.startsWith('custom-tab-'))
+  } catch {
+    return []
+  }
+}
+
+function parseTabLabelOverrides(raw?: string): Record<string, string> {
+  if (!raw?.trim()) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .map(([id, label]) => [id, typeof label === 'string' ? label.trim() : ''] as const)
+        .filter(([, label]) => Boolean(label))
+    )
+  } catch {
+    return {}
   }
 }
 
@@ -377,6 +423,8 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
     education: [],
     experience: [],
     displaySettings: mapDisplaySettings(card),
+    customTabs: parseCustomTabs(card.settings?.[CUSTOM_TABS_SETTING_KEY]),
+    tabLabelOverrides: parseTabLabelOverrides(card.settings?.[TAB_LABEL_OVERRIDES_SETTING_KEY]),
     themeConfig: hasDynamicTheme(card.theme_config)
       ? resolveCardThemeConfig(card.theme_config, resolveTemplate(card))
       : undefined,

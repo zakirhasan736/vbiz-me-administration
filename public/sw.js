@@ -393,6 +393,30 @@ function offlineCardDataResponse(request) {
   )
 }
 
+function offlineDocumentResponse(request) {
+  let title = 'vBiz Card'
+  let path = '/'
+  try {
+    const url = new URL(request.url)
+    path = url.pathname
+    const slug = slugFromUrl(url.pathname)
+    if (slug) title = slug
+  } catch {
+    /* keep defaults */
+  }
+
+  return new Response(
+    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0f19"><title>${title}</title><style>html,body{height:100%;margin:0;background:#090d18;color:#f8fafc;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{display:flex;align-items:center;justify-content:center;padding:24px}.card{max-width:420px;border:1px solid rgba(255,255,255,.14);border-radius:28px;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.03));box-shadow:0 24px 80px rgba(0,0,0,.35);padding:28px;text-align:center}.icon{width:56px;height:56px;border-radius:18px;margin:0 auto 18px;background:#eab308;color:#111827;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px}.eyebrow{margin:0 0 8px;color:#facc15;font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.title{margin:0;font-size:24px;line-height:1.1}.copy{margin:12px 0 0;color:#cbd5e1;font-size:14px;line-height:1.55}.small{margin-top:18px;color:#94a3b8;font-size:12px}.button{display:inline-flex;margin-top:20px;border-radius:999px;background:#f8fafc;color:#0f172a;text-decoration:none;font-size:13px;font-weight:900;padding:12px 16px}</style></head><body><main class="card"><div class="icon">N</div><p class="eyebrow">Offline card</p><h1 class="title">Preparing saved content</h1><p class="copy">This installed card opened offline, but its app files were not fully cached yet. Open ${path} once while online and wait a few seconds so every section can be saved for offline use.</p><a class="button" href="${path}">Try again</a><p class="small">After one online open, tabs and section content will load from the PWA cache.</p></main></body></html>`,
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    }
+  )
+}
+
 async function cachePublicCardUrls(urls) {
   await Promise.all(
     urls.map(async (raw) => {
@@ -438,9 +462,9 @@ async function publicCardNavigationFallback(request) {
   try {
     const url = new URL(request.url)
     const canonical = `${url.origin}${url.pathname}`
-    return (await cache.match(canonical)) || (await cache.match(url.pathname)) || Response.error()
+    return (await cache.match(canonical)) || (await cache.match(url.pathname)) || offlineDocumentResponse(request)
   } catch {
-    return Response.error()
+    return offlineDocumentResponse(request)
   }
 }
 

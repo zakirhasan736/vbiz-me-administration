@@ -29,7 +29,9 @@ export type CreateCardTabDef = {
   aiPriority?: 'core' | 'content' | 'optional'
 }
 
-/** Always last two tabs on every card (order fixed). */
+export const ALWAYS_ENABLED_NAV_IDS = ['home', 'about', 'global-connection', 'my-info'] as const
+
+/** Default utility tabs shown at the end on new cards. Users can reorder them later. */
 export const PINNED_END_NAV_IDS = ['global-connection', 'my-info'] as const
 
 /** Backoffice DEFAULT_ENABLED_TABS order — used for tour activateTab + manual create defaults. */
@@ -167,7 +169,7 @@ export function getDefaultCreateCardNavIds(): string[] {
  * Extra tabs come only from AI suggestions / extracted content.
  */
 export function getAiSeedCreateCardNavIds(): string[] {
-  return ['home', ...PINNED_END_NAV_IDS]
+  return ['home', 'about', ...PINNED_END_NAV_IDS]
 }
 
 /** Tabs AI should try to fill when source data exists. */
@@ -183,10 +185,26 @@ export function getAiContentCandidateNavIds(): string[] {
  */
 export function normalizeNavOrderWithPinnedEnds(navIds: string[]): string[] {
   const pinned = new Set<string>(PINNED_END_NAV_IDS)
-  const middle = navIds.filter((id) => id && id !== 'home' && !pinned.has(id))
+  const middle = navIds.filter((id) => id && id !== 'home' && id !== 'about' && !pinned.has(id))
   const uniqueMiddle = Array.from(new Set(middle))
   const pinnedOrder = Array.from(new Set([...navIds.filter((id) => pinned.has(id)), ...PINNED_END_NAV_IDS]))
-  return ['home', ...uniqueMiddle, ...pinnedOrder]
+  return ['home', 'about', ...uniqueMiddle, ...pinnedOrder]
+}
+
+/** Keep required tabs enabled while preserving the exact user-selected order. */
+export function normalizeNavOrderWithRequiredTabs(navIds: string[]): string[] {
+  const required = new Set<string>(ALWAYS_ENABLED_NAV_IDS)
+  const unique = Array.from(new Set(navIds.filter((id) => typeof id === 'string' && id.trim())))
+  const next = [...unique]
+  if (!next.includes('home')) next.unshift('home')
+  if (!next.includes('about')) {
+    const homeIndex = next.indexOf('home')
+    next.splice(homeIndex >= 0 ? homeIndex + 1 : 1, 0, 'about')
+  }
+  for (const id of ['global-connection', 'my-info']) {
+    if (!next.includes(id)) next.push(id)
+  }
+  return next.filter((id) => id && (required.has(id) || unique.includes(id)))
 }
 
 /** Human-readable catalog for AI prompts / chat. */

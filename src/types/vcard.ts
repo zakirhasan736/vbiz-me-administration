@@ -128,6 +128,34 @@ export type VCardSectionPostItem = {
 }
 
 /** Back office → Portfolio tab entries (shown on public Gallery section). */
+export type VCardCustomTabMediaKind = 'image' | 'video' | 'canva' | 'gallery' | 'upload'
+
+export type VCardCustomTabGalleryItem = {
+  id: string
+  url: string
+  name: string
+  kind?: VCardCustomTabMediaKind
+}
+
+export type VCardCustomTabItem = {
+  id: string
+  title: string
+  description: string
+  mediaUrl: string
+  mediaName?: string
+  mediaKind?: VCardCustomTabMediaKind
+  gallery?: VCardCustomTabGalleryItem[]
+  active: boolean
+}
+
+export type VCardCustomTab = {
+  id: string
+  label: string
+  items: VCardCustomTabItem[]
+}
+
+export type VCardTabLabelOverrides = Record<string, string>
+
 export type VCardPortfolioEntry = {
   id: string
   type: string
@@ -170,6 +198,10 @@ export type VCardData = {
   faqs?: VCardFaqEntry[]
   /** Posts keyed by exact PUBLIC_SECTION_NAMES / postTypeName values. */
   sectionPosts?: Record<string, VCardSectionPostItem[]>
+  /** User-created flexible tabs stored with the card. */
+  customTabs?: VCardCustomTab[]
+  /** Display/editor label overrides keyed by nav id. */
+  tabLabelOverrides?: VCardTabLabelOverrides
   portfolio: VCardPortfolioEntry[]
   reviews?: VCardReviewEntry[]
   skills?: VCardSkillGroup[]
@@ -242,6 +274,8 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     generalPosts: [],
     faqs: [],
     sectionPosts: {},
+    customTabs: [],
+    tabLabelOverrides: {},
     portfolio: [],
     reviews: [],
     skills: [],
@@ -271,6 +305,8 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     generalPosts: overrides.generalPosts ?? base.generalPosts,
     faqs: overrides.faqs ?? base.faqs,
     sectionPosts: overrides.sectionPosts ?? base.sectionPosts,
+    customTabs: overrides.customTabs ?? base.customTabs,
+    tabLabelOverrides: overrides.tabLabelOverrides ?? base.tabLabelOverrides,
     portfolio: overrides.portfolio ?? base.portfolio,
     reviews: overrides.reviews ?? base.reviews,
     skills: overrides.skills ?? base.skills,

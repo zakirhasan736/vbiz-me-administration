@@ -1,20 +1,24 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
-import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
+import { normalizeNavOrderWithPinnedEnds, normalizeNavOrderWithRequiredTabs } from '@/lib/createCardTabs'
 import { getNavItemCompletionPercent } from '@/lib/vcardCompletion'
 import {
+  buildCustomNavItems,
+  CUSTOM_TAB_ID_PREFIX,
   getDefaultEnabledNavIds,
+  getEditorNavLabel,
   getNavItemGroup,
+  isCustomNavItemId,
   LOCKED_NAV_ITEM_IDS,
   NAV_BAR_NAV_ITEMS,
   NAV_ITEM_GROUPS,
   type NavBarNavItem,
 } from '@/lib/vcardNavbar'
-import type { VCardData } from '@/types/vcard'
+import type { VCardCustomTab, VCardData, VCardTabLabelOverrides } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { reorderByIndex } from '@/utils/reorderByIndex'
-import { Check, ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, GripVertical, Pencil, Plus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 type AddTabsModalProps = {
@@ -22,29 +26,63 @@ type AddTabsModalProps = {
   onClose: () => void
   enabledIds: string[]
   vCardData: VCardData
-  onApply: (nextIds: string[]) => void
+  onApply: (payload: {
+    nextIds: string[]
+    customTabs: VCardCustomTab[]
+    labelOverrides: VCardTabLabelOverrides
+  }) => void
 }
 
 function normalizeDraft(ids: string[]): string[] {
-  return normalizeNavOrderWithPinnedEnds(ids)
+  return normalizeNavOrderWithRequiredTabs(ids)
+}
+
+function customId() {
+  return `${CUSTOM_TAB_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+function createDraftCustomTab(label: string): VCardCustomTab {
+  return {
+    id: customId(),
+    label,
+    items: [],
+  }
+}
+
+function normalizeCustomTabs(tabs?: VCardCustomTab[] | null): VCardCustomTab[] {
+  return (tabs || [])
+    .filter((tab) => isCustomNavItemId(tab.id))
+    .map((tab) => ({
+      id: tab.id,
+      label: tab.label?.trim() || 'Custom tab',
+      items: tab.items || [],
+    }))
 }
 
 export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: AddTabsModalProps) {
   const [draftIds, setDraftIds] = useState<string[]>(() => normalizeDraft(enabledIds))
+  const [customTabs, setCustomTabs] = useState<VCardCustomTab[]>(() => normalizeCustomTabs(vCardData.customTabs))
+  const [labelOverrides, setLabelOverrides] = useState<VCardTabLabelOverrides>(() => vCardData.tabLabelOverrides || {})
   const [wasOpen, setWasOpen] = useState(open)
 
   // Reset draft when the modal opens (adjust during render — avoid setState-in-effect).
   if (open !== wasOpen) {
     setWasOpen(open)
-    if (open) setDraftIds(normalizeDraft(enabledIds))
+    if (open) {
+      setDraftIds(normalizeDraft(enabledIds))
+      setCustomTabs(normalizeCustomTabs(vCardData.customTabs))
+      setLabelOverrides(vCardData.tabLabelOverrides || {})
+    }
   }
+
+  const allItems = useMemo(() => [...NAV_BAR_NAV_ITEMS, ...buildCustomNavItems(customTabs)], [customTabs])
 
   const draftItems = useMemo(
     () =>
       draftIds
-        .map((id) => NAV_BAR_NAV_ITEMS.find((item) => item.id === id))
+        .map((id) => allItems.find((item) => item.id === id))
         .filter((item): item is NavBarNavItem => Boolean(item)),
-    [draftIds]
+    [allItems, draftIds]
   )
 
   const toggleId = (id: string) => {
@@ -57,6 +95,48 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
 
   const moveDraft = (from: number, to: number) => {
     setDraftIds((prev) => normalizeDraft(reorderByIndex(prev, from, to)))
+  }
+
+  const itemLabel = (item: NavBarNavItem) => {
+    return labelOverrides[item.id]?.trim() || getEditorNavLabel(item)
+  }
+
+  const updateLabel = (id: string, value: string) => {
+    setLabelOverrides((prev) => ({ ...prev, [id]: value }))
+    if (isCustomNavItemId(id)) {
+      setCustomTabs((prev) => prev.map((tab) => (tab.id === id ? { ...tab, label: value } : tab)))
+    }
+  }
+
+  const addCustomTab = () => {
+    const tab = createDraftCustomTab(`Custom tab ${customTabs.length + 1}`)
+    setCustomTabs((prev) => [...prev, tab])
+    setLabelOverrides((prev) => ({ ...prev, [tab.id]: tab.label }))
+    setDraftIds((prev) => normalizeDraft([...prev, tab.id]))
+  }
+
+  const resetDefaults = () => {
+    setDraftIds(normalizeNavOrderWithPinnedEnds(getDefaultEnabledNavIds()))
+    setCustomTabs(normalizeCustomTabs(vCardData.customTabs))
+    setLabelOverrides({})
+  }
+
+  const apply = () => {
+    const normalizedIds = normalizeDraft(draftIds)
+    const activeCustomIds = new Set(normalizedIds.filter((id) => isCustomNavItemId(id)))
+    const nextCustomTabs = customTabs
+      .filter((tab) => activeCustomIds.has(tab.id))
+      .map((tab) => ({
+        ...tab,
+        label: labelOverrides[tab.id]?.trim() || tab.label?.trim() || 'Custom tab',
+        items: tab.items || [],
+      }))
+    const cleanedOverrides = Object.fromEntries(
+      Object.entries(labelOverrides)
+        .map(([id, label]) => [id, label.trim()] as const)
+        .filter(([, label]) => Boolean(label))
+    )
+    onApply({ nextIds: normalizedIds, customTabs: nextCustomTabs, labelOverrides: cleanedOverrides })
   }
 
   return (
@@ -111,9 +191,16 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                     {orderNum}
                   </span>
                   <item.icon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-                  <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-800 dark:text-slate-100">
-                    {item.label}
-                  </span>
+                  <label className="relative min-w-0 flex-1">
+                    <Pencil className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={itemLabel(item)}
+                      onChange={(event) => updateLabel(item.id, event.target.value)}
+                      className="w-full min-w-0 rounded-lg border border-transparent bg-transparent py-1 pr-1 pl-6 text-[12px] font-bold text-slate-800 transition outline-none focus:border-indigo-200 focus:bg-white dark:text-slate-100 dark:focus:border-indigo-500/40 dark:focus:bg-white/5"
+                      aria-label={`Rename ${item.label}`}
+                    />
+                  </label>
                   <div className="flex shrink-0 items-center gap-0.5 opacity-70">
                     <button
                       type="button"
@@ -136,6 +223,26 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                 </div>
               )
             })}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/50 p-4 dark:border-teal-500/20 dark:bg-teal-500/5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black tracking-widest text-teal-600 uppercase dark:text-teal-300">
+                Custom tabs
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Add multiple flexible tabs for title, description, uploads, gallery, and Canva media.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addCustomTab}
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-teal-700"
+            >
+              <Plus className="h-4 w-4" /> Custom tab
+            </button>
           </div>
         </div>
 
@@ -176,7 +283,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                         {checked && <Check className="h-3 w-3" strokeWidth={3} />}
                       </span>
                       <tab.icon className="h-3.5 w-3.5 shrink-0 opacity-90" />
-                      <span className="whitespace-nowrap">{tab.label}</span>
+                      <span className="whitespace-nowrap">{itemLabel(tab)}</span>
                       {percent > 0 && (
                         <span
                           className={cn(
@@ -203,7 +310,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setDraftIds(normalizeDraft(getDefaultEnabledNavIds()))}
+            onClick={resetDefaults}
             className="rounded-xl px-3 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5"
           >
             Reset defaults
@@ -217,7 +324,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
           </button>
           <button
             type="button"
-            onClick={() => onApply(normalizeDraft(draftIds))}
+            onClick={apply}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white hover:bg-indigo-700"
           >
             <Check className="h-4 w-4" /> Apply

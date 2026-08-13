@@ -92,7 +92,7 @@ export function NotificationFollowModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="vbiz-modal-backdrop fixed inset-0 z-[210] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="vbiz-modal-backdrop fixed inset-0 z-210 flex items-center justify-center p-4 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

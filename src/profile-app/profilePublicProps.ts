@@ -13,6 +13,7 @@ import { DEFAULT_LIVE_AGENT_CARD, type LiveAgentCardData } from '@/profile-app/l
 import { cleanProfileFieldValue } from '@/profile-app/lib/profileHomeData'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
 import type {
+  VCardCustomTab,
   VCardData,
   VCardEducationEntry,
   VCardExperienceEntry,
@@ -27,6 +28,7 @@ import type {
   VCardServiceEntry,
   VCardSkillGroup,
   VCardSocial,
+  VCardTabLabelOverrides,
 } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import type { MyCardActionButtons, MyCardTeamNotice } from '@interfaces/api/myCard'
@@ -69,6 +71,8 @@ export type VBizProfileAppProps = {
   portfolio?: VCardPortfolioEntry[]
   reviews?: VCardReviewEntry[]
   sectionPosts?: Record<string, VCardSectionPostItem[]>
+  customTabs?: VCardCustomTab[]
+  tabLabelOverrides?: VCardTabLabelOverrides
   generalPosts?: VCardGeneralPost[]
   faqs?: VCardFaqEntry[]
   displaySettings?: VCardDisplaySettings
@@ -178,6 +182,8 @@ export function vCardDataToProfileProps(
     portfolio: data.portfolio ?? [],
     reviews: data.reviews ?? [],
     sectionPosts: data.sectionPosts ?? {},
+    customTabs: data.customTabs ?? [],
+    tabLabelOverrides: data.tabLabelOverrides ?? {},
     generalPosts: normalizeGeneralPostList(data.generalPosts),
     faqs: normalizeFaqList(data.faqs),
     displaySettings: display,
