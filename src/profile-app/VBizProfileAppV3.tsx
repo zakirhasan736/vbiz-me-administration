@@ -31,6 +31,7 @@ type V3ModalState = ProfileHomeModalId
 export function VBizProfileAppV3({
   cardOwnerId = DEMO_PROFILE_PROPS.cardOwnerId,
   ownerName = DEMO_PROFILE_PROPS.ownerName,
+  avatarVideoUrl,
   liveAgentCardData = DEMO_PROFILE_PROPS.liveAgentCardData,
   liveAgentSystemPrompt,
   liveAgentEnabled = false,
@@ -209,6 +210,7 @@ export function VBizProfileAppV3({
           cardOwnerId={cardOwnerId}
           cardSlug={cardSlug}
           ownerName={liveAgentCardData?.ownerName ?? ownerName}
+          avatarUrl={avatarVideoUrl}
         />
       )}
 

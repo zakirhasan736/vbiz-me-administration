@@ -40,38 +40,8 @@ const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; color: stri
   website: { icon: Globe, color: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-500/10' },
 }
 
-const DEFAULT_CHANNELS: SocialChannelStat[] = (
-  [
-    'facebook',
-    'twitter',
-    'instagram',
-    'whatsapp',
-    'linkedin',
-    'youtube',
-    'tiktok',
-    'truth',
-    'rumble',
-    'pinterest',
-    'website',
-  ] as const
-).map((channel) => ({
-  channel,
-  label:
-    channel === 'whatsapp'
-      ? 'WhatsApp'
-      : channel === 'youtube'
-        ? 'YouTube'
-        : channel === 'tiktok'
-          ? 'TikTok'
-          : channel === 'truth'
-            ? 'Truth Social'
-            : channel.charAt(0).toUpperCase() + channel.slice(1),
-  count: 0,
-  trendPercent: 0,
-}))
-
 export function SocialEngagementSection({ channels }: SocialEngagementSectionProps) {
-  const rows = channels?.length ? channels : DEFAULT_CHANNELS
+  const rows = channels ?? []
 
   return (
     <div className="animate-in slide-in-from-bottom-4 fill-mode-both mb-10 delay-100">
@@ -79,34 +49,41 @@ export function SocialEngagementSection({ channels }: SocialEngagementSectionPro
         <Activity className="h-4 w-4 text-slate-400" />
         Social Engagement Channels
       </h3>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-        {rows.map((stat) => {
-          const ui = CHANNEL_UI[stat.channel] ?? CHANNEL_UI.website
-          const Icon = ui.icon
-          return (
-            <div
-              key={stat.channel}
-              className="group rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.05)] dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/10 dark:hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.4)]"
-            >
+      {rows.length ? (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {rows.map((stat) => {
+            const ui = CHANNEL_UI[stat.channel] ?? CHANNEL_UI.website
+            const Icon = ui.icon
+            return (
               <div
-                className={cn(
-                  'mb-5 flex h-12 w-12 items-center justify-center rounded-[14px] border border-black/5 shadow-sm transition-transform group-hover:scale-110 dark:border-white/5',
-                  ui.bg,
-                  ui.color
-                )}
+                key={stat.channel}
+                className="group rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.05)] dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/10 dark:hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.4)]"
               >
-                <Icon className="h-6 w-6" strokeWidth={1.5} />
+                <div
+                  className={cn(
+                    'mb-5 flex h-12 w-12 items-center justify-center rounded-[14px] border border-black/5 shadow-sm transition-transform group-hover:scale-110 dark:border-white/5',
+                    ui.bg,
+                    ui.color
+                  )}
+                >
+                  <Icon className="h-6 w-6" strokeWidth={1.5} />
+                </div>
+                <div>
+                  <p className="mb-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">{stat.count}</p>
+                  <p className="text-[11px] leading-tight font-bold tracking-widest text-slate-500 uppercase">
+                    {stat.label}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="mb-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">{stat.count}</p>
-                <p className="text-[11px] leading-tight font-bold tracking-widest text-slate-500 uppercase">
-                  {stat.label}
-                </p>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-white py-10 text-center dark:border-white/10 dark:bg-[#0b0f19]">
+          <Activity className="mx-auto mb-2 h-7 w-7 text-slate-300 dark:text-white/15" />
+          <p className="text-xs font-semibold text-slate-400">No social click data yet.</p>
+        </div>
+      )}
     </div>
   )
 }

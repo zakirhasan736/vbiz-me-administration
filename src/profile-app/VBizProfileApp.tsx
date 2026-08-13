@@ -272,6 +272,7 @@ export function VBizProfileApp({
           cardOwnerId={cardOwnerId}
           cardSlug={profileSlug ?? shareSlug ?? 'preview'}
           ownerName={ownerName}
+          avatarUrl={avatarVideoUrl}
         />
       )}
 

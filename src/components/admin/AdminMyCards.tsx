@@ -134,28 +134,7 @@ export default function AdminMyCards() {
     [myCards, lifecycleTab]
   )
 
-  const defaultSocialChannels = useMemo(
-    () =>
-      (Object.keys(CHANNEL_UI) as DashboardSocialChannel[]).map((channel) => ({
-        channel,
-        label:
-          channel === 'whatsapp'
-            ? 'WhatsApp'
-            : channel === 'youtube'
-              ? 'YouTube'
-              : channel === 'tiktok'
-                ? 'TikTok'
-                : channel === 'truth'
-                  ? 'Truth Social'
-                  : channel === 'website'
-                    ? 'Website'
-                    : channel.charAt(0).toUpperCase() + channel.slice(1),
-        count: 0,
-        trendPercent: 0,
-      })),
-    []
-  )
-  const socialChannels = stats?.socialChannels?.length ? stats.socialChannels : defaultSocialChannels
+  const socialChannels = stats?.socialChannels ?? []
 
   const socialTotal = socialChannels.reduce((sum, row) => sum + (row.count || 0), 0) || Number(stats?.shares || 0)
 
@@ -246,24 +225,31 @@ export default function AdminMyCards() {
             Social analytics (my cards)
           </h2>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {socialChannels.map((row) => {
-            const ui = CHANNEL_UI[row.channel] ?? { icon: Globe, tone: 'text-slate-500' }
-            const Icon = ui.icon
-            return (
-              <div
-                key={row.channel}
-                className="rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-slate-900/50"
-              >
-                <Icon className={cn('mb-2 h-4 w-4', ui.tone)} />
-                <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{row.label}</p>
-                <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">
-                  <AnimatedNumber value={row.count || 0} />
-                </p>
-              </div>
-            )
-          })}
-        </div>
+        {socialChannels.length ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {socialChannels.map((row) => {
+              const ui = CHANNEL_UI[row.channel] ?? { icon: Globe, tone: 'text-slate-500' }
+              const Icon = ui.icon
+              return (
+                <div
+                  key={row.channel}
+                  className="rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-slate-900/50"
+                >
+                  <Icon className={cn('mb-2 h-4 w-4', ui.tone)} />
+                  <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{row.label}</p>
+                  <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">
+                    <AnimatedNumber value={row.count || 0} />
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-10 text-center dark:border-white/10 dark:bg-slate-900/50">
+            <Share2 className="mx-auto mb-2 h-7 w-7 text-slate-300 dark:text-white/15" />
+            <p className="text-xs font-semibold text-slate-400">No social click data yet.</p>
+          </div>
+        )}
       </div>
 
       {myCards.length > 0 && <VCardWeeklyEngagement vCardsList={myCards} aggregateAll scope="created" />}

@@ -4,11 +4,37 @@ import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfil
 import { fetchNavBarLinks } from '@/lib/api/navbar/fetchNavBarLinks'
 import { resolveProfileSettingsTheme } from '@/lib/api/profileSettings/fetchProfileSettings'
 import { fallbackLiveAgentPrompt, resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
+import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 type Props = {
   params: Promise<{ slug: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
+  const trimmed = slug?.trim()
+  if (!trimmed) return {}
+
+  const myCard = await fetchMyCardBySlug(trimmed)
+  const name = resolvePwaDisplayName(myCard?.profile?.name, trimmed)
+
+  return {
+    title: name,
+    description: `${name}'s digital business card`,
+    applicationName: name,
+    appleWebApp: {
+      capable: true,
+      title: name,
+      statusBarStyle: 'black-translucent',
+    },
+    icons: {
+      apple: `/api/pwa/icon/${encodeURIComponent(trimmed)}?size=192`,
+    },
+    manifest: buildPwaManifestUrl(trimmed),
+  }
 }
 
 /** `/v/{slug}` — public vcard (Node `/api/v1/public`, template-services parity). */
