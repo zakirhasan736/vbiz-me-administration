@@ -26,6 +26,7 @@ import { useEffect, useMemo, useState } from 'react'
 const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v1'
 const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v1'
 const CARD_DATA_CACHE = 'vbiz-public-card-data-v1'
+const NEXT_STATIC_CACHE = 'vbiz-next-static-v1'
 
 function isStandaloneDisplay() {
   if (typeof window === 'undefined') return false
@@ -109,7 +110,7 @@ function collectCacheUrls(slug: string): string[] {
 
   document
     .querySelectorAll<HTMLImageElement | HTMLScriptElement | HTMLLinkElement | HTMLMediaElement | HTMLSourceElement>(
-      'script[src], link[rel="stylesheet"][href], link[rel="preload"][href], img[src], video[src], audio[src], source[src]'
+      'script[src], link[rel="stylesheet"][href], link[rel="preload"][href], link[rel="modulepreload"][href], img[src], video[src], audio[src], source[src]'
     )
     .forEach((element) => {
       addUrl(element.getAttribute('src') ?? element.getAttribute('href'))
@@ -120,7 +121,8 @@ function collectCacheUrls(slug: string): string[] {
 
 function cacheNameForRuntimeUrl(url: URL): string {
   const pathname = url.pathname.toLowerCase()
-  if (pathname.startsWith('/_next/static/') || pathname.startsWith('/_next/image')) return CARD_ASSET_CACHE
+  if (pathname.startsWith('/_next/static/')) return NEXT_STATIC_CACHE
+  if (pathname.startsWith('/_next/image')) return CARD_ASSET_CACHE
   if (pathname.includes('/api/v1/public/') || pathname.includes('/public/')) return CARD_DATA_CACHE
   if (/\.(?:avif|png|jpe?g|webp|gif|svg|ico|bmp|mp4|webm|mov|m4v|mp3|wav|ogg|woff2?|ttf|otf|css)$/i.test(pathname)) {
     return CARD_ASSET_CACHE
@@ -157,16 +159,47 @@ async function warmLazyProfileChunks(): Promise<void> {
     import('@/profile-app/VBizProfileAppV3'),
     import('@/profile-app/components/AboutSection'),
     import('@/profile-app/components/AdditionalServicesSection'),
+    import('@/profile-app/components/AnnouncementSection'),
+    import('@/profile-app/components/BbbAccreditationSection'),
     import('@/profile-app/components/BlogSection'),
+    import('@/profile-app/components/BookingSection'),
+    import('@/profile-app/components/BreakfastSection'),
+    import('@/profile-app/components/CalendarSection'),
+    import('@/profile-app/components/CertificationsLicensingSection'),
     import('@/profile-app/components/ClientsSection'),
+    import('@/profile-app/components/DcpSection'),
+    import('@/profile-app/components/DinnerSection'),
     import('@/profile-app/components/EducationSection'),
+    import('@/profile-app/components/EventsSection'),
     import('@/profile-app/components/ExperienceSection'),
+    import('@/profile-app/components/ExplainerSection'),
     import('@/profile-app/components/FAQSection'),
+    import('@/profile-app/components/HomeSection'),
+    import('@/profile-app/components/HomeSectionV2'),
+    import('@/profile-app/components/HomeSolarSection'),
     import('@/profile-app/components/ImageGallerySection'),
+    import('@/profile-app/components/InsuranceLicenseSection'),
+    import('@/profile-app/components/InventorySection'),
+    import('@/profile-app/components/JoinMyTeamSection'),
+    import('@/profile-app/components/LicensingSection'),
+    import('@/profile-app/components/LunchSection'),
+    import('@/profile-app/components/MediaPressSection'),
+    import('@/profile-app/components/MeetOurTeamSection'),
+    import('@/profile-app/components/MenuSection'),
+    import('@/profile-app/components/MissionSection'),
+    import('@/profile-app/components/PostsSection'),
+    import('@/profile-app/components/PropertyListingSection'),
+    import('@/profile-app/components/PublicCardsSection'),
+    import('@/profile-app/components/ResiliencyProductsSection'),
     import('@/profile-app/components/ReviewsSection'),
+    import('@/profile-app/components/SalesPersonSection'),
+    import('@/profile-app/components/SeeProductsSection'),
     import('@/profile-app/components/ServicesSection'),
     import('@/profile-app/components/SkillsSection'),
+    import('@/profile-app/components/VideoLinksSection'),
     import('@/profile-app/components/VideosSection'),
+    import('@/profile-app/components/WhyChooseUsSection'),
+    import('@/profile-app/v3/components/HomeHero'),
   ])
 }
 
