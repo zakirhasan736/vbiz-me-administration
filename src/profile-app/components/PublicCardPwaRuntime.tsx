@@ -20,7 +20,12 @@ import { reviewsApi } from '@/redux/features/sections/reviews.api'
 import { servicesApi } from '@/redux/features/sections/services.api'
 import { videoExplainerApi } from '@/redux/features/sections/videoExplainer.api'
 import { videosApi } from '@/redux/features/sections/videos.api'
+import { Cloud, Home, Share2, UserPlus, WifiOff, type LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+
+const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v1'
+const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v1'
+const CARD_DATA_CACHE = 'vbiz-public-card-data-v1'
 
 function isStandaloneDisplay() {
   if (typeof window === 'undefined') return false
@@ -33,6 +38,31 @@ function isStandaloneDisplay() {
 function isOnline() {
   if (typeof navigator === 'undefined') return true
   return navigator.onLine
+}
+
+function runLaunchAction() {
+  if (typeof window === 'undefined') return
+  const params = new URLSearchParams(window.location.search)
+  const action = params.get('action')?.trim().toLowerCase()
+  if (!action) return
+
+  const eventNameByAction: Record<string, string> = {
+    contact: 'saveContactAction',
+    share: 'openShareModal',
+    notifications: 'openFollowModal',
+    install: 'openPwaInstallModal',
+  }
+  const eventName = eventNameByAction[action]
+  if (!eventName) return
+
+  window.setTimeout(() => {
+    window.dispatchEvent(new CustomEvent(eventName))
+  }, 650)
+}
+
+function dispatchProfileAction(eventName: string) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(eventName))
 }
 
 function isCacheableRuntimeUrl(url: URL, cardPath: string): boolean {
@@ -86,6 +116,58 @@ function collectCacheUrls(slug: string): string[] {
     })
 
   return [...urls]
+}
+
+function cacheNameForRuntimeUrl(url: URL): string {
+  const pathname = url.pathname.toLowerCase()
+  if (pathname.startsWith('/_next/static/') || pathname.startsWith('/_next/image')) return CARD_ASSET_CACHE
+  if (pathname.includes('/api/v1/public/') || pathname.includes('/public/')) return CARD_DATA_CACHE
+  if (/\.(?:avif|png|jpe?g|webp|gif|svg|ico|bmp|mp4|webm|mov|m4v|mp3|wav|ogg|woff2?|ttf|otf|css)$/i.test(pathname)) {
+    return CARD_ASSET_CACHE
+  }
+  return CARD_SHELL_CACHE
+}
+
+async function cacheUrlsInPage(urls: string[]): Promise<void> {
+  if (typeof window === 'undefined' || !('caches' in window)) return
+
+  await Promise.allSettled(
+    urls.map(async (raw) => {
+      try {
+        const url = new URL(raw, window.location.origin)
+        const request = new Request(url.href, {
+          credentials: url.origin === window.location.origin ? 'same-origin' : 'omit',
+          mode: url.origin === window.location.origin ? 'same-origin' : 'cors',
+        })
+        const response = await fetch(request)
+        if (!response.ok && response.type !== 'opaque') return
+        const cache = await caches.open(cacheNameForRuntimeUrl(url))
+        await cache.put(request, response.clone())
+      } catch {
+        /* best effort warm cache */
+      }
+    })
+  )
+}
+
+async function warmLazyProfileChunks(): Promise<void> {
+  await Promise.allSettled([
+    import('@/profile-app/VBizProfileApp'),
+    import('@/profile-app/VBizProfileAppV1'),
+    import('@/profile-app/VBizProfileAppV3'),
+    import('@/profile-app/components/AboutSection'),
+    import('@/profile-app/components/AdditionalServicesSection'),
+    import('@/profile-app/components/BlogSection'),
+    import('@/profile-app/components/ClientsSection'),
+    import('@/profile-app/components/EducationSection'),
+    import('@/profile-app/components/ExperienceSection'),
+    import('@/profile-app/components/FAQSection'),
+    import('@/profile-app/components/ImageGallerySection'),
+    import('@/profile-app/components/ReviewsSection'),
+    import('@/profile-app/components/ServicesSection'),
+    import('@/profile-app/components/SkillsSection'),
+    import('@/profile-app/components/VideosSection'),
+  ])
 }
 
 const STATIC_DYNAMIC_SECTION_BY_CONTENT: Partial<Record<ProfileNavContentKey, string>> = {
@@ -166,14 +248,17 @@ export function PublicCardPwaRuntime({
     }
 
     markStandalone()
+    runLaunchAction()
     const media = window.matchMedia('(display-mode: standalone)')
     const onDisplayMode = () => markStandalone()
     media.addEventListener?.('change', onDisplayMode)
 
     const cacheShell = () => {
+      const urls = collectCacheUrls(trimmed)
+      void cacheUrlsInPage(urls)
       const controller = navigator.serviceWorker?.controller
       if (!controller) return
-      controller.postMessage({ type: 'CACHE_PUBLIC_CARD', urls: collectCacheUrls(trimmed) })
+      controller.postMessage({ type: 'CACHE_PUBLIC_CARD', urls })
     }
 
     const serviceWorker = 'serviceWorker' in navigator ? navigator.serviceWorker : null
@@ -307,6 +392,7 @@ export function PublicCardPwaRuntime({
     window.addEventListener('offline', onOffline)
     document.addEventListener('visibilitychange', onVisible)
 
+    void warmLazyProfileChunks().finally(cacheShell)
     syncLatest(false)
     const cacheTimer = window.setTimeout(cacheShell, 2500)
     const postPrefetchCacheTimer = window.setTimeout(cacheShell, 5000)
@@ -324,15 +410,52 @@ export function PublicCardPwaRuntime({
 
   if (connectionState === 'online') return null
 
+  const isOffline = connectionState === 'offline'
+
   return (
     <div
       role="status"
       aria-live="polite"
-      className="fixed top-3 left-1/2 z-300 w-[min(calc(100vw-1.5rem),34rem)] -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white/95 px-4 py-3 text-center text-xs font-semibold text-zinc-700 shadow-xl shadow-zinc-950/10 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/95 dark:text-zinc-200"
+      className="fixed top-3 left-1/2 z-300 w-[min(calc(100vw-1.5rem),36rem)] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/20 bg-white/95 p-3 text-zinc-800 shadow-2xl shadow-zinc-950/15 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/95 dark:text-zinc-100"
     >
-      {connectionState === 'offline'
-        ? 'Offline mode: showing saved card data. If a tab is missing, open this card once online so vBiz can cache that section.'
-        : 'Back online. Syncing the latest card, tabs, actions, notifications, and media.'}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.18),transparent_34%)]" />
+      <div className="relative flex items-start gap-3">
+        <div
+          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg ${
+            isOffline ? 'bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-950' : 'bg-emerald-500'
+          }`}
+        >
+          {isOffline ? <WifiOff size={18} /> : <Cloud size={18} />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-black tracking-tight">
+            {isOffline ? 'Offline smart card' : 'Syncing latest card'}
+          </p>
+          <p className="mt-0.5 text-xs leading-relaxed font-semibold text-zinc-600 dark:text-zinc-300">
+            {isOffline
+              ? 'Showing saved card data. If a tab is missing, open this card once online so vBiz can cache that section.'
+              : 'Refreshing tabs, actions, notifications, media, and offline cache.'}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <PwaStatusAction icon={UserPlus} label="Contact" eventName="saveContactAction" />
+            <PwaStatusAction icon={Share2} label="Share" eventName="openShareModal" />
+            <PwaStatusAction icon={Home} label="Install" eventName="openPwaInstallModal" />
+          </div>
+        </div>
+      </div>
     </div>
+  )
+}
+
+function PwaStatusAction({ icon: Icon, label, eventName }: { icon: LucideIcon; label: string; eventName: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => dispatchProfileAction(eventName)}
+      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/80 px-3 py-1.5 text-[11px] font-black text-zinc-800 shadow-sm transition hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-100 dark:hover:bg-zinc-800"
+    >
+      <Icon size={13} />
+      {label}
+    </button>
   )
 }

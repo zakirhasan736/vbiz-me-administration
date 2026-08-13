@@ -84,9 +84,46 @@ export function buildPublicCardManifest(card: MyCardData | null | undefined, slu
     start_url: path,
     scope: path,
     display: 'standalone',
+    display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
     orientation: 'any',
     background_color: meta.backgroundColor,
     theme_color: meta.themeColor,
+    categories: ['business', 'productivity', 'social'],
+    launch_handler: {
+      client_mode: ['navigate-existing', 'auto'],
+    },
+    shortcuts: [
+      {
+        name: 'Save Contact',
+        short_name: 'Contact',
+        description: `Save ${meta.shortName}'s contact details`,
+        url: `${path}?action=contact`,
+        icons: [{ src: icon192, sizes: '192x192', type: 'image/png' }],
+      },
+      {
+        name: 'Share Card',
+        short_name: 'Share',
+        description: `Share ${meta.shortName}'s digital card`,
+        url: `${path}?action=share`,
+        icons: [{ src: icon192, sizes: '192x192', type: 'image/png' }],
+      },
+      {
+        name: 'Notifications',
+        short_name: 'Alerts',
+        description: `Follow updates from ${meta.shortName}`,
+        url: `${path}?action=notifications`,
+        icons: [{ src: icon192, sizes: '192x192', type: 'image/png' }],
+      },
+    ],
+    share_target: {
+      action: path,
+      method: 'GET',
+      params: {
+        title: 'title',
+        text: 'text',
+        url: 'url',
+      },
+    },
     icons: [
       { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
