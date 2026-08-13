@@ -166,7 +166,7 @@ function SingleOwnerDashboardHome() {
   const [engagementPage, setEngagementPage] = useState(1)
   const { hasOrder, timeLeft } = useOrderTimer()
 
-  const { data: stats } = useGetDashboardStatsQuery({ period })
+  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period })
   const { data: contactsRaw } = useGetContactsQuery()
   const engagementSkip = (engagementPage - 1) * ENGAGEMENT_PAGE_SIZE
   const { data: engagement } = useGetRecentEngagementQuery({
@@ -176,9 +176,13 @@ function SingleOwnerDashboardHome() {
   const [exportOverview, { isLoading: exporting }] = useExportDashboardOverviewMutation()
 
   const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
-  const savesCount = (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0)
-  const uniqueViews = stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0
-  const shares = stats?.shares ?? 0
+  const statsReady = Boolean(stats) && !statsLoading
+  const savesCount = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
+  const uniqueViews = statsReady ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) : undefined
+  const shares = statsReady ? (stats?.shares ?? 0) : undefined
+  const visitsTotal = statsReady ? (stats?.visitsChart?.total ?? stats?.viewsLast30Days ?? 0) : undefined
+  const trendPercent = statsReady ? (stats?.visitsChart?.trendPercent ?? 0) : 0
+  const notesCount = statsReady ? (stats?.notesLast30Days ?? 0) : undefined
   const profileName = stats?.profiles?.[0]?.name || 'Your card'
 
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
@@ -216,28 +220,30 @@ function SingleOwnerDashboardHome() {
 
       <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3" data-tour="dash-metrics">
         <WebsiteVisitsChart
-          points={stats?.visitsChart?.points}
-          total={stats?.visitsChart?.total ?? stats?.viewsLast30Days ?? 0}
+          points={statsReady ? stats?.visitsChart?.points : undefined}
+          total={visitsTotal}
           uniqueViews={uniqueViews}
           shares={shares}
-          trendPercent={stats?.visitsChart?.trendPercent ?? 0}
+          trendPercent={trendPercent}
+          loading={!statsReady}
         />
         <ContactsSavedCard
           count={savesCount}
           profileName={profileName}
           uniqueViews={uniqueViews}
           shares={shares}
+          loading={!statsReady}
           onOpen={() => openContactSaves('saves')}
         />
       </div>
 
-      <SocialEngagementSection channels={stats?.socialChannels} />
+      <SocialEngagementSection channels={statsReady ? stats?.socialChannels : undefined} loading={!statsReady} />
 
-      <EngagementAnalyticsSection socialChannels={stats?.socialChannels} />
+      <EngagementAnalyticsSection socialChannels={statsReady ? stats?.socialChannels : undefined} />
 
       {hasOrder && <ActiveOrdersSection timeLeft={timeLeft} onContactSupport={() => setOwnerFeedbackMode('support')} />}
 
-      <ContactSaveCta count={savesCount} onOpen={() => openContactSaves('saves')} />
+      <ContactSaveCta count={savesCount} loading={!statsReady} onOpen={() => openContactSaves('saves')} />
 
       <RecentEngagementTable
         rows={engagement?.items}
@@ -260,9 +266,9 @@ function SingleOwnerDashboardHome() {
 
       {showContactSavesModal && (
         <ContactSavesModal
-          count={savesCount}
+          count={savesCount ?? 0}
           contacts={contacts}
-          notesCount={stats?.notesLast30Days ?? 0}
+          notesCount={notesCount ?? 0}
           tab={contactSavesModalTab}
           onTabChange={setContactSavesModalTab}
           onClose={() => setShowContactSavesModal(false)}

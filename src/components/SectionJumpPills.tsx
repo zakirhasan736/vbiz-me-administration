@@ -12,6 +12,8 @@ type Props = {
   items: JumpPill[]
   accent?: 'teal' | 'indigo' | 'amber' | 'violet' | 'cyan' | 'orange' | 'purple'
   label?: string
+  /** Called before scroll — use to expand the target accordion card. */
+  onJump?: (id: string) => void
 }
 
 const accents = {
@@ -29,17 +31,22 @@ const accents = {
 }
 
 /** Compact grid of jump pills (3–5 per row) under section banners */
-export function SectionJumpPills({ items, accent = 'indigo', label = 'Jump to entry' }: Props) {
+export function SectionJumpPills({ items, accent = 'indigo', label = 'Jump to entry', onJump }: Props) {
   if (items.length < 2) return null
 
   const jump = (id: string | number) => {
-    const el = document.getElementById(`entry-${id}`)
-    if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    el.classList.add('ring-2', 'ring-offset-2', 'ring-indigo-400/60')
-    window.setTimeout(() => {
-      el.classList.remove('ring-2', 'ring-offset-2', 'ring-indigo-400/60')
-    }, 1400)
+    const idStr = String(id)
+    onJump?.(idStr)
+    // Defer scroll so expand/layout can settle.
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`entry-${idStr}`)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      el.classList.add('ring-2', 'ring-offset-2', 'ring-indigo-400/60')
+      window.setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-offset-2', 'ring-indigo-400/60')
+      }, 1400)
+    })
   }
 
   return (

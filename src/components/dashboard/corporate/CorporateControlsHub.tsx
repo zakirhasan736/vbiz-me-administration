@@ -8,6 +8,7 @@ import {
 } from '@/components/dashboard/corporate/CorporateContactSavesPanel'
 import { CorporateLeadNotesRepliesPanel } from '@/components/dashboard/corporate/CorporateLeadNotesRepliesPanel'
 import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { noticeForCard, noticeTypeFromTeamNotice } from '@/lib/cardNotice'
 import type { DashboardSocialChannel, TeamNotice } from '@/redux/features/profiles/profiles.api'
 import {
@@ -53,7 +54,8 @@ type CorporateControlsHubProps = {
   socialChannels?: SocialChannelStat[]
   socialClicksByCard?: Record<string, SocialClickRow[]>
   teamNotices?: TeamNotice[]
-  totalViews: number
+  totalViews?: number
+  statsLoading?: boolean
   activeCount?: number
   canCreate: boolean
   createDisabledReason: string
@@ -83,6 +85,7 @@ export function CorporateControlsHub({
   socialClicksByCard = {},
   teamNotices = [],
   totalViews,
+  statsLoading = false,
   activeCount,
   canCreate,
   createDisabledReason,
@@ -169,6 +172,9 @@ export function CorporateControlsHub({
 
   const totalSocialClicks = Object.values(aggregatedSocial).reduce((a, b) => a + b, 0)
   const topChannel = Object.entries(aggregatedSocial).sort((a, b) => b[1] - a[1])[0]
+  const viewsReady = typeof totalViews === 'number' && Number.isFinite(totalViews)
+  const avgClicksPerCard = cards.length ? Math.round(totalSocialClicks / cards.length) : 0
+  const reachRate = viewsReady && totalViews > 0 ? ((totalSocialClicks / totalViews) * 100).toFixed(1) : undefined
 
   const designationBreakdown = useMemo(() => {
     const totals = new Map<string, number>()
@@ -569,22 +575,26 @@ export function CorporateControlsHub({
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <KpiCard
                 label="Total Social Clicks"
-                value={totalSocialClicks.toLocaleString()}
+                value={statsLoading ? undefined : totalSocialClicks.toLocaleString()}
+                loading={statsLoading}
                 hint="Cumulative clicks on all cards"
               />
               <KpiCard
                 label="Top Social Channel"
-                value={topChannel?.[0] || '—'}
-                hint={`Leading with ${topChannel?.[1] || 0} visits`}
+                value={statsLoading ? undefined : topChannel?.[0] || '—'}
+                loading={statsLoading}
+                hint={statsLoading ? 'Leading channel visits' : `Leading with ${topChannel?.[1] || 0} visits`}
               />
               <KpiCard
                 label="Avg Clicks Per Card"
-                value={cards.length ? Math.round(totalSocialClicks / cards.length).toString() : '0'}
+                value={statsLoading ? undefined : String(avgClicksPerCard)}
+                loading={statsLoading}
                 hint="Across managed directory cards"
               />
               <KpiCard
                 label="Est. Reach Rate"
-                value={totalViews > 0 ? `${((totalSocialClicks / totalViews) * 100).toFixed(1)}%` : '0.0%'}
+                value={statsLoading || reachRate == null ? undefined : `${reachRate}%`}
+                loading={statsLoading || !viewsReady}
                 hint="Social interaction vs views"
               />
             </div>
@@ -921,12 +931,28 @@ function TabButton({
   )
 }
 
-function KpiCard({ label, value, hint, trend }: { label: string; value: string; hint: string; trend?: string }) {
+function KpiCard({
+  label,
+  value,
+  hint,
+  trend,
+  loading = false,
+}: {
+  label: string
+  value?: string
+  hint: string
+  trend?: string
+  loading?: boolean
+}) {
   return (
     <div className="rounded-2xl border border-slate-200/60 bg-slate-50 p-5 dark:border-white/5 dark:bg-white/1">
       <span className="block text-[10px] font-black tracking-wider text-slate-400 uppercase">{label}</span>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="max-w-37.5 truncate text-3xl font-black text-slate-900 dark:text-white">{value}</span>
+        {loading || value == null ? (
+          <Skeleton className="h-9 w-20 rounded-xl" />
+        ) : (
+          <span className="max-w-37.5 truncate text-3xl font-black text-slate-900 dark:text-white">{value}</span>
+        )}
         {trend ? (
           <span className="flex items-center gap-0.5 text-xs font-bold text-emerald-500">
             <TrendingUp className="h-3 w-3" /> {trend}

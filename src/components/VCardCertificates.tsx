@@ -3,6 +3,13 @@
 import { DocumentUploadArea } from '@/components/DocumentUploadArea'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import {
+  ExpandableEntryBody,
+  ExpandableEntryHeader,
+  bottomAddButtonClass,
+  expandableCardClassName,
+} from '@/components/vcard/ExpandableEntryChrome'
+import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { useVCard } from '@/lib/VCardContext'
 import {
   CERTIFICATES_POST_TYPE,
@@ -11,7 +18,8 @@ import {
   sectionPostsToCertItems,
   type CertItem,
 } from '@/lib/vcardCertificates'
-import { Award, Plus, Trash2 } from 'lucide-react'
+import { cn } from '@/utils/cn'
+import { Award, Plus } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 const inputClasses =
@@ -20,10 +28,20 @@ const inputClasses =
 const textareaClasses =
   'w-full min-h-[96px] resize-y bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm'
 
+const accent = {
+  border: 'border-indigo-100 dark:border-indigo-500/20',
+  bg: 'bg-indigo-50 dark:bg-indigo-500/10',
+  text: 'text-indigo-600 dark:text-indigo-400',
+  chevronOpen: 'text-indigo-500',
+  cardExpandedBorder: 'border-indigo-200/60 dark:border-indigo-500/20',
+}
+
 export function TabCertificates() {
   const { cardId, vCardData, updateData } = useVCard()
   const items = sectionPostsToCertItems(vCardData.sectionPosts?.[CERTIFICATES_POST_TYPE])
   const itemsRef = useRef(items)
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(items)
 
   useEffect(() => {
     itemsRef.current = items
@@ -37,7 +55,17 @@ export function TabCertificates() {
     })
   }
 
-  const addCert = () => persist([createEmptyCert(), ...itemsRef.current])
+  const addCert = () => {
+    const next = createEmptyCert()
+    persist([...itemsRef.current, next])
+    expandNew(next.id)
+  }
+
+  const removeCert = (id: string) => {
+    const next = itemsRef.current.filter((c) => c.id !== id)
+    persist(next)
+    recoverExpandedAfterRemove(id, next)
+  }
 
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col space-y-6 pb-12 duration-500">
@@ -79,7 +107,7 @@ export function TabCertificates() {
           </p>
           <button
             type="button"
-            onClick={() => persist([createEmptyCert()])}
+            onClick={addCert}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white"
           >
             <Plus className="h-4 w-4" /> Add certificate
@@ -89,7 +117,8 @@ export function TabCertificates() {
         <>
           <SectionJumpPills
             accent="indigo"
-            label="Jump to certificate"
+            label="Quick find"
+            onJump={setExpandedId}
             items={items.map((c) => ({
               id: c.id,
               title: c.name || 'Untitled',
@@ -100,96 +129,119 @@ export function TabCertificates() {
             items={items}
             getKey={(c) => c.id}
             onReorder={persist}
-            renderItem={(item, idx, controls) => (
-              <section
-                id={`entry-${item.id}`}
-                className="scroll-mt-24 overflow-hidden rounded-[28px] border border-slate-200/60 bg-slate-50/40 dark:border-white/5 dark:bg-white/2"
-              >
-                <div className="flex items-center justify-between gap-2 border-b border-slate-200/50 px-6 py-4 dark:border-white/5">
-                  <p className="text-[11px] font-black tracking-wider text-slate-400 uppercase">
-                    Certificate {idx + 1}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    {controls}
-                    <button
-                      type="button"
-                      onClick={() => persist(itemsRef.current.filter((c) => c.id !== item.id))}
-                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Remove
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-4 p-6">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label className="block space-y-1.5 sm:col-span-2">
-                      <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-                        Certificate name
-                      </span>
-                      <input
-                        value={item.name}
-                        onChange={(e) =>
-                          persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, name: e.target.value } : c)))
-                        }
-                        placeholder="e.g. AWS Solutions Architect"
-                        className={inputClasses}
-                      />
-                    </label>
-                    <label className="block space-y-1.5 sm:col-span-2">
-                      <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Description</span>
-                      <textarea
-                        value={item.description}
-                        onChange={(e) =>
-                          persist(
-                            itemsRef.current.map((c) => (c.id === item.id ? { ...c, description: e.target.value } : c))
-                          )
-                        }
-                        placeholder="Short summary of this credential"
-                        className={textareaClasses}
-                      />
-                    </label>
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Issuer</span>
-                      <input
-                        value={item.issuer}
-                        onChange={(e) =>
-                          persist(
-                            itemsRef.current.map((c) => (c.id === item.id ? { ...c, issuer: e.target.value } : c))
-                          )
-                        }
-                        placeholder="Organization"
-                        className={inputClasses}
-                      />
-                    </label>
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Year</span>
-                      <input
-                        value={item.year}
-                        onChange={(e) =>
-                          persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, year: e.target.value } : c)))
-                        }
-                        placeholder="2024"
-                        className={inputClasses}
-                      />
-                    </label>
-                  </div>
-
-                  <DocumentUploadArea
-                    files={item.documents}
-                    onChange={(documents) =>
-                      persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, documents } : c)))
+            renderItem={(item, idx, controls) => {
+              const open = isExpanded(item.id)
+              return (
+                <section
+                  id={`entry-${item.id}`}
+                  ref={(el) => setCardRef(item.id, el)}
+                  className={cn(expandableCardClassName(open, accent), 'scroll-mt-24')}
+                >
+                  <ExpandableEntryHeader
+                    indexLabel={idx + 1}
+                    title={item.name || 'New Certificate'}
+                    subtitle={item.issuer || item.year || null}
+                    isExpanded={open}
+                    onToggle={() => toggleExpanded(item.id)}
+                    showRemove
+                    onRemove={() => removeCert(item.id)}
+                    accent={accent}
+                    trailing={
+                      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        {controls}
+                      </div>
                     }
-                    multiple
-                    label="Certificate document"
-                    hint="Upload image, PDF, TXT, or DOC — max 5MB"
-                    accent="indigo"
-                    mediaAssist={false}
-                    profileId={cardId}
                   />
-                </div>
-              </section>
-            )}
+
+                  <ExpandableEntryBody isExpanded={open} className="space-y-4 p-6">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="block space-y-1.5 sm:col-span-2">
+                        <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+                          Certificate name
+                        </span>
+                        <input
+                          value={item.name}
+                          onChange={(e) =>
+                            persist(
+                              itemsRef.current.map((c) => (c.id === item.id ? { ...c, name: e.target.value } : c))
+                            )
+                          }
+                          placeholder="e.g. AWS Solutions Architect"
+                          className={inputClasses}
+                        />
+                      </label>
+                      <label className="block space-y-1.5 sm:col-span-2">
+                        <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+                          Description
+                        </span>
+                        <textarea
+                          value={item.description}
+                          onChange={(e) =>
+                            persist(
+                              itemsRef.current.map((c) =>
+                                c.id === item.id ? { ...c, description: e.target.value } : c
+                              )
+                            )
+                          }
+                          placeholder="Short summary of this credential"
+                          className={textareaClasses}
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Issuer</span>
+                        <input
+                          value={item.issuer}
+                          onChange={(e) =>
+                            persist(
+                              itemsRef.current.map((c) => (c.id === item.id ? { ...c, issuer: e.target.value } : c))
+                            )
+                          }
+                          placeholder="Organization"
+                          className={inputClasses}
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Year</span>
+                        <input
+                          value={item.year}
+                          onChange={(e) =>
+                            persist(
+                              itemsRef.current.map((c) => (c.id === item.id ? { ...c, year: e.target.value } : c))
+                            )
+                          }
+                          placeholder="2024"
+                          className={inputClasses}
+                        />
+                      </label>
+                    </div>
+
+                    <DocumentUploadArea
+                      files={item.documents}
+                      onChange={(documents) =>
+                        persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, documents } : c)))
+                      }
+                      multiple
+                      label="Certificate document"
+                      hint="Upload image, PDF, TXT, or DOC — max 5MB"
+                      accent="indigo"
+                      mediaAssist={false}
+                      profileId={cardId}
+                    />
+                  </ExpandableEntryBody>
+                </section>
+              )
+            }}
           />
+
+          <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+            <button
+              type="button"
+              onClick={addCert}
+              className={cn(bottomAddButtonClass, 'text-indigo-600 hover:border-indigo-500/30 dark:text-indigo-400')}
+            >
+              <Plus className="h-4 w-4" /> Add Another Certificate
+            </button>
+          </div>
         </>
       )}
     </div>

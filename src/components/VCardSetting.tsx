@@ -7,6 +7,7 @@ import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import { pushEditorPath } from '@/lib/editorShallowRoute'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { notify } from '@/lib/toast/toast'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
@@ -1346,6 +1347,13 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
             <Link
               key={tab.id}
               href={buildEditorSettingsPath(basePath, tab.id as SettingsTabId, cardId)}
+              prefetch={false}
+              onClick={(event) => {
+                if (event.defaultPrevented) return
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+                event.preventDefault()
+                pushEditorPath(buildEditorSettingsPath(basePath, tab.id as SettingsTabId, cardId))
+              }}
               data-tour-id={settingTabTourIds[tab.id]}
               className={cn(
                 'group relative flex w-full items-center overflow-hidden rounded-[1.25rem] px-5 py-4 text-left text-[.8438rem] font-bold transition-all duration-300',

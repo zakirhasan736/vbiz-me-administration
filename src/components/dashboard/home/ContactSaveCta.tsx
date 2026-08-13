@@ -1,13 +1,17 @@
 'use client'
 
+import { StatNumber } from '@/components/ui/StatNumber'
 import { Save } from 'lucide-react'
 
 type ContactSaveCtaProps = {
   count?: number
+  loading?: boolean
   onOpen?: () => void
 }
 
-export function ContactSaveCta({ count = 0, onOpen }: ContactSaveCtaProps) {
+export function ContactSaveCta({ count, loading = false, onOpen }: ContactSaveCtaProps) {
+  const countReady = typeof count === 'number' && Number.isFinite(count)
+
   return (
     <button
       type="button"
@@ -19,8 +23,16 @@ export function ContactSaveCta({ count = 0, onOpen }: ContactSaveCtaProps) {
           <Save className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-black text-slate-900 dark:text-white">
-            {count} visitor lead{count === 1 ? '' : 's'} · contact saves & notes
+          <p className="flex flex-wrap items-center gap-1.5 text-sm font-black text-slate-900 dark:text-white">
+            <StatNumber
+              value={count}
+              loading={loading}
+              className="font-black text-slate-900 dark:text-white"
+              skeletonClassName="h-5 w-10 rounded-md"
+            />
+            <span>
+              {countReady ? `visitor lead${count === 1 ? '' : 's'}` : 'visitor leads'} · contact saves & notes
+            </span>
           </p>
           <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
             Open inbox — Contact Saves tab by default, Lead Notes when you need replies

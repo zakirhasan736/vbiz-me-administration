@@ -1,17 +1,20 @@
 'use client'
 
+import { StatNumber } from '@/components/ui/StatNumber'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import type { DashboardSocialChannel } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import { AlertCircle, Download, MessageCircle, Plus, type LucideIcon } from 'lucide-react'
 
 type CorporateDashboardHeaderProps = {
-  quotaLimit: number
-  activeCount: number
-  cardCount: number
-  totalViews: number
+  quotaLimit?: number
+  activeCount?: number
+  cardCount?: number
+  totalViews?: number
   uniqueViews?: number
   shares?: number
+  statsLoading?: boolean
+  profilesLoading?: boolean
   canCreate: boolean
   createDisabledReason: string
   onExportCsv: () => void
@@ -19,19 +22,25 @@ type CorporateDashboardHeaderProps = {
   onSupport: () => void
 }
 
+const badgeSkeleton = 'h-3 w-8 rounded bg-white/25'
+
 export function CorporateDashboardHeader({
   quotaLimit,
   activeCount,
   cardCount,
   totalViews,
-  uniqueViews = 0,
-  shares = 0,
+  uniqueViews,
+  shares,
+  statsLoading = false,
+  profilesLoading = false,
   canCreate,
   createDisabledReason,
   onExportCsv,
   onFeedback,
   onSupport,
 }: CorporateDashboardHeaderProps) {
+  const directoryLoading = profilesLoading
+
   return (
     <div className="relative z-40 overflow-visible rounded-[36px] border border-slate-700 bg-linear-to-br from-slate-900 to-slate-800 p-8 text-white shadow-xl md:p-10 dark:border-white/10 dark:from-slate-800 dark:to-slate-900">
       <div className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 h-100 w-100 overflow-hidden rounded-full bg-white/5 blur-3xl" />
@@ -45,18 +54,69 @@ export function CorporateDashboardHeader({
           <h1 className="text-3xl leading-tight font-black tracking-tight text-white md:text-4xl">
             Consolidated Analytics
           </h1>
-          <p className="text-sm leading-relaxed font-medium text-slate-300 md:text-[14.5px]">
+          <p className="inline-flex flex-wrap items-center gap-1 text-sm leading-relaxed font-medium text-slate-300 md:text-[14.5px]">
             Monitor global analytics, track role-based access controls, and manage directory permissions for up to{' '}
-            {quotaLimit} digital cards.
+            <StatNumber
+              value={quotaLimit}
+              loading={directoryLoading}
+              className="font-medium text-slate-300"
+              skeletonClassName="h-4 w-8 rounded bg-white/25"
+            />{' '}
+            digital cards.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
-            <Badge>{activeCount} Active</Badge>
             <Badge>
-              {cardCount} / {quotaLimit} Seats
+              <StatNumber
+                value={activeCount}
+                loading={directoryLoading}
+                className="font-black text-white/80"
+                skeletonClassName={badgeSkeleton}
+              />{' '}
+              Active
             </Badge>
-            <Badge>{totalViews.toLocaleString()} Views</Badge>
-            <Badge>{uniqueViews.toLocaleString()} Unique</Badge>
-            <Badge>{shares.toLocaleString()} Shares</Badge>
+            <Badge>
+              <StatNumber
+                value={cardCount}
+                loading={directoryLoading}
+                className="font-black text-white/80"
+                skeletonClassName={badgeSkeleton}
+              />{' '}
+              /{' '}
+              <StatNumber
+                value={quotaLimit}
+                loading={directoryLoading}
+                className="font-black text-white/80"
+                skeletonClassName={badgeSkeleton}
+              />{' '}
+              Seats
+            </Badge>
+            <Badge>
+              <StatNumber
+                value={totalViews}
+                loading={statsLoading}
+                className="font-black text-white/80"
+                skeletonClassName={badgeSkeleton}
+              />{' '}
+              Views
+            </Badge>
+            <Badge>
+              <StatNumber
+                value={uniqueViews}
+                loading={statsLoading}
+                className="font-black text-white/80"
+                skeletonClassName={badgeSkeleton}
+              />{' '}
+              Unique
+            </Badge>
+            <Badge>
+              <StatNumber
+                value={shares}
+                loading={statsLoading}
+                className="font-black text-white/80"
+                skeletonClassName={badgeSkeleton}
+              />{' '}
+              Shares
+            </Badge>
           </div>
         </div>
 

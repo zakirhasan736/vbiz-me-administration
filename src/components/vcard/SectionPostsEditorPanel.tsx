@@ -1,14 +1,23 @@
 'use client'
 
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
+import {
+  ExpandableEntryBody,
+  ExpandableEntryHeader,
+  bottomAddButtonClass,
+  expandableCardClassName,
+} from '@/components/vcard/ExpandableEntryChrome'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
+import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import {
   createDefaultSectionPostItem,
   normalizeSectionPostList,
   type VCardSectionSchema,
 } from '@/lib/vcardSectionSchemas'
 import type { VCardSectionPostItem } from '@/types/vcard'
-import { Calendar, FileBox, FileText, Layers, Link as LinkIcon, MapPin, Plus, Star, Trash2 } from 'lucide-react'
+import { cn } from '@/utils/cn'
+import { Calendar, FileBox, FileText, Layers, Link as LinkIcon, MapPin, Plus, Star } from 'lucide-react'
+
 type Accent = 'amber' | 'teal' | 'violet'
 
 const accentStyles: Record<
@@ -26,6 +35,9 @@ const accentStyles: Record<
     badgeBg: string
     badgeText: string
     fileFocus: string
+    chevronOpen: string
+    cardExpandedBorder: string
+    bottomAddText: string
   }
 > = {
   amber: {
@@ -41,6 +53,9 @@ const accentStyles: Record<
     badgeBg: 'bg-amber-50 dark:bg-amber-500/10',
     badgeText: 'text-amber-600 dark:text-amber-400',
     fileFocus: 'focus-within:border-amber-500 focus-within:ring-amber-500',
+    chevronOpen: 'text-amber-500',
+    cardExpandedBorder: 'border-amber-200/60 dark:border-amber-500/20',
+    bottomAddText: 'text-amber-600 hover:border-amber-500/30 dark:text-amber-400',
   },
   teal: {
     headerBorder: 'border-teal-100 dark:border-teal-500/10',
@@ -55,6 +70,9 @@ const accentStyles: Record<
     badgeBg: 'bg-teal-50 dark:bg-teal-500/10',
     badgeText: 'text-teal-600 dark:text-teal-400',
     fileFocus: 'focus-within:border-teal-500 focus-within:ring-teal-500',
+    chevronOpen: 'text-teal-500',
+    cardExpandedBorder: 'border-teal-200/60 dark:border-teal-500/20',
+    bottomAddText: 'text-teal-600 hover:border-teal-500/30 dark:text-teal-400',
   },
   violet: {
     headerBorder: 'border-violet-100 dark:border-violet-500/10',
@@ -69,6 +87,9 @@ const accentStyles: Record<
     badgeBg: 'bg-violet-50 dark:bg-violet-500/10',
     badgeText: 'text-violet-600 dark:text-violet-400',
     fileFocus: 'focus-within:border-violet-500 focus-within:ring-violet-500',
+    chevronOpen: 'text-violet-500',
+    cardExpandedBorder: 'border-violet-200/60 dark:border-violet-500/20',
+    bottomAddText: 'text-violet-600 hover:border-violet-500/30 dark:text-violet-400',
   },
 }
 
@@ -103,15 +124,29 @@ export function SectionPostsEditorPanel({
       : resolveAccent(schema.accentClass) === 'violet'
         ? 'violet'
         : 'primary'
+  const cardAccent = {
+    border: a.badgeBorder,
+    bg: a.badgeBg,
+    text: a.badgeText,
+    chevronOpen: a.chevronOpen,
+    cardExpandedBorder: a.cardExpandedBorder,
+  }
+
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef } =
+    useExpandableEntryList(posts)
 
   const setPosts = (next: VCardSectionPostItem[]) => onPostsChange(next)
 
   const addPost = () => {
-    setPosts([createDefaultSectionPostItem(), ...posts])
+    const next = createDefaultSectionPostItem()
+    setPosts([...posts, next])
+    expandNew(next.id)
   }
 
   const removePost = (id: string) => {
-    setPosts(posts.filter((p) => p.id !== id))
+    const next = posts.filter((p) => p.id !== id)
+    setPosts(next)
+    recoverExpandedAfterRemove(id, next)
   }
 
   const updatePost = (
@@ -171,171 +206,161 @@ export function SectionPostsEditorPanel({
             </button>
           </div>
         ) : (
-          <div className="space-y-8">
-            {posts.map((post, index) => (
-              <section
-                key={post.id}
-                className="group/card overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
-              >
-                <div className="flex items-center justify-between border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-[14px] border font-black shadow-sm ${a.badgeBorder} ${a.badgeBg} ${a.badgeText}`}
-                    >
-                      {posts.length - index}
-                    </div>
-                    <h4 className="text-[16px] font-black text-slate-900 dark:text-white">
-                      {post.title || 'New Item'}
-                    </h4>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removePost(post.id)}
-                    className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 font-bold text-red-500 opacity-0 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
-                    title="Remove"
-                  >
-                    <Trash2 className="h-4 w-4" /> Remove
-                  </button>
-                </div>
+          <div className="space-y-4">
+            {posts.map((post, index) => {
+              const open = isExpanded(post.id)
+              return (
+                <section
+                  key={post.id}
+                  ref={(el) => setCardRef(post.id, el)}
+                  className={expandableCardClassName(open, cardAccent)}
+                >
+                  <ExpandableEntryHeader
+                    indexLabel={index + 1}
+                    title={post.title || 'New Item'}
+                    subtitle={post.description || post.url || null}
+                    isExpanded={open}
+                    onToggle={() => toggleExpanded(post.id)}
+                    showRemove
+                    onRemove={() => removePost(post.id)}
+                    accent={cardAccent}
+                  />
 
-                <div className="p-4 sm:p-8">
-                  <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                    {fieldSet.has('title') ? (
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                          <FileText className={`h-3.5 w-3.5 ${a.iconText}`} /> Title
-                        </label>
-                        <input
-                          type="text"
-                          value={post.title}
-                          onChange={(e) => updatePost(post.id, 'title', e.target.value)}
-                          placeholder="Enter title"
-                          className={inputClasses}
-                        />
-                      </div>
-                    ) : null}
-                    {fieldSet.has('url') ? (
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                          <LinkIcon className={`h-3.5 w-3.5 ${a.iconText}`} /> URL
-                        </label>
-                        <input
-                          type="url"
-                          value={post.url}
-                          onChange={(e) => updatePost(post.id, 'url', e.target.value)}
-                          placeholder="https://example.com"
-                          className={inputClasses}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {fieldSet.has('description') ? (
-                    <div className="group mb-8 flex flex-col space-y-1.5">
-                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                        Description
-                      </label>
-                      <textarea
-                        value={post.description}
-                        onChange={(e) => updatePost(post.id, 'description', e.target.value)}
-                        placeholder="Write a description..."
-                        rows={4}
-                        className={`min-h-25 w-full resize-y rounded-2xl border border-slate-200/80 bg-white px-5 py-4 text-[13px] font-medium text-slate-900 shadow-sm focus:ring-1 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white ${a.focus}`}
-                      />
-                    </div>
-                  ) : null}
-
-                  <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                    {fieldSet.has('featuredImage') ? (
-                      <MediaFileUploader
-                        label="Featured media"
-                        accent={uploaderAccent}
-                        profileId={cardId}
-                        attachmentType={schema.title}
-                        value={post.featuredImage}
-                        accept="image/*,video/*,application/pdf"
-                        hint="Upload an image, video, or PDF — preview appears here"
-                        onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
-                      />
-                    ) : null}
-                    {fieldSet.has('date') ? (
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                          <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} /> Date
-                        </label>
-                        <VCardDateInput
-                          value={post.date}
-                          onChange={(e) => updatePost(post.id, 'date', e.target.value)}
-                          className={inputClasses}
-                        />
-                      </div>
-                    ) : null}
-                    {fieldSet.has('rating') ? (
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                          <Star className={`h-3.5 w-3.5 ${a.iconText}`} /> Rating
-                        </label>
-                        <input
-                          type="text"
-                          value={post.rating}
-                          onChange={(e) => updatePost(post.id, 'rating', e.target.value)}
-                          placeholder="e.g. 5"
-                          className={inputClasses}
-                        />
-                      </div>
-                    ) : null}
-                    {fieldSet.has('location') ? (
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                          <MapPin className={`h-3.5 w-3.5 ${a.iconText}`} /> Location
-                        </label>
-                        <input
-                          type="text"
-                          value={post.location}
-                          onChange={(e) => updatePost(post.id, 'location', e.target.value)}
-                          placeholder="City, venue, or address"
-                          className={inputClasses}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {fieldSet.has('active') ? (
-                    <div className="flex items-center gap-4">
-                      <label className="group flex cursor-pointer items-center gap-3">
-                        <div className="relative flex items-center justify-center">
+                  <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
+                    <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                      {fieldSet.has('title') ? (
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                            <FileText className={`h-3.5 w-3.5 ${a.iconText}`} /> Title
+                          </label>
                           <input
-                            type="checkbox"
-                            checked={post.active}
-                            onChange={(e) => updatePost(post.id, 'active', e.target.checked)}
-                            className="sr-only"
+                            type="text"
+                            value={post.title}
+                            onChange={(e) => updatePost(post.id, 'title', e.target.value)}
+                            placeholder="Enter title"
+                            className={inputClasses}
                           />
-                          <div
-                            className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
-                              post.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
-                            }`}
-                          >
-                            <div
-                              className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
-                                post.active ? 'translate-x-4' : 'translate-x-0'
-                              }`}
-                            />
-                          </div>
                         </div>
-                        <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">Active</span>
-                      </label>
+                      ) : null}
+                      {fieldSet.has('url') ? (
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                            <LinkIcon className={`h-3.5 w-3.5 ${a.iconText}`} /> URL
+                          </label>
+                          <input
+                            type="url"
+                            value={post.url}
+                            onChange={(e) => updatePost(post.id, 'url', e.target.value)}
+                            placeholder="https://example.com"
+                            className={inputClasses}
+                          />
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              </section>
-            ))}
 
-            <div className="mt-8 flex justify-center border-t border-slate-200/50 pt-8 dark:border-white/5">
-              <button
-                type="button"
-                onClick={addPost}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200/80 bg-white px-6 py-4 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-300 dark:hover:bg-white/5"
-              >
+                    {fieldSet.has('description') ? (
+                      <div className="group mb-8 flex flex-col space-y-1.5">
+                        <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                          Description
+                        </label>
+                        <textarea
+                          value={post.description}
+                          onChange={(e) => updatePost(post.id, 'description', e.target.value)}
+                          placeholder="Write a description..."
+                          rows={4}
+                          className={`min-h-25 w-full resize-y rounded-2xl border border-slate-200/80 bg-white px-5 py-4 text-[13px] font-medium text-slate-900 shadow-sm focus:ring-1 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white ${a.focus}`}
+                        />
+                      </div>
+                    ) : null}
+
+                    <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                      {fieldSet.has('featuredImage') ? (
+                        <MediaFileUploader
+                          label="Featured media"
+                          accent={uploaderAccent}
+                          profileId={cardId}
+                          attachmentType={schema.title}
+                          value={post.featuredImage}
+                          accept="image/*,video/*,application/pdf"
+                          hint="Upload an image, video, or PDF — preview appears here"
+                          onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
+                        />
+                      ) : null}
+                      {fieldSet.has('date') ? (
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                            <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} /> Date
+                          </label>
+                          <VCardDateInput
+                            value={post.date}
+                            onChange={(e) => updatePost(post.id, 'date', e.target.value)}
+                            className={inputClasses}
+                          />
+                        </div>
+                      ) : null}
+                      {fieldSet.has('rating') ? (
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                            <Star className={`h-3.5 w-3.5 ${a.iconText}`} /> Rating
+                          </label>
+                          <input
+                            type="text"
+                            value={post.rating}
+                            onChange={(e) => updatePost(post.id, 'rating', e.target.value)}
+                            placeholder="e.g. 5"
+                            className={inputClasses}
+                          />
+                        </div>
+                      ) : null}
+                      {fieldSet.has('location') ? (
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                            <MapPin className={`h-3.5 w-3.5 ${a.iconText}`} /> Location
+                          </label>
+                          <input
+                            type="text"
+                            value={post.location}
+                            onChange={(e) => updatePost(post.id, 'location', e.target.value)}
+                            placeholder="City, venue, or address"
+                            className={inputClasses}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {fieldSet.has('active') ? (
+                      <div className="flex items-center gap-4">
+                        <label className="group flex cursor-pointer items-center gap-3">
+                          <div className="relative flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={post.active}
+                              onChange={(e) => updatePost(post.id, 'active', e.target.checked)}
+                              className="sr-only"
+                            />
+                            <div
+                              className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
+                                post.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
+                              }`}
+                            >
+                              <div
+                                className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
+                                  post.active ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                          <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">Active</span>
+                        </label>
+                      </div>
+                    ) : null}
+                  </ExpandableEntryBody>
+                </section>
+              )
+            })}
+
+            <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+              <button type="button" onClick={addPost} className={cn(bottomAddButtonClass, a.bottomAddText)}>
                 <Plus className="h-4 w-4" /> {schema.addLabel}
               </button>
             </div>

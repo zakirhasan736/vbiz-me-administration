@@ -80,6 +80,16 @@ export function parseEditorSegments(segments: string[] | undefined): ParsedEdito
   }
 }
 
+/** Editor segments from the current pathname — used by the persistent shell in `layout.tsx`. */
+export function editorSegmentsFromPathname(pathname: string, basePath: EditorBasePath): string[] {
+  if (!pathname.startsWith(basePath)) return []
+  return pathname
+    .slice(basePath.length)
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => decodeURIComponent(segment))
+}
+
 export function buildEditorPath(
   basePath: EditorBasePath,
   options: {

@@ -86,7 +86,14 @@ export const HomeHero: React.FC<{
   toggleTheme?: () => void
 }> = ({ theme, onAction, toggleTheme }) => {
   const { t, lang } = useTranslation()
-  const { personal, isVisible, field, homeMedia, socialHref, profileViews, cardOwnerId, cardSlug } = useProfileDisplay()
+  const { personal, isVisible, field, homeMedia, socialHref, profileViews, cardOwnerId, cardSlug, embedded } =
+    useProfileDisplay()
+
+  /**
+   * The editor phone preview is ~420px wide inside a desktop viewport, so `md:` would
+   * select the two-column desktop hero and squeeze it. Keep the phone layout there.
+   */
+  const compact = embedded
 
   const introSrc = homeMedia.introVideo || personal.explainerVideoUrl || undefined
   const profileSrc = useMemo(
@@ -117,6 +124,11 @@ export const HomeHero: React.FC<{
 
   const viewCountLabel = formatProfileViewCount(profileViews)
 
+  /** Right-side utility rail — phone sizing in the preview, larger on real desktops. */
+  const railButtonClass = `vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 ${
+    compact ? '' : 'md:h-12 md:w-12'
+  }`
+
   const triggerHaptic = (duration = 10) => {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(duration)
@@ -134,7 +146,9 @@ export const HomeHero: React.FC<{
 
   return (
     <div
-      className={`border-gold/20 relative mx-auto flex min-h-[calc(100dvh-72px)] w-full max-w-120 flex-col overflow-x-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 md:max-w-none md:border-0 ${theme === 'dark' ? 'bg-[#031327] text-white' : 'bg-white text-zinc-900'}`}
+      className={`border-gold/20 relative mx-auto flex w-full max-w-120 flex-col overflow-x-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 ${
+        compact ? 'min-h-0' : 'min-h-[calc(100dvh-72px)] md:max-w-none md:border-0'
+      } ${theme === 'dark' ? 'bg-[#031327] text-white' : 'bg-white text-zinc-900'}`}
     >
       <div
         className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${theme === 'dark' ? 'bg-[#030914]' : 'bg-white'}`}
@@ -164,9 +178,15 @@ export const HomeHero: React.FC<{
       </div>
 
       <div className="relative z-10 flex min-h-full w-full flex-1 flex-col justify-start">
-        <div className="pointer-events-none absolute top-5 left-0 z-40 flex w-full justify-center px-2 md:top-28 md:px-0">
+        <div
+          className={`pointer-events-none absolute top-5 left-0 z-40 flex w-full justify-center px-2 ${
+            compact ? '' : 'md:top-28 md:px-0'
+          }`}
+        >
           <div className="relative h-0 w-full max-w-258">
-            <div className="pointer-events-auto absolute top-8 right-2 flex flex-col gap-3 md:right-6">
+            <div
+              className={`pointer-events-auto absolute top-8 right-2 flex flex-col gap-3 ${compact ? '' : 'md:right-6'}`}
+            >
               {showViewCounter && (
                 <div
                   className="group relative transition-transform hover:scale-105"
@@ -178,8 +198,8 @@ export const HomeHero: React.FC<{
                   <div className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
                     {viewCountLabel}
                   </div>
-                  <div className="vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12">
-                    <Eye size={18} strokeWidth={2.5} className="md:h-5.5 md:w-5.5" />
+                  <div className={railButtonClass}>
+                    <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
                   </div>
                 </div>
               )}
@@ -190,23 +210,23 @@ export const HomeHero: React.FC<{
                   rel="noopener noreferrer"
                   title="Website"
                   onClick={() => triggerHaptic(10)}
-                  className="vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                  className={railButtonClass}
                 >
-                  <Globe size={18} strokeWidth={2.5} className="md:h-5 md:w-5" />
+                  <Globe size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
                 </a>
               )}
               <div
                 title="Language"
-                className="vbiz-icon-btn notranslate flex h-10 w-10 cursor-pointer flex-col items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                className={`${railButtonClass} notranslate flex-col`}
                 onClick={() => {
                   triggerHaptic(10)
                   onAction?.('language')
                 }}
               >
-                <span className="text-base leading-none md:text-lg">
+                <span className={`text-base leading-none ${compact ? '' : 'md:text-lg'}`}>
                   {(LANGUAGE_LABELS[lang] || { flag: '🇺🇸' }).flag}
                 </span>
-                <span className="mt-0.5 text-[7px] font-bold tracking-wider md:text-[8px]">
+                <span className={`mt-0.5 text-[7px] font-bold tracking-wider ${compact ? '' : 'md:text-[8px]'}`}>
                   {(LANGUAGE_LABELS[lang] || { label: 'EN' }).label}
                 </span>
               </div>
@@ -216,20 +236,24 @@ export const HomeHero: React.FC<{
                   triggerHaptic(10)
                   toggleTheme?.()
                 }}
-                className="vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                className={railButtonClass}
               >
                 {theme === 'dark' ? (
-                  <Sun size={18} strokeWidth={2.5} className="md:h-5 md:w-5" />
+                  <Sun size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
                 ) : (
-                  <Moon size={18} strokeWidth={2.5} className="md:h-5 md:w-5" />
+                  <Moon size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Mobile View */}
-        <div className="=]-['/0p.ol;uy vtcredxvswr] relative flex flex-1 flex-col items-center pt-6.25 pb-2 sm:pb-17.5 md:hidden">
+        {/* Phone View — also used by the editor preview frame */}
+        <div
+          className={`relative flex flex-1 flex-col items-center pt-6.25 ${
+            compact ? 'pb-6' : 'pb-2 sm:pb-17.5 md:hidden'
+          }`}
+        >
           {visibleSocials.length > 0 && (
             <div className="absolute top-8 left-2 z-30 flex flex-col gap-2">
               {visibleSocials.map((item) => {
@@ -244,7 +268,9 @@ export const HomeHero: React.FC<{
                       triggerHaptic(10)
                       onTrackedSocialClick(item.label, cardOwnerId, cardSlug)
                     }}
-                    className="vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 hover:scale-[1.12] hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] md:h-10 md:w-10"
+                    className={`vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 hover:scale-[1.12] hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] ${
+                      compact ? '' : 'md:h-10 md:w-10'
+                    }`}
                   >
                     {renderSocialIcon(item, 18)}
                   </a>
@@ -253,7 +279,11 @@ export const HomeHero: React.FC<{
             </div>
           )}
 
-          <div className="relative z-20 mx-auto mb-4 aspect-4/4.5 w-[56%] max-w-60 border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] sm:w-[60%] md:w-[65%]">
+          <div
+            className={`relative z-20 mx-auto mb-4 aspect-4/4.5 max-w-60 border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
+              compact ? 'w-[58%]' : 'w-[56%] sm:w-[60%] md:w-[65%]'
+            }`}
+          >
             <ProfileMedia
               src={profileSrc}
               alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
@@ -321,164 +351,170 @@ export const HomeHero: React.FC<{
           <ProfileActionButtons theme={theme} onAction={onAction} visibleOn="mobile" />
         </div>
 
-        {/* Desktop View */}
-        <div className="relative z-20 mx-auto hidden h-full w-full max-w-258 flex-col justify-between gap-8 px-6 pb-24 md:flex">
-          <div className="mt-16 flex items-start gap-12 xl:gap-20">
-            <div className="group relative mt-4 h-80 w-70 shrink-0 overflow-hidden rounded-2xl border-4 border-white/20 bg-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md xl:h-87.5 xl:w-75">
-              <ProfileMedia
-                src={profileSrc}
-                alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
-                className="h-full w-full object-cover opacity-90 transition-opacity hover:opacity-100"
-              />
-              {profileIsVideo && (
-                <div className="border-gold/40 absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full border bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-md transition-colors group-hover:bg-black/80">
-                  <CreditCard size={14} className="text-gold" />
-                  <span className="text-gold text-[10px] font-black tracking-widest">
-                    {t('hero.premium', 'PREMIUM')}
-                  </span>
-                </div>
-              )}
-            </div>
+        {/* Desktop View — skipped in the preview frame, which is phone width */}
+        {compact ? null : (
+          <div className="relative z-20 mx-auto hidden h-full w-full max-w-258 flex-col justify-between gap-8 px-6 pb-24 md:flex">
+            <div className="mt-16 flex items-start gap-12 xl:gap-20">
+              <div className="group relative mt-4 h-80 w-70 shrink-0 overflow-hidden rounded-2xl border-4 border-white/20 bg-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md xl:h-87.5 xl:w-75">
+                <ProfileMedia
+                  src={profileSrc}
+                  alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
+                  className="h-full w-full object-cover opacity-90 transition-opacity hover:opacity-100"
+                />
+                {profileIsVideo && (
+                  <div className="border-gold/40 absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full border bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-md transition-colors group-hover:bg-black/80">
+                    <CreditCard size={14} className="text-gold" />
+                    <span className="text-gold text-[10px] font-black tracking-widest">
+                      {t('hero.premium', 'PREMIUM')}
+                    </span>
+                  </div>
+                )}
+              </div>
 
-            <div className="flex flex-1 flex-col pt-8 drop-shadow-2xl xl:pt-12">
-              {showName && (
-                <h1
-                  className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[56px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
-                  style={
-                    field('MyInfo section Name').textColor
-                      ? { color: field('MyInfo section Name').textColor }
-                      : undefined
-                  }
-                >
-                  {personal.fullName}
-                </h1>
-              )}
-              {designationLine && (
-                <p
-                  className={`notranslate mb-5 ml-1 w-fit overflow-hidden bg-linear-to-r bg-clip-text text-[20px] font-bold text-transparent drop-shadow-lg xl:text-[24px] ${theme === 'dark' ? 'from-gold to-yellow-400' : 'from-amber-700 to-amber-950'}`}
-                  style={
-                    field('MyInfo Designation').textColor ? { color: field('MyInfo Designation').textColor } : undefined
-                  }
-                >
-                  {designationLine}
-                </p>
-              )}
+              <div className="flex flex-1 flex-col pt-8 drop-shadow-2xl xl:pt-12">
+                {showName && (
+                  <h1
+                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[56px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
+                    style={
+                      field('MyInfo section Name').textColor
+                        ? { color: field('MyInfo section Name').textColor }
+                        : undefined
+                    }
+                  >
+                    {personal.fullName}
+                  </h1>
+                )}
+                {designationLine && (
+                  <p
+                    className={`notranslate mb-5 ml-1 w-fit overflow-hidden bg-linear-to-r bg-clip-text text-[20px] font-bold text-transparent drop-shadow-lg xl:text-[24px] ${theme === 'dark' ? 'from-gold to-yellow-400' : 'from-amber-700 to-amber-950'}`}
+                    style={
+                      field('MyInfo Designation').textColor
+                        ? { color: field('MyInfo Designation').textColor }
+                        : undefined
+                    }
+                  >
+                    {designationLine}
+                  </p>
+                )}
 
-              <div className="mb-4 flex gap-2">
-                {showShare && (
+                <div className="mb-4 flex gap-2">
+                  {showShare && (
+                    <button
+                      type="button"
+                      title="Share"
+                      className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                      onClick={() => {
+                        triggerHaptic(10)
+                        onAction?.('share')
+                      }}
+                    >
+                      <Share2 size={18} />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    title="Share"
+                    title="Notification"
+                    className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                    onClick={() => {
+                      triggerHaptic(10)
+                      onAction?.('settings')
+                    }}
+                  >
+                    <Bell size={18} />
+                    <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Notepad"
                     className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
                     onClick={() => {
                       triggerHaptic(10)
-                      onAction?.('share')
+                      onAction?.('notepad')
                     }}
                   >
-                    <Share2 size={18} />
+                    <FileText size={18} />
                   </button>
-                )}
-                <button
-                  type="button"
-                  title="Notification"
-                  className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
-                  onClick={() => {
-                    triggerHaptic(10)
-                    onAction?.('settings')
-                  }}
-                >
-                  <Bell size={18} />
-                  <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
-                </button>
-                <button
-                  type="button"
-                  title="Notepad"
-                  className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
-                  onClick={() => {
-                    triggerHaptic(10)
-                    onAction?.('notepad')
-                  }}
-                >
-                  <FileText size={18} />
-                </button>
-              </div>
-
-              {visibleSocials.length > 0 && (
-                <div className="ml-1 flex gap-3">
-                  {visibleSocials.map((item) => {
-                    const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
-                    return (
-                      <a
-                        key={item.label}
-                        title={item.title}
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
-                        className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
-                      >
-                        {renderSocialIcon(item, 18)}
-                      </a>
-                    )
-                  })}
                 </div>
-              )}
-            </div>
-          </div>
 
-          <div className="mt-auto mb-16 flex w-full items-end justify-between xl:mb-20">
-            <div className="flex w-full items-end justify-between gap-12 xl:gap-24">
-              <ProfileActionButtons
-                theme={theme}
-                onAction={onAction}
-                visibleOn="desktop"
-                className="flex w-full max-w-105 flex-col gap-3 xl:max-w-120"
-              />
-
-              {contactItems.length > 0 && (
-                <div className="mt-auto grid max-w-120 flex-1 shrink-0 grid-cols-2 gap-x-3 gap-y-2">
-                  {contactItems.map((item) => (
-                    <div
-                      key={item.label}
-                      className={`vbiz-hero-card group flex flex-col justify-center rounded-2xl p-3 shadow-md transition-all ${theme === 'dark' ? 'border-gold/20 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/50 border' : 'border-gold/55 hover:border-gold hover:bg-gold/5 border bg-white'} ${item.colSpan === 2 ? 'col-span-2' : 'col-span-1'}`}
-                      style={item.style?.backgroundColor ? { backgroundColor: item.style.backgroundColor } : undefined}
-                    >
-                      <div className="mb-0.5 flex items-center gap-2">
-                        <item.icon
-                          className={`transition-colors ${theme === 'dark' ? 'text-gold/70 group-hover:text-gold' : 'text-amber-800 group-hover:text-amber-900'}`}
-                          size={12}
-                          strokeWidth={2.5}
-                          style={item.style?.iconColor ? { color: item.style.iconColor } : undefined}
-                        />
-                        <span
-                          className={`text-[10px] font-bold tracking-widest uppercase ${theme === 'dark' ? 'text-white/40' : 'text-zinc-400'}`}
-                        >
-                          {item.label}
-                        </span>
-                      </div>
-                      {item.isLink && item.href ? (
+                {visibleSocials.length > 0 && (
+                  <div className="ml-1 flex gap-3">
+                    {visibleSocials.map((item) => {
+                      const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
+                      return (
                         <a
-                          href={item.href}
-                          className={`truncate text-[13px] font-semibold hover:underline ${theme === 'dark' ? 'text-white' : 'text-zinc-800'}`}
-                          style={item.style?.textColor ? { color: item.style.textColor } : undefined}
+                          key={item.label}
+                          title={item.title}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
+                          className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
                         >
-                          {item.value}
+                          {renderSocialIcon(item, 18)}
                         </a>
-                      ) : (
-                        <span
-                          className={`truncate text-[13px] font-semibold ${theme === 'dark' ? 'text-white' : 'text-zinc-800'}`}
-                          style={item.style?.textColor ? { color: item.style.textColor } : undefined}
-                        >
-                          {item.value}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-auto mb-16 flex w-full items-end justify-between xl:mb-20">
+              <div className="flex w-full items-end justify-between gap-12 xl:gap-24">
+                <ProfileActionButtons
+                  theme={theme}
+                  onAction={onAction}
+                  visibleOn="desktop"
+                  className="flex w-full max-w-105 flex-col gap-3 xl:max-w-120"
+                />
+
+                {contactItems.length > 0 && (
+                  <div className="mt-auto grid max-w-120 flex-1 shrink-0 grid-cols-2 gap-x-3 gap-y-2">
+                    {contactItems.map((item) => (
+                      <div
+                        key={item.label}
+                        className={`vbiz-hero-card group flex flex-col justify-center rounded-2xl p-3 shadow-md transition-all ${theme === 'dark' ? 'border-gold/20 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/50 border' : 'border-gold/55 hover:border-gold hover:bg-gold/5 border bg-white'} ${item.colSpan === 2 ? 'col-span-2' : 'col-span-1'}`}
+                        style={
+                          item.style?.backgroundColor ? { backgroundColor: item.style.backgroundColor } : undefined
+                        }
+                      >
+                        <div className="mb-0.5 flex items-center gap-2">
+                          <item.icon
+                            className={`transition-colors ${theme === 'dark' ? 'text-gold/70 group-hover:text-gold' : 'text-amber-800 group-hover:text-amber-900'}`}
+                            size={12}
+                            strokeWidth={2.5}
+                            style={item.style?.iconColor ? { color: item.style.iconColor } : undefined}
+                          />
+                          <span
+                            className={`text-[10px] font-bold tracking-widest uppercase ${theme === 'dark' ? 'text-white/40' : 'text-zinc-400'}`}
+                          >
+                            {item.label}
+                          </span>
+                        </div>
+                        {item.isLink && item.href ? (
+                          <a
+                            href={item.href}
+                            className={`truncate text-[13px] font-semibold hover:underline ${theme === 'dark' ? 'text-white' : 'text-zinc-800'}`}
+                            style={item.style?.textColor ? { color: item.style.textColor } : undefined}
+                          >
+                            {item.value}
+                          </a>
+                        ) : (
+                          <span
+                            className={`truncate text-[13px] font-semibold ${theme === 'dark' ? 'text-white' : 'text-zinc-800'}`}
+                            style={item.style?.textColor ? { color: item.style.textColor } : undefined}
+                          >
+                            {item.value}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

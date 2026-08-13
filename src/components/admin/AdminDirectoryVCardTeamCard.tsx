@@ -10,7 +10,7 @@ import { VCardVisibilityToggle } from '@/components/dashboard/vcard/VCardVisibil
 import type { AdminCard } from '@/lib/admin/adminCardShape'
 import { getCardSocialClickStats } from '@/lib/adminSocialStats'
 import { resolveCardAnalytics } from '@/lib/cardAnalytics'
-import { PAUSED_CARD_MESSAGE, resolveCardStatus } from '@/lib/cardStatus'
+import { ADMIN_PAUSED_CARD_MESSAGE, ADMIN_SUSPENDED_CARD_MESSAGE, resolveCardStatus } from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
 import { useDeleteProfileMutation, useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
@@ -171,7 +171,7 @@ export default function VCardTeamCard({
   const isDeleting = isDeletingProfile || isDeletingLocal
 
   const handleVisibilityChange = async (next: boolean) => {
-    if (!cardId) return
+    if (!cardId || status === 'paused' || status === 'suspended') return
     setOptimisticPublic({ cardId, value: next })
     try {
       await updateProfileCard({ id: cardId, body: { isPublic: next } }).unwrap()
@@ -341,16 +341,20 @@ export default function VCardTeamCard({
             <VCardVisibilityToggle
               id={cardId ? `admin-vcard-visibility-${cardId}` : 'admin-vcard-visibility-missing'}
               checked={isPublic}
-              disabled={isUpdatingVisibility || !cardId || status === 'paused' || status === 'suspended'}
+              disabled={isUpdatingVisibility || !cardId}
+              locked={status === 'paused' || status === 'suspended'}
               title={
                 status === 'suspended'
-                  ? 'Suspended cards stay hidden until unsuspended'
+                  ? ADMIN_SUSPENDED_CARD_MESSAGE
                   : status === 'paused'
-                    ? PAUSED_CARD_MESSAGE
+                    ? ADMIN_PAUSED_CARD_MESSAGE
                     : undefined
               }
               compact
               onChange={(next) => void handleVisibilityChange(next)}
+              onLockedAttempt={() =>
+                notify.warning(status === 'suspended' ? ADMIN_SUSPENDED_CARD_MESSAGE : ADMIN_PAUSED_CARD_MESSAGE)
+              }
             />
           </div>
         </div>

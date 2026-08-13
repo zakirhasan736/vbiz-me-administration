@@ -40,6 +40,9 @@ function draftPostType(id: string, name: string, title: string): PostTypeNavLink
   }
 }
 
+/** Rewrite unchanged slices at least this often — below RTK Query's 60s unused-cache eviction. */
+const SEED_REFRESH_MS = 30_000
+
 function buildDraftNavBarLinks(input: {
   sectionPosts?: Record<string, VCardSectionPostItem[]>
   generalPosts?: VCardGeneralPost[]
@@ -249,39 +252,67 @@ export function EmbeddedDraftCacheSync({
     profileId: '',
     loaded: false,
   })
+  /** Last payload written per cache slice — the draft object identity changes on every keystroke. */
+  const signaturesRef = useRef<{ profileId: string; signatures: Map<string, { value: string; writtenAt: number }> }>({
+    profileId: '',
+    signatures: new Map(),
+  })
 
   useEffect(() => {
     if (!embedded || !cardOwnerId) return
     const profileId = cardOwnerId
     let cancelled = false
 
+    if (signaturesRef.current.profileId !== profileId) {
+      signaturesRef.current = { profileId, signatures: new Map() }
+    }
+    const signatures = signaturesRef.current.signatures
+    const now = Date.now()
+
+    /**
+     * Skip the dispatch when this slice's mapped payload is unchanged. Unchanged slices are
+     * still refreshed periodically so an unvisited section never loses its seeded entry to
+     * RTK Query's unused-cache eviction.
+     */
+    const hasChanged = (key: string, signature: string) => {
+      const previous = signatures.get(key)
+      if (previous && previous.value === signature && now - previous.writtenAt < SEED_REFRESH_MS) return false
+      signatures.set(key, { value: signature, writtenAt: now })
+      return true
+    }
+
+    const upsertIfChanged = <T,>(key: string, payload: T, write: (value: T) => void) => {
+      if (!hasChanged(key, JSON.stringify(payload))) return
+      write(payload)
+    }
+
     for (const [sectionName, items] of Object.entries(sectionPosts || {})) {
       if (!sectionName || !items) continue
-      dispatch(
-        dynamicSectionApi.util.upsertQueryData(
-          'getDynamicSection',
-          { profileId, sectionName },
-          toDynamicResult(sectionName, items)
-        )
+      upsertIfChanged(`section:${sectionName}`, toDynamicResult(sectionName, items), (result) =>
+        dispatch(dynamicSectionApi.util.upsertQueryData('getDynamicSection', { profileId, sectionName }, result))
       )
     }
 
     if (generalPosts) {
-      dispatch(
-        dynamicSectionApi.util.upsertQueryData(
-          'getDynamicSection',
-          { profileId, sectionName: PUBLIC_SECTION_NAMES.blog },
-          generalPostsToDynamic(generalPosts)
+      upsertIfChanged('blog', generalPostsToDynamic(generalPosts), (result) =>
+        dispatch(
+          dynamicSectionApi.util.upsertQueryData(
+            'getDynamicSection',
+            { profileId, sectionName: PUBLIC_SECTION_NAMES.blog },
+            result
+          )
         )
       )
     }
 
     if (faqs) {
-      dispatch(
-        dynamicSectionApi.util.upsertQueryData(
-          'getDynamicSection',
-          { profileId, sectionName: PUBLIC_SECTION_NAMES.faq },
-          faqsToDynamic(faqs)
+      upsertIfChanged('faq', faqsToDynamic(faqs), (result) =>
+        dispatch(
+          dynamicSectionApi.util.upsertQueryData(
+            'getDynamicSection',
+            { profileId, sectionName: PUBLIC_SECTION_NAMES.faq },
+            result
+          )
         )
       )
     }
@@ -305,7 +336,9 @@ export function EmbeddedDraftCacheSync({
             ]
           : [],
       }
-      dispatch(aboutMeApi.util.upsertQueryData('getAboutMe', profileId, aboutResult))
+      upsertIfChanged('about', aboutResult, (result) =>
+        dispatch(aboutMeApi.util.upsertQueryData('getAboutMe', profileId, result))
+      )
     }
 
     if (services) {
@@ -322,7 +355,9 @@ export function EmbeddedDraftCacheSync({
             url: s.url,
           })),
       }
-      dispatch(servicesApi.util.upsertQueryData('getServices', profileId, servicesResult))
+      upsertIfChanged('services', servicesResult, (result) =>
+        dispatch(servicesApi.util.upsertQueryData('getServices', profileId, result))
+      )
     }
 
     if (portfolio) {
@@ -337,7 +372,9 @@ export function EmbeddedDraftCacheSync({
             createdAt: '',
           })),
       }
-      dispatch(galleryApi.util.upsertQueryData('getGallery', profileId, galleryResult))
+      upsertIfChanged('gallery', galleryResult, (result) =>
+        dispatch(galleryApi.util.upsertQueryData('getGallery', profileId, result))
+      )
     }
 
     const reviewDraft = reviews
@@ -367,7 +404,9 @@ export function EmbeddedDraftCacheSync({
         reviewCount: slides.length,
         averageRating,
       }
-      dispatch(reviewsApi.util.upsertQueryData('getReviews', profileId, reviewsResult))
+      upsertIfChanged('reviews', reviewsResult, (result) =>
+        dispatch(reviewsApi.util.upsertQueryData('getReviews', profileId, result))
+      )
     }
 
     const skillGroups = (skills || [])
@@ -430,7 +469,9 @@ export function EmbeddedDraftCacheSync({
       })),
       customSections: [],
     }
-    dispatch(profileAiDataApi.util.upsertQueryData('getProfileAiData', profileId, aiData))
+    upsertIfChanged('aiData', aiData, (result) =>
+      dispatch(profileAiDataApi.util.upsertQueryData('getProfileAiData', profileId, result))
+    )
 
     const draftNav = buildDraftNavBarLinks({
       sectionPosts,
@@ -446,30 +487,32 @@ export function EmbeddedDraftCacheSync({
     })
 
     // Merge draft tabs onto published API post-types (do not replace the catalog).
-    void (async () => {
-      if (apiNavBaselineRef.current.profileId !== profileId) {
-        apiNavBaselineRef.current = { profileId, loaded: false, data: undefined }
-      }
-      if (!apiNavBaselineRef.current.loaded) {
-        const result = await dispatch(
-          navBarLinksApi.endpoints.getNavBarLinks.initiate(profileId, { forceRefetch: true })
-        )
-        if (cancelled) return
-        apiNavBaselineRef.current = {
-          profileId,
-          loaded: true,
-          data: 'data' in result ? result.data : undefined,
+    if (hasChanged('nav', JSON.stringify(draftNav))) {
+      void (async () => {
+        if (apiNavBaselineRef.current.profileId !== profileId) {
+          apiNavBaselineRef.current = { profileId, loaded: false, data: undefined }
         }
-      }
-      if (cancelled) return
-      dispatch(
-        navBarLinksApi.util.upsertQueryData(
-          'getNavBarLinks',
-          profileId,
-          mergeNavBarLinks(apiNavBaselineRef.current.data, draftNav)
+        if (!apiNavBaselineRef.current.loaded) {
+          const result = await dispatch(
+            navBarLinksApi.endpoints.getNavBarLinks.initiate(profileId, { forceRefetch: true })
+          )
+          if (cancelled) return
+          apiNavBaselineRef.current = {
+            profileId,
+            loaded: true,
+            data: 'data' in result ? result.data : undefined,
+          }
+        }
+        if (cancelled) return
+        dispatch(
+          navBarLinksApi.util.upsertQueryData(
+            'getNavBarLinks',
+            profileId,
+            mergeNavBarLinks(apiNavBaselineRef.current.data, draftNav)
+          )
         )
-      )
-    })()
+      })()
+    }
 
     return () => {
       cancelled = true

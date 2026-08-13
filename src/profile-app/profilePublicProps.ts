@@ -82,6 +82,8 @@ export type VBizProfileAppProps = {
   onSectionChange?: (sectionId: string) => void
   /** Skip intro preloader and scope theme (editor preview). */
   embedded?: boolean
+  /** False while the embedded preview is closed/minimized — pauses background media. */
+  previewActive?: boolean
   /** Controlled theme for live preview chrome (optional). */
   previewTheme?: 'light' | 'dark'
   onPreviewThemeChange?: (theme: 'light' | 'dark') => void

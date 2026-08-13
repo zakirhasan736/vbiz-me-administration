@@ -53,6 +53,7 @@ export function ProfileApp(props: VBizProfileAppProps) {
       design={props.design ?? null}
       avatarMediaUrl={props.avatarVideoUrl}
       embedded={props.embedded}
+      previewActive={props.previewActive}
       cardOwnerId={props.cardOwnerId}
       cardSlug={props.profileSlug ?? props.shareSlug}
       profileViews={props.profileViews}

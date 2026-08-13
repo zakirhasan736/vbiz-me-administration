@@ -45,6 +45,8 @@ export type ProfileDisplayContextValue = {
   pageColors: ReturnType<typeof getPageColors>
   homeMedia: ReturnType<typeof getHomeMediaUrls>
   embedded: boolean
+  /** False while an embedded preview is closed or minimized (background media pauses). */
+  previewActive: boolean
   cardOwnerId?: string
   cardSlug?: string
   profileViews: number
@@ -86,6 +88,7 @@ const defaultValue: ProfileDisplayContextValue = {
   pageColors: getPageColors(resolveDisplaySettings()),
   homeMedia: getHomeMediaUrls(resolveDisplaySettings(), FALLBACK_PERSONAL),
   embedded: false,
+  previewActive: true,
   cardOwnerId: undefined,
   cardSlug: undefined,
   profileViews: 0,
@@ -110,6 +113,7 @@ export function ProfileDisplayProvider({
   avatarMediaUrl,
   /** Editor phone preview: show all sections regardless of Card Settings visibility. */
   embedded = false,
+  previewActive = true,
   cardOwnerId,
   cardSlug,
   profileViews = 0,
@@ -128,6 +132,7 @@ export function ProfileDisplayProvider({
   design?: ResolvedProfileDesign | null
   avatarMediaUrl?: string
   embedded?: boolean
+  previewActive?: boolean
   cardOwnerId?: string
   cardSlug?: string
   profileViews?: number
@@ -166,6 +171,7 @@ export function ProfileDisplayProvider({
         return avatar === media.profileMedia ? media : { ...media, profileMedia: avatar }
       })(),
       embedded,
+      previewActive,
       cardOwnerId,
       cardSlug,
       profileViews,
@@ -184,6 +190,7 @@ export function ProfileDisplayProvider({
     design,
     avatarMediaUrl,
     embedded,
+    previewActive,
     cardOwnerId,
     cardSlug,
     profileViews,

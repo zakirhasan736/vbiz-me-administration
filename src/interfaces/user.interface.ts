@@ -1,5 +1,7 @@
 import type { TUserRole } from '@/constants/userRole'
 
+export type AccountStatus = 'ACTIVE' | 'PAUSED' | 'SUSPENDED'
+
 export interface IUser {
   id: string
   name: string
@@ -13,4 +15,6 @@ export interface IUser {
   avatar?: string | null
   provider?: string
   hasPassword?: boolean
+  isActive?: boolean
+  accountStatus?: AccountStatus
 }

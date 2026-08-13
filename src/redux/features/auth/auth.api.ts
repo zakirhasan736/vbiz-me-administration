@@ -19,6 +19,7 @@ const redirectToOAuth = (url: string) => {
 }
 
 const authApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     register: builder.mutation<
       { data: { cooldownEnd: number; remainingSecond: number; expiresAt?: number } },

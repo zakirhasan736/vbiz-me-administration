@@ -447,11 +447,12 @@ export default function AdminVCards() {
         status: targetStatus as 'active' | 'inactive' | 'paused' | 'suspended',
       })
       const nextPublic = targetStatus === 'active'
+      const nextDraft = targetStatus === 'paused'
       setSelectedCard((prev) =>
-        prev && prev.id === card.id ? { ...prev, status: targetStatus, isPublic: nextPublic, isDraft: false } : prev
+        prev && prev.id === card.id ? { ...prev, status: targetStatus, isPublic: nextPublic, isDraft: nextDraft } : prev
       )
       setPanelCard((prev) =>
-        prev && prev.id === card.id ? { ...prev, status: targetStatus, isPublic: nextPublic, isDraft: false } : prev
+        prev && prev.id === card.id ? { ...prev, status: targetStatus, isPublic: nextPublic, isDraft: nextDraft } : prev
       )
 
       appendAuditLog({
@@ -476,14 +477,14 @@ export default function AdminVCards() {
       targetStatus === 'suspended'
         ? {
             title: 'Suspend this card?',
-            description: `${name} will be hidden from the public. The owner will not be able to edit, duplicate, or change visibility. The card still counts toward their package capacity.`,
+            description: `${name} will be disabled and hidden from the public. The owner will not be able to edit, duplicate, or change visibility. The phone number cannot be reused on a new card, and the card still counts toward their package capacity.`,
             confirmLabel: 'Suspend',
             variant: 'danger' as const,
           }
         : targetStatus === 'paused'
           ? {
               title: 'Pause this card?',
-              description: `${name} will be hidden from the public. The owner can still edit it, but cannot make it public until you resume.`,
+              description: `${name} will be moved to draft and hidden from the public. The owner can still edit it, but cannot make it public until support re-enables it.`,
               confirmLabel: 'Pause',
               variant: 'default' as const,
             }
@@ -496,7 +497,7 @@ export default function AdminVCards() {
               }
             : {
                 title: 'Resume this card?',
-                description: `${name} will be public again.`,
+                description: `${name} will leave draft and become public again.`,
                 confirmLabel: 'Resume',
                 variant: 'default' as const,
               }

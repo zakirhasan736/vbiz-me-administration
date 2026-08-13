@@ -1,13 +1,8 @@
 'use client'
 
-import {
-  DEFAULT_NOTIFICATION_PREFERENCES,
-  isPushSupported,
-  mapPushSubscribeError,
-  sendTestNotification,
-  subscribeToCard,
-} from '@/lib/push/config'
+import { isPushSupported, mapPushSubscribeError, sendTestNotification, subscribeToCard } from '@/lib/push/config'
 import { markNotificationDeclined, markNotificationSubscribed } from '@/lib/push/notificationRouting'
+import { DEFAULT_BACKEND_NOTIFICATION_PREFERENCES } from '@/lib/push/preferenceMapping'
 import { notify } from '@/lib/toast/toast'
 import { ArrowRight, Bell, Check, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -52,7 +47,7 @@ export function NotificationFollowModal({
       await subscribeToCard({
         cardSlug,
         cardOwnerId,
-        preferences: DEFAULT_NOTIFICATION_PREFERENCES,
+        preferences: DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
       })
 
       markNotificationSubscribed(cardSlug)

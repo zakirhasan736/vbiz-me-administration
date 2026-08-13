@@ -3,10 +3,10 @@ import {
   hasDeclinedNotificationPrompt,
   markNotificationDeclinedForCard,
 } from '@/lib/push/notificationExperience'
+import { DEFAULT_BACKEND_NOTIFICATION_PREFERENCES, fromBackendPreferences } from '@/lib/push/preferenceMapping'
 import { getCachedCardPushStatus, invalidateCardPushStatus, setCachedCardPushStatus } from '@/lib/push/pushStatusCache'
 import type { NotificationPreferences } from '@/lib/push/types'
 import {
-  DEFAULT_NOTIFICATION_PREFERENCES,
   fetchPushStatus,
   getExistingSubscription,
   getNotificationPermission,
@@ -38,9 +38,12 @@ export async function isSubscribedToCard(cardSlug: string, options?: { forceRefr
     if (status.following) {
       // Keep local follow in sync so future reloads don't wait on the API.
       const existing = readFollowState(cardSlug)
+      const backendPreferences =
+        status.backendPreferences ?? existing?.backendPreferences ?? DEFAULT_BACKEND_NOTIFICATION_PREFERENCES
       writeFollowState(cardSlug, {
         following: true,
-        preferences: status.preferences ?? existing?.preferences ?? DEFAULT_NOTIFICATION_PREFERENCES,
+        preferences: status.preferences ?? fromBackendPreferences(backendPreferences),
+        backendPreferences,
         subscribedAt: existing?.subscribedAt ?? new Date().toISOString(),
       })
     }
@@ -86,9 +89,12 @@ export async function syncCardSubscriptionStatus(cardSlug: string): Promise<bool
     const status = await fetchPushStatus(cardSlug, { forceRefresh: true })
     if (status.following) {
       const existing = readFollowState(cardSlug)
+      const backendPreferences =
+        status.backendPreferences ?? existing?.backendPreferences ?? DEFAULT_BACKEND_NOTIFICATION_PREFERENCES
       writeFollowState(cardSlug, {
         following: true,
-        preferences: status.preferences ?? existing?.preferences ?? DEFAULT_NOTIFICATION_PREFERENCES,
+        preferences: status.preferences ?? fromBackendPreferences(backendPreferences),
+        backendPreferences,
         subscribedAt: existing?.subscribedAt ?? new Date().toISOString(),
       })
     }
@@ -107,15 +113,20 @@ export function markNotificationSubscribed(cardSlug: string) {
   invalidateCardPushStatus(cardSlug)
 
   const existing = readFollowState(cardSlug)
+  const backendPreferences = existing?.backendPreferences ?? DEFAULT_BACKEND_NOTIFICATION_PREFERENCES
+  const preferences = existing?.preferences ?? fromBackendPreferences(backendPreferences)
+
   writeFollowState(cardSlug, {
     following: true,
-    preferences: existing?.preferences ?? DEFAULT_NOTIFICATION_PREFERENCES,
+    preferences,
+    backendPreferences,
     subscribedAt: existing?.subscribedAt ?? new Date().toISOString(),
   })
 
   setCachedCardPushStatus(cardSlug, {
     following: true,
-    preferences: existing?.preferences ?? DEFAULT_NOTIFICATION_PREFERENCES,
+    preferences,
+    backendPreferences,
   })
 }
 

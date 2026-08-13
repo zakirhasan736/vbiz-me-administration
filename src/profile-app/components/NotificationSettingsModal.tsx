@@ -204,12 +204,12 @@ export const NotificationSettingsModal = ({
                 </div>
               ) : (
                 BACKEND_NOTIFICATION_PREFERENCE_OPTIONS.map((p) => (
-                  <label key={p.id} className="flex min-h-[36px] cursor-pointer items-center gap-3 py-1">
+                  <label key={p.id} className="flex min-h-9 cursor-pointer items-center gap-3 py-1">
                     <input
                       type="checkbox"
                       checked={preferences[p.id]}
                       onChange={() => togglePreference(p.id)}
-                      className="rounded border-[color:var(--vbiz-border)] bg-[color:var(--vbiz-surface)] text-[color:var(--vbiz-accent)] focus:ring-[color:var(--vbiz-accent)]"
+                      className="rounded border-(--vbiz-border) bg-(--vbiz-surface) text-(--vbiz-accent) focus:ring-(--vbiz-accent)"
                     />
                     <span className="leading-snug">{p.label}</span>
                   </label>

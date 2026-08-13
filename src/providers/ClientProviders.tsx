@@ -13,6 +13,7 @@ const ClientProviders = ({ children }: { children: React.ReactNode }) => {
       <PersistGate loading={null} persistor={persistor}>
         <ThemeProvider>
           <Toaster position="top-center" />
+          {/* AuthProvider restore is a one-shot fetch; do not put RTK Query auth hooks here. */}
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </PersistGate>

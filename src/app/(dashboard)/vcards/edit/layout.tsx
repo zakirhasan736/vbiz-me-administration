@@ -1,25 +1,26 @@
 'use client'
 
+import { EditorBootSkeleton } from '@/components/vcard/EditorBootSkeleton'
+import { LivePreviewProvider } from '@/components/vcard/LivePreviewProvider'
+import { VCardLivePreview } from '@/components/VCardLivePreview'
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
 import { CardScopeProvider } from '@/lib/card-scope'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
+import { useEditorPathname } from '@/lib/editorShallowRoute'
 import { notify } from '@/lib/toast/toast'
 import { VCardProvider } from '@/lib/VCardContext'
 import {
   buildEditorPath,
   DEFAULT_EDITOR_SECTION,
+  editorSegmentsFromPathname,
   isValidEditorSection,
   parseEditorSegments,
 } from '@/lib/vcardEditorRoutes'
 import { useGetProfileQuery } from '@/redux/features/profiles/profiles.api'
 import VCardEdit from '@/views/VCardEdit'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
-
-type Props = {
-  segments?: string[]
-}
+import { Suspense, useEffect, useMemo, type ReactNode } from 'react'
 
 function directoryPathForRole(role: string | undefined) {
   if (role === 'admin' || role === 'super-admin') return '/admin/mycards'
@@ -27,11 +28,17 @@ function directoryPathForRole(role: string | undefined) {
   return '/vcards'
 }
 
-export default function EditVCardClient({ segments }: Props) {
+/**
+ * The editor shell lives in the layout so section URLs (`/vcards/edit/services`)
+ * never remount the draft, the form state, or the live preview.
+ */
+function VCardEditShell({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const pathname = useEditorPathname()
   const role = useAppSelector((state) => state.user.user?.role)
   const cardId = searchParams.get('cardId')
+  const segments = useMemo(() => editorSegmentsFromPathname(pathname, '/vcards/edit'), [pathname])
   const parsed = parseEditorSegments(segments)
   const { data: profile } = useGetProfileQuery(cardId || '', { skip: !cardId })
 
@@ -47,7 +54,7 @@ export default function EditVCardClient({ segments }: Props) {
       return
     }
 
-    if (!segments || segments.length === 0) {
+    if (segments.length === 0) {
       router.replace(buildEditorPath('/vcards/edit', { sectionId: DEFAULT_EDITOR_SECTION }, cardId))
       return
     }
@@ -57,19 +64,27 @@ export default function EditVCardClient({ segments }: Props) {
     }
   }, [cardId, parsed.sectionId, profile, role, router, segments])
 
-  if (!cardId || !segments || segments.length === 0 || !isValidEditorSection(parsed.sectionId)) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-slate-500">
-        Redirecting…
-      </div>
-    )
+  if (!cardId || segments.length === 0 || !isValidEditorSection(parsed.sectionId)) {
+    return <EditorBootSkeleton message="Opening editor…" />
   }
 
   return (
     <CardScopeProvider cardId={cardId} mode="edit">
       <VCardProvider>
-        <VCardEdit basePath="/vcards/edit" segments={segments} cardId={cardId} />
+        <LivePreviewProvider>
+          <VCardEdit basePath="/vcards/edit" segments={segments} cardId={cardId} />
+          <VCardLivePreview />
+          {children}
+        </LivePreviewProvider>
       </VCardProvider>
     </CardScopeProvider>
+  )
+}
+
+export default function VCardEditLayout({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<EditorBootSkeleton />}>
+      <VCardEditShell>{children}</VCardEditShell>
+    </Suspense>
   )
 }

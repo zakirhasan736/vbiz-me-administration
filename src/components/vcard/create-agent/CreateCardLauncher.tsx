@@ -3,7 +3,10 @@
 import AssignCardOwnerModal from '@/components/admin/AssignCardOwnerModal'
 import AssignPortfolioOwnerModal from '@/components/admin/AssignPortfolioOwnerModal'
 import { CreateCardModeModal } from '@/components/vcard/create-agent/CreateCardModeModal'
+import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { clearCreateCardOwner, setCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
+import { notify } from '@/lib/toast/toast'
 import { useRouter } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
 
@@ -37,12 +40,17 @@ export function CreateCardLauncher({
   portfolioOwnerAssignment = false,
 }: CreateCardLauncherProps) {
   const router = useRouter()
+  const { canMutateVcards } = useAccountStatus()
   const [assignOpen, setAssignOpen] = useState(false)
   const [modeOpen, setModeOpen] = useState(false)
   const needsAssignment = requireOwnerAssignment || portfolioOwnerAssignment
+  const allowed = canCreate && (requireOwnerAssignment || canMutateVcards)
 
   const launch = () => {
-    if (!canCreate) {
+    if (!allowed) {
+      if (!canMutateVcards && !requireOwnerAssignment) {
+        notify.warning(ACCOUNT_PAUSED_CREATE_MESSAGE)
+      }
       onBlocked?.()
       return
     }

@@ -26,6 +26,8 @@ import {
   VCardTrendsPopup,
 } from '@/components/dashboard/vcard'
 import { useAppSelector } from '@/hooks/redux'
+import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import {
   clearLocalCardNotice,
   noticeForCard,
@@ -64,14 +66,18 @@ function formatTrendPercent(value?: number | null): { text?: string; negative?: 
 export default function CorporateOwnerDashboardHome() {
   const user = useAppSelector((state) => state.user.user)
 
-  const { data: profilesResult, refetch: refetchProfiles } = useGetProfilesQuery({
+  const {
+    data: profilesResult,
+    isLoading: profilesLoading,
+    refetch: refetchProfiles,
+  } = useGetProfilesQuery({
     status: 'all',
     skip: 0,
     limit: 100,
   })
-  const { data: stats } = useGetDashboardStatsQuery({ period: 'all' })
+  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period: 'all' })
   const { data: contactsRaw } = useGetContactsQuery()
-  const { data: socialClickRows = [] } = useGetSocialClicksQuery()
+  const { data: socialClickRows = [], isLoading: socialClicksLoading } = useGetSocialClicksQuery()
   const { data: socialClicksByCardRows = [] } = useGetSocialClicksByCardQuery()
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
   const [createProfile] = useCreateProfileMutation()
@@ -83,17 +89,22 @@ export default function CorporateOwnerDashboardHome() {
     [profilesResult?.items]
   )
   const capacity = profilesResult?.capacity
-  const headerQuotaLimit = capacity?.limit ?? 0
-  const headerCardCount = capacity?.used ?? liveCards.length
-  const headerCanCreate = capacity?.canCreate ?? false
-  const headerCreateDisabledReason =
-    headerQuotaLimit <= 0
+  const { canMutateVcards } = useAccountStatus()
+  const profilesReady = Boolean(profilesResult) && !profilesLoading
+  const statsReady = Boolean(stats) && !statsLoading
+  const socialsReady = !socialClicksLoading
+  const headerQuotaLimit = profilesReady ? (capacity?.limit ?? 0) : undefined
+  const headerCardCount = profilesReady ? (capacity?.used ?? liveCards.length) : undefined
+  const headerCanCreate = (capacity?.canCreate ?? false) && canMutateVcards
+  const headerCreateDisabledReason = !canMutateVcards
+    ? ACCOUNT_PAUSED_CREATE_MESSAGE
+    : (headerQuotaLimit ?? 0) <= 0
       ? 'No active package with card capacity. Upgrade your package to create cards.'
       : `Maximum of ${headerQuotaLimit} corporate cards reached`
-  const headerActiveCount = liveCards.filter((c) => c.isActive).length
-  const headerTotalViews = stats?.totalViews ?? 0
-  const headerUniqueViews = stats?.uniqueViews ?? 0
-  const headerShares = stats?.shares ?? 0
+  const headerActiveCount = profilesReady ? liveCards.filter((c) => c.isActive).length : undefined
+  const headerTotalViews = statsReady ? (stats?.totalViews ?? 0) : undefined
+  const headerUniqueViews = statsReady ? (stats?.uniqueViews ?? 0) : undefined
+  const headerShares = statsReady ? (stats?.shares ?? 0) : undefined
 
   const [cardOrder, setCardOrder] = useState<string[]>(() => loadCardOrder(CORPORATE_CARD_ORDER_KEY))
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
@@ -114,15 +125,16 @@ export default function CorporateOwnerDashboardHome() {
   const cards = useMemo(() => applyCardOrder(liveCards, cardOrder), [liveCards, cardOrder])
 
   const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
-  const quotaLimit = headerQuotaLimit
-  const metricQuotaLimit = capacity?.limit ?? 0
-  const metricTotalCards = capacity?.used ?? liveCards.length
+  const quotaLimit = headerQuotaLimit ?? 0
+  const metricQuotaLimit = profilesReady ? (capacity?.limit ?? 0) : undefined
+  const metricTotalCards = profilesReady ? (capacity?.used ?? liveCards.length) : undefined
   const activeCount = headerActiveCount
   const totalViews = headerTotalViews
-  const savesCount = (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0)
-  const viewsTrend = formatTrendPercent(stats?.visitsChart?.trendPercent)
+  const savesCount = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
+  const viewsTrend = statsReady ? formatTrendPercent(stats?.visitsChart?.trendPercent) : {}
   const canCreate = headerCanCreate
   const createDisabledReason = headerCreateDisabledReason
+  const hubStatsLoading = !(statsReady && socialsReady)
 
   const socialClicksByCard = useMemo(() => {
     const map: Record<string, Array<{ platform: string; clickCount: number }>> = {}
@@ -215,6 +227,8 @@ export default function CorporateOwnerDashboardHome() {
         totalViews={headerTotalViews}
         uniqueViews={headerUniqueViews}
         shares={headerShares}
+        statsLoading={!statsReady}
+        profilesLoading={!profilesReady}
         canCreate={headerCanCreate}
         createDisabledReason={headerCreateDisabledReason}
         onExportCsv={handleExportCsv}
@@ -222,12 +236,16 @@ export default function CorporateOwnerDashboardHome() {
         onSupport={() => setOwnerFeedbackMode('support')}
       />
 
-      {cards.length === 0 ? (
+      {!profilesReady ? (
+        <div className="rounded-4xl border border-dashed border-slate-200 bg-white py-24 text-center text-sm font-semibold text-slate-400 dark:border-white/10 dark:bg-[#0b0f19]">
+          Loading corporate directory…
+        </div>
+      ) : cards.length === 0 ? (
         <CorporateEmptyState canCreate={canCreate} createDisabledReason={createDisabledReason} />
       ) : (
         <>
           <CorporateQuotaWarning
-            cardCount={metricTotalCards}
+            cardCount={metricTotalCards ?? 0}
             quotaLimit={quotaLimit}
             onRequestUpgrade={() => setUpgradeAlert(true)}
           />
@@ -238,13 +256,16 @@ export default function CorporateOwnerDashboardHome() {
             activeCount={activeCount}
             totalCards={metricTotalCards}
             quotaLimit={metricQuotaLimit}
+            loading={!statsReady}
+            profilesLoading={!profilesReady}
             viewsChangeText={viewsTrend.text}
             viewsChangeNegative={viewsTrend.negative}
             onOpenContactSaves={() => openContactSaves('saves')}
           />
 
           <CorporateSocialBreakdown
-            channels={stats?.socialChannels}
+            channels={statsReady ? stats?.socialChannels : undefined}
+            loading={!statsReady}
             onOpenSocialsTab={() => {
               setHubTab('socials')
               setTimeout(() => {
@@ -265,11 +286,14 @@ export default function CorporateOwnerDashboardHome() {
                     label: r.label,
                     count: r.clickCount,
                   }))
-                : stats?.socialChannels
+                : statsReady
+                  ? stats?.socialChannels
+                  : undefined
             }
             socialClicksByCard={socialClicksByCard}
             teamNotices={teamNotices}
             totalViews={totalViews}
+            statsLoading={hubStatsLoading}
             activeCount={activeCount}
             canCreate={canCreate}
             createDisabledReason={createDisabledReason}
@@ -302,7 +326,7 @@ export default function CorporateOwnerDashboardHome() {
 
       {showContactSavesModal && (
         <ContactSavesModal
-          count={savesCount}
+          count={savesCount ?? 0}
           contacts={contacts}
           notesCount={contacts.filter((c) => c.message || (c as { source?: string }).source === 'note').length}
           tab={contactSavesModalTab}

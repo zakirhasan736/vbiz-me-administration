@@ -1,8 +1,10 @@
+import type { BackendNotificationPreferences } from '@/lib/push/preferenceMapping'
 import type { NotificationPreferences } from '@/lib/push/types'
 
 type CachedCardStatus = {
   following: boolean
   preferences: NotificationPreferences | null
+  backendPreferences: BackendNotificationPreferences | null
   checkedAt: number
 }
 
@@ -25,11 +27,16 @@ export function getCachedCardPushStatus(cardSlug: string): CachedCardStatus | nu
 
 export function setCachedCardPushStatus(
   cardSlug: string,
-  status: { following: boolean; preferences: NotificationPreferences | null }
+  status: {
+    following: boolean
+    preferences: NotificationPreferences | null
+    backendPreferences?: BackendNotificationPreferences | null
+  }
 ) {
   cardStatusCache.set(cacheKey(cardSlug), {
     following: status.following,
     preferences: status.preferences,
+    backendPreferences: status.backendPreferences ?? null,
     checkedAt: Date.now(),
   })
 }

@@ -3,13 +3,9 @@
 import { AlertModal } from '@/components/AlertModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { useAppDispatch } from '@/hooks/redux'
-import {
-  isCardPaused,
-  isOwnerCardLocked,
-  PAUSED_CARD_MESSAGE,
-  resolveCardStatus,
-  SUSPENDED_CARD_MESSAGE,
-} from '@/lib/cardStatus'
+import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { ACCOUNT_PAUSED_VCARD_MESSAGE, ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
+import { isCardPaused, isOwnerCardLocked, resolveCardStatus, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import { useDeleteProfileMutation, useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
@@ -82,6 +78,7 @@ export function VCardTeamCard({
 }: VCardTeamCardProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
+  const { isPaused: accountPaused, isSuspended: accountSuspended, canMutateVcards } = useAccountStatus()
   const cardRef = useRef<HTMLDivElement>(null)
   const [deleteProfile, { isLoading: isDeleting }] = useDeleteProfileMutation()
   const [updateProfileCard, { isLoading: isUpdatingVisibility }] = useUpdateProfileCardMutation()
@@ -111,9 +108,10 @@ export function VCardTeamCard({
     isPublic,
     isActive: card.isActive,
   })
-  const ownerLocked = isOwnerCardLocked(status)
-  const pausedByAdmin = isCardPaused(status)
-  const visibilityLocked = ownerLocked || pausedByAdmin
+  const ownerLocked = isOwnerCardLocked(status) || accountSuspended
+  const pausedByAdmin = isCardPaused(status) || accountPaused
+  const visibilityLocked = ownerLocked || pausedByAdmin || !canMutateVcards
+  const editLocked = ownerLocked || accountSuspended || accountPaused
 
   const views = Number(card.views) || 0
   const liveSocials = Array.isArray(card.socialClicks) ? card.socialClicks : []
@@ -134,8 +132,32 @@ export function VCardTeamCard({
   const editPath = buildEditorSectionPath('/vcards/edit', 'home', card.id)
   const settingsPath = buildEditorSettingsPath('/vcards/edit', 'info', card.id)
 
-  const goEdit = () => router.push(editPath)
-  const goSettings = () => router.push(settingsPath)
+  const goEdit = () => {
+    if (editLocked) {
+      notify.warning(
+        accountSuspended
+          ? ACCOUNT_SUSPENDED_MESSAGE
+          : accountPaused
+            ? ACCOUNT_PAUSED_VCARD_MESSAGE
+            : SUSPENDED_CARD_MESSAGE
+      )
+      return
+    }
+    router.push(editPath)
+  }
+  const goSettings = () => {
+    if (editLocked) {
+      notify.warning(
+        accountSuspended
+          ? ACCOUNT_SUSPENDED_MESSAGE
+          : accountPaused
+            ? ACCOUNT_PAUSED_VCARD_MESSAGE
+            : SUSPENDED_CARD_MESSAGE
+      )
+      return
+    }
+    router.push(settingsPath)
+  }
 
   const handleVisibilityChange = async (next: boolean) => {
     if (!card.id || visibilityLocked) return
@@ -358,10 +380,28 @@ export function VCardTeamCard({
             <VCardVisibilityToggle
               id={card.id ? `vcard-visibility-${card.id}` : 'vcard-visibility-missing'}
               checked={isPublic}
-              disabled={isUpdatingVisibility || !card.id || visibilityLocked}
-              title={ownerLocked ? SUSPENDED_CARD_MESSAGE : pausedByAdmin ? PAUSED_CARD_MESSAGE : undefined}
+              disabled={isUpdatingVisibility || !card.id}
+              locked={visibilityLocked}
+              title={
+                ownerLocked
+                  ? accountSuspended
+                    ? ACCOUNT_SUSPENDED_MESSAGE
+                    : SUSPENDED_CARD_MESSAGE
+                  : pausedByAdmin
+                    ? ACCOUNT_PAUSED_VCARD_MESSAGE
+                    : undefined
+              }
               compact
               onChange={(next) => void handleVisibilityChange(next)}
+              onLockedAttempt={() =>
+                notify.warning(
+                  ownerLocked
+                    ? accountSuspended
+                      ? ACCOUNT_SUSPENDED_MESSAGE
+                      : SUSPENDED_CARD_MESSAGE
+                    : ACCOUNT_PAUSED_VCARD_MESSAGE
+                )
+              }
             />
           </div>
         </div>

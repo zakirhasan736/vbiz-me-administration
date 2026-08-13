@@ -23,13 +23,21 @@ import { useEffect, useState } from 'react'
 const REVIEW_IMAGE_FALLBACK = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&fit=crop'
 const SKELETON_CARD_COUNT = 4
 
-function ReviewsHeaderSkeleton() {
+function ReviewsHeaderSkeleton({ compact }: { compact: boolean }) {
   return (
-    <div className="relative flex min-h-50 flex-col justify-end overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-100 p-4 pb-12 md:min-h-[22vh] md:rounded-[2.5rem] md:p-6 md:pb-6 lg:col-span-4 lg:min-h-[24vh] dark:border-zinc-800/80 dark:bg-zinc-900">
+    <div
+      className={`relative flex min-h-50 flex-col justify-end overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-100 p-4 pb-12 lg:col-span-4 dark:border-zinc-800/80 dark:bg-zinc-900 ${
+        compact ? '' : 'md:min-h-[22vh] md:rounded-[2.5rem] md:p-6 md:pb-6 lg:min-h-[24vh]'
+      }`}
+    >
       <div className="w-full space-y-3">
         <div className="h-6 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
         <div className="h-8 w-3/4 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
-        <div className="hidden h-12 w-full max-w-xl animate-pulse rounded-lg bg-zinc-200 md:block dark:bg-zinc-800" />
+        <div
+          className={`h-12 w-full max-w-xl animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800 ${
+            compact ? 'hidden' : 'hidden md:block'
+          }`}
+        />
       </div>
     </div>
   )
@@ -47,8 +55,14 @@ function ReviewGridCardSkeleton({ idx }: { idx: number }) {
 }
 
 export const ReviewsSection = () => {
-  const { cardOwnerId } = useProfileDisplay()
+  const { cardOwnerId, embedded } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
+
+  /**
+   * The editor phone preview is ~420px wide inside a desktop viewport, so `md:`/`lg:`
+   * breakpoints would pick the wide layout. Drive layout off the frame instead.
+   */
+  const compact = embedded
 
   const { data, isLoading, isError } = useGetReviewsQuery(profileId, { skip: !profileId })
 
@@ -65,6 +79,9 @@ export const ReviewsSection = () => {
   const averageRating = data?.averageRating ?? 0
   const slideCount = slides.length
   const clampedActiveIndex = slideCount === 0 ? 0 : Math.min(activeIndex, slideCount - 1)
+
+  /** Phone-sized layout: a real mobile viewport or the editor preview frame. */
+  const isNarrow = compact || isMobile
 
   const totalReviewsLabel =
     reviewCount >= 50 ? '50+' : reviewCount >= 20 ? '20+' : reviewCount >= 10 ? '10+' : reviewCount
@@ -109,13 +126,46 @@ export const ReviewsSection = () => {
   const showInitialLoader = isLoading && slideCount === 0
   const showEmptyState = !isLoading && !isError && slideCount === 0
 
+  const viewToggle = (
+    <div
+      className={`inline-flex items-center rounded-xl border border-zinc-800 bg-black/50 p-0.5 shadow-2xl backdrop-blur-xl ${compact ? 'shadow-md' : 'md:p-1'}`}
+    >
+      <button
+        type="button"
+        onClick={() => setViewMode('slider')}
+        aria-label="Slider view"
+        className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all duration-300 ${
+          compact ? '' : 'md:gap-1.5 md:px-3 md:py-1.5 md:text-xs'
+        } ${viewMode === 'slider' ? 'bg-[#eed677] text-black shadow-sm' : 'text-zinc-300 hover:text-white'}`}
+      >
+        <Monitor size={12} className={compact ? '' : 'md:h-3.5 md:w-3.5'} />
+        <span className={compact ? '' : 'hidden sm:inline'}>Slider</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => setViewMode('grid')}
+        aria-label="Grid view"
+        className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all duration-300 ${
+          compact ? '' : 'md:gap-1.5 md:px-3 md:py-1.5 md:text-xs'
+        } ${viewMode === 'grid' ? 'bg-[#eed677] text-black shadow-sm' : 'text-zinc-300 hover:text-white'}`}
+      >
+        <LayoutGrid size={12} className={compact ? '' : 'md:h-3.5 md:w-3.5'} />
+        <span className={compact ? '' : 'hidden sm:inline'}>Grid</span>
+      </button>
+    </div>
+  )
+
   return (
     <div className="w-full overflow-hidden pb-20">
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
         {showInitialLoader ? (
-          <ReviewsHeaderSkeleton />
+          <ReviewsHeaderSkeleton compact={compact} />
         ) : (
-          <div className="group relative flex min-h-50 w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 bg-[#020914] shadow-xl md:min-h-[22vh] md:rounded-[2.5rem] lg:col-span-4 lg:min-h-[24vh] dark:border-[#eed677]/20">
+          <div
+            className={`group relative flex w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 bg-[#020914] shadow-xl lg:col-span-4 dark:border-[#eed677]/20 ${
+              compact ? '' : 'min-h-50 md:min-h-[22vh] md:rounded-[2.5rem] lg:min-h-[24vh]'
+            }`}
+          >
             {/* Accent background (no video) */}
             <div className="absolute inset-0 z-0 h-full w-full">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,rgba(238,214,119,0.14),transparent_60%)]" />
@@ -123,73 +173,89 @@ export const ReviewsSection = () => {
               <div className="absolute inset-0 hidden bg-linear-to-r from-[#020914] via-[#020914]/60 to-transparent md:block md:w-2/3" />
             </div>
 
-            {/* View toggle — bottom-right on mobile, top-right on desktop */}
-            <div className="absolute top-6 right-3 z-20 md:top-8 md:right-8 md:bottom-auto lg:top-8 lg:right-10">
-              <div className="inline-flex items-center rounded-xl border border-zinc-800 bg-black/50 p-0.5 shadow-2xl backdrop-blur-xl md:p-1">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('slider')}
-                  aria-label="Slider view"
-                  className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all duration-300 md:gap-1.5 md:px-3 md:py-1.5 md:text-xs ${
-                    viewMode === 'slider' ? 'bg-[#eed677] text-black shadow-sm' : 'text-zinc-300 hover:text-white'
-                  }`}
-                >
-                  <Monitor size={12} className="md:h-3.5 md:w-3.5" />
-                  <span className="hidden sm:inline">Slider</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('grid')}
-                  aria-label="Grid view"
-                  className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all duration-300 md:gap-1.5 md:px-3 md:py-1.5 md:text-xs ${
-                    viewMode === 'grid' ? 'bg-[#eed677] text-black shadow-sm' : 'text-zinc-300 hover:text-white'
-                  }`}
-                >
-                  <LayoutGrid size={12} className="md:h-3.5 md:w-3.5" />
-                  <span className="hidden sm:inline">Grid</span>
-                </button>
+            {/* View toggle — floats over the banner when there is room, in-flow inside the phone preview */}
+            {compact ? null : (
+              <div className="absolute top-6 right-3 z-20 md:top-8 md:right-8 md:bottom-auto lg:top-8 lg:right-10">
+                {viewToggle}
               </div>
-            </div>
+            )}
 
             {/* Content overlay */}
-            <div className="relative z-10 flex h-full w-full grow flex-col justify-end p-0 pb-0 sm:p-5 md:p-6 md:pb-6 lg:p-7">
-              <div className="mt-auto flex w-full max-w-7xl flex-col items-start justify-between gap-3 md:flex-row md:items-end md:gap-5">
-                <div className="flex max-w-2xl flex-col gap-1.5 md:gap-2">
-                  <div className="inline-flex items-center gap-1.5 self-start rounded-full border border-[#eed677]/30 bg-[#eed677]/10 px-2.5 py-1 text-[9px] font-bold tracking-widest text-[#eed677] uppercase shadow-sm backdrop-blur-md md:text-xs">
+            <div
+              className={`relative z-10 flex h-full w-full grow flex-col justify-end ${
+                compact ? 'gap-3 p-4' : 'p-0 pb-0 sm:p-5 md:p-6 md:pb-6 lg:p-7'
+              }`}
+            >
+              {compact ? <div className="flex w-full justify-end">{viewToggle}</div> : null}
+              <div
+                className={`mt-auto flex w-full max-w-7xl flex-col items-start justify-between ${
+                  compact ? 'gap-3' : 'gap-3 md:flex-row md:items-end md:gap-5'
+                }`}
+              >
+                <div className={`flex max-w-2xl flex-col gap-1.5 ${compact ? '' : 'md:gap-2'}`}>
+                  <div
+                    className={`inline-flex items-center gap-1.5 self-start rounded-full border border-[#eed677]/30 bg-[#eed677]/10 px-2.5 py-1 text-[9px] font-bold tracking-widest text-[#eed677] uppercase shadow-sm backdrop-blur-md ${
+                      compact ? '' : 'md:text-xs'
+                    }`}
+                  >
                     <Star size={12} className="text-[#eed677]" /> {sectionTitle}
                   </div>
 
-                  <h2 className="text-2xl leading-[1.1] font-black tracking-tight text-white sm:text-3xl md:text-4xl lg:text-4xl">
+                  <h2
+                    className={`leading-[1.1] font-black tracking-tight text-white ${
+                      compact ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl lg:text-4xl'
+                    }`}
+                  >
                     Trusted by{' '}
                     <span className="bg-linear-to-r from-[#eed677] to-yellow-500 bg-clip-text text-transparent italic">
                       Professionals
                     </span>
                   </h2>
-                  <p className="hidden max-w-xl text-sm leading-normal font-medium text-zinc-300 md:block md:text-lg">
+                  <p
+                    className={`max-w-xl text-sm leading-normal font-medium text-zinc-300 ${
+                      compact ? 'hidden' : 'hidden md:block md:text-lg'
+                    }`}
+                  >
                     Read what clients and partners are saying about working together — or leave your own review.
                   </p>
                 </div>
 
-                <div className="flex w-full shrink-0 flex-col items-stretch gap-2 md:w-auto md:items-end md:gap-3">
-                  <div className="flex w-full flex-row items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-black/30 p-2 backdrop-blur-md md:w-auto md:flex-col md:items-end md:gap-2 md:rounded-2xl md:p-5">
+                <div
+                  className={`flex w-full shrink-0 flex-col items-stretch gap-2 ${
+                    compact ? '' : 'md:w-auto md:items-end md:gap-3'
+                  }`}
+                >
+                  <div
+                    className={`flex w-full flex-row items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-black/30 p-2 backdrop-blur-md ${
+                      compact ? '' : 'md:w-auto md:flex-col md:items-end md:gap-2 md:rounded-2xl md:p-5'
+                    }`}
+                  >
                     <div className="flex min-w-0 flex-col">
-                      <div className="flex gap-0.5 md:gap-1">
+                      <div className={`flex gap-0.5 ${compact ? '' : 'md:gap-1'}`}>
                         {[1, 2, 3, 4, 5].map((i) => (
                           <Star
                             key={i}
-                            className={`h-3 w-3 drop-shadow-[0_0_8px_rgba(238,214,119,0.4)] md:h-5 md:w-5 ${
+                            className={`h-3 w-3 drop-shadow-[0_0_8px_rgba(238,214,119,0.4)] ${compact ? '' : 'md:h-5 md:w-5'} ${
                               i <= Math.round(averageRating) ? 'fill-[#eed677] text-[#eed677]' : 'text-zinc-600'
                             }`}
                           />
                         ))}
                       </div>
-                      <span className="mt-0.5 text-[8px] font-bold tracking-wider text-zinc-400 uppercase md:mt-1 md:text-[10px]">
+                      <span
+                        className={`mt-0.5 text-[8px] font-bold tracking-wider text-zinc-400 uppercase ${
+                          compact ? '' : 'md:mt-1 md:text-[10px]'
+                        }`}
+                      >
                         {totalReviewsLabel} Verified Reviews
                       </span>
                     </div>
-                    <div className="flex shrink-0 items-baseline gap-1 md:gap-2">
-                      <span className="text-sm font-black text-white md:text-3xl">{averageLabel}</span>
-                      <span className="text-[9px] font-medium text-zinc-500 md:text-sm">/ 5.0</span>
+                    <div className={`flex shrink-0 items-baseline gap-1 ${compact ? '' : 'md:gap-2'}`}>
+                      <span className={`text-sm font-black text-white ${compact ? '' : 'md:text-3xl'}`}>
+                        {averageLabel}
+                      </span>
+                      <span className={`text-[9px] font-medium text-zinc-500 ${compact ? '' : 'md:text-sm'}`}>
+                        / 5.0
+                      </span>
                     </div>
                   </div>
 
@@ -198,7 +264,9 @@ export const ReviewsSection = () => {
                       href={leaveReviewUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="relative z-10 flex w-full max-w-[calc(100%-3.5rem)] items-center justify-center gap-2 rounded-xl bg-[#eed677] px-3 py-2 text-[11px] font-bold text-zinc-950 shadow-lg shadow-yellow-500/10 transition-all hover:bg-yellow-500 active:scale-95 md:max-w-none md:px-6 md:py-3 md:text-xs"
+                      className={`relative z-10 flex w-full items-center justify-center gap-2 rounded-xl bg-[#eed677] px-3 py-2 text-[11px] font-bold text-zinc-950 shadow-lg shadow-yellow-500/10 transition-all hover:bg-yellow-500 active:scale-95 ${
+                        compact ? '' : 'max-w-[calc(100%-3.5rem)] md:max-w-none md:px-6 md:py-3 md:text-xs'
+                      }`}
                     >
                       <span>Leave a Review</span>
                       <MessageCircle size={14} />
@@ -224,7 +292,11 @@ export const ReviewsSection = () => {
       ) : null}
 
       {showInitialLoader ? (
-        <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div
+          className={`vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 ${
+            compact ? '' : 'md:grid-cols-3 lg:grid-cols-4'
+          }`}
+        >
           {Array.from({ length: SKELETON_CARD_COUNT }, (_, idx) => (
             <ReviewGridCardSkeleton key={idx} idx={idx} />
           ))}
@@ -232,7 +304,11 @@ export const ReviewsSection = () => {
       ) : null}
 
       {!showInitialLoader && slideCount > 0 && viewMode === 'grid' ? (
-        <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div
+          className={`vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 ${
+            compact ? '' : 'md:grid-cols-3 lg:grid-cols-4'
+          }`}
+        >
           {slides.map((item, idx) => {
             const isFeatured = idx === 0 || idx === 3
 
@@ -243,7 +319,11 @@ export const ReviewsSection = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: idx * 0.05 }}
                   key={item.id}
-                  className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl sm:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 ${isFeatured ? 'md:col-span-2 lg:col-span-2' : 'col-span-1'}`}
+                  className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50 ${
+                    compact
+                      ? 'col-span-1 p-4'
+                      : `p-6 sm:p-8 ${isFeatured ? 'md:col-span-2 lg:col-span-2' : 'col-span-1'}`
+                  }`}
                 >
                   <Link href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="flex h-full flex-col">
                     <div className="mb-6 flex items-center gap-4">
@@ -278,7 +358,11 @@ export const ReviewsSection = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
                 key={item.id}
-                className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 sm:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 md:col-span-2 lg:col-span-2 dark:from-zinc-900/80 dark:to-zinc-900/40' : 'col-span-1'}`}
+                className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80 ${
+                  compact
+                    ? `col-span-1 p-4 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 dark:from-zinc-900/80 dark:to-zinc-900/40' : ''}`
+                    : `p-6 sm:p-8 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 md:col-span-2 lg:col-span-2 dark:from-zinc-900/80 dark:to-zinc-900/40' : 'col-span-1'}`
+                }`}
               >
                 <div className="pointer-events-none absolute top-0 right-0 -mt-12 -mr-12 rounded-full bg-[#eab308]/10 p-24 opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-100 dark:bg-[#eab308]/5" />
 
@@ -298,12 +382,14 @@ export const ReviewsSection = () => {
                   </div>
                   {item.htmlDescription ? (
                     <div
-                      className={`prose prose-sm dark:prose-invert mb-8 max-w-none ${isFeatured ? 'prose-lg' : ''}`}
+                      className={`prose prose-sm dark:prose-invert mb-8 max-w-none ${isFeatured && !compact ? 'prose-lg' : ''}`}
                       dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
                     />
                   ) : (
                     <p
-                      className={`mb-8 leading-relaxed font-medium text-zinc-700 italic transition-colors group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100 ${isFeatured ? 'text-xl md:text-2xl' : 'text-base'}`}
+                      className={`mb-8 leading-relaxed font-medium text-zinc-700 italic transition-colors group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100 ${
+                        compact ? 'text-sm' : isFeatured ? 'text-xl md:text-2xl' : 'text-base'
+                      }`}
                     >
                       &ldquo;{item.plainDescription}&rdquo;
                     </p>
@@ -335,9 +421,17 @@ export const ReviewsSection = () => {
       ) : null}
 
       {!showInitialLoader && slideCount > 0 && viewMode === 'slider' ? (
-        <div className="relative z-20 mt-6 mb-8 flex min-h-95 w-full flex-1 flex-col items-center justify-center perspective-[1600px] md:mt-12 md:min-h-120">
+        <div
+          className={`relative z-20 mt-6 mb-8 flex w-full flex-1 flex-col items-center justify-center perspective-[1600px] ${
+            compact ? 'min-h-87.5' : 'min-h-95 md:mt-12 md:min-h-120'
+          }`}
+        >
           {/* Desktop floating arrows */}
-          <div className="pointer-events-none absolute top-1/2 z-40 hidden w-full max-w-270 -translate-y-1/2 justify-between px-2 md:flex">
+          <div
+            className={`pointer-events-none absolute top-1/2 z-40 w-full max-w-270 -translate-y-1/2 justify-between px-2 ${
+              compact ? 'hidden' : 'hidden md:flex'
+            }`}
+          >
             <button
               type="button"
               onClick={prevReview}
@@ -367,7 +461,7 @@ export const ReviewsSection = () => {
               else if (info.offset.x > threshold) prevReview()
             }}
             className="transform-style-3d relative flex w-full max-w-250 cursor-grab items-center justify-center select-none active:cursor-grabbing"
-            style={{ height: isMobile ? '310px' : '410px' }}
+            style={{ height: isNarrow ? '310px' : '410px' }}
           >
             <AnimatePresence initial={false}>
               {slides.map((item, idx) => {
@@ -377,15 +471,15 @@ export const ReviewsSection = () => {
 
                 if (absOffset > 2) return null
 
-                const cardWidth = isMobile ? 290 : 420
-                const cardHeight = isMobile ? 300 : 400
+                const cardWidth = isNarrow ? 290 : 420
+                const cardHeight = isNarrow ? 300 : 400
 
                 const xTranslate =
-                  offset === 0 ? 0 : direction * (absOffset * (isMobile ? 50 : 140) + (isMobile ? 20 : 80))
-                const zTranslate = offset === 0 ? (isMobile ? 35 : 80) : -absOffset * (isMobile ? 50 : 110)
-                const yRotate = offset === 0 ? 0 : direction * (isMobile ? -12 : -20)
+                  offset === 0 ? 0 : direction * (absOffset * (isNarrow ? 50 : 140) + (isNarrow ? 20 : 80))
+                const zTranslate = offset === 0 ? (isNarrow ? 35 : 80) : -absOffset * (isNarrow ? 50 : 110)
+                const yRotate = offset === 0 ? 0 : direction * (isNarrow ? -12 : -20)
                 const scale =
-                  absOffset === 0 ? 1 : Math.max(isMobile ? 0.8 : 0.75, 1 - absOffset * (isMobile ? 0.08 : 0.12))
+                  absOffset === 0 ? 1 : Math.max(isNarrow ? 0.8 : 0.75, 1 - absOffset * (isNarrow ? 0.08 : 0.12))
                 const zIndex = 50 - absOffset
                 const opacity = absOffset === 2 ? 0.6 : 1
 
@@ -393,7 +487,7 @@ export const ReviewsSection = () => {
                   <motion.div
                     key={item.id}
                     onMouseMove={(e) => {
-                      if (isMobile) return
+                      if (isNarrow) return
                       const rect = e.currentTarget.getBoundingClientRect()
                       const x = e.clientX - rect.left
                       const y = e.clientY - rect.top
@@ -414,7 +508,9 @@ export const ReviewsSection = () => {
                         setTimeout(() => setIsTransitioning(false), 350)
                       }
                     }}
-                    className="transform-style-3d group/card absolute flex cursor-pointer flex-col justify-between overflow-hidden rounded-4xl border border-zinc-200 bg-white p-6 shadow-2xl transition-all duration-300 md:p-8 dark:border-zinc-800 dark:bg-zinc-900"
+                    className={`transform-style-3d group/card absolute flex cursor-pointer flex-col justify-between overflow-hidden rounded-4xl border border-zinc-200 bg-white shadow-2xl transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900 ${
+                      compact ? 'p-4' : 'p-6 md:p-8'
+                    }`}
                     style={{ width: `${cardWidth}px`, height: `${cardHeight}px` }}
                   >
                     <AnimatePresence>
@@ -425,7 +521,7 @@ export const ReviewsSection = () => {
                           exit={{ opacity: 0 }}
                           className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-white/45 backdrop-blur-[2px] dark:bg-zinc-950/45"
                         >
-                          <Loader2 size={isMobile ? 24 : 32} className="animate-spin text-[#eed677]" />
+                          <Loader2 size={isNarrow ? 24 : 32} className="animate-spin text-[#eed677]" />
                         </motion.div>
                       ) : null}
                     </AnimatePresence>
@@ -442,7 +538,7 @@ export const ReviewsSection = () => {
                     <div className="pointer-events-none absolute top-0 right-0 -mt-16 -mr-16 translate-x-(--mouse-x,0px) translate-y-(--mouse-y,0px) rounded-full bg-[#eed677]/10 p-32 blur-3xl transition-transform duration-700 dark:bg-[#eed677]/5" />
 
                     <div className="relative z-10 flex h-full flex-col">
-                      <SliderReviewCard item={item} />
+                      <SliderReviewCard item={item} compact={compact} />
                     </div>
                   </motion.div>
                 )
@@ -451,7 +547,11 @@ export const ReviewsSection = () => {
           </motion.div>
 
           {/* Controller — prev / dots / next. On mobile it sits above the cards. */}
-          <div className="order-first mb-5 flex w-full max-w-105 shrink-0 items-center justify-between px-4 select-none md:order-0 md:mt-6 md:mb-0">
+          <div
+            className={`order-first mb-5 flex w-full max-w-105 shrink-0 items-center justify-between px-4 select-none ${
+              compact ? '' : 'md:order-0 md:mt-6 md:mb-0'
+            }`}
+          >
             <button
               type="button"
               onClick={prevReview}

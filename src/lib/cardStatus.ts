@@ -36,4 +36,7 @@ export function isOwnerCardLocked(status?: string | null): boolean {
 }
 
 export const SUSPENDED_CARD_MESSAGE = 'This card is suspended. Contact an administrator to restore access.'
-export const PAUSED_CARD_MESSAGE = 'This card is paused by an administrator and cannot be made public.'
+export const PAUSED_CARD_MESSAGE = 'Please contact support to re-enable this card.'
+export const ADMIN_SUSPENDED_CARD_MESSAGE =
+  'This card is suspended. Unsuspend it from the card panel to restore access.'
+export const ADMIN_PAUSED_CARD_MESSAGE = 'This card is paused. Resume it from the card panel to make it public again.'

@@ -8,6 +8,8 @@ import SetPasswordForm from '@/components/settings/SetPasswordForm'
 import { Button, Input, Switch, Textarea } from '@/components/ui'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs } from '@/lib/notifications'
 import { useTheme } from '@/lib/ThemeProvider'
 import { logout, useAuth } from '@/providers/AuthProvider'
@@ -186,6 +188,7 @@ function ToggleRow({
 export default function SettingsDialog() {
   const { user } = useAuth()
   const reduxUser = useAppSelector((state) => state.user.user)
+  const { isSuspended, canPerformAccountActions } = useAccountStatus()
   const router = useRouter()
   const { accentColor, setAccentColor } = useTheme()
   const [selectedTab, setSelectedTab] = useState('profile')
@@ -195,8 +198,8 @@ export default function SettingsDialog() {
   const [billingPackagesOpen, setBillingPackagesOpen] = useState(false)
   const { isActive: isTourActive, settingsAssist, currentStep } = useDashboardTour()
   const hasPassword = reduxUser?.hasPassword !== false
-  const { data: packages = [] } = useGetPackagesQuery()
-  const { data: subscriptions = [] } = useGetSubscriptionsQuery()
+  const { data: packages = [] } = useGetPackagesQuery(undefined, { skip: isSuspended })
+  const { data: subscriptions = [] } = useGetSubscriptionsQuery(undefined, { skip: isSuspended })
 
   const activeSubscription = subscriptions.find((sub) => isActiveSubscription(sub))
   const currentPackage =
@@ -269,6 +272,11 @@ export default function SettingsDialog() {
             <p className="mt-1 text-[13px] leading-snug font-medium text-slate-500 sm:text-[14px] lg:text-[15px] dark:text-slate-400">
               Manage your profile, preferences, and integrations.
             </p>
+            {isSuspended ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                {ACCOUNT_SUSPENDED_MESSAGE}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -559,7 +567,11 @@ export default function SettingsDialog() {
             <Section id="security" active={activeTab === 'security'} title="Security">
               <div className="space-y-8">
                 <div className="space-y-6 rounded-3xl border border-slate-200/50 bg-slate-50/50 p-4 sm:p-6 dark:border-white/5 dark:bg-white/2">
-                  {hasPassword ? (
+                  {!canPerformAccountActions ? (
+                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                      {ACCOUNT_SUSPENDED_MESSAGE}
+                    </p>
+                  ) : hasPassword ? (
                     <ChangePasswordForm email={user?.email ?? null} />
                   ) : (
                     <SetPasswordForm email={user?.email ?? null} provider={reduxUser?.provider} />

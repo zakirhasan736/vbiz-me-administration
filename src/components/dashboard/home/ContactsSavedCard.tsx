@@ -1,5 +1,6 @@
 'use client'
 
+import { StatNumber } from '@/components/ui/StatNumber'
 import { Save } from 'lucide-react'
 
 type ContactsSavedCardProps = {
@@ -7,14 +8,16 @@ type ContactsSavedCardProps = {
   profileName?: string
   uniqueViews?: number
   shares?: number
+  loading?: boolean
   onOpen?: () => void
 }
 
 export function ContactsSavedCard({
-  count = 0,
+  count,
   profileName = 'Your card',
-  uniqueViews = 0,
-  shares = 0,
+  uniqueViews,
+  shares,
+  loading = false,
   onOpen,
 }: ContactsSavedCardProps) {
   const className =
@@ -43,9 +46,12 @@ export function ContactsSavedCard({
       </div>
 
       <div className="my-6 flex items-baseline gap-3">
-        <span className="text-6xl font-black tracking-tighter text-slate-900 tabular-nums dark:text-white">
-          {Number(count).toLocaleString()}
-        </span>
+        <StatNumber
+          value={count}
+          loading={loading}
+          className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white"
+          skeletonClassName="h-14 w-28 rounded-xl"
+        />
         <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">guests saved a contact</span>
       </div>
 
@@ -58,15 +64,21 @@ export function ContactsSavedCard({
         </div>
         <div>
           <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">Unique</span>
-          <span className="mt-1 block text-xl font-extrabold text-indigo-500 tabular-nums">
-            {Number(uniqueViews).toLocaleString()}
-          </span>
+          <StatNumber
+            value={uniqueViews}
+            loading={loading}
+            className="mt-1 block text-xl font-extrabold text-indigo-500"
+            skeletonClassName="mt-1 h-6 w-12 rounded-lg"
+          />
         </div>
         <div>
           <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">Shares</span>
-          <span className="mt-1 block text-xl font-extrabold text-violet-500 tabular-nums">
-            {Number(shares).toLocaleString()}
-          </span>
+          <StatNumber
+            value={shares}
+            loading={loading}
+            className="mt-1 block text-xl font-extrabold text-violet-500"
+            skeletonClassName="mt-1 h-6 w-12 rounded-lg"
+          />
         </div>
       </div>
     </>

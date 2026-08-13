@@ -7,6 +7,7 @@
 import { mapPublicCardProfileUrl, type PublicCardListItem } from '@/lib/api/publicCards/mapPublicCards'
 import { PUBLIC_CARDS_SEARCH_DEBOUNCE_MS, PUBLIC_CARDS_SEARCH_MIN_CHARS } from '@/lib/publicCards/publicCardsSearch'
 import { usePublicCardsDirectory } from '@/profile-app/hooks/usePublicCardsDirectory'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import type { PublicCardsFilterOption } from '@interfaces/api/publicCards'
 import {
   Briefcase,
@@ -42,13 +43,27 @@ type DesktopFilterSelectProps = {
   placeholder: string
   Icon: LucideIcon
   disabled?: boolean
+  /** Editor phone preview: the field fills its grid cell instead of sharing a row. */
+  compact?: boolean
+  className?: string
 }
 
-function DesktopFilterSelect({ value, onChange, options, placeholder, Icon, disabled }: DesktopFilterSelectProps) {
+function DesktopFilterSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  Icon,
+  disabled,
+  compact,
+  className = '',
+}: DesktopFilterSelectProps) {
   return (
-    <div className="group relative min-w-[130px] flex-1">
-      <div className="pointer-events-none absolute top-1/2 left-4 z-10 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-200 group-hover:text-zinc-200">
-        <Icon size={16} />
+    <div className={`group relative ${compact ? 'w-full min-w-0' : 'min-w-32.5 flex-1'} ${className}`}>
+      <div
+        className={`pointer-events-none absolute top-1/2 z-10 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-200 group-hover:text-zinc-200 ${compact ? 'left-2.5' : 'left-4'}`}
+      >
+        <Icon size={compact ? 14 : 16} />
       </div>
       <select
         value={value ?? ''}
@@ -57,7 +72,9 @@ function DesktopFilterSelect({ value, onChange, options, placeholder, Icon, disa
           const next = e.target.value
           onChange(next ? Number(next) : null)
         }}
-        className="h-full w-full cursor-pointer appearance-none rounded-xl border border-zinc-300 bg-white py-3 pr-10 pl-11 text-xs font-semibold text-zinc-900 shadow-sm transition-all hover:border-zinc-400 hover:bg-zinc-50 focus:border-[#eab308] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-900/80"
+        className={`h-full w-full min-w-0 cursor-pointer appearance-none truncate rounded-xl border border-zinc-300 bg-white font-semibold text-zinc-900 shadow-sm transition-all hover:border-zinc-400 hover:bg-zinc-50 focus:border-[#eab308] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-900/80 ${
+          compact ? 'py-2.5 pr-7 pl-8 text-[11px]' : 'py-3 pr-10 pl-11 text-xs lg:text-sm'
+        }`}
       >
         <option value="" className="bg-white text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
           {placeholder}
@@ -68,8 +85,10 @@ function DesktopFilterSelect({ value, onChange, options, placeholder, Icon, disa
           </option>
         ))}
       </select>
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-400 transition-colors group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300">
-        <ChevronDown size={14} />
+      <div
+        className={`pointer-events-none absolute inset-y-0 right-0 flex items-center text-zinc-400 transition-colors group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300 ${compact ? 'px-2' : 'px-4'}`}
+      >
+        <ChevronDown size={compact ? 12 : 14} />
       </div>
     </div>
   )
@@ -217,6 +236,13 @@ export const PublicCardsSection = () => {
     loadMore,
   } = usePublicCardsDirectory()
 
+  /**
+   * The editor phone preview is ~420px wide inside a desktop viewport, so `md:`/`lg:`
+   * breakpoints would pick the wide layout. Drive layout off the frame instead.
+   */
+  const { embedded } = useProfileDisplay()
+  const compact = embedded
+
   const [viewMode, setViewMode] = useState<'grid' | 'slider'>('slider')
   const [activeIndex, setActiveIndex] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
@@ -284,6 +310,9 @@ export const PublicCardsSection = () => {
   const selectedCityName = findOptionName(dropdowns.cities, draftFilters.cityId)
   const selectedProfessionName = findOptionName(dropdowns.professions, draftFilters.professionId)
 
+  /** Phone-sized layout: a real mobile viewport or the editor preview frame. */
+  const isNarrow = compact || isMobile
+
   const sliderActiveIndex = cards.length === 0 ? 0 : Math.min(activeIndex, cards.length - 1)
 
   useEffect(() => {
@@ -312,46 +341,65 @@ export const PublicCardsSection = () => {
   const showInitialLoader = isLoading && cards.length === 0
   const showEmptyState = !isLoading && !isPrefetchingAll && !error && cards.length === 0
 
+  const viewToggle = (
+    <div
+      className={`inline-flex items-center rounded-xl border border-zinc-200 bg-white/80 p-1 shadow-2xl backdrop-blur-xl dark:border-zinc-800/80 dark:bg-black/60 ${compact ? 'shadow-md' : ''}`}
+    >
+      <button
+        onClick={() => setViewMode('slider')}
+        className={`flex items-center gap-1.5 rounded-lg text-[10px] font-black transition-all duration-300 ${compact ? 'px-2.5 py-1.5' : 'px-3 py-1.5 md:px-4 md:py-2 md:text-xs'} ${viewMode === 'slider' ? 'bg-[#eab308] text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'}`}
+      >
+        <Monitor size={12} className={compact ? '' : 'md:h-3.5 md:w-3.5'} />
+        <span>Slider</span>
+      </button>
+      <button
+        onClick={() => setViewMode('grid')}
+        className={`flex items-center gap-1.5 rounded-lg text-[10px] font-black transition-all duration-300 ${compact ? 'px-2.5 py-1.5' : 'px-3 py-1.5 md:px-4 md:py-2 md:text-xs'} ${viewMode === 'grid' ? 'bg-[#eab308] text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'}`}
+      >
+        <LayoutGrid size={12} className={compact ? '' : 'md:h-3.5 md:w-3.5'} />
+        <span>Grid</span>
+      </button>
+    </div>
+  )
+
   return (
     <div className="vbiz-public-cards-section isolate w-full max-w-full overflow-hidden pb-20">
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
         {/* Header Card / Banner — theme-aware solid background (no video) */}
-        <div className="group dark:bg-ocean-deep relative flex min-h-[26vh] w-full flex-col overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-50 shadow-xl sm:min-h-[28vh] md:min-h-[24vh] md:rounded-[2.5rem] lg:col-span-4 lg:min-h-[24vh] dark:border-[#eab308]/20">
+        <div
+          className={`group dark:bg-ocean-deep relative flex w-full flex-col overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-50 shadow-xl md:rounded-[2.5rem] lg:col-span-4 dark:border-[#eab308]/20 ${
+            compact ? '' : 'min-h-[26vh] sm:min-h-[28vh] md:min-h-[24vh] lg:min-h-[24vh]'
+          }`}
+        >
           {/* Accessible background — subtle accent wash, adapts to light/dark theme */}
           <div className="absolute inset-0 z-0 h-full w-full">
             <div className="dark:from-ocean-deep dark:via-ocean-deep/85 dark:to-ocean-deep/30 absolute inset-0 bg-linear-to-t from-white via-white/85 to-white/40" />
             <div className="dark:from-ocean-deep dark:via-ocean-deep/60 absolute inset-0 hidden bg-linear-to-r from-[#eab308]/10 to-transparent md:block md:w-2/3" />
           </div>
 
-          {/* View Toggle on Banner Top Right */}
-          <div className="absolute top-4 right-4 z-20 md:top-8 md:right-8 lg:top-10 lg:right-10">
-            <div className="inline-flex items-center rounded-xl border border-zinc-200 bg-white/80 p-1 shadow-2xl backdrop-blur-xl dark:border-zinc-800/80 dark:bg-black/60">
-              <button
-                onClick={() => setViewMode('slider')}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-black transition-all duration-300 md:px-4 md:py-2 md:text-xs ${viewMode === 'slider' ? 'bg-[#eab308] text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'}`}
-              >
-                <Monitor size={12} className="md:h-3.5 md:w-3.5" />
-                <span>Slider</span>
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-black transition-all duration-300 md:px-4 md:py-2 md:text-xs ${viewMode === 'grid' ? 'bg-[#eab308] text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'}`}
-              >
-                <LayoutGrid size={12} className="md:h-3.5 md:w-3.5" />
-                <span>Grid</span>
-              </button>
-            </div>
-          </div>
+          {/* View Toggle — floats over the banner when there is room, in-flow inside the phone preview */}
+          {compact ? null : (
+            <div className="absolute top-4 right-4 z-20 md:top-8 md:right-8 lg:top-10 lg:right-10">{viewToggle}</div>
+          )}
 
           {/* Content overlay */}
-          <div className="relative z-10 flex h-full w-full grow flex-col justify-end p-0 sm:p-7 md:p-8 lg:px-12 lg:py-9">
+          <div
+            className={`relative z-10 flex h-full w-full grow flex-col justify-end ${
+              compact ? 'gap-3 p-4' : 'p-0 sm:p-7 md:p-8 lg:px-12 lg:py-9'
+            }`}
+          >
+            {compact ? <div className="flex w-full justify-end">{viewToggle}</div> : null}
             <div className="mt-auto flex w-full max-w-7xl flex-col items-start justify-between gap-4 md:gap-5">
               <div className="flex max-w-2xl flex-col gap-2 md:gap-2.5">
                 <div className="inline-flex items-center gap-1.5 self-start rounded-full border border-[#eab308]/30 bg-[#eab308]/15 px-3 py-1 text-[9px] font-bold tracking-wider text-[#eab308] uppercase shadow-md backdrop-blur-md md:text-xs">
                   <Users size={12} className="text-[#eab308]" /> Global Connections Directory
                 </div>
 
-                <h2 className="text-2xl leading-[1.05] font-black tracking-tight text-zinc-900 sm:text-3xl md:text-4xl lg:text-4xl dark:text-white">
+                <h2
+                  className={`leading-[1.05] font-black tracking-tight text-zinc-900 dark:text-white ${
+                    compact ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl lg:text-4xl'
+                  }`}
+                >
                   Global{' '}
                   <span className="bg-linear-to-r from-[#eab308] to-yellow-500 bg-clip-text text-transparent italic">
                     Connections
@@ -374,14 +422,19 @@ export const PublicCardsSection = () => {
                 ) : null}
               </div>
 
-              {/* Desktop Filter Bar (md and larger) */}
-              <div className="hidden w-full items-center gap-3 border-t border-zinc-200 pt-4 md:flex dark:border-zinc-800/80">
+              {/* Filter bar — one row on wide screens, two-column stack inside the phone preview */}
+              <div
+                className={`w-full border-t border-zinc-200 pt-4 dark:border-zinc-800/80 ${
+                  compact ? 'grid grid-cols-2 gap-2' : 'hidden items-center gap-3 md:flex'
+                }`}
+              >
                 <DesktopFilterSelect
                   value={draftFilters.stateId}
                   onChange={(value) => handleDesktopFilterChange('stateId', value)}
                   options={dropdowns.states ?? []}
                   placeholder="All States"
                   Icon={MapPin}
+                  compact={compact}
                 />
                 <DesktopFilterSelect
                   value={draftFilters.cityId}
@@ -390,6 +443,7 @@ export const PublicCardsSection = () => {
                   placeholder="All Cities"
                   Icon={MapPin}
                   disabled={!draftFilters.stateId}
+                  compact={compact}
                 />
                 <DesktopFilterSelect
                   value={draftFilters.professionId}
@@ -397,18 +451,28 @@ export const PublicCardsSection = () => {
                   options={dropdowns.professions ?? []}
                   placeholder="All Professions"
                   Icon={Briefcase}
+                  compact={compact}
+                  className={compact ? 'col-span-2' : ''}
                 />
 
-                <div className="group relative w-full min-w-[180px] flex-[1.5]">
-                  <div className="absolute top-1/2 left-4 z-10 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-600 dark:text-zinc-500 dark:group-focus-within:text-zinc-300">
-                    <Search size={16} />
+                <div className={`group relative w-full ${compact ? 'col-span-2 min-w-0' : 'min-w-45 flex-[1.5]'}`}>
+                  <div
+                    className={`absolute top-1/2 z-10 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-600 dark:text-zinc-500 dark:group-focus-within:text-zinc-300 ${compact ? 'left-2.5' : 'left-4'}`}
+                  >
+                    <Search size={compact ? 14 : 16} />
                   </div>
                   <input
                     type="text"
                     value={draftFilters.service}
                     onChange={(e) => handleDesktopServiceChange(e.target.value)}
-                    placeholder={`Search name or profession (${PUBLIC_CARDS_SEARCH_MIN_CHARS}+ letters)…`}
-                    className="w-full rounded-xl border border-zinc-300 bg-white py-3 pr-4 pl-11 text-xs font-medium text-zinc-900 shadow-sm transition-all placeholder:text-zinc-400 hover:border-zinc-400 hover:bg-zinc-50 focus:border-[#eab308] focus:outline-none lg:text-sm dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:hover:border-zinc-700 dark:hover:bg-zinc-900/80"
+                    placeholder={
+                      compact
+                        ? 'Search name or profession…'
+                        : `Search name or profession (${PUBLIC_CARDS_SEARCH_MIN_CHARS}+ letters)…`
+                    }
+                    className={`w-full min-w-0 rounded-xl border border-zinc-300 bg-white font-medium text-zinc-900 shadow-sm transition-all placeholder:text-zinc-400 hover:border-zinc-400 hover:bg-zinc-50 focus:border-[#eab308] focus:outline-none dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:hover:border-zinc-700 dark:hover:bg-zinc-900/80 ${
+                      compact ? 'py-2.5 pr-3 pl-8 text-[11px]' : 'py-3 pr-4 pl-11 text-xs lg:text-sm'
+                    }`}
                   />
                 </div>
 
@@ -416,16 +480,23 @@ export const PublicCardsSection = () => {
                   <button
                     onClick={handleClearFilters}
                     disabled={isSearching}
-                    className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3.5 text-xs font-bold text-zinc-600 transition-all hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 active:scale-95 disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-white"
+                    className={`flex shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white font-bold text-zinc-600 transition-all hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 active:scale-95 disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-white ${
+                      compact ? 'col-span-2 w-full py-2.5 text-[11px]' : 'px-4 py-3.5 text-xs'
+                    }`}
                     title="Reset All Filters"
                   >
                     {isSearching ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                    {compact ? <span>Reset filters</span> : null}
                   </button>
                 )}
               </div>
 
-              {/* Mobile Search & Filter trigger (md:hidden) */}
-              <div className="mt-1 flex w-full gap-2 border-t border-zinc-200 pt-4 md:hidden dark:border-zinc-800/50">
+              {/* Mobile Search & Filter trigger — real phones only; the preview shows the inline filters above */}
+              <div
+                className={`mt-1 w-full gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800/50 ${
+                  compact ? 'hidden' : 'flex md:hidden'
+                }`}
+              >
                 <button
                   onClick={() => setIsFilterOpen(true)}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-xs font-extrabold text-zinc-900 shadow-md backdrop-blur-md transition-all active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-white"
@@ -460,7 +531,7 @@ export const PublicCardsSection = () => {
               </span>
             )}
             {draftFilters.service.trim() !== '' && (
-              <span className="max-w-[100px] truncate rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300">
+              <span className="max-w-25 truncate rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300">
                 &ldquo;{draftFilters.service}&rdquo;
               </span>
             )}
@@ -634,7 +705,11 @@ export const PublicCardsSection = () => {
         </motion.div>
       ) : viewMode === 'grid' ? (
         /* Grid of Connections */
-        <div className="relative z-20 mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div
+          className={`relative z-20 mt-6 grid gap-4 ${
+            compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+          }`}
+        >
           {cards.map((card, idx) => (
             <motion.div
               initial={{ opacity: 0, y: 40 }}
@@ -642,7 +717,7 @@ export const PublicCardsSection = () => {
               viewport={{ once: true, margin: '-50px' }}
               transition={{ duration: 0.6, delay: (idx % 8) * 0.08, ease: 'easeOut' }}
               key={card.id}
-              className={`${CONNECTION_CARD_SHELL} h-[385px] cursor-pointer hover:border-zinc-700 sm:h-[407px]`}
+              className={`${CONNECTION_CARD_SHELL} h-96.25 cursor-pointer hover:border-zinc-700 sm:h-101.75`}
             >
               <ConnectionCardInner card={card} />
             </motion.div>
@@ -650,9 +725,17 @@ export const PublicCardsSection = () => {
         </div>
       ) : (
         /* Cinematic Unified 3D Slider Area with swipe & drag on both mobile and desktop! */
-        <div className="relative z-20 mt-6 flex min-h-[380px] flex-1 flex-col items-center justify-center perspective-[1600px] md:min-h-[460px]">
-          {/* Navigation arrows (desktop floating layout, hidden on mobile for cleaner look) */}
-          <div className="pointer-events-none absolute top-1/2 z-40 hidden w-full max-w-[1080px] -translate-y-1/2 justify-between px-2 md:flex">
+        <div
+          className={`relative z-20 mt-6 flex flex-1 flex-col items-center justify-center perspective-[1600px] ${
+            compact ? 'min-h-90' : 'min-h-95 md:min-h-115'
+          }`}
+        >
+          {/* Navigation arrows (floating desktop layout — hidden on phone widths for a cleaner look) */}
+          <div
+            className={`pointer-events-none absolute top-1/2 z-40 w-full max-w-270 -translate-y-1/2 justify-between px-2 ${
+              compact ? 'hidden' : 'hidden md:flex'
+            }`}
+          >
             <button
               onClick={prevCard}
               disabled={cards.length <= 1}
@@ -682,8 +765,8 @@ export const PublicCardsSection = () => {
                 prevCard()
               }
             }}
-            className="transform-style-3d relative flex w-full max-w-[1000px] cursor-grab items-center justify-center select-none active:cursor-grabbing"
-            style={{ height: isMobile ? '330px' : '430px' }}
+            className="transform-style-3d relative flex w-full max-w-250 cursor-grab items-center justify-center select-none active:cursor-grabbing"
+            style={{ height: isNarrow ? '330px' : '430px' }}
           >
             <AnimatePresence initial={false}>
               {cards.map((card, idx) => {
@@ -694,23 +777,23 @@ export const PublicCardsSection = () => {
                 // Only show nearest cards to look pristine and fit perfectly
                 if (absOffset > 2) return null
 
-                // Calculate scales and translations for mobile and desktop
-                const cardWidth = isMobile ? 220 : 300
-                const cardHeight = isMobile ? 320 : 420
+                // Calculate scales and translations for phone and desktop widths
+                const cardWidth = isNarrow ? 220 : 300
+                const cardHeight = isNarrow ? 320 : 420
 
                 // Dynamic lateral spacing (xTranslate)
                 const xTranslate =
-                  offset === 0 ? 0 : direction * (absOffset * (isMobile ? 55 : 130) + (isMobile ? 30 : 80))
+                  offset === 0 ? 0 : direction * (absOffset * (isNarrow ? 55 : 130) + (isNarrow ? 30 : 80))
 
                 // Dynamic depth layer (zTranslate)
-                const zTranslate = offset === 0 ? (isMobile ? 40 : 80) : -absOffset * (isMobile ? 55 : 110)
+                const zTranslate = offset === 0 ? (isNarrow ? 40 : 80) : -absOffset * (isNarrow ? 55 : 110)
 
                 // Smooth perspective rotation
-                const yRotate = offset === 0 ? 0 : direction * (isMobile ? -14 : -22)
+                const yRotate = offset === 0 ? 0 : direction * (isNarrow ? -14 : -22)
 
                 // Scale cards cleanly
                 const scale =
-                  absOffset === 0 ? 1 : Math.max(isMobile ? 0.8 : 0.75, 1 - absOffset * (isMobile ? 0.08 : 0.12))
+                  absOffset === 0 ? 1 : Math.max(isNarrow ? 0.8 : 0.75, 1 - absOffset * (isNarrow ? 0.08 : 0.12))
 
                 const zIndex = 50 - absOffset
                 const opacity = absOffset === 2 ? 0.6 : 1
@@ -719,7 +802,7 @@ export const PublicCardsSection = () => {
                   <motion.div
                     key={card.id}
                     onMouseMove={(e) => {
-                      if (isMobile) return
+                      if (isNarrow) return
                       const rect = e.currentTarget.getBoundingClientRect()
                       const x = e.clientX - rect.left
                       const y = e.clientY - rect.top
@@ -764,7 +847,7 @@ export const PublicCardsSection = () => {
                           exit={{ opacity: 0 }}
                           className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/45 backdrop-blur-[2px]"
                         >
-                          <Loader2 size={isMobile ? 24 : 32} className="animate-spin text-[#eab308]" />
+                          <Loader2 size={isNarrow ? 24 : 32} className="animate-spin text-[#eab308]" />
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -778,7 +861,7 @@ export const PublicCardsSection = () => {
                     {/* Connection Photo */}
                     <div
                       className="relative w-full overflow-hidden bg-zinc-950"
-                      style={{ height: isMobile ? '203px' : '278px' }}
+                      style={{ height: isNarrow ? '203px' : '278px' }}
                     >
                       <div className="absolute inset-0 z-10 bg-linear-to-t from-zinc-900 via-zinc-900/20 to-transparent" />
 
@@ -796,18 +879,18 @@ export const PublicCardsSection = () => {
 
                     {/* Connection Text Details */}
                     <div
-                      className="relative z-20 -mt-2 flex flex-col items-center justify-between border-t border-zinc-800/60 bg-zinc-900 p-4 md:p-6"
-                      style={{ height: isMobile ? '130px' : '160px' }}
+                      className={`relative z-20 -mt-2 flex flex-col items-center justify-between border-t border-zinc-800/60 bg-zinc-900 ${compact ? 'p-4' : 'p-4 md:p-6'}`}
+                      style={{ height: isNarrow ? '130px' : '160px' }}
                     >
                       <div className="w-full text-center">
                         <h4
-                          className="w-full truncate px-1 text-sm font-extrabold text-zinc-100 md:text-xl"
+                          className={`w-full truncate px-1 text-sm font-extrabold text-zinc-100 ${compact ? '' : 'md:text-xl'}`}
                           title={card.name}
                         >
                           {card.name}
                         </h4>
                         <p
-                          className="mt-1 w-full truncate px-1 text-[9px] font-black tracking-wider text-[#eab308] uppercase md:text-xs"
+                          className={`mt-1 w-full truncate px-1 text-[9px] font-black tracking-wider text-[#eab308] uppercase ${compact ? '' : 'md:text-xs'}`}
                           title={card.profession}
                         >
                           {card.profession}
@@ -816,7 +899,7 @@ export const PublicCardsSection = () => {
 
                       <Link
                         href={mapPublicCardProfileUrl(card.slug)}
-                        className="mt-2 flex w-full items-center justify-center rounded-xl border border-zinc-700/80 bg-zinc-800 py-2 text-[10px] font-black text-zinc-100 shadow-sm transition-all group-hover/card:bg-zinc-100 group-hover/card:text-zinc-950 hover:bg-zinc-700 active:scale-95 md:py-3.5 md:text-xs"
+                        className={`mt-2 flex w-full items-center justify-center rounded-xl border border-zinc-700/80 bg-zinc-800 py-2 text-[10px] font-black text-zinc-100 shadow-sm transition-all group-hover/card:bg-zinc-100 group-hover/card:text-zinc-950 hover:bg-zinc-700 active:scale-95 ${compact ? '' : 'md:py-3.5 md:text-xs'}`}
                       >
                         View Profile
                       </Link>
@@ -827,8 +910,12 @@ export const PublicCardsSection = () => {
             </AnimatePresence>
           </motion.div>
 
-          {/* Uniform Slider Controller (dots & responsive buttons) — above cards on mobile, below on desktop */}
-          <div className="order-first mb-4 flex w-full max-w-[420px] shrink-0 items-center justify-between px-4 select-none md:order-none md:mt-6 md:mb-0">
+          {/* Uniform Slider Controller (dots & responsive buttons) — above cards on phone widths, below on desktop */}
+          <div
+            className={`flex w-full max-w-105 shrink-0 items-center justify-between px-4 select-none ${
+              compact ? 'order-first mb-4' : 'order-first mb-4 md:order-0 md:mt-6 md:mb-0'
+            }`}
+          >
             {/* Prev Button */}
             <button
               onClick={prevCard}

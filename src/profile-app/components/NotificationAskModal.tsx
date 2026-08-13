@@ -1,17 +1,17 @@
 'use client'
 
+import { isPushSupported, subscribeToCard } from '@/lib/push/config'
 import {
-  DEFAULT_NOTIFICATION_PREFERENCES,
-  FORCE_ASK_PREFERENCE_OPTIONS,
-  isPushSupported,
-  subscribeToCard,
-} from '@/lib/push/config'
-import type { NotificationPreferenceKey } from '@/lib/push/types'
+  BACKEND_NOTIFICATION_PREFERENCE_OPTIONS,
+  DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
+  type BackendNotificationPreferenceKey,
+  type BackendNotificationPreferences,
+} from '@/lib/push/preferenceMapping'
 import { Bell, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 
-/** Post-contact notification preference modal — v3 UI, central push API, all templates. */
+/** Post-contact notification preference modal — same 9 categories as Settings. */
 export const NotificationAskModal = ({
   isOpen,
   onClose,
@@ -22,27 +22,19 @@ export const NotificationAskModal = ({
 }: {
   isOpen: boolean
   onClose: () => void
-  onAccept: (preferences: NotificationPreferenceKey[]) => void
+  onAccept: (preferences: BackendNotificationPreferences) => void
   ownerName?: string
   cardOwnerId: string
   cardSlug: string
 }) => {
-  const [preferences, setPreferences] = useState<NotificationPreferenceKey[]>(
-    FORCE_ASK_PREFERENCE_OPTIONS.map((item) => item.id)
-  )
+  const [preferences, setPreferences] = useState<BackendNotificationPreferences>(() => ({
+    ...DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
+  }))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const togglePreference = (pref: NotificationPreferenceKey) => {
-    setPreferences((prev) => (prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref]))
-  }
-
-  const toPreferenceRecord = () => {
-    const record = { ...DEFAULT_NOTIFICATION_PREFERENCES }
-    for (const option of FORCE_ASK_PREFERENCE_OPTIONS) {
-      record[option.id] = preferences.includes(option.id)
-    }
-    return record
+  const togglePreference = (pref: BackendNotificationPreferenceKey) => {
+    setPreferences((prev) => ({ ...prev, [pref]: !prev[pref] }))
   }
 
   const handleAccept = async () => {
@@ -58,7 +50,7 @@ export const NotificationAskModal = ({
       await subscribeToCard({
         cardSlug,
         cardOwnerId,
-        preferences: toPreferenceRecord(),
+        preferences,
       })
       onAccept(preferences)
     } catch (e) {
@@ -93,12 +85,12 @@ export const NotificationAskModal = ({
               <h2 className="mb-2 text-xl font-bold text-zinc-100">Stay in the loop with {ownerName}</h2>
               <p className="mb-6 text-sm text-zinc-400">Choose what to get notified about:</p>
 
-              <div className="mb-6 w-full space-y-2 rounded-xl bg-zinc-950/50 p-4 text-left text-sm text-zinc-300">
-                {FORCE_ASK_PREFERENCE_OPTIONS.map((p) => (
+              <div className="mb-6 max-h-[40vh] w-full space-y-2 overflow-y-auto rounded-xl bg-zinc-950/50 p-4 text-left text-sm text-zinc-300">
+                {BACKEND_NOTIFICATION_PREFERENCE_OPTIONS.map((p) => (
                   <label key={p.id} className="flex cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={preferences.includes(p.id)}
+                      checked={preferences[p.id]}
                       onChange={() => togglePreference(p.id)}
                       className="rounded"
                     />

@@ -13,6 +13,8 @@ import {
   type VCardSortOption,
 } from '@/components/dashboard/vcard'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { clearLocalCardNotice, noticeForCard, noticeTypeFromTeamNotice, writeLocalCardNotice } from '@/lib/cardNotice'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -51,6 +53,7 @@ const DashboardVCardsView = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
 
   const capacity = profilesResult?.capacity
+  const { canMutateVcards } = useAccountStatus()
   const cards = useMemo(() => (profilesResult?.items ?? []).map(mapApiProfileToVCardRecord), [profilesResult?.items])
 
   useEffect(() => {
@@ -66,7 +69,13 @@ const DashboardVCardsView = () => {
   const activeCount = useMemo(() => cards.filter((c) => !c.isDraft).length, [cards])
   const draftCount = useMemo(() => cards.filter((c) => c.isDraft).length, [cards])
 
-  const canCreate = capacity ? capacity.canCreate : !isPersonal || cards.length < 1
+  const capacityAllowsCreate = capacity ? capacity.canCreate : !isPersonal || cards.length < 1
+  const canCreate = capacityAllowsCreate && canMutateVcards
+  const createDisabledReason = !canMutateVcards
+    ? ACCOUNT_PAUSED_CREATE_MESSAGE
+    : isPersonal && !capacityAllowsCreate
+      ? 'Single card owners can create only one vCard'
+      : undefined
 
   const filtered = useMemo(() => {
     let list = filterVCardsByQuery(cards, query)
@@ -130,7 +139,7 @@ const DashboardVCardsView = () => {
         onSortChange={setSort}
         canCreate={canCreate}
         isPersonal={isPersonal}
-        createDisabledReason={isPersonal && !canCreate ? 'Single card owners can create only one vCard' : undefined}
+        createDisabledReason={createDisabledReason}
       />
 
       {isLoading && <p className="mb-4 text-sm text-slate-500">Loading your vCards…</p>}

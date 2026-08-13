@@ -180,7 +180,13 @@ export default function AdminUsers() {
     try {
       await setUserStatus({ id, body: { accountStatus } }).unwrap()
       const label = accountStatus === 'ACTIVE' ? 'activated' : accountStatus === 'PAUSED' ? 'paused' : 'suspended'
-      notify.success(`Account for ${name || 'user'} has been ${label}.`)
+      const cardNote =
+        accountStatus === 'PAUSED'
+          ? ' All owned vCards were moved to draft.'
+          : accountStatus === 'SUSPENDED'
+            ? ' All owned vCards were disabled.'
+            : ' Owned vCards were restored to their previous state.'
+      notify.success(`Account for ${name || 'user'} has been ${label}.${cardNote}`)
       resetListToStart()
     } catch (err) {
       notify.error(rtkErrorMessage(err, 'Failed to update account status.'))

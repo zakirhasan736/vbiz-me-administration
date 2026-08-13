@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReviewListItem } from '@/interfaces/api/reviews.interface'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { ArrowLeft, ExternalLink, Quote, Star } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -35,7 +36,8 @@ type AllReviewsViewProps = {
   onBack: () => void
 }
 
-function ReviewCardContent({ item }: { item: ReviewListItem }) {
+/** `compact` = editor phone preview: drop the `md:`/`sm:` size bumps that the desktop viewport would pick. */
+function ReviewCardContent({ item, compact }: { item: ReviewListItem; compact: boolean }) {
   if (item.isLinkCard && item.linkUrl) {
     return (
       <Link href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="group/link flex h-full flex-col">
@@ -57,7 +59,9 @@ function ReviewCardContent({ item }: { item: ReviewListItem }) {
             dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
           />
         ) : (
-          <p className="text-lg font-bold text-emerald-700 italic underline dark:text-emerald-400">
+          <p
+            className={`font-bold text-emerald-700 italic underline dark:text-emerald-400 ${compact ? 'text-sm' : 'text-lg'}`}
+          >
             Click here to write or read reviews
           </p>
         )}
@@ -82,7 +86,11 @@ function ReviewCardContent({ item }: { item: ReviewListItem }) {
           dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
         />
       ) : item.plainDescription ? (
-        <p className="mb-8 text-lg leading-relaxed font-medium text-zinc-700 italic md:text-xl dark:text-zinc-300">
+        <p
+          className={`mb-8 leading-relaxed font-medium text-zinc-700 italic dark:text-zinc-300 ${
+            compact ? 'text-sm' : 'text-lg md:text-xl'
+          }`}
+        >
           &ldquo;{item.plainDescription}&rdquo;
         </p>
       ) : null}
@@ -105,6 +113,13 @@ function ReviewCardContent({ item }: { item: ReviewListItem }) {
 }
 
 export function AllReviewsView({ sectionTitle, slides, onBack }: AllReviewsViewProps) {
+  /**
+   * The editor phone preview is ~420px wide inside a desktop viewport, so `md:`/`lg:`
+   * breakpoints would pick the wide layout. Drive layout off the frame instead.
+   */
+  const { embedded } = useProfileDisplay()
+  const compact = embedded
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -122,22 +137,30 @@ export function AllReviewsView({ sectionTitle, slides, onBack }: AllReviewsViewP
       </button>
 
       <div className="mb-8">
-        <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-100">All Reviews</h2>
+        <h2
+          className={`font-bold tracking-tight text-zinc-900 dark:text-zinc-100 ${
+            compact ? 'text-2xl' : 'text-3xl sm:text-4xl'
+          }`}
+        >
+          All Reviews
+        </h2>
         <p className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
           {slides.length} {slides.length === 1 ? 'entry' : 'entries'}
         </p>
       </div>
 
-      <div className="vbiz-bento-grid grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className={`vbiz-bento-grid grid grid-cols-1 gap-4 ${compact ? '' : 'md:grid-cols-2 lg:grid-cols-3'}`}>
         {slides.map((item, idx) => (
           <motion.div
             key={item.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: idx * 0.05 }}
-            className="flex min-h-70 flex-col rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl sm:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50"
+            className={`flex min-h-70 flex-col rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50 ${
+              compact ? 'p-4' : 'p-6 sm:p-8'
+            }`}
           >
-            <ReviewCardContent item={item} />
+            <ReviewCardContent item={item} compact={compact} />
           </motion.div>
         ))}
       </div>
@@ -145,12 +168,20 @@ export function AllReviewsView({ sectionTitle, slides, onBack }: AllReviewsViewP
   )
 }
 
-export function SliderReviewCard({ item }: { item: ReviewListItem }) {
+export function SliderReviewCard({ item, compact = false }: { item: ReviewListItem; compact?: boolean }) {
   if (item.isLinkCard && item.linkUrl) {
     return (
       <Link href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="group/link flex h-full flex-col">
-        <div className="border-yellow-primary/40 mb-4 flex shrink-0 items-center gap-3 border-b pb-4 md:mb-6 md:gap-4">
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 md:h-12 md:w-12 dark:border-zinc-700/50">
+        <div
+          className={`border-yellow-primary/40 mb-4 flex shrink-0 items-center gap-3 border-b pb-4 ${
+            compact ? '' : 'md:mb-6 md:gap-4'
+          }`}
+        >
+          <div
+            className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 dark:border-zinc-700/50 ${
+              compact ? '' : 'md:h-12 md:w-12'
+            }`}
+          >
             <Image
               width={100}
               height={100}
@@ -159,16 +190,26 @@ export function SliderReviewCard({ item }: { item: ReviewListItem }) {
               className="h-full w-full object-cover"
             />
           </div>
-          <h3 className="truncate text-sm font-bold text-zinc-900 md:text-base dark:text-zinc-100">{item.title}</h3>
+          <h3
+            className={`truncate text-sm font-bold text-zinc-900 dark:text-zinc-100 ${compact ? '' : 'md:text-base'}`}
+          >
+            {item.title}
+          </h3>
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
           {item.htmlDescription ? (
             <div
-              className="prose prose-sm dark:prose-invert line-clamp-6 max-w-none text-sm font-medium text-zinc-700 transition-colors group-hover/link:text-zinc-900 sm:text-base dark:text-zinc-300"
+              className={`prose prose-sm dark:prose-invert line-clamp-6 max-w-none text-sm font-medium text-zinc-700 transition-colors group-hover/link:text-zinc-900 dark:text-zinc-300 ${
+                compact ? '' : 'sm:text-base'
+              }`}
               dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
             />
           ) : (
-            <p className="text-base font-bold text-emerald-700 italic underline md:text-lg dark:text-emerald-400">
+            <p
+              className={`font-bold text-emerald-700 italic underline dark:text-emerald-400 ${
+                compact ? 'text-sm' : 'text-base md:text-lg'
+              }`}
+            >
               Click here to write or read reviews
             </p>
           )}
@@ -179,28 +220,47 @@ export function SliderReviewCard({ item }: { item: ReviewListItem }) {
 
   return (
     <>
-      <div className="mb-3 flex shrink-0 items-start justify-between md:mb-6">
+      <div className={`mb-3 flex shrink-0 items-start justify-between ${compact ? '' : 'md:mb-6'}`}>
         <div className="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50/80 p-1.5 dark:border-zinc-800 dark:bg-zinc-950/80">
-          <ReviewStars rating={item.rating} className="h-3.5 w-3.5 md:h-4 md:w-4" />
+          <ReviewStars rating={item.rating} className={`h-3.5 w-3.5 ${compact ? '' : 'md:h-4 md:w-4'}`} />
         </div>
-        <Quote className="h-7 w-7 text-zinc-200 transition-colors group-hover/card:text-zinc-300 md:h-8 md:w-8 dark:text-zinc-800" />
+        <Quote
+          className={`h-7 w-7 text-zinc-200 transition-colors group-hover/card:text-zinc-300 dark:text-zinc-800 ${
+            compact ? '' : 'md:h-8 md:w-8'
+          }`}
+        />
       </div>
 
-      <div className="mb-4 min-h-0 flex-1 overflow-hidden md:mb-6">
+      <div className={`mb-4 min-h-0 flex-1 overflow-hidden ${compact ? '' : 'md:mb-6'}`}>
         {item.htmlDescription ? (
           <div
-            className="prose prose-sm dark:prose-invert line-clamp-5 max-w-none text-sm leading-relaxed font-medium text-zinc-700 sm:line-clamp-6 sm:text-base md:text-lg dark:text-zinc-300"
+            className={`prose prose-sm dark:prose-invert line-clamp-5 max-w-none text-sm leading-relaxed font-medium text-zinc-700 dark:text-zinc-300 ${
+              compact ? '' : 'sm:line-clamp-6 sm:text-base md:text-lg'
+            }`}
             dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
           />
         ) : item.plainDescription ? (
-          <p className="line-clamp-5 text-sm leading-relaxed font-medium text-zinc-700 italic sm:line-clamp-6 sm:text-base md:text-lg dark:text-zinc-300">
+          <p
+            className={`line-clamp-5 text-sm leading-relaxed font-medium text-zinc-700 italic dark:text-zinc-300 ${
+              compact ? '' : 'sm:line-clamp-6 sm:text-base md:text-lg'
+            }`}
+          >
             &ldquo;{item.plainDescription}&rdquo;
           </p>
         ) : null}
       </div>
 
-      <div className="relative z-10 -mx-6 mt-auto -mb-6 flex shrink-0 items-center gap-3 border-t border-zinc-200 bg-zinc-50/80 px-6 pt-4 pb-4 backdrop-blur-sm md:-mx-8 md:-mb-8 md:gap-4 md:px-8 md:pt-6 md:pb-8 dark:border-zinc-800/80 dark:bg-zinc-900/80">
-        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 md:h-12 md:w-12 dark:border-zinc-700/50">
+      {/* Footer strip bleeds to the card edge — negative margins must match the card's padding. */}
+      <div
+        className={`relative z-10 mt-auto flex shrink-0 items-center gap-3 border-t border-zinc-200 bg-zinc-50/80 pt-4 pb-4 backdrop-blur-sm dark:border-zinc-800/80 dark:bg-zinc-900/80 ${
+          compact ? '-mx-4 -mb-4 px-4' : '-mx-6 -mb-6 px-6 md:-mx-8 md:-mb-8 md:gap-4 md:px-8 md:pt-6 md:pb-8'
+        }`}
+      >
+        <div
+          className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 dark:border-zinc-700/50 ${
+            compact ? '' : 'md:h-12 md:w-12'
+          }`}
+        >
           <Image
             width={48}
             height={48}
@@ -210,7 +270,11 @@ export function SliderReviewCard({ item }: { item: ReviewListItem }) {
           />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold tracking-tight text-zinc-900 md:text-base dark:text-zinc-100">
+          <p
+            className={`truncate text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100 ${
+              compact ? '' : 'md:text-base'
+            }`}
+          >
             {item.title}
           </p>
         </div>

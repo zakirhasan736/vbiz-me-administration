@@ -103,8 +103,16 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
   }, [audio, source, bindFilePlayback])
 
   useEffect(() => {
-    if (!readyToPlay || !source) return
-    void startPlayback()
+    if (!source) return
+    if (readyToPlay) {
+      void startPlayback()
+      return
+    }
+    // Hidden/minimized preview: stop the media instead of letting it run unseen.
+    const el = audioRef.current
+    if (el && !el.paused) el.pause()
+    const iframe = iframeRef.current
+    if (iframe) postYoutubeCommand(iframe, 'pauseVideo')
   }, [readyToPlay, source, startPlayback])
 
   const toggleMute = useCallback(async () => {

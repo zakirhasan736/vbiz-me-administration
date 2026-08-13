@@ -1,5 +1,6 @@
 'use client'
 
+import { StatNumber } from '@/components/ui/StatNumber'
 import { Eye, TrendingUp } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -11,15 +12,19 @@ type WebsiteVisitsChartProps = {
   uniqueViews?: number
   shares?: number
   trendPercent?: number
+  loading?: boolean
 }
 
 export function WebsiteVisitsChart({
   points = [],
-  total = 0,
+  total,
   uniqueViews,
   shares,
   trendPercent = 0,
+  loading = false,
 }: WebsiteVisitsChartProps) {
+  const resolvedUnique = uniqueViews ?? total
+
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-4xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] lg:col-span-2 dark:border-white/10 dark:bg-[#0b0f19]">
       <div className="relative z-10 flex h-full flex-col justify-between p-8 pb-0">
@@ -34,25 +39,36 @@ export function WebsiteVisitsChart({
               </h2>
             </div>
             <div className="mt-2 flex items-baseline gap-4">
-              <span className="text-6xl font-black tracking-tighter text-slate-900 tabular-nums dark:text-white">
-                {Number(total).toLocaleString()}
-              </span>
+              <StatNumber
+                value={total}
+                loading={loading}
+                className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white"
+                skeletonClassName="h-14 w-28 rounded-xl"
+              />
               <span className="flex items-center gap-1.5 rounded-[10px] border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[13px] font-bold text-emerald-600 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
                 <TrendingUp className="h-4 w-4" /> Live
               </span>
             </div>
             <div className="mt-3 flex flex-wrap gap-4">
-              <span className="text-[11px] font-bold text-slate-500">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
                 Unique views:{' '}
-                <strong className="text-slate-800 dark:text-white">
-                  {Number(uniqueViews ?? total).toLocaleString()}
-                </strong>
+                <StatNumber
+                  value={resolvedUnique}
+                  loading={loading}
+                  className="font-bold text-slate-800 dark:text-white"
+                  skeletonClassName="h-4 w-10 rounded-md"
+                />
               </span>
-              <span className="text-[11px] font-bold text-slate-500">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
                 Shares:{' '}
-                <strong className="text-slate-800 dark:text-white">{Number(shares ?? 0).toLocaleString()}</strong>
+                <StatNumber
+                  value={shares}
+                  loading={loading}
+                  className="font-bold text-slate-800 dark:text-white"
+                  skeletonClassName="h-4 w-10 rounded-md"
+                />
               </span>
-              {trendPercent !== 0 && (
+              {!loading && trendPercent !== 0 && (
                 <span className="text-[11px] font-bold text-slate-500">
                   Trend:{' '}
                   <strong className="text-slate-800 dark:text-white">

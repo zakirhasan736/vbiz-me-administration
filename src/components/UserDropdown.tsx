@@ -3,6 +3,9 @@
 import { ContactModal, type OwnerFeedbackMode } from '@/components/dashboard/home/ContactModal'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
+import { notify } from '@/lib/toast/toast'
 import { logout, useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
 import { Compass, LifeBuoy, LogOut, MessageSquareHeart, Settings, UserCircle } from 'lucide-react'
@@ -31,8 +34,19 @@ export function UserDropdown() {
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
   const { user } = useAuth()
   const role = useAppSelector((state) => state.user.user?.role)
+  const { isSuspended, canPerformAccountActions } = useAccountStatus()
   const { startTour, isActive: isTourActive } = useDashboardTour()
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const guardAccountAction = (event: React.MouseEvent, href?: string) => {
+    if (!isSuspended) return
+    event.preventDefault()
+    notify.warning(ACCOUNT_SUSPENDED_MESSAGE)
+    setIsProfileOpen(false)
+    if (href) {
+      /* stay put */
+    }
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -95,6 +109,11 @@ export function UserDropdown() {
               >
                 {accountTypeLabel(role)}
               </p>
+              {isSuspended ? (
+                <p className="mt-2 rounded-md bg-rose-50 px-2 py-1 text-[10px] font-extrabold tracking-wide text-rose-700 uppercase dark:bg-rose-500/15 dark:text-rose-300">
+                  Suspended — actions locked
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1 p-2">
               {role === 'admin' || role === 'super-admin' ? (
@@ -102,7 +121,17 @@ export function UserDropdown() {
                   <Settings className="h-4 w-4" /> Admin Settings
                 </Link>
               ) : (
-                <Link href="/settings" onClick={() => setIsProfileOpen(false)} className={menuItemClassName}>
+                <Link
+                  href="/settings"
+                  onClick={(e) => {
+                    if (!canPerformAccountActions) {
+                      guardAccountAction(e)
+                      return
+                    }
+                    setIsProfileOpen(false)
+                  }}
+                  className={cn(menuItemClassName, isSuspended && 'opacity-50')}
+                >
                   <Settings className="h-4 w-4" /> Settings
                 </Link>
               )}
@@ -110,21 +139,29 @@ export function UserDropdown() {
                 <>
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      if (isSuspended) {
+                        guardAccountAction(e)
+                        return
+                      }
                       setOwnerFeedbackMode('feedback')
                       setIsProfileOpen(false)
                     }}
-                    className={menuItemClassName}
+                    className={cn(menuItemClassName, isSuspended && 'opacity-50')}
                   >
                     <MessageSquareHeart className="h-4 w-4" /> Send feedback
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      if (isSuspended) {
+                        guardAccountAction(e)
+                        return
+                      }
                       setOwnerFeedbackMode('support')
                       setIsProfileOpen(false)
                     }}
-                    className={menuItemClassName}
+                    className={cn(menuItemClassName, isSuspended && 'opacity-50')}
                   >
                     <LifeBuoy className="h-4 w-4 text-indigo-500" /> Contact Support
                   </button>
@@ -133,14 +170,19 @@ export function UserDropdown() {
               {role === 'vcard-owner' && !isTourActive ? (
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    if (isSuspended) {
+                      guardAccountAction(e)
+                      return
+                    }
                     setIsProfileOpen(false)
                     if (pathname !== '/') {
                       router.push('/')
                     }
                     startTour('dashboard')
                   }}
-                  className={menuItemClassName}
+                  className={cn(menuItemClassName, isSuspended && 'cursor-not-allowed opacity-50')}
+                  aria-disabled={isSuspended || undefined}
                 >
                   <Compass className="h-4 w-4" /> Take a tour
                 </button>

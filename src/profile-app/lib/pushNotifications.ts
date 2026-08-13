@@ -1,6 +1,11 @@
 import { clearNotificationDeclinedForCard } from '@/lib/push/notificationExperience'
 import type { BackendNotificationPreferences } from '@/lib/push/preferenceMapping'
-import { fromBackendPreferences, normalizeBackendPreferences, toBackendPreferences } from '@/lib/push/preferenceMapping'
+import {
+  DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
+  fromBackendPreferences,
+  normalizeBackendPreferences,
+  toBackendPreferences,
+} from '@/lib/push/preferenceMapping'
 import { invalidateCardPushStatus, setCachedCardPushStatus } from '@/lib/push/pushStatusCache'
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -16,6 +21,13 @@ import { baseUrl as publicApiBaseUrl } from '@/redux/api/publicApi'
 
 export { DEFAULT_NOTIFICATION_PREFERENCES }
 export type { NotificationPreferenceKey, NotificationPreferences, UpdatePreferencesResult }
+
+export type FollowState = {
+  following: boolean
+  preferences: NotificationPreferences
+  backendPreferences?: BackendNotificationPreferences
+  subscribedAt?: string
+}
 
 export const SERVICE_WORKER_PATH = '/sw.js'
 
@@ -53,6 +65,25 @@ function hasOtherActiveFollows(exceptCardSlug: string) {
   return false
 }
 
+function isBackendPreferenceRecord(
+  prefs: Partial<NotificationPreferences> | Partial<BackendNotificationPreferences>
+): prefs is Partial<BackendNotificationPreferences> {
+  return Object.keys(prefs).some((key) => key in DEFAULT_BACKEND_NOTIFICATION_PREFERENCES)
+}
+
+/** Normalize subscribe/update payloads to the 9 backend preference keys. */
+export function coerceToBackendPreferences(
+  prefs?: Partial<NotificationPreferences> | Partial<BackendNotificationPreferences> | null
+): BackendNotificationPreferences {
+  if (!prefs || Object.keys(prefs).length === 0) {
+    return { ...DEFAULT_BACKEND_NOTIFICATION_PREFERENCES }
+  }
+  if (isBackendPreferenceRecord(prefs)) {
+    return normalizeBackendPreferences(prefs)
+  }
+  return toBackendPreferences(prefs as Partial<NotificationPreferences>)
+}
+
 export const NOTIFICATION_PREFERENCE_OPTIONS: Array<{ id: NotificationPreferenceKey; label: string }> = [
   { id: 'contact', label: '📞 Updated contact info' },
   { id: 'video', label: '🎬 New videos or photos' },
@@ -82,7 +113,7 @@ export function subscriptionStorageKey() {
   return 'vbiz_push_subscription'
 }
 
-export function readFollowState(cardSlug: string) {
+export function readFollowState(cardSlug: string): FollowState | null {
   if (typeof window === 'undefined') return null
   const trimmed = cardSlug.trim()
   if (!trimmed) return null
@@ -97,16 +128,32 @@ export function readFollowState(cardSlug: string) {
     const raw = localStorage.getItem(key)
     if (!raw) continue
     try {
-      const parsed = JSON.parse(raw) as {
-        following: boolean
-        preferences: NotificationPreferences
-        subscribedAt?: string
+      const parsed = JSON.parse(raw) as Partial<FollowState> & {
+        preferences?: NotificationPreferences | BackendNotificationPreferences
       }
-      if (key !== normalizedKey) {
-        localStorage.setItem(normalizedKey, raw)
-        localStorage.removeItem(key)
+      if (!parsed || typeof parsed.following !== 'boolean') continue
+
+      const backendPreferences = parsed.backendPreferences
+        ? normalizeBackendPreferences(parsed.backendPreferences)
+        : parsed.preferences && isBackendPreferenceRecord(parsed.preferences)
+          ? normalizeBackendPreferences(parsed.preferences)
+          : parsed.preferences
+            ? toBackendPreferences(parsed.preferences as NotificationPreferences)
+            : { ...DEFAULT_BACKEND_NOTIFICATION_PREFERENCES }
+
+      const preferences = fromBackendPreferences(backendPreferences)
+      const state: FollowState = {
+        following: parsed.following,
+        preferences,
+        backendPreferences,
+        subscribedAt: parsed.subscribedAt,
       }
-      return parsed
+
+      if (key !== normalizedKey || !parsed.backendPreferences) {
+        localStorage.setItem(normalizedKey, JSON.stringify(state))
+        if (key !== normalizedKey) localStorage.removeItem(key)
+      }
+      return state
     } catch {
       /* try next */
     }
@@ -114,13 +161,19 @@ export function readFollowState(cardSlug: string) {
   return null
 }
 
-export function writeFollowState(
-  cardSlug: string,
-  state: { following: boolean; preferences: NotificationPreferences; subscribedAt?: string }
-) {
+export function writeFollowState(cardSlug: string, state: FollowState) {
   const trimmed = cardSlug.trim()
   if (!trimmed) return
-  localStorage.setItem(followStorageKey(trimmed), JSON.stringify(state))
+  const backendPreferences = state.backendPreferences
+    ? normalizeBackendPreferences(state.backendPreferences)
+    : toBackendPreferences(state.preferences)
+  const normalized: FollowState = {
+    following: state.following,
+    preferences: fromBackendPreferences(backendPreferences),
+    backendPreferences,
+    subscribedAt: state.subscribedAt,
+  }
+  localStorage.setItem(followStorageKey(trimmed), JSON.stringify(normalized))
 }
 
 export function clearFollowState(cardSlug: string) {
@@ -384,7 +437,7 @@ export async function fetchPushStatus(
   const preferences = backendPreferences ? fromBackendPreferences(backendPreferences) : null
   const following = Boolean(json.subscribed)
 
-  setCachedCardPushStatus(cardSlug, { following, preferences })
+  setCachedCardPushStatus(cardSlug, { following, preferences, backendPreferences })
 
   return {
     following,
@@ -398,7 +451,8 @@ export async function fetchPushStatus(
 export async function subscribeToCard(options: {
   cardSlug: string
   cardOwnerId?: string
-  preferences?: Partial<NotificationPreferences>
+  /** UI keys or backend snake_case keys — coerced to the 9 backend categories. */
+  preferences?: Partial<NotificationPreferences> | Partial<BackendNotificationPreferences>
 }) {
   try {
     if (!isPushSupported()) {
@@ -446,10 +500,7 @@ export async function subscribeToCard(options: {
     }
 
     const payload = writeStoredSubscription(subscription)
-    const preferences = {
-      ...DEFAULT_NOTIFICATION_PREFERENCES,
-      ...options.preferences,
-    }
+    const backendPreferences = coerceToBackendPreferences(options.preferences)
 
     const response = await fetch(pushApiUrl('/subscribe'), {
       method: 'POST',
@@ -460,36 +511,60 @@ export async function subscribeToCard(options: {
         keys: payload.keys,
         browser: detectBrowser(),
         platform: detectPlatform(),
+        preferences: backendPreferences,
       }),
     })
 
-    if (!response.ok) {
-      let message = 'Could not save subscription.'
-      try {
-        const error = (await response.json()) as { message?: string; error?: string }
-        message = error.message || error.error || message
-      } catch {
-        /* ignore */
-      }
-      throw new Error(message)
+    let responseJson: unknown = null
+    try {
+      responseJson = await response.json()
+    } catch {
+      /* ignore */
     }
+
+    if (!response.ok) {
+      const error = (responseJson && typeof responseJson === 'object' ? responseJson : {}) as {
+        message?: string
+        error?: string
+      }
+      throw new Error(error.message || error.error || 'Could not save subscription.')
+    }
+
+    const subscribePayload = unwrapPublicPayload<{
+      preferences?: Partial<BackendNotificationPreferences>
+    }>(responseJson)
+
+    let savedBackendPreferences = subscribePayload.preferences
+      ? normalizeBackendPreferences(subscribePayload.preferences)
+      : null
+
+    // Fallback if older servers ignore preferences on subscribe.
+    if (!savedBackendPreferences) {
+      try {
+        const result = await updateCardBackendPreferences(options.cardSlug, backendPreferences)
+        savedBackendPreferences = result.preferences
+      } catch (preferenceError) {
+        console.warn('Push subscribed, but preferences update failed:', preferenceError)
+        savedBackendPreferences = backendPreferences
+      }
+    }
+
+    const uiPreferences = fromBackendPreferences(savedBackendPreferences)
 
     clearNotificationDeclinedForCard(options.cardSlug)
     writeFollowState(options.cardSlug, {
       following: true,
-      preferences,
+      preferences: uiPreferences,
+      backendPreferences: savedBackendPreferences,
       subscribedAt: new Date().toISOString(),
     })
-    setCachedCardPushStatus(options.cardSlug, { following: true, preferences })
+    setCachedCardPushStatus(options.cardSlug, {
+      following: true,
+      preferences: uiPreferences,
+      backendPreferences: savedBackendPreferences,
+    })
 
-    // Ensure backend preference flags are enabled so pushes are not filtered out.
-    try {
-      await updateCardPreferences(options.cardSlug, preferences)
-    } catch (preferenceError) {
-      console.warn('Push subscribed, but preferences update failed:', preferenceError)
-    }
-
-    return { subscription, preferences }
+    return { subscription, preferences: uiPreferences, backendPreferences: savedBackendPreferences }
   } catch (error) {
     console.error('[push] subscribeToCard failed', {
       name: error instanceof Error ? error.name : typeof error,
@@ -536,9 +611,14 @@ export async function updateCardBackendPreferences(
   writeFollowState(cardSlug, {
     following: true,
     preferences: uiPreferences,
+    backendPreferences: savedPreferences,
     subscribedAt: readFollowState(cardSlug)?.subscribedAt,
   })
-  setCachedCardPushStatus(cardSlug, { following: true, preferences: uiPreferences })
+  setCachedCardPushStatus(cardSlug, {
+    following: true,
+    preferences: uiPreferences,
+    backendPreferences: savedPreferences,
+  })
 
   return {
     message: payload.message ?? 'Your notification preferences were updated.',

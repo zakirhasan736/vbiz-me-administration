@@ -7,9 +7,21 @@ import { orderAndDedupeNavItems } from '@/lib/api/navbar/orderNavTabs'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import { getNavItemById, type NavBarNavItem } from '@/lib/vcardNavbar'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { preloadProfileSections } from '@/profile-app/sections/preloadProfileSections'
+import type { ProfileTemplateVariant } from '@/profile-app/sections/sectionRegistry'
 import { useGetNavBarLinksQuery } from '@/redux/api'
 import { navBarLinksApi } from '@/redux/features/navbar/navbar.api'
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  startTransition,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 type ProfileNavigationContextValue = {
   navItems: NavBarNavItem[]
@@ -46,8 +58,9 @@ export function ProfileNavigationProvider({
   initialNavBarLinks = null,
 }: Props) {
   const dispatch = useAppDispatch()
-  const { settings: displaySettings, cardOwnerId } = useProfileDisplay()
+  const { settings: displaySettings, cardOwnerId, design } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
+  const template = (design?.profileTemplate as ProfileTemplateVariant | undefined) ?? 'v3'
 
   const hasPrefetchedNavLinks = Boolean(initialNavBarLinks)
 
@@ -76,6 +89,15 @@ export function ProfileNavigationProvider({
 
   const isNavLoading = hasPrefetchedNavLinks ? false : isNavLinksLoading
 
+  // Warm every reachable section chunk so tab switches never suspend.
+  useEffect(() => {
+    if (!visibleTabs.length) return
+    preloadProfileSections(
+      visibleTabs.map((tab) => tab.profileContent ?? 'empty'),
+      template
+    )
+  }, [visibleTabs, template])
+
   const getNavItem = useCallback((tabId: string) => getNavItemById(tabId, navItems), [navItems])
 
   const [localSectionId, setLocalSectionId] = useState<string | null>(null)
@@ -91,8 +113,11 @@ export function ProfileNavigationProvider({
   const goToSection = useCallback(
     (tabId: string) => {
       const nextId = resolveActiveSection(tabId, visibleTabs)
-      setLocalSectionId(nextId)
-      onSectionChange?.(nextId)
+      // A transition keeps the current section painted while the next chunk resolves.
+      startTransition(() => {
+        setLocalSectionId(nextId)
+        onSectionChange?.(nextId)
+      })
     },
     [onSectionChange, visibleTabs]
   )

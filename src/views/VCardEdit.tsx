@@ -6,6 +6,7 @@ import { TakeTourBanner } from '@/components/tour/TakeTourBanner'
 import { AddTabsModal } from '@/components/vcard/AddTabsModal'
 import { AiGenerateModal, type AiProfilePayload } from '@/components/vcard/AiGenerateModal'
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
+import { useLivePreview } from '@/components/vcard/LivePreviewProvider'
 import { SectionPostsEditorPanel } from '@/components/vcard/SectionPostsEditorPanel'
 import { TabBlog } from '@/components/VCardBlog'
 import { TabCertificates } from '@/components/VCardCertificates'
@@ -15,7 +16,6 @@ import { TabExperience } from '@/components/VCardExperience'
 import { TabFaq } from '@/components/VCardFaq'
 import { TabGlobalConnection } from '@/components/VCardGlobalConnection'
 import { TabLinkShortener } from '@/components/VCardLinkShortener'
-import { VCardLivePreview } from '@/components/VCardLivePreview'
 import { TabMyInfo } from '@/components/VCardMyInfo'
 import { TabPortfolio } from '@/components/VCardPortfolio'
 import { TabProfile } from '@/components/VCardProfile'
@@ -31,7 +31,9 @@ import { Tab4HomeMedia } from '@/components/VCardTab4'
 import { Tab5ExtraFields } from '@/components/VCardTab5'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
+import { ACCOUNT_PAUSED_CREATE_MESSAGE, ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { createCardOwnerKindLabel, getCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import {
   createCardTabNameToNavId,
@@ -40,6 +42,7 @@ import {
   normalizeNavOrderWithPinnedEnds,
 } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
+import { pushEditorPath } from '@/lib/editorShallowRoute'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -88,7 +91,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 type VCardEditProps = {
   basePath: EditorBasePath
@@ -116,7 +119,9 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const dispatch = useAppDispatch()
   const role = useAppSelector((state) => state.user.user?.role)
   const currentUserId = useAppSelector((state) => state.user.user?.id)
+  const { canMutateVcards, isPaused, isSuspended } = useAccountStatus()
   const isDirectoryEditor = role === 'corporate-owner' || role === 'admin' || role === 'super-admin'
+  const isStaff = role === 'admin' || role === 'super-admin'
   const directoryHref =
     role === 'corporate-owner'
       ? '/teamvcard'
@@ -129,6 +134,12 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
       : role === 'admin' || role === 'super-admin'
         ? 'Back to My Cards'
         : 'Back to My vCards'
+
+  useEffect(() => {
+    if (isStaff || canMutateVcards) return
+    notify.warning(isSuspended ? ACCOUNT_SUSPENDED_MESSAGE : ACCOUNT_PAUSED_CREATE_MESSAGE)
+    router.replace(directoryHref)
+  }, [isStaff, canMutateVcards, isSuspended, isPaused, directoryHref, router])
   const {
     vCardData,
     updateData,
@@ -142,7 +153,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   } = useVCard()
   const display = useMemo(() => getDisplaySettingsFromVCard(vCardData), [vCardData])
   const completionMeta = useMemo(() => ({ avatarImageUrl }), [avatarImageUrl])
-  const [showPreview, setShowPreview] = useState(false)
+  const { isOpen: showPreview, open: openLivePreview, toggle: toggleLivePreview, setEditorSectionId } = useLivePreview()
   const [isSaving, setIsSaving] = useState(false)
   const [isActivatingDraft, setIsActivatingDraft] = useState(false)
   const [showAddTabs, setShowAddTabs] = useState(false)
@@ -253,7 +264,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   }, [displayNavOrder, cardKey])
 
   useEffect(() => {
-    const openPreview = () => setShowPreview(true)
+    const openPreview = () => openLivePreview()
     const onNavOrder = (e: Event) => {
       const detail = (e as CustomEvent<string[]>).detail
       if (Array.isArray(detail) && detail.length) {
@@ -266,7 +277,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
       window.removeEventListener('vbiz-open-live-preview', openPreview)
       window.removeEventListener('vbiz-create-nav-order', onNavOrder as EventListener)
     }
-  }, [])
+  }, [openLivePreview])
 
   const enabledNavItems = useMemo(() => {
     const filtered = filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display)
@@ -307,6 +318,11 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const activeNavId = route.isSettings ? route.sectionId : route.sectionId
   const activeTab = route.subTab ?? 1
   const isSettingsOpen = route.isSettings
+  const previewSectionForRoute = route.isSettings ? DEFAULT_PROFILE_SECTION : route.sectionId
+
+  useEffect(() => {
+    setEditorSectionId(previewSectionForRoute)
+  }, [previewSectionForRoute, setEditorSectionId])
 
   const overallPercent = useMemo(
     () => getOverallCardCompletionPercent(visibleNavItems, vCardData, completionMeta),
@@ -401,22 +417,55 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     requestAnimationFrame(() => requestTourRemeasure())
   }, [isTourActive, currentStep, segments])
 
-  const sectionHref = (sectionId: string) => buildEditorSectionPath(basePath, sectionId, cardId)
-  const settingsHref = buildEditorSettingsPath(basePath, route.settingsTab, cardId)
+  /** Keep the create-session query (`agent`, `reset`) so section links never restart the draft. */
+  const createQuerySuffix = useMemo(() => {
+    if (basePath !== '/vcards/create') return ''
+    const params = new URLSearchParams()
+    if (searchParams.get('agent') === '1') params.set('agent', '1')
+    const reset = searchParams.get('reset')
+    if (reset) params.set('reset', reset)
+    const query = params.toString()
+    return query ? `?${query}` : ''
+  }, [basePath, searchParams])
+
+  const withEditorQuery = useCallback(
+    (path: string) => (createQuerySuffix && !path.includes('?') ? `${path}${createQuerySuffix}` : path),
+    [createQuerySuffix]
+  )
+
+  const sectionHref = (sectionId: string) => withEditorQuery(buildEditorSectionPath(basePath, sectionId, cardId))
+  const settingsHref = withEditorQuery(buildEditorSettingsPath(basePath, route.settingsTab, cardId))
   /** Prefer /home for personal sub-tabs so About Me deep-links consolidate under Personal. */
   const personalSubSectionId = activeNavId === 'about' ? 'home' : activeNavId
   const subTabHref = (tabId: number) =>
-    buildEditorPath(basePath, { sectionId: personalSubSectionId, subTab: tabId }, cardId)
+    withEditorQuery(buildEditorPath(basePath, { sectionId: personalSubSectionId, subTab: tabId }, cardId))
+
+  /** Section changes only rewrite the URL — the shell in `layout.tsx` stays mounted. */
+  const goToEditorPath = useCallback((path: string) => {
+    pushEditorPath(path)
+    // Router navigation used to reset scroll; keep that so panels open at the top.
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [])
+
+  const handleEditorLinkClick = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+      if (event.defaultPrevented) return
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      event.preventDefault()
+      goToEditorPath(href)
+    },
+    [goToEditorPath]
+  )
 
   useEffect(() => {
     const activate = (tab: string) => {
       const navId = createCardTabNameToNavId(tab)
       if (!navId) return
-      router.push(buildEditorSectionPath(basePath, navId, cardId))
+      goToEditorPath(withEditorQuery(buildEditorSectionPath(basePath, navId, cardId)))
     }
     registerActivateTab(activate)
     return () => registerActivateTab(null)
-  }, [registerActivateTab, router, basePath, cardId])
+  }, [registerActivateTab, goToEditorPath, withEditorQuery, basePath, cardId])
 
   const {
     scrollRef: mainNavRef,
@@ -473,7 +522,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   ])
 
   const goToSubTab = (tabId: number) => {
-    router.push(subTabHref(tabId))
+    goToEditorPath(subTabHref(tabId))
   }
 
   const applyAddTabs = (nextIds: string[]) => {
@@ -485,9 +534,9 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
     const added = normalized.filter((id) => !enabledNavIds.includes(id))
     if (added.length) {
-      router.push(sectionHref(added[0]))
+      goToEditorPath(sectionHref(added[0]))
     } else if (!normalized.includes(activeNavId) && normalized[0]) {
-      router.push(sectionHref(normalized[0]))
+      goToEditorPath(sectionHref(normalized[0]))
     }
     setShowAddTabs(false)
   }
@@ -659,10 +708,13 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                     const chipLabel = getEditorNavLabel(item)
                     const isNeighbor =
                       activeNavIndex >= 0 && !isActive && index >= activeNavIndex - 2 && index <= activeNavIndex + 2
+                    const href = sectionHref(item.id)
                     return (
                       <Link
                         key={item.id}
-                        href={sectionHref(item.id)}
+                        href={href}
+                        prefetch={false}
+                        onClick={(event) => handleEditorLinkClick(event, href)}
                         draggable={false}
                         data-tab-chip
                         data-tab-name={item.id}
@@ -802,6 +854,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               <Link
                 id="tour-editor-settings"
                 href={settingsHref}
+                prefetch={false}
+                onClick={(event) => handleEditorLinkClick(event, settingsHref)}
                 data-tour-id="tour-editor-settings"
                 title="Settings"
                 className={cn(
@@ -840,10 +894,13 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                     {personalSubs.map((tab) => {
                       const isActive = activeTab === tab.id
                       const done = tab.percent >= 100
+                      const href = subTabHref(tab.id)
                       return (
                         <Link
                           key={tab.id}
-                          href={subTabHref(tab.id)}
+                          href={href}
+                          prefetch={false}
+                          onClick={(event) => handleEditorLinkClick(event, href)}
                           draggable={false}
                           className={cn(
                             'group relative flex shrink-0 cursor-pointer flex-col gap-3 pb-5 text-[14px] font-semibold whitespace-nowrap transition-all',
@@ -991,7 +1048,11 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
       </div>
 
       <button
-        onClick={() => setShowPreview(!showPreview)}
+        type="button"
+        onClick={toggleLivePreview}
+        aria-pressed={showPreview}
+        aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
+        title={showPreview ? 'Hide live preview' : 'Show live preview'}
         className={cn(
           'group fixed right-4 bottom-4 z-60 flex items-center justify-center overflow-hidden rounded-2xl border transition-all duration-300 lg:right-8 lg:bottom-8',
           showPreview &&
@@ -1008,12 +1069,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
           <Eye className="h-6 w-6 shrink-0" />
         )}
       </button>
-
-      <VCardLivePreview
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        editorSectionId={route.isSettings ? DEFAULT_PROFILE_SECTION : route.sectionId}
-      />
 
       <AddTabsModal
         open={showAddTabs}

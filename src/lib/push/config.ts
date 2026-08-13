@@ -1,12 +1,14 @@
-/**
- * Central push notification configuration shared across all profile templates (v1, v2, v3).
- */
+import {
+  BACKEND_NOTIFICATION_PREFERENCE_OPTIONS,
+  DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
+} from '@/lib/push/preferenceMapping'
 import type { NotificationPreferences } from '@/lib/push/types'
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   NOTIFICATION_PREFERENCE_OPTIONS,
   SERVICE_WORKER_PATH,
   assertValidVapidPublicKey,
+  coerceToBackendPreferences,
   fetchPushStatus,
   followStorageKey,
   getNotificationPermission,
@@ -34,6 +36,7 @@ export {
   NOTIFICATION_PREFERENCE_OPTIONS,
   SERVICE_WORKER_PATH,
   assertValidVapidPublicKey,
+  coerceToBackendPreferences,
   fetchPushStatus,
   followStorageKey,
   getNotificationPermission,
@@ -79,8 +82,8 @@ export {
   writeNotificationChoiceForCard,
 } from '@/lib/push/notificationExperience'
 
-/** Preference options shown in post-contact ask modal (v3 — four categories). */
-export const FORCE_ASK_PREFERENCE_OPTIONS = NOTIFICATION_PREFERENCE_OPTIONS.filter((option) => option.id !== 'services')
+/** Preference options shown in post-contact ask modal (same 9 categories as Settings). */
+export const FORCE_ASK_PREFERENCE_OPTIONS = BACKEND_NOTIFICATION_PREFERENCE_OPTIONS
 
 /** Legacy v3 localStorage key pattern (cardOwnerId scoped). */
 export function legacyNotifPrefsKey(cardOwnerId: string) {
@@ -122,8 +125,13 @@ export type { NotificationModalTarget } from '@/lib/push/notificationRouting'
 export async function subscribeUserToPush(options: {
   cardSlug: string
   cardOwnerId?: string
-  preferences?: Partial<NotificationPreferences>
+  preferences?: Partial<NotificationPreferences> | Parameters<typeof subscribeToCard>[0]['preferences']
 }) {
   await registerServiceWorker()
-  return subscribeToCard(options)
+  return subscribeToCard({
+    ...options,
+    preferences: options.preferences
+      ? coerceToBackendPreferences(options.preferences)
+      : DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
+  })
 }

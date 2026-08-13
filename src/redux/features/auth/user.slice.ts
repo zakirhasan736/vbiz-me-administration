@@ -30,10 +30,15 @@ const userSlice = createSlice({
       }
     },
     updateAuthState(state, action: PayloadAction<Partial<TAuthState>>) {
-      return { ...state, ...action.payload }
+      const next = action.payload
+      if ('user' in next && next.user !== undefined) state.user = next.user
+      if ('token' in next && next.token !== undefined) state.token = next.token
+      if ('isLoading' in next && typeof next.isLoading === 'boolean') {
+        state.isLoading = next.isLoading
+      }
     },
   },
 })
 
-export const { setUser, logout, updateUser, updateAuthState } = userSlice.actions
+export const { setUser, logout, updateAuthState, updateUser } = userSlice.actions
 export default userSlice.reducer

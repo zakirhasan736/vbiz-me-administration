@@ -1,5 +1,7 @@
 'use client'
 
+import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
@@ -58,6 +60,7 @@ export function useCorporateDirectory(filters: {
 
   const [createProfile] = useCreateProfileMutation()
   const [updateProfileCard] = useUpdateProfileCardMutation()
+  const { canMutateVcards } = useAccountStatus()
 
   const [cardOrder, setCardOrder] = useState<string[]>(() => loadCardOrder(CORPORATE_CARD_ORDER_KEY))
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
@@ -69,9 +72,11 @@ export function useCorporateDirectory(filters: {
   const quotaLimit = capacity?.limit ?? 0
   const currentCount = capacity?.used ?? cards.length
   const quotaPercentage = quotaLimit > 0 ? Math.min((currentCount / quotaLimit) * 100, 100) : currentCount > 0 ? 100 : 0
-  const canCreate = capacity?.canCreate ?? false
-  const createDisabledReason =
-    quotaLimit <= 0
+  const capacityAllowsCreate = capacity?.canCreate ?? false
+  const canCreate = capacityAllowsCreate && canMutateVcards
+  const createDisabledReason = !canMutateVcards
+    ? ACCOUNT_PAUSED_CREATE_MESSAGE
+    : quotaLimit <= 0
       ? 'No active package with card capacity. Upgrade your package to create cards.'
       : `Maximum of ${quotaLimit} corporate cards reached`
   const activeCount = cards.filter((c) => !c.isDraft).length

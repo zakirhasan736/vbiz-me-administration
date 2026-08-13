@@ -1,10 +1,9 @@
 'use client'
 
-import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { useAppSelector } from '@/hooks/redux'
 import type { IUser } from '@/interfaces/user.interface'
 import { api, baseUrl } from '@/redux/api/api'
-import { useGetAuthorQuery } from '@/redux/features/auth/auth.api'
-import { logout as clearAuth, updateAuthState } from '@/redux/features/auth/user.slice'
+import { logout as clearAuth, updateAuthState, updateUser } from '@/redux/features/auth/user.slice'
 import { persistor, store } from '@/redux/store'
 import { useEffect, useState, type ReactNode } from 'react'
 
@@ -78,62 +77,155 @@ async function hydrateAccessToken(): Promise<string | null> {
   }
 }
 
-function useAuthBootstrap() {
-  const dispatch = useAppDispatch()
-  const persistReady = usePersistReady()
-  const { user, isLoading } = useAppSelector((state) => state.user)
-  const hasUser = Boolean(user?.id)
+function authorHeaders(): HeadersInit {
+  const token = store.getState().user.token
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+}
 
-  // Restore from Redux token (email login) or httpOnly cookies (OAuth redirect).
-  // Logout awaits cookie clear before wiping Redux so this cannot resurrect a session.
-  const { data, isSuccess, isError, isFetching, isUninitialized } = useGetAuthorQuery(undefined, {
-    skip: !persistReady || hasUser,
-  })
+/**
+ * One-shot cookie/session restore. Must not use useGetAuthorQuery here:
+ * a new `{ skip }` object every render made RTK Query setState in a loop
+ * (Maximum update depth exceeded) and hammered GET /auth/author → 403.
+ */
+function useAuthBootstrap() {
+  const persistReady = usePersistReady()
 
   useEffect(() => {
     if (!persistReady) return
 
-    if (hasUser) {
-      if (isLoading) {
-        dispatch(updateAuthState({ isLoading: false }))
+    let cancelled = false
+
+    const finishLoading = () => {
+      if (store.getState().user.isLoading) {
+        store.dispatch(updateAuthState({ isLoading: false }))
       }
-      return
     }
 
-    if (isFetching || isUninitialized) {
-      if (!isLoading) {
-        dispatch(updateAuthState({ isLoading: true }))
-      }
-      return
-    }
-
-    if (isSuccess && data?.data) {
-      const profile = data.data
-      dispatch(updateAuthState({ user: profile, isLoading: false }))
-
-      // OAuth (and cookie sessions) may not match a stale persisted Bearer token — always sync.
+    const syncToken = () => {
       void hydrateAccessToken().then((accessToken) => {
-        if (!accessToken) return
-        dispatch(updateAuthState({ token: accessToken }))
+        if (cancelled || !accessToken) return
+        if (store.getState().user.token === accessToken) return
+        store.dispatch(updateAuthState({ token: accessToken }))
       })
-      return
     }
 
-    if (isError || isSuccess) {
-      dispatch(updateAuthState({ user: null, token: null, isLoading: false }))
+    if (store.getState().user.user?.id) {
+      finishLoading()
+      syncToken()
+      return () => {
+        cancelled = true
+      }
     }
-  }, [persistReady, hasUser, isLoading, isFetching, isUninitialized, isSuccess, isError, data, user, dispatch])
+
+    if (!store.getState().user.isLoading) {
+      store.dispatch(updateAuthState({ isLoading: true }))
+    }
+
+    void (async () => {
+      try {
+        const res = await fetch(`${baseUrl}/auth/author`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: authorHeaders(),
+        })
+        if (cancelled) return
+
+        if (!res.ok) {
+          store.dispatch(updateAuthState({ user: null, token: null, isLoading: false }))
+          return
+        }
+
+        const body = (await res.json()) as { data?: Partial<IUser> }
+        const profile = body?.data
+        if (!profile?.id) {
+          store.dispatch(updateAuthState({ user: null, token: null, isLoading: false }))
+          return
+        }
+
+        store.dispatch(updateAuthState({ user: profile, isLoading: false }))
+        syncToken()
+      } catch {
+        if (!cancelled) {
+          store.dispatch(updateAuthState({ user: null, token: null, isLoading: false }))
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [persistReady])
+}
+
+function AccountStatusSync() {
+  useEffect(() => {
+    let cancelled = false
+
+    const sync = async () => {
+      const { user } = store.getState().user
+      if (!user?.id) return
+
+      try {
+        const res = await fetch(`${baseUrl}/auth/author`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: authorHeaders(),
+        })
+        if (!res.ok || cancelled) return
+
+        const body = (await res.json()) as { data?: Partial<IUser> }
+        const remote = body?.data
+        if (!remote?.id) return
+
+        const current = store.getState().user.user
+        if (!current?.id || current.id !== remote.id) return
+
+        const patch: Partial<IUser> = {}
+        if (remote.accountStatus != null && current.accountStatus !== remote.accountStatus) {
+          patch.accountStatus = remote.accountStatus
+        }
+        if (typeof remote.isActive === 'boolean' && current.isActive !== remote.isActive) {
+          patch.isActive = remote.isActive
+        }
+        if (Object.keys(patch).length === 0) return
+
+        store.dispatch(updateUser(patch))
+      } catch {
+        // Ignore transient failures.
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      void sync()
+    }, 60_000)
+    window.addEventListener('focus', sync)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', sync)
+    }
+  }, [])
+
+  return null
 }
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
   useAuthBootstrap()
-  return <>{children}</>
+  return (
+    <>
+      <AccountStatusSync />
+      {children}
+    </>
+  )
 }
 
 export async function logout(): Promise<void> {
   const token = store.getState().user.token
 
-  // Clear httpOnly cookies first so cookie-based session restore cannot re-login.
   try {
     await fetch(`${baseUrl}/auth/logout`, {
       method: 'POST',

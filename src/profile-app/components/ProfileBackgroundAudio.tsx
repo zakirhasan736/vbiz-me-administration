@@ -14,8 +14,10 @@ type Props = {
 export function ProfileBackgroundAudio({ profileSlug, shareSlug }: Props) {
   const slug = (profileSlug ?? shareSlug ?? '').trim()
   const audio = useAppSelector((state) => (slug ? selectProfileMediaBySlug(state, slug)?.audio : null))
-  const { design, embedded } = useProfileDisplay()
+  const { design, embedded, previewActive } = useProfileDisplay()
   const { introAllowed } = useProfileIntroContext()
 
-  return <BackgroundAudio audio={audio} design={design} embedded={embedded} readyToPlay={introAllowed} />
+  return (
+    <BackgroundAudio audio={audio} design={design} embedded={embedded} readyToPlay={introAllowed && previewActive} />
+  )
 }

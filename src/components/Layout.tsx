@@ -1,11 +1,16 @@
 'use client'
 
+import { AccountDisabledShell } from '@/components/AccountDisabledShell'
+import { AccountStatusBanner } from '@/components/AccountStatusBanner'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { roleToAudience } from '@/lib/notifications'
+import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
 import { Contact, LayoutDashboard, Menu, Moon, Sun, X } from 'lucide-react'
 import Link from 'next/link'
@@ -36,9 +41,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const keepMobileNavOpen = isTourActive && Boolean(currentStep?.openMobileNav)
   const showMobileMenu = isMobileMenuOpen && (!isTourActive || keepMobileNavOpen)
   const role = useAppSelector((state) => state.user.user?.role)
+  const { isSuspended, isPaused } = useAccountStatus()
   const audience = roleToAudience(role)
   const isAdminRoute = pathname.startsWith('/admin')
   const isEditorRoute = pathname.startsWith('/vcards/create') || pathname.startsWith('/vcards/edit')
+  const showOwnerStatusBanner = (role === 'vcard-owner' || role === 'corporate-owner') && (isPaused || isSuspended)
 
   useEffect(() => {
     if ((role === 'admin' || role === 'super-admin') && !isAdminRoute && !isEditorRoute) {
@@ -133,8 +140,15 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     id={item.tourId}
                     href={item.path}
                     data-tour-id={item.tourId}
+                    aria-disabled={isSuspended || undefined}
+                    onClick={(e) => {
+                      if (!isSuspended) return
+                      e.preventDefault()
+                      notify.warning(ACCOUNT_SUSPENDED_MESSAGE)
+                    }}
                     className={cn(
                       'group relative flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold',
+                      isSuspended && 'pointer-events-auto cursor-not-allowed opacity-45',
                       isActive
                         ? 'dark:text-primary-400 text-white'
                         : 'text-slate-600 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-slate-200'
@@ -146,7 +160,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         'pointer-events-none absolute inset-0 rounded-xl',
                         isActive
                           ? 'dark:bg-primary-500/15 bg-slate-900'
-                          : 'bg-transparent group-hover:bg-slate-100 dark:group-hover:bg-white/5'
+                          : 'bg-transparent group-hover:bg-slate-100 dark:group-hover:bg-white/5',
+                        isSuspended && !isActive && 'group-hover:bg-transparent dark:group-hover:bg-transparent'
                       )}
                     />
                     <item.icon className="relative z-10 h-4.5 w-4.5 shrink-0" strokeWidth={2} />
@@ -158,12 +173,17 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-3">
-            <NotificationCenter
-              audience={audience}
-              title={
-                audience === 'corporate' ? 'Corporate Alerts' : audience === 'admin' ? 'Admin Alerts' : 'Your Alerts'
-              }
-            />
+            <div
+              className={cn(isSuspended && 'pointer-events-none opacity-40')}
+              title={isSuspended ? ACCOUNT_SUSPENDED_MESSAGE : undefined}
+            >
+              <NotificationCenter
+                audience={audience}
+                title={
+                  audience === 'corporate' ? 'Corporate Alerts' : audience === 'admin' ? 'Admin Alerts' : 'Your Alerts'
+                }
+              />
+            </div>
 
             <button
               onClick={toggleTheme}
@@ -200,11 +220,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     key={item.name}
                     href={item.path}
                     data-tour-id={item.tourId}
-                    onClick={() => {
+                    aria-disabled={isSuspended || undefined}
+                    onClick={(e) => {
+                      if (isSuspended) {
+                        e.preventDefault()
+                        notify.warning(ACCOUNT_SUSPENDED_MESSAGE)
+                        return
+                      }
                       if (!keepMobileNavOpen) setIsMobileMenuOpen(false)
                     }}
                     className={cn(
                       'group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold',
+                      isSuspended && 'cursor-not-allowed opacity-45',
                       isActive
                         ? 'dark:text-primary-400 text-white'
                         : 'text-slate-600 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-slate-200'
@@ -229,10 +256,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         )}
       </header>
 
-      <AnnouncementBanner enabled={showAnnouncementBanner} />
+      <AnnouncementBanner enabled={showAnnouncementBanner && !isSuspended} />
+      {showOwnerStatusBanner ? <AccountStatusBanner /> : null}
 
       <main id="main-scroll" className="wrapper relative min-h-0 min-w-0 flex-1 overflow-x-clip py-8">
-        {children}
+        <AccountDisabledShell locked={isSuspended}>{children}</AccountDisabledShell>
       </main>
     </div>
   )

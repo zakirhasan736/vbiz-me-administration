@@ -57,7 +57,7 @@ export const DEFAULT_BACKEND_NOTIFICATION_PREFERENCES: BackendNotificationPrefer
   news: true,
   event_updates: true,
   announcement_updates: true,
-  theme_updates: false,
+  theme_updates: true,
 }
 
 export function toBackendPreferences(

@@ -1,3 +1,5 @@
+import { Skeleton } from '@/components/ui/Skeleton'
+import { StatNumber } from '@/components/ui/StatNumber'
 import type { DashboardSocialChannel } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import {
@@ -24,6 +26,7 @@ type SocialChannelStat = {
 
 type SocialEngagementSectionProps = {
   channels?: SocialChannelStat[]
+  loading?: boolean
 }
 
 const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; color: string; bg: string }> = {
@@ -40,7 +43,17 @@ const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; color: stri
   website: { icon: Globe, color: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-500/10' },
 }
 
-export function SocialEngagementSection({ channels }: SocialEngagementSectionProps) {
+function SocialChannelSkeleton() {
+  return (
+    <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
+      <Skeleton className="mb-5 h-12 w-12 rounded-[14px]" />
+      <Skeleton className="mb-2 h-8 w-16 rounded-lg" />
+      <Skeleton variant="text" className="h-3 w-20" />
+    </div>
+  )
+}
+
+export function SocialEngagementSection({ channels, loading = false }: SocialEngagementSectionProps) {
   const rows = channels ?? []
 
   return (
@@ -49,7 +62,13 @@ export function SocialEngagementSection({ channels }: SocialEngagementSectionPro
         <Activity className="h-4 w-4 text-slate-400" />
         Social Engagement Channels
       </h3>
-      {rows.length ? (
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <SocialChannelSkeleton key={index} />
+          ))}
+        </div>
+      ) : rows.length ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {rows.map((stat) => {
             const ui = CHANNEL_UI[stat.channel] ?? CHANNEL_UI.website
@@ -69,7 +88,13 @@ export function SocialEngagementSection({ channels }: SocialEngagementSectionPro
                   <Icon className="h-6 w-6" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <p className="mb-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">{stat.count}</p>
+                  <p className="mb-1 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                    <StatNumber
+                      value={stat.count}
+                      className="text-3xl font-black tracking-tight text-slate-900 dark:text-white"
+                      skeletonClassName="h-8 w-16 rounded-lg"
+                    />
+                  </p>
                   <p className="text-[11px] leading-tight font-bold tracking-widest text-slate-500 uppercase">
                     {stat.label}
                   </p>

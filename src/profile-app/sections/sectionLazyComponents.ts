@@ -5,10 +5,21 @@
 import dynamic from 'next/dynamic'
 import type { ComponentType } from 'react'
 
+/** Chunk loaders by export name so they can be warmed ahead of the first render. */
+const SECTION_LOADERS = new Map<string, () => Promise<unknown>>()
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function lazyNamed(loader: () => Promise<Record<string, ComponentType<any>>>, exportName: string) {
+  SECTION_LOADERS.set(exportName, loader)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return dynamic(() => loader().then((mod) => ({ default: mod[exportName] }))) as ComponentType<any>
+}
+
+/** Fetches a section chunk without rendering it — later renders resolve from cache. */
+export function preloadSectionComponent(exportName: string) {
+  const loader = SECTION_LOADERS.get(exportName)
+  if (!loader) return
+  void loader().catch(() => undefined)
 }
 
 export const HomeSectionV1 = lazyNamed(() => import('@/profile-app/components/HomeSection'), 'HomeSection')

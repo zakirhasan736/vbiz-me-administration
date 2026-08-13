@@ -3,10 +3,18 @@
 import { AiDropFillZone, type ParsedEntry } from '@/components/AiDropFillZone'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import {
+  ExpandableEntryBody,
+  ExpandableEntryHeader,
+  bottomAddButtonClass,
+  expandableCardClassName,
+} from '@/components/vcard/ExpandableEntryChrome'
+import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultReviewEntry, normalizeReviewList } from '@/lib/vcardReviews'
 import type { VCardReviewEntry } from '@/types/vcard'
-import { MessageSquareQuote, Plus, Star, Trash2 } from 'lucide-react'
+import { cn } from '@/utils/cn'
+import { MessageSquareQuote, Plus, Star } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 const inputClasses =
@@ -14,10 +22,20 @@ const inputClasses =
 const textareaClasses =
   'w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0b0f19] px-4 py-3 text-sm font-medium text-slate-900 dark:text-white outline-none focus:border-amber-500 resize-none'
 
+const accent = {
+  border: 'border-amber-100 dark:border-amber-500/20',
+  bg: 'bg-amber-50 dark:bg-amber-500/10',
+  text: 'text-amber-600 dark:text-amber-400',
+  chevronOpen: 'text-amber-500',
+  cardExpandedBorder: 'border-amber-200/60 dark:border-amber-500/20',
+}
+
 export function TabReviews() {
   const { vCardData, updateData } = useVCard()
   const reviews = normalizeReviewList(vCardData.reviews)
   const reviewsRef = useRef(reviews)
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(reviews)
 
   useEffect(() => {
     reviewsRef.current = reviews
@@ -26,11 +44,15 @@ export function TabReviews() {
   const setReviews = (next: VCardReviewEntry[]) => updateData('reviews', next)
 
   const addReview = () => {
-    setReviews([...reviewsRef.current, createDefaultReviewEntry()])
+    const next = createDefaultReviewEntry()
+    setReviews([...reviewsRef.current, next])
+    expandNew(next.id)
   }
 
   const removeReview = (id: string) => {
-    setReviews(reviewsRef.current.filter((r) => r.id !== id))
+    const next = reviewsRef.current.filter((r) => r.id !== id)
+    setReviews(next)
+    recoverExpandedAfterRemove(id, next)
   }
 
   const updateReview = (id: string, patch: Partial<VCardReviewEntry>) => {
@@ -88,7 +110,8 @@ export function TabReviews() {
 
       <SectionJumpPills
         accent="amber"
-        label="Jump to review"
+        label="Quick find"
+        onJump={setExpandedId}
         items={reviews.map((r) => ({
           id: r.id,
           title: r.author || 'Reviewer',
@@ -107,64 +130,80 @@ export function TabReviews() {
           </p>
         </div>
       ) : (
-        <ReorderList
-          items={reviews}
-          getKey={(r) => r.id}
-          onReorder={setReviews}
-          renderItem={(item, idx, controls) => (
-            <div
-              id={`entry-${item.id}`}
-              className="scroll-mt-24 space-y-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-5 dark:border-white/10 dark:bg-white/2"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-black tracking-wider text-slate-400 uppercase">Review {idx + 1}</p>
-                <div className="flex items-center gap-1">
-                  {controls}
-                  <button
-                    type="button"
-                    onClick={() => removeReview(item.id)}
-                    className="rounded-xl p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <input
-                value={item.author}
-                onChange={(e) => updateReview(item.id, { author: e.target.value })}
-                placeholder="Reviewer name"
-                className={inputClasses}
-              />
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} type="button" onClick={() => updateReview(item.id, { rating: n })} className="p-1">
-                    <Star
-                      className={`h-5 w-5 ${n <= item.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
-                    />
-                  </button>
-                ))}
-              </div>
-              <textarea
-                value={item.text}
-                onChange={(e) => updateReview(item.id, { text: e.target.value })}
-                rows={3}
-                placeholder="What they said…"
-                className={textareaClasses}
-              />
-            </div>
-          )}
-        />
-      )}
+        <>
+          <ReorderList
+            items={reviews}
+            getKey={(r) => r.id}
+            onReorder={setReviews}
+            renderItem={(item, idx, controls) => {
+              const open = isExpanded(item.id)
+              return (
+                <section
+                  id={`entry-${item.id}`}
+                  ref={(el) => setCardRef(item.id, el)}
+                  className={cn(expandableCardClassName(open, accent), 'scroll-mt-24')}
+                >
+                  <ExpandableEntryHeader
+                    indexLabel={idx + 1}
+                    title={item.author || 'New Review'}
+                    subtitle={item.text?.slice(0, 48) || null}
+                    isExpanded={open}
+                    onToggle={() => toggleExpanded(item.id)}
+                    showRemove
+                    onRemove={() => removeReview(item.id)}
+                    accent={accent}
+                    trailing={
+                      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        {controls}
+                      </div>
+                    }
+                  />
 
-      {reviews.length > 0 ? (
-        <button
-          type="button"
-          onClick={addReview}
-          className="inline-flex items-center gap-2 rounded-xl border border-dashed border-amber-300 px-4 py-2.5 text-sm font-bold text-amber-700 dark:border-amber-500/40 dark:text-amber-300"
-        >
-          <Plus className="h-4 w-4" /> Add review
-        </button>
-      ) : null}
+                  <ExpandableEntryBody isExpanded={open} className="space-y-3 p-5">
+                    <input
+                      value={item.author}
+                      onChange={(e) => updateReview(item.id, { author: e.target.value })}
+                      placeholder="Reviewer name"
+                      className={inputClasses}
+                    />
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => updateReview(item.id, { rating: n })}
+                          className="p-1"
+                        >
+                          <Star
+                            className={`h-5 w-5 ${n <= item.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={item.text}
+                      onChange={(e) => updateReview(item.id, { text: e.target.value })}
+                      rows={3}
+                      placeholder="What they said…"
+                      className={textareaClasses}
+                    />
+                  </ExpandableEntryBody>
+                </section>
+              )
+            }}
+          />
+
+          <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+            <button
+              type="button"
+              onClick={addReview}
+              className={cn(bottomAddButtonClass, 'text-amber-600 hover:border-amber-500/30 dark:text-amber-400')}
+            >
+              <Plus className="h-4 w-4" /> Add Another Review
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
