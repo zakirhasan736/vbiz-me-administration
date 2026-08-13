@@ -322,7 +322,14 @@ function isPublicCardDataRequest(url) {
   const pathname = String(url.pathname || '').toLowerCase()
   if (url.origin === self.location.origin && pathname.startsWith('/_next/data/')) return true
   if (url.origin === self.location.origin && pathname.startsWith('/api/pwa/')) return true
-  return pathname.includes('/api/v1/public/')
+  return (
+    pathname.includes('/api/v1/public/') ||
+    pathname.includes('/public/dynamic-section/') ||
+    pathname.includes('/public/profile-ai-data/') ||
+    pathname.includes('/public/profiles/') ||
+    pathname.includes('/public/post-types') ||
+    pathname.includes('/public/v/')
+  )
 }
 
 function isPublicCardAssetRequest(url) {
@@ -426,6 +433,17 @@ async function networkFirst(request, cacheName, fallback) {
   }
 }
 
+async function publicCardNavigationFallback(request) {
+  const cache = await caches.open(CARD_SHELL_CACHE)
+  try {
+    const url = new URL(request.url)
+    const canonical = `${url.origin}${url.pathname}`
+    return (await cache.match(canonical)) || (await cache.match(url.pathname)) || Response.error()
+  } catch {
+    return Response.error()
+  }
+}
+
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName)
   const hit = await matchCachedRequest(cache, request)
@@ -460,7 +478,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (sameOrigin && event.request.mode === 'navigate' && isPublicCardPage(url.pathname)) {
-    event.respondWith(networkFirst(event.request, CARD_SHELL_CACHE))
+    event.respondWith(networkFirst(event.request, CARD_SHELL_CACHE, publicCardNavigationFallback))
     return
   }
 
