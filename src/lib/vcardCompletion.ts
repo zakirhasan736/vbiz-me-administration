@@ -18,6 +18,23 @@ function listProgress(items: unknown[] | undefined, weight = 1) {
   return Math.min(100, items.length * weight * 20)
 }
 
+function customTabProgress(data: VCardData, tabId: string) {
+  const tab = data.customTabs?.find((entry) => entry.id === tabId)
+  if (!tab) return 0
+  const activeItems = (tab.items || []).filter((item) => item.active !== false)
+  if (!activeItems.length) return 0
+  const total = activeItems.length * 3
+  const filledCount = activeItems.reduce(
+    (sum, item) =>
+      sum +
+      (filled(item.title) ? 1 : 0) +
+      (filled(item.description) ? 1 : 0) +
+      (filled(item.mediaUrl) || Boolean(item.gallery?.length) ? 1 : 0),
+    0
+  )
+  return pct(filledCount, total)
+}
+
 export type PersonalCompletionMeta = {
   avatarImageUrl?: string
   backgroundImageUrl?: string
@@ -146,6 +163,8 @@ function panelPercent(panel: EditorNavPanel, data: VCardData, meta?: PersonalCom
       if (!schema) return 0
       return listProgress(data.sectionPosts?.[schema.postTypeName])
     }
+    case 'custom-tab':
+      return customTabProgress(data, panel.tabId)
     case 'certificates':
       return listProgress(data.sectionPosts?.[PUBLIC_SECTION_NAMES.certificates])
     case 'link-shortener':

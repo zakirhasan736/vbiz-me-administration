@@ -12,6 +12,7 @@ import {
 } from '@/lib/vcardDisplaySettings'
 import { createDefaultVCardSocial, getSocialHrefForDisplayLabel } from '@/lib/vcardSocial'
 import type {
+  VCardCustomTab,
   VCardEducationEntry,
   VCardExperienceEntry,
   VCardExtraField,
@@ -20,6 +21,7 @@ import type {
   VCardPersonal,
   VCardServiceEntry,
   VCardSocial,
+  VCardTabLabelOverrides,
 } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import type { MyCardActionButtons } from '@interfaces/api/myCard'
@@ -35,6 +37,8 @@ export type ProfileDisplayContextValue = {
   services: VCardServiceEntry[]
   generalPosts: VCardGeneralPost[]
   faqs: VCardFaqEntry[]
+  customTabs: VCardCustomTab[]
+  tabLabelOverrides: VCardTabLabelOverrides
   design: ResolvedProfileDesign | null
   isVisible: (key: string) => boolean
   /** Nav Bar enable/disable — always respected (including live preview). */
@@ -77,6 +81,8 @@ const defaultValue: ProfileDisplayContextValue = {
   services: [],
   generalPosts: [],
   faqs: [],
+  customTabs: [],
+  tabLabelOverrides: {},
   design: null,
   isVisible: () => true,
   isNavVisible: () => true,
@@ -105,6 +111,8 @@ export function ProfileDisplayProvider({
   services,
   generalPosts,
   faqs,
+  customTabs,
+  tabLabelOverrides,
   design,
   /** Explicit avatar from card meta (merged into homeMedia.profileMedia). */
   avatarMediaUrl,
@@ -125,6 +133,8 @@ export function ProfileDisplayProvider({
   services?: VCardServiceEntry[]
   generalPosts?: VCardGeneralPost[]
   faqs?: VCardFaqEntry[]
+  customTabs?: VCardCustomTab[]
+  tabLabelOverrides?: VCardTabLabelOverrides
   design?: ResolvedProfileDesign | null
   avatarMediaUrl?: string
   embedded?: boolean
@@ -143,6 +153,8 @@ export function ProfileDisplayProvider({
     const svc = services ?? []
     const posts = generalPosts ?? []
     const faqEntries = faqs ?? []
+    const custom = customTabs ?? []
+    const labels = tabLabelOverrides ?? {}
     return {
       settings,
       personal: p,
@@ -153,6 +165,8 @@ export function ProfileDisplayProvider({
       services: svc,
       generalPosts: posts,
       faqs: faqEntries,
+      customTabs: custom,
+      tabLabelOverrides: labels,
       design: design ?? null,
       isVisible: (key: string) => (embedded ? true : isFieldVisibleInProfile(settings, key)),
       isNavVisible: (label: string) => isFieldVisible(settings, label),
@@ -181,6 +195,8 @@ export function ProfileDisplayProvider({
     services,
     generalPosts,
     faqs,
+    customTabs,
+    tabLabelOverrides,
     design,
     avatarMediaUrl,
     embedded,

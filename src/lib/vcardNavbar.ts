@@ -1,4 +1,5 @@
-import { getDefaultCreateCardNavIds, PINNED_END_NAV_IDS } from '@/lib/createCardTabs'
+import { ALWAYS_ENABLED_NAV_IDS, getDefaultCreateCardNavIds } from '@/lib/createCardTabs'
+import type { VCardCustomTab, VCardTabLabelOverrides } from '@/types/vcard'
 import {
   createDefaultFieldConfig,
   normalizeFieldConfig,
@@ -155,6 +156,7 @@ export type EditorNavPanel =
   | { kind: 'my-info' }
   | { kind: 'certificates' }
   | { kind: 'section-posts'; schemaKey: ProfileNavContentKey }
+  | { kind: 'custom-tab'; tabId: string }
   | { kind: 'info'; infoKey: 'public-cards' }
   | { kind: 'empty' }
 
@@ -551,7 +553,7 @@ export function isNavItemVisible(settings: VCardDisplaySettings, label: string):
 }
 
 export function filterNavItemsByVisibility(items: NavBarNavItem[], settings: VCardDisplaySettings): NavBarNavItem[] {
-  return items.filter((item) => isNavItemVisible(settings, item.label))
+  return items.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id) || isNavItemVisible(settings, item.label))
 }
 
 /**
@@ -581,6 +583,52 @@ export function getNavItemById(id: string, items: NavBarNavItem[] = NAV_BAR_NAV_
   return items.find((item) => item.id === id)
 }
 
+export const CUSTOM_TAB_ID_PREFIX = 'custom-tab-'
+
+export function isCustomNavItemId(id: string): boolean {
+  return id.startsWith(CUSTOM_TAB_ID_PREFIX)
+}
+
+export function createCustomNavItem(tab: VCardCustomTab): NavBarNavItem {
+  const label = tab.label.trim() || 'Custom tab'
+  return {
+    id: tab.id,
+    label,
+    displayLabel: label,
+    editorLabel: label,
+    apiSectionName: tab.id,
+    icon: FileText,
+    profileContent: 'empty',
+    editorPanel: { kind: 'custom-tab', tabId: tab.id },
+  }
+}
+
+export function buildCustomNavItems(customTabs?: VCardCustomTab[] | null): NavBarNavItem[] {
+  return (customTabs || []).filter((tab) => isCustomNavItemId(tab.id)).map((tab) => createCustomNavItem(tab))
+}
+
+export function mergeCustomNavItems(items: NavBarNavItem[], customTabs?: VCardCustomTab[] | null): NavBarNavItem[] {
+  const existing = new Set(items.map((item) => item.id))
+  const customItems = buildCustomNavItems(customTabs).filter((item) => !existing.has(item.id))
+  return customItems.length ? [...items, ...customItems] : items
+}
+
+export function getNavLabelOverride(id: string, overrides?: VCardTabLabelOverrides | null): string | undefined {
+  const label = overrides?.[id]?.trim()
+  return label || undefined
+}
+
+export function applyNavLabelOverrides(
+  items: NavBarNavItem[],
+  overrides?: VCardTabLabelOverrides | null
+): NavBarNavItem[] {
+  if (!overrides || Object.keys(overrides).length === 0) return items
+  return items.map((item) => {
+    const label = getNavLabelOverride(item.id, overrides)
+    return label ? { ...item, displayLabel: label, editorLabel: label } : item
+  })
+}
+
 export function getNavDisplayLabel(item: NavBarNavItem): string {
   return item.displayLabel ?? item.label
 }
@@ -591,7 +639,7 @@ export function getEditorNavLabel(item: NavBarNavItem): string {
 }
 
 /** Always kept enabled in the Add-tab modal (same role as Personal in backoffice). */
-export const LOCKED_NAV_ITEM_IDS = new Set(['home', ...PINNED_END_NAV_IDS])
+export const LOCKED_NAV_ITEM_IDS = new Set<string>(ALWAYS_ENABLED_NAV_IDS)
 
 export type NavItemGroupId = 'essentials' | 'profile' | 'content' | 'business' | 'tools'
 

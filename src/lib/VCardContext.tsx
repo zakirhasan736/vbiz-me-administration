@@ -140,6 +140,14 @@ function dirtyBucketForPath(path: string): DirtyBucket {
   if (path === 'skills' || path.startsWith('skills.')) return 'skills'
   if (path === 'social.customLinks' || path.startsWith('social.customLinks.')) return 'socialLinks'
   if (
+    path === 'customTabs' ||
+    path.startsWith('customTabs.') ||
+    path === 'tabLabelOverrides' ||
+    path.startsWith('tabLabelOverrides.')
+  ) {
+    return 'profile'
+  }
+  if (
     path === 'generalPosts' ||
     path.startsWith('generalPosts.') ||
     path === 'faqs' ||
@@ -374,6 +382,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       generalPosts: base.generalPosts ?? [],
       faqs: base.faqs ?? [],
       sectionPosts: base.sectionPosts ?? {},
+      customTabs: base.customTabs ?? [],
+      tabLabelOverrides: base.tabLabelOverrides ?? {},
       portfolio: base.portfolio ?? [],
       reviews: base.reviews ?? [],
       skills: base.skills ?? [],

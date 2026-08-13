@@ -50,6 +50,8 @@ export function ProfileApp(props: VBizProfileAppProps) {
       services={props.services}
       generalPosts={props.generalPosts}
       faqs={props.faqs}
+      customTabs={props.customTabs}
+      tabLabelOverrides={props.tabLabelOverrides}
       design={props.design ?? null}
       avatarMediaUrl={props.avatarVideoUrl}
       embedded={props.embedded}
@@ -63,6 +65,7 @@ export function ProfileApp(props: VBizProfileAppProps) {
         cardOwnerId={props.cardOwnerId}
         about={props.personal?.about}
         sectionPosts={props.sectionPosts}
+        customTabs={props.customTabs}
         generalPosts={props.generalPosts}
         faqs={props.faqs}
         education={props.education}

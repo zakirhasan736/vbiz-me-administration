@@ -4,15 +4,17 @@ import {
   settingsRowsToMap,
 } from '@/lib/api/myCard/hydrateDisplaySettingsFromProfile'
 import {
+  CUSTOM_TABS_SETTING_KEY,
   mapVCardEditorSettingsPayload,
   parseThemeJson,
+  TAB_LABEL_OVERRIDES_SETTING_KEY,
   THEME_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveCardStatus } from '@/lib/cardStatus'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
-import type { VCardData, VCardFaqEntry, VCardGeneralPost, VCardRecord } from '@/types/vcard'
+import type { VCardCustomTab, VCardData, VCardFaqEntry, VCardGeneralPost, VCardRecord } from '@/types/vcard'
 import { createDefaultVCardData } from '@/types/vcard'
 
 export type ApiProfile = {
@@ -383,6 +385,39 @@ function metaMap(metas?: ApiPost['metas']): Record<string, string> {
   return out
 }
 
+function parseCustomTabs(raw?: string): VCardCustomTab[] {
+  if (!raw?.trim()) return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((tab): tab is Partial<VCardCustomTab> => Boolean(tab && typeof tab === 'object'))
+      .map((tab) => ({
+        id: typeof tab.id === 'string' ? tab.id : '',
+        label: typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab',
+        items: Array.isArray(tab.items) ? tab.items : [],
+      }))
+      .filter((tab) => tab.id.startsWith('custom-tab-'))
+  } catch {
+    return []
+  }
+}
+
+function parseTabLabelOverrides(raw?: string): Record<string, string> {
+  if (!raw?.trim()) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .map(([id, label]) => [id, typeof label === 'string' ? label.trim() : ''] as const)
+        .filter(([, label]) => Boolean(label))
+    )
+  } catch {
+    return {}
+  }
+}
+
 /** Normalize API date/datetime to `yyyy-MM-dd` for `<input type="date">`. */
 export function toDateInputValue(value?: string | null): string {
   if (!value) return ''
@@ -432,6 +467,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   const profileTemplate = templateToAppearance(profile.profileSettings?.profileTemplate || profile.template)
   const staticTheme = getStaticProfileTheme(profileTemplate)
   const savedTheme = parseThemeJson(settingsMap[THEME_SETTING_KEY])
+  const customTabs = parseCustomTabs(settingsMap[CUSTOM_TABS_SETTING_KEY])
+  const tabLabelOverrides = parseTabLabelOverrides(settingsMap[TAB_LABEL_OVERRIDES_SETTING_KEY])
   const theme = {
     primaryColor: savedTheme?.primaryColor || staticTheme.primaryColor,
     accentColor: savedTheme?.accentColor || staticTheme.accentColor,
@@ -533,6 +570,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     }),
     skills: skillTagsToGroups(profile.skillTags),
     displaySettings,
+    customTabs,
+    tabLabelOverrides,
     aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY]),
   })
 

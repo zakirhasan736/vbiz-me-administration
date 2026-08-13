@@ -5,7 +5,13 @@ import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { mapNavBarLinks } from '@/lib/api/navbar/mapNavBarLinks'
 import { orderAndDedupeNavItems } from '@/lib/api/navbar/orderNavTabs'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
-import { getNavItemById, type NavBarNavItem } from '@/lib/vcardNavbar'
+import {
+  applyNavLabelOverrides,
+  getNavItemById,
+  mergeCustomNavItems,
+  sortNavItemsByOrder,
+  type NavBarNavItem,
+} from '@/lib/vcardNavbar'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useGetNavBarLinksQuery } from '@/redux/api'
 import { navBarLinksApi } from '@/redux/features/navbar/navbar.api'
@@ -46,7 +52,7 @@ export function ProfileNavigationProvider({
   initialNavBarLinks = null,
 }: Props) {
   const dispatch = useAppDispatch()
-  const { settings: displaySettings, cardOwnerId } = useProfileDisplay()
+  const { settings: displaySettings, cardOwnerId, customTabs, tabLabelOverrides } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
 
   const hasPrefetchedNavLinks = Boolean(initialNavBarLinks)
@@ -66,13 +72,16 @@ export function ProfileNavigationProvider({
 
   const navItems = useMemo(() => {
     if (isNavError || !navBarLinks) return []
-    return mapNavBarLinks(navBarLinks)
-  }, [navBarLinks, isNavError])
+    return applyNavLabelOverrides(mergeCustomNavItems(mapNavBarLinks(navBarLinks), customTabs), tabLabelOverrides)
+  }, [navBarLinks, isNavError, customTabs, tabLabelOverrides])
 
   const visibleTabs = useMemo(() => {
     if (!displaySettings.globalEnabled) return []
-    return orderAndDedupeNavItems(navItems)
-  }, [displaySettings.globalEnabled, navItems])
+    const ordered = orderAndDedupeNavItems(navItems)
+    return displaySettings.editorNavOrder?.length
+      ? sortNavItemsByOrder(ordered, displaySettings.editorNavOrder)
+      : ordered
+  }, [displaySettings.globalEnabled, displaySettings.editorNavOrder, navItems])
 
   const isNavLoading = hasPrefetchedNavLinks ? false : isNavLinksLoading
 

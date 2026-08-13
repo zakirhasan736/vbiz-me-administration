@@ -1,4 +1,4 @@
-import { normalizeNavOrderWithPinnedEnds, PINNED_END_NAV_IDS } from '@/lib/createCardTabs'
+import { normalizeNavOrderWithRequiredTabs } from '@/lib/createCardTabs'
 import {
   LOCKED_NAV_ITEM_IDS,
   NAV_BAR_FIELDS,
@@ -228,16 +228,15 @@ export function applyEnabledNavOrderToDisplaySettings(
   settings: VCardDisplaySettings,
   navIds: string[]
 ): VCardDisplaySettings {
-  const normalized = normalizeNavOrderWithPinnedEnds(navIds)
+  const normalized = normalizeNavOrderWithRequiredTabs(navIds)
   const idSet = new Set(normalized)
-  const pinned = new Set<string>(PINNED_END_NAV_IDS)
   let next: VCardDisplaySettings = {
     ...settings,
     fields: { ...settings.fields },
     editorNavOrder: normalized,
   }
   for (const item of NAV_BAR_NAV_ITEMS) {
-    const visible = LOCKED_NAV_ITEM_IDS.has(item.id) || pinned.has(item.id) || idSet.has(item.id)
+    const visible = LOCKED_NAV_ITEM_IDS.has(item.id) || idSet.has(item.id)
     next = patchDisplayField(next, item.label, { visible })
   }
   next.editorNavOrder = normalized

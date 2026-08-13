@@ -6,6 +6,7 @@ import { TakeTourBanner } from '@/components/tour/TakeTourBanner'
 import { AddTabsModal } from '@/components/vcard/AddTabsModal'
 import { AiGenerateModal, type AiProfilePayload } from '@/components/vcard/AiGenerateModal'
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
+import { CustomTabEditorPanel } from '@/components/vcard/CustomTabEditorPanel'
 import { SectionPostsEditorPanel } from '@/components/vcard/SectionPostsEditorPanel'
 import { TabBlog } from '@/components/VCardBlog'
 import { TabCertificates } from '@/components/VCardCertificates'
@@ -38,6 +39,7 @@ import {
   getAiSeedCreateCardNavIds,
   getDefaultCreateCardNavIds,
   normalizeNavOrderWithPinnedEnds,
+  normalizeNavOrderWithRequiredTabs,
 } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
@@ -57,11 +59,13 @@ import {
   type EditorBasePath,
 } from '@/lib/vcardEditorRoutes'
 import {
+  applyNavLabelOverrides,
   filterEditorMainNavItems,
   filterNavItemsByVisibility,
   getEditorNavLabel,
   getNavItemById,
   isPersonalEditorNavId,
+  mergeCustomNavItems,
   NAV_BAR_NAV_ITEMS,
   sortNavItemsByOrder,
   storageKeyForEditorNavOrder,
@@ -225,7 +229,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   const displayNavOrder = useMemo(() => {
     if (!Array.isArray(display.editorNavOrder) || !display.editorNavOrder.length) return null
-    return normalizeNavOrderWithPinnedEnds(display.editorNavOrder)
+    return normalizeNavOrderWithRequiredTabs(display.editorNavOrder)
   }, [display.editorNavOrder])
 
   const effectiveNavOrderIds = displayNavOrder ?? navOrderIds
@@ -257,7 +261,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     const onNavOrder = (e: Event) => {
       const detail = (e as CustomEvent<string[]>).detail
       if (Array.isArray(detail) && detail.length) {
-        setNavOrderIds(normalizeNavOrderWithPinnedEnds(detail))
+        setNavOrderIds(normalizeNavOrderWithRequiredTabs(detail))
       }
     }
     window.addEventListener('vbiz-open-live-preview', openPreview)
@@ -268,14 +272,20 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     }
   }, [])
 
+  const editorNavCatalog = useMemo(
+    () =>
+      applyNavLabelOverrides(mergeCustomNavItems(NAV_BAR_NAV_ITEMS, vCardData.customTabs), vCardData.tabLabelOverrides),
+    [vCardData.customTabs, vCardData.tabLabelOverrides]
+  )
+
   const enabledNavItems = useMemo(() => {
-    const filtered = filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display)
+    const filtered = filterNavItemsByVisibility(editorNavCatalog, display)
     const ordered = sortNavItemsByOrder(filtered, effectiveNavOrderIds)
     if (!effectiveNavOrderIds.length) return ordered
     const idSet = new Set(effectiveNavOrderIds)
     const preferred = ordered.filter((item) => idSet.has(item.id))
     return preferred.length ? preferred : ordered
-  }, [display, effectiveNavOrderIds])
+  }, [display, effectiveNavOrderIds, editorNavCatalog])
 
   const visibleNavItems = useMemo(() => filterEditorMainNavItems(enabledNavItems), [enabledNavItems])
   const enabledNavIds = useMemo(() => enabledNavItems.map((item) => item.id), [enabledNavItems])
@@ -317,7 +327,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     return visibleNavItems.findIndex((item) => item.id === chipId)
   }, [visibleNavItems, activeNavId])
 
-  const activeNavItem = getNavItemById(activeNavId)
+  const activeNavItem = getNavItemById(activeNavId, editorNavCatalog)
   const editorPanel = activeNavItem?.editorPanel ?? { kind: 'empty' as const }
   const isPersonalEditor = editorPanel.kind === 'personal'
 
@@ -383,6 +393,31 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               updateData('sectionPosts', {
                 ...(vCardData.sectionPosts ?? {}),
                 [schema.postTypeName]: next,
+              })
+            }}
+          />
+        )
+      }
+      case 'custom-tab': {
+        const tab = vCardData.customTabs?.find((entry) => entry.id === panel.tabId)
+        if (!tab) {
+          return (
+            <EditorNavEmptyPanel
+              title={activeNavItem?.label ?? 'Custom tab'}
+              tourTargetId={`tour-editor-panel-${activeNavId}`}
+            />
+          )
+        }
+        return (
+          <CustomTabEditorPanel
+            tab={tab}
+            cardId={contextCardId}
+            onChange={(nextTab) => {
+              const nextTabs = (vCardData.customTabs || []).map((entry) => (entry.id === nextTab.id ? nextTab : entry))
+              updateData('customTabs', nextTabs)
+              updateData('tabLabelOverrides', {
+                ...(vCardData.tabLabelOverrides || {}),
+                [nextTab.id]: nextTab.label,
               })
             }}
           />
@@ -476,10 +511,20 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     router.push(subTabHref(tabId))
   }
 
-  const applyAddTabs = (nextIds: string[]) => {
-    const normalized = normalizeNavOrderWithPinnedEnds(nextIds)
+  const applyAddTabs = ({
+    nextIds,
+    customTabs,
+    labelOverrides,
+  }: {
+    nextIds: string[]
+    customTabs: NonNullable<typeof vCardData.customTabs>
+    labelOverrides: NonNullable<typeof vCardData.tabLabelOverrides>
+  }) => {
+    const normalized = nextIds
     const next = applyEnabledNavOrderToDisplaySettings(display, normalized)
     updateData('displaySettings', next)
+    updateData('customTabs', customTabs)
+    updateData('tabLabelOverrides', labelOverrides)
     setNavOrderIds(normalized)
     localStorage.setItem(storageKeyForEditorNavOrder(cardKey), JSON.stringify(normalized))
 

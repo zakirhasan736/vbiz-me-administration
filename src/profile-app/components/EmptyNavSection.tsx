@@ -13,14 +13,52 @@ type EmptyNavSectionProps = {
 
 /** Fallback for custom nav tabs; reads dynamic-section data when the backend provides a section name. */
 export function EmptyNavSection({ title, sectionName }: EmptyNavSectionProps) {
-  const { cardOwnerId } = useProfileDisplay()
+  const { cardOwnerId, customTabs } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
   const resolvedSectionName = sectionName?.trim() ?? ''
+  const customTab = customTabs.find(
+    (tab) =>
+      tab.id === resolvedSectionName || tab.label.trim() === title.trim() || tab.label.trim() === resolvedSectionName
+  )
 
   const { data, isLoading, isError } = useGetDynamicSectionQuery(
     { profileId, sectionName: resolvedSectionName },
-    { skip: !profileId || !resolvedSectionName }
+    { skip: !profileId || !resolvedSectionName || Boolean(customTab) }
   )
+
+  if (customTab) {
+    return (
+      <DynamicPostsSection
+        sectionTitle={customTab.label || title}
+        posts={(customTab.items || [])
+          .filter((item) => item.active !== false)
+          .map((item) => ({
+            id: item.id,
+            title: item.title || '',
+            description: item.description || '',
+            featuredImage: item.mediaUrl || '',
+            generalInfoUrl: item.mediaUrl || '',
+            date: '',
+            issuer: '',
+            year: '',
+            attachments: item.mediaUrl
+              ? [
+                  {
+                    id: item.id,
+                    doc_name: item.mediaName || item.title || 'Media',
+                    attachment_type_id: 0,
+                    url: item.mediaUrl,
+                  },
+                ]
+              : [],
+          }))}
+        isLoading={false}
+        isError={false}
+        badgeLabel={customTab.label || title}
+        emptyMessage="No content is available for this custom tab yet."
+      />
+    )
+  }
 
   if (profileId && resolvedSectionName) {
     return (

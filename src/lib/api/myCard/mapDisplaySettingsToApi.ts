@@ -107,6 +107,8 @@ const CUSTOM_VALUE_SETTING_KEYS: Record<string, string> = {
 export const EXTRA_FIELDS_SETTING_KEY = 'extra_fields_json'
 export const DISPLAY_SETTINGS_SETTING_KEY = 'display_settings_json'
 export const THEME_SETTING_KEY = 'theme_json'
+export const CUSTOM_TABS_SETTING_KEY = 'custom_tabs_json'
+export const TAB_LABEL_OVERRIDES_SETTING_KEY = 'tab_label_overrides_json'
 
 function checkboxValue(visible: boolean | undefined): string {
   return visible === false ? '0' : '1'
@@ -165,6 +167,15 @@ export function mapThemeToApiSettings(data: Pick<VCardData, 'theme'>): Record<st
   return { [THEME_SETTING_KEY]: JSON.stringify(data.theme) }
 }
 
+function mapCustomTabsToApiSettings(data: VCardData): Record<string, string> {
+  const settings: Record<string, string> = {}
+  if (data.customTabs?.length) settings[CUSTOM_TABS_SETTING_KEY] = JSON.stringify(data.customTabs)
+  if (data.tabLabelOverrides && Object.keys(data.tabLabelOverrides).length) {
+    settings[TAB_LABEL_OVERRIDES_SETTING_KEY] = JSON.stringify(data.tabLabelOverrides)
+  }
+  return settings
+}
+
 /** Parse persisted `theme_json` setting back into a partial theme. */
 export function parseThemeJson(raw?: string | null): Partial<VCardTheme> | null {
   if (!raw?.trim()) return null
@@ -191,6 +202,7 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
     ...mapDisplaySettingsToApiSettings(data.displaySettings),
     ...mapExtraFieldsToApiSettings(data.extraFields),
     ...mapThemeToApiSettings(data),
+    ...mapCustomTabsToApiSettings(data),
     [AI_ASSISTANCE_SETTING_KEY]: isAiAssistanceEnabled(data.aiAssistanceEnabled) ? '1' : '0',
   }
 }

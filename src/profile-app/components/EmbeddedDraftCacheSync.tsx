@@ -17,6 +17,7 @@ import { galleryApi } from '@/redux/features/sections/gallery.api'
 import { reviewsApi } from '@/redux/features/sections/reviews.api'
 import { servicesApi } from '@/redux/features/sections/services.api'
 import type {
+  VCardCustomTab,
   VCardEducationEntry,
   VCardExperienceEntry,
   VCardFaqEntry,
@@ -42,6 +43,7 @@ function draftPostType(id: string, name: string, title: string): PostTypeNavLink
 
 function buildDraftNavBarLinks(input: {
   sectionPosts?: Record<string, VCardSectionPostItem[]>
+  customTabs?: VCardCustomTab[]
   generalPosts?: VCardGeneralPost[]
   faqs?: VCardFaqEntry[]
   education?: VCardEducationEntry[]
@@ -88,6 +90,13 @@ function buildDraftNavBarLinks(input: {
       continue
     }
     pushUnique(draftPostType(name, name, name))
+  }
+  for (const tab of input.customTabs || []) {
+    const title = tab.label?.trim() || 'Custom tab'
+    if (!(tab.items || []).some((item) => item.active !== false && (item.title?.trim() || item.description?.trim()))) {
+      continue
+    }
+    pushUnique(draftPostType(tab.id, tab.id, title))
   }
 
   return {
@@ -215,6 +224,7 @@ type EmbeddedDraftCacheSyncProps = {
   cardOwnerId?: string
   about?: string
   sectionPosts?: Record<string, VCardSectionPostItem[]>
+  customTabs?: VCardCustomTab[]
   generalPosts?: VCardGeneralPost[]
   faqs?: VCardFaqEntry[]
   education?: VCardEducationEntry[]
@@ -234,6 +244,7 @@ export function EmbeddedDraftCacheSync({
   cardOwnerId,
   about,
   sectionPosts,
+  customTabs,
   generalPosts,
   faqs,
   education,
@@ -257,6 +268,32 @@ export function EmbeddedDraftCacheSync({
 
     for (const [sectionName, items] of Object.entries(sectionPosts || {})) {
       if (!sectionName || !items) continue
+      dispatch(
+        dynamicSectionApi.util.upsertQueryData(
+          'getDynamicSection',
+          { profileId, sectionName },
+          toDynamicResult(sectionName, items)
+        )
+      )
+    }
+
+    for (const tab of customTabs || []) {
+      const sectionName = tab.id
+      const items: VCardSectionPostItem[] = (tab.items || []).map((item) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        url: item.mediaUrl,
+        featuredImage: item.mediaUrl,
+        date: '',
+        rating: '',
+        location: '',
+        active: item.active !== false,
+        metas: {
+          mediaName: item.mediaName || '',
+          mediaKind: item.mediaKind || '',
+        },
+      }))
       dispatch(
         dynamicSectionApi.util.upsertQueryData(
           'getDynamicSection',
@@ -428,12 +465,23 @@ export function EmbeddedDraftCacheSync({
         attachmentName: p.attachments?.name || null,
         status: p.active ? 1 : 0,
       })),
-      customSections: [],
+      customSections: (customTabs || []).flatMap((tab) =>
+        (tab.items || [])
+          .filter((item) => item.active !== false && (item.title?.trim() || item.description?.trim()))
+          .map((item) => ({
+            section: tab.label || 'Custom tab',
+            title: item.title || '',
+            summary: item.description || '',
+            content: item.description || '',
+            date: '',
+          }))
+      ),
     }
     dispatch(profileAiDataApi.util.upsertQueryData('getProfileAiData', profileId, aiData))
 
     const draftNav = buildDraftNavBarLinks({
       sectionPosts,
+      customTabs,
       generalPosts,
       faqs,
       education,
@@ -479,6 +527,7 @@ export function EmbeddedDraftCacheSync({
     cardOwnerId,
     about,
     sectionPosts,
+    customTabs,
     generalPosts,
     faqs,
     education,
