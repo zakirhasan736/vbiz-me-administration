@@ -1,6 +1,7 @@
 import { ToastViewport } from '@/components/feedback/ToastViewport'
 import { TranslationEarlyBootstrap } from '@/components/i18n/TranslationEarlyBootstrap'
 import { IframeEmbedBootstrap } from '@/components/IframeEmbedBootstrap'
+import { PwaInstallBootstrap } from '@/components/PwaInstallBootstrap'
 import { NotificationToast } from '@/profile-app/components/NotificationToast'
 import { PushNotificationRegistrar } from '@/profile-app/components/PushNotificationRegistrar'
 import ClientProviders from '@/providers/ClientProviders'
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
         <IframeEmbedBootstrap />
+        <PwaInstallBootstrap />
         <TranslationEarlyBootstrap />
         <ClientProviders>
           <PushNotificationRegistrar />

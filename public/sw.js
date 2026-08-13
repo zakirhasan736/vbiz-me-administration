@@ -291,6 +291,29 @@ self.addEventListener('message', (event) => {
   }
 })
 
+/** Network-first GET handler so Chrome treats this worker as installable. Push behaviour is unchanged. */
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return
+  let url
+  try {
+    url = new URL(event.request.url)
+  } catch {
+    return
+  }
+  if (url.origin !== self.location.origin) return
+  event.respondWith(
+    fetch(event.request).catch(async () => {
+      try {
+        const cached = await caches.match(event.request)
+        if (cached) return cached
+      } catch {
+        /* ignore cache errors */
+      }
+      return Response.error()
+    })
+  )
+})
+
 self.addEventListener('push', (event) => {
   let payload = normalizePushPayload({})
 

@@ -8,6 +8,15 @@ type PublicPwaHeadProps = {
   ownerName?: string
 }
 
+async function ensurePublicCardServiceWorker() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+  try {
+    await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+  } catch {
+    /* install still works via browser menu / iOS Share */
+  }
+}
+
 /** Injects per-card manifest + apple-touch-icon so Save / Install uses avatar + name. */
 export function PublicPwaHead({ slug, ownerName }: PublicPwaHeadProps) {
   useEffect(() => {
@@ -15,32 +24,30 @@ export function PublicPwaHead({ slug, ownerName }: PublicPwaHeadProps) {
     if (!trimmed) return
 
     const manifestHref = buildPwaManifestUrl(trimmed)
-    let manifestLink = document.querySelector<HTMLLinkElement>('link[data-pwa-manifest="card"]')
+    let manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
     if (!manifestLink) {
       manifestLink = document.createElement('link')
       manifestLink.rel = 'manifest'
-      manifestLink.dataset.pwaManifest = 'card'
       document.head.appendChild(manifestLink)
     }
     manifestLink.href = manifestHref
+    manifestLink.dataset.pwaManifest = 'card'
 
     const iconHref = `/api/pwa/icon/${encodeURIComponent(trimmed)}?size=192`
-    let appleLink = document.querySelector<HTMLLinkElement>('link[data-pwa-apple-icon="card"]')
+    let appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
     if (!appleLink) {
       appleLink = document.createElement('link')
       appleLink.rel = 'apple-touch-icon'
-      appleLink.dataset.pwaAppleIcon = 'card'
       document.head.appendChild(appleLink)
     }
     appleLink.href = iconHref
+    appleLink.dataset.pwaAppleIcon = 'card'
 
     if (ownerName?.trim()) {
       document.title = ownerName.trim()
     }
 
-    return () => {
-      /* keep manifest for the current card session */
-    }
+    void ensurePublicCardServiceWorker()
   }, [slug, ownerName])
 
   return null

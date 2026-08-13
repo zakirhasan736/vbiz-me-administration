@@ -32,14 +32,12 @@ export function resolvePwaAvatarUrl(card: MyCardData): string | null {
   return null
 }
 
-export function buildPublicCardStartUrl(origin: string, slug: string): string {
-  const base = origin.replace(/\/$/, '')
-  return `${base}/v/${encodeURIComponent(slug.trim())}?source=pwa`
+export function buildPublicCardStartUrl(_origin: string, slug: string): string {
+  return `/v/${encodeURIComponent(slug.trim())}?source=pwa`
 }
 
-export function buildPwaIconUrl(origin: string, slug: string, size: 192 | 512): string {
-  const base = origin.replace(/\/$/, '')
-  return `${base}/api/pwa/icon/${encodeURIComponent(slug.trim())}?size=${size}`
+export function buildPwaIconUrl(_origin: string, slug: string, size: 192 | 512): string {
+  return `/api/pwa/icon/${encodeURIComponent(slug.trim())}?size=${size}`
 }
 
 export function buildPwaManifestUrl(slug: string): string {

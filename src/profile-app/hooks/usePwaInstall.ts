@@ -7,6 +7,17 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
 }
 
+type VbizPwaBridge = {
+  prompt: BeforeInstallPromptEvent | null
+  installed: boolean
+}
+
+declare global {
+  interface Window {
+    __vbizPwa?: VbizPwaBridge
+  }
+}
+
 function isIosDevice() {
   if (typeof window === 'undefined') return false
   const ua = window.navigator.userAgent
@@ -23,9 +34,16 @@ function isStandaloneDisplay() {
   return media || iosStandalone
 }
 
+function readStoredPrompt(): BeforeInstallPromptEvent | null {
+  if (typeof window === 'undefined') return null
+  return window.__vbizPwa?.prompt ?? null
+}
+
 export function usePwaInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstalled, setIsInstalled] = useState(() => isStandaloneDisplay())
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(readStoredPrompt)
+  const [isInstalled, setIsInstalled] = useState(
+    () => isStandaloneDisplay() || (typeof window !== 'undefined' && window.__vbizPwa?.installed === true)
+  )
   const [isIos] = useState(() => isIosDevice())
   const [installing, setInstalling] = useState(false)
 
@@ -51,14 +69,17 @@ export function usePwaInstall() {
   const canNativeInstall = Boolean(deferredPrompt) && !isInstalled
 
   const promptInstall = useCallback(async () => {
-    if (!deferredPrompt) return { ok: false as const, reason: 'unavailable' as const }
+    const event = deferredPrompt ?? readStoredPrompt()
+    if (!event) return { ok: false as const, reason: 'unavailable' as const }
     setInstalling(true)
     try {
-      await deferredPrompt.prompt()
-      const choice = await deferredPrompt.userChoice
+      await event.prompt()
+      const choice = await event.userChoice
       setDeferredPrompt(null)
+      if (window.__vbizPwa) window.__vbizPwa.prompt = null
       if (choice.outcome === 'accepted') {
         setIsInstalled(true)
+        if (window.__vbizPwa) window.__vbizPwa.installed = true
         return { ok: true as const }
       }
       return { ok: false as const, reason: 'dismissed' as const }

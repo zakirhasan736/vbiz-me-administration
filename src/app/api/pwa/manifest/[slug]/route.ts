@@ -1,10 +1,5 @@
 import { fetchMyCardBySlug } from '@/lib/api/myCard/fetchMyCardBySlug'
-import {
-  buildPublicCardStartUrl,
-  buildPwaIconUrl,
-  pwaFallbackIconPath,
-  resolvePublicCardPwaMeta,
-} from '@/lib/pwa/resolvePublicCardPwa'
+import { buildPublicCardStartUrl, buildPwaIconUrl, resolvePublicCardPwaMeta } from '@/lib/pwa/resolvePublicCardPwa'
 import { NextRequest, NextResponse } from 'next/server'
 
 type RouteContext = {
@@ -25,8 +20,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const origin = request.nextUrl.origin
   const meta = resolvePublicCardPwaMeta(card, slug)
-  const icon192 = meta.avatarUrl ? buildPwaIconUrl(origin, slug, 192) : `${origin}${pwaFallbackIconPath()}`
-  const icon512 = meta.avatarUrl ? buildPwaIconUrl(origin, slug, 512) : `${origin}${pwaFallbackIconPath()}`
+  const icon192 = buildPwaIconUrl(origin, slug, 192)
+  const icon512 = buildPwaIconUrl(origin, slug, 512)
 
   const manifest = {
     id: `/v/${encodeURIComponent(slug)}`,
@@ -36,22 +31,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
     start_url: buildPublicCardStartUrl(origin, slug),
     scope: `/v/${encodeURIComponent(slug)}`,
     display: 'standalone',
+    display_override: ['standalone', 'minimal-ui', 'browser'],
     orientation: 'any',
     background_color: meta.backgroundColor,
     theme_color: meta.themeColor,
+    prefer_related_applications: false,
     icons: [
-      {
-        src: icon192,
-        sizes: '192x192',
-        type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: icon512,
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'any maskable',
-      },
+      { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
 

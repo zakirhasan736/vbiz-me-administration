@@ -18,17 +18,7 @@ const NotepadModal = dynamic(
 )
 
 export type ProfileHomeModalId =
-  | 'contact'
-  | 'contactForm'
-  | 'follow'
-  | 'notification'
-  | 'done'
-  | 'settings'
-  | 'notepad'
-  | 'share'
-  | 'info'
-  | 'wallet'
-  | null
+  'contact' | 'pwa' | 'follow' | 'notification' | 'done' | 'settings' | 'notepad' | 'share' | 'info' | 'wallet' | null
 
 type ProfileHomeModalsProps = {
   activeModal: ProfileHomeModalId
@@ -62,20 +52,20 @@ export function ProfileHomeModals({
         cardOwnerId={cardOwnerId ?? 'michaelangelo_casanova'}
         ownerName={ownerName}
       />
-      <SaveCardPwaModal
+      <SaveContactModal
         isOpen={activeModal === 'contact'}
         onClose={onClose}
-        onDownloadContact={() => onSetModal('contactForm')}
-        ownerName={ownerName}
-        avatarUrl={avatarUrl}
-        cardSlug={cardSlug}
-      />
-      <SaveContactModal
-        isOpen={activeModal === 'contactForm'}
-        onClose={onClose}
+        onSuccess={() => onSetModal('pwa')}
         profileId={cardOwnerId}
         cardSlug={cardSlug}
         ownerName={ownerName}
+      />
+      <SaveCardPwaModal
+        isOpen={activeModal === 'pwa'}
+        onClose={onClose}
+        ownerName={ownerName}
+        avatarUrl={avatarUrl}
+        cardSlug={cardSlug}
       />
       <NotificationFollowModal
         isOpen={activeModal === 'follow'}
