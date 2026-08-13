@@ -1,6 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
+import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
 import { getNavItemCompletionPercent } from '@/lib/vcardCompletion'
 import {
   getDefaultEnabledNavIds,
@@ -25,9 +26,7 @@ type AddTabsModalProps = {
 }
 
 function normalizeDraft(ids: string[]): string[] {
-  const unique = Array.from(new Set(ids))
-  if (!unique.includes('home')) unique.unshift('home')
-  return unique
+  return normalizeNavOrderWithPinnedEnds(ids)
 }
 
 export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: AddTabsModalProps) {
@@ -198,7 +197,9 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-5 sm:px-8 dark:border-white/5 dark:bg-white/2">
-        <p className="text-[11px] font-semibold text-slate-500">{draftIds.length} selected · Home stays enabled</p>
+        <p className="text-[11px] font-semibold text-slate-500">
+          {draftIds.length} selected · Personal, Global Connection, and My Info stay enabled
+        </p>
         <div className="flex items-center gap-2">
           <button
             type="button"

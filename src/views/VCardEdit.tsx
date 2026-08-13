@@ -261,8 +261,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     }
   }, [])
 
-  const visibleNavItems = useMemo(() => {
-    const filtered = filterEditorMainNavItems(filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display))
+  const enabledNavItems = useMemo(() => {
+    const filtered = filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display)
     const ordered = sortNavItemsByOrder(filtered, effectiveNavOrderIds)
     if (!effectiveNavOrderIds.length) return ordered
     const idSet = new Set(effectiveNavOrderIds)
@@ -270,7 +270,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     return preferred.length ? preferred : ordered
   }, [display, effectiveNavOrderIds])
 
-  const enabledNavIds = useMemo(() => visibleNavItems.map((item) => item.id), [visibleNavItems])
+  const visibleNavItems = useMemo(() => filterEditorMainNavItems(enabledNavItems), [enabledNavItems])
+  const enabledNavIds = useMemo(() => enabledNavItems.map((item) => item.id), [enabledNavItems])
   const personalSubs = useMemo(() => getPersonalSubCompletions(vCardData, completionMeta), [vCardData, completionMeta])
 
   const saveStatusLabel =
