@@ -82,7 +82,7 @@ interface VCardContextType {
   avatarImageUrl: string
   updateData: (path: string, value: unknown) => void
   updateMeta: (patch: { avatarImageUrl?: string }) => void
-  saveVCard: (opts?: { skipNavigate?: boolean }) => Promise<string | void>
+  saveVCard: (opts?: { skipNavigate?: boolean; publish?: boolean }) => Promise<string | void>
   flushSave: () => Promise<void>
   saveStatus: VCardSaveStatus
   saveError: string | null
@@ -245,7 +245,9 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             avatarImageUrl: mapped.avatarImageUrl,
             backgroundImageUrl: mapped.backgroundImageUrl,
             updatedAt: mapped.updatedAt,
-            isActive: true,
+            isActive: mapped.isActive,
+            isDraft: mapped.isDraft,
+            isPublic: mapped.isPublic,
           },
         })
       )
@@ -275,7 +277,9 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           backgroundImageUrl: mapped.backgroundImageUrl,
           createdAt: mapped.createdAt,
           updatedAt: mapped.updatedAt,
-          isActive: true,
+          isActive: mapped.isActive,
+          isDraft: mapped.isDraft,
+          isPublic: mapped.isPublic,
         },
       })
     )
@@ -708,7 +712,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   )
 
   const saveVCard = useCallback(
-    async (opts?: { skipNavigate?: boolean }) => {
+    async (opts?: { skipNavigate?: boolean; publish?: boolean }) => {
       if (isCreateMode) {
         const draftRaw = createDraftRef.current
         let draft = draftRaw
@@ -737,10 +741,16 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (!slug) throw new Error('Please set a public URL slug before creating the vCard.')
 
         const assignedOwner = getCreateCardOwner()
+        const publish = opts?.publish === true
+        const createPayloadData: VCardData = {
+          ...draft,
+          isDraft: !publish,
+          isPublic: publish,
+        }
         const created = await createProfile({
-          ...mapVCardDataToProfilePayload(draft),
-          isDraft: true,
-          isPublic: false,
+          ...mapVCardDataToProfilePayload(createPayloadData),
+          isDraft: !publish,
+          isPublic: publish,
           ...(assignedOwner?.userId ? { ownerUserId: assignedOwner.userId } : {}),
         }).unwrap()
         clearCreateCardOwner()
@@ -750,11 +760,23 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           ...draft,
           slug: mapped.slug || draft.slug,
           displaySettings: draft.displaySettings || mapped.displaySettings,
+          isDraft: !publish,
+          isPublic: publish,
         }
         dispatch(addVCard({ id: mapped.id, seed }))
+        dispatch(
+          updateVCard({
+            id: mapped.id,
+            patch: {
+              isActive: publish,
+              isDraft: !publish,
+              isPublic: publish,
+            },
+          })
+        )
         editDataRef.current = seed
 
-        await persistCollections(created.id, draft)
+        await persistCollections(created.id, seed)
         invalidatePublicTags()
 
         try {

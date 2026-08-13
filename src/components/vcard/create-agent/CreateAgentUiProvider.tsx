@@ -96,10 +96,11 @@ function CreateAgentWizardHost({ open, onClose }: { open: boolean; onClose: () =
       onOpenLivePreview={() => {
         window.dispatchEvent(new CustomEvent('vbiz-open-live-preview'))
       }}
-      onCreateCard={async () => {
+      onCreateCard={async (options) => {
         try {
-          const id = await saveVCard({ skipNavigate: true })
-          notify.success('vCard created successfully.')
+          const publish = options?.publish === true
+          const id = await saveVCard({ skipNavigate: true, publish })
+          notify.success(publish ? 'vCard created and activated.' : 'vCard draft saved.')
           return id
         } catch (e) {
           const message =

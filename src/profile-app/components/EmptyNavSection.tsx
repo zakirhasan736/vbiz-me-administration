@@ -1,14 +1,40 @@
 'use client'
 
+import { DynamicPostsSection } from '@/profile-app/components/DynamicPostsSection'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3SectionShell } from '@/profile-app/sections'
+import { useGetDynamicSectionQuery } from '@/redux/api'
 import { FileQuestion } from 'lucide-react'
 
 type EmptyNavSectionProps = {
   title: string
+  sectionName?: string
 }
 
-/** Placeholder when a nav tab has no published content yet. */
-export function EmptyNavSection({ title }: EmptyNavSectionProps) {
+/** Fallback for custom nav tabs; reads dynamic-section data when the backend provides a section name. */
+export function EmptyNavSection({ title, sectionName }: EmptyNavSectionProps) {
+  const { cardOwnerId } = useProfileDisplay()
+  const profileId = cardOwnerId?.trim() ?? ''
+  const resolvedSectionName = sectionName?.trim() ?? ''
+
+  const { data, isLoading, isError } = useGetDynamicSectionQuery(
+    { profileId, sectionName: resolvedSectionName },
+    { skip: !profileId || !resolvedSectionName }
+  )
+
+  if (profileId && resolvedSectionName) {
+    return (
+      <DynamicPostsSection
+        sectionTitle={data?.sectionTitle ?? title}
+        posts={data?.posts ?? []}
+        isLoading={isLoading}
+        isError={isError}
+        badgeLabel={title}
+        emptyMessage="No published content is available for this section yet."
+      />
+    )
+  }
+
   return (
     <V3SectionShell>
       <div className="flex min-h-[280px] w-full flex-col items-center justify-center rounded-4xl border border-dashed border-zinc-200 bg-white/40 px-6 py-16 text-center dark:border-zinc-800/80 dark:bg-[#031327]/40">

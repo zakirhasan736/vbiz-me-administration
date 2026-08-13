@@ -71,41 +71,6 @@ const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; bg: string 
   website: { icon: Globe, bg: 'bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400' },
 }
 
-const DEFAULT_SOCIAL_CHANNELS: Array<{
-  channel: DashboardSocialChannel
-  label: string
-  count: number
-}> = (
-  [
-    'facebook',
-    'twitter',
-    'instagram',
-    'whatsapp',
-    'linkedin',
-    'youtube',
-    'tiktok',
-    'truth',
-    'rumble',
-    'pinterest',
-    'website',
-  ] as const
-).map((channel) => ({
-  channel,
-  label:
-    channel === 'whatsapp'
-      ? 'WhatsApp'
-      : channel === 'youtube'
-        ? 'YouTube'
-        : channel === 'tiktok'
-          ? 'TikTok'
-          : channel === 'truth'
-            ? 'Truth Social'
-            : channel === 'website'
-              ? 'Web Visits'
-              : channel.charAt(0).toUpperCase() + channel.slice(1),
-  count: 0,
-}))
-
 export default function AdminDashboard() {
   const { vCardsList } = useVCard()
   const { user } = useAuth()
@@ -135,7 +100,7 @@ export default function AdminDashboard() {
   const platformShares = statsReady ? (stats?.shares ?? 0) : undefined
   const platformViews = statsReady ? (stats?.totalViews ?? 0) + liveKpis.views : undefined
   const adminChartData = stats?.visitsChart?.points ?? []
-  const socialChannels = stats?.socialChannels?.length ? stats.socialChannels : DEFAULT_SOCIAL_CHANNELS
+  const socialChannels = stats?.socialChannels ?? []
 
   const networkHealthy = !healthError && health?.status === 'healthy'
   const networkLabel = networkHealthy ? 'Network: 100%' : healthFetching && !health ? 'Network: …' : 'Network: Offline'

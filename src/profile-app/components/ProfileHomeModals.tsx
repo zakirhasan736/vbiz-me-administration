@@ -6,6 +6,7 @@ import { InfoModal } from '@/profile-app/components/InfoModal'
 import { NotificationAskModal } from '@/profile-app/components/NotificationAskModal'
 import { NotificationFollowModal } from '@/profile-app/components/NotificationFollowModal'
 import { NotificationSettingsModal } from '@/profile-app/components/NotificationSettingsModal'
+import { SaveCardPwaModal } from '@/profile-app/components/SaveCardPwaModal'
 import { SaveContactModal } from '@/profile-app/components/SaveContactModal'
 import { SaveToWalletModal } from '@/profile-app/components/SaveToWalletModal'
 import { ShareModal } from '@/profile-app/components/ShareModal'
@@ -17,7 +18,7 @@ const NotepadModal = dynamic(
 )
 
 export type ProfileHomeModalId =
-  'contact' | 'follow' | 'notification' | 'done' | 'settings' | 'notepad' | 'share' | 'info' | 'wallet' | null
+  'contact' | 'pwa' | 'follow' | 'notification' | 'done' | 'settings' | 'notepad' | 'share' | 'info' | 'wallet' | null
 
 type ProfileHomeModalsProps = {
   activeModal: ProfileHomeModalId
@@ -27,6 +28,7 @@ type ProfileHomeModalsProps = {
   cardOwnerId?: string
   cardSlug?: string
   ownerName?: string
+  avatarUrl?: string | null
 }
 
 /** Shared home-screen modals opened by CTA buttons across v1, v2, and v3. */
@@ -38,6 +40,7 @@ export function ProfileHomeModals({
   cardOwnerId,
   cardSlug = 'preview',
   ownerName,
+  avatarUrl,
 }: ProfileHomeModalsProps) {
   const ownerId = cardOwnerId ?? '91'
 
@@ -52,9 +55,17 @@ export function ProfileHomeModals({
       <SaveContactModal
         isOpen={activeModal === 'contact'}
         onClose={onClose}
+        onSuccess={() => onSetModal('pwa')}
         profileId={cardOwnerId}
         cardSlug={cardSlug}
         ownerName={ownerName}
+      />
+      <SaveCardPwaModal
+        isOpen={activeModal === 'pwa'}
+        onClose={onClose}
+        ownerName={ownerName}
+        avatarUrl={avatarUrl}
+        cardSlug={cardSlug}
       />
       <NotificationFollowModal
         isOpen={activeModal === 'follow'}

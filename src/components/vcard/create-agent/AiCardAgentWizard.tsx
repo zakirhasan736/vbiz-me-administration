@@ -19,6 +19,8 @@ import {
   PINNED_END_NAV_IDS,
   resolveCreateCardTabName,
 } from '@/lib/createCardTabs'
+import { ensureNotificationPermission, saveNotificationPrefs } from '@/lib/notifications'
+import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import type { SettingsTabId } from '@/lib/vcardEditorRoutes'
 import type { VCardData } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -26,6 +28,7 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
+  ChevronDown,
   Eye,
   FileUp,
   GripVertical,
@@ -42,6 +45,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 type ChatRole = 'assistant' | 'user' | 'system'
 type Phase =
   'intake' | 'working' | 'tabs' | 'section-gate' | 'coach' | 'features' | 'preview' | 'creating' | 'celebrate'
+type LaunchMode = 'publish' | 'draft'
 
 type ChatMessage = {
   id: string
@@ -60,6 +64,61 @@ type OptionalFeatures = {
   emailNotifications?: boolean
 }
 
+type StoredSourceContext = {
+  websiteUrl: string
+  businessText: string
+  files: File[]
+}
+
+type LaunchField = {
+  label: string
+  filled: boolean
+  hint?: string
+  upload?: boolean
+}
+
+type LaunchTab = {
+  navId: string
+  label: string
+  percent: number
+  fields: LaunchField[]
+}
+
+type AcceptedFeature = {
+  key: keyof OptionalFeatures
+  title: string
+  settingsSection: SettingsTabId
+  note: string
+}
+
+function labelFromUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`)
+    const host = url.hostname.replace(/^www\./, '').split('.')[0] || ''
+    return host
+      .split(/[-_]+/)
+      .filter(Boolean)
+      .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+      .join(' ')
+  } catch {
+    return ''
+  }
+}
+
+function cleanSourceNote(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 700)
+}
+
+function featureSettingsLabel(feature: Pick<AcceptedFeature, 'key' | 'settingsSection'>): string {
+  if (feature.key === 'aiAssistance') return 'Settings > AI Assistance'
+  if (feature.key === 'canva') return 'Settings > Canva Integration'
+  if (feature.key === 'seo') return 'Settings > SEO'
+  if (feature.key === 'pushNotifications' || feature.key === 'emailNotifications') {
+    return 'Settings > General notifications'
+  }
+  return `Settings > ${feature.settingsSection}`
+}
+
 type AiCardAgentWizardProps = {
   open: boolean
   onClose: () => void
@@ -69,7 +128,7 @@ type AiCardAgentWizardProps = {
   onEnableNavIds: (ids: string[]) => void
   onOpenSettings?: (section: SettingsTabId) => void
   /** Persist/create the card after user confirms preview. Return new card id when navigation is deferred. */
-  onCreateCard?: () => Promise<string | void>
+  onCreateCard?: (options?: { publish?: boolean }) => Promise<string | void>
   onOpenLivePreview?: () => void
   /** Called after celebrate — e.g. navigate to the new card editor */
   onCreatedNavigate?: (cardId?: string) => void
@@ -200,6 +259,370 @@ function inferSectionFromText(text: string, fallback: string): string {
   return fallback
 }
 
+function sectionFromNavId(navId: string): string {
+  const map: Record<string, string> = {
+    home: 'personal',
+    profile: 'personal',
+    services: 'services',
+    blog: 'blogs',
+    gallery: 'portfolio',
+    reviews: 'reviews',
+    skills: 'skills',
+    education: 'education',
+    work: 'experience',
+    faq: 'faqs',
+  }
+  return map[navId] || 'personal'
+}
+
+function hasText(value: unknown): boolean {
+  return typeof value === 'string' ? Boolean(value.trim()) : Boolean(value)
+}
+
+function countFilled(fields: LaunchField[]): number {
+  return fields.filter((field) => field.filled).length
+}
+
+function launchPercent(fields: LaunchField[]): number {
+  if (!fields.length) return 100
+  return Math.round((countFilled(fields) / fields.length) * 100)
+}
+
+function displayCustom(data: VCardData, key: string): string {
+  return getFieldConfig(getDisplaySettingsFromVCard(data), key).customValue?.trim() || ''
+}
+
+function getResumeState(data: VCardData): { summary: string; documents: unknown[] } {
+  const block = (data as { sections?: Record<string, unknown> }).sections?.Resume as
+    | {
+        summary?: string
+        body?: string
+        documents?: unknown[]
+        document?: unknown
+        url?: string
+      }
+    | undefined
+  const legacy = (data as { resume?: { url?: string; summary?: string } }).resume
+  const documents = Array.isArray(block?.documents)
+    ? block.documents
+    : block?.document
+      ? [block.document]
+      : block?.url || legacy?.url
+        ? [block?.url || legacy?.url]
+        : []
+  return {
+    summary: String(block?.summary || block?.body || legacy?.summary || ''),
+    documents,
+  }
+}
+
+function hasCertificateDocument(data: VCardData): boolean {
+  const posts = data.sectionPosts?.['Certifications/Licenses'] || []
+  return posts.some((item) => {
+    const documents = item.metas?.documents
+    return hasText(item.featuredImage) || hasText(documents)
+  })
+}
+
+function fieldHasContent(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(fieldHasContent)
+  if (value && typeof value === 'object') return Object.values(value).some(fieldHasContent)
+  return hasText(value)
+}
+
+function payloadHasContent(section: string, payload: Record<string, unknown>): boolean {
+  if (section === 'personal') return fieldHasContent(payload.personal) || fieldHasContent(payload.socialHandles)
+  const value = payload[section === 'blogs' ? 'blogs' : section === 'faqs' ? 'faqs' : section]
+  return Array.isArray(value) ? value.some(fieldHasContent) : fieldHasContent(value)
+}
+
+function sectionContentCount(data: VCardData, section: string): number {
+  const personal = data.personal || ({} as VCardData['personal'])
+  if (section === 'personal') {
+    return [
+      personal.fullName,
+      personal.email,
+      personal.phone,
+      personal.designation,
+      personal.company,
+      personal.about,
+      personal.website,
+      personal.address,
+    ].filter(hasText).length
+  }
+  if (section === 'services') return data.services?.length || 0
+  if (section === 'blogs') return data.generalPosts?.length || 0
+  if (section === 'portfolio') return data.portfolio?.length || 0
+  if (section === 'reviews') return data.reviews?.length || 0
+  if (section === 'skills') return data.skills?.reduce((sum, group) => sum + (group.skills?.length || 0), 0) || 0
+  if (section === 'education') return data.education?.length || 0
+  if (section === 'experience') return data.experience?.length || 0
+  if (section === 'faqs') return data.faqs?.length || 0
+  return 0
+}
+
+function splitSkillHints(values: string[]): string[] {
+  const seen = new Set<string>()
+  const skills: string[] = []
+  for (const raw of values) {
+    for (const part of raw.split(/[,/|&]+/)) {
+      const skill = part.trim().replace(/\s+/g, ' ')
+      if (skill.length < 3 || seen.has(skill.toLowerCase())) continue
+      seen.add(skill.toLowerCase())
+      skills.push(skill)
+      if (skills.length >= 8) return skills
+    }
+  }
+  return skills
+}
+
+function buildSmartSectionPayload(
+  section: string,
+  data: VCardData,
+  source?: StoredSourceContext
+): Record<string, unknown> | null {
+  const personal = data.personal || ({} as VCardData['personal'])
+  const sourceWebsite = source?.websiteUrl?.trim() || personal.website?.trim() || ''
+  const sourceNote = cleanSourceNote(source?.businessText || '')
+  const company = personal.company?.trim() || personal.fullName?.trim() || labelFromUrl(sourceWebsite) || ''
+  const role = personal.designation?.trim() || personal.profession?.trim() || ''
+  const about = personal.about?.trim() || ''
+  const serviceTitles = (data.services || []).map((item) => item.title).filter(hasText)
+  const serviceDescriptions = (data.services || []).map((item) => item.description).filter(hasText)
+  const businessSummary =
+    about ||
+    sourceNote ||
+    serviceDescriptions[0] ||
+    (serviceTitles.length ? `Provides ${serviceTitles.join(', ')}.` : '')
+  const inferredCompany = company || 'Current business'
+
+  if (section === 'personal' && (businessSummary || role || company || sourceWebsite)) {
+    return {
+      personal: {
+        fullName: personal.fullName || company || labelFromUrl(sourceWebsite) || 'Business Profile',
+        designation: personal.designation || role || 'Business Owner',
+        company: personal.company || company || '',
+        profession: personal.profession || role || '',
+        about:
+          personal.about ||
+          businessSummary ||
+          `${company || labelFromUrl(sourceWebsite) || 'This business'} helps clients with tailored services and support.`,
+        website: personal.website || sourceWebsite,
+      },
+      socialHandles: sourceWebsite ? { website: sourceWebsite } : {},
+    }
+  }
+
+  if (section === 'experience') {
+    return {
+      experience: [
+        {
+          company: inferredCompany,
+          jobTitle: role || 'Founder / Lead',
+          description: businessSummary || `Leads operations, client work, and delivery for ${inferredCompany}.`,
+          fromDate: '',
+          toDate: '',
+          tillNow: true,
+        },
+      ],
+    }
+  }
+
+  if (section === 'skills') {
+    const skills = splitSkillHints([role, personal.profession || '', ...serviceTitles])
+    if (skills.length) return { skills: [{ type: 'Core', skills }] }
+  }
+
+  if (section === 'services' && !data.services?.length && (role || businessSummary || company)) {
+    return {
+      services: [
+        {
+          title: role || `${inferredCompany} Services`,
+          description: businessSummary || `Core services offered by ${inferredCompany}.`,
+          url: personal.website || sourceWebsite,
+        },
+      ],
+    }
+  }
+
+  if (section === 'portfolio' && (serviceTitles.length || businessSummary)) {
+    return {
+      portfolio: [
+        {
+          title: serviceTitles[0] ? `${serviceTitles[0]} Work` : 'Featured Work',
+          description: businessSummary || 'Representative work based on the current business profile.',
+          url: personal.website || sourceWebsite,
+        },
+      ],
+    }
+  }
+
+  if (section === 'blogs' && businessSummary) {
+    return {
+      blogs: [
+        {
+          title: `About ${company || personal.fullName || 'this business'}`,
+          description: businessSummary,
+          category: 'News',
+        },
+      ],
+    }
+  }
+
+  if (section === 'faqs' && (serviceTitles.length || personal.email || personal.phone || businessSummary)) {
+    const serviceAnswer = serviceTitles.length
+      ? `We offer ${serviceTitles.join(', ')}.`
+      : businessSummary || 'Services are tailored to client needs.'
+    const contactAnswer = [personal.email, personal.phone, personal.website].filter(hasText).join(' | ')
+    return {
+      faqs: [
+        { question: 'What services are available?', answer: serviceAnswer },
+        contactAnswer ? { question: 'How can clients get in touch?', answer: contactAnswer } : null,
+      ].filter(Boolean),
+    }
+  }
+
+  return null
+}
+
+function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
+  const uniqueIds = Array.from(new Set(navIds.length ? navIds : ['home']))
+  return uniqueIds.map((navId) => {
+    const label = getCreateCardDisplayLabel(navId, CREATE_CARD_TAB_BY_NAV_ID[navId]?.name || navId)
+    const fields: LaunchField[] = []
+    const personal = data.personal || ({} as VCardData['personal'])
+    const socialCount = Object.values(data.social?.handles || {}).filter(hasText).length
+    const profileMedia = displayCustom(data, 'Profile Image/Video')
+    const backgroundMedia = displayCustom(data, 'Background Video/Image')
+    const resumeState = getResumeState(data)
+
+    if (navId === 'home') {
+      fields.push(
+        { label: 'Display name', filled: hasText(personal.fullName), hint: 'Shown at the top of the card.' },
+        { label: 'Public URL slug', filled: hasText(data.slug), hint: 'Needed before create.' },
+        { label: 'Email or phone', filled: hasText(personal.email) || hasText(personal.phone) },
+        { label: 'About / bio', filled: hasText(personal.about) },
+        { label: 'Company or title', filled: hasText(personal.company) || hasText(personal.designation) },
+        {
+          label: 'Profile image/video',
+          filled: hasText(profileMedia) || hasText(personal.explainerVideoUrl),
+          hint: 'Optional upload or Canva asset.',
+          upload: true,
+        },
+        {
+          label: 'Background media',
+          filled: hasText(backgroundMedia),
+          hint: 'Optional upload or Canva asset.',
+          upload: true,
+        },
+        { label: 'Social links', filled: socialCount > 0, hint: 'LinkedIn, Instagram, Facebook, or website.' }
+      )
+    } else if (navId === 'services') {
+      fields.push(
+        { label: 'Service items', filled: Boolean(data.services?.length) },
+        { label: 'Service descriptions', filled: Boolean(data.services?.some((item) => hasText(item.description))) },
+        {
+          label: 'Service images',
+          filled: Boolean(data.services?.some((item) => hasText(item.featuredImage))),
+          upload: true,
+        }
+      )
+    } else if (navId === 'gallery') {
+      fields.push(
+        { label: 'Portfolio items', filled: Boolean(data.portfolio?.length) },
+        { label: 'Project descriptions', filled: Boolean(data.portfolio?.some((item) => hasText(item.description))) },
+        {
+          label: 'Portfolio images',
+          filled: Boolean(data.portfolio?.some((item) => hasText(item.imageUrl))),
+          upload: true,
+        }
+      )
+    } else if (navId === 'reviews') {
+      fields.push(
+        { label: 'Reviews', filled: Boolean(data.reviews?.length) },
+        { label: 'Reviewer names', filled: Boolean(data.reviews?.some((item) => hasText(item.author))) },
+        { label: 'Review text', filled: Boolean(data.reviews?.some((item) => hasText(item.text))) }
+      )
+    } else if (navId === 'blog') {
+      fields.push(
+        { label: 'News/blog posts', filled: Boolean(data.generalPosts?.length) },
+        { label: 'Post descriptions', filled: Boolean(data.generalPosts?.some((item) => hasText(item.description))) },
+        {
+          label: 'Featured images',
+          filled: Boolean(data.generalPosts?.some((item) => hasText(item.featuredImage))),
+          upload: true,
+        }
+      )
+    } else if (navId === 'faq') {
+      fields.push(
+        { label: 'Questions', filled: Boolean(data.faqs?.some((item) => hasText(item.question))) },
+        { label: 'Answers', filled: Boolean(data.faqs?.some((item) => hasText(item.answer))) }
+      )
+    } else if (navId === 'skills') {
+      fields.push(
+        { label: 'Skill groups', filled: Boolean(data.skills?.length) },
+        { label: 'Skill tags', filled: Boolean(data.skills?.some((item) => item.skills?.length)) }
+      )
+    } else if (navId === 'education') {
+      fields.push(
+        { label: 'Education entries', filled: Boolean(data.education?.length) },
+        { label: 'School names', filled: Boolean(data.education?.some((item) => hasText(item.institute))) },
+        { label: 'Degree names', filled: Boolean(data.education?.some((item) => hasText(item.degree))) }
+      )
+    } else if (navId === 'work') {
+      fields.push(
+        { label: 'Experience entries', filled: Boolean(data.experience?.length) },
+        { label: 'Company names', filled: Boolean(data.experience?.some((item) => hasText(item.company))) },
+        { label: 'Job titles', filled: Boolean(data.experience?.some((item) => hasText(item.jobTitle))) }
+      )
+    } else if (navId === 'profile') {
+      fields.push(
+        { label: 'Profile story', filled: hasText(personal.about) },
+        { label: 'Headline/title', filled: hasText(personal.designation) || hasText(personal.profession) },
+        {
+          label: 'Profile photo',
+          filled: hasText(profileMedia),
+          hint: 'Optional upload or Canva asset.',
+          upload: true,
+        }
+      )
+    } else if (navId === 'resume') {
+      fields.push(
+        { label: 'Resume summary', filled: hasText(resumeState.summary) || hasText(personal.about) },
+        {
+          label: 'Resume document',
+          filled: resumeState.documents.length > 0,
+          hint: 'Optional upload after create.',
+          upload: true,
+        }
+      )
+    } else if (navId === 'certificates') {
+      fields.push(
+        { label: 'Certification entries', filled: Boolean(data.sectionPosts?.['Certifications/Licenses']?.length) },
+        {
+          label: 'Certificate document/image',
+          filled: hasCertificateDocument(data),
+          hint: 'Optional upload after create.',
+          upload: true,
+        }
+      )
+    } else if (navId === 'global-connection') {
+      fields.push({ label: 'Global directory', filled: true, hint: 'Default shared connection area.' })
+    } else if (navId === 'my-info') {
+      fields.push(
+        { label: 'Call action', filled: hasText(personal.phone) },
+        { label: 'Email action', filled: hasText(personal.email) },
+        { label: 'Website action', filled: hasText(personal.website) }
+      )
+    } else {
+      fields.push({ label: `${label} content`, filled: false, hint: 'Optional custom section content.' })
+    }
+
+    const percent = launchPercent(fields)
+    return { navId, label, percent, fields }
+  })
+}
+
 export function AiCardAgentWizard({
   open,
   onClose,
@@ -229,16 +652,22 @@ export function AiCardAgentWizard({
   const [featureQueue, setFeatureQueue] = useState<typeof OPTIONAL_ITEMS>([])
   const [featureIndex, setFeatureIndex] = useState(0)
   const [acceptedFeatures, setAcceptedFeatures] = useState<SettingsTabId[]>([])
+  const [acceptedFeatureDetails, setAcceptedFeatureDetails] = useState<AcceptedFeature[]>([])
   const [createProgress, setCreateProgress] = useState(0)
   const [createdCardId, setCreatedCardId] = useState<string | null>(null)
+  const [launchMode, setLaunchMode] = useState<LaunchMode>('publish')
+  const [createdLaunchMode, setCreatedLaunchMode] = useState<LaunchMode>('publish')
   const [gateGap, setGateGap] = useState<GapItem | null>(null)
   const [skippedGapIds, setSkippedGapIds] = useState<string[]>([])
   const [dragNavId, setDragNavId] = useState<string | null>(null)
   const [dragOverNavId, setDragOverNavId] = useState<string | null>(null)
+  const [openLaunchTabs, setOpenLaunchTabs] = useState<string[]>([])
+  const [activeFeatureGuideKey, setActiveFeatureGuideKey] = useState<keyof OptionalFeatures | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const draftRef = useRef(vCardData)
   const wasOpenRef = useRef(false)
   const skippedGapIdsRef = useRef<string[]>([])
+  const sourceContextRef = useRef<StoredSourceContext>({ websiteUrl: '', businessText: '', files: [] })
 
   useEffect(() => {
     draftRef.current = vCardData
@@ -271,13 +700,19 @@ export function AiCardAgentWizard({
     setFeatureQueue([])
     setFeatureIndex(0)
     setAcceptedFeatures([])
+    setAcceptedFeatureDetails([])
     setCreateProgress(0)
     setCreatedCardId(null)
+    setLaunchMode('publish')
+    setCreatedLaunchMode('publish')
     setGateGap(null)
     setSkippedGapIds([])
     skippedGapIdsRef.current = []
+    sourceContextRef.current = { websiteUrl: '', businessText: '', files: [] }
     setDragNavId(null)
     setDragOverNavId(null)
+    setOpenLaunchTabs([])
+    setActiveFeatureGuideKey(null)
     setActiveNav(enabledNavIds)
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when newly opened
 
@@ -316,6 +751,32 @@ export function AiCardAgentWizard({
       setCoachSection(gapFieldToSection(String(json.nextBest.field)))
     }
     return json as { score: number; gaps: GapItem[]; nextBest: GapItem | null }
+  }, [])
+
+  const hasStoredSources = useCallback(() => {
+    const source = sourceContextRef.current
+    return Boolean(source.websiteUrl || source.businessText || source.files.length)
+  }, [])
+
+  const sourceSummaryLine = useCallback(() => {
+    const source = sourceContextRef.current
+    const bits = [
+      source.websiteUrl ? 'website' : null,
+      source.businessText ? 'business note' : null,
+      source.files.length ? `${source.files.length} file${source.files.length === 1 ? '' : 's'}` : null,
+    ].filter(Boolean)
+    return bits.length ? bits.join(', ') : 'current card draft'
+  }, [])
+
+  const appendStoredSourcesToForm = useCallback((form: FormData, sectionLabel: string) => {
+    const source = sourceContextRef.current
+    if (source.websiteUrl) form.set('websiteUrl', source.websiteUrl)
+    const textParts = [
+      `The user approved filling "${sectionLabel}" from the earlier create-card sources. Prefer real extracted data. If the source does not support this section, return an empty array/object for that section instead of inventing specific facts.`,
+      source.businessText ? `Original business note:\n${source.businessText}` : '',
+    ].filter(Boolean)
+    if (textParts.length) form.set('text', textParts.join('\n\n'))
+    for (const file of source.files) form.append('files', file)
   }, [])
 
   const askNextGap = useCallback(
@@ -362,6 +823,7 @@ export function AiCardAgentWizard({
       return
     }
 
+    sourceContextRef.current = { websiteUrl: url, businessText: text, files: [...uploadFiles] }
     setError('')
     setBusy(true)
     setPhase('working')
@@ -400,6 +862,13 @@ export function AiCardAgentWizard({
         'assistant',
         `${mapped.businessSummary || 'First draft is ready.'}\n\nFilled: ${filledBits.join(', ') || 'core personal details'}.\nSections on: ${enabledLabels}.`
       )
+
+      if ((mapped.data.reviews || []).length >= 4) {
+        pushMsg(
+          'assistant',
+          `I found ${mapped.data.reviews?.length || 0} reviews and added them all. In preview, type "keep all reviews" or a number like "6 reviews" if you want to trim before launch.`
+        )
+      }
 
       const suggestJson = await cardAgentJson<{ recommendations?: RecommendedTab[] }>('suggest-tabs', {
         businessSummary: mapped.businessSummary,
@@ -493,8 +962,115 @@ export function AiCardAgentWizard({
     pushMsg('assistant', `Removed “${getCreateCardDisplayLabel(navId, navId)}” — easy to add again later.`)
   }
 
-  const approveGateSection = () => {
+  const resolveSectionFillPayload = useCallback((section: string, rawPayload?: Record<string, unknown>) => {
+    const payload = rawPayload || {}
+    if (payloadHasContent(section, payload)) return { payload, usedFallback: false }
+
+    const fallback = buildSmartSectionPayload(section, draftRef.current, sourceContextRef.current)
+    if (fallback && payloadHasContent(section, fallback)) {
+      return { payload: fallback, usedFallback: true }
+    }
+
+    return { payload, usedFallback: false }
+  }, [])
+
+  const refreshAfterDraftChange = useCallback(
+    async (navIds: string[], draft: VCardData) => {
+      try {
+        return await refreshGaps(navIds, draft)
+      } catch {
+        const tabs = buildLaunchTabs(draft, navIds)
+        const fallbackScore = tabs.length
+          ? Math.round(tabs.reduce((sum, tab) => sum + tab.percent, 0) / tabs.length)
+          : score
+        setScore(fallbackScore)
+        return { score: fallbackScore, gaps: [], nextBest: null }
+      }
+    },
+    [refreshGaps, score]
+  )
+
+  const trySmartFallbackFill = useCallback(
+    async (section: string, label: string, navIds: string[]) => {
+      const fallback = buildSmartSectionPayload(section, draftRef.current, sourceContextRef.current)
+      if (!fallback || !payloadHasContent(section, fallback)) return null
+
+      const merged = mergeSectionPayload(draftRef.current, section, fallback)
+      applyDraft(merged, navIds)
+      const report = await refreshAfterDraftChange(navIds, merged)
+      pushMsg(
+        'assistant',
+        `I drafted ${label} from the current card context because the saved sources did not contain direct ${label} data. Review the checklist again before launch.`
+      )
+      return report
+    },
+    [applyDraft, pushMsg, refreshAfterDraftChange]
+  )
+
+  const approveGateSection = async () => {
     if (!gateGap) return
+    const gap = gateGap
+    const section = gapFieldToSection(gap.field)
+    pushMsg('user', `Approve - fill ${gap.tab}`)
+    setCoachSection(section)
+
+    if (!hasStoredSources()) {
+      setPhase('coach')
+      pushMsg(
+        'assistant',
+        `${gap.explanation}\n\n${gap.howToProvide}\n\nShare text, a link note, or attach a PDF/DOCX/image - I will fill "${gap.tab}" for you.`
+      )
+      return
+    }
+
+    setBusy(true)
+    pushMsg('assistant', `Reading the earlier ${sourceSummaryLine()} again for ${gap.tab}...`)
+    try {
+      const form = new FormData()
+      form.set('section', section)
+      form.set('currentDraft', JSON.stringify(draftRef.current))
+      appendStoredSourcesToForm(form, gap.tab)
+
+      const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
+      const beforeCount = sectionContentCount(draftRef.current, section)
+      const { payload, usedFallback } = resolveSectionFillPayload(section, json.payload)
+      if (!payloadHasContent(section, payload)) {
+        throw new Error('No reliable data found for this section yet.')
+      }
+      const merged = mergeSectionPayload(draftRef.current, section, payload)
+      const afterCount = sectionContentCount(merged, section)
+      applyDraft(merged, activeNav)
+      setComposer('')
+      setFiles([])
+      const report = await refreshAfterDraftChange(activeNav, merged)
+      pushMsg(
+        'assistant',
+        usedFallback
+          ? `I drafted ${gap.tab} from the current card context because the saved sources did not contain a direct ${gap.tab} section. Card is now ${report.score}% complete.`
+          : afterCount > beforeCount
+            ? `Filled ${gap.tab} from the saved sources. Card is now ${report.score}% complete.`
+            : `Updated ${gap.tab} from the saved sources. Card is now ${report.score}% complete.`
+      )
+      setGateGap(null)
+      askNextGap(report)
+    } catch (e) {
+      const report = await trySmartFallbackFill(section, gap.tab, activeNav)
+      if (report) {
+        setGateGap(null)
+        askNextGap(report)
+        return
+      }
+      const msg = e instanceof Error ? e.message : 'Could not auto-fill this section'
+      setError(msg)
+      setPhase('coach')
+      pushMsg(
+        'assistant',
+        `I could not auto-fill ${gap.tab} from the earlier sources: ${msg}.\n\n${gap.howToProvide}\n\nYou can paste details now or skip this section for later.`
+      )
+    } finally {
+      setBusy(false)
+    }
+    if (hasStoredSources()) return
     pushMsg('user', `Approve — fill ${gateGap.tab}`)
     setCoachSection(gapFieldToSection(gateGap.field))
     setPhase('coach')
@@ -543,14 +1119,33 @@ export function AiCardAgentWizard({
       for (const file of files) form.append('files', file)
 
       const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
-      const merged = mergeSectionPayload(draftRef.current, section, json.payload || {})
+      const beforeCount = sectionContentCount(draftRef.current, section)
+      const { payload, usedFallback } = resolveSectionFillPayload(section, json.payload)
+      if (!payloadHasContent(section, payload)) {
+        throw new Error('No reliable data found for this section yet.')
+      }
+      const merged = mergeSectionPayload(draftRef.current, section, payload)
+      const afterCount = sectionContentCount(merged, section)
       applyDraft(merged, activeNav)
       setComposer('')
       setFiles([])
-      const report = await refreshGaps(activeNav, merged)
-      pushMsg('assistant', `Updated ${section}. Card is now ${report.score}% complete.`)
+      const report = await refreshAfterDraftChange(activeNav, merged)
+      pushMsg(
+        'assistant',
+        usedFallback
+          ? `I drafted ${section} from the current card context. Card is now ${report.score}% complete.`
+          : afterCount > beforeCount
+            ? `Added ${section} details. Card is now ${report.score}% complete.`
+            : `Updated ${section}. Card is now ${report.score}% complete.`
+      )
       askNextGap(report)
     } catch (e) {
+      const label = SECTION_OPTIONS.find((s) => s.id === section)?.label || section
+      const report = await trySmartFallbackFill(section, label, activeNav)
+      if (report) {
+        askNextGap(report)
+        return
+      }
       const msg = e instanceof Error ? e.message : 'Could not fill section'
       setError(msg)
       pushMsg('assistant', `That fill failed: ${msg}. Try again with clearer text or another file.`)
@@ -559,17 +1154,56 @@ export function AiCardAgentWizard({
     }
   }
 
-  const answerFeature = (yes: boolean) => {
+  const answerFeature = async (yes: boolean) => {
     const item = featureQueue[featureIndex]
-    if (!item) return
+    if (!item || busy) return
     pushMsg('user', yes ? `Yes — enable ${item.title}` : `No — skip ${item.title}`)
     const nextAccepted = yes ? [...acceptedFeatures, item.settingsSection] : acceptedFeatures
     if (yes) {
+      let note = ''
+      if (item.key === 'aiAssistance') {
+        updateData('aiAssistanceEnabled', true)
+        note =
+          'AI Assistance is turned on for this draft. After create, open Settings > AI Assistance to train it with business instructions, documents, and payment or lead-handling rules.'
+      } else if (item.key === 'canva') {
+        note =
+          'Canva uses secure authorization from Settings > Canva Integration. Connect Canva there, create profile images, backgrounds, gallery assets, or intro media, then import or upload those assets into the empty media fields.'
+      } else if (item.key === 'seo') {
+        note =
+          'SEO can be polished from Settings > SEO after create. Use the card name, location, services, reviews, and a short meta description.'
+      } else if (item.key === 'pushNotifications') {
+        saveNotificationPrefs({ browserPush: true })
+        const permission = await ensureNotificationPermission()
+        note =
+          permission === 'granted'
+            ? 'Browser push notifications are enabled. You can fine tune categories from Settings > General notifications.'
+            : permission === 'denied'
+              ? 'Browser push is switched on in preferences, but the browser blocked permission. Re-enable it from browser site settings, then check Settings > General notifications.'
+              : 'Browser push is switched on in preferences, but this browser does not support notification permission here. Check Settings > General notifications after create.'
+      } else if (item.key === 'emailNotifications') {
+        saveNotificationPrefs({ emailNotifications: true })
+        note =
+          'Email notifications are enabled in preferences. After create, review Settings > General notifications to choose which alerts should send email.'
+      }
       setAcceptedFeatures(nextAccepted)
-      pushMsg(
-        'assistant',
-        `Noted. I’ll deep-link you into ${item.title} settings when we finish (or you can open it anytime from card settings).`
-      )
+      pushMsg('assistant', note || `Noted. ${item.title} can be configured after the card is created.`)
+      setAcceptedFeatureDetails((prev) => [
+        ...prev,
+        {
+          key: item.key,
+          title: item.title,
+          settingsSection: item.settingsSection,
+          note,
+        },
+      ])
+      if (!note) {
+        pushMsg(
+          'assistant',
+          item.key === 'canva'
+            ? 'Noted. Canva will open through secure authorization from settings. After connecting, use Canva to create profile images, wallpapers, gallery assets, or intro media, then import/upload them into the empty media fields.'
+            : `Noted. I’ll deep-link you into ${item.title} settings when we finish (or you can open it anytime from card settings).`
+        )
+      }
     } else {
       pushMsg('assistant', `Okay, skipping ${item.title}.`)
     }
@@ -582,6 +1216,13 @@ export function AiCardAgentWizard({
       return
     }
 
+    const nextLaunchTabs = buildLaunchTabs(draftRef.current, activeNav)
+    setOpenLaunchTabs(
+      nextLaunchTabs
+        .filter((tab) => tab.percent < 100)
+        .slice(0, 4)
+        .map((tab) => tab.navId)
+    )
     setPhase('preview')
     const scoreLine = `You’re at about ${score}% content completeness.`
     pushMsg(
@@ -590,27 +1231,67 @@ export function AiCardAgentWizard({
     )
   }
 
+  const showFeatureGuide = async (feature: AcceptedFeature) => {
+    setActiveFeatureGuideKey(feature.key)
+
+    if (feature.key === 'aiAssistance') {
+      updateData('aiAssistanceEnabled', true)
+    }
+
+    if (feature.key === 'emailNotifications') {
+      saveNotificationPrefs({ emailNotifications: true })
+    }
+
+    if (feature.key === 'pushNotifications') {
+      saveNotificationPrefs({ browserPush: true })
+      const permission = await ensureNotificationPermission()
+      const note =
+        permission === 'granted'
+          ? 'Browser permission is granted. Push notifications are active for this browser.'
+          : permission === 'denied'
+            ? 'The browser denied push permission. Re-enable notifications from site settings, then return to General notifications.'
+            : 'This browser cannot show the notification permission popup here. Check General notifications after create.'
+      setAcceptedFeatureDetails((prev) =>
+        prev.map((item) => (item.key === 'pushNotifications' ? { ...item, note } : item))
+      )
+      pushMsg('assistant', `Push notifications: ${note}`)
+      return
+    }
+
+    pushMsg('assistant', `${feature.title}: ${feature.note}`)
+  }
+
   const goToPreview = () => {
+    const nextLaunchTabs = buildLaunchTabs(draftRef.current, activeNav)
+    setOpenLaunchTabs(
+      nextLaunchTabs
+        .filter((tab) => tab.percent < 100)
+        .slice(0, 4)
+        .map((tab) => tab.navId)
+    )
     setPhase('preview')
     pushMsg('assistant', `Preview ready at ${score}%. Confirm to create the card, or keep editing in chat.`)
   }
 
   const finishAndOpenEditor = () => {
+    onFinish?.()
     onCreatedNavigate?.(createdCardId || undefined)
     onClose()
   }
 
-  const confirmCreateCard = async () => {
+  const confirmCreateCard = async (mode: LaunchMode = launchMode) => {
     if (!onCreateCard) {
       setError('Create action is not available. Use Create vCard in the editor.')
       return
     }
+    const publish = mode === 'publish'
     setError('')
     setBusy(true)
     setPhase('creating')
     setCreateProgress(4)
-    pushMsg('user', 'Looks good — create my card')
-    pushMsg('assistant', 'Creating your vCard…')
+    setCreatedLaunchMode(mode)
+    pushMsg('user', publish ? 'Looks good - create and activate my card' : 'Looks good - save my card as a draft')
+    pushMsg('assistant', publish ? 'Creating and activating your vCard...' : 'Saving your vCard draft...')
 
     let tick: ReturnType<typeof setInterval> | undefined
     let createdId: string | void
@@ -618,14 +1299,16 @@ export function AiCardAgentWizard({
       tick = setInterval(() => {
         setCreateProgress((p) => (p >= 88 ? p : p + Math.random() * 6 + 2))
       }, 160)
-      createdId = await onCreateCard()
+      createdId = await onCreateCard({ publish })
       if (tick) clearInterval(tick)
       setCreateProgress(100)
       setCreatedCardId(typeof createdId === 'string' ? createdId : null)
       setPhase('celebrate')
       pushMsg(
         'assistant',
-        'Boom! Your card is created. Review the celebration, then continue to the editor — your draft is ready to polish.'
+        publish
+          ? 'Done! Your card is created and active. Continue to the editor to polish anything optional.'
+          : 'Done! Your card is saved as a draft. Continue to the editor when you are ready to activate it.'
       )
     } catch (e) {
       if (tick) clearInterval(tick)
@@ -639,10 +1322,114 @@ export function AiCardAgentWizard({
     }
   }
 
+  const fillLaunchTab = async (tab: LaunchTab) => {
+    const section = sectionFromNavId(tab.navId)
+    const missingTextFields = tab.fields.filter((field) => !field.filled && !field.upload)
+    setCoachSection(section)
+    setError('')
+    pushMsg('user', `Fill ${tab.label} before launch`)
+
+    if (!missingTextFields.length) {
+      pushMsg(
+        'assistant',
+        `${tab.label} only has media or document uploads left. AI cannot upload those files here; leave them for Canva or upload manually after create.`
+      )
+      setOpenLaunchTabs((prev) => prev.filter((id) => id !== tab.navId))
+      return
+    }
+
+    if (!hasStoredSources()) {
+      setPhase('coach')
+      pushMsg(
+        'assistant',
+        `Send text or upload files for ${tab.label}. I will fill that tab, then bring you back to the launch checklist.`
+      )
+      return
+    }
+
+    setBusy(true)
+    pushMsg('assistant', `Re-reading the earlier ${sourceSummaryLine()} for ${tab.label}...`)
+    try {
+      const form = new FormData()
+      form.set('section', section)
+      form.set('currentDraft', JSON.stringify(draftRef.current))
+      appendStoredSourcesToForm(form, tab.label)
+
+      const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
+      const beforeCount = sectionContentCount(draftRef.current, section)
+      const { payload, usedFallback } = resolveSectionFillPayload(section, json.payload)
+      if (!payloadHasContent(section, payload)) {
+        throw new Error('No reliable data found for this tab yet.')
+      }
+      const merged = mergeSectionPayload(draftRef.current, section, payload)
+      const afterCount = sectionContentCount(merged, section)
+      applyDraft(merged, activeNav)
+      const report = await refreshAfterDraftChange(activeNav, merged)
+      setScore(report.score)
+      setPhase('preview')
+      setOpenLaunchTabs((prev) => (prev.includes(tab.navId) ? prev : [tab.navId, ...prev]))
+      pushMsg(
+        'assistant',
+        usedFallback
+          ? `I drafted ${tab.label} from the current card context because the saved sources did not include direct data for it. Review the checklist again before launch.`
+          : afterCount > beforeCount
+            ? `Added ${tab.label} details. Review the checklist again before launch.`
+            : `Updated ${tab.label}. Review the checklist again before launch.`
+      )
+    } catch (e) {
+      const report = await trySmartFallbackFill(section, tab.label, activeNav)
+      if (report) {
+        setScore(report.score)
+        setPhase('preview')
+        setOpenLaunchTabs((prev) => (prev.includes(tab.navId) ? prev : [tab.navId, ...prev]))
+        return
+      }
+      const msg = e instanceof Error ? e.message : 'Could not fill tab'
+      setError(msg)
+      pushMsg('assistant', `I could not fill ${tab.label}: ${msg}. You can still create now or edit it manually later.`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handlePreviewReviewCommand = async (text: string): Promise<boolean> => {
+    const normalized = text.toLowerCase()
+    const existing = draftRef.current.reviews || []
+    const numericOnly = /^\d{1,2}$/.test(normalized)
+    if (!/review|testimonial/.test(normalized) && !(existing.length > 0 && numericOnly)) return false
+
+    if (/\b(all|select all|keep all|use all)\b/.test(normalized)) {
+      pushMsg('user', text)
+      pushMsg('assistant', `Keeping all ${existing.length} reviews for launch.`)
+      return true
+    }
+
+    const match =
+      normalized.match(/\b(?:keep|select|use|show|top|first|only)\s+(\d{1,2})\b/) ||
+      normalized.match(/^(\d{1,2})\s+(?:review|reviews|testimonial|testimonials)\b/) ||
+      normalized.match(/^(\d{1,2})$/)
+    if (!match) return false
+
+    const count = Math.max(1, Math.min(30, Number(match[1]) || 1))
+    if (!existing.length) return false
+
+    const trimmed = { ...draftRef.current, reviews: existing.slice(0, count) }
+    pushMsg('user', text)
+    applyDraft(trimmed, activeNav)
+    const report = await refreshAfterDraftChange(activeNav, trimmed)
+    setScore(report.score)
+    setOpenLaunchTabs((prev) => (prev.includes('reviews') ? prev : ['reviews', ...prev]))
+    pushMsg(
+      'assistant',
+      `Done - keeping ${Math.min(count, existing.length)} of ${existing.length} reviews. The Reviews checklist is open so you can inspect it.`
+    )
+    return true
+  }
+
   const handleSend = () => {
     if (busy) return
     if (phase === 'section-gate') {
-      approveGateSection()
+      void approveGateSection()
       return
     }
     if (phase === 'intake' || (phase === 'working' && !score)) {
@@ -656,8 +1443,8 @@ export function AiCardAgentWizard({
     if (phase === 'features') {
       const t = composer.trim().toLowerCase()
       if (!t) return
-      if (/^(y|yes|sure|ok|please|enable|yeah)/.test(t)) answerFeature(true)
-      else if (/^(n|no|skip|later|nah)/.test(t)) answerFeature(false)
+      if (/^(y|yes|sure|ok|please|enable|yeah)/.test(t)) void answerFeature(true)
+      else if (/^(n|no|skip|later|nah)/.test(t)) void answerFeature(false)
       else {
         pushMsg('user', composer.trim())
         pushMsg('assistant', 'Please reply yes or no for this feature, or use the buttons.')
@@ -674,15 +1461,19 @@ export function AiCardAgentWizard({
         void confirmCreateCard()
         return
       }
-      pushMsg('user', composer.trim())
-      pushMsg(
-        'assistant',
-        'Open live preview to review, or tap Confirm create when you’re ready. You can also keep filling gaps in the editor after create.'
-      )
+      const raw = composer.trim()
       setComposer('')
+      void handlePreviewReviewCommand(raw).then((handled) => {
+        if (handled) return
+        pushMsg('user', raw)
+        pushMsg(
+          'assistant',
+          'Open live preview to review, tap a checklist tab for details, or tap Create now when you are ready. You can also keep filling gaps in the editor after create.'
+        )
+      })
+      return
     }
   }
-
   const fileLabel = useMemo(() => {
     if (!files.length) return null
     return `${files.length} file${files.length === 1 ? '' : 's'} attached`
@@ -692,6 +1483,24 @@ export function AiCardAgentWizard({
   const previewName = personal.fullName || 'Untitled card'
   const previewCompany = personal.company || personal.designation || ''
   const previewSlug = vCardData.slug || ''
+  const launchTabs = useMemo(() => buildLaunchTabs(vCardData, activeNav), [vCardData, activeNav])
+  const incompleteLaunchTabs = useMemo(() => launchTabs.filter((tab) => tab.percent < 100), [launchTabs])
+  const launchEmptyFieldCount = useMemo(
+    () => launchTabs.reduce((sum, tab) => sum + tab.fields.filter((field) => !field.filled).length, 0),
+    [launchTabs]
+  )
+  const launchOverallPercent = launchTabs.length
+    ? Math.round(launchTabs.reduce((sum, tab) => sum + tab.percent, 0) / launchTabs.length)
+    : score
+  const activeFeatureGuide = activeFeatureGuideKey
+    ? acceptedFeatureDetails.find((feature) => feature.key === activeFeatureGuideKey) || null
+    : null
+  const headerPercent =
+    phase === 'creating' || phase === 'celebrate'
+      ? Math.min(100, Math.round(createProgress))
+      : phase === 'preview'
+        ? launchOverallPercent
+        : score
   // Keep the popup open for the whole AI create journey until Continue after celebrate.
   const sessionLocked =
     phase === 'working' ||
@@ -737,14 +1546,15 @@ export function AiCardAgentWizard({
       preventClose={sessionLocked}
       closeOnOverlayClick={!sessionLocked}
       closeOnEscape={!sessionLocked}
-      className="relative flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
+      overlayClassName="items-start overflow-y-auto px-3 py-6 sm:items-center sm:p-6"
+      className="relative flex max-h-[calc(100dvh-3rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
     >
       {(phase === 'celebrate' || (phase === 'creating' && createProgress > 96)) && <ConfettiBurst />}
-      <div className="relative overflow-hidden border-b border-slate-100 px-5 py-4 dark:border-white/5">
+      <div className="relative shrink-0 overflow-hidden border-b border-slate-100 px-5 pt-5 pb-4 dark:border-white/5">
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-emerald-500/10 via-transparent to-indigo-500/10" />
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 sm:h-11 sm:w-11">
               <Sparkles className="h-5 w-5" />
             </span>
             <div className="min-w-0">
@@ -759,7 +1569,7 @@ export function AiCardAgentWizard({
               <span className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
                 Complete
               </span>
-              <span className="ml-2 text-sm font-black text-emerald-700 dark:text-emerald-300">{score}%</span>
+              <span className="ml-2 text-sm font-black text-emerald-700 dark:text-emerald-300">{headerPercent}%</span>
             </div>
             <button
               type="button"
@@ -784,7 +1594,7 @@ export function AiCardAgentWizard({
             width: `${
               phase === 'creating' || phase === 'celebrate'
                 ? Math.min(100, Math.round(createProgress))
-                : Math.max(score, phase === 'intake' ? 0 : 4)
+                : Math.max(phase === 'preview' ? launchOverallPercent : score, phase === 'intake' ? 0 : 4)
             }%`,
           }}
         />
@@ -993,10 +1803,10 @@ export function AiCardAgentWizard({
               <button
                 type="button"
                 disabled={busy}
-                onClick={approveGateSection}
+                onClick={() => void approveGateSection()}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-md shadow-emerald-600/20"
               >
-                <Check className="h-3.5 w-3.5" /> Approve & fill
+                <Check className="h-3.5 w-3.5" /> Approve & auto-fill
               </button>
               <button
                 type="button"
@@ -1064,7 +1874,7 @@ export function AiCardAgentWizard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => answerFeature(true)}
+              onClick={() => void answerFeature(true)}
               className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white"
             >
               Yes — {featureQueue[featureIndex].title}
@@ -1072,7 +1882,7 @@ export function AiCardAgentWizard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => answerFeature(false)}
+              onClick={() => void answerFeature(false)}
               className="rounded-xl bg-slate-200 px-4 py-2 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
             >
               No thanks
@@ -1081,6 +1891,289 @@ export function AiCardAgentWizard({
         ) : null}
 
         {phase === 'preview' ? (
+          <div className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-500/25 dark:bg-indigo-500/10">
+            <div className="flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 text-sm font-black text-white">
+                {(previewName || '?').slice(0, 1).toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-300">
+                  Launch checklist
+                </p>
+                <h4 className="truncate text-base font-black text-slate-950 dark:text-white">{previewName}</h4>
+                {previewCompany ? (
+                  <p className="truncate text-xs font-semibold text-slate-500">{previewCompany}</p>
+                ) : null}
+                {previewSlug ? (
+                  <p className="mt-1 truncate text-[11px] font-bold text-slate-400">/{previewSlug}</p>
+                ) : (
+                  <p className="mt-1 text-[11px] font-bold text-amber-600">Set a public URL slug before creating.</p>
+                )}
+              </div>
+              <span className="rounded-xl bg-white px-2.5 py-1 text-xs font-black text-emerald-700 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
+                {launchOverallPercent}%
+              </span>
+            </div>
+
+            {incompleteLaunchTabs.length ? (
+              <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                {launchOverallPercent}% ready with {launchEmptyFieldCount} empty field
+                {launchEmptyFieldCount === 1 ? '' : 's'} across {incompleteLaunchTabs.length} tab
+                {incompleteLaunchTabs.length === 1 ? '' : 's'}. Tap any tab to review, fill what AI can, skip, or create
+                now and finish inside the editor.
+              </p>
+            ) : (
+              <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                All selected content tabs are ready. Media upload fields can still be improved after create.
+              </p>
+            )}
+
+            <div className="rounded-2xl border border-white/80 bg-white/80 p-2 dark:border-white/10 dark:bg-slate-900/70">
+              <p className="px-1 pb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Launch mode</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  {
+                    mode: 'publish' as const,
+                    title: 'Create & activate',
+                    note: 'Live immediately and shown in Active cards.',
+                  },
+                  {
+                    mode: 'draft' as const,
+                    title: 'Save draft',
+                    note: 'Shown in Draft cards until the user activates it.',
+                  },
+                ].map((option) => {
+                  const selected = launchMode === option.mode
+                  return (
+                    <button
+                      key={option.mode}
+                      type="button"
+                      onClick={() => setLaunchMode(option.mode)}
+                      className={cn(
+                        'rounded-xl border px-3 py-2 text-left transition-all',
+                        selected
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5'
+                      )}
+                    >
+                      <span className="flex items-center gap-2 text-[11px] font-black">
+                        <span
+                          className={cn(
+                            'flex h-4 w-4 items-center justify-center rounded-full border',
+                            selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'
+                          )}
+                        >
+                          {selected ? <Check className="h-2.5 w-2.5" /> : null}
+                        </span>
+                        {option.title}
+                      </span>
+                      <span className="mt-1 block pl-6 text-[10px] font-semibold opacity-75">{option.note}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {launchTabs.map((tab) => {
+                const isOpen = openLaunchTabs.includes(tab.navId)
+                const missingFields = tab.fields.filter((field) => !field.filled)
+                const completedFields = tab.fields.filter((field) => field.filled)
+                const visibleFields = [...missingFields, ...completedFields]
+                const missingTextFields = missingFields.filter((field) => !field.upload)
+                const missingCount = missingFields.length
+                return (
+                  <div
+                    key={tab.navId}
+                    className="overflow-hidden rounded-2xl border border-white/80 bg-white/90 dark:border-white/10 dark:bg-slate-900/80"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenLaunchTabs((prev) =>
+                          isOpen ? prev.filter((id) => id !== tab.navId) : [...prev, tab.navId]
+                        )
+                      }
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+                    >
+                      <span
+                        className={cn(
+                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-black tabular-nums',
+                          tab.percent >= 100
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+                        )}
+                      >
+                        {tab.percent}%
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-black text-slate-900 dark:text-white">
+                          {tab.label}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-500">
+                          {missingCount ? `${missingCount} empty field${missingCount === 1 ? '' : 's'}` : 'Complete'}
+                        </span>
+                        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+                          <span
+                            className={cn(
+                              'block h-full rounded-full transition-all',
+                              tab.percent >= 100 ? 'bg-emerald-500' : 'bg-amber-400'
+                            )}
+                            style={{ width: `${tab.percent}%` }}
+                          />
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        {tab.percent >= 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
+                        <ChevronDown
+                          className={cn('h-4 w-4 text-slate-400 transition-transform', isOpen && 'rotate-180')}
+                        />
+                      </span>
+                    </button>
+                    {isOpen ? (
+                      <div className="space-y-2 border-t border-slate-100 px-3 py-3 dark:border-white/10">
+                        {visibleFields.length ? (
+                          <ul className="space-y-1.5">
+                            {visibleFields.map((field) => (
+                              <li key={`${tab.navId}-${field.label}`} className="flex items-start gap-2 text-[11px]">
+                                <span
+                                  className={cn(
+                                    'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full',
+                                    field.filled ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-700'
+                                  )}
+                                >
+                                  {field.filled ? (
+                                    <Check className="h-2.5 w-2.5" />
+                                  ) : field.upload ? (
+                                    <FileUp className="h-2.5 w-2.5" />
+                                  ) : null}
+                                </span>
+                                <span className="min-w-0 flex-1 font-semibold text-slate-600 dark:text-slate-300">
+                                  <span className={field.filled ? 'text-slate-500 line-through' : ''}>
+                                    {field.label}
+                                  </span>
+                                  {field.hint ? (
+                                    <span className="block text-[10px] text-slate-400">{field.hint}</span>
+                                  ) : null}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-[11px] font-semibold text-slate-500">
+                            No required fields left for this tab.
+                          </p>
+                        )}
+                        {tab.percent < 100 ? (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {missingTextFields.length ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void fillLaunchTab(tab)}
+                                className="rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
+                              >
+                                Fill with AI
+                              </button>
+                            ) : (
+                              <span className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                                Upload or Canva asset can be added later
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenLaunchTabs((prev) => prev.filter((id) => id !== tab.navId))
+                                pushMsg(
+                                  'assistant',
+                                  `${tab.label} is skipped for now. It will stay on the card, and you can finish those empty fields inside the editor after create.`
+                                )
+                              }}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                            >
+                              Skip for editor
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+
+            {acceptedFeatureDetails.length ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+                <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
+                  Approved extras
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {acceptedFeatureDetails.map((feature) => (
+                    <li
+                      key={`${feature.key}-${feature.title}`}
+                      className="text-[11px] font-semibold text-emerald-900/80 dark:text-emerald-100"
+                    >
+                      <span className="font-black">{feature.title}:</span> {feature.note}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {activeFeatureGuide ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-slate-900/80">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-slate-900 dark:text-white">{activeFeatureGuide.title}</p>
+                    <p className="mt-1 text-[11px] leading-relaxed font-semibold text-slate-500 dark:text-slate-300">
+                      {activeFeatureGuide.note}
+                    </p>
+                    <p className="mt-2 text-[10px] font-black tracking-wide text-slate-400 uppercase">
+                      Find it after create: {featureSettingsLabel(activeFeatureGuide)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {onOpenLivePreview ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenLivePreview()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm dark:bg-slate-900 dark:text-white"
+                >
+                  <Eye className="h-3.5 w-3.5" /> Open live preview
+                </button>
+              ) : null}
+              {acceptedFeatureDetails.map((feature, index) => (
+                <button
+                  key={`${feature.key}-${index}`}
+                  type="button"
+                  onClick={() => void showFeatureGuide(feature)}
+                  className="rounded-xl bg-white/80 px-3 py-2 text-[11px] font-black text-slate-700 dark:bg-slate-900/80 dark:text-slate-200"
+                >
+                  {feature.key === 'pushNotifications'
+                    ? 'Allow Push notifications'
+                    : feature.key === 'canva'
+                      ? 'Canva instructions'
+                      : `Review ${feature.title}`}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={busy || !previewName.trim() || !previewSlug.trim()}
+                onClick={() => void confirmCreateCard()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[11px] font-black text-white disabled:opacity-50"
+              >
+                {launchMode === 'publish' ? 'Create & activate' : 'Save draft'} <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {openLaunchTabs.length < 0 && phase === 'preview' ? (
           <div className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-500/25 dark:bg-indigo-500/10">
             <div className="flex items-start gap-3">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 text-sm font-black text-white">
@@ -1153,7 +2246,9 @@ export function AiCardAgentWizard({
           <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-slate-900/60">
             <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
               <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-              <span className="text-sm font-black">Creating your card…</span>
+              <span className="text-sm font-black">
+                {createdLaunchMode === 'publish' ? 'Creating and activating your card...' : 'Saving your draft...'}
+              </span>
               <span className="ml-auto text-sm font-black text-emerald-600">
                 {Math.min(100, Math.round(createProgress))}%
               </span>
@@ -1164,7 +2259,11 @@ export function AiCardAgentWizard({
                 style={{ width: `${Math.min(100, createProgress)}%` }}
               />
             </div>
-            <p className="text-[11px] font-semibold text-slate-500">Saving profile, tabs, and content — hang tight.</p>
+            <p className="text-[11px] font-semibold text-slate-500">
+              {createdLaunchMode === 'publish'
+                ? 'Saving profile, tabs, and content, then making the public link live.'
+                : 'Saving profile, tabs, and content into the Draft area.'}
+            </p>
           </div>
         ) : null}
 
@@ -1172,15 +2271,20 @@ export function AiCardAgentWizard({
           <div className="relative space-y-4 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 dark:border-emerald-500/25 dark:bg-emerald-500/15">
             <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
               <PartyPopper className="h-6 w-6" />
-              <span className="text-base font-black">Boom — card created!</span>
+              <span className="text-base font-black">
+                {createdLaunchMode === 'publish' ? 'Card active!' : 'Draft saved!'}
+              </span>
             </div>
             <p className="text-xs font-semibold text-emerald-900/80 dark:text-emerald-100/90">
-              {previewName} is saved. Continue to open the editor with your mostly complete card.
+              {createdLaunchMode === 'publish'
+                ? `${previewName} is live now. Continue to the editor to polish optional uploads and settings.`
+                : `${previewName} is in Draft cards. Continue to the editor, then use Activate card when it is ready.`}
             </p>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               <span className="text-[11px] font-black tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
-                Create complete · {Math.min(100, Math.round(createProgress))}%
+                {createdLaunchMode === 'publish' ? 'Active card' : 'Draft card'} -{' '}
+                {Math.min(100, Math.round(createProgress))}%
               </span>
             </div>
             <button
@@ -1188,7 +2292,8 @@ export function AiCardAgentWizard({
               onClick={finishAndOpenEditor}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
             >
-              Continue to editor <ArrowRight className="h-3.5 w-3.5" />
+              {createdLaunchMode === 'publish' ? 'Open active card editor' : 'Open draft editor'}{' '}
+              <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
         ) : null}

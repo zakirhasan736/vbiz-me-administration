@@ -30,7 +30,7 @@ import { Tab3SocialGames } from '@/components/VCardTab3'
 import { Tab4HomeMedia } from '@/components/VCardTab4'
 import { Tab5ExtraFields } from '@/components/VCardTab5'
 import { useDashboardTour } from '@/context/DashboardTourContext'
-import { useAppSelector } from '@/hooks/redux'
+import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
 import { createCardOwnerKindLabel, getCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import {
@@ -68,6 +68,8 @@ import {
   type EditorNavPanel,
 } from '@/lib/vcardNavbar'
 import { getSectionSchema } from '@/lib/vcardSectionSchemas'
+import { useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
+import { updateVCard } from '@/redux/features/vcards/vcards.slice'
 import { cn } from '@/utils/cn'
 import {
   AlertCircle,
@@ -111,6 +113,7 @@ function readEditorNavOrderIds(cardKey: string, preferAiSeed = false): string[] 
 export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const dispatch = useAppDispatch()
   const role = useAppSelector((state) => state.user.user?.role)
   const currentUserId = useAppSelector((state) => state.user.user?.id)
   const isDirectoryEditor = role === 'corporate-owner' || role === 'admin' || role === 'super-admin'
@@ -141,8 +144,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const completionMeta = useMemo(() => ({ avatarImageUrl }), [avatarImageUrl])
   const [showPreview, setShowPreview] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isActivatingDraft, setIsActivatingDraft] = useState(false)
   const [showAddTabs, setShowAddTabs] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
+  const [updateProfileCard] = useUpdateProfileCardMutation()
   const { openAgent } = useCreateAgentUi()
   const { isActive: isTourActive, currentStep, registerActivateTab } = useDashboardTour()
 
@@ -154,7 +159,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     if (isAiCreateFlow) openAgent()
   }, [isAiCreateFlow, openAgent])
 
-  const cardKey = contextCardId || cardId || 'draft'
+  const activeCardId = contextCardId || cardId || ''
+  const cardKey = activeCardId || 'draft'
   const isClient = typeof window !== 'undefined'
 
   // Create-owner banner: sync from sessionStorage during render (same pattern as navOrder/cardKey)
@@ -262,8 +268,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     }
   }, [])
 
-  const visibleNavItems = useMemo(() => {
-    const filtered = filterEditorMainNavItems(filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display))
+  const enabledNavItems = useMemo(() => {
+    const filtered = filterNavItemsByVisibility(NAV_BAR_NAV_ITEMS, display)
     const ordered = sortNavItemsByOrder(filtered, effectiveNavOrderIds)
     if (!effectiveNavOrderIds.length) return ordered
     const idSet = new Set(effectiveNavOrderIds)
@@ -271,7 +277,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     return preferred.length ? preferred : ordered
   }, [display, effectiveNavOrderIds])
 
-  const enabledNavIds = useMemo(() => visibleNavItems.map((item) => item.id), [visibleNavItems])
+  const visibleNavItems = useMemo(() => filterEditorMainNavItems(enabledNavItems), [enabledNavItems])
+  const enabledNavIds = useMemo(() => enabledNavItems.map((item) => item.id), [enabledNavItems])
   const personalSubs = useMemo(() => getPersonalSubCompletions(vCardData, completionMeta), [vCardData, completionMeta])
 
   const saveStatusLabel =
@@ -496,6 +503,35 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     if (data.website) updateData('personal.website', data.website)
   }
 
+  const activateDraftCard = async () => {
+    if (!activeCardId) {
+      notify.error('Create or save this card before activating it.')
+      return
+    }
+    setIsActivatingDraft(true)
+    try {
+      await flushSave()
+      await updateProfileCard({ id: activeCardId, body: { isDraft: false, isPublic: true } }).unwrap()
+      dispatch(
+        updateVCard({
+          id: activeCardId,
+          patch: {
+            isActive: true,
+            isDraft: false,
+            isPublic: true,
+          },
+        })
+      )
+      notify.success('Card activated. The public link is live.')
+    } catch (e) {
+      const message =
+        (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not activate card.'
+      notify.error(message)
+    } finally {
+      setIsActivatingDraft(false)
+    }
+  }
+
   return (
     <div className="relative flex min-h-screen w-full justify-center pt-4 pb-24 sm:pt-10" data-tour-editor-scope>
       <div className="bg-primary-500/10 pointer-events-none fixed top-20 left-1/2 h-125 w-full max-w-250 -translate-x-1/2 rounded-full blur-[150px]" />
@@ -514,6 +550,26 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
             <p className="text-xs font-semibold text-indigo-700/80 dark:text-indigo-200/80">
               {[createOwner.email, createCardOwnerKindLabel(createOwner, currentUserId)].filter(Boolean).join(' · ')}
             </p>
+          </div>
+        ) : null}
+        {!isCreateMode && vCardData.isDraft ? (
+          <div className="animate-in slide-in-from-top-4 flex w-full flex-col justify-between gap-4 rounded-3xl border border-emerald-500/25 bg-emerald-50 p-5 px-6 text-emerald-900 duration-300 sm:flex-row sm:items-center dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-100">
+            <div>
+              <p className="text-[15px] font-black">This card is saved as a draft</p>
+              <p className="mt-1 text-xs font-semibold text-emerald-800/75 dark:text-emerald-100/75">
+                It is not live yet. Activate it when the information looks ready; optional uploads can still be added
+                later.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={isActivatingDraft}
+              onClick={() => void activateDraftCard()}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {isActivatingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+              {isActivatingDraft ? 'Activating...' : 'Activate card'}
+            </button>
           </div>
         ) : null}
         {isDirectoryEditor ? (
@@ -878,7 +934,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                         setIsSaving(true)
                         try {
                           await saveVCard()
-                          notify.success('vCard created successfully.')
+                          notify.success('vCard draft saved.')
                         } catch (e) {
                           const message =
                             (e as { data?: { message?: string } })?.data?.message ||
@@ -897,7 +953,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       ) : (
                         <CheckCircle className="h-4.5 w-4.5" />
                       )}
-                      {isSaving ? 'Creating...' : 'Create vCard'}
+                      {isSaving ? 'Creating...' : 'Create draft'}
                     </button>
                   ) : (
                     <button

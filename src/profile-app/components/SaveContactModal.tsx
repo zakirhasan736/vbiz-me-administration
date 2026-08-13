@@ -2,7 +2,7 @@
 
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
-import { downloadProfileContactVcf } from '@/profile-app/lib/contactVcf'
+import { downloadProfileContactVcf, vcfFilenameFromName } from '@/profile-app/lib/contactVcf'
 import { saveGuestUser, SaveGuestUserError } from '@/profile-app/lib/saveGuestUser'
 import { Check, X } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -41,9 +41,21 @@ export const SaveContactModal = ({
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
+  const resetTransientState = () => {
+    setShowSuccess(false)
+    setSubmitError(null)
+    setSubmitting(false)
+  }
+
+  const handleClose = () => {
+    resetTransientState()
+    onClose()
+  }
+
   const finishSuccess = () => {
     setShowSuccess(true)
     setTimeout(() => {
+      resetTransientState()
       if (onSuccess) {
         onSuccess()
       } else {
@@ -70,7 +82,7 @@ export const SaveContactModal = ({
           profileId: trimmedId,
           cardSlug,
         })
-        await downloadProfileContactVcf(trimmedId)
+        await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
       }
 
       notify.success('Contact saved — your card is downloading.')
@@ -81,7 +93,9 @@ export const SaveContactModal = ({
       if (error instanceof SaveGuestUserError && error.isDuplicate) {
         notify.info('You have already saved this contact.')
         try {
-          if (trimmedId && trimmedId !== 'preview') await downloadProfileContactVcf(trimmedId)
+          if (trimmedId && trimmedId !== 'preview') {
+            await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
+          }
         } catch {
           /* ignore secondary download errors */
         }
@@ -101,11 +115,11 @@ export const SaveContactModal = ({
   const contactOwnerLabel = trimmedOwnerName || 'this contact'
 
   return (
-    <ProfileModalShell isOpen={isOpen} onClose={onClose} panelClassName="sm:max-w-sm">
+    <ProfileModalShell isOpen={isOpen} onClose={handleClose} panelClassName="sm:max-w-sm">
       <div className="relative z-10 p-6">
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="vbiz-modal-close absolute top-4 right-4 rounded-full border p-1.5 transition-all focus:outline-none"
           aria-label="Close download contact dialog"
         >

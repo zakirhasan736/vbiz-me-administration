@@ -178,15 +178,15 @@ export function getAiContentCandidateNavIds(): string[] {
 }
 
 /**
- * Keep Global Connection second-to-last and My Info last.
- * Dedupes and drops unknown empties.
+ * Keep pinned utility tabs at the end while preserving their user-chosen order
+ * when one is supplied. Defaults remain Global Connection -> My Info.
  */
 export function normalizeNavOrderWithPinnedEnds(navIds: string[]): string[] {
   const pinned = new Set<string>(PINNED_END_NAV_IDS)
-  const middle = navIds.filter((id) => id && !pinned.has(id))
-  const uniqueMiddle = Array.from(new Set(middle.length ? middle : ['home']))
-  if (!uniqueMiddle.includes('home')) uniqueMiddle.unshift('home')
-  return [...uniqueMiddle, ...PINNED_END_NAV_IDS]
+  const middle = navIds.filter((id) => id && id !== 'home' && !pinned.has(id))
+  const uniqueMiddle = Array.from(new Set(middle))
+  const pinnedOrder = Array.from(new Set([...navIds.filter((id) => pinned.has(id)), ...PINNED_END_NAV_IDS]))
+  return ['home', ...uniqueMiddle, ...pinnedOrder]
 }
 
 /** Human-readable catalog for AI prompts / chat. */

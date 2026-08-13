@@ -122,21 +122,36 @@ export async function buildContactVcf(contact: SaveContactCardData): Promise<str
   return lines.join('\r\n')
 }
 
+export function vcfFilenameFromName(name?: string | null): string {
+  const safe = (name?.trim() || 'contact')
+    .replace(/[<>:"/\\|?*]+/g, '')
+    .replace(/\s+/g, '-')
+    .slice(0, 48)
+  return `${safe || 'contact'}.vcf`
+}
+
 export function downloadContactVcf(vcfContent: string, filename = 'contact.vcf'): void {
   const blob = new Blob([vcfContent], { type: 'text/vcard;charset=utf-8' })
+  const nav = window.navigator as Navigator & { msSaveOrOpenBlob?: (file: Blob, fileName: string) => void }
+  if (typeof nav.msSaveOrOpenBlob === 'function') {
+    nav.msSaveOrOpenBlob(blob, filename)
+    return
+  }
+
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = filename
   anchor.rel = 'noopener'
+  anchor.style.display = 'none'
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 2500)
 }
 
-export async function downloadProfileContactVcf(profileId: string): Promise<void> {
+export async function downloadProfileContactVcf(profileId: string, filename?: string): Promise<void> {
   const contact = await fetchSaveContactData(profileId)
   const vcf = await buildContactVcf(contact)
-  downloadContactVcf(vcf)
+  downloadContactVcf(vcf, filename || vcfFilenameFromName(contact.name))
 }

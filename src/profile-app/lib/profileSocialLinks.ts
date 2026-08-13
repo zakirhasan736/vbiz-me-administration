@@ -62,6 +62,13 @@ const LABEL_TO_CHANNEL: Record<string, TrackableSocialChannel> = {
   website: 'website',
 }
 
+type TrackEventBody = Record<string, string>
+
+const TRACK_EVENT_QUEUE_KEY = 'vbiz_pending_track_events_v1'
+const MAX_QUEUED_TRACK_EVENTS = 50
+
+let trackEventFlushListenerReady = false
+
 export function socialLabelToChannel(label: string): TrackableSocialChannel | null {
   return LABEL_TO_CHANNEL[label] ?? null
 }
@@ -96,14 +103,88 @@ export function getProfileSocialLinks(
   })
 }
 
-function postTrackEvent(body: Record<string, string>): void {
+function isTrackEventBody(value: unknown): value is TrackEventBody {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  return Object.values(value).every((entry) => typeof entry === 'string')
+}
+
+function readQueuedTrackEvents(): TrackEventBody[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const parsed = JSON.parse(localStorage.getItem(TRACK_EVENT_QUEUE_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed.filter(isTrackEventBody) : []
+  } catch {
+    return []
+  }
+}
+
+function writeQueuedTrackEvents(events: TrackEventBody[]): void {
   if (typeof window === 'undefined') return
-  void fetch(`${baseUrl.replace(/\/$/, '')}/track-event`, {
+  try {
+    localStorage.setItem(TRACK_EVENT_QUEUE_KEY, JSON.stringify(events.slice(-MAX_QUEUED_TRACK_EVENTS)))
+  } catch {
+    /* storage can be unavailable in private mode */
+  }
+}
+
+function queueTrackEvent(body: TrackEventBody): void {
+  writeQueuedTrackEvents([...readQueuedTrackEvents(), body])
+}
+
+async function sendTrackEvent(body: TrackEventBody): Promise<void> {
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/track-event`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     keepalive: true,
-  }).catch(() => undefined)
+  })
+
+  if (!response.ok) {
+    throw new Error('Could not track profile event')
+  }
+}
+
+async function flushQueuedTrackEvents(): Promise<void> {
+  if (typeof window === 'undefined' || navigator.onLine === false) return
+  const queued = readQueuedTrackEvents()
+  if (!queued.length) return
+
+  const remaining: TrackEventBody[] = []
+
+  for (let index = 0; index < queued.length; index++) {
+    try {
+      await sendTrackEvent(queued[index])
+    } catch {
+      remaining.push(...queued.slice(index))
+      break
+    }
+  }
+
+  writeQueuedTrackEvents(remaining)
+}
+
+function ensureTrackEventFlushListener(): void {
+  if (typeof window === 'undefined' || trackEventFlushListenerReady) return
+  trackEventFlushListenerReady = true
+  window.addEventListener('online', () => {
+    void flushQueuedTrackEvents()
+  })
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void flushQueuedTrackEvents()
+  })
+}
+
+function postTrackEvent(body: TrackEventBody): void {
+  if (typeof window === 'undefined') return
+  ensureTrackEventFlushListener()
+
+  if (navigator.onLine === false) {
+    queueTrackEvent(body)
+    return
+  }
+
+  void flushQueuedTrackEvents()
+  void sendTrackEvent(body).catch(() => queueTrackEvent(body))
 }
 
 /**

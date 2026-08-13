@@ -103,28 +103,7 @@ export default function AdminMyCards() {
     [myCards, lifecycleTab]
   )
 
-  const defaultSocialChannels = useMemo(
-    () =>
-      (Object.keys(CHANNEL_UI) as DashboardSocialChannel[]).map((channel) => ({
-        channel,
-        label:
-          channel === 'whatsapp'
-            ? 'WhatsApp'
-            : channel === 'youtube'
-              ? 'YouTube'
-              : channel === 'tiktok'
-                ? 'TikTok'
-                : channel === 'truth'
-                  ? 'Truth Social'
-                  : channel === 'website'
-                    ? 'Website'
-                    : channel.charAt(0).toUpperCase() + channel.slice(1),
-        count: 0,
-        trendPercent: 0,
-      })),
-    []
-  )
-  const socialChannels = stats?.socialChannels?.length ? stats.socialChannels : defaultSocialChannels
+  const socialChannels = stats?.socialChannels ?? []
 
   const socialTotal = socialChannels.reduce((sum, row) => sum + (row.count || 0), 0) || Number(stats?.shares || 0)
 

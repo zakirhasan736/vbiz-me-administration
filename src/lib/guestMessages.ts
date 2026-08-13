@@ -21,6 +21,7 @@ export type GuestMessageRecord = {
 }
 
 const STORAGE_KEY = 'vbiz_guest_messages'
+const LEGACY_SEED_PREFIX = 'seed_gmsg_'
 export const GUEST_MESSAGES_EVENT = 'vbiz_guest_messages_update'
 
 export function loadGuestMessages(): GuestMessageRecord[] {
@@ -28,10 +29,25 @@ export function loadGuestMessages(): GuestMessageRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
-    return JSON.parse(raw) as GuestMessageRecord[]
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return removeLegacySeedGuestMessages(parsed as GuestMessageRecord[])
   } catch {
     return []
   }
+}
+
+function removeLegacySeedGuestMessages(list: GuestMessageRecord[]): GuestMessageRecord[] {
+  const filtered = list.filter((record) => !record.id?.startsWith(LEGACY_SEED_PREFIX))
+  if (filtered.length === list.length || typeof window === 'undefined') return filtered
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered.slice(0, 300)))
+  } catch {
+    /* ignore */
+  }
+
+  return filtered
 }
 
 function persist(list: GuestMessageRecord[]) {
@@ -139,7 +155,6 @@ export function getGuestMessagesForOwner(
   vCardIdFilter?: string | null
 ) {
   if (!ownerId && role !== 'admin') return []
-  ensureSeededGuestMessages(ownerId)
   let list = loadGuestMessages()
   if (role === 'admin') {
     /* all */
@@ -150,29 +165,4 @@ export function getGuestMessagesForOwner(
   }
   if (vCardIdFilter) list = list.filter((r) => r.vCardId === vCardIdFilter)
   return list
-}
-
-function ensureSeededGuestMessages(ownerId?: string | null) {
-  if (!ownerId || typeof window === 'undefined') return
-  const existing = loadGuestMessages()
-  if (existing.some((r) => r.ownerId === ownerId)) return
-  const now = Date.now()
-  const seed: GuestMessageRecord = {
-    id: `seed_gmsg_${ownerId}`,
-    fullName: 'Visitor (message only)',
-    email: 'curious.guest@example.com',
-    phoneNumber: '',
-    guestMessage:
-      "Hi — I loved your profile but I'm not ready to share my phone yet. Can we schedule a quick call next week?",
-    submittedAt: new Date(now - 1000 * 60 * 90).toISOString(),
-    vCardId: ownerId,
-    vCardSlug: 'seed',
-    vCardName: 'Your vCard',
-    ownerId,
-    ownerName: 'Owner',
-    kind: 'guest_message',
-    privateNotes: '',
-    metadata: captureClientMetadata(),
-  }
-  persist([seed, ...existing])
 }

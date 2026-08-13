@@ -9,6 +9,8 @@ import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { ProfileApp } from '@/profile-app/ProfileApp'
 import { ProfileLoadingScreen } from '@/profile-app/components/ProfileLoadingScreen'
 import { ProfileThemeShell } from '@/profile-app/components/ProfileThemeShell'
+import { PublicCardPwaRuntime } from '@/profile-app/components/PublicCardPwaRuntime'
+import { PublicPwaHead } from '@/profile-app/components/PublicPwaHead'
 import { useResolvedProfileTheme } from '@/profile-app/hooks/useResolvedProfileTheme'
 import '@/profile-app/profile-app.css'
 import { vCardRecordToProfileProps } from '@/profile-app/profilePublicProps'
@@ -111,8 +113,18 @@ export default function PublicProfileLayout({
     )
   }
 
+  const ownerName =
+    liveAgentCardData?.ownerName?.trim() || record.personal?.fullName?.trim() || profileProps.ownerName?.trim() || slug
+
   return (
     <ProfileThemeShell config={themeConfig} fromApi={fromApi} template={template}>
+      <PublicPwaHead slug={slug} ownerName={ownerName} />
+      <PublicCardPwaRuntime
+        slug={slug}
+        profileId={earlyProfileId}
+        template={template}
+        initialNavBarLinks={initialNavBarLinks}
+      />
       <ProfileThemeProvider themeConfig={themeConfig} fromApi={fromApi}>
         <CardScopeProvider cardId={record.id}>
           <ProfileApp

@@ -1,4 +1,4 @@
-import { getDefaultCreateCardNavIds } from '@/lib/createCardTabs'
+import { getDefaultCreateCardNavIds, PINNED_END_NAV_IDS } from '@/lib/createCardTabs'
 import {
   createDefaultFieldConfig,
   normalizeFieldConfig,
@@ -559,9 +559,12 @@ export function filterNavItemsByVisibility(items: NavBarNavItem[], settings: VCa
  * so only the Personal (home) chip appears. Public Nav Bar / Add Tabs still use `about`.
  */
 export const EDITOR_COLLAPSED_INTO_PERSONAL_IDS = new Set(['about'])
+export const EDITOR_HIDDEN_MAIN_NAV_IDS = new Set(['global-connection'])
 
 export function filterEditorMainNavItems(items: NavBarNavItem[]): NavBarNavItem[] {
-  return items.filter((item) => !EDITOR_COLLAPSED_INTO_PERSONAL_IDS.has(item.id))
+  return items.filter(
+    (item) => !EDITOR_COLLAPSED_INTO_PERSONAL_IDS.has(item.id) && !EDITOR_HIDDEN_MAIN_NAV_IDS.has(item.id)
+  )
 }
 
 /** Whether this nav id should highlight the Personal (home) chip in the editor. */
@@ -588,7 +591,7 @@ export function getEditorNavLabel(item: NavBarNavItem): string {
 }
 
 /** Always kept enabled in the Add-tab modal (same role as Personal in backoffice). */
-export const LOCKED_NAV_ITEM_IDS = new Set(['home'])
+export const LOCKED_NAV_ITEM_IDS = new Set(['home', ...PINNED_END_NAV_IDS])
 
 export type NavItemGroupId = 'essentials' | 'profile' | 'content' | 'business' | 'tools'
 

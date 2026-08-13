@@ -40,7 +40,11 @@ export function useProfile(slug: string = DEFAULT_PROFILE_SLUG, options?: UsePro
     dispatch(hydrateMyCard({ slug: trimmed, raw: initialMyCard }))
   }, [dispatch, trimmed, initialMyCard])
 
-  const query = useGetMyCardBySlugQuery(trimmed, { skip: skip || hasPrefetched })
+  const query = useGetMyCardBySlugQuery(trimmed, {
+    skip,
+    refetchOnReconnect: true,
+    refetchOnFocus: true,
+  })
 
   useLayoutEffect(() => {
     if (!trimmed || skip) return

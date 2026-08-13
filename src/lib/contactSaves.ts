@@ -33,6 +33,7 @@ export type ContactSaveRecord = {
 }
 
 const STORAGE_KEY = 'vbiz_contact_saves'
+const LEGACY_SEED_PREFIX = 'seed_'
 export const CONTACT_SAVES_EVENT = 'vbiz_contact_saves_update'
 
 function parseBrowser(ua: string): string {
@@ -73,10 +74,25 @@ export function loadContactSaves(): ContactSaveRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
-    return JSON.parse(raw) as ContactSaveRecord[]
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return removeLegacySeedContactSaves(parsed as ContactSaveRecord[])
   } catch {
     return []
   }
+}
+
+function removeLegacySeedContactSaves(list: ContactSaveRecord[]): ContactSaveRecord[] {
+  const filtered = list.filter((record) => !record.id?.startsWith(LEGACY_SEED_PREFIX))
+  if (filtered.length === list.length || typeof window === 'undefined') return filtered
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered))
+  } catch {
+    /* ignore */
+  }
+
+  return filtered
 }
 
 export function saveContactSaves(list: ContactSaveRecord[]) {
@@ -169,7 +185,7 @@ export function getContactSavesForOwner(
   vCardIdFilter?: string | null
 ) {
   if (!ownerId && role !== 'admin') return []
-  const all = ensureSeededContactSaves(ownerId)
+  const all = loadContactSaves()
   let list =
     role === 'admin'
       ? all
@@ -224,120 +240,4 @@ export function createContactSave(input: {
     adminHref: '#leads',
   })
   return record
-}
-
-function seedForOwner(ownerId: string): ContactSaveRecord[] {
-  const now = Date.now()
-  return [
-    {
-      id: `seed_${ownerId}_1`,
-      fullName: 'Ayesha Rahman',
-      phoneNumber: '+880 1711-223344',
-      email: 'ayesha.rahman@example.com',
-      consent: true,
-      submittedAt: new Date(now - 1000 * 60 * 45).toISOString(),
-      vCardId: ownerId,
-      vCardSlug: 'zakir-consultant',
-      vCardName: 'Zakir Hosen',
-      ownerId,
-      ownerName: 'Zakir Hosen',
-      guestMessage: 'Hi Zakir — I’d like a quote for consulting next month. Please reply here.',
-      privateNotes: '',
-      metadata: {
-        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
-        language: 'en-BD',
-        platform: 'iPhone',
-        browser: 'Safari',
-        device: 'iOS',
-        screen: '390x844',
-        timezone: 'Asia/Dhaka',
-        approximateLocation: 'Dhaka, BD (approx.)',
-        referrer: 'QR Scan',
-      },
-    },
-    {
-      id: `seed_${ownerId}_2`,
-      fullName: 'Michael Chen',
-      phoneNumber: '+1 (415) 555-0198',
-      email: 'm.chen@northwind.io',
-      consent: true,
-      submittedAt: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
-      vCardId: ownerId,
-      vCardSlug: 'zakir-consultant',
-      vCardName: 'Zakir Hosen',
-      ownerId,
-      ownerName: 'Zakir Hosen',
-      guestMessage: 'Saw your card at the meetup. Interested in partnership options.',
-      privateNotes: '',
-      metadata: {
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0',
-        language: 'en-US',
-        platform: 'Win32',
-        browser: 'Chrome',
-        device: 'Windows',
-        screen: '1920x1080',
-        timezone: 'America/Los_Angeles',
-        approximateLocation: 'San Francisco Bay Area (approx.)',
-        referrer: 'https://linkedin.com',
-      },
-    },
-    {
-      id: `seed_${ownerId}_3`,
-      fullName: 'Priya Nair',
-      phoneNumber: '+91 98765 43210',
-      email: 'priya.nair@gmail.com',
-      consent: true,
-      submittedAt: new Date(now - 1000 * 60 * 60 * 26).toISOString(),
-      vCardId: `${ownerId}_mock_1`,
-      vCardSlug: 'sophia-martinez',
-      vCardName: 'Sophia Martinez',
-      ownerId,
-      ownerName: 'Zakir Hosen',
-      privateNotes: '',
-      metadata: {
-        userAgent: 'Mozilla/5.0 (Linux; Android 14) Chrome/121.0.0.0 Mobile',
-        language: 'en-IN',
-        platform: 'Linux armv8l',
-        browser: 'Chrome',
-        device: 'Android',
-        screen: '412x915',
-        timezone: 'Asia/Kolkata',
-        approximateLocation: 'Bengaluru, IN (approx.)',
-        referrer: 'Direct / QR',
-      },
-    },
-  ]
-}
-
-/** Seed demo contact saves once per owner so dashboards aren't empty */
-export function ensureSeededContactSaves(ownerId?: string | null): ContactSaveRecord[] {
-  const existing = loadContactSaves()
-  if (!ownerId) return existing
-  const hasOwnerSeed = existing.some((r) => r.ownerId === ownerId)
-  if (!hasOwnerSeed) {
-    const seeded = [...seedForOwner(ownerId), ...existing]
-    saveContactSaves(seeded)
-    return seeded
-  }
-  // Backfill demo guest notes on older seed rows (so owners can see visitor notes)
-  let changed = false
-  const patched = existing.map((r) => {
-    if (r.id === `seed_${ownerId}_1` && !r.guestMessage) {
-      changed = true
-      return {
-        ...r,
-        guestMessage: 'Hi Zakir — I’d like a quote for consulting next month. Please reply here.',
-      }
-    }
-    if (r.id === `seed_${ownerId}_2` && !r.guestMessage) {
-      changed = true
-      return {
-        ...r,
-        guestMessage: 'Saw your card at the meetup. Interested in partnership options.',
-      }
-    }
-    return r
-  })
-  if (changed) saveContactSaves(patched)
-  return changed ? patched : existing
 }

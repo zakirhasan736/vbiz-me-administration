@@ -42,7 +42,8 @@ export type NotificationPrefs = {
 
 const STORAGE_KEY = 'vbiz_notifications'
 const PREFS_KEY = 'vbiz_notification_prefs'
-const SEED_KEY = 'vbiz_notifications_seeded_v1'
+const LEGACY_SEED_KEY = 'vbiz_notifications_seeded_v1'
+const LEGACY_SEED_NOTIFICATION_IDS = new Set(['seed_single_1', 'seed_single_2', 'seed_corp_1', 'seed_admin_1'])
 
 export const NOTIFICATIONS_EVENT = 'vbiz_notifications_update'
 
@@ -98,10 +99,30 @@ export function loadNotifications(): AppNotification[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
-    return JSON.parse(raw) as AppNotification[]
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return removeLegacySeedNotifications(parsed as AppNotification[])
   } catch {
     return []
   }
+}
+
+function removeLegacySeedNotifications(list: AppNotification[]): AppNotification[] {
+  const filtered = list.filter((n) => {
+    const id = typeof n?.id === 'string' ? n.id : ''
+    return !LEGACY_SEED_NOTIFICATION_IDS.has(id) && !id.startsWith('seed_')
+  })
+
+  try {
+    localStorage.removeItem(LEGACY_SEED_KEY)
+    if (filtered.length !== list.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered.slice(0, 200)))
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return filtered
 }
 
 function persist(list: AppNotification[]) {
@@ -109,58 +130,7 @@ function persist(list: AppNotification[]) {
   window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
 }
 
-export function ensureSeededNotifications() {
-  if (typeof window === 'undefined') return
-  if (localStorage.getItem(SEED_KEY)) return
-  const now = Date.now()
-  const seeds: AppNotification[] = [
-    {
-      id: 'seed_single_1',
-      audience: 'single',
-      category: 'contact_save',
-      title: 'New contact saved',
-      body: 'A guest shared their details on your vCard.',
-      href: '/',
-      read: false,
-      createdAt: new Date(now - 1000 * 60 * 20).toISOString(),
-    },
-    {
-      id: 'seed_single_2',
-      audience: 'single',
-      category: 'weekly_insight',
-      title: 'Weekly insights ready',
-      body: 'Your personal engagement summary for this week is available on the dashboard.',
-      href: '/',
-      read: false,
-      createdAt: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
-    },
-    {
-      id: 'seed_corp_1',
-      audience: 'corporate',
-      category: 'weekly_insight',
-      title: 'Weekly engagement ready',
-      body: 'Your team’s weekly insight summary is available on the dashboard.',
-      href: '/',
-      read: false,
-      createdAt: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
-    },
-    {
-      id: 'seed_admin_1',
-      audience: 'admin',
-      category: 'support',
-      title: 'New support request',
-      body: 'An owner asked for help with billing and card limits.',
-      href: '/settings',
-      read: false,
-      createdAt: new Date(now - 1000 * 60 * 55).toISOString(),
-    },
-  ]
-  persist([...seeds, ...loadNotifications()])
-  localStorage.setItem(SEED_KEY, '1')
-}
-
 export function listNotifications(audience: NotificationAudience): AppNotification[] {
-  ensureSeededNotifications()
   return loadNotifications()
     .filter((n) => n.audience === audience)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

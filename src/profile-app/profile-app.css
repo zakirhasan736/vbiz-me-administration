@@ -979,3 +979,42 @@ iframe.goog-te-banner-frame {
     padding: 0.75rem !important;
   }
 }
+
+/* Installed PWA — keep the same public v1/v2/v3 tab chrome on phone + desktop */
+html[data-pwa-standalone] {
+  height: 100%;
+}
+
+html[data-pwa-standalone] body {
+  min-height: 100dvh;
+}
+
+html[data-pwa-standalone] .vbiz-profile-root:not([data-embedded]) {
+  min-height: 100dvh;
+}
+
+/* v1 + v3: bottom tab bar on mobile, top bar on desktop — inset for home indicator / titlebar */
+html[data-pwa-standalone] .vbiz-profile-root:not([data-embedded]) .vbiz-floating-nav.pointer-events-none {
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  html[data-pwa-standalone] .vbiz-profile-root:not([data-embedded]) .vbiz-floating-nav.pointer-events-none {
+    bottom: auto;
+    top: max(1.25rem, env(safe-area-inset-top, 0px));
+    padding-top: 0;
+  }
+}
+
+/* v2: sticky top tabs */
+html[data-pwa-standalone]
+  .vbiz-profile-root[data-profile-template='v2']:not([data-embedded])
+  .vbiz-floating-nav.sticky {
+  top: max(1rem, env(safe-area-inset-top, 0px));
+}
+
+html[data-pwa-standalone] .vbiz-profile-root[data-profile-template='v2']:not([data-embedded]) {
+  padding-bottom: max(6rem, env(safe-area-inset-bottom, 0px));
+}
