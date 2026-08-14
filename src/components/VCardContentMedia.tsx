@@ -128,20 +128,17 @@ export function TabContentMedia() {
           items={videos}
           getKey={(v) => v.id}
           onReorder={(next) => persist({ ...cm, videos: next })}
-          renderItem={(v, _i, controls) => (
+          renderItem={(v) => (
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-black tracking-wider text-slate-400 uppercase">Video</p>
-                <div className="flex items-center gap-1">
-                  {controls}
-                  <button
-                    type="button"
-                    onClick={() => persist({ ...cm, videos: videos.filter((x) => x.id !== v.id) })}
-                    className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => persist({ ...cm, videos: videos.filter((x) => x.id !== v.id) })}
+                  className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
               <input
                 value={v.title}

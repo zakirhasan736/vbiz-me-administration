@@ -365,11 +365,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
       : activeNavItem
         ? getEditorNavLabel(activeNavItem)
         : 'Current tab'
-  const openAiForCurrentFields = useCallback(() => {
-    openAgent()
-    notify.info(`AI agent opened for ${inspectorLabel}. Add a website, document, or note to fill missing text fields.`)
-  }, [inspectorLabel, openAgent])
-
   const renderEditorPanel = (panel: EditorNavPanel) => {
     switch (panel.kind) {
       case 'personal':
@@ -965,7 +960,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       panel={inspectorPanel}
                       vCardData={vCardData}
                       completionMeta={completionMeta}
-                      onFillWithAi={openAiForCurrentFields}
                     />
                     <button
                       type="button"
@@ -1052,11 +1046,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       panel={inspectorPanel}
                       vCardData={vCardData}
                       completionMeta={completionMeta}
-                      onFillWithAi={openAiForCurrentFields}
                     />
                   </div>
                 ) : null}
-                <div className="animate-in fade-in zoom-in-95 fill-mode-both h-full duration-500">
+                <div key={`${activeNavId}-${activeTab}`} className="animate-in fade-in zoom-in-95 h-full duration-500">
                   {editorPanel.kind === 'empty' ? (
                     <EditorNavEmptyPanel
                       title={activeNavItem?.label ?? 'Section'}

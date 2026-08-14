@@ -1,6 +1,6 @@
 'use client'
 
-import { AiDropFillZone, type ParsedEntry } from '@/components/AiDropFillZone'
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
@@ -12,6 +12,7 @@ import {
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { mapServicesFromPayload } from '@/lib/ai/applyCardDraft'
 import { createDefaultServiceEntry, normalizeServiceList } from '@/lib/vcardServices'
 import type { VCardServiceEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -63,14 +64,11 @@ export function ServicesEditorPanel({
     onServicesChange(services.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
   }
 
-  const applyParsed = (entries: ParsedEntry[]) => {
-    const mapped = entries.map((e) => ({
-      ...createDefaultServiceEntry(),
-      title: e.title,
-      description: e.description,
-      type: 'Other',
-    }))
+  const applyFilled = (result: AiFilledResult) => {
+    const mapped = mapServicesFromPayload(result.payload)
+    if (!mapped.length) return
     onServicesChange([...mapped, ...services])
+    expandNew(mapped[0]!.id)
   }
 
   return (
@@ -109,8 +107,8 @@ export function ServicesEditorPanel({
       <AiDropFillZone
         section="services"
         currentDraft={{ services }}
-        hint="Drop or paste service list — AI fills services (title + description), OCR for images"
-        onParsed={applyParsed}
+        hint="Drop or paste a service list — AI fills type, title, and description (OCR for images)"
+        onFilled={applyFilled}
       />
 
       <SectionJumpPills
@@ -148,7 +146,7 @@ export function ServicesEditorPanel({
             getKey={(s) => s.id}
             onReorder={onServicesChange}
             className="space-y-4"
-            renderItem={(service, index, controls) => {
+            renderItem={(service, index) => {
               const open = isExpanded(service.id)
               return (
                 <section
@@ -165,11 +163,6 @@ export function ServicesEditorPanel({
                     showRemove
                     onRemove={() => removeService(service.id)}
                     accent={accent}
-                    trailing={
-                      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                        {controls}
-                      </div>
-                    }
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="p-8">

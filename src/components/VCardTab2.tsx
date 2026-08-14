@@ -165,23 +165,12 @@ export function Tab2PersonalInfo() {
             </FieldGroup>
 
             <FieldGroup label="Profession" icon={<Briefcase className="h-4 w-4" />}>
-              <div className="relative w-full">
-                <select
-                  value={vCardData.personal.profession}
-                  onChange={(e) => updateData('personal.profession', e.target.value)}
-                  className={`${selectClasses} pl-10`}
-                >
-                  <option value="">Choose...</option>
-                  <option>Developer</option>
-                  <option>Designer</option>
-                  <option>Manager</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500 dark:text-slate-400">
-                  <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </div>
-              </div>
+              <input
+                type="text"
+                value={vCardData.personal.profession}
+                onChange={(e) => updateData('personal.profession', e.target.value)}
+                className={`${inputClasses} pl-10`}
+              />
             </FieldGroup>
 
             <FieldGroup label="Designation" icon={<User className="h-4 w-4" />}>

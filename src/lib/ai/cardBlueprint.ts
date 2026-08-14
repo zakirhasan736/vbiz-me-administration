@@ -1,4 +1,5 @@
 import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
+import { normalizeServiceType } from '@/lib/vcardServices'
 import type {
   VCardData,
   VCardEducationEntry,
@@ -79,6 +80,7 @@ export const cardBlueprintSchema = z.object({
   services: z
     .array(
       z.object({
+        type: z.string().optional().default('Other'),
         title: z.string(),
         description: z.string().optional().default(''),
         url: z.string().optional().default(''),
@@ -229,7 +231,7 @@ export function mapBlueprintToVCardData(
 
   const services: VCardServiceEntry[] = (blueprint.services || []).map((s) => ({
     id: uid('svc'),
-    type: 'Service',
+    type: normalizeServiceType(s.type),
     title: s.title,
     description: s.description || '',
     url: s.url || '',
@@ -356,7 +358,7 @@ export const BLUEPRINT_JSON_INSTRUCTION = `Return a single JSON object matching 
   "education": [{ "institute": "", "degree": "", "fromDate": "YYYY-MM-DD", "toDate": "", "tillNow": false }],
   "experience": [{ "company": "", "jobTitle": "", "description": "", "fromDate": "", "toDate": "", "tillNow": false }],
   "skills": [{ "type": "Core", "skills": ["Skill"] }],
-  "services": [{ "title": "", "description": "", "url": "" }],
+  "services": [{ "type": "Web Development"|"App Design"|"SEO"|"Marketing"|"Other", "title": "", "description": "", "url": "" }],
   "portfolio": [{ "title": "", "description": "", "url": "" }],
   "reviews": [{ "author": "", "text": "", "rating": 5 }],
   "blogs": [{ "title": "", "description": "", "category": "News" }],

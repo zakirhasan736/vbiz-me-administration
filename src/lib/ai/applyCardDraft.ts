@@ -1,5 +1,12 @@
 import { mapBlueprintToVCardData, type CardBlueprint } from '@/lib/ai/cardBlueprint'
-import type { VCardData } from '@/types/vcard'
+import { normalizeServiceType } from '@/lib/vcardServices'
+import type {
+  VCardData,
+  VCardGeneralPost,
+  VCardPortfolioEntry,
+  VCardReviewEntry,
+  VCardServiceEntry,
+} from '@/types/vcard'
 
 export type AnalyzeResponse = {
   blueprint: CardBlueprint
@@ -14,6 +21,118 @@ export type SectionFillPayload = Record<string, unknown>
 
 function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+/** Map fill-section services payload → editor entries (type/title/description/url). */
+export function mapServicesFromPayload(payload: SectionFillPayload): VCardServiceEntry[] {
+  if (!Array.isArray(payload.services)) return []
+  const out: VCardServiceEntry[] = []
+  for (const row of payload.services) {
+    const s = row as { type?: string; title?: string; description?: string; url?: string }
+    const title = String(s.title || '').trim()
+    const description = String(s.description || '').trim()
+    if (!title && !description) continue
+    out.push({
+      id: uid('svc'),
+      type: normalizeServiceType(s.type),
+      title: title || 'Service',
+      description,
+      url: String(s.url || '').trim(),
+      featuredImage: '',
+      active: true,
+    })
+  }
+  return out
+}
+
+/** Map fill-section portfolio payload → editor entries. */
+export function mapPortfolioFromPayload(payload: SectionFillPayload): VCardPortfolioEntry[] {
+  if (!Array.isArray(payload.portfolio)) return []
+  const out: VCardPortfolioEntry[] = []
+  for (const row of payload.portfolio) {
+    const p = row as { title?: string; description?: string; url?: string }
+    const title = String(p.title || '').trim()
+    const description = String(p.description || '').trim()
+    if (!title && !description) continue
+    out.push({
+      id: uid('port'),
+      type: 'Image',
+      title: title || 'Project',
+      description,
+      imageUrl: '',
+      url: String(p.url || '').trim(),
+      active: true,
+    })
+  }
+  return out
+}
+
+/** Map fill-section reviews payload → editor entries (author/text/rating). */
+export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewEntry[] {
+  if (!Array.isArray(payload.reviews)) return []
+  const out: VCardReviewEntry[] = []
+  for (const row of payload.reviews) {
+    const r = row as { author?: string; text?: string; rating?: number }
+    const author = String(r.author || '').trim()
+    const text = String(r.text || '').trim()
+    if (!author && !text) continue
+    const ratingRaw = typeof r.rating === 'number' ? r.rating : Number(r.rating)
+    const rating = Number.isFinite(ratingRaw) ? Math.min(5, Math.max(1, Math.round(ratingRaw))) : 5
+    out.push({
+      id: uid('rev'),
+      author: author || 'Client',
+      text,
+      rating,
+    })
+  }
+  return out
+}
+
+/** Map fill-section blogs payload → general posts (title/description/category). */
+export function mapBlogsFromPayload(payload: SectionFillPayload): VCardGeneralPost[] {
+  if (!Array.isArray(payload.blogs)) return []
+  const out: VCardGeneralPost[] = []
+  for (const row of payload.blogs) {
+    const b = row as { title?: string; description?: string; category?: string }
+    const title = String(b.title || '').trim()
+    const description = String(b.description || '').trim()
+    if (!title && !description) continue
+    out.push({
+      id: uid('blog'),
+      category: String(b.category || 'News').trim() || 'News',
+      title: title || 'Post',
+      description,
+      customUrl: '',
+      featuredImage: '',
+      date: new Date().toISOString().slice(0, 10),
+      active: true,
+    })
+  }
+  return out
+}
+
+/** Count list entries in a fill-section payload for a given section. */
+export function countFillPayloadEntries(section: string, payload: SectionFillPayload): number {
+  if (section === 'personal') {
+    return payload.personal && typeof payload.personal === 'object' ? 1 : 0
+  }
+  if (section === 'services') return mapServicesFromPayload(payload).length
+  if (section === 'portfolio') return mapPortfolioFromPayload(payload).length
+  if (section === 'reviews') return mapReviewsFromPayload(payload).length
+  if (section === 'blogs') return mapBlogsFromPayload(payload).length
+
+  const key =
+    section === 'skills'
+      ? 'skills'
+      : section === 'education'
+        ? 'education'
+        : section === 'experience'
+          ? 'experience'
+          : section === 'faqs'
+            ? 'faqs'
+            : null
+  if (!key) return 0
+  return Array.isArray(payload[key]) ? (payload[key] as unknown[]).length : 0
 }
 
 /** Merge a fill-section payload into an existing draft. */
@@ -41,62 +160,24 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
     }
   }
 
-  if (section === 'services' && Array.isArray(payload.services)) {
-    next.services = [
-      ...(next.services || []),
-      ...payload.services.map((s: { title?: string; description?: string; url?: string }) => ({
-        id: uid('svc'),
-        type: 'Service',
-        title: s.title || 'Service',
-        description: s.description || '',
-        url: s.url || '',
-        featuredImage: '',
-        active: true,
-      })),
-    ]
+  if (section === 'services') {
+    const mapped = mapServicesFromPayload(payload)
+    if (mapped.length) next.services = [...(next.services || []), ...mapped]
   }
 
-  if (section === 'blogs' && Array.isArray(payload.blogs)) {
-    next.generalPosts = [
-      ...(next.generalPosts || []),
-      ...payload.blogs.map((b: { title?: string; description?: string; category?: string }) => ({
-        id: uid('blog'),
-        category: b.category || 'News',
-        title: b.title || 'Post',
-        description: b.description || '',
-        customUrl: '',
-        featuredImage: '',
-        date: new Date().toISOString().slice(0, 10),
-        active: true,
-      })),
-    ]
+  if (section === 'blogs') {
+    const mapped = mapBlogsFromPayload(payload)
+    if (mapped.length) next.generalPosts = [...(next.generalPosts || []), ...mapped]
   }
 
-  if (section === 'portfolio' && Array.isArray(payload.portfolio)) {
-    next.portfolio = [
-      ...(next.portfolio || []),
-      ...payload.portfolio.map((p: { title?: string; description?: string; url?: string }) => ({
-        id: uid('port'),
-        type: 'Image',
-        title: p.title || 'Project',
-        description: p.description || '',
-        imageUrl: '',
-        url: p.url || '',
-        active: true,
-      })),
-    ]
+  if (section === 'portfolio') {
+    const mapped = mapPortfolioFromPayload(payload)
+    if (mapped.length) next.portfolio = [...(next.portfolio || []), ...mapped]
   }
 
-  if (section === 'reviews' && Array.isArray(payload.reviews)) {
-    next.reviews = [
-      ...(next.reviews || []),
-      ...payload.reviews.map((r: { author?: string; text?: string; rating?: number }) => ({
-        id: uid('rev'),
-        author: r.author || 'Client',
-        text: r.text || '',
-        rating: Math.min(5, Math.max(1, Math.round(r.rating || 5))),
-      })),
-    ]
+  if (section === 'reviews') {
+    const mapped = mapReviewsFromPayload(payload)
+    if (mapped.length) next.reviews = [...(next.reviews || []), ...mapped]
   }
 
   if (section === 'skills' && Array.isArray(payload.skills)) {

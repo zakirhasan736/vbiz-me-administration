@@ -1,6 +1,6 @@
 'use client'
 
-import { AiDropFillZone, type ParsedEntry } from '@/components/AiDropFillZone'
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
 import {
@@ -10,6 +10,7 @@ import {
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { mapReviewsFromPayload } from '@/lib/ai/applyCardDraft'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultReviewEntry, normalizeReviewList } from '@/lib/vcardReviews'
 import type { VCardReviewEntry } from '@/types/vcard'
@@ -59,15 +60,11 @@ export function TabReviews() {
     setReviews(reviewsRef.current.map((r) => (r.id === id ? { ...r, ...patch } : r)))
   }
 
-  const applyParsed = (entries: ParsedEntry[]) => {
-    const mapped = entries.map((e, i) => ({
-      ...createDefaultReviewEntry(),
-      id: `rev_${Date.now()}_${i}`,
-      author: e.title,
-      text: e.description,
-      rating: 5,
-    }))
+  const applyFilled = (result: AiFilledResult) => {
+    const mapped = mapReviewsFromPayload(result.payload)
+    if (!mapped.length) return
     setReviews([...mapped, ...reviewsRef.current.filter((r) => r.author || r.text)])
+    expandNew(mapped[0]!.id)
   }
 
   return (
@@ -104,8 +101,8 @@ export function TabReviews() {
         section="reviews"
         currentDraft={{ reviews }}
         accent="amber"
-        hint="Paste or upload reviews — AI maps author + quote (OCR for images)"
-        onParsed={applyParsed}
+        hint="Paste or upload reviews — AI maps author, quote, and rating (OCR for images)"
+        onFilled={applyFilled}
       />
 
       <SectionJumpPills
@@ -135,7 +132,7 @@ export function TabReviews() {
             items={reviews}
             getKey={(r) => r.id}
             onReorder={setReviews}
-            renderItem={(item, idx, controls) => {
+            renderItem={(item, idx) => {
               const open = isExpanded(item.id)
               return (
                 <section
@@ -152,11 +149,6 @@ export function TabReviews() {
                     showRemove
                     onRemove={() => removeReview(item.id)}
                     accent={accent}
-                    trailing={
-                      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                        {controls}
-                      </div>
-                    }
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-3 p-5">

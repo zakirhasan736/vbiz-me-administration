@@ -129,7 +129,7 @@ export function TabCertificates() {
             items={items}
             getKey={(c) => c.id}
             onReorder={persist}
-            renderItem={(item, idx, controls) => {
+            renderItem={(item, idx) => {
               const open = isExpanded(item.id)
               return (
                 <section
@@ -146,11 +146,6 @@ export function TabCertificates() {
                     showRemove
                     onRemove={() => removeCert(item.id)}
                     accent={accent}
-                    trailing={
-                      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                        {controls}
-                      </div>
-                    }
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-4 p-6">

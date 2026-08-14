@@ -1,6 +1,6 @@
 'use client'
 
-import { AiDropFillZone, type ParsedEntry } from '@/components/AiDropFillZone'
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
@@ -11,6 +11,7 @@ import {
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { mapPortfolioFromPayload } from '@/lib/ai/applyCardDraft'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultPortfolioEntry, normalizePortfolioList } from '@/lib/vcardPortfolio'
 import type { VCardPortfolioEntry } from '@/types/vcard'
@@ -68,13 +69,11 @@ export function TabPortfolio() {
     setPortfolios(portfoliosRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p)))
   }
 
-  const applyParsed = (entries: ParsedEntry[]) => {
-    const mapped = entries.map((e) => ({
-      ...createDefaultPortfolioEntry(),
-      title: e.title,
-      description: e.description,
-    }))
+  const applyFilled = (result: AiFilledResult) => {
+    const mapped = mapPortfolioFromPayload(result.payload)
+    if (!mapped.length) return
     setPortfolios([...mapped, ...portfoliosRef.current.filter((p) => p.title || p.description)])
+    expandNew(mapped[0]!.id)
   }
 
   return (
@@ -111,8 +110,8 @@ export function TabPortfolio() {
         section="portfolio"
         currentDraft={{ portfolio: portfolios }}
         accent="violet"
-        hint="Paste or upload projects — AI fills title + description (OCR for images)"
-        onParsed={applyParsed}
+        hint="Paste or upload projects — AI fills title, description, and URL (OCR for images)"
+        onFilled={applyFilled}
       />
 
       <SectionJumpPills

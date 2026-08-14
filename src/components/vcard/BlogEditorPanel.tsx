@@ -1,6 +1,6 @@
 'use client'
 
-import { AiDropFillZone, type ParsedEntry } from '@/components/AiDropFillZone'
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
@@ -13,6 +13,7 @@ import {
 } from '@/components/vcard/ExpandableEntryChrome'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { mapBlogsFromPayload } from '@/lib/ai/applyCardDraft'
 import { createDefaultGeneralPost, normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
 import type { VCardGeneralPost } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -68,13 +69,11 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
     setPosts(postsRef.current.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
   }
 
-  const applyParsed = (entries: ParsedEntry[]) => {
-    const mapped = entries.map((e) => ({
-      ...createDefaultGeneralPost(),
-      title: e.title,
-      description: e.description,
-    }))
+  const applyFilled = (result: AiFilledResult) => {
+    const mapped = mapBlogsFromPayload(result.payload)
+    if (!mapped.length) return
     setPosts([...mapped, ...postsRef.current.filter((p) => p.title || p.description)])
+    expandNew(mapped[0]!.id)
   }
 
   return (
@@ -111,8 +110,8 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
         section="blogs"
         currentDraft={{ blogs: posts }}
         accent="violet"
-        hint="Drop or paste posts — AI extracts headlines & summaries (OCR for images)"
-        onParsed={applyParsed}
+        hint="Drop or paste posts — AI extracts title, summary, and category (OCR for images)"
+        onFilled={applyFilled}
       />
 
       {posts.length > 0 ? (
@@ -151,7 +150,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
             items={posts}
             getKey={(p) => p.id}
             onReorder={setPosts}
-            renderItem={(item, idx, controls) => {
+            renderItem={(item, idx) => {
               const open = isExpanded(item.id)
               return (
                 <section
@@ -168,11 +167,6 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                     showRemove
                     onRemove={() => removePost(item.id)}
                     accent={accent}
-                    trailing={
-                      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                        {controls}
-                      </div>
-                    }
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-4 p-5">
