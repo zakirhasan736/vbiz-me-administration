@@ -2,6 +2,7 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
+import { AdminScheduleListSkeleton } from '@/components/admin/AdminScheduleSkeleton'
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { notifyOwners } from '@/lib/notifications'
 import {
@@ -12,7 +13,7 @@ import {
 } from '@/redux/features/meetings/meetings.api'
 import { MEETING_TYPES, type Meeting, type MeetingStatus, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
-import { Calendar, CheckCircle2, Clock, ExternalLink, Plus, Search, Trash2, X, XCircle } from 'lucide-react'
+import { Calendar, CheckCircle2, Clock, ExternalLink, Loader2, Plus, Search, Trash2, X, XCircle } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 
 function todayIsoDate(): string {
@@ -156,7 +157,7 @@ export default function AdminSchedule() {
         </div>
 
         {isLoading ? (
-          <div className="py-16 text-center text-sm font-semibold text-slate-400">Loading schedules…</div>
+          <AdminScheduleListSkeleton />
         ) : isError ? (
           <div className="py-16 text-center text-sm font-semibold text-rose-500">Failed to load schedules.</div>
         ) : filteredMeetings.length > 0 ? (
@@ -350,8 +351,9 @@ export default function AdminSchedule() {
                   <button
                     type="submit"
                     disabled={isCreating || !owner}
-                    className="flex-1 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95 disabled:opacity-60"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95 disabled:opacity-60"
                   >
+                    {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     {isCreating ? 'Saving…' : 'Save Schedule Event'}
                   </button>
                 </div>

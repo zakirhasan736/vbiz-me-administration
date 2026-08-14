@@ -34,7 +34,7 @@ import {
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { getVCardPublicUrl } from '@/utils/vcard'
-import { useMemo, useState, type DragEvent } from 'react'
+import { useEffect, useMemo, useState, type DragEvent } from 'react'
 
 export default function TeamVCardsView() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -56,6 +56,21 @@ export default function TeamVCardsView() {
   const [isQrOpen, setIsQrOpen] = useState(false)
   const [qrUrl, setQrUrl] = useState('')
   const [qrTitle, setQrTitle] = useState('vCard QR Code')
+  const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
+  const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
+  const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!highlightedDuplicatedId) return
+    const timer = window.setTimeout(() => setHighlightedDuplicatedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedDuplicatedId])
+
+  useEffect(() => {
+    if (!highlightedActivatedId) return
+    const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedActivatedId])
 
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
   const [createTeamNotice] = useCreateTeamNoticeMutation()
@@ -92,7 +107,41 @@ export default function TeamVCardsView() {
       notify.warning(directory.createDisabledReason)
       return
     }
-    await directory.duplicateCard(card)
+    if (!card.id || duplicatingCardId) return
+    setDuplicatingCardId(card.id)
+    try {
+      const newId = await directory.duplicateCard(card)
+      if (newId) {
+        notify.success('Saved as a draft.', {
+          title: 'Card duplicated',
+          action: {
+            label: 'View in Draft',
+            onClick: () => {
+              setLifecycleTab('draft')
+              setHighlightedDuplicatedId(newId)
+              setPanelCardId(null)
+            },
+          },
+        })
+      }
+    } finally {
+      setDuplicatingCardId(null)
+    }
+  }
+
+  const handleActivatedFromDraft = (cardId: string) => {
+    notify.success('Your card is now active.', {
+      title: 'Card activated',
+      action: {
+        label: 'View in Active',
+        onClick: () => {
+          setLifecycleTab('active')
+          setHighlightedActivatedId(cardId)
+          setHighlightedDuplicatedId(null)
+          setPanelCardId(null)
+        },
+      },
+    })
   }
 
   const promptDefault = promptNoticeCard
@@ -194,6 +243,10 @@ export default function TeamVCardsView() {
                 canDuplicate={directory.canCreate}
                 duplicateDisabledReason={directory.createDisabledReason}
                 onDuplicate={() => void handleDuplicate(card)}
+                isDuplicating={duplicatingCardId === card.id}
+                isNewlyDuplicated={highlightedDuplicatedId === card.id || highlightedActivatedId === card.id}
+                highlightLabel={highlightedActivatedId === card.id ? 'activated' : 'duplicated'}
+                onActivatedFromDraft={handleActivatedFromDraft}
                 onTrends={() => setTrendsCard(card)}
               />
             )
@@ -228,6 +281,7 @@ export default function TeamVCardsView() {
         onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
         canDuplicate={directory.canCreate}
         duplicateDisabledReason={directory.createDisabledReason}
+        isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
       />
 
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />

@@ -17,7 +17,7 @@ type AdminVCardListContextType = {
   userRole: 'single' | 'corporate' | 'admin'
   currentEditingCardId: string | null
   setCurrentEditingCardId: (id: string | null) => void
-  createCorporateCard: (card?: Partial<AdminCard>) => Promise<void>
+  createCorporateCard: (card?: Partial<AdminCard>) => Promise<string | null>
   deleteCorporateCard: (id: string) => Promise<void>
   updateCorporateCardControls: (id: string, updates: Partial<AdminCard>) => Promise<void>
   bulkUpdateCorporateCards: (ids: string[], updates: Partial<AdminCard>) => Promise<void>
@@ -68,12 +68,15 @@ export function AdminVCardListProvider({ children }: { children: React.ReactNode
     async (card?: Partial<AdminCard>) => {
       const personal = (card?.personal as Record<string, string>) || {}
       const slug = (card?.slug as string) || `admin-card-${Date.now().toString().slice(-4)}`
-      await createProfile({
+      const created = await createProfile({
         name: String(personal.fullName || 'Admin Team Member'),
         email: String(personal.email || user?.email || ''),
         slug,
+        isDraft: true,
+        isPublic: false,
       }).unwrap()
       await refetch()
+      return created?.id ?? null
     },
     [createProfile, refetch, user]
   )

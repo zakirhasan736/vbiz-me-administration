@@ -1,9 +1,12 @@
 'use client'
 
-import { useAppSelector } from '@/hooks/redux'
+import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { seedActiveAnnouncementNotification } from '@/lib/notifications'
-import { useGetActiveAnnouncementQuery } from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
-import type { AnnouncementType } from '@/types/announcement'
+import {
+  clearActiveAnnouncementBannerCache,
+  useGetActiveAnnouncementQuery,
+} from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
+import type { Announcement, AnnouncementType } from '@/types/announcement'
 import { cn } from '@/utils/cn'
 import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
@@ -25,8 +28,10 @@ function isDismissed(id: string): boolean {
 }
 
 function markDismissed(id: string) {
+  const trimmed = id.trim()
+  if (!trimmed) return
   try {
-    localStorage.setItem(dismissKey(id), '1')
+    localStorage.setItem(dismissKey(trimmed), '1')
     window.dispatchEvent(new Event(DISMISS_EVENT))
   } catch {
     /* ignore quota / private mode */
@@ -72,34 +77,75 @@ type AnnouncementBannerProps = {
   enabled?: boolean
 }
 
+function isInboxOnlyAnnouncement(meta?: Record<string, string>) {
+  return meta?.channel === 'inbox'
+}
+
+/** Sole render gate — never paint chrome without a real id + content. */
+function isRenderableBanner(value: Announcement | null | undefined): value is Announcement {
+  if (!value || typeof value !== 'object') return false
+  // Reject payload / envelope shapes that can leak into cache during soft nav.
+  if ('banner' in value || ('inbox' in value && !('id' in value))) return false
+  if (!value.id?.trim()) return false
+  if (!value.title?.trim() && !value.body?.trim()) return false
+  if (isInboxOnlyAnnouncement(value.meta)) return false
+  return true
+}
+
 export default function AnnouncementBanner({ enabled = true }: AnnouncementBannerProps) {
+  const dispatch = useAppDispatch()
   const userRole = useAppSelector((state) => state.user.user?.role)
-  const { data: announcement } = useGetActiveAnnouncementQuery(undefined, {
+  const { data } = useGetActiveAnnouncementQuery(undefined, {
     skip: !enabled,
     pollingInterval: 60_000,
+    refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     refetchOnReconnect: true,
   })
 
-  const dismissed = useIsAnnouncementDismissed(announcement?.id)
+  const bannerCandidate = data?.banner
+  const banner = isRenderableBanner(bannerCandidate) ? bannerCandidate : null
+  const dismissed = useIsAnnouncementDismissed(banner?.id)
+
+  const dismissBanner = useCallback(
+    (id: string) => {
+      const trimmed = id.trim()
+      if (!trimmed) return
+      markDismissed(trimmed)
+      dispatch(clearActiveAnnouncementBannerCache())
+    },
+    [dispatch]
+  )
 
   useEffect(() => {
-    if (!enabled || !announcement?.id) return
+    if (!enabled) return
     const audience = userRole === 'corporate-owner' ? 'corporate' : userRole === 'vcard-owner' ? 'single' : null
     if (!audience) return
-    seedActiveAnnouncementNotification({
-      audience,
-      announcementId: announcement.id,
-      title: announcement.title,
-      body: announcement.body,
-      profileId: announcement.meta?.profileId,
-    })
-  }, [enabled, announcement, userRole])
 
-  if (!enabled || !announcement || dismissed) {
+    const seen = new Set<string>()
+    const toSeed = [...(data?.inbox ?? []), ...(banner ? [banner] : [])]
+    for (const item of toSeed) {
+      if (!item?.id || !item.title?.trim() || seen.has(item.id)) continue
+      seen.add(item.id)
+      seedActiveAnnouncementNotification({
+        audience,
+        announcementId: item.id,
+        title: item.title,
+        body: item.body,
+        profileId: item.meta?.profileId,
+        href:
+          item.meta?.kind === 'birthday' && item.meta?.profileId
+            ? `/vcards/edit/home/${item.meta.profileId}`
+            : undefined,
+      })
+    }
+  }, [enabled, data, banner, userRole])
+
+  if (!enabled || !banner || dismissed) {
     return null
   }
 
+  const announcement = banner
   const styles = typeStyles[announcement.type] ?? typeStyles.info
   const Icon = styles.Icon
   const ariaRole = announcement.type === 'warning' ? 'alert' : 'status'
@@ -121,7 +167,7 @@ export default function AnnouncementBanner({ enabled = true }: AnnouncementBanne
         </div>
         <button
           type="button"
-          onClick={() => markDismissed(announcement.id)}
+          onClick={() => dismissBanner(announcement.id)}
           className={cn('shrink-0 rounded-xl p-1.5 transition-colors', styles.button)}
           aria-label="Dismiss announcement"
         >

@@ -20,6 +20,7 @@ import {
   Edit2,
   ExternalLink,
   Eye,
+  Loader2,
   Mail,
   MessageSquare,
   MousePointerClick,
@@ -46,7 +47,10 @@ type Props = {
   onCall?: (card: AdminCard) => void
   onSchedule?: (card: AdminCard) => void
   onNotice?: (card: AdminCard) => void
+  /** Server-resolved notice text; when set (including null), overrides localStorage. */
+  activeNoticeText?: string | null
   onDuplicate?: (card: AdminCard) => void
+  isDuplicating?: boolean
   onToggleStatus?: (card: AdminCard, status: string) => void
   mode?: 'admin' | 'corporate'
 }
@@ -94,7 +98,9 @@ export default function VCardDetailSidebar({
   onCall,
   onSchedule,
   onNotice,
+  activeNoticeText,
   onDuplicate,
+  isDuplicating = false,
   onToggleStatus,
   mode = 'corporate',
 }: Props) {
@@ -151,7 +157,12 @@ export default function VCardDetailSidebar({
     typeof window !== 'undefined'
       ? `${window.location.origin}/v/${card.slug || 'profile'}`
       : `/v/${card.slug || 'profile'}`
-  const activeNotice = typeof window !== 'undefined' ? localStorage.getItem(`notice_${card.id}`) : null
+  const activeNotice =
+    activeNoticeText !== undefined
+      ? activeNoticeText
+      : typeof window !== 'undefined'
+        ? localStorage.getItem(`notice_${card.id}`)
+        : null
   const initials =
     fullName
       .split(' ')
@@ -388,10 +399,19 @@ export default function VCardDetailSidebar({
               {onDuplicate && (
                 <button
                   type="button"
-                  onClick={() => onDuplicate(card)}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200"
+                  onClick={() => {
+                    if (!isDuplicating) onDuplicate(card)
+                  }}
+                  disabled={isDuplicating}
+                  aria-busy={isDuplicating}
+                  title={isDuplicating ? 'Duplicating…' : 'Duplicate this card'}
+                  className={cn(
+                    'inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200',
+                    isDuplicating && 'cursor-not-allowed opacity-60'
+                  )}
                 >
-                  <Copy className="h-3.5 w-3.5" /> Duplicate
+                  {isDuplicating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+                  {isDuplicating ? 'Duplicating…' : 'Duplicate'}
                 </button>
               )}
               {mode !== 'admin' && (

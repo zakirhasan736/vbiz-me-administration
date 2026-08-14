@@ -5,20 +5,32 @@ import VCardDetailSidebar, { VCardTrendsPopup } from '@/components/admin/AdminVC
 import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
 import { CardLifecycleTabs, type CardLifecycleTab } from '@/components/dashboard/vcard/CardLifecycleTabs'
-import { PromptModal } from '@/components/PromptModal'
+import { NoticeModal, type NoticeType } from '@/components/dashboard/vcard/NoticeModal'
+import { VCardDirectoryListSkeleton } from '@/components/dashboard/vcard/VCardDirectoryListSkeleton'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { StatNumber } from '@/components/ui/StatNumber'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppSelector } from '@/hooks/redux'
 import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
+import {
+  clearLocalCardNotice,
+  noticeForCard,
+  noticeTypeFromTeamNotice,
+  readLocalCardNotice,
+  writeLocalCardNotice,
+} from '@/lib/cardNotice'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
 import {
   mapApiProfileToVCardRecord,
+  useCreateTeamNoticeMutation,
+  useDeleteTeamNoticeMutation,
   useGetDashboardStatsQuery,
   useGetProfilesQuery,
+  useGetTeamNoticesQuery,
   type DashboardSocialChannel,
 } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
@@ -41,7 +53,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; tone: string }> = {
   facebook: { icon: Facebook, tone: 'text-[#1877F2]' },
@@ -57,22 +69,51 @@ const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; tone: strin
   website: { icon: Globe, tone: 'text-purple-500' },
 }
 
+function SocialChannelCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-slate-900/50">
+      <Skeleton className="mb-2 h-4 w-4 rounded-md" />
+      <Skeleton variant="text" className="h-2.5 w-14" />
+      <Skeleton className="mt-2 h-6 w-10" />
+    </div>
+  )
+}
+
 export default function AdminMyCards() {
   const { user } = useAuth()
   const reduxUser = useAppSelector((s) => s.user.user)
   const ownerId = reduxUser?.id || user?.uid
   const router = useRouter()
-  const { createCorporateCard, setCurrentEditingCardId, deleteCorporateCard } = useVCard()
+  const { createCorporateCard, setCurrentEditingCardId } = useVCard()
   const { data: createdProfilesResult, isLoading: cardsLoading } = useGetProfilesQuery({ scope: 'created', limit: 100 })
   const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period: 'all', scope: 'created' })
+  const { data: teamNotices = [] } = useGetTeamNoticesQuery()
+  const [createTeamNotice] = useCreateTeamNoticeMutation()
+  const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
 
   const [panelCard, setPanelCard] = useState<AdminCard | null>(null)
   const [trendsCard, setTrendsCard] = useState<AdminCard | null>(null)
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
   const [qrModalTitle, setQrModalTitle] = useState('vCard QR Code')
-  const [noticeCardId, setNoticeCardId] = useState<string | null>(null)
+  const [noticeCard, setNoticeCard] = useState<AdminCard | null>(null)
+  const [noticeVersion, setNoticeVersion] = useState(0)
   const [lifecycleTab, setLifecycleTab] = useState<CardLifecycleTab>('active')
+  const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
+  const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
+  const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!highlightedDuplicatedId) return
+    const timer = window.setTimeout(() => setHighlightedDuplicatedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedDuplicatedId])
+
+  useEffect(() => {
+    if (!highlightedActivatedId) return
+    const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedActivatedId])
 
   const createdProfiles = useMemo(() => createdProfilesResult?.items ?? [], [createdProfilesResult?.items])
   const showListSkeleton = cardsLoading && createdProfiles.length === 0
@@ -103,27 +144,76 @@ export default function AdminMyCards() {
     [myCards, lifecycleTab]
   )
 
+  const statsReady = Boolean(stats) && !statsLoading
   const socialChannels = stats?.socialChannels ?? []
-
-  const socialTotal = socialChannels.reduce((sum, row) => sum + (row.count || 0), 0) || Number(stats?.shares || 0)
+  const socialTotal = statsReady
+    ? socialChannels.reduce((sum, row) => sum + (row.count || 0), 0) || Number(stats?.shares || 0)
+    : undefined
 
   const handleCreate = () => {
     setCurrentEditingCardId(null)
   }
 
-  const handleDuplicate = async (card: AdminCard) => {
-    const suffix = String(myCards.length + 1).padStart(4, '0')
-    await createCorporateCard({
-      slug: `${card.slug || 'card'}-${suffix}`,
-      personal: {
-        ...card.personal,
-        fullName: `${card.personal?.fullName || 'Member'} (Copy)`,
+  const handleActivatedFromDraft = (cardId: string) => {
+    notify.success('Your card is now active.', {
+      title: 'Card activated',
+      action: {
+        label: 'View in Active',
+        onClick: () => {
+          setLifecycleTab('active')
+          setHighlightedActivatedId(cardId)
+          setHighlightedDuplicatedId(null)
+          setPanelCard(null)
+        },
       },
-      services: card.services,
-      portfolio: card.portfolio,
-      socials: card.socials,
     })
   }
+
+  const handleDuplicate = async (card: AdminCard) => {
+    if (!card.id || duplicatingCardId) return
+    setDuplicatingCardId(card.id)
+    try {
+      const suffix = String(myCards.length + 1).padStart(4, '0')
+      const newId = await createCorporateCard({
+        slug: `${card.slug || 'card'}-${suffix}`,
+        personal: {
+          ...card.personal,
+          fullName: `${card.personal?.fullName || 'Member'} (Copy)`,
+        },
+        services: card.services,
+        portfolio: card.portfolio,
+        socials: card.socials,
+      })
+      if (newId) {
+        notify.success('Saved as a draft.', {
+          title: 'Card duplicated',
+          action: {
+            label: 'View in Draft',
+            onClick: () => {
+              setLifecycleTab('draft')
+              setHighlightedDuplicatedId(newId)
+              setPanelCard(null)
+            },
+          },
+        })
+      }
+    } catch (e) {
+      console.error(e)
+      notify.info('Error duplicating card.')
+    } finally {
+      setDuplicatingCardId(null)
+    }
+  }
+
+  const noticeInitialText = noticeCard?.id
+    ? noticeForCard(noticeCard.id, teamNotices)?.text || readLocalCardNotice(noticeCard.id).text
+    : ''
+  const noticeServer = noticeCard?.id ? noticeForCard(noticeCard.id, teamNotices) : null
+  const noticeInitialType: NoticeType = noticeCard?.id
+    ? noticeServer
+      ? noticeTypeFromTeamNotice(noticeServer)
+      : readLocalCardNotice(noticeCard.id).type
+    : 'info'
 
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-6 p-4 duration-300 sm:p-6 lg:p-8">
@@ -142,8 +232,8 @@ export default function AdminMyCards() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">My cards</p>
           <StatNumber
-            value={stats?.cards ?? myCards.length}
-            loading={statsLoading && !stats}
+            value={statsReady ? (stats?.cards ?? myCards.length) : undefined}
+            loading={!statsReady}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
             skeletonClassName="mt-2 h-9 w-20"
           />
@@ -154,7 +244,7 @@ export default function AdminMyCards() {
           </p>
           <StatNumber
             value={stats?.totalViews}
-            loading={statsLoading && !stats}
+            loading={!statsReady}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
             skeletonClassName="mt-2 h-9 w-20"
           />
@@ -162,7 +252,7 @@ export default function AdminMyCards() {
             Unique{' '}
             <StatNumber
               value={stats?.uniqueViews ?? stats?.viewsLast30Days}
-              loading={statsLoading && !stats}
+              loading={!statsReady}
               skeletonClassName="h-3 w-8"
             />
           </div>
@@ -173,7 +263,7 @@ export default function AdminMyCards() {
           </p>
           <StatNumber
             value={stats?.shares}
-            loading={statsLoading && !stats}
+            loading={!statsReady}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
             skeletonClassName="mt-2 h-9 w-20"
           />
@@ -184,7 +274,7 @@ export default function AdminMyCards() {
           </p>
           <StatNumber
             value={stats?.contactsLast30Days}
-            loading={statsLoading && !stats}
+            loading={!statsReady}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
             skeletonClassName="mt-2 h-9 w-20"
           />
@@ -194,8 +284,8 @@ export default function AdminMyCards() {
             <Share2 className="h-3.5 w-3.5" /> Social clicks
           </p>
           <StatNumber
-            value={stats ? socialTotal : undefined}
-            loading={statsLoading && !stats}
+            value={socialTotal}
+            loading={!statsReady}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
             skeletonClassName="mt-2 h-9 w-20"
           />
@@ -210,26 +300,24 @@ export default function AdminMyCards() {
           </h2>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {socialChannels.map((row) => {
-            const ui = CHANNEL_UI[row.channel] ?? { icon: Globe, tone: 'text-slate-500' }
-            const Icon = ui.icon
-            return (
-              <div
-                key={row.channel}
-                className="rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-slate-900/50"
-              >
-                <Icon className={cn('mb-2 h-4 w-4', ui.tone)} />
-                <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{row.label}</p>
-                <div className="mt-1 text-xl font-black text-slate-900 dark:text-white">
-                  <StatNumber
-                    value={stats ? row.count || 0 : undefined}
-                    loading={statsLoading && !stats}
-                    skeletonClassName="h-6 w-12"
-                  />
-                </div>
-              </div>
-            )
-          })}
+          {!statsReady
+            ? Array.from({ length: 6 }).map((_, index) => <SocialChannelCardSkeleton key={index} />)
+            : socialChannels.map((row) => {
+                const ui = CHANNEL_UI[row.channel] ?? { icon: Globe, tone: 'text-slate-500' }
+                const Icon = ui.icon
+                return (
+                  <div
+                    key={row.channel}
+                    className="rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-slate-900/50"
+                  >
+                    <Icon className={cn('mb-2 h-4 w-4', ui.tone)} />
+                    <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{row.label}</p>
+                    <div className="mt-1 text-xl font-black text-slate-900 dark:text-white">
+                      <StatNumber value={row.count || 0} skeletonClassName="h-6 w-12" />
+                    </div>
+                  </div>
+                )
+              })}
         </div>
       </div>
 
@@ -246,6 +334,7 @@ export default function AdminMyCards() {
               onChange={setLifecycleTab}
               activeCount={activeCount}
               draftCount={draftCount}
+              countsLoading={showListSkeleton}
             />
           </div>
           <CreateCardLauncher portfolioOwnerAssignment>
@@ -264,109 +353,112 @@ export default function AdminMyCards() {
           </CreateCardLauncher>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {showListSkeleton ? (
-            Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="min-h-87.5 animate-pulse rounded-[28px] bg-slate-100 dark:bg-white/5" />
-            ))
-          ) : (
-            <>
-              <CreateCardLauncher portfolioOwnerAssignment>
-                {(open) => (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleCreate()
-                      open()
-                    }}
-                    className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
-                  >
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
-                      <Plus className="h-6 w-6" strokeWidth={2.5} />
-                    </div>
-                    <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
-                    <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-                      Add a card for yourself or a team member to your admin portfolio.
-                    </p>
-                  </button>
-                )}
-              </CreateCardLauncher>
-
-              {myCards.length === 0 ? (
-                <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
-                  <p className="mb-4 text-sm font-semibold text-slate-500">
-                    No admin portfolio cards yet. Create a card for yourself or a team member to get started.
+        {showListSkeleton ? (
+          <VCardDirectoryListSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <CreateCardLauncher portfolioOwnerAssignment>
+              {(open) => (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCreate()
+                    open()
+                  }}
+                  className="group flex min-h-87.5 cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:border-indigo-500/30 hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/2"
+                >
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
+                    <Plus className="h-6 w-6" strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
+                  <p className="mt-1 max-w-50 text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                    Add a card for yourself or a team member to your admin portfolio.
                   </p>
-                  <CreateCardLauncher portfolioOwnerAssignment>
-                    {(open) => (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleCreate()
-                          open()
-                        }}
-                        className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white uppercase"
-                      >
-                        Create first card
-                      </button>
-                    )}
-                  </CreateCardLauncher>
-                </div>
-              ) : visibleCards.length === 0 ? (
-                <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
-                  <p className="text-sm font-semibold text-slate-500">
-                    {lifecycleTab === 'draft'
-                      ? 'No draft cards in your portfolio.'
-                      : 'No active cards yet — check Draft.'}
-                  </p>
-                </div>
-              ) : (
-                visibleCards.map((card) => {
-                  const contactSaves = Number(card.saveCount || 0)
-                  const badge = resolveMyCardsBadge(card)
-
-                  return (
-                    <VCardTeamCard
-                      key={card.id}
-                      card={card}
-                      badgeLabel={badge.label}
-                      badgeTone={badge.tone}
-                      contactSaves={contactSaves}
-                      showDragHandle={false}
-                      showNotice
-                      onNotice={() => setNoticeCardId(card.id || null)}
-                      onCardClick={() => setPanelCard(card)}
-                      onTrends={() => setTrendsCard(card)}
-                      onEdit={() => {
-                        setCurrentEditingCardId(card.id || null)
-                        router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
-                      }}
-                      onSettings={() => {
-                        setCurrentEditingCardId(card.id || null)
-                        router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
-                      }}
-                      onView={() => window.open(`/v/${card.slug || 'profile'}`, '_blank')}
-                      onPanel={() => setPanelCard(card)}
-                      onQr={() =>
-                        openQrModal(
-                          `${window.location.origin}/v/${card.slug || 'profile'}`,
-                          String((card.personal as { fullName?: string })?.fullName || '')
-                        )
-                      }
-                      onDuplicate={() => void handleDuplicate(card)}
-                      onDeleted={async (id) => {
-                        await deleteCorporateCard(id)
-                        if (panelCard?.id === id) setPanelCard(null)
-                        if (trendsCard?.id === id) setTrendsCard(null)
-                        notify.info('Card deleted successfully.')
-                      }}
-                    />
-                  )
-                })
+                </button>
               )}
-            </>
-          )}
-        </div>
+            </CreateCardLauncher>
+
+            {myCards.length === 0 ? (
+              <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
+                <p className="mb-4 text-sm font-semibold text-slate-500">
+                  No admin portfolio cards yet. Create a card for yourself or a team member to get started.
+                </p>
+                <CreateCardLauncher portfolioOwnerAssignment>
+                  {(open) => (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleCreate()
+                        open()
+                      }}
+                      className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white uppercase"
+                    >
+                      Create first card
+                    </button>
+                  )}
+                </CreateCardLauncher>
+              </div>
+            ) : visibleCards.length === 0 ? (
+              <div className="rounded-[28px] border border-dashed border-slate-200 p-12 text-center md:col-span-2 lg:col-span-3 xl:col-span-4 dark:border-white/10">
+                <p className="text-sm font-semibold text-slate-500">
+                  {lifecycleTab === 'draft'
+                    ? 'No draft cards in your portfolio.'
+                    : 'No active cards yet — check Draft.'}
+                </p>
+              </div>
+            ) : (
+              visibleCards.map((card) => {
+                const contactSaves = Number(card.saveCount || 0)
+                const badge = resolveMyCardsBadge(card)
+                const serverNotice = card.id ? noticeForCard(card.id, teamNotices) : null
+
+                return (
+                  <VCardTeamCard
+                    key={card.id}
+                    card={card}
+                    badgeLabel={badge?.label}
+                    badgeTone={badge?.tone}
+                    contactSaves={contactSaves}
+                    showDragHandle={false}
+                    showNotice
+                    onNotice={() => setNoticeCard(card)}
+                    cardNoticeText={serverNotice?.text ?? null}
+                    cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
+                    noticeVersion={noticeVersion}
+                    onCardClick={() => setPanelCard(card)}
+                    onTrends={() => setTrendsCard(card)}
+                    onEdit={() => {
+                      setCurrentEditingCardId(card.id || null)
+                      router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
+                    }}
+                    onSettings={() => {
+                      setCurrentEditingCardId(card.id || null)
+                      router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
+                    }}
+                    onView={() => window.open(`/v/${card.slug || 'profile'}`, '_blank')}
+                    onPanel={() => setPanelCard(card)}
+                    onQr={() =>
+                      openQrModal(
+                        `${window.location.origin}/v/${card.slug || 'profile'}`,
+                        String((card.personal as { fullName?: string })?.fullName || '')
+                      )
+                    }
+                    onDuplicate={() => void handleDuplicate(card)}
+                    isDuplicating={duplicatingCardId === card.id}
+                    isNewlyDuplicated={highlightedDuplicatedId === card.id || highlightedActivatedId === card.id}
+                    highlightLabel={highlightedActivatedId === card.id ? 'activated' : 'duplicated'}
+                    onActivatedFromDraft={handleActivatedFromDraft}
+                    onDeleted={async (id) => {
+                      if (panelCard?.id === id) setPanelCard(null)
+                      if (trendsCard?.id === id) setTrendsCard(null)
+                      notify.info('Card deleted successfully.')
+                    }}
+                  />
+                )
+              })
+            )}
+          </div>
+        )}
       </div>
 
       <VCardDetailSidebar
@@ -374,6 +466,7 @@ export default function AdminMyCards() {
         mode="admin"
         onClose={() => setPanelCard(null)}
         onDuplicate={handleDuplicate}
+        isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
       />
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />
 
@@ -384,22 +477,57 @@ export default function AdminMyCards() {
         title={qrModalTitle}
       />
 
-      <PromptModal
-        open={!!noticeCardId}
-        title="Card notice"
-        description="Shown on the public vCard"
-        label="Notice text"
-        defaultValue={
-          noticeCardId && typeof window !== 'undefined' ? localStorage.getItem(`notice_${noticeCardId}`) || '' : ''
-        }
-        onConfirm={(value) => {
-          if (!noticeCardId) return
-          const key = `notice_${noticeCardId}`
-          if (value.trim()) localStorage.setItem(key, value.trim())
-          else localStorage.removeItem(key)
-          setNoticeCardId(null)
+      <NoticeModal
+        open={!!noticeCard}
+        cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
+        initialText={noticeInitialText}
+        initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
+        onClose={() => setNoticeCard(null)}
+        onSave={(text, type) => {
+          if (!noticeCard?.id) return
+          void (async () => {
+            try {
+              if (text.trim()) {
+                writeLocalCardNotice(noticeCard.id, text, type)
+                await createTeamNotice({
+                  text: text.trim(),
+                  type,
+                  audience: 'all',
+                  targetProfileId: noticeCard.id,
+                }).unwrap()
+                notify.success('Notice saved for this card. Visitors will see it after the intro.')
+              } else {
+                clearLocalCardNotice(noticeCard.id)
+                const existing = noticeForCard(noticeCard.id, teamNotices)
+                if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
+                notify.success('Notice cleared.')
+              }
+              setNoticeVersion((n) => n + 1)
+            } catch (e) {
+              const message =
+                (e as { data?: { message?: string } })?.data?.message ||
+                (e as Error)?.message ||
+                'Could not save notice.'
+              notify.error(message)
+            }
+          })()
         }}
-        onCancel={() => setNoticeCardId(null)}
+        onClear={() => {
+          if (!noticeCard?.id) return
+          void (async () => {
+            clearLocalCardNotice(noticeCard.id)
+            const existing = noticeForCard(noticeCard.id, teamNotices)
+            if (existing?.id) {
+              try {
+                await deleteTeamNotice(existing.id).unwrap()
+              } catch {
+                /* ignore */
+              }
+            }
+            setNoticeVersion((n) => n + 1)
+            notify.success('Notice cleared.')
+          })()
+        }}
       />
     </div>
   )

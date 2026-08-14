@@ -5,6 +5,7 @@ import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ContactSavesModal, type ContactSavesModalTab, type DashboardContact } from '@/components/dashboard/home'
 import { ModalPortal } from '@/components/ModalPortal'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { StatNumber } from '@/components/ui/StatNumber'
 import { useAdminDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { getAdminThemeConfig, getThemeClasses } from '@/lib/admin/adminTheme'
@@ -72,7 +73,7 @@ const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; bg: string 
 }
 
 export default function AdminDashboard() {
-  const { vCardsList } = useVCard()
+  const { vCardsList, loadingList } = useVCard()
   const { user } = useAuth()
   const {
     data: health,
@@ -86,12 +87,12 @@ export default function AdminDashboard() {
   const [period, setPeriod] = useState<DashboardPeriod>('all')
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
 
-  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period })
+  const { data: stats, isFetching: statsFetching } = useGetDashboardStatsQuery({ period })
   const { overlay: liveKpis, connected: liveConnected } = useAdminDashboardLiveKpis(period)
   const { data: contactsRaw } = useGetContactsQuery()
 
   const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
-  const statsReady = Boolean(stats) && !statsLoading
+  const statsReady = Boolean(stats) && !statsFetching
   const savedContactsBase = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
   const totalSavedContacts = statsReady ? (savedContactsBase || 0) + liveKpis.saves : undefined
   const platformUniqueViews = statsReady
@@ -103,7 +104,8 @@ export default function AdminDashboard() {
   const socialChannels = stats?.socialChannels ?? []
 
   const networkHealthy = !healthError && health?.status === 'healthy'
-  const networkLabel = networkHealthy ? 'Network: 100%' : healthFetching && !health ? 'Network: …' : 'Network: Offline'
+  const networkPending = healthFetching && !health
+  const networkValue = networkHealthy ? '100%' : 'Offline'
 
   useEffect(() => {
     const handleThemeConfigChange = () => {
@@ -121,7 +123,7 @@ export default function AdminDashboard() {
     ? vCardsList.filter((c) => c.status === 'active' || !c.status).length || (stats?.cards ?? vCardsList.length)
     : undefined
 
-  const { data: meetingsPage } = useGetMeetingsQuery({ limit: 100 })
+  const { data: meetingsPage, isLoading: meetingsLoading } = useGetMeetingsQuery({ limit: 100 })
   const [createMeeting, { isLoading: isCreatingMeeting }] = useCreateMeetingMutation()
   const [deleteMeeting] = useDeleteMeetingMutation()
 
@@ -206,12 +208,19 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="z-10 flex shrink-0 items-center gap-3">
-          <div className="flex items-center gap-2 rounded-[14px] border border-slate-200/80 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/2 dark:text-slate-300">
-            <span
-              className={cn('h-2 w-2 rounded-full', networkHealthy ? 'animate-pulse bg-emerald-400' : 'bg-rose-400')}
-            />
-            {networkLabel}
-          </div>
+          {networkPending ? (
+            <Skeleton aria-hidden aria-label="Loading network status" className="h-10 w-33 rounded-[14px]" />
+          ) : (
+            <div className="flex items-center gap-2 rounded-[14px] border border-slate-200/80 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/2 dark:text-slate-300">
+              <span
+                className={cn(
+                  'h-2 w-2 shrink-0 rounded-full',
+                  networkHealthy ? 'animate-pulse bg-emerald-400' : 'bg-rose-400'
+                )}
+              />
+              Network: {networkValue}
+            </div>
+          )}
           <div className="relative flex items-center">
             <Calendar className="pointer-events-none absolute left-3.5 h-4 w-4 text-slate-400" />
             <select
@@ -475,19 +484,20 @@ export default function AdminDashboard() {
                   bg={cn(themeClasses.lightBg, themeClasses.lightText)}
                 />
               </button>
-              {socialChannels.map((stat) => {
-                const ui = CHANNEL_UI[stat.channel] ?? CHANNEL_UI.website
-                return (
-                  <SocialMetricsCard
-                    key={stat.channel}
-                    title={stat.label}
-                    value={stat.count}
-                    loading={!statsReady}
-                    icon={ui.icon}
-                    bg={ui.bg}
-                  />
-                )
-              })}
+              {!statsReady
+                ? Array.from({ length: 5 }).map((_, index) => <SocialMetricsCardSkeleton key={index} />)
+                : socialChannels.map((stat) => {
+                    const ui = CHANNEL_UI[stat.channel] ?? CHANNEL_UI.website
+                    return (
+                      <SocialMetricsCard
+                        key={stat.channel}
+                        title={stat.label}
+                        value={stat.count}
+                        icon={ui.icon}
+                        bg={ui.bg}
+                      />
+                    )
+                  })}
             </div>
           </div>
         )}
@@ -496,7 +506,7 @@ export default function AdminDashboard() {
           <div
             className={cn(themeConfig.showSocials !== false && 'border-t border-slate-100 pt-2 dark:border-white/5')}
           >
-            <VCardWeeklyEngagement vCardsList={vCardsList} aggregateAll embedded />
+            <VCardWeeklyEngagement vCardsList={vCardsList} aggregateAll embedded listLoading={loadingList} />
           </div>
         )}
       </div>
@@ -538,19 +548,39 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-3 gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-3 dark:border-white/5 dark:bg-white/2">
                 <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-center dark:border-white/5 dark:bg-[#0b0f19]">
                   <p className="text-lg font-black text-slate-900 tabular-nums dark:text-white">
-                    {filteredMeetings.length}
+                    <StatNumber
+                      value={meetingsLoading ? undefined : filteredMeetings.length}
+                      loading={meetingsLoading}
+                      skeletonClassName="mx-auto h-5 w-8"
+                    />
                   </p>
                   <p className="text-[9px] font-black text-slate-400 uppercase">Upcoming</p>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-center dark:border-white/5 dark:bg-[#0b0f19]">
                   <p className="text-lg font-black text-indigo-600 tabular-nums dark:text-indigo-300">
-                    {filteredMeetings.filter((m) => String(m.type).includes('Growth')).length}
+                    <StatNumber
+                      value={
+                        meetingsLoading
+                          ? undefined
+                          : filteredMeetings.filter((m) => String(m.type).includes('Growth')).length
+                      }
+                      loading={meetingsLoading}
+                      skeletonClassName="mx-auto h-5 w-8"
+                    />
                   </p>
                   <p className="text-[9px] font-black text-slate-400 uppercase">Growth</p>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-center dark:border-white/5 dark:bg-[#0b0f19]">
                   <p className="text-lg font-black text-emerald-600 tabular-nums dark:text-emerald-300">
-                    {filteredMeetings.filter((m) => String(m.type).includes('Onboarding')).length}
+                    <StatNumber
+                      value={
+                        meetingsLoading
+                          ? undefined
+                          : filteredMeetings.filter((m) => String(m.type).includes('Onboarding')).length
+                      }
+                      loading={meetingsLoading}
+                      skeletonClassName="mx-auto h-5 w-8"
+                    />
                   </p>
                   <p className="text-[9px] font-black text-slate-400 uppercase">Onboard</p>
                 </div>
@@ -558,7 +588,9 @@ export default function AdminDashboard() {
 
               <div className="max-h-100 flex-1 space-y-2.5 overflow-y-auto p-4">
                 <AnimatePresence>
-                  {filteredMeetings.length === 0 ? (
+                  {meetingsLoading ? (
+                    Array.from({ length: 4 }).map((_, index) => <ScheduleMeetingCardSkeleton key={index} />)
+                  ) : filteredMeetings.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 py-14 text-center dark:border-white/10">
                       <Calendar className="mx-auto mb-2 h-8 w-8 text-slate-300" />
                       <p className="text-xs font-semibold text-slate-400">No calls scheduled yet.</p>
@@ -838,6 +870,33 @@ function SocialMetricsCard({ title, value, loading, icon: Icon, bg }: SocialMetr
       <p className="mt-1 w-full truncate text-[10px] font-bold tracking-wider text-slate-400 uppercase" title={title}>
         {title}
       </p>
+    </div>
+  )
+}
+
+function SocialMetricsCardSkeleton() {
+  return (
+    <div className="flex flex-col items-center rounded-3xl border border-slate-200/80 bg-white p-4 text-center shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
+      <Skeleton className="mb-3 h-10 w-10 rounded-xl" />
+      <Skeleton className="mx-auto h-6 w-12 rounded-lg" />
+      <Skeleton variant="text" className="mt-2 h-2.5 w-16" />
+    </div>
+  )
+}
+
+function ScheduleMeetingCardSkeleton() {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-white/5 dark:bg-white/2">
+      <Skeleton className="h-11 w-11 shrink-0 rounded-xl" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <Skeleton className="h-4 w-24 rounded-md" />
+        <Skeleton className="h-3.5 w-28 rounded-md" />
+        <div className="flex items-center gap-3">
+          <Skeleton variant="text" className="h-2.5 w-20" />
+          <Skeleton variant="text" className="h-2.5 w-14" />
+        </div>
+      </div>
+      <Skeleton className="h-6 w-16 shrink-0 rounded-lg" />
     </div>
   )
 }

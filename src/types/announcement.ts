@@ -64,3 +64,8 @@ export type UpdateAnnouncementPayload = {
 export type ClearLiveAnnouncementResult = {
   clearedCount: number
 }
+
+export type ActiveAnnouncementPayload = {
+  banner: Announcement | null
+  inbox: Announcement[]
+}

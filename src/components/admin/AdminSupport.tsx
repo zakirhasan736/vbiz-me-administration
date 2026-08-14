@@ -2,6 +2,11 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import {
+  AdminSupportDetailSkeleton,
+  AdminSupportOpenCountSkeleton,
+  AdminSupportTicketListSkeleton,
+} from '@/components/admin/AdminSupportSkeleton'
+import {
   useDeleteSupportTicketMutation,
   useGetSupportTicketsQuery,
   useUpdateSupportTicketMutation,
@@ -87,9 +92,13 @@ export default function AdminSupport() {
             Inbox for single and corporate owners — feedback and email support tickets land here.
           </p>
         </div>
-        <span className="self-start rounded-xl bg-rose-500/10 px-3 py-1.5 text-[11px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-300">
-          {openCount} open
-        </span>
+        {isLoading ? (
+          <AdminSupportOpenCountSkeleton />
+        ) : (
+          <span className="self-start rounded-xl bg-rose-500/10 px-3 py-1.5 text-[11px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-300">
+            {openCount} open
+          </span>
+        )}
       </div>
 
       <div className="grid min-h-140 grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
@@ -112,10 +121,7 @@ export default function AdminSupport() {
           </div>
           <div className="flex-1 divide-y divide-slate-100 overflow-y-auto dark:divide-white/5">
             {isLoading ? (
-              <div className="px-4 py-16 text-center">
-                <Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin text-indigo-500" />
-                <p className="text-xs font-bold text-slate-500">Loading tickets…</p>
-              </div>
+              <AdminSupportTicketListSkeleton />
             ) : isError ? (
               <div className="px-4 py-16 text-center">
                 <Inbox className="mx-auto mb-2 h-8 w-8 text-rose-300" />
@@ -175,7 +181,9 @@ export default function AdminSupport() {
               <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />
             </div>
           )}
-          {!selected ? (
+          {isLoading ? (
+            <AdminSupportDetailSkeleton />
+          ) : !selected ? (
             <div className="flex flex-1 items-center justify-center text-sm font-semibold text-slate-400">
               Select an owner ticket to review
             </div>

@@ -33,7 +33,7 @@ export type Meeting = {
 
 export type CreateMeetingPayload = {
   host: string
-  type: MeetingType
+  type: string
   date: string
   time: string
   location?: string | null
@@ -46,7 +46,7 @@ export type UpdateMeetingPayload = Partial<CreateMeetingPayload>
 
 export type MeetingListQuery = {
   status?: MeetingStatus
-  type?: MeetingType
+  type?: string
   from?: string
   to?: string
   profileId?: string

@@ -16,7 +16,7 @@ import { getVCardPublicPath, getVCardPublicUrl } from '@/utils/vcard'
 import { Building, GripVertical, Megaphone, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useRef, useState, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { ContactSaveChip, ShareCountChip, SocialClickChip } from './SocialClickChip'
 import { TrafficSparkline } from './TrafficSparkline'
 import { VCardCardActions } from './VCardCardActions'
@@ -50,6 +50,14 @@ type VCardTeamCardProps = {
   onCardClick?: () => void
   onTrends?: () => void
   onDuplicate?: () => void
+  /** Shows spinner on the Duplicate button while this card is being copied. */
+  isDuplicating?: boolean
+  /** Primary border + chip to mark a card that was just duplicated or activated. */
+  isNewlyDuplicated?: boolean
+  /** Chip text when highlighted — defaults to duplicated. */
+  highlightLabel?: 'duplicated' | 'activated'
+  /** Fired after a draft card is successfully published via Visibility ON. */
+  onActivatedFromDraft?: (cardId: string) => void
 }
 
 export function VCardTeamCard({
@@ -75,6 +83,10 @@ export function VCardTeamCard({
   onCardClick,
   onTrends,
   onDuplicate,
+  isDuplicating = false,
+  isNewlyDuplicated = false,
+  highlightLabel = 'duplicated',
+  onActivatedFromDraft,
 }: VCardTeamCardProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
@@ -90,6 +102,7 @@ export function VCardTeamCard({
     optimisticPublic?.cardId === card.id && serverIsPublic !== optimisticPublic.value
       ? optimisticPublic.value
       : serverIsPublic
+  const isDraft = optimisticPublic?.cardId === card.id ? false : Boolean(card.isDraft)
   const [statsHovered, setStatsHovered] = useState(false)
   const [alertState, setAlertState] = useState<{
     title: string
@@ -102,9 +115,14 @@ export function VCardTeamCard({
   const noticeText = (cardNoticeText !== undefined ? cardNoticeText : localNoticeText) || null
   const noticeTone = cardNoticeType || 'info'
 
+  useEffect(() => {
+    if (!isNewlyDuplicated) return
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [isNewlyDuplicated])
+
   const status = resolveCardStatus({
     status: card.status,
-    isDraft: card.isDraft,
+    isDraft,
     isPublic,
     isActive: card.isActive,
   })
@@ -161,6 +179,7 @@ export function VCardTeamCard({
 
   const handleVisibilityChange = async (next: boolean) => {
     if (!card.id || visibilityLocked) return
+    const activatingFromDraft = Boolean(card.isDraft) && next
     setOptimisticPublic({ cardId: card.id, value: next })
     try {
       await updateProfileCard({
@@ -175,6 +194,7 @@ export function VCardTeamCard({
           patch: { isPublic: next, isActive: next, isDraft: false, status: next ? 'active' : 'inactive' },
         })
       )
+      if (activatingFromDraft) onActivatedFromDraft?.(card.id)
     } catch {
       setOptimisticPublic(null)
       notify.error('Could not update card visibility. Please try again.')
@@ -234,13 +254,21 @@ export function VCardTeamCard({
       onDrop={onDrop}
       onClick={handleRootClick}
       className={cn(
-        'group relative flex h-auto cursor-pointer flex-col rounded-2xl border border-slate-200/60 bg-white transition-all duration-300 hover:border-slate-400 hover:shadow-xl dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/20',
-        status === 'inactive' && 'border-slate-200/80',
-        status === 'paused' && 'border-amber-500/25',
-        status === 'suspended' && 'border-rose-500/25',
+        'group relative flex h-auto cursor-pointer flex-col rounded-2xl border bg-white transition-all duration-300 hover:shadow-xl dark:bg-[#0b0f19]',
+        isNewlyDuplicated
+          ? 'border-primary-500 bg-primary-50/40 ring-primary-500/25 dark:bg-primary-500/10 border-2 ring-2'
+          : 'border-slate-200/60 hover:border-slate-400 dark:border-white/5 dark:hover:border-white/20',
+        !isNewlyDuplicated && status === 'inactive' && 'border-slate-200/80',
+        !isNewlyDuplicated && status === 'paused' && 'border-amber-500/25',
+        !isNewlyDuplicated && status === 'suspended' && 'border-rose-500/25',
         dragged && 'opacity-50 ring-2 ring-indigo-400'
       )}
     >
+      {isNewlyDuplicated ? (
+        <span className="bg-primary-600 absolute -top-2.5 left-1/2 z-20 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-[9px] font-black tracking-wider text-white uppercase shadow-sm">
+          {highlightLabel === 'activated' ? 'Just activated' : 'Just duplicated'}
+        </span>
+      ) : null}
       <ConfirmModal
         open={deleteOpen}
         onCancel={() => setDeleteOpen(false)}
@@ -379,7 +407,7 @@ export function VCardTeamCard({
             </div>
             <VCardVisibilityToggle
               id={card.id ? `vcard-visibility-${card.id}` : 'vcard-visibility-missing'}
-              checked={isPublic}
+              checked={!isDraft && isPublic}
               disabled={isUpdatingVisibility || !card.id}
               locked={visibilityLocked}
               title={
@@ -502,6 +530,7 @@ export function VCardTeamCard({
             if (!canDuplicate) setAlertState({ title: 'Cannot duplicate', description: duplicateDisabledReason })
           }}
           duplicateDisabled={ownerLocked || (!canDuplicate && !onDuplicate)}
+          isDuplicating={isDuplicating}
           duplicateTitle={
             ownerLocked
               ? SUSPENDED_CARD_MESSAGE

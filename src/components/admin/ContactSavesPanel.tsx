@@ -1,6 +1,7 @@
 'use client'
 
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { ContactSavesListSkeleton } from '@/components/admin/AdminLeadsListSkeleton'
 import {
   CONTACT_SAVES_EVENT,
   ContactSaveRecord,
@@ -261,9 +262,9 @@ export default function ContactSavesPanel({
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/15">
               <Save className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </span>
-            <span className="min-w-0 leading-snug break-words">{title}</span>
+            <span className="min-w-0 leading-snug wrap-break-word">{title}</span>
           </h3>
-          <p className="mt-1.5 text-xs font-semibold break-words text-slate-400 sm:pl-[3.25rem]">
+          <p className="mt-1.5 text-xs font-semibold wrap-break-word text-slate-400 sm:pl-13">
             {subtitle || defaultSubtitle}
           </p>
         </div>
@@ -283,7 +284,7 @@ export default function ContactSavesPanel({
       </div>
 
       {/* Filters */}
-      <div className="flex min-w-0 flex-col gap-2.5 border-b border-slate-100 bg-slate-50/40 px-4 py-3 sm:px-6 sm:py-4 dark:border-white/5 dark:bg-white/[0.015]">
+      <div className="flex min-w-0 flex-col gap-2.5 border-b border-slate-100 bg-slate-50/40 px-4 py-3 sm:px-6 sm:py-4 dark:border-white/5 dark:bg-white/1.5">
         <div className="relative w-full min-w-0">
           <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -311,9 +312,7 @@ export default function ContactSavesPanel({
 
       {/* List */}
       {loading ? (
-        <div className="px-6 py-16 text-center">
-          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Loading contact saves…</p>
-        </div>
+        <ContactSavesListSkeleton />
       ) : filtered.length === 0 ? (
         <div className="px-6 py-16 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50 dark:border-white/10 dark:bg-white/5">
@@ -342,19 +341,19 @@ export default function ContactSavesPanel({
                 className={cn(
                   'max-w-full min-w-0 overflow-hidden rounded-2xl border transition-all duration-200',
                   open || replyOpen
-                    ? 'border-emerald-300/70 bg-emerald-50/30 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/[0.06]'
-                    : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.12)] dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20'
+                    ? 'border-emerald-300/70 bg-emerald-50/30 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/6'
+                    : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.12)] dark:border-white/10 dark:bg-white/2 dark:hover:border-white/20'
                 )}
               >
                 {/* Card — stacked single column on mobile */}
                 <div className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-5">
                   <div className="flex min-w-0 items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-sm shadow-emerald-600/20 sm:h-12 sm:w-12">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-sm shadow-emerald-600/20 sm:h-12 sm:w-12">
                       {initials(r.fullName)}
                     </div>
                     <div className="min-w-0 flex-1 overflow-hidden">
                       <div className="flex flex-wrap items-center gap-1.5 gap-y-1">
-                        <h4 className="max-w-full text-[14px] font-black tracking-tight break-words text-slate-900 sm:text-[15px] dark:text-white">
+                        <h4 className="max-w-full text-[14px] font-black tracking-tight wrap-break-word text-slate-900 sm:text-[15px] dark:text-white">
                           {r.fullName}
                         </h4>
                         <span
@@ -470,7 +469,7 @@ export default function ContactSavesPanel({
                         <p className="mb-1 text-[10px] font-black tracking-wider text-amber-600 uppercase">
                           Guest note
                         </p>
-                        <p className="text-sm leading-relaxed font-semibold break-words whitespace-pre-wrap text-slate-800 dark:text-slate-100">
+                        <p className="text-sm leading-relaxed font-semibold wrap-break-word whitespace-pre-wrap text-slate-800 dark:text-slate-100">
                           {r.guestMessage}
                         </p>
                       </div>

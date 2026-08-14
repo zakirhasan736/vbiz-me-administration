@@ -2,6 +2,7 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
+import { AdminPackagesSkeleton } from '@/components/admin/AdminPackagesSkeleton'
 import { notify } from '@/lib/toast/toast'
 import {
   useCreateAdminPackageMutation,
@@ -301,11 +302,7 @@ export default function AdminPackages() {
         </button>
       </div>
 
-      {isLoading && (
-        <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500 dark:border-white/10 dark:bg-[#0b0f19]">
-          Loading packages…
-        </div>
-      )}
+      {isLoading ? <AdminPackagesSkeleton /> : null}
 
       {isError && (
         <div className="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center dark:border-rose-500/20 dark:bg-rose-500/10">
@@ -328,101 +325,103 @@ export default function AdminPackages() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        {sorted.map((pkg) => (
-          <div
-            key={pkg.id}
-            className="relative flex flex-col justify-between rounded-4xl border border-slate-200/80 bg-white p-7 shadow-sm transition-all duration-300 hover:shadow-lg dark:border-white/10 dark:bg-[#0b0f19]"
-          >
-            <div>
-              <div className="mb-5 flex items-center justify-between gap-2">
-                <span
-                  className={cn(
-                    'rounded-full border px-3 py-1 text-[10px] font-black uppercase',
-                    pkg.isActive
-                      ? 'border-emerald-100 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
-                      : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5'
+      {!isLoading && !isError && sorted.length > 0 ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          {sorted.map((pkg) => (
+            <div
+              key={pkg.id}
+              className="relative flex flex-col justify-between rounded-4xl border border-slate-200/80 bg-white p-7 shadow-sm transition-all duration-300 hover:shadow-lg dark:border-white/10 dark:bg-[#0b0f19]"
+            >
+              <div>
+                <div className="mb-5 flex items-center justify-between gap-2">
+                  <span
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-[10px] font-black uppercase',
+                      pkg.isActive
+                        ? 'border-emerald-100 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
+                        : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5'
+                    )}
+                  >
+                    {pkg.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSubscribersId(pkg.id)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 transition hover:text-indigo-500"
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    {pkg.subscriberCount} subscribers
+                  </button>
+                </div>
+
+                <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">{pkg.name}</h3>
+                {pkg.description && (
+                  <p className="mt-2 line-clamp-2 text-xs font-semibold text-slate-400">{pkg.description}</p>
+                )}
+
+                <div className="mt-5 mb-5 flex flex-wrap items-baseline gap-4">
+                  <div>
+                    <span className="text-3xl font-black text-slate-950 dark:text-white">
+                      {formatMoney(pkg.monthlyPrice)}
+                    </span>
+                    <span className="text-sm font-bold text-slate-400"> / mo</span>
+                  </div>
+                  {pkg.yearlyPrice > 0 ? (
+                    <div className="text-sm font-bold text-slate-400">{formatMoney(pkg.yearlyPrice)} / yr</div>
+                  ) : null}
+                </div>
+
+                <div className="mb-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
+                    <Users className="h-3.5 w-3.5" />
+                    {pkg.subscriberCount} subscriber{pkg.subscriberCount === 1 ? '' : 's'}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
+                    <Layers className="h-3.5 w-3.5" />
+                    {packageFacilities(pkg).length} facilities
+                  </span>
+                </div>
+
+                <div className="my-4 h-px bg-slate-100 dark:bg-white/5" />
+
+                <div className="mb-6 space-y-2">
+                  <p className="mb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Facilities</p>
+                  {packageFacilities(pkg).length === 0 && (
+                    <p className="text-xs font-semibold text-slate-400">No facilities listed</p>
                   )}
-                >
-                  {pkg.isActive ? 'Active' : 'Inactive'}
-                </span>
+                  {packageFacilities(pkg).map((feat) => (
+                    <div
+                      key={feat.id || feat.featureKey}
+                      className="flex items-start gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      <span>{formatFacilityLine(feat)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 border-t border-slate-100 pt-5 dark:border-white/5">
                 <button
                   type="button"
-                  onClick={() => setSubscribersId(pkg.id)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 transition hover:text-indigo-500"
+                  onClick={() => openEdit(pkg)}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-slate-900 py-3.5 text-xs font-black tracking-wider text-white uppercase transition-all active:scale-95 dark:bg-white dark:text-slate-950"
                 >
-                  <Users className="h-3.5 w-3.5" />
-                  {pkg.subscriberCount} subscribers
+                  <Edit2 className="h-3.5 w-3.5" /> Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(pkg)}
+                  className="flex items-center justify-center rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3.5 text-rose-600 transition-all hover:bg-rose-100"
+                  title="Delete package"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-
-              <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">{pkg.name}</h3>
-              {pkg.description && (
-                <p className="mt-2 line-clamp-2 text-xs font-semibold text-slate-400">{pkg.description}</p>
-              )}
-
-              <div className="mt-5 mb-5 flex flex-wrap items-baseline gap-4">
-                <div>
-                  <span className="text-3xl font-black text-slate-950 dark:text-white">
-                    {formatMoney(pkg.monthlyPrice)}
-                  </span>
-                  <span className="text-sm font-bold text-slate-400"> / mo</span>
-                </div>
-                {pkg.yearlyPrice > 0 ? (
-                  <div className="text-sm font-bold text-slate-400">{formatMoney(pkg.yearlyPrice)} / yr</div>
-                ) : null}
-              </div>
-
-              <div className="mb-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
-                  <Users className="h-3.5 w-3.5" />
-                  {pkg.subscriberCount} subscriber{pkg.subscriberCount === 1 ? '' : 's'}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5">
-                  <Layers className="h-3.5 w-3.5" />
-                  {packageFacilities(pkg).length} facilities
-                </span>
-              </div>
-
-              <div className="my-4 h-px bg-slate-100 dark:bg-white/5" />
-
-              <div className="mb-6 space-y-2">
-                <p className="mb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Facilities</p>
-                {packageFacilities(pkg).length === 0 && (
-                  <p className="text-xs font-semibold text-slate-400">No facilities listed</p>
-                )}
-                {packageFacilities(pkg).map((feat) => (
-                  <div
-                    key={feat.id || feat.featureKey}
-                    className="flex items-start gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300"
-                  >
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                    <span>{formatFacilityLine(feat)}</span>
-                  </div>
-                ))}
-              </div>
             </div>
-
-            <div className="flex gap-2.5 border-t border-slate-100 pt-5 dark:border-white/5">
-              <button
-                type="button"
-                onClick={() => openEdit(pkg)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-slate-900 py-3.5 text-xs font-black tracking-wider text-white uppercase transition-all active:scale-95 dark:bg-white dark:text-slate-950"
-              >
-                <Edit2 className="h-3.5 w-3.5" /> Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(pkg)}
-                className="flex items-center justify-center rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3.5 text-rose-600 transition-all hover:bg-rose-100"
-                title="Delete package"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
 
       {modalMode && (
         <ModalPortal>

@@ -1,6 +1,7 @@
 'use client'
 
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { cn } from '@/utils/cn'
 
 type StatNumberProps = {
@@ -17,15 +18,7 @@ function isFiniteNumber(value: unknown): value is number {
 
 export function StatNumber({ value, loading, live, className, skeletonClassName }: StatNumberProps) {
   if (loading || !isFiniteNumber(value)) {
-    return (
-      <span
-        aria-hidden
-        className={cn(
-          'inline-block h-8 w-20 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700',
-          skeletonClassName
-        )}
-      />
-    )
+    return <Skeleton aria-hidden as="span" className={cn('inline-block h-8 w-20', skeletonClassName)} />
   }
 
   if (live) {

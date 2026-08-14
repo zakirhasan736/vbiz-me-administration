@@ -1,7 +1,9 @@
 'use client'
 
+import { AdminUserListSkeleton } from '@/components/admin/AdminUserListSkeleton'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
+import { StatNumber } from '@/components/ui/StatNumber'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -323,8 +325,14 @@ export default function AdminUsers() {
         <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <div>
             <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Total Users</span>
-            <span className="mt-1 block text-2xl font-black text-slate-950 dark:text-white">
-              {isStatsLoading ? '—' : `${statsData?.total ?? 0} Accounts`}
+            <span className="mt-1 flex items-baseline gap-1.5 text-2xl font-black text-slate-950 dark:text-white">
+              <StatNumber
+                value={statsData?.total}
+                loading={isStatsLoading}
+                skeletonClassName="h-8 w-16"
+                className="text-2xl font-black text-slate-950 dark:text-white"
+              />
+              {!isStatsLoading && <span>Accounts</span>}
             </span>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -335,8 +343,14 @@ export default function AdminUsers() {
         <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <div>
             <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Single Owners</span>
-            <span className="mt-1 block text-2xl font-black text-slate-950 dark:text-white">
-              {isStatsLoading ? '—' : `${statsData?.singleOwners ?? 0} Accounts`}
+            <span className="mt-1 flex items-baseline gap-1.5 text-2xl font-black text-slate-950 dark:text-white">
+              <StatNumber
+                value={statsData?.singleOwners}
+                loading={isStatsLoading}
+                skeletonClassName="h-8 w-16"
+                className="text-2xl font-black text-slate-950 dark:text-white"
+              />
+              {!isStatsLoading && <span>Accounts</span>}
             </span>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400">
@@ -347,8 +361,14 @@ export default function AdminUsers() {
         <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
           <div>
             <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Corporate Owners</span>
-            <span className="mt-1 block text-2xl font-black text-slate-950 dark:text-white">
-              {isStatsLoading ? '—' : `${statsData?.corporateOwners ?? 0} Organizations`}
+            <span className="mt-1 flex items-baseline gap-1.5 text-2xl font-black text-slate-950 dark:text-white">
+              <StatNumber
+                value={statsData?.corporateOwners}
+                loading={isStatsLoading}
+                skeletonClassName="h-8 w-16"
+                className="text-2xl font-black text-slate-950 dark:text-white"
+              />
+              {!isStatsLoading && <span>Organizations</span>}
             </span>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
@@ -361,8 +381,14 @@ export default function AdminUsers() {
             <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
               System Activity Status
             </span>
-            <span className="mt-1 block text-2xl font-black text-emerald-500 dark:text-emerald-400">
-              {isStatsLoading ? '—' : `${statsData?.activeNow ?? 0} Active Now`}
+            <span className="mt-1 flex items-baseline gap-1.5 text-2xl font-black text-emerald-500 dark:text-emerald-400">
+              <StatNumber
+                value={statsData?.activeNow}
+                loading={isStatsLoading}
+                skeletonClassName="h-8 w-16"
+                className="text-2xl font-black text-emerald-500 dark:text-emerald-400"
+              />
+              {!isStatsLoading && <span>Active Now</span>}
             </span>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
@@ -435,166 +461,160 @@ export default function AdminUsers() {
         </div>
       )}
 
-      <div
-        className={cn(
-          'grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-          isFilterRefetching && 'opacity-70 transition-opacity'
-        )}
-      >
-        {showListSkeletons
-          ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
-              <div key={i} className="min-h-70 animate-pulse rounded-2xl bg-slate-100 dark:bg-white/5" />
-            ))
-          : users.map((u) => {
-              const corporate = isCorporateRole(u.role)
-              const active = u.accountStatus === 'ACTIVE'
-              const displayName = u.name || u.email
-              return (
-                <div
-                  key={u.id}
-                  className={cn(
-                    'group relative flex h-auto flex-col rounded-2xl border bg-white transition-all duration-300 hover:shadow-xl dark:bg-[#0b0f19]',
-                    active
-                      ? 'border-slate-200/60 hover:border-slate-400 dark:border-white/5 dark:hover:border-white/20'
-                      : 'border-rose-500/20 hover:border-rose-400/40'
-                  )}
-                >
-                  <div className="flex flex-1 flex-col gap-2 p-3.5 pb-4">
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
+      {showListSkeletons ? (
+        <AdminUserListSkeleton cardCount={PAGE_SIZE} />
+      ) : (
+        <div
+          className={cn(
+            'grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+            isFilterRefetching && 'opacity-70 transition-opacity'
+          )}
+        >
+          {users.map((u) => {
+            const corporate = isCorporateRole(u.role)
+            const active = u.accountStatus === 'ACTIVE'
+            const displayName = u.name || u.email
+            return (
+              <div
+                key={u.id}
+                className={cn(
+                  'group relative flex h-auto flex-col rounded-2xl border bg-white transition-all duration-300 hover:shadow-xl dark:bg-[#0b0f19]',
+                  active
+                    ? 'border-slate-200/60 hover:border-slate-400 dark:border-white/5 dark:hover:border-white/20'
+                    : 'border-rose-500/20 hover:border-rose-400/40'
+                )}
+              >
+                <div className="flex flex-1 flex-col gap-2 p-3.5 pb-4">
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                          corporate
+                            ? 'border-indigo-500/15 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                            : 'border-violet-500/15 bg-violet-500/10 text-violet-600 dark:text-violet-300'
+                        )}
+                      >
+                        {corporate ? <Building className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
+                        {corporate
+                          ? 'Corporate'
+                          : u.role === 'super-admin'
+                            ? 'Super Admin'
+                            : u.role === 'admin'
+                              ? 'Admin'
+                              : 'Single'}
+                      </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase',
+                          active
+                            ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                            : u.accountStatus === 'SUSPENDED'
+                              ? 'border-rose-500/20 bg-rose-500/5 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
+                              : 'border-amber-500/20 bg-amber-500/5 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
+                        )}
+                      >
                         <span
                           className={cn(
-                            'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                            corporate
-                              ? 'border-indigo-500/15 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
-                              : 'border-violet-500/15 bg-violet-500/10 text-violet-600 dark:text-violet-300'
+                            'h-1.5 w-1.5 rounded-full',
+                            active ? 'bg-emerald-500' : u.accountStatus === 'SUSPENDED' ? 'bg-rose-500' : 'bg-amber-500'
                           )}
-                        >
-                          {corporate ? <Building className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
-                          {corporate
-                            ? 'Corporate'
-                            : u.role === 'super-admin'
-                              ? 'Super Admin'
-                              : u.role === 'admin'
-                                ? 'Admin'
-                                : 'Single'}
-                        </span>
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase',
-                            active
-                              ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                              : u.accountStatus === 'SUSPENDED'
-                                ? 'border-rose-500/20 bg-rose-500/5 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
-                                : 'border-amber-500/20 bg-amber-500/5 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'h-1.5 w-1.5 rounded-full',
-                              active
-                                ? 'bg-emerald-500'
-                                : u.accountStatus === 'SUSPENDED'
-                                  ? 'bg-rose-500'
-                                  : 'bg-amber-500'
-                            )}
-                          />
-                          {statusBadgeLabel(u.accountStatus)}
-                        </span>
-                      </div>
-
-                      <div className="mt-2.5 flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/60 bg-slate-50 text-base font-black text-indigo-600 shadow-inner dark:border-white/5 dark:bg-slate-900 dark:text-indigo-400">
-                          {(displayName[0] || '?').toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <h3
-                            className="truncate text-sm leading-snug font-extrabold text-slate-900 dark:text-white"
-                            title={displayName}
-                          >
-                            {displayName}
-                          </h3>
-                          <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
-                            {roleLabel(u.role)}
-                          </p>
-                        </div>
-                      </div>
+                        />
+                        {statusBadgeLabel(u.accountStatus)}
+                      </span>
                     </div>
 
-                    <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-2 dark:border-white/10 dark:bg-slate-900">
-                      {[
-                        { label: 'Email', value: u.email },
-                        { label: 'Company', value: u.companyName || '—' },
-                        { label: 'Cards', value: `${u.registeredCards} active` },
-                        { label: 'Joined', value: formatJoined(u.createdAt) },
-                      ].map((row) => (
-                        <div key={row.label} className="grid grid-cols-[56px_1fr] items-center gap-2 text-[10px]">
-                          <span className="font-black tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                            {row.label}
-                          </span>
-                          <span
-                            className="truncate text-right font-bold text-slate-900 tabular-nums dark:text-white"
-                            title={row.value}
-                          >
-                            {row.value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-auto space-y-1.5 border-t border-slate-100 pt-2 dark:border-white/5">
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(u)}
-                          disabled={u.role === 'admin' || u.role === 'super-admin'}
-                          className="inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-600 py-1.5 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700 disabled:opacity-40"
-                          title="Configure user"
-                        >
-                          <Edit2 className="h-3 w-3" /> Config
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isSettingStatus}
-                          onClick={() => void handleSetStatus(u.id, active ? 'PAUSED' : 'ACTIVE', u.name)}
-                          className={cn(
-                            'inline-flex items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-black tracking-wider uppercase disabled:opacity-50',
-                            active
-                              ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25'
-                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25'
-                          )}
-                          title={active ? 'Pause account' : 'Activate account'}
-                        >
-                          {active ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                          {active ? 'Pause' : 'Activate'}
-                        </button>
+                    <div className="mt-2.5 flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/60 bg-slate-50 text-base font-black text-indigo-600 shadow-inner dark:border-white/5 dark:bg-slate-900 dark:text-indigo-400">
+                        {(displayName[0] || '?').toUpperCase()}
                       </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          type="button"
-                          disabled={isSettingStatus || u.accountStatus === 'SUSPENDED'}
-                          onClick={() => void handleSetStatus(u.id, 'SUSPENDED', u.name)}
-                          className="inline-flex items-center justify-center gap-1 rounded-lg bg-rose-50 py-1.5 text-[10px] font-black tracking-wider text-rose-700 uppercase hover:bg-rose-100 disabled:opacity-50 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25"
-                          title="Suspend account access"
+                      <div className="min-w-0">
+                        <h3
+                          className="truncate text-sm leading-snug font-extrabold text-slate-900 dark:text-white"
+                          title={displayName}
                         >
-                          <Ban className="h-3 w-3" /> Suspend
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isDeleting}
-                          onClick={() => handleDeleteUser(u)}
-                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-rose-200/80 bg-white py-1.5 text-[10px] font-black tracking-wider text-rose-600 uppercase transition-colors hover:border-rose-500 hover:bg-rose-500 hover:text-white disabled:opacity-50 dark:border-rose-500/30 dark:bg-slate-800 dark:text-rose-300"
-                          title="Delete user permanently"
-                        >
-                          <Trash2 className="h-3 w-3" /> Delete
-                        </button>
+                          {displayName}
+                        </h3>
+                        <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">{roleLabel(u.role)}</p>
                       </div>
                     </div>
                   </div>
+
+                  <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-2 dark:border-white/10 dark:bg-slate-900">
+                    {[
+                      { label: 'Email', value: u.email },
+                      { label: 'Company', value: u.companyName || '—' },
+                      { label: 'Cards', value: `${u.registeredCards} active` },
+                      { label: 'Joined', value: formatJoined(u.createdAt) },
+                    ].map((row) => (
+                      <div key={row.label} className="grid grid-cols-[56px_1fr] items-center gap-2 text-[10px]">
+                        <span className="font-black tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                          {row.label}
+                        </span>
+                        <span
+                          className="truncate text-right font-bold text-slate-900 tabular-nums dark:text-white"
+                          title={row.value}
+                        >
+                          {row.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-auto space-y-1.5 border-t border-slate-100 pt-2 dark:border-white/5">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(u)}
+                        disabled={u.role === 'admin' || u.role === 'super-admin'}
+                        className="inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-600 py-1.5 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700 disabled:opacity-40"
+                        title="Configure user"
+                      >
+                        <Edit2 className="h-3 w-3" /> Config
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSettingStatus}
+                        onClick={() => void handleSetStatus(u.id, active ? 'PAUSED' : 'ACTIVE', u.name)}
+                        className={cn(
+                          'inline-flex items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-black tracking-wider uppercase disabled:opacity-50',
+                          active
+                            ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25'
+                        )}
+                        title={active ? 'Pause account' : 'Activate account'}
+                      >
+                        {active ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                        {active ? 'Pause' : 'Activate'}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        disabled={isSettingStatus || u.accountStatus === 'SUSPENDED'}
+                        onClick={() => void handleSetStatus(u.id, 'SUSPENDED', u.name)}
+                        className="inline-flex items-center justify-center gap-1 rounded-lg bg-rose-50 py-1.5 text-[10px] font-black tracking-wider text-rose-700 uppercase hover:bg-rose-100 disabled:opacity-50 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25"
+                        title="Suspend account access"
+                      >
+                        <Ban className="h-3 w-3" /> Suspend
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isDeleting}
+                        onClick={() => handleDeleteUser(u)}
+                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-rose-200/80 bg-white py-1.5 text-[10px] font-black tracking-wider text-rose-600 uppercase transition-colors hover:border-rose-500 hover:bg-rose-500 hover:text-white disabled:opacity-50 dark:border-rose-500/30 dark:bg-slate-800 dark:text-rose-300"
+                        title="Delete user permanently"
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )
-            })}
-      </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {!showListSkeletons && !isListError && users.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-200 px-6 py-12 text-center dark:border-white/10">

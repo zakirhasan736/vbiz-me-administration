@@ -1,5 +1,6 @@
 'use client'
 
+import { Skeleton } from '@/components/ui/Skeleton'
 import { cn } from '@/utils/cn'
 
 export type CardLifecycleTab = 'active' | 'draft'
@@ -9,11 +10,20 @@ type CardLifecycleTabsProps = {
   onChange: (value: CardLifecycleTab) => void
   activeCount: number
   draftCount: number
+  /** When true, count badges show compact skeletons instead of numbers. */
+  countsLoading?: boolean
   className?: string
 }
 
 /** Active (default) / Draft switcher with counts for card directories. */
-export function CardLifecycleTabs({ value, onChange, activeCount, draftCount, className }: CardLifecycleTabsProps) {
+export function CardLifecycleTabs({
+  value,
+  onChange,
+  activeCount,
+  draftCount,
+  countsLoading,
+  className,
+}: CardLifecycleTabsProps) {
   return (
     <div
       className={cn(
@@ -36,16 +46,20 @@ export function CardLifecycleTabs({ value, onChange, activeCount, draftCount, cl
         )}
       >
         Active
-        <span
-          className={cn(
-            'rounded-lg px-1.5 py-0.5 text-[10px] font-black',
-            value === 'active'
-              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-              : 'bg-slate-200/80 text-slate-600 dark:bg-white/10 dark:text-slate-300'
-          )}
-        >
-          {activeCount}
-        </span>
+        {countsLoading ? (
+          <Skeleton as="span" className="inline-block h-4 w-5 rounded-lg" />
+        ) : (
+          <span
+            className={cn(
+              'rounded-lg px-1.5 py-0.5 text-[10px] font-black',
+              value === 'active'
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                : 'bg-slate-200/80 text-slate-600 dark:bg-white/10 dark:text-slate-300'
+            )}
+          >
+            {activeCount}
+          </span>
+        )}
       </button>
       <button
         type="button"
@@ -60,16 +74,20 @@ export function CardLifecycleTabs({ value, onChange, activeCount, draftCount, cl
         )}
       >
         Draft
-        <span
-          className={cn(
-            'rounded-lg px-1.5 py-0.5 text-[10px] font-black',
-            value === 'draft'
-              ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
-              : 'bg-slate-200/80 text-slate-600 dark:bg-white/10 dark:text-slate-300'
-          )}
-        >
-          {draftCount}
-        </span>
+        {countsLoading ? (
+          <Skeleton as="span" className="inline-block h-4 w-5 rounded-lg" />
+        ) : (
+          <span
+            className={cn(
+              'rounded-lg px-1.5 py-0.5 text-[10px] font-black',
+              value === 'draft'
+                ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+                : 'bg-slate-200/80 text-slate-600 dark:bg-white/10 dark:text-slate-300'
+            )}
+          >
+            {draftCount}
+          </span>
+        )}
       </button>
     </div>
   )

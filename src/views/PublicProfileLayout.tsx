@@ -20,6 +20,7 @@ import { useProfile } from '@/redux/features/myCard'
 import type { MyCardData } from '@interfaces/api/myCard'
 import { useMemo } from 'react'
 
+import PublicAnnouncementBanner from '@/components/PublicAnnouncementBanner'
 import type { LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
 
 type Props = {
@@ -125,6 +126,7 @@ export default function PublicProfileLayout({
         template={template}
         initialNavBarLinks={initialNavBarLinks}
       />
+      {earlyProfileId ? <PublicAnnouncementBanner profileId={earlyProfileId} /> : null}
       <ProfileThemeProvider themeConfig={themeConfig} fromApi={fromApi}>
         <CardScopeProvider cardId={record.id}>
           <ProfileApp

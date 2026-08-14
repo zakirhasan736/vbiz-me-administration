@@ -73,6 +73,23 @@ const adminVCardsListSlice = createSlice({
     appendItems(state, action: PayloadAction<AdminProfileRow[]>) {
       state.accumulatedItems = dedupeAppend(state.accumulatedItems, action.payload)
     },
+    patchItem(
+      state,
+      action: PayloadAction<{
+        id: string
+        isPublic?: boolean
+        isDraft?: boolean
+        statusName?: string
+      }>
+    ) {
+      const item = state.accumulatedItems.find((row) => row.id === action.payload.id)
+      if (!item) return
+      if (typeof action.payload.isPublic === 'boolean') item.isPublic = action.payload.isPublic
+      if (typeof action.payload.isDraft === 'boolean') item.isDraft = action.payload.isDraft
+      if (action.payload.statusName) {
+        item.status = { id: item.status?.id || '', name: action.payload.statusName }
+      }
+    },
     setTotal(state, action: PayloadAction<number>) {
       state.total = action.payload
     },
@@ -98,6 +115,7 @@ export const {
   setListSnapshot,
   replaceItems,
   appendItems,
+  patchItem,
   setTotal,
   clearFilters,
   resetList,

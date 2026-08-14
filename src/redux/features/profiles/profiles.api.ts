@@ -14,6 +14,7 @@ import { resolveCardStatus } from '@/lib/cardStatus'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
+import { patchItem as patchAdminVCardsListItem } from '@/redux/features/adminVCardsList/adminVCardsList.slice'
 import type { VCardCustomTab, VCardData, VCardFaqEntry, VCardGeneralPost, VCardRecord } from '@/types/vcard'
 import { createDefaultVCardData } from '@/types/vcard'
 
@@ -654,13 +655,27 @@ function isLocalTempId(id: string): boolean {
   return /^(pf_|sk_|post_|faq_|svc_|sec_|rev_)/.test(id)
 }
 
-/** Body that only flips public/draft — safe to patch list cache without full LIST refetch. */
-function isVisibilityStatusOnlyBody(body: Record<string, unknown>): boolean {
-  const keys = Object.keys(body)
-  return keys.length > 0 && keys.every((k) => k === 'isPublic' || k === 'isDraft')
+type VisibilityPatchTarget = {
+  isPublic?: boolean
+  isDraft?: boolean
+  status?: { id?: string; name?: string | null } | null
 }
 
-function applyVisibilityStatusPatch(profile: { isPublic?: boolean; isDraft?: boolean }, body: Record<string, unknown>) {
+/** Body that only flips public/draft/status — safe to patch list cache without full LIST refetch. */
+function isVisibilityStatusOnlyBody(body: Record<string, unknown>): boolean {
+  const keys = Object.keys(body)
+  return keys.length > 0 && keys.every((k) => k === 'isPublic' || k === 'isDraft' || k === 'status')
+}
+
+function visibilityStatusName(body: Record<string, unknown>, profile: VisibilityPatchTarget): string | undefined {
+  if (typeof body.status === 'string' && body.status.trim()) return body.status.trim().toLowerCase()
+  if (profile.isDraft) return 'draft'
+  if (profile.isPublic === false) return 'inactive'
+  if (profile.isPublic === true) return 'active'
+  return undefined
+}
+
+function applyVisibilityStatusPatch(profile: VisibilityPatchTarget, body: Record<string, unknown>) {
   const patchIsPublic = typeof body.isPublic === 'boolean'
   const patchIsDraft = typeof body.isDraft === 'boolean'
   if (patchIsDraft) {
@@ -674,6 +689,10 @@ function applyVisibilityStatusPatch(profile: { isPublic?: boolean; isDraft?: boo
     }
   } else if (patchIsPublic) {
     profile.isPublic = body.isPublic as boolean
+  }
+  const nextName = visibilityStatusName(body, profile)
+  if (nextName) {
+    profile.status = { id: profile.status?.id || '', name: nextName }
   }
 }
 
@@ -707,6 +726,22 @@ function patchGetProfileCache(
         updateRecipe: (draft: ApiProfile) => void
       ) => unknown
     )('getProfile', id, recipe)
+  )
+}
+
+function patchGetAdminProfilesCache(
+  dispatch: (action: unknown) => { undo: () => void },
+  args: unknown,
+  recipe: (draft: { items: Array<VisibilityPatchTarget & { id: string }> }) => void
+) {
+  return dispatch(
+    (
+      api.util.updateQueryData as unknown as (
+        endpointName: 'getAdminProfiles',
+        endpointArgs: unknown,
+        updateRecipe: (draft: { items: Array<VisibilityPatchTarget & { id: string }> }) => void
+      ) => unknown
+    )('getAdminProfiles', args, recipe)
   )
 }
 
@@ -793,6 +828,11 @@ const profilesApi = api.injectEndpoints({
 
         const patchResults: Array<{ undo: () => void }> = []
         const runDispatch = dispatch as unknown as (action: unknown) => { undo: () => void }
+        const applyServerVisibility = (item: VisibilityPatchTarget, data: ApiProfile) => {
+          item.isPublic = data.isPublic
+          item.isDraft = data.isDraft
+          if (data.status) item.status = data.status
+        }
 
         const listEntries = api.util.selectInvalidatedBy(getState(), [{ type: 'profiles', id: 'LIST' }])
         for (const entry of listEntries) {
@@ -805,9 +845,50 @@ const profilesApi = api.injectEndpoints({
           )
         }
 
+        const adminListEntries = api.util.selectInvalidatedBy(getState(), [{ type: 'adminProfiles', id: 'LIST' }])
+        for (const entry of adminListEntries) {
+          if (entry.endpointName !== 'getAdminProfiles') continue
+          patchResults.push(
+            patchGetAdminProfilesCache(runDispatch, entry.originalArgs, (draft) => {
+              const item = draft.items.find((p) => p.id === id)
+              if (item) applyVisibilityStatusPatch(item, body)
+            })
+          )
+        }
+
         patchResults.push(
           patchGetProfileCache(runDispatch, id, (draft) => {
             applyVisibilityStatusPatch(draft, body)
+          })
+        )
+
+        const adminListState = (
+          getState() as {
+            adminVCardsList?: {
+              accumulatedItems: Array<{
+                id: string
+                isPublic?: boolean
+                isDraft?: boolean
+                status?: { id?: string; name?: string } | null
+              }>
+            }
+          }
+        ).adminVCardsList
+        const prevAdminRow = adminListState?.accumulatedItems.find((row) => row.id === id)
+        const nextStatusName =
+          typeof body.status === 'string'
+            ? body.status.trim().toLowerCase()
+            : typeof body.isPublic === 'boolean'
+              ? body.isPublic
+                ? 'active'
+                : 'inactive'
+              : undefined
+        dispatch(
+          patchAdminVCardsListItem({
+            id,
+            ...(typeof body.isPublic === 'boolean' ? { isPublic: body.isPublic } : {}),
+            ...(typeof body.isDraft === 'boolean' ? { isDraft: body.isDraft } : {}),
+            ...(nextStatusName ? { statusName: nextStatusName } : {}),
           })
         )
 
@@ -819,17 +900,39 @@ const profilesApi = api.injectEndpoints({
             if (entry.endpointName !== 'getProfiles') continue
             patchGetProfilesCache(runDispatch, entry.originalArgs as ProfilesListQuery | void, (draft) => {
               const item = draft.items.find((p) => p.id === id)
-              if (!item) return
-              item.isPublic = data.isPublic
-              item.isDraft = data.isDraft
+              if (item) applyServerVisibility(item, data)
+            })
+          }
+          for (const entry of api.util.selectInvalidatedBy(getState(), [{ type: 'adminProfiles', id: 'LIST' }])) {
+            if (entry.endpointName !== 'getAdminProfiles') continue
+            patchGetAdminProfilesCache(runDispatch, entry.originalArgs, (draft) => {
+              const item = draft.items.find((p) => p.id === id)
+              if (item) applyServerVisibility(item, data)
             })
           }
           patchGetProfileCache(runDispatch, id, (draft) => {
-            draft.isPublic = data.isPublic
-            draft.isDraft = data.isDraft
+            applyServerVisibility(draft, data)
           })
+          dispatch(
+            patchAdminVCardsListItem({
+              id,
+              isPublic: data.isPublic,
+              isDraft: data.isDraft,
+              statusName: data.status?.name || nextStatusName,
+            })
+          )
         } catch {
           patchResults.forEach((p) => p.undo())
+          if (prevAdminRow) {
+            dispatch(
+              patchAdminVCardsListItem({
+                id,
+                isPublic: prevAdminRow.isPublic,
+                isDraft: prevAdminRow.isDraft,
+                statusName: prevAdminRow.status?.name,
+              })
+            )
+          }
         }
       },
       invalidatesTags: (_r, _e, arg) => {

@@ -2,7 +2,7 @@
 
 import { Modal } from '@/components/ui'
 import { cn } from '@/utils/cn'
-import { Megaphone } from 'lucide-react'
+import { Megaphone, X } from 'lucide-react'
 import { useState } from 'react'
 
 export type NoticeType = 'info' | 'warning' | 'success'
@@ -45,10 +45,21 @@ export function NoticeModal({ open, cardName, initialText, initialType, onClose,
     <Modal
       open={open}
       onClose={onClose}
-      className="w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 p-8 shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
+      className="relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 p-8 shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
       labelledBy="notice-modal-title"
     >
-      <h2 id="notice-modal-title" className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-4 right-4 rounded-xl p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"
+        aria-label="Close"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <h2
+        id="notice-modal-title"
+        className="flex items-center gap-2 pr-10 text-xl font-black text-slate-900 dark:text-white"
+      >
         <Megaphone className="h-5 w-5 text-indigo-600" />
         Card notice
       </h2>

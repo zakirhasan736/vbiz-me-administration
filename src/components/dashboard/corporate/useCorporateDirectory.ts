@@ -108,30 +108,29 @@ export function useCorporateDirectory(filters: {
   }
 
   const duplicateCard = useCallback(
-    async (card: VCardRecord) => {
-      if (!canCreate) return false
+    async (card: VCardRecord): Promise<string | null> => {
+      if (!canCreate) return null
       if (isOwnerCardLocked(card.status)) {
         notify.error(SUSPENDED_CARD_MESSAGE)
-        return false
+        return null
       }
       const suffix = Math.floor(1000 + Math.random() * 9000)
       const payload = mapVCardDataToProfilePayload(card)
       try {
-        await createProfile({
+        const created = await createProfile({
           ...payload,
           name: `${payload.name || 'Card'} (Copy)`,
           slug: `${payload.slug || 'card'}-${suffix}`,
           isDraft: true,
           isPublic: false,
         }).unwrap()
-        notify.success('Card duplicated as draft.')
         void refetch()
-        return true
+        return created?.id ?? null
       } catch (e) {
         const message =
           (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not duplicate card.'
         notify.error(message)
-        return false
+        return null
       }
     },
     [canCreate, createProfile, refetch]

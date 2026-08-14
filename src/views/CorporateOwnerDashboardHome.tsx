@@ -53,7 +53,7 @@ import {
   useGetTeamNoticesQuery,
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 function formatTrendPercent(value?: number | null): { text?: string; negative?: boolean } {
   if (value == null || value === 0) return {}
@@ -121,6 +121,21 @@ export default function CorporateOwnerDashboardHome() {
   const [qrUrl, setQrUrl] = useState('')
   const [qrTitle, setQrTitle] = useState('vCard QR Code')
   const [upgradeAlert, setUpgradeAlert] = useState(false)
+  const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
+  const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
+  const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!highlightedDuplicatedId) return
+    const timer = window.setTimeout(() => setHighlightedDuplicatedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedDuplicatedId])
+
+  useEffect(() => {
+    if (!highlightedActivatedId) return
+    const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedActivatedId])
 
   const cards = useMemo(() => applyCardOrder(liveCards, cardOrder), [liveCards, cardOrder])
 
@@ -177,24 +192,58 @@ export default function CorporateOwnerDashboardHome() {
         notify.error(SUSPENDED_CARD_MESSAGE)
         return
       }
+      if (!card.id || duplicatingCardId) return
+      setDuplicatingCardId(card.id)
       const suffix = Math.floor(1000 + Math.random() * 9000)
       const payload = mapVCardDataToProfilePayload(card)
       try {
-        await createProfile({
+        const created = await createProfile({
           ...payload,
           name: `${payload.name || 'Card'} (Copy)`,
           slug: `${payload.slug || 'card'}-${suffix}`,
+          isDraft: true,
+          isPublic: false,
         }).unwrap()
-        notify.success('Card duplicated successfully.')
         void refetchProfiles()
+        const newId = created?.id
+        if (newId) {
+          notify.success('Saved as a draft.', {
+            title: 'Card duplicated',
+            action: {
+              label: 'View in Draft',
+              onClick: () => {
+                setHubTab('directory')
+                setHighlightedDuplicatedId(newId)
+                setPanelCardId(null)
+              },
+            },
+          })
+        }
       } catch (e) {
         const message =
           (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not duplicate card.'
         notify.error(message)
+      } finally {
+        setDuplicatingCardId(null)
       }
     },
-    [canCreate, createDisabledReason, createProfile, refetchProfiles]
+    [canCreate, createDisabledReason, createProfile, duplicatingCardId, refetchProfiles]
   )
+
+  const handleActivatedFromDraft = useCallback((cardId: string) => {
+    notify.success('Your card is now active.', {
+      title: 'Card activated',
+      action: {
+        label: 'View in Active',
+        onClick: () => {
+          setHubTab('directory')
+          setHighlightedActivatedId(cardId)
+          setHighlightedDuplicatedId(null)
+          setPanelCardId(null)
+        },
+      },
+    })
+  }, [])
 
   const handleDragDrop = (ordered: VCardRecord[], targetIndex: number) => {
     if (draggedIndex == null || draggedIndex === targetIndex) {
@@ -307,6 +356,10 @@ export default function CorporateOwnerDashboardHome() {
             onDuplicate={(card) => void handleDuplicate(card)}
             onTrends={setTrendsCard}
             noticeVersion={noticeVersion}
+            duplicatingCardId={duplicatingCardId}
+            highlightedDuplicatedId={highlightedDuplicatedId}
+            highlightedActivatedId={highlightedActivatedId}
+            onActivatedFromDraft={handleActivatedFromDraft}
             activeTab={hubTab}
             onActiveTabChange={setHubTab}
           />
@@ -344,6 +397,7 @@ export default function CorporateOwnerDashboardHome() {
         onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
         canDuplicate={canCreate}
         duplicateDisabledReason={createDisabledReason}
+        isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
       />
 
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />

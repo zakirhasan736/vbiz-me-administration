@@ -6,6 +6,9 @@ import VCardTeamCard from '@/components/admin/AdminDirectoryVCardTeamCard'
 import VCardDetailSidebar, { VCardTrendsPopup } from '@/components/admin/AdminVCardDetailSidebar'
 import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import { CardLifecycleTabs } from '@/components/dashboard/vcard/CardLifecycleTabs'
+import { NoticeModal, type NoticeType } from '@/components/dashboard/vcard/NoticeModal'
+import { VCardDirectoryListSkeleton } from '@/components/dashboard/vcard/VCardDirectoryListSkeleton'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
@@ -13,6 +16,13 @@ import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { type AdminCard } from '@/lib/admin/adminCardShape'
 import { canAdminContactCard } from '@/lib/admin/canAdminContactCard'
 import { mapAdminProfileRowToCard } from '@/lib/admin/mapAdminProfileRow'
+import {
+  clearLocalCardNotice,
+  noticeForCard,
+  noticeTypeFromTeamNotice,
+  readLocalCardNotice,
+  writeLocalCardNotice,
+} from '@/lib/cardNotice'
 import { appendAuditLog } from '@/lib/mockStore'
 import { notifyCardOwner } from '@/lib/notifications'
 import { notify } from '@/lib/toast/toast'
@@ -41,7 +51,12 @@ import {
   setTotal,
 } from '@/redux/features/adminVCardsList/adminVCardsList.slice'
 import { useCreateMeetingMutation } from '@/redux/features/meetings/meetings.api'
-import { useDeleteProfileMutation } from '@/redux/features/profiles/profiles.api'
+import {
+  useCreateTeamNoticeMutation,
+  useDeleteProfileMutation,
+  useDeleteTeamNoticeMutation,
+  useGetTeamNoticesQuery,
+} from '@/redux/features/profiles/profiles.api'
 import type { AnnouncementType } from '@/types/announcement'
 import { MEETING_TYPES, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
@@ -94,12 +109,27 @@ export default function AdminVCards() {
   const [deleteProfile] = useDeleteProfileMutation()
 
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
+  const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
+  const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
   const listTopRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const t = window.setTimeout(() => dispatch(setDebouncedQ(searchQuery.trim())), 300)
     return () => window.clearTimeout(t)
   }, [dispatch, searchQuery])
+
+  useEffect(() => {
+    if (!highlightedDuplicatedId) return
+    const timer = window.setTimeout(() => setHighlightedDuplicatedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedDuplicatedId])
+
+  useEffect(() => {
+    if (!highlightedActivatedId) return
+    const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedActivatedId])
 
   const listQuery = useMemo(
     () => ({
@@ -214,6 +244,21 @@ export default function AdminVCards() {
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
   const [qrModalTitle, setQrModalTitle] = useState('vCard QR Code')
 
+  const handleActivatedFromDraft = (cardId: string) => {
+    notify.success('Your card is now active.', {
+      title: 'Card activated',
+      action: {
+        label: 'View in Active',
+        onClick: () => {
+          dispatch(setLifecycleTab('active'))
+          setHighlightedActivatedId(cardId)
+          setHighlightedDuplicatedId(null)
+          setPanelCard(null)
+        },
+      },
+    })
+  }
+
   const openQrModal = (url: string, name?: string) => {
     setSelectedVCardUrl(url)
     setQrModalTitle(name ? `${name} · QR` : 'vCard QR Code')
@@ -249,6 +294,12 @@ export default function AdminVCards() {
   const [createAnnouncement, { isLoading: isCreatingNotice }] = useCreateAnnouncementMutation()
   const [updateAnnouncement, { isLoading: isUpdatingNotice }] = useUpdateAnnouncementMutation()
   const { data: announcementsPage } = useGetAnnouncementsQuery({ status: 'active', limit: 100 })
+  const { data: teamNotices = [] } = useGetTeamNoticesQuery()
+  const [createTeamNotice] = useCreateTeamNoticeMutation()
+  const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
+
+  const [noticeCard, setNoticeCard] = useState<AdminCard | null>(null)
+  const [noticeVersion, setNoticeVersion] = useState(0)
 
   const findCardNotice = (profileId: string) =>
     (announcementsPage?.items || []).find(
@@ -258,6 +309,21 @@ export default function AdminVCards() {
         a.meta?.source === 'card_notice' &&
         a.meta?.profileId === profileId
     )
+
+  const resolveDirectoryCardNotice = (card: AdminCard) => {
+    if (canAdminContactCard(card, ownerId)) {
+      const existing = findCardNotice(card.id)
+      return {
+        text: existing?.body ?? null,
+        type: (existing?.type as NoticeType | undefined) ?? null,
+      }
+    }
+    const serverNotice = card.id ? noticeForCard(card.id, teamNotices) : null
+    return {
+      text: serverNotice?.text ?? null,
+      type: serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null,
+    }
+  }
 
   const collectOwnerEmails = (card: AdminCard): string[] => {
     const emails = [card.ownerEmail, card.companyUserEmail]
@@ -352,6 +418,11 @@ export default function AdminVCards() {
 
   const openNoticeForCard = (card: AdminCard) => {
     setPanelCard(null)
+    // Admin portfolio / own cards: public TeamNotice (same as My Cards). Never backoffice Announcement.
+    if (!canAdminContactCard(card, ownerId)) {
+      setNoticeCard(card)
+      return
+    }
     setSelectedCard(card)
     const existing = findCardNotice(card.id)
     setCardNoticeText(existing?.body || '')
@@ -360,10 +431,12 @@ export default function AdminVCards() {
   }
 
   const handleDuplicateCard = async (card: AdminCard) => {
+    if (!card.id || duplicatingCardId) return
+    setDuplicatingCardId(card.id)
     try {
       const uniqueSuffix = uniqueSlugSuffix()
       const fullName = personalField(card.personal, 'fullName') || 'Member'
-      await createCorporateCard({
+      const newId = await createCorporateCard({
         slug: `${card.slug || 'card'}-${uniqueSuffix}`,
         personal: {
           ...card.personal,
@@ -378,10 +451,27 @@ export default function AdminVCards() {
         details: `Admin duplicated ${fullName} → ${card.slug}-${uniqueSuffix}`,
         type: 'create',
       })
-      void refreshListFromStart()
+      if (lifecycleTab === 'draft') {
+        void refreshListFromStart()
+      }
+      if (newId) {
+        notify.success('Saved as a draft.', {
+          title: 'Card duplicated',
+          action: {
+            label: 'View in Draft',
+            onClick: () => {
+              dispatch(setLifecycleTab('draft'))
+              setHighlightedDuplicatedId(newId)
+              setPanelCard(null)
+            },
+          },
+        })
+      }
     } catch (e) {
       console.error(e)
       notify.info('Error duplicating card.')
+    } finally {
+      setDuplicatingCardId(null)
     }
   }
 
@@ -517,6 +607,10 @@ export default function AdminVCards() {
 
   const handleSaveCardNotice = async () => {
     if (!selectedCard || isCreatingNotice || isUpdatingNotice) return
+    if (!canAdminContactCard(selectedCard, ownerId)) {
+      notify.info('Use the public card notice for admin portfolio cards.')
+      return
+    }
     const ownerName = personalField(selectedCard.personal, 'fullName')
     const targetEmails = collectOwnerEmails(selectedCard)
     const trimmed = cardNoticeText.trim()
@@ -628,6 +722,16 @@ export default function AdminVCards() {
     })
   }
 
+  const noticeInitialText = noticeCard?.id
+    ? noticeForCard(noticeCard.id, teamNotices)?.text || readLocalCardNotice(noticeCard.id).text
+    : ''
+  const noticeServer = noticeCard?.id ? noticeForCard(noticeCard.id, teamNotices) : null
+  const noticeInitialType: NoticeType = noticeCard?.id
+    ? noticeServer
+      ? noticeTypeFromTeamNotice(noticeServer)
+      : readLocalCardNotice(noticeCard.id).type
+    : 'info'
+
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-6 p-6 duration-500 md:p-10">
       <div ref={listTopRef} className="scroll-mt-4" aria-hidden />
@@ -651,18 +755,23 @@ export default function AdminVCards() {
               }}
               activeCount={activeCount}
               draftCount={draftCount}
+              countsLoading={showListSkeleton}
             />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-          <button
-            type="button"
-            onClick={() => void handleFilteredExport()}
-            disabled={isExporting || total === 0}
-            className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-xs font-black tracking-wider text-slate-700 uppercase transition-all hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-white/5"
-          >
-            <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export CSV'}
-          </button>
+          {showListSkeleton ? (
+            <Skeleton className="h-11.5 w-35 rounded-2xl" />
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleFilteredExport()}
+              disabled={isExporting || total === 0}
+              className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-xs font-black tracking-wider text-slate-700 uppercase transition-all hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-white/5"
+            >
+              <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export CSV'}
+            </button>
+          )}
           <CreateCardLauncher requireOwnerAssignment>
             {(open) => (
               <button
@@ -807,11 +916,7 @@ export default function AdminVCards() {
       )}
 
       {showListSkeleton ? (
-        <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="min-h-87.5 animate-pulse rounded-[28px] bg-slate-100 dark:bg-white/5" />
-          ))}
-        </div>
+        <VCardDirectoryListSkeleton gridClassName="pt-2" />
       ) : (
         <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <CreateCardLauncher requireOwnerAssignment>
@@ -847,6 +952,7 @@ export default function AdminVCards() {
             const contactSaves = Number(card.saveCount || 0)
             const badge = resolveDirectoryBadge(card)
             const canContact = canAdminContactCard(card, ownerId)
+            const directoryNotice = resolveDirectoryCardNotice(card)
 
             return (
               <VCardTeamCard
@@ -861,6 +967,9 @@ export default function AdminVCards() {
                 showDragHandle={false}
                 showNotice
                 onNotice={() => openNoticeForCard(card)}
+                cardNoticeText={directoryNotice.text}
+                cardNoticeType={directoryNotice.type}
+                noticeVersion={noticeVersion}
                 onCardClick={() => openPanel(card)}
                 onTrends={() => setTrendsCard(card)}
                 onEmail={canContact ? () => openEmailForCard(card) : undefined}
@@ -882,7 +991,11 @@ export default function AdminVCards() {
                     personalField(card.personal, 'fullName') || undefined
                   )
                 }
-                onDuplicate={() => handleDuplicateCard(card)}
+                onDuplicate={() => void handleDuplicateCard(card)}
+                isDuplicating={duplicatingCardId === card.id}
+                isNewlyDuplicated={highlightedDuplicatedId === card.id || highlightedActivatedId === card.id}
+                highlightLabel={highlightedActivatedId === card.id ? 'activated' : 'duplicated'}
+                onActivatedFromDraft={handleActivatedFromDraft}
                 onDeleted={async (id) => {
                   setSelectedCardIds((prev) => prev.filter((x) => x !== id))
                   if (panelCard?.id === id) setPanelCard(null)
@@ -935,7 +1048,9 @@ export default function AdminVCards() {
         onCall={panelCard && canAdminContactCard(panelCard, ownerId) ? openCallForCard : undefined}
         onSchedule={panelCard && canAdminContactCard(panelCard, ownerId) ? openScheduleForCard : undefined}
         onNotice={openNoticeForCard}
+        activeNoticeText={panelCard ? resolveDirectoryCardNotice(panelCard).text : null}
         onDuplicate={handleDuplicateCard}
+        isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
         onToggleStatus={requestToggleStatus}
       />
 
@@ -1339,6 +1454,61 @@ export default function AdminVCards() {
           onCancel={() => setConfirmState(null)}
         />
       )}
+
+      <NoticeModal
+        open={!!noticeCard}
+        cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
+        initialText={noticeInitialText}
+        initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
+        onClose={() => setNoticeCard(null)}
+        onSave={(text, type) => {
+          if (!noticeCard?.id) return
+          void (async () => {
+            try {
+              if (text.trim()) {
+                writeLocalCardNotice(noticeCard.id, text, type)
+                await createTeamNotice({
+                  text: text.trim(),
+                  type,
+                  audience: 'all',
+                  targetProfileId: noticeCard.id,
+                }).unwrap()
+                notify.success('Notice saved for this card. Visitors will see it after the intro.')
+              } else {
+                clearLocalCardNotice(noticeCard.id)
+                const existing = noticeForCard(noticeCard.id, teamNotices)
+                if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
+                notify.success('Notice cleared.')
+              }
+              setNoticeVersion((n) => n + 1)
+              setNoticeCard(null)
+            } catch (e) {
+              const message =
+                (e as { data?: { message?: string } })?.data?.message ||
+                (e as Error)?.message ||
+                'Could not save notice.'
+              notify.error(message)
+            }
+          })()
+        }}
+        onClear={() => {
+          if (!noticeCard?.id) return
+          void (async () => {
+            clearLocalCardNotice(noticeCard.id)
+            const existing = noticeForCard(noticeCard.id, teamNotices)
+            if (existing?.id) {
+              try {
+                await deleteTeamNotice(existing.id).unwrap()
+              } catch {
+                /* ignore */
+              }
+            }
+            setNoticeVersion((n) => n + 1)
+            setNoticeCard(null)
+            notify.success('Notice cleared.')
+          })()
+        }}
+      />
     </div>
   )
 }

@@ -69,6 +69,18 @@ function ToastPill({ toast, onDismiss }: { toast: ToastPayload; onDismiss: (id: 
         >
           {toast.message}
         </p>
+        {toast.action ? (
+          <button
+            type="button"
+            onClick={() => {
+              toast.action?.onClick()
+              onDismiss(toast.id)
+            }}
+            className="bg-primary-600 hover:bg-primary-700 mt-2.5 inline-flex items-center rounded-lg px-2.5 py-1.5 text-xs font-bold text-white transition-colors"
+          >
+            {toast.action.label}
+          </button>
+        ) : null}
       </div>
 
       <button

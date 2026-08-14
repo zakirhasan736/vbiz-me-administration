@@ -1,5 +1,6 @@
 'use client'
 
+import { LeadNotesListSkeleton } from '@/components/admin/AdminLeadsListSkeleton'
 import {
   CONTACT_SAVES_EVENT,
   ContactSaveRecord,
@@ -227,9 +228,7 @@ export default function LeadNotesRepliesPanel({
       </div>
 
       {loading ? (
-        <div className="px-6 py-14 text-center">
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Loading leads…</p>
-        </div>
+        <LeadNotesListSkeleton />
       ) : filtered.length === 0 ? (
         <div className="px-6 py-14 text-center">
           <MessageCircle className="mx-auto mb-3 h-10 w-10 text-slate-300 dark:text-white/10" />

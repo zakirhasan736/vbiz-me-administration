@@ -25,6 +25,7 @@ import {
   Edit2,
   ExternalLink,
   Eye,
+  Loader2,
   Mail,
   MessageSquare,
   MousePointerClick,
@@ -55,6 +56,7 @@ type Props = {
   onToggleStatus?: (card: VCardRecord, status: string) => void
   canDuplicate?: boolean
   duplicateDisabledReason?: string
+  isDuplicating?: boolean
 }
 
 function Section({
@@ -93,6 +95,7 @@ export function VCardDetailSidebar({
   onToggleStatus,
   canDuplicate = false,
   duplicateDisabledReason = 'Single card owners can create only one vCard',
+  isDuplicating = false,
 }: Props) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
@@ -391,15 +394,19 @@ export function VCardDetailSidebar({
               {onDuplicate && (
                 <button
                   type="button"
-                  disabled={!canDuplicate || ownerLocked}
+                  disabled={!canDuplicate || ownerLocked || isDuplicating}
+                  aria-busy={isDuplicating}
                   title={
-                    ownerLocked
-                      ? SUSPENDED_CARD_MESSAGE
-                      : canDuplicate
-                        ? 'Duplicate this card'
-                        : duplicateDisabledReason
+                    isDuplicating
+                      ? 'Duplicating…'
+                      : ownerLocked
+                        ? SUSPENDED_CARD_MESSAGE
+                        : canDuplicate
+                          ? 'Duplicate this card'
+                          : duplicateDisabledReason
                   }
                   onClick={() => {
+                    if (isDuplicating) return
                     if (ownerLocked) {
                       setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
                       return
@@ -409,10 +416,11 @@ export function VCardDetailSidebar({
                   }}
                   className={cn(
                     'inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200',
-                    (!canDuplicate || ownerLocked) && 'cursor-not-allowed opacity-60'
+                    (!canDuplicate || ownerLocked || isDuplicating) && 'cursor-not-allowed opacity-60'
                   )}
                 >
-                  <Copy className="h-3.5 w-3.5" /> Duplicate
+                  {isDuplicating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+                  {isDuplicating ? 'Duplicating…' : 'Duplicate'}
                 </button>
               )}
               {onToggleStatus && (

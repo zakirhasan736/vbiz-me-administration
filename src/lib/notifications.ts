@@ -314,6 +314,7 @@ export function seedActiveAnnouncementNotification(input: {
   title: string
   body: string
   profileId?: string
+  href?: string
 }) {
   const already = loadNotifications().some(
     (n) => n.audience === input.audience && n.meta?.announcementId === input.announcementId
@@ -325,7 +326,7 @@ export function seedActiveAnnouncementNotification(input: {
     category: 'system',
     title: input.title,
     body: input.body,
-    href: '/',
+    href: input.href || (input.profileId ? `/vcards/edit/home/${input.profileId}` : '/'),
     meta: {
       announcementId: input.announcementId,
       ...(input.profileId ? { profileId: input.profileId } : {}),

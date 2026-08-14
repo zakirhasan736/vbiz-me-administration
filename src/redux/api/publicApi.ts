@@ -70,6 +70,7 @@ export const publicApi = createApi({
     'DynamicSection',
     'ProfileAiData',
     'ProfileSettings',
+    'PublicAnnouncement',
     'AboutMe',
     'Services',
     'Gallery',

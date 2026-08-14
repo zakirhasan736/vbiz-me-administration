@@ -1,6 +1,7 @@
 'use client'
 
 import { ModalPortal } from '@/components/ModalPortal'
+import { AdminTemplatesSkeleton } from '@/components/admin/AdminTemplatesSkeleton'
 import {
   useGetAdminTemplatesQuery,
   useUpdateAdminTemplateMutation,
@@ -83,10 +84,7 @@ export default function AdminTemplates() {
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-500">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-          <p className="text-sm font-semibold">Loading templates…</p>
-        </div>
+        <AdminTemplatesSkeleton />
       ) : isError ? (
         <div className="rounded-3xl border border-dashed border-rose-300 py-16 text-center dark:border-rose-500/30">
           <p className="font-bold text-rose-600 dark:text-rose-300">Could not load templates</p>

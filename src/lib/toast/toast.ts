@@ -8,21 +8,29 @@
 
 export type ToastVariant = 'success' | 'error' | 'info' | 'warning'
 
+export type ToastAction = {
+  label: string
+  onClick: () => void
+}
+
 export type ToastPayload = {
   id: string
   variant: ToastVariant
   title?: string
   message: string
-  /** Auto-dismiss delay in ms. Defaults to 4500. */
+  /** Auto-dismiss delay in ms. Defaults to 4500 (8000 when an action is present). */
   duration?: number
+  action?: ToastAction
 }
 
 export type ToastOptions = {
   title?: string
   duration?: number
+  action?: ToastAction
 }
 
 export const TOAST_EVENT = 'vbiz_toast'
+export const TOAST_ACTION_DURATION = 8000
 
 let counter = 0
 
@@ -40,7 +48,8 @@ function emit(variant: ToastVariant, message: string, options?: ToastOptions): s
     variant,
     message,
     title: options?.title,
-    duration: options?.duration,
+    duration: options?.duration ?? (options?.action ? TOAST_ACTION_DURATION : undefined),
+    action: options?.action,
   }
   window.dispatchEvent(new CustomEvent<ToastPayload>(TOAST_EVENT, { detail }))
   return id

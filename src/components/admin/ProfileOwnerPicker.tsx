@@ -1,5 +1,6 @@
 'use client'
 
+import { Skeleton } from '@/components/ui/Skeleton'
 import { type AdminProfileRow, useGetAdminProfilesQuery } from '@/redux/features/adminProfiles/adminProfiles.api'
 import { cn } from '@/utils/cn'
 import { Search, X } from 'lucide-react'
@@ -31,6 +32,27 @@ function ownerSubline(row: AdminProfileRow): string {
     Boolean
   ) as string[]
   return parts.join(' · ')
+}
+
+const OWNER_NAME_WIDTHS = ['w-28', 'w-24', 'w-32', 'w-36'] as const
+const OWNER_META_WIDTHS = ['w-48', 'w-44', 'w-52', 'w-40'] as const
+
+/** Card-style placeholder matching vCard owner list rows (avatar + name + meta). */
+function OwnerSearchRowSkeleton({ index = 0 }: { index?: number }) {
+  const i = index % OWNER_NAME_WIDTHS.length
+
+  return (
+    <div
+      className="flex w-full items-start gap-2.5 border-b border-slate-100 px-3 py-3 last:border-b-0 dark:border-white/5"
+      aria-hidden
+    >
+      <Skeleton className="mt-0.5 h-7 w-7 shrink-0 rounded-lg" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <Skeleton className={cn('h-3.5 rounded-md', OWNER_NAME_WIDTHS[i])} />
+        <Skeleton variant="text" className={cn('h-2.5 max-w-full', OWNER_META_WIDTHS[i])} />
+      </div>
+    </div>
+  )
 }
 
 export default function ProfileOwnerPicker({
@@ -109,7 +131,7 @@ export default function ProfileOwnerPicker({
             aria-label="vCard owners"
           >
             {isLoading || isFetching ? (
-              <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">Searching…</p>
+              Array.from({ length: 4 }).map((_, index) => <OwnerSearchRowSkeleton key={index} index={index} />)
             ) : isError ? (
               <p className="px-3 py-4 text-center text-xs font-semibold text-rose-500">Could not load vCard owners.</p>
             ) : items.length === 0 ? (

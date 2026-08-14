@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn'
-import { Calendar, Copy, Edit2, ExternalLink, Mail, PanelRight, Phone, QrCode } from 'lucide-react'
+import { Calendar, Copy, Edit2, ExternalLink, Loader2, Mail, PanelRight, Phone, QrCode } from 'lucide-react'
 import type { MouseEvent } from 'react'
 
 type Props = {
@@ -14,6 +14,8 @@ type Props = {
   onDuplicate: () => void
   duplicateDisabled?: boolean
   duplicateTitle?: string
+  /** Shows spinner and disables the Duplicate button while a copy is being created. */
+  isDuplicating?: boolean
   className?: string
 }
 
@@ -34,6 +36,7 @@ export default function VCardCardActions({
   onDuplicate,
   duplicateDisabled,
   duplicateTitle = 'Duplicate',
+  isDuplicating = false,
   className,
 }: Props) {
   const stop = (e: MouseEvent, fn: () => void) => {
@@ -42,6 +45,7 @@ export default function VCardCardActions({
   }
 
   const showContactActions = Boolean(onEmail || onCall || onSchedule)
+  const duplicateBusy = Boolean(duplicateDisabled || isDuplicating)
 
   return (
     <div className={cn('mt-auto shrink-0 space-y-1.5 border-t border-slate-100 pt-2 dark:border-white/5', className)}>
@@ -126,18 +130,20 @@ export default function VCardCardActions({
           type="button"
           onClick={(e) => {
             e.stopPropagation()
-            if (!duplicateDisabled) onDuplicate()
+            if (!duplicateBusy) onDuplicate()
           }}
-          disabled={duplicateDisabled}
-          title={duplicateTitle}
+          disabled={duplicateBusy}
+          title={isDuplicating ? 'Duplicating…' : duplicateTitle}
+          aria-busy={isDuplicating}
           className={cn(
             'inline-flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-[10px] font-black tracking-wider uppercase',
-            duplicateDisabled
+            duplicateBusy
               ? 'cursor-not-allowed bg-slate-50 text-slate-400 opacity-60'
               : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200'
           )}
         >
-          <Copy className="h-3.5 w-3.5" /> Duplicate
+          {isDuplicating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+          {isDuplicating ? 'Duplicating…' : 'Duplicate'}
         </button>
       </div>
     </div>

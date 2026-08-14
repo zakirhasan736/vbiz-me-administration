@@ -17,6 +17,7 @@ import '@/redux/features/navbar/navbar.api'
 import '@/redux/features/profileAiData/profileAiData.api'
 import '@/redux/features/profiles/profiles.api'
 import '@/redux/features/profileSettings/profileSettings.api'
+import '@/redux/features/publicAnnouncements/publicAnnouncements.api'
 import '@/redux/features/publicCards/publicCards.api'
 import '@/redux/features/sections/aboutMe.api'
 import '@/redux/features/sections/clients.api'
@@ -113,6 +114,7 @@ export {
   useGetProfileSettingsQuery,
   useLazyGetProfileSettingsQuery,
 } from '@/redux/features/profileSettings/profileSettings.api'
+export { useGetPublicProfileAnnouncementQuery } from '@/redux/features/publicAnnouncements/publicAnnouncements.api'
 export { useGetPublicCardsQuery, useLazyGetPublicCardsQuery } from '@/redux/features/publicCards/publicCards.api'
 export { useGetAboutMeQuery, useLazyGetAboutMeQuery } from '@/redux/features/sections/aboutMe.api'
 export { useGetClientsQuery, useLazyGetClientsQuery } from '@/redux/features/sections/clients.api'

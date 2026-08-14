@@ -69,6 +69,10 @@ type CorporateControlsHubProps = {
   onDuplicate: (card: VCardRecord) => void
   onTrends?: (card: VCardRecord) => void
   noticeVersion?: number
+  duplicatingCardId?: string | null
+  highlightedDuplicatedId?: string | null
+  highlightedActivatedId?: string | null
+  onActivatedFromDraft?: (cardId: string) => void
   activeTab?: HubTab
   onActiveTabChange?: (tab: HubTab) => void
   showBulkSelect?: boolean
@@ -98,6 +102,10 @@ export function CorporateControlsHub({
   onDuplicate,
   onTrends,
   noticeVersion = 0,
+  duplicatingCardId = null,
+  highlightedDuplicatedId = null,
+  highlightedActivatedId = null,
+  onActivatedFromDraft,
   activeTab: controlledTab,
   onActiveTabChange,
   showBulkSelect = false,
@@ -332,6 +340,10 @@ export function CorporateControlsHub({
                     canDuplicate={canCreate}
                     duplicateDisabledReason={createDisabledReason}
                     onDuplicate={() => onDuplicate(card)}
+                    isDuplicating={duplicatingCardId === card.id}
+                    isNewlyDuplicated={highlightedDuplicatedId === card.id || highlightedActivatedId === card.id}
+                    highlightLabel={highlightedActivatedId === card.id ? 'activated' : 'duplicated'}
+                    onActivatedFromDraft={onActivatedFromDraft}
                   />
                 )
               })}

@@ -75,14 +75,14 @@ function isCorporateCard(card: AdminCard): boolean {
 }
 
 /** Badge for Admin → My Cards portfolio. */
-export function resolveMyCardsBadge(card: AdminCard): AdminCardBadge {
+export function resolveMyCardsBadge(card: AdminCard): AdminCardBadge | null {
   if (isAdminNamedCard(card)) {
     return { label: 'Admin', tone: 'indigo' }
   }
   if (isCorporateCard(card)) {
     return { label: 'Corporate', tone: 'neutral' }
   }
-  return { label: 'Team member', tone: 'violet' }
+  return null
 }
 
 /** Badge for Admin → vCards directory. */

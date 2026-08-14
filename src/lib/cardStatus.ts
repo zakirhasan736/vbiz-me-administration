@@ -16,10 +16,10 @@ export function resolveCardStatus(input: {
   if (raw === 'suspended') return 'suspended'
   if (raw === 'paused') return 'paused'
   if (input.isDraft) return 'draft'
-  if (raw === 'inactive') return 'inactive'
-  if (raw === 'active') return 'active'
-  if (raw === 'draft') return input.isPublic === false ? 'inactive' : 'active'
   if (input.isPublic === false || input.isActive === false) return 'inactive'
+  if (input.isPublic === true || input.isActive === true) return 'active'
+  if (raw === 'inactive') return 'inactive'
+  if (raw === 'active' || raw === 'draft') return 'active'
   return 'active'
 }
 

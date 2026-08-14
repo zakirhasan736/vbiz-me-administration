@@ -90,10 +90,10 @@ export function VCardWeeklyEngagement({
     return { profileId: id, ...(scope ? { scope } : {}) }
   }, [aggregateAll, scope, hideCardSelector, defaultSelectedId, selectedCardId, vCardsList])
 
-  const { data: weekly, isLoading: weeklyLoading } = useGetWeeklyEngagementQuery(weeklyQueryArgs, {
+  const { data: weekly, isFetching: weeklyFetching } = useGetWeeklyEngagementQuery(weeklyQueryArgs, {
     skip: !aggregateAll && !(weeklyQueryArgs && 'profileId' in weeklyQueryArgs && weeklyQueryArgs.profileId),
   })
-  const isWeeklyPending = weeklyLoading && !weekly
+  const isWeeklyPending = listLoading || weeklyFetching
 
   /** Metadata card for scope badge / status / department — chart uses API weekly data. */
   const activeCard = useMemo((): EngagementCard | null => {
@@ -559,7 +559,7 @@ export function VCardWeeklyEngagement({
           <div className="mt-4 border-t border-slate-100 pt-4 dark:border-white/5">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
               <span>Card Status:</span>
-              {listLoading && !vCardsList.length ? (
+              {isWeeklyPending || (listLoading && !vCardsList.length) ? (
                 <Skeleton className="h-5 w-16 rounded" />
               ) : (
                 <span

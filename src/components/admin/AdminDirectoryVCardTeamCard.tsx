@@ -15,7 +15,7 @@ import { notify } from '@/lib/toast/toast'
 import { useDeleteProfileMutation, useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import { Building, GripVertical, Megaphone, Trash2 } from 'lucide-react'
-import { useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 
 function personalField(personal: AdminCard['personal'], key: string): string {
   const value = personal?.[key]
@@ -47,6 +47,11 @@ export type VCardTeamCardProps = {
   headerLeft?: ReactNode
   showNotice?: boolean
   onNotice?: () => void
+  /** Server notice text for this card; when set, overrides localStorage highlight. */
+  cardNoticeText?: string | null
+  cardNoticeType?: 'info' | 'warning' | 'success' | null
+  /** Bump to re-read localStorage fallback after save/clear. */
+  noticeVersion?: number
   onCardClick?: () => void
   onTrends?: () => void
   onEmail?: () => void
@@ -60,6 +65,14 @@ export type VCardTeamCardProps = {
   onDuplicate: () => void
   duplicateDisabled?: boolean
   duplicateTitle?: string
+  /** Shows spinner on the Duplicate button while this card is being copied. */
+  isDuplicating?: boolean
+  /** Primary border + chip to mark a card that was just duplicated or activated. */
+  isNewlyDuplicated?: boolean
+  /** Chip text when highlighted — defaults to duplicated. */
+  highlightLabel?: 'duplicated' | 'activated'
+  /** Fired after a draft card is successfully published via Visibility ON. */
+  onActivatedFromDraft?: (cardId: string) => void
   /** After a successful delete — mock cleanup, refetch, clear selection/panel */
   onDeleted?: (id: string) => void | Promise<void>
   className?: string
@@ -70,7 +83,7 @@ export type VCardTeamCardProps = {
  */
 export default function VCardTeamCard({
   card,
-  badgeLabel = 'Corporate',
+  badgeLabel,
   badgeTone = 'neutral',
   contactSaves,
   selected,
@@ -84,6 +97,9 @@ export default function VCardTeamCard({
   headerLeft,
   showNotice = true,
   onNotice,
+  cardNoticeText,
+  cardNoticeType,
+  noticeVersion = 0,
   onCardClick,
   onTrends,
   onEmail,
@@ -97,15 +113,23 @@ export default function VCardTeamCard({
   onDuplicate,
   duplicateDisabled,
   duplicateTitle,
+  isDuplicating = false,
+  isNewlyDuplicated = false,
+  highlightLabel = 'duplicated',
+  onActivatedFromDraft,
   onDeleted,
   className,
 }: VCardTeamCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [deleteProfile, { isLoading: isDeletingProfile }] = useDeleteProfileMutation()
-  const [updateProfileCard, { isLoading: isUpdatingVisibility }] = useUpdateProfileCardMutation()
+  const [updateProfileCard] = useUpdateProfileCardMutation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [optimisticPublic, setOptimisticPublic] = useState<{ cardId: string; value: boolean } | null>(null)
+  const [optimisticVisibility, setOptimisticVisibility] = useState<{
+    cardId: string
+    isPublic: boolean
+    status: 'active' | 'inactive'
+  } | null>(null)
   const [statsHovered, setStatsHovered] = useState(false)
   const [isDeletingLocal, setIsDeletingLocal] = useState(false)
   const [alertState, setAlertState] = useState<{
@@ -114,16 +138,23 @@ export default function VCardTeamCard({
     variant?: 'default' | 'danger'
   } | null>(null)
 
+  useEffect(() => {
+    if (!isNewlyDuplicated) return
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [isNewlyDuplicated])
+
   const slug = card.slug || 'profile'
   const cardId = String(card.id || '')
   const serverIsPublic = card.isPublic ?? true
-  const isPublic =
-    optimisticPublic?.cardId === cardId && serverIsPublic !== optimisticPublic.value
-      ? optimisticPublic.value
-      : serverIsPublic
-  const isDraft = Boolean(card.isDraft)
+  const isPublic = optimisticVisibility?.cardId === cardId ? optimisticVisibility.isPublic : serverIsPublic
+  const isDraft = optimisticVisibility?.cardId === cardId ? false : Boolean(card.isDraft)
   const status = resolveCardStatus({
-    status: typeof card.status === 'string' ? card.status : undefined,
+    status:
+      optimisticVisibility?.cardId === cardId
+        ? optimisticVisibility.status
+        : typeof card.status === 'string'
+          ? card.status
+          : undefined,
     isDraft,
     isPublic,
   })
@@ -146,7 +177,11 @@ export default function VCardTeamCard({
   const ctr = views ? ((clicks / views) * 100).toFixed(1) : '0.0'
   const socialStats = getCardSocialClickStats(card, liveSocials)
   const saves = contactSaves !== undefined ? contactSaves : Number(card.saveCount || resolved.saveCount || 0)
-  const noticeText = typeof window !== 'undefined' && card.id ? localStorage.getItem(`notice_${card.id}`) : null
+  // Prefer server notice for this card id; fall back to per-card localStorage only.
+  const localNoticeText =
+    noticeVersion >= 0 && typeof window !== 'undefined' && card.id ? localStorage.getItem(`notice_${card.id}`) : null
+  const noticeText = (cardNoticeText !== undefined ? cardNoticeText : localNoticeText) || null
+  const noticeTone = cardNoticeType || 'info'
   const fullName = personalField(card.personal, 'fullName')
   const designation = personalField(card.personal, 'designation')
   const company = personalField(card.personal, 'company')
@@ -170,15 +205,25 @@ export default function VCardTeamCard({
 
   const isDeleting = isDeletingProfile || isDeletingLocal
 
-  const handleVisibilityChange = async (next: boolean) => {
+  const handleVisibilityChange = (next: boolean) => {
     if (!cardId || status === 'paused' || status === 'suspended') return
-    setOptimisticPublic({ cardId, value: next })
-    try {
-      await updateProfileCard({ id: cardId, body: { isPublic: next } }).unwrap()
-    } catch {
-      setOptimisticPublic(null)
-      notify.error('Could not update card visibility. Please try again.')
-    }
+    const activatingFromDraft = Boolean(card.isDraft) && next
+    const nextStatus = next ? 'active' : 'inactive'
+    setOptimisticVisibility({ cardId, isPublic: next, status: nextStatus })
+    void updateProfileCard({
+      id: cardId,
+      body: next
+        ? { isPublic: true, status: 'active', isDraft: false }
+        : { isPublic: false, status: 'inactive', isDraft: false },
+    })
+      .unwrap()
+      .then(() => {
+        if (activatingFromDraft) onActivatedFromDraft?.(cardId)
+      })
+      .catch(() => {
+        setOptimisticVisibility((current) => (current?.cardId === cardId && current.isPublic === next ? null : current))
+        notify.error('Could not update card visibility. Please try again.')
+      })
   }
 
   const handleDeleteConfirm = async () => {
@@ -213,14 +258,21 @@ export default function VCardTeamCard({
       className={cn(
         'group relative flex h-auto cursor-pointer flex-col rounded-2xl border bg-white transition-all duration-300 hover:shadow-xl dark:bg-[#0b0f19]',
         dragged && 'opacity-40',
-        status === 'suspended'
-          ? 'border-rose-500/20 hover:border-rose-400/40'
-          : status === 'paused'
-            ? 'border-amber-500/20 hover:border-amber-400/40'
-            : 'border-slate-200/60 hover:border-slate-400 dark:border-white/5 dark:hover:border-white/20',
+        isNewlyDuplicated
+          ? 'border-primary-500 bg-primary-50/40 ring-primary-500/25 dark:bg-primary-500/10 border-2 ring-2'
+          : status === 'suspended'
+            ? 'border-rose-500/20 hover:border-rose-400/40'
+            : status === 'paused'
+              ? 'border-amber-500/20 hover:border-amber-400/40'
+              : 'border-slate-200/60 hover:border-slate-400 dark:border-white/5 dark:hover:border-white/20',
         className
       )}
     >
+      {isNewlyDuplicated ? (
+        <span className="bg-primary-600 absolute -top-2.5 left-1/2 z-20 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-[9px] font-black tracking-wider text-white uppercase shadow-sm">
+          {highlightLabel === 'activated' ? 'Just activated' : 'Just duplicated'}
+        </span>
+      ) : null}
       <ConfirmModal
         open={deleteOpen}
         onCancel={() => setDeleteOpen(false)}
@@ -278,14 +330,16 @@ export default function VCardTeamCard({
                   className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 accent-indigo-600 shadow-xs focus:ring-indigo-600"
                 />
               )}
-              <span
-                className={cn(
-                  'rounded-md border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                  badgeClass
-                )}
-              >
-                {badgeLabel}
-              </span>
+              {badgeLabel ? (
+                <span
+                  className={cn(
+                    'rounded-md border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                    badgeClass
+                  )}
+                >
+                  {badgeLabel}
+                </span>
+              ) : null}
             </div>
             <span className="shrink-0 rounded-md bg-indigo-500/5 px-2 py-0.5 text-[10px] font-bold text-indigo-500 dark:text-indigo-400">
               #{slug}
@@ -340,8 +394,8 @@ export default function VCardTeamCard({
             </div>
             <VCardVisibilityToggle
               id={cardId ? `admin-vcard-visibility-${cardId}` : 'admin-vcard-visibility-missing'}
-              checked={isPublic}
-              disabled={isUpdatingVisibility || !cardId}
+              checked={!isDraft && isPublic}
+              disabled={!cardId}
               locked={status === 'paused' || status === 'suspended'}
               title={
                 status === 'suspended'
@@ -351,7 +405,7 @@ export default function VCardTeamCard({
                     : undefined
               }
               compact
-              onChange={(next) => void handleVisibilityChange(next)}
+              onChange={handleVisibilityChange}
               onLockedAttempt={() =>
                 notify.warning(status === 'suspended' ? ADMIN_SUSPENDED_CARD_MESSAGE : ADMIN_PAUSED_CARD_MESSAGE)
               }
@@ -418,7 +472,11 @@ export default function VCardTeamCard({
                 className={cn(
                   'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase transition-colors',
                   noticeText
-                    ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
+                    ? noticeTone === 'success'
+                      ? 'border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-200'
+                      : noticeTone === 'warning'
+                        ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
+                        : 'border-indigo-300/60 bg-indigo-100 text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/25 dark:text-indigo-200'
                     : 'border-amber-200/80 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25'
                 )}
                 title={noticeText || 'Card announcement'}
@@ -441,6 +499,7 @@ export default function VCardTeamCard({
           onDuplicate={onDuplicate}
           duplicateDisabled={duplicateDisabled}
           duplicateTitle={duplicateTitle}
+          isDuplicating={isDuplicating}
         />
       </div>
     </div>

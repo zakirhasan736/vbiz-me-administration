@@ -1,6 +1,15 @@
 'use client'
 
 import { ConfirmModal } from '@/components/ConfirmModal'
+import {
+  AnnouncementsLiveStatusSkeleton,
+  AnnouncementsPreviewSkeleton,
+  EventsCountSkeleton,
+  RecentPublishesListSkeleton,
+  UpcomingEventsListSkeleton,
+  WarningsCountSkeleton,
+  WarningsNoticesListSkeleton,
+} from '@/components/admin/AdminAnnouncementsSkeleton'
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { notifyOwners } from '@/lib/notifications'
 import {
@@ -16,7 +25,6 @@ import {
   useGetMeetingsQuery,
 } from '@/redux/features/meetings/meetings.api'
 import type { Announcement, AnnouncementType } from '@/types/announcement'
-import { MEETING_TYPES, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
 import { AlertTriangle, Bell, Calendar, Check, CheckCircle2, Clock, Info, Megaphone, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
@@ -62,7 +70,7 @@ export default function AdminAnnouncements() {
   const [deleteAnnouncement] = useDeleteAnnouncementMutation()
   const [clearLiveAnnouncement, { isLoading: isClearing }] = useClearLiveAnnouncementMutation()
 
-  const { data: meetingsPage } = useGetMeetingsQuery({ limit: 100 })
+  const { data: meetingsPage, isLoading: meetingsLoading } = useGetMeetingsQuery({ limit: 100 })
   const [createMeeting] = useCreateMeetingMutation()
   const [deleteMeeting] = useDeleteMeetingMutation()
   const meetings = useMemo(() => meetingsPage?.items ?? [], [meetingsPage?.items])
@@ -73,8 +81,7 @@ export default function AdminAnnouncements() {
   const [bannerDraft, setBannerDraft] = useState<BannerDraft | null>(null)
   const [isSaved, setIsSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [showOnPublicCard, setShowOnPublicCard] = useState(false)
-  const [sendPush, setSendPush] = useState(false)
+  const [onlyBackoffice, setOnlyBackoffice] = useState(false)
 
   const announcementText = bannerDraft?.text ?? liveAnnouncement?.body ?? ''
   const announcementType = bannerDraft?.type ?? liveAnnouncement?.type ?? 'info'
@@ -93,7 +100,7 @@ export default function AdminAnnouncements() {
 
   const [eventTitle, setEventTitle] = useState('')
   const [eventOwner, setEventOwner] = useState<ProfileOwnerSelection | null>(null)
-  const [eventType, setEventType] = useState<MeetingType>('Growth Meeting')
+  const [eventType, setEventType] = useState('')
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('10:00 AM')
   const [eventNotes, setEventNotes] = useState('')
@@ -154,10 +161,7 @@ export default function AdminAnnouncements() {
         status: 'active',
         targetType: announcementTargetType,
         targetEmails: announcementTargetType === 'specific' ? parseEmails(announcementTargetEmails) : [],
-        meta: {
-          ...(showOnPublicCard ? { showPublic: '1' } : {}),
-          ...(sendPush ? { sendPush: '1' } : {}),
-        },
+        meta: onlyBackoffice ? {} : { showPublic: '1', sendPush: '1' },
       }).unwrap()
 
       setIsSaved(true)
@@ -211,15 +215,15 @@ export default function AdminAnnouncements() {
 
   const handleCreateEvent = async (e: FormEvent) => {
     e.preventDefault()
-    if (!eventOwner || !eventDate) return
+    if (!eventOwner || !eventDate || !eventType.trim() || !eventTitle.trim()) return
 
     try {
       const created = await createMeeting({
         host: eventOwner.hostName,
-        type: eventType,
+        type: eventType.trim(),
         date: eventDate,
         time: eventTime,
-        notes: eventNotes || eventTitle || 'Upcoming admin event',
+        notes: eventNotes || eventTitle.trim() || 'Upcoming admin event',
         status: 'Scheduled',
         profileId: eventOwner.profileId,
       }).unwrap()
@@ -227,13 +231,14 @@ export default function AdminAnnouncements() {
       const meetSuffix = created.meetLink ? ` · Meet: ${created.meetLink}` : ''
       notifyOwners({
         category: 'event',
-        title: 'Upcoming admin event',
-        body: `${eventType} with ${eventOwner.hostName} on ${eventDate} at ${eventTime}${meetSuffix}`,
+        title: eventTitle.trim(),
+        body: `${eventType.trim()} with ${eventOwner.hostName} on ${eventDate} at ${eventTime}${meetSuffix}`,
         forceBrowser: true,
       })
 
       setEventTitle('')
       setEventOwner(null)
+      setEventType('')
       setEventNotes('')
     } catch {
       /* keep form values */
@@ -273,7 +278,9 @@ export default function AdminAnnouncements() {
             Manage live banners, warning notices, and upcoming events for single and corporate owners.
           </p>
         </div>
-        {hasLiveBanner ? (
+        {announcementsLoading ? (
+          <AnnouncementsLiveStatusSkeleton />
+        ) : hasLiveBanner ? (
           <span className="inline-flex items-center gap-1.5 self-start rounded-xl bg-emerald-500/10 px-3 py-1.5 text-[11px] font-black tracking-wider text-emerald-600 uppercase dark:text-emerald-300">
             <Bell className="h-3.5 w-3.5" /> Banner live
           </span>
@@ -398,16 +405,8 @@ export default function AdminAnnouncements() {
 
             <div className="flex gap-3">
               <label className="inline-flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={showOnPublicCard}
-                  onChange={(e) => setShowOnPublicCard(e.target.checked)}
-                />
-                <span className="text-[11px] font-semibold">Show banner on public card</span>
-              </label>
-              <label className="inline-flex items-center gap-2 text-xs">
-                <input type="checkbox" checked={sendPush} onChange={(e) => setSendPush(e.target.checked)} />
-                <span className="text-[11px] font-semibold">Send push notification to card subscribers</span>
+                <input type="checkbox" checked={onlyBackoffice} onChange={(e) => setOnlyBackoffice(e.target.checked)} />
+                <span className="text-[11px] font-semibold">Only backoffice</span>
               </label>
             </div>
 
@@ -453,16 +452,20 @@ export default function AdminAnnouncements() {
               )}
             >
               <p className="mb-2 text-[10px] font-black tracking-wider text-slate-500 uppercase">Preview</p>
-              <p className="text-sm font-bold text-slate-900 dark:text-white">
-                {announcementText.trim() || 'Your banner preview will appear here…'}
-              </p>
+              {announcementsLoading ? (
+                <AnnouncementsPreviewSkeleton />
+              ) : (
+                <p className="text-sm font-bold text-slate-900 dark:text-white">
+                  {announcementText.trim() || 'Your banner preview will appear here…'}
+                </p>
+              )}
             </div>
 
             <div className="rounded-[28px] border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
               <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-white">Recent publishes</h3>
               <div className="max-h-70 space-y-2 overflow-y-auto">
                 {announcementsLoading ? (
-                  <p className="py-6 text-center text-xs font-semibold text-slate-400">Loading…</p>
+                  <RecentPublishesListSkeleton />
                 ) : noticeFeed.length === 0 ? (
                   <p className="py-6 text-center text-xs font-semibold text-slate-400">No notices published yet</p>
                 ) : (
@@ -510,63 +513,71 @@ export default function AdminAnnouncements() {
                 Archived and active warning/info publishes from the live banner.
               </p>
             </div>
-            <span className="rounded-lg bg-amber-500/10 px-2.5 py-1 text-[11px] font-black tracking-wider text-amber-600 uppercase">
-              {warnings.length} warnings
-            </span>
-          </div>
-          <div className="divide-y divide-slate-100 dark:divide-white/5">
             {announcementsLoading ? (
-              <p className="py-16 text-center text-sm font-semibold text-slate-400">Loading…</p>
-            ) : noticeFeed.length === 0 ? (
-              <p className="py-16 text-center text-sm font-semibold text-slate-400">
-                No warnings or notices yet — publish from Live Banner.
-              </p>
+              <WarningsCountSkeleton />
             ) : (
-              noticeFeed.map((n) => (
-                <div key={n.id} className="flex flex-col justify-between gap-3 px-6 py-4 sm:flex-row sm:items-start">
-                  <div className="min-w-0">
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <span
-                        className={cn(
-                          'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                          n.type === 'warning' && 'bg-amber-500/15 text-amber-600',
-                          n.type === 'info' && 'bg-indigo-500/15 text-indigo-600',
-                          n.type === 'success' && 'bg-emerald-500/15 text-emerald-600'
-                        )}
-                      >
-                        {n.type}
-                      </span>
-                      <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase">{n.status}</span>
-                      <span className="text-[10px] font-semibold text-slate-400">
-                        {new Date(n.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{n.title}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">{n.body}</p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    {n.status !== 'archived' && (
-                      <button
-                        type="button"
-                        onClick={() => void handleArchiveNotice(n.id)}
-                        className="rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300"
-                      >
-                        Archive
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteNotice(n)}
-                      className="rounded-xl p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
-                      aria-label="Delete notice"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
+              <span className="rounded-lg bg-amber-500/10 px-2.5 py-1 text-[11px] font-black tracking-wider text-amber-600 uppercase">
+                {warnings.length} warnings
+              </span>
             )}
           </div>
+          {announcementsLoading ? (
+            <WarningsNoticesListSkeleton />
+          ) : (
+            <div className="divide-y divide-slate-100 dark:divide-white/5">
+              {noticeFeed.length === 0 ? (
+                <p className="py-16 text-center text-sm font-semibold text-slate-400">
+                  No warnings or notices yet — publish from Live Banner.
+                </p>
+              ) : (
+                noticeFeed.map((n) => (
+                  <div key={n.id} className="flex flex-col justify-between gap-3 px-6 py-4 sm:flex-row sm:items-start">
+                    <div className="min-w-0">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                            n.type === 'warning' && 'bg-amber-500/15 text-amber-600',
+                            n.type === 'info' && 'bg-indigo-500/15 text-indigo-600',
+                            n.type === 'success' && 'bg-emerald-500/15 text-emerald-600'
+                          )}
+                        >
+                          {n.type}
+                        </span>
+                        <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase">
+                          {n.status}
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          {new Date(n.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{n.title}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{n.body}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      {n.status !== 'archived' && (
+                        <button
+                          type="button"
+                          onClick={() => void handleArchiveNotice(n.id)}
+                          className="rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300"
+                        >
+                          Archive
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteNotice(n)}
+                        className="rounded-xl p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                        aria-label="Delete notice"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -586,9 +597,10 @@ export default function AdminAnnouncements() {
               </p>
             </div>
             <input
+              required
               value={eventTitle}
               onChange={(e) => setEventTitle(e.target.value)}
-              placeholder="Event title (optional)"
+              placeholder="Event title"
               className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
             />
             <ProfileOwnerPicker
@@ -597,17 +609,13 @@ export default function AdminAnnouncements() {
               label="Host / owner"
               listClassName="max-h-40"
             />
-            <select
+            <input
+              required
               value={eventType}
-              onChange={(e) => setEventType(e.target.value as MeetingType)}
+              onChange={(e) => setEventType(e.target.value)}
+              placeholder="Event type"
               className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
-            >
-              {MEETING_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+            />
             <div className="grid grid-cols-2 gap-3">
               <input
                 required
@@ -644,12 +652,18 @@ export default function AdminAnnouncements() {
                 <Clock className="h-4 w-4 text-indigo-500" />
                 Upcoming events
               </h2>
-              <span className="rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[11px] font-black tracking-wider text-indigo-600 uppercase">
-                {upcomingMeetings.length} scheduled
-              </span>
+              {meetingsLoading ? (
+                <EventsCountSkeleton />
+              ) : (
+                <span className="rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[11px] font-black tracking-wider text-indigo-600 uppercase">
+                  {upcomingMeetings.length} scheduled
+                </span>
+              )}
             </div>
-            <div className="max-h-120 space-y-3 overflow-y-auto">
-              {upcomingMeetings.length === 0 ? (
+            <div className="space-y-3 overflow-y-auto">
+              {meetingsLoading ? (
+                <UpcomingEventsListSkeleton />
+              ) : upcomingMeetings.length === 0 ? (
                 <p className="py-16 text-center text-sm font-semibold text-slate-400">No upcoming events scheduled</p>
               ) : (
                 upcomingMeetings.map((m) => (

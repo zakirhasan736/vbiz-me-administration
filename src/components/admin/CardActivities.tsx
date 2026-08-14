@@ -1,6 +1,8 @@
 'use client'
 
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { StatNumber } from '@/components/ui/StatNumber'
 import { getAdminThemeConfig, getThemeClasses } from '@/lib/admin/adminTheme'
 import { useClearAuditLogsMutation, useGetActivityFeedQuery } from '@/redux/features/adminActivity/adminActivity.api'
 import type { ActivityCategory } from '@/types/activity'
@@ -73,11 +75,11 @@ export default function CardActivities({ className }: { className?: string } = {
 
   const summary = useMemo(
     () => ({
-      total: counts?.events ?? logs.length,
-      saves: counts?.saves ?? 0,
-      clicks: counts?.engagement ?? 0,
+      total: isLoading ? undefined : (counts?.events ?? logs.length),
+      saves: isLoading ? undefined : (counts?.saves ?? 0),
+      clicks: isLoading ? undefined : (counts?.engagement ?? 0),
     }),
-    [counts, logs.length]
+    [counts, isLoading, logs.length]
   )
 
   const confirmClearLogs = async () => {
@@ -140,7 +142,9 @@ export default function CardActivities({ className }: { className?: string } = {
               key={s.label}
               className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-center dark:border-white/5 dark:bg-white/3"
             >
-              <p className="text-lg font-black text-slate-900 tabular-nums dark:text-white">{s.value}</p>
+              <p className="text-lg font-black text-slate-900 tabular-nums dark:text-white">
+                <StatNumber value={s.value} loading={isLoading} skeletonClassName="mx-auto h-5 w-8" />
+              </p>
               <p className="text-[9px] font-black tracking-wider text-slate-400 uppercase">{s.label}</p>
             </div>
           ))}
@@ -176,7 +180,7 @@ export default function CardActivities({ className }: { className?: string } = {
       <div className="max-h-105 flex-1 space-y-2.5 overflow-y-auto px-4 py-4">
         <AnimatePresence mode="popLayout">
           {isLoading ? (
-            <div className="py-14 text-center text-xs font-semibold text-slate-400">Loading activity…</div>
+            Array.from({ length: 4 }).map((_, index) => <ActivityFeedCardSkeleton key={index} />)
           ) : isError ? (
             <div className="py-14 text-center text-xs font-semibold text-rose-500">Failed to load activity feed.</div>
           ) : logs.length > 0 ? (
@@ -234,6 +238,23 @@ export default function CardActivities({ className }: { className?: string } = {
         onConfirm={() => void confirmClearLogs()}
         onCancel={() => setClearConfirmOpen(false)}
       />
+    </div>
+  )
+}
+
+function ActivityFeedCardSkeleton() {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/40 p-3.5 dark:border-white/5 dark:bg-white/2">
+      <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <Skeleton className="h-3.5 w-36 rounded-md" />
+          <Skeleton className="h-2.5 w-16 shrink-0 rounded-md" />
+        </div>
+        <Skeleton variant="text" className="h-2.5 w-full max-w-[90%]" />
+        <Skeleton variant="text" className="h-2.5 w-2/3" />
+        <Skeleton variant="text" className="mt-1 h-2.5 w-20" />
+      </div>
     </div>
   )
 }

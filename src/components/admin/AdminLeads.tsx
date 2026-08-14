@@ -2,6 +2,7 @@
 
 import ContactSavesPanel from '@/components/admin/ContactSavesPanel'
 import LeadNotesRepliesPanel from '@/components/admin/LeadNotesRepliesPanel'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { mapAdminLeadRow } from '@/lib/admin/mapAdminLeadRow'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -20,8 +21,8 @@ export default function AdminLeads() {
   const [tab, setTab] = useState<'saves' | 'notes'>('saves')
 
   const { data: stats, isLoading: statsLoading } = useGetAdminLeadsStatsQuery()
-  const { data: savesRaw = [], isLoading: savesLoading, isFetching: savesFetching } = useGetAdminLeadsSavesQuery()
-  const { data: notesRaw = [], isLoading: notesLoading, isFetching: notesFetching } = useGetAdminLeadsNotesQuery()
+  const { data: savesRaw = [], isLoading: savesLoading } = useGetAdminLeadsSavesQuery()
+  const { data: notesRaw = [], isLoading: notesLoading } = useGetAdminLeadsNotesQuery()
 
   const [deleteSave] = useDeleteAdminLeadSaveMutation()
   const [patchSave] = usePatchAdminLeadSaveMutation()
@@ -86,28 +87,54 @@ export default function AdminLeads() {
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Total Contact Saves</span>
+            {statsLoading ? (
+              <Skeleton className="h-2.5 w-28 rounded-md" />
+            ) : (
+              <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                Total Contact Saves
+              </span>
+            )}
             <span className="rounded-xl bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
               <Users className="h-4 w-4" />
             </span>
           </div>
-          <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">{statsLoading ? '—' : total}</p>
-          <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Synced across all vCards
-          </p>
+          {statsLoading ? (
+            <Skeleton className="mt-3 h-9 w-16 rounded-lg" />
+          ) : (
+            <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">{total}</p>
+          )}
+          {statsLoading ? (
+            <Skeleton className="mt-2 h-3 w-40 rounded-md" />
+          ) : (
+            <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Synced across all vCards
+            </p>
+          )}
         </div>
 
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-              Active Source Profiles
-            </span>
+            {statsLoading ? (
+              <Skeleton className="h-2.5 w-36 rounded-md" />
+            ) : (
+              <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                Active Source Profiles
+              </span>
+            )}
             <span className="rounded-xl bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
               <Building className="h-4 w-4" />
             </span>
           </div>
-          <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">{statsLoading ? '—' : sourceCards}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-400">Cards generating saves</p>
+          {statsLoading ? (
+            <Skeleton className="mt-3 h-9 w-12 rounded-lg" />
+          ) : (
+            <p className="mt-3 text-3xl font-black text-slate-900 dark:text-white">{sourceCards}</p>
+          )}
+          {statsLoading ? (
+            <Skeleton className="mt-2 h-3 w-36 rounded-md" />
+          ) : (
+            <p className="mt-1 text-xs font-semibold text-slate-400">Cards generating saves</p>
+          )}
         </div>
       </div>
 
@@ -151,7 +178,7 @@ export default function AdminLeads() {
               title="All Guest Contact Saves"
               className="border-0 shadow-none"
               records={saves}
-              loading={savesLoading || savesFetching}
+              loading={savesLoading}
               onDelete={handleDeleteSave}
             />
           ) : (
@@ -159,7 +186,7 @@ export default function AdminLeads() {
               role="admin"
               leads={saves}
               guestOnly={notes}
-              loading={notesLoading || notesFetching || savesLoading}
+              loading={notesLoading || savesLoading}
               onSaveNote={(leadId, text, lead) => handleSaveNote(leadId, text, lead?.kind)}
               onSendReply={(lead, text) => handleSendReply(lead, text)}
             />
