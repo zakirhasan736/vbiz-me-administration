@@ -73,6 +73,8 @@ export default function AdminAnnouncements() {
   const [bannerDraft, setBannerDraft] = useState<BannerDraft | null>(null)
   const [isSaved, setIsSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [showOnPublicCard, setShowOnPublicCard] = useState(false)
+  const [sendPush, setSendPush] = useState(false)
 
   const announcementText = bannerDraft?.text ?? liveAnnouncement?.body ?? ''
   const announcementType = bannerDraft?.type ?? liveAnnouncement?.type ?? 'info'
@@ -152,6 +154,10 @@ export default function AdminAnnouncements() {
         status: 'active',
         targetType: announcementTargetType,
         targetEmails: announcementTargetType === 'specific' ? parseEmails(announcementTargetEmails) : [],
+        meta: {
+          ...(showOnPublicCard ? { showPublic: '1' } : {}),
+          ...(sendPush ? { sendPush: '1' } : {}),
+        },
       }).unwrap()
 
       setIsSaved(true)
@@ -388,6 +394,21 @@ export default function AdminAnnouncements() {
                 placeholder="Platform upgrade notice, warning, or promotional banner…"
                 className="min-h-30 w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-white/5 dark:bg-slate-900"
               />
+            </div>
+
+            <div className="flex gap-3">
+              <label className="inline-flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={showOnPublicCard}
+                  onChange={(e) => setShowOnPublicCard(e.target.checked)}
+                />
+                <span className="text-[11px] font-semibold">Show banner on public card</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-xs">
+                <input type="checkbox" checked={sendPush} onChange={(e) => setSendPush(e.target.checked)} />
+                <span className="text-[11px] font-semibold">Send push notification to card subscribers</span>
+              </label>
             </div>
 
             {formError && <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">{formError}</p>}

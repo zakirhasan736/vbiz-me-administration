@@ -6,8 +6,20 @@ import { useCanvaConnection } from '@/components/canva/useCanvaConnection'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
-import { Image as ImageIcon, LayoutGrid, Loader2, Palette, Video, Wand2, X } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import {
+  CalendarClock,
+  CreditCard,
+  FileText,
+  Image as ImageIcon,
+  LayoutGrid,
+  Loader2,
+  Palette,
+  ShieldCheck,
+  Video,
+  Wand2,
+  X,
+} from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 export type MediaAsset = {
   id: string
@@ -115,32 +127,250 @@ function FieldGroup({ label, children, icon }: { label: string; children: ReactN
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-primary-500 shadow-sm'
 
+const CUSTOM_OFFER_OPTIONS = [
+  { id: 'logo-animation', label: 'Logo animation', price: 49, hours: 24 },
+  { id: 'intro-video', label: 'Intro video', price: 79, hours: 48 },
+  { id: 'profile-media', label: 'Profile media pack', price: 39, hours: 24 },
+  { id: 'custom-design', label: 'Custom design asset', price: 59, hours: 36 },
+] as const
+
 function CustomOrderModal({ onClose }: { onClose: () => void }) {
+  const [offerId, setOfferId] = useState<(typeof CUSTOM_OFFER_OPTIONS)[number]['id']>('logo-animation')
+  const [brand, setBrand] = useState('')
+  const [brief, setBrief] = useState('')
+  const [references, setReferences] = useState('')
+  const [fileNames, setFileNames] = useState<string[]>([])
+  const [step, setStep] = useState<'details' | 'checkout' | 'submitted'>('details')
+  const offer = useMemo(
+    () => CUSTOM_OFFER_OPTIONS.find((item) => item.id === offerId) || CUSTOM_OFFER_OPTIONS[0],
+    [offerId]
+  )
+  const canCheckout = brand.trim().length > 1 && brief.trim().length > 10
+  const [due, setDue] = useState<string>('')
+
+  useEffect(() => {
+    // compute due asynchronously to avoid synchronous setState in effect
+    const t = setTimeout(() => {
+      const date = new Date(Date.now() + offer.hours * 60 * 60 * 1000)
+      setDue(date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))
+    }, 0)
+    return () => clearTimeout(t)
+  }, [offer.hours])
+
+  const submitOrder = () => {
+    const request = {
+      id: `custom_offer_${Date.now()}`,
+      offerId,
+      offer: offer.label,
+      price: offer.price,
+      brand,
+      brief,
+      references,
+      fileNames,
+      status: 'admin_approval_pending',
+      productionHours: offer.hours,
+      requestedAt: new Date().toISOString(),
+    }
+    try {
+      const raw = localStorage.getItem('vbiz_custom_offer_requests')
+      const list = raw ? (JSON.parse(raw) as unknown[]) : []
+      localStorage.setItem('vbiz_custom_offer_requests', JSON.stringify([request, ...list]))
+    } catch {
+      /* local queue is best-effort only */
+    }
+    setStep('submitted')
+  }
+
   return (
-    <div className="animate-in fade-in fixed inset-0 z-120 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg rounded-[28px] border border-black/10 bg-white p-8 shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]">
+    <div className="animate-in fade-in fixed inset-0 z-120 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+      <div className="relative max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 rounded-full bg-black/5 p-2 dark:bg-white/5"
+          className="absolute top-4 right-4 z-10 rounded-full bg-black/5 p-2 dark:bg-white/5"
         >
           <X className="h-5 w-5 text-slate-500" />
         </button>
-        <h3 className="mb-2 text-[22px] font-black text-slate-900 dark:text-white">Custom Made Video</h3>
-        <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500">
-          Tell us what you need and our team will produce a custom intro for your card.
-        </p>
-        <div className="space-y-4">
-          <FieldGroup label="Brief">
-            <textarea className={cn(inputClasses, 'min-h-28 resize-y')} placeholder="Describe your video…" />
-          </FieldGroup>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-2xl bg-amber-500 py-4 text-[15px] font-bold text-white"
-          >
-            Submit request
-          </button>
+
+        <div className="border-b border-slate-200 px-6 py-5 pr-14 dark:border-white/10">
+          <p className="text-[10px] font-black tracking-widest text-amber-600 uppercase dark:text-amber-300">
+            Custom offer
+          </p>
+          <h3 className="mt-1 text-[22px] font-black text-slate-900 dark:text-white">Design request checkout</h3>
+          <p className="mt-1 text-[13px] leading-relaxed font-semibold text-slate-500">
+            Choose the offer, add details and references, then send it for admin approval and Stripe payment.
+          </p>
+        </div>
+
+        {step === 'details' ? (
+          <div className="max-h-[66vh] space-y-5 overflow-y-auto p-6">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {CUSTOM_OFFER_OPTIONS.map((item) => {
+                const selected = item.id === offerId
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setOfferId(item.id)}
+                    className={cn(
+                      'rounded-2xl border p-4 text-left transition-all',
+                      selected
+                        ? 'border-amber-400 bg-amber-50 text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-amber-300 dark:border-white/10 dark:bg-white/3 dark:text-slate-200'
+                    )}
+                  >
+                    <span className="block text-sm font-black">{item.label}</span>
+                    <span className="mt-1 block text-[12px] font-semibold opacity-75">
+                      ${item.price} - {item.hours}h production window after approval
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <FieldGroup label="Brand / card owner" icon={<FileText className="h-4 w-4" />}>
+              <input
+                value={brand}
+                onChange={(event) => setBrand(event.target.value)}
+                className={cn(inputClasses, 'pl-10')}
+                placeholder="Business name, card name, or website"
+              />
+            </FieldGroup>
+
+            <FieldGroup label="Required details">
+              <textarea
+                value={brief}
+                onChange={(event) => setBrief(event.target.value)}
+                className={cn(inputClasses, 'min-h-30 resize-y')}
+                placeholder="Describe style, colors, logo idea, animation, video length, text, audience, and anything the designer must include."
+              />
+            </FieldGroup>
+
+            <FieldGroup label="Reference links / document notes">
+              <textarea
+                value={references}
+                onChange={(event) => setReferences(event.target.value)}
+                className={cn(inputClasses, 'min-h-20 resize-y')}
+                placeholder="Paste Canva links, website URLs, inspiration links, or notes about uploaded documents."
+              />
+            </FieldGroup>
+
+            <label className="block rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center dark:border-white/15 dark:bg-white/3">
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(event) => setFileNames(Array.from(event.target.files || []).map((file) => file.name))}
+              />
+              <FileText className="mx-auto mb-2 h-5 w-5 text-amber-600 dark:text-amber-300" />
+              <span className="block text-sm font-black text-slate-900 dark:text-white">
+                Attach logo, brand guide, script, or examples
+              </span>
+              <span className="mt-1 block text-[11px] font-semibold text-slate-500">
+                {fileNames.length
+                  ? fileNames.join(', ')
+                  : 'Files are held with the request and reviewed before production.'}
+              </span>
+            </label>
+
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-slate-950 dark:text-white">{offer.label}</p>
+                  <p className="text-[12px] font-semibold text-slate-500">
+                    Admin approval first, then Stripe checkout. ETA: {due}
+                  </p>
+                </div>
+                <span className="text-2xl font-black text-amber-700 dark:text-amber-300">${offer.price}</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {step === 'checkout' ? (
+          <div className="space-y-4 p-6">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/3">
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                <div>
+                  <p className="text-sm font-black text-slate-950 dark:text-white">Stripe checkout summary</p>
+                  <p className="text-[12px] font-semibold text-slate-500">
+                    {offer.label} - ${offer.price}. Payment is captured after admin approval.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                <ShieldCheck className="mb-2 h-5 w-5 text-emerald-600" />
+                <p className="text-sm font-black text-slate-950 dark:text-white">Admin approved first</p>
+                <p className="mt-1 text-[12px] font-semibold text-slate-500">
+                  The request waits for admin review before production starts.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                <CalendarClock className="mb-2 h-5 w-5 text-indigo-600" />
+                <p className="text-sm font-black text-slate-950 dark:text-white">{offer.hours} hour schedule</p>
+                <p className="mt-1 text-[12px] font-semibold text-slate-500">
+                  The countdown starts after approval and payment confirmation.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {step === 'submitted' ? (
+          <div className="space-y-4 p-6">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+              <ShieldCheck className="mb-3 h-7 w-7 text-emerald-600" />
+              <p className="text-base font-black text-emerald-900 dark:text-emerald-100">Offer request queued</p>
+              <p className="mt-2 text-sm font-semibold text-emerald-800/80 dark:text-emerald-100/80">
+                Admin approval is pending. After approval and Stripe payment, the card owner dashboard can show the{' '}
+                {offer.hours} hour countdown for delivery.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-white/10 dark:bg-white/2">
+          {step === 'details' ? (
+            <>
+              <p className="text-[11px] font-semibold text-slate-500">Required: brand and clear production details.</p>
+              <button
+                type="button"
+                disabled={!canCheckout}
+                onClick={() => setStep('checkout')}
+                className="inline-flex items-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
+              >
+                <CreditCard className="h-4 w-4" /> Continue to checkout
+              </button>
+            </>
+          ) : step === 'checkout' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setStep('details')}
+                className="rounded-xl px-4 py-2.5 text-xs font-black text-slate-500 hover:bg-white dark:hover:bg-white/5"
+              >
+                Edit details
+              </button>
+              <button
+                type="button"
+                onClick={submitOrder}
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
+              >
+                <ShieldCheck className="h-4 w-4" /> Send for admin approval
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-auto rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white dark:bg-white dark:text-slate-950"
+            >
+              Done
+            </button>
+          )}
         </div>
       </div>
     </div>

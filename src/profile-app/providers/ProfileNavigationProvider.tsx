@@ -7,8 +7,10 @@ import { orderAndDedupeNavItems } from '@/lib/api/navbar/orderNavTabs'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import {
   applyNavLabelOverrides,
+  filterNavItemsByVisibility,
   getNavItemById,
   mergeCustomNavItems,
+  NAV_BAR_NAV_ITEMS,
   sortNavItemsByOrder,
   type NavBarNavItem,
 } from '@/lib/vcardNavbar'
@@ -83,18 +85,36 @@ export function ProfileNavigationProvider({
 
   const navBarLinks = initialNavBarLinks ?? navBarLinksFromQuery
 
-  const navItems = useMemo(() => {
+  const apiNavItems = useMemo(() => {
     if (isNavError || !navBarLinks) return []
-    return applyNavLabelOverrides(mergeCustomNavItems(mapNavBarLinks(navBarLinks), customTabs), tabLabelOverrides)
-  }, [navBarLinks, isNavError, customTabs, tabLabelOverrides])
+    return mapNavBarLinks(navBarLinks)
+  }, [navBarLinks, isNavError])
+
+  const navItems = useMemo(() => {
+    const apiById = new Map(apiNavItems.map((item) => [item.id, item]))
+    const catalogItems = mergeCustomNavItems(NAV_BAR_NAV_ITEMS, customTabs)
+    const mergedCatalogItems = catalogItems.map((item) => {
+      const apiItem = apiById.get(item.id)
+      return apiItem ? { ...item, apiSectionName: apiItem.apiSectionName ?? item.apiSectionName } : item
+    })
+    const catalogIds = new Set(mergedCatalogItems.map((item) => item.id))
+    const apiOnlyItems = apiNavItems.filter((item) => !catalogIds.has(item.id))
+    return applyNavLabelOverrides([...mergedCatalogItems, ...apiOnlyItems], tabLabelOverrides)
+  }, [apiNavItems, customTabs, tabLabelOverrides])
 
   const visibleTabs = useMemo(() => {
     if (!displaySettings.globalEnabled) return []
-    const ordered = orderAndDedupeNavItems(navItems)
-    return displaySettings.editorNavOrder?.length
-      ? sortNavItemsByOrder(ordered, displaySettings.editorNavOrder)
-      : ordered
-  }, [displaySettings.globalEnabled, displaySettings.editorNavOrder, navItems])
+    if (displaySettings.editorNavOrder?.length) {
+      const selected = new Set(displaySettings.editorNavOrder)
+      const ordered = orderAndDedupeNavItems(
+        filterNavItemsByVisibility(navItems, displaySettings).filter((item) => selected.has(item.id))
+      )
+      return sortNavItemsByOrder(ordered, displaySettings.editorNavOrder)
+    }
+    return orderAndDedupeNavItems(
+      applyNavLabelOverrides(mergeCustomNavItems(apiNavItems, customTabs), tabLabelOverrides)
+    )
+  }, [displaySettings, navItems, apiNavItems, customTabs, tabLabelOverrides])
 
   const isNavLoading = hasPrefetchedNavLinks ? false : isNavLinksLoading
 

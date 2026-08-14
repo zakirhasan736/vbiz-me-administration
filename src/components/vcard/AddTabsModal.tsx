@@ -150,7 +150,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         <div>
           <h3 className="text-lg font-black text-slate-900 dark:text-white">Add tab</h3>
           <p className="mt-1 text-xs font-semibold text-slate-500">
-            Same nav sections as Settings → Nav Bar. Tap pills to enable or disable.
+            Same sections, names, and order used by the editor and public card.
           </p>
         </div>
         <button
@@ -166,7 +166,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Tab order</p>
-            <p className="text-[10px] font-semibold text-slate-400">3 per row · drag or ↑↓</p>
+            <p className="text-[10px] font-semibold text-slate-400">3 per row - drag or move up/down</p>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
             {draftItems.map((item, index) => {
@@ -305,7 +305,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
 
       <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-5 sm:px-8 dark:border-white/5 dark:bg-white/2">
         <p className="text-[11px] font-semibold text-slate-500">
-          {draftIds.length} selected · Personal, Global Connection, and My Info stay enabled
+          {draftIds.length} selected - required tabs stay enabled, but you can reorder them
         </p>
         <div className="flex items-center gap-2">
           <button

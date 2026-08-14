@@ -9,6 +9,7 @@ import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiP
 import { CustomTabEditorPanel } from '@/components/vcard/CustomTabEditorPanel'
 import { useLivePreview } from '@/components/vcard/LivePreviewProvider'
 import { SectionPostsEditorPanel } from '@/components/vcard/SectionPostsEditorPanel'
+import { TabCompletionInspectorButton } from '@/components/vcard/TabCompletionInspectorButton'
 import { TabBlog } from '@/components/VCardBlog'
 import { TabCertificates } from '@/components/VCardCertificates'
 import { TabContentMedia } from '@/components/VCardContentMedia'
@@ -301,6 +302,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const visibleNavItems = useMemo(() => filterEditorMainNavItems(enabledNavItems), [enabledNavItems])
   const enabledNavIds = useMemo(() => enabledNavItems.map((item) => item.id), [enabledNavItems])
   const personalSubs = useMemo(() => getPersonalSubCompletions(vCardData, completionMeta), [vCardData, completionMeta])
+  const hasAboutNavItem = useMemo(() => visibleNavItems.some((item) => item.id === 'about'), [visibleNavItems])
 
   const saveStatusLabel =
     saveStatus === 'saving'
@@ -328,7 +330,13 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const activeNavId = route.isSettings ? route.sectionId : route.sectionId
   const activeTab = route.subTab ?? 1
   const isSettingsOpen = route.isSettings
-  const previewSectionForRoute = route.isSettings ? DEFAULT_PROFILE_SECTION : route.sectionId
+  const activeMainNavId = useMemo(() => {
+    if (activeNavId === 'about') return 'about'
+    if (hasAboutNavItem && activeNavId === 'home' && activeTab === 2) return 'about'
+    if (isPersonalEditorNavId(activeNavId)) return 'home'
+    return activeNavId
+  }, [activeNavId, activeTab, hasAboutNavItem])
+  const previewSectionForRoute = route.isSettings ? DEFAULT_PROFILE_SECTION : activeMainNavId
 
   useEffect(() => {
     setEditorSectionId(previewSectionForRoute)
@@ -339,13 +347,28 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     [visibleNavItems, vCardData, completionMeta]
   )
   const activeNavIndex = useMemo(() => {
-    const chipId = isPersonalEditorNavId(activeNavId) ? 'home' : activeNavId
-    return visibleNavItems.findIndex((item) => item.id === chipId)
-  }, [visibleNavItems, activeNavId])
+    return visibleNavItems.findIndex((item) => item.id === activeMainNavId)
+  }, [visibleNavItems, activeMainNavId])
 
   const activeNavItem = getNavItemById(activeNavId, editorNavCatalog)
-  const editorPanel = activeNavItem?.editorPanel ?? { kind: 'empty' as const }
+  const activeMainNavItem = getNavItemById(activeMainNavId, editorNavCatalog)
+  const editorPanel = useMemo(() => activeNavItem?.editorPanel ?? ({ kind: 'empty' } as const), [activeNavItem])
   const isPersonalEditor = editorPanel.kind === 'personal'
+  const inspectorPanel = useMemo<EditorNavPanel>(
+    () => (isPersonalEditor ? { kind: 'personal', subTab: activeTab } : editorPanel),
+    [activeTab, editorPanel, isPersonalEditor]
+  )
+  const inspectorLabel = isPersonalEditor
+    ? personalSubs.find((tab) => tab.id === activeTab)?.name || activeMainNavItem?.label || 'Personal'
+    : activeMainNavItem
+      ? getEditorNavLabel(activeMainNavItem)
+      : activeNavItem
+        ? getEditorNavLabel(activeNavItem)
+        : 'Current tab'
+  const openAiForCurrentFields = useCallback(() => {
+    openAgent()
+    notify.info(`AI agent opened for ${inspectorLabel}. Add a website, document, or note to fill missing text fields.`)
+  }, [inspectorLabel, openAgent])
 
   const renderEditorPanel = (panel: EditorNavPanel) => {
     switch (panel.kind) {
@@ -470,10 +493,11 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   const sectionHref = (sectionId: string) => withEditorQuery(buildEditorSectionPath(basePath, sectionId, cardId))
   const settingsHref = withEditorQuery(buildEditorSettingsPath(basePath, route.settingsTab, cardId))
-  /** Prefer /home for personal sub-tabs so About Me deep-links consolidate under Personal. */
-  const personalSubSectionId = activeNavId === 'about' ? 'home' : activeNavId
+  /** Keep About Me as its own visible tab while the rest of Personal stays under Home. */
   const subTabHref = (tabId: number) =>
-    withEditorQuery(buildEditorPath(basePath, { sectionId: personalSubSectionId, subTab: tabId }, cardId))
+    withEditorQuery(
+      buildEditorPath(basePath, { sectionId: tabId === 2 && hasAboutNavItem ? 'about' : 'home', subTab: tabId }, cardId)
+    )
 
   /** Section changes only rewrite the URL — the shell in `layout.tsx` stays mounted. */
   const goToEditorPath = useCallback((path: string) => {
@@ -520,35 +544,33 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   useLayoutEffect(() => {
     if (isSettingsOpen) return
-    const chipId = isPersonalEditorNavId(activeNavId) ? 'home' : activeNavId
     const lastNavId = visibleNavItems[visibleNavItems.length - 1]?.id
     const el = mainNavRef.current
     if (!el) return
-    if (chipId === 'home') {
+    if (activeMainNavId === 'home') {
       el.scrollLeft = 0
-    } else if (chipId === lastNavId) {
+    } else if (activeMainNavId === lastNavId) {
       el.scrollLeft = el.scrollWidth - el.clientWidth
     } else {
       return
     }
     updateOverflow()
-  }, [activeNavId, cardKey, isSettingsOpen, mainNavRef, updateOverflow, visibleNavItems])
+  }, [activeMainNavId, cardKey, isSettingsOpen, mainNavRef, updateOverflow, visibleNavItems])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
       updateOverflow()
       if (!isSettingsOpen) {
-        const chipId = isPersonalEditorNavId(activeNavId) ? 'home' : activeNavId
         const lastNavId = visibleNavItems[visibleNavItems.length - 1]?.id
-        if (chipId !== 'home' && chipId !== lastNavId) {
-          scrollActiveIntoPeek(chipId)
+        if (activeMainNavId !== 'home' && activeMainNavId !== lastNavId) {
+          scrollActiveIntoPeek(activeMainNavId)
         }
       }
     }, 60)
     return () => window.clearTimeout(t)
   }, [
     visibleNavItems.length,
-    activeNavId,
+    activeMainNavId,
     isSettingsOpen,
     cardKey,
     scrollActiveIntoPeek,
@@ -745,9 +767,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
                 <div ref={mainNavRef} className={cn('items-center gap-1.5 pr-1 pl-5', mainNavScrollClassName)}>
                   {visibleNavItems.map((item, index) => {
-                    const isActive =
-                      !isSettingsOpen &&
-                      (activeNavId === item.id || (item.id === 'home' && isPersonalEditorNavId(activeNavId)))
+                    const isActive = !isSettingsOpen && activeMainNavId === item.id
                     const percent = getNavItemCompletionPercent(item.editorPanel, vCardData, completionMeta)
                     const done = percent >= 100
                     const chipLabel = getEditorNavLabel(item)
@@ -929,6 +949,34 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
               {isPersonalEditor && (
                 <div className="min-w-0 overflow-hidden px-6 pt-8 sm:px-12">
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      disabled={activeTab <= 1}
+                      onClick={() => goToSubTab(activeTab - 1)}
+                      className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-35 dark:border-white/10 dark:bg-[#1e2333] dark:text-slate-300 dark:hover:bg-[#252b3d]"
+                    >
+                      <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                      Previous
+                    </button>
+                    <TabCompletionInspectorButton
+                      compact
+                      label={inspectorLabel}
+                      panel={inspectorPanel}
+                      vCardData={vCardData}
+                      completionMeta={completionMeta}
+                      onFillWithAi={openAiForCurrentFields}
+                    />
+                    <button
+                      type="button"
+                      disabled={activeTab >= 5}
+                      onClick={() => goToSubTab(activeTab + 1)}
+                      className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-900 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-35 dark:border-white/10 dark:bg-[#1e2333] dark:text-white dark:hover:bg-[#252b3d]"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
                   <div
                     ref={subNavRef}
                     className={cn(
@@ -997,6 +1045,17 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               )}
 
               <div className="relative flex-1 p-6 sm:p-12">
+                {!isPersonalEditor && editorPanel.kind !== 'empty' ? (
+                  <div className="mb-6 flex justify-end">
+                    <TabCompletionInspectorButton
+                      label={inspectorLabel}
+                      panel={inspectorPanel}
+                      vCardData={vCardData}
+                      completionMeta={completionMeta}
+                      onFillWithAi={openAiForCurrentFields}
+                    />
+                  </div>
+                ) : null}
                 <div className="animate-in fade-in zoom-in-95 fill-mode-both h-full duration-500">
                   {editorPanel.kind === 'empty' ? (
                     <EditorNavEmptyPanel

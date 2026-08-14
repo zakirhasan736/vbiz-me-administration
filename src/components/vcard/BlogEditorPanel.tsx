@@ -2,6 +2,7 @@
 
 import { AiDropFillZone, type ParsedEntry } from '@/components/AiDropFillZone'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
+import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
 import {
@@ -217,17 +218,25 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                       className={inputClasses}
                     />
 
-                    <MediaFileUploader
-                      label="Featured image"
-                      accent="violet"
-                      profileId={profileId}
-                      attachmentType="Blog Featured"
-                      accept="image/*,video/*"
-                      allowUrlPaste={false}
-                      hint="Upload an image or video — preview appears below"
-                      value={item.featuredImage}
-                      onChange={(next) => updatePost(item.id, 'featuredImage', next?.url || '')}
-                    />
+                    <div className="space-y-3">
+                      <MediaFileUploader
+                        label="Featured image"
+                        accent="violet"
+                        profileId={profileId}
+                        attachmentType="Blog Featured"
+                        accept="image/*,video/*"
+                        allowUrlPaste={false}
+                        hint="Upload an image or video - preview appears below"
+                        value={item.featuredImage}
+                        onChange={(next) => updatePost(item.id, 'featuredImage', next?.url || '')}
+                      />
+                      <MediaSourceActions
+                        mode="both"
+                        compact
+                        profileId={profileId}
+                        onSelect={(asset) => updatePost(item.id, 'featuredImage', asset.url)}
+                      />
+                    </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
                       <div className="group flex flex-col space-y-1.5">

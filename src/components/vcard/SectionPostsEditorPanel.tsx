@@ -1,6 +1,7 @@
 'use client'
 
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
+import { MediaSourceActions } from '@/components/MediaSourceActions'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -275,16 +276,24 @@ export function SectionPostsEditorPanel({
 
                     <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
                       {fieldSet.has('featuredImage') ? (
-                        <MediaFileUploader
-                          label="Featured media"
-                          accent={uploaderAccent}
-                          profileId={cardId}
-                          attachmentType={schema.title}
-                          value={post.featuredImage}
-                          accept="image/*,video/*,application/pdf"
-                          hint="Upload an image, video, or PDF — preview appears here"
-                          onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
-                        />
+                        <div className="space-y-3">
+                          <MediaFileUploader
+                            label="Featured media"
+                            accent={uploaderAccent}
+                            profileId={cardId}
+                            attachmentType={schema.title}
+                            value={post.featuredImage}
+                            accept="image/*,video/*,application/pdf"
+                            hint="Upload an image, video, or PDF - preview appears here"
+                            onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
+                          />
+                          <MediaSourceActions
+                            mode="both"
+                            compact
+                            profileId={cardId}
+                            onSelect={(asset) => updatePost(post.id, 'featuredImage', asset.url)}
+                          />
+                        </div>
                       ) : null}
                       {fieldSet.has('date') ? (
                         <div className="group flex flex-col space-y-1.5">

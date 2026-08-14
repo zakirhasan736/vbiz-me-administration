@@ -557,11 +557,11 @@ export function filterNavItemsByVisibility(items: NavBarNavItem[], settings: VCa
 }
 
 /**
- * About Me opens the same personal editor as Home; hide it from the editor main strip
- * so only the Personal (home) chip appears. Public Nav Bar / Add Tabs still use `about`.
+ * Editor tabs must mirror the Add tab modal exactly: same enabled tabs,
+ * same labels, and same saved order.
  */
-export const EDITOR_COLLAPSED_INTO_PERSONAL_IDS = new Set(['about'])
-export const EDITOR_HIDDEN_MAIN_NAV_IDS = new Set(['global-connection'])
+export const EDITOR_COLLAPSED_INTO_PERSONAL_IDS = new Set<string>()
+export const EDITOR_HIDDEN_MAIN_NAV_IDS = new Set<string>()
 
 export function filterEditorMainNavItems(items: NavBarNavItem[]): NavBarNavItem[] {
   return items.filter(
