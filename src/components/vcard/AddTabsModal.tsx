@@ -18,8 +18,9 @@ import {
 import type { VCardCustomTab, VCardData, VCardTabLabelOverrides } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { reorderByIndex } from '@/utils/reorderByIndex'
-import { Check, ChevronDown, ChevronUp, GripVertical, Pencil, Plus, X } from 'lucide-react'
+import { Check, GripVertical, Layers, Pencil, Plus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { CustomTabEditorPanel } from './CustomTabEditorPanel'
 
 type AddTabsModalProps = {
   open: boolean
@@ -76,6 +77,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
   }
 
   const allItems = useMemo(() => [...NAV_BAR_NAV_ITEMS, ...buildCustomNavItems(customTabs)], [customTabs])
+  const [editingCustomTabId, setEditingCustomTabId] = useState<string | null>(null)
 
   const draftItems = useMemo(
     () =>
@@ -166,7 +168,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Tab order</p>
-            <p className="text-[10px] font-semibold text-slate-400">3 per row - drag or move up/down</p>
+            <p className="text-[10px] font-semibold text-slate-400">Drag to reorder tabs (use handle)</p>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
             {draftItems.map((item, index) => {
@@ -185,10 +187,21 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                     const from = Number(e.dataTransfer.getData('text/plain'))
                     if (!Number.isNaN(from)) moveDraft(from, index)
                   }}
-                  className="flex min-w-0 cursor-grab items-center gap-2 rounded-xl border border-transparent bg-white px-2.5 py-2 transition-colors hover:bg-slate-50 active:cursor-grabbing dark:bg-[#0f1420] dark:hover:bg-white/4"
+                  className="group flex min-w-0 cursor-grab items-center gap-2 rounded-xl border border-transparent bg-white px-2.5 py-2 transition-colors hover:bg-slate-50 active:cursor-grabbing dark:bg-[#0f1420] dark:hover:bg-white/4"
                 >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-600/10 text-[11px] font-black text-indigo-700 tabular-nums dark:bg-indigo-500/20 dark:text-indigo-300">
-                    {orderNum}
+                  <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-600/10 text-[11px] font-black text-indigo-700 tabular-nums dark:bg-indigo-500/20 dark:text-indigo-300">
+                    <span className="select-none">{orderNum}</span>
+                    <button
+                      type="button"
+                      aria-label="Remove tab"
+                      onClick={() => {
+                        if (LOCKED_NAV_ITEM_IDS.has(item.id)) return
+                        setDraftIds((prev) => prev.filter((x) => x !== item.id))
+                      }}
+                      className="absolute -top-2 -right-2 hidden h-5 w-5 touch-manipulation items-center justify-center rounded-full bg-red-50 text-red-500 shadow-sm group-hover:flex"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </span>
                   <item.icon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                   <label className="relative min-w-0 flex-1">
@@ -202,22 +215,6 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                     />
                   </label>
                   <div className="flex shrink-0 items-center gap-0.5 opacity-70">
-                    <button
-                      type="button"
-                      disabled={index === 0}
-                      onClick={() => moveDraft(index, index - 1)}
-                      className="rounded-md p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-25 dark:hover:bg-white/10"
-                    >
-                      <ChevronUp className="h-3 w-3" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === draftIds.length - 1}
-                      onClick={() => moveDraft(index, index + 1)}
-                      className="rounded-md p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-25 dark:hover:bg-white/10"
-                    >
-                      <ChevronDown className="h-3 w-3" />
-                    </button>
                     <GripVertical className="h-3.5 w-3.5 text-slate-400" />
                   </div>
                 </div>
@@ -244,7 +241,46 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
               <Plus className="h-4 w-4" /> Custom tab
             </button>
           </div>
+          {customTabs.length ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {customTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setEditingCustomTabId(tab.id)}
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-full border py-2 pr-3 pl-2.5 text-[12px] font-bold transition-all',
+                    editingCustomTabId === tab.id
+                      ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-teal-300 dark:border-white/10 dark:bg-white/3 dark:text-slate-300 dark:hover:border-teal-500/40'
+                  )}
+                >
+                  <Layers className="h-3.5 w-3.5 shrink-0 text-teal-600 opacity-90" />
+                  <span className="whitespace-nowrap">{tab.label || 'Custom tab'}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
+
+        {editingCustomTabId ? (
+          <div className="px-6 py-4">
+            <CustomTabEditorPanel
+              tab={customTabs.find((t) => t.id === editingCustomTabId) as VCardCustomTab}
+              cardId={vCardData.slug || undefined}
+              onChange={(next) => setCustomTabs((prev) => prev.map((t) => (t.id === next.id ? next : t)))}
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingCustomTabId(null)}
+                className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {NAV_ITEM_GROUPS.map((group) => {
           const tabs = NAV_BAR_NAV_ITEMS.filter((item) => getNavItemGroup(item) === group.id)
@@ -308,6 +344,13 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
           {draftIds.length} selected - required tabs stay enabled, but you can reorder them
         </p>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDraftIds((prev) => prev.filter((id) => LOCKED_NAV_ITEM_IDS.has(id)))}
+            className="rounded-xl px-3 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5"
+          >
+            Unselect all
+          </button>
           <button
             type="button"
             onClick={resetDefaults}

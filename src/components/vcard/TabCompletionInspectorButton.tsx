@@ -155,18 +155,26 @@ export function TabCompletionInspectorButton({
           <p className="text-[11px] font-semibold text-slate-500">
             Upload rows support manual upload, Gallery, or Canva wherever the field offers media actions.
           </p>
-          {textMissingFields.length && onFillWithAi ? (
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false)
-                onFillWithAi()
-              }}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
-            >
-              <Wand2 className="h-4 w-4" /> Fill text with AI
-            </button>
-          ) : null}
+          <div className="flex items-center gap-3">
+            {textMissingFields.length && onFillWithAi ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  onFillWithAi()
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
+              >
+                <Wand2 className="h-4 w-4" /> Fill text with AI
+              </button>
+            ) : null}
+            {textMissingFields.length ? (
+              <div className="text-sm font-semibold text-slate-500">
+                Please complete these text fields manually. Upload areas support manual upload, Gallery, or Canva
+                (connect Canva in Settings to enable Canva integration).
+              </div>
+            ) : null}
+          </div>
         </div>
       </Modal>
     </>
