@@ -66,6 +66,7 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
           <UsaDigitalCardFace
             holderName={holder}
             designation={personal.designation}
+            company={personal.company}
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}
             logoUrl={logoUrl}

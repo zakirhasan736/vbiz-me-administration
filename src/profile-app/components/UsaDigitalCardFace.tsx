@@ -1,18 +1,27 @@
 'use client'
 
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
+import { formatWalletTitle, resolveWalletFaceFromBrand } from '@/lib/pwa/walletCardBrand'
 import QRCode from 'qrcode'
 import { useEffect, useMemo, useState } from 'react'
 
-function HelloMark({ color }: { color: string }) {
+function ContactlessMark({ color }: { color: string }) {
   return (
-    <div
-      className="flex h-9 w-9 items-center justify-center rounded-full sm:h-10 sm:w-10"
-      style={{ border: `1.5px solid ${color}` }}
-    >
-      <span className="text-[9px] tracking-wide sm:text-[10px]" style={{ color }}>
-        hello
-      </span>
+    <div className="flex h-9 w-9 items-center justify-center sm:h-10 sm:w-10" aria-hidden>
+      <div
+        className="flex h-[85%] w-[85%] rotate-[-45deg] items-center justify-center rounded-full border-t-2 border-r-2 border-b-transparent border-l-transparent"
+        style={{ borderTopColor: color, borderRightColor: color }}
+      >
+        <div
+          className="flex h-[62%] w-[62%] items-center justify-center rounded-full border-t-2 border-r-2 border-b-transparent border-l-transparent"
+          style={{ borderTopColor: color, borderRightColor: color }}
+        >
+          <div
+            className="h-1/2 w-1/2 rounded-full border-t-2 border-r-2 border-b-transparent border-l-transparent"
+            style={{ borderTopColor: color, borderRightColor: color }}
+          />
+        </div>
+      </div>
     </div>
   )
 }
@@ -24,45 +33,31 @@ function initialsFromName(name: string): string {
   return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
 }
 
-function hexLuminance(hex: string): number {
-  let h = hex.replace('#', '')
-  if (h.length === 3) {
-    h = h
-      .split('')
-      .map((c) => c + c)
-      .join('')
-  }
-  const r = Number.parseInt(h.slice(0, 2), 16) / 255
-  const g = Number.parseInt(h.slice(2, 4), 16) / 255
-  const b = Number.parseInt(h.slice(4, 6), 16) / 255
-  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
-}
-
 type WalletPassFaceProps = {
   holderName: string
   designation?: string
+  company?: string
   primaryColor?: string
   secondaryColor?: string
   logoUrl?: string | null
   cardSlug?: string
 }
 
-/** Locked vBiz Wallet front: photo / hello / name / title / QR, owner brand colors. */
+/** Locked vBiz Wallet front: metal card, owner brand colors. */
 export function UsaDigitalCardFace({
   holderName,
   designation,
-  primaryColor = '#0B1F3A',
+  company,
+  primaryColor = '#C9A24A',
   secondaryColor = '#C9A24A',
   logoUrl,
   cardSlug,
 }: WalletPassFaceProps) {
   const holder = holderName.trim() || 'Cardholder'
-  const title = designation?.trim() || ''
+  const title = formatWalletTitle(designation, company)
   const stillLogo = logoUrl && !isVideoAvatarSrc(logoUrl) ? logoUrl : ''
-  const darkBg = hexLuminance(primaryColor) <= 0.55
-  const text = darkBg ? '#FFFFFF' : '#111111'
-  const muted = darkBg ? 'rgba(255,255,255,0.82)' : 'rgba(17,17,17,0.72)'
+  const face = resolveWalletFaceFromBrand(primaryColor, secondaryColor)
+  const muted = 'rgba(255,255,255,0.88)'
   const [qrSrc, setQrSrc] = useState('')
 
   const qrValue = useMemo(() => {
@@ -76,7 +71,7 @@ export function UsaDigitalCardFace({
     let cancelled = false
     void QRCode.toDataURL(qrValue, {
       errorCorrectionLevel: 'M',
-      margin: 2,
+      margin: 1,
       width: 280,
       color: { dark: '#111111', light: '#ffffff' },
     }).then((url) => {
@@ -89,30 +84,40 @@ export function UsaDigitalCardFace({
 
   return (
     <div
-      className="relative aspect-[1.586/1] w-full overflow-hidden rounded-[22px] p-5 sm:p-6"
-      style={{ background: primaryColor, boxShadow: '0 16px 40px rgba(0,0,0,0.28)' }}
+      className="relative aspect-[1.586/1] w-full overflow-hidden rounded-[22px] p-[7px]"
+      style={{
+        background: face.background,
+        border: `2px solid ${face.accent}`,
+        boxShadow: '0 16px 40px rgba(0,0,0,0.28)',
+      }}
     >
-      <div className="flex h-full flex-col justify-between">
+      <div
+        className="flex h-full flex-col justify-between rounded-[16px] px-4 py-4 sm:px-5 sm:py-5"
+        style={{ border: `1.5px solid ${face.accent}` }}
+      >
         <div className="flex items-start justify-between">
           <div
             className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full sm:h-[4.5rem] sm:w-[4.5rem]"
-            style={{ border: `2px solid ${secondaryColor}`, background: secondaryColor }}
+            style={{ border: `2px solid ${face.accent}`, background: face.accent }}
           >
             {stillLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={stillLogo} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="text-sm font-bold tracking-wide" style={{ color: primaryColor }}>
+              <span className="text-sm font-bold tracking-wide" style={{ color: face.background }}>
                 {initialsFromName(holder)}
               </span>
             )}
           </div>
-          <HelloMark color={text} />
+          <ContactlessMark color={face.accent} />
         </div>
 
         <div className="flex items-end justify-between gap-3">
           <div className="max-w-[58%] min-w-0 pr-2">
-            <p className="truncate text-[17px] leading-tight font-bold sm:text-[21px]" style={{ color: text }}>
+            <p
+              className="truncate font-serif text-[17px] leading-tight font-bold sm:text-[21px]"
+              style={{ color: face.accent }}
+            >
               {holder}
             </p>
             {title ? (
@@ -121,15 +126,22 @@ export function UsaDigitalCardFace({
               </p>
             ) : null}
           </div>
-          <div className="shrink-0 rounded-md bg-white p-1.5">
-            {qrSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrSrc} alt="" className="h-[4.2rem] w-[4.2rem] sm:h-[4.75rem] sm:w-[4.75rem]" />
-            ) : (
-              <div className="h-[4.2rem] w-[4.2rem] bg-zinc-100 sm:h-[4.75rem] sm:w-[4.75rem]" />
-            )}
+          <div className="flex shrink-0 flex-col items-center">
+            <p className="mb-1.5 text-[9px] tracking-wide sm:text-[10px]" style={{ color: face.accent }}>
+              Scan to Connect
+            </p>
+            <div className="rounded-sm bg-white p-1">
+              {qrSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qrSrc} alt="" className="h-[4.2rem] w-[4.2rem] sm:h-[4.75rem] sm:w-[4.75rem]" />
+              ) : (
+                <div className="h-[4.2rem] w-[4.2rem] bg-zinc-100 sm:h-[4.75rem] sm:w-[4.75rem]" />
+              )}
+            </div>
           </div>
         </div>
+
+        <div className="mt-3 h-2.5 w-full rounded-sm" style={{ background: 'rgba(255,255,255,0.08)' }} />
       </div>
     </div>
   )

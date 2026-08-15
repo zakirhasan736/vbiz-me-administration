@@ -8,21 +8,28 @@ import {
 import { ImageResponse } from 'next/og'
 import QRCode from 'qrcode'
 
-function HelloMark({ color, size }: { color: string; size: number }) {
+function ContactlessMark({ color, size }: { color: string; size: number }) {
+  const stroke = Math.max(2, Math.round(size * 0.08))
+  const ringStyle = (ratio: number) => ({
+    display: 'flex' as const,
+    width: Math.round(size * ratio),
+    height: Math.round(size * ratio),
+    borderRadius: 999,
+    borderTop: `${stroke}px solid ${color}`,
+    borderRight: `${stroke}px solid ${color}`,
+    borderBottom: `${stroke}px solid transparent`,
+    borderLeft: `${stroke}px solid transparent`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  })
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        border: `1.5px solid ${color}`,
-      }}
-    >
-      <div style={{ display: 'flex', fontSize: Math.max(9, Math.round(size * 0.28)), letterSpacing: 0.6, color }}>
-        hello
+    <div style={{ display: 'flex', width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', transform: 'rotate(-45deg)', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={ringStyle(0.92)}>
+          <div style={ringStyle(0.62)}>
+            <div style={ringStyle(0.32)} />
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -34,7 +41,20 @@ function nameFontSize(name: string, base: number): number {
   return base
 }
 
-/** Master vBiz Wallet template — locked layout, owner data + brand colors. */
+async function loadSerifFont(): Promise<ArrayBuffer | null> {
+  try {
+    const response = await fetch(
+      'https://cdn.jsdelivr.net/fontsource/fonts/playfair-display@5.2.6/latin-700-normal.ttf',
+      { cache: 'force-cache' }
+    )
+    if (!response.ok) return null
+    return await response.arrayBuffer()
+  } catch {
+    return null
+  }
+}
+
+/** Master vBiz Wallet template — metal card, owner data + brand colors. */
 export async function renderWalletCardArt(slug: string, origin?: string, format: WalletArtFormat = 'card') {
   const card = await fetchMyCardBySlug(slug)
   const model = resolveWalletPassModel(card, slug, origin)
@@ -44,20 +64,27 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
   const drawW = Math.round(source.width * fit)
   const drawH = Math.round(source.height * fit)
   const scale = drawH / source.height
-  const pad = Math.max(22, Math.round(36 * scale))
+  const outerPad = Math.max(10, Math.round(16 * scale))
+  const innerPad = Math.max(18, Math.round(28 * scale))
+  const radius = Math.max(22, Math.round(32 * scale))
+  const innerRadius = Math.max(16, Math.round(22 * scale))
   const photo = Math.max(72, Math.round(128 * scale))
-  const qr = Math.max(96, Math.round(168 * scale))
-  const hello = Math.max(36, Math.round(52 * scale))
-  const nameSize = nameFontSize(model.name, Math.max(26, Math.round(40 * scale)))
-  const titleSize = Math.max(14, Math.round(20 * scale))
+  const qr = Math.max(88, Math.round(150 * scale))
+  const nfc = Math.max(28, Math.round(44 * scale))
+  const nameSize = nameFontSize(model.name, Math.max(26, Math.round(42 * scale)))
+  const titleSize = Math.max(13, Math.round(18 * scale))
+  const scanSize = Math.max(10, Math.round(13 * scale))
   const initialSize = Math.max(18, Math.round(32 * scale))
-  const textColWidth = Math.round(drawW * 0.55)
+  const textColWidth = Math.round(drawW * 0.52)
+  const border = Math.max(2, Math.round(3 * scale))
+  const footerH = Math.max(10, Math.round(16 * scale))
+  const serif = await loadSerifFont()
 
   let qrSrc = ''
   try {
     qrSrc = await QRCode.toDataURL(model.cardUrl, {
       errorCorrectionLevel: 'M',
-      margin: 2,
+      margin: 1,
       width: qr * 2,
       color: { dark: model.theme.qrDark, light: model.theme.qrLight },
     })
@@ -81,93 +108,139 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
           width: drawW,
           height: drawH,
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
+          padding: outerPad,
           background: model.theme.primary,
-          borderRadius: Math.max(18, Math.round(28 * scale)),
-          padding: `${pad}px ${pad + 4}px`,
+          borderRadius: radius,
+          border: `${border}px solid ${model.theme.secondary}`,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div
-            style={{
-              display: 'flex',
-              width: photo,
-              height: photo,
-              borderRadius: photo / 2,
-              overflow: 'hidden',
-              border: `2px solid ${model.theme.secondary}`,
-              background: model.theme.secondary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {model.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={model.photoUrl}
-                alt=""
-                width={photo}
-                height={photo}
-                style={{ width: photo, height: photo, objectFit: 'cover', borderRadius: photo / 2 }}
-              />
-            ) : (
-              <div style={{ display: 'flex', fontSize: initialSize, fontWeight: 700, color: model.theme.primary }}>
-                {model.initials}
-              </div>
-            )}
-          </div>
-          <HelloMark color={model.theme.text} size={hello} />
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', width: textColWidth, paddingRight: 16 }}>
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            padding: `${innerPad}px ${innerPad + 4}px ${Math.round(innerPad * 0.7)}px`,
+            borderRadius: innerRadius,
+            border: `${Math.max(1, border - 1)}px solid ${model.theme.secondary}`,
+            background: model.theme.primary,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div
               style={{
                 display: 'flex',
-                fontSize: nameSize,
-                fontWeight: 700,
-                lineHeight: 1.15,
-                color: model.theme.text,
+                width: photo,
+                height: photo,
+                borderRadius: photo / 2,
+                overflow: 'hidden',
+                border: `${Math.max(2, Math.round(3 * scale))}px solid ${model.theme.secondary}`,
+                background: model.theme.secondary,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              {model.name}
+              {model.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={model.photoUrl}
+                  alt=""
+                  width={photo}
+                  height={photo}
+                  style={{ width: photo, height: photo, objectFit: 'cover', borderRadius: photo / 2 }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    fontSize: initialSize,
+                    fontWeight: 700,
+                    color: model.theme.primary,
+                  }}
+                >
+                  {model.initials}
+                </div>
+              )}
             </div>
-            {model.designation ? (
+            <ContactlessMark color={model.theme.secondary} size={nfc} />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', width: textColWidth, paddingRight: 12 }}>
               <div
                 style={{
                   display: 'flex',
-                  marginTop: 8,
-                  fontSize: titleSize,
-                  lineHeight: 1.25,
-                  color: model.theme.mutedText,
+                  fontFamily: serif ? 'Playfair Display' : 'serif',
+                  fontSize: nameSize,
+                  fontWeight: 700,
+                  lineHeight: 1.15,
+                  color: model.theme.secondary,
                 }}
               >
-                {model.designation}
+                {model.name}
               </div>
-            ) : null}
+              {model.designation ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    marginTop: 8,
+                    fontSize: titleSize,
+                    lineHeight: 1.25,
+                    color: model.theme.mutedText,
+                  }}
+                >
+                  {model.designation}
+                </div>
+              ) : null}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  marginBottom: 8,
+                  fontSize: scanSize,
+                  letterSpacing: 0.4,
+                  color: model.theme.secondary,
+                }}
+              >
+                Scan to Connect
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  padding: 6,
+                  background: model.theme.qrLight,
+                  borderRadius: 4,
+                }}
+              >
+                {qrSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={qrSrc} alt="" width={qr} height={qr} />
+                ) : (
+                  <div style={{ display: 'flex', width: qr, height: qr, background: model.theme.qrLight }} />
+                )}
+              </div>
+            </div>
           </div>
+
           <div
             style={{
               display: 'flex',
-              padding: 8,
-              background: model.theme.qrLight,
-              borderRadius: 8,
+              width: '100%',
+              height: footerH,
+              marginTop: Math.max(10, Math.round(14 * scale)),
+              borderRadius: 4,
+              background: model.theme.footer,
             }}
-          >
-            {qrSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrSrc} alt="" width={qr} height={qr} />
-            ) : (
-              <div style={{ display: 'flex', width: qr, height: qr, background: model.theme.qrLight }} />
-            )}
-          </div>
+          />
         </div>
       </div>
     </div>,
     {
       width: canvas.width,
       height: canvas.height,
+      fonts: serif ? [{ name: 'Playfair Display', data: serif, weight: 700, style: 'normal' }] : undefined,
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': `public, max-age=300, stale-while-revalidate=86400`,

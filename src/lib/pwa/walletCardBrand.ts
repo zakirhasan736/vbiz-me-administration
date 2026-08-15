@@ -1,12 +1,12 @@
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
 import { resolvePwaAvatarUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
-import { brandColorsFromThemeConfig, hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
+import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import type { MyCardData } from '@interfaces/api/myCard'
 
-export const WALLET_TEMPLATE_VERSION = 2
+export const WALLET_TEMPLATE_VERSION = 3
 
 export const DEFAULT_WALLET_THEME = {
-  primary: '#0B1F3A',
+  primary: '#0A0A0A',
   secondary: '#C9A24A',
 } as const
 
@@ -22,10 +22,13 @@ export const WALLET_ART_SIZE: Record<WalletArtFormat, { width: number; height: n
 }
 
 export type WalletPassTheme = {
+  /** Card face fill (owner page background, or dark metal if brand is a light gold). */
   primary: string
+  /** Border, name, contactless mark, “Scan to Connect”. */
   secondary: string
   text: string
   mutedText: string
+  footer: string
   qrDark: string
   qrLight: string
 }
@@ -102,29 +105,48 @@ function stillImageUrl(url?: string | null): string | null {
   return null
 }
 
+/**
+ * Metal-card palette: dark face + brand accent for border/name.
+ * Bright gold/yellow primaries become the accent on a dark face, not a yellow fill.
+ */
+export function resolveWalletFaceFromBrand(
+  primary?: string | null,
+  accent?: string | null,
+  pageBackground?: string | null
+): { background: string; accent: string } {
+  const brand = firstHex(primary, accent) || DEFAULT_WALLET_THEME.primary
+  const metal = firstHex(accent, primary) || DEFAULT_WALLET_THEME.secondary
+  const page = firstHex(pageBackground)
+  const brandDark = hexLuminance(brand) <= 0.48
+  const pageDark = page ? hexLuminance(page) <= 0.48 : false
+
+  if (pageDark && page) {
+    const ring = metal.toLowerCase() !== page.toLowerCase() ? metal : brandDark ? mixHex(brand, '#ffffff', 0.35) : brand
+    return { background: page, accent: ring }
+  }
+  if (brandDark) {
+    return {
+      background: brand,
+      accent: metal.toLowerCase() !== brand.toLowerCase() ? metal : mixHex(brand, '#ffffff', 0.32),
+    }
+  }
+  return { background: '#0A0A0A', accent: brand }
+}
+
 export function resolveOwnerBrandColors(card: MyCardData | null | undefined): { primary: string; secondary: string } {
   if (hasDynamicTheme(card?.theme_config)) {
     const template =
       card?.template === 'v1' || card?.template === 'dynamic' ? 'v1' : card?.template === 'v2' ? 'v2' : 'v3'
     const cfg = resolveCardThemeConfig(card?.theme_config, template)
-    const brand = brandColorsFromThemeConfig(cfg, cfg.colors.defaultMode === 'light' ? 'light' : 'dark')
-    const primary = firstHex(brand.primaryColor, brand.accentColor)
-    const secondary = firstHex(brand.accentColor, brand.primaryColor)
-    if (primary) {
-      return {
-        primary,
-        secondary: secondary && secondary !== primary ? secondary : mixHex(primary, '#ffffff', 0.28),
-      }
-    }
+    const mode = cfg.colors.defaultMode === 'light' ? 'light' : 'dark'
+    const set = mode === 'light' ? cfg.colors.light : cfg.colors.dark
+    const face = resolveWalletFaceFromBrand(set.primary, set.accent, set.background)
+    return { primary: face.background, secondary: face.accent }
   }
   const fromSettings = parseThemeJson(card?.settings?.theme_json)
-  const primary = firstHex(fromSettings?.primaryColor, fromSettings?.accentColor)
-  const secondary = firstHex(fromSettings?.accentColor, fromSettings?.primaryColor)
-  if (primary) {
-    return {
-      primary,
-      secondary: secondary && secondary !== primary ? secondary : mixHex(primary, '#ffffff', 0.28),
-    }
+  if (fromSettings?.primaryColor || fromSettings?.accentColor) {
+    const face = resolveWalletFaceFromBrand(fromSettings.primaryColor, fromSettings.accentColor)
+    return { primary: face.background, secondary: face.accent }
   }
   return { ...DEFAULT_WALLET_THEME }
 }
@@ -133,15 +155,23 @@ export function resolveWalletPassTheme(card: MyCardData | null | undefined): Wal
   const { primary, secondary } = resolveOwnerBrandColors(card)
   const darkBg = hexLuminance(primary) <= 0.55
   const text = darkBg ? '#FFFFFF' : '#111111'
-  const mutedText = darkBg ? 'rgba(255,255,255,0.82)' : 'rgba(17,17,17,0.72)'
+  const mutedText = darkBg ? 'rgba(255,255,255,0.88)' : 'rgba(17,17,17,0.78)'
   return {
     primary,
     secondary,
     text,
     mutedText,
+    footer: mixHex(primary, darkBg ? '#ffffff' : '#000000', 0.1),
     qrDark: '#111111',
     qrLight: '#FFFFFF',
   }
+}
+
+export function formatWalletTitle(designation?: string | null, company?: string | null): string {
+  const title = designation?.trim() || ''
+  const org = company?.trim() || ''
+  if (title && org && !title.toLowerCase().includes(org.toLowerCase())) return `${title} | ${org}`
+  return title || org
 }
 
 export function resolveWalletPhotoUrl(card: MyCardData | null | undefined): string | null {
@@ -161,7 +191,7 @@ export function resolveWalletPassModel(
   const name = resolvePwaDisplayName(card?.profile?.name, slug)
   let photoUrl = resolveWalletPhotoUrl(card)
   if (photoUrl?.startsWith('/') && origin) photoUrl = `${origin.replace(/\/$/, '')}${photoUrl}`
-  const designation = card?.profile?.designation?.trim() || card?.profile?.company_name?.trim() || ''
+  const designation = formatWalletTitle(card?.profile?.designation, card?.profile?.company_name)
   const path = `/v/${encodeURIComponent(slug.trim())}`
   return {
     name,
