@@ -35,11 +35,13 @@ export async function fetchGoogleWalletSaveUrl(slug?: string): Promise<string> {
     /* ignore parse errors */
   }
 
-  if (!response.ok || !payload.wallet_url) {
+  const walletUrl = payload.wallet_url || (payload as { data?: { wallet_url?: string } }).data?.wallet_url
+
+  if (!response.ok || !walletUrl) {
     throw new Error(payload.message || payload.error || 'Could not generate your Google Wallet pass.')
   }
 
-  return payload.wallet_url
+  return walletUrl
 }
 
 /**

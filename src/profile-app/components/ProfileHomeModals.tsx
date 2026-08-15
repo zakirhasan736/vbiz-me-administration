@@ -97,7 +97,12 @@ export function ProfileHomeModals({
       <DoneModal isOpen={activeModal === 'done'} onClose={onClose} />
       <ShareModal isOpen={activeModal === 'share'} onClose={onClose} />
       <InfoModal isOpen={activeModal === 'info'} onClose={onClose} theme={theme} />
-      <SaveToWalletModal isOpen={activeModal === 'wallet'} onClose={onClose} />
+      <SaveToWalletModal
+        isOpen={activeModal === 'wallet'}
+        onClose={onClose}
+        cardSlug={cardSlug}
+        ownerName={ownerName}
+      />
     </>
   )
 }

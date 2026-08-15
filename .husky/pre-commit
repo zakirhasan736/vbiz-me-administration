@@ -1,12 +1,8 @@
 # .husky/pre-commit
 
-# Prefer Yarn 4 via Corepack when global `yarn` is still classic v1.
-yarn_cmd() {
-  if command -v corepack >/dev/null 2>&1; then
-    corepack yarn "$@"
-  else
-    yarn "$@"
-  fi
+# Use npm scripts so Corepack Yarn 4 is not required (lockfile is still Yarn classic v1).
+run_script() {
+  npm run --silent "$1"
 }
 
 echo ""
@@ -15,10 +11,10 @@ echo ""
 
 # ─── [1/3] Prettier (formatting) ───────────────────────────────────
 echo "▶ [1/3] Checking code formatting (Prettier)"
-yarn_cmd format:check || {
+run_script format:check || {
   echo ""
   echo "❌ Prettier check failed 💀💀 your code formatting sucks"
-  echo "💡 Run 'corepack yarn format' (or 'npx prettier --write .'), then 'git add' and commit again."
+  echo "💡 Run 'npm run format' (or 'npx prettier --write .'), then 'git add' and commit again."
   echo ""
   exit 1
 }
@@ -26,10 +22,10 @@ yarn_cmd format:check || {
 # ─── [2/3] ESLint (lint rules) ─────────────────────────────────────
 echo ""
 echo "▶ [2/3] Checking lint rules (ESLint)"
-yarn_cmd lint || {
+run_script lint || {
   echo ""
   echo "❌ ESLint failed 💀💀 your code has lint errors"
-  echo "💡 Fix the rule violations shown above. Re-check with 'corepack yarn lint'."
+  echo "💡 Fix the rule violations shown above. Re-check with 'npm run lint'."
   echo ""
   exit 1
 }
@@ -37,10 +33,10 @@ yarn_cmd lint || {
 # ─── [3/3] TypeScript (type check) ─────────────────────────────────
 echo ""
 echo "▶ [3/3] Checking types (TypeScript)"
-yarn_cmd typecheck || {
+run_script typecheck || {
   echo ""
   echo "❌ TypeScript check failed 💀💀 your types are broken"
-  echo "💡 Fix the type errors shown above. Re-check with 'corepack yarn typecheck'."
+  echo "💡 Fix the type errors shown above. Re-check with 'npm run typecheck'."
   echo ""
   exit 1
 }
