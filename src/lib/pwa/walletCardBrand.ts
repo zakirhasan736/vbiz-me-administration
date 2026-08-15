@@ -3,7 +3,7 @@ import { resolvePwaAvatarUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePub
 import { brandColorsFromThemeConfig, hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import type { MyCardData } from '@interfaces/api/myCard'
 
-export const WALLET_TEMPLATE_VERSION = 1
+export const WALLET_TEMPLATE_VERSION = 2
 
 export const DEFAULT_WALLET_THEME = {
   primary: '#0B1F3A',
