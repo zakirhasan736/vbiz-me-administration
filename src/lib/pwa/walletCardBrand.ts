@@ -3,34 +3,47 @@ import { resolvePwaAvatarUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePub
 import { brandColorsFromThemeConfig, hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import type { MyCardData } from '@interfaces/api/myCard'
 
-const DEFAULT_ACCENT = '#C9A24A'
+export const WALLET_TEMPLATE_VERSION = 1
+
+export const DEFAULT_WALLET_THEME = {
+  primary: '#0B1F3A',
+  secondary: '#C9A24A',
+} as const
+
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 export type WalletArtFormat = 'card' | 'hero' | 'strip' | 'wide'
 
 export const WALLET_ART_SIZE: Record<WalletArtFormat, { width: number; height: number }> = {
   card: { width: 1012, height: 638 },
-  /** Google generic hero (1032×812). Card is letterboxed so proportions stay exact. */
   hero: { width: 1032, height: 812 },
-  /** Apple Wallet strip @3x. Card is letterboxed so proportions stay exact. */
   strip: { width: 1125, height: 432 },
-  /** Google wideLogo (1280×400). Layout fills the slot like a credit-card face. */
   wide: { width: 1280, height: 400 },
 }
 
-export type WalletCardBrand = {
+export type WalletPassTheme = {
+  primary: string
+  secondary: string
+  text: string
+  mutedText: string
+  qrDark: string
+  qrLight: string
+}
+
+export type WalletPassModel = {
   name: string
-  roleLine: string
-  accent: string
-  logoUrl: string | null
+  designation: string
+  photoUrl: string | null
   initials: string
   cardUrl: string
+  theme: WalletPassTheme
+  templateVersion: number
 }
 
 function firstHex(...values: Array<string | null | undefined>): string | null {
   for (const value of values) {
     const trimmed = value?.trim()
-    if (trimmed && HEX_RE.test(trimmed)) return trimmed
+    if (trimmed && HEX_RE.test(trimmed)) return trimmed.toUpperCase()
   }
   return null
 }
@@ -43,6 +56,36 @@ function parseThemeJson(raw?: string): { accentColor?: string; primaryColor?: st
   } catch {
     return null
   }
+}
+
+function expandHex(hex: string): string {
+  let h = hex.replace('#', '')
+  if (h.length === 3) {
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('')
+  }
+  return `#${h.toLowerCase()}`
+}
+
+function hexLuminance(hex: string): number {
+  const h = expandHex(hex).slice(1)
+  const r = Number.parseInt(h.slice(0, 2), 16) / 255
+  const g = Number.parseInt(h.slice(2, 4), 16) / 255
+  const b = Number.parseInt(h.slice(4, 6), 16) / 255
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+function mixHex(hex: string, toward: string, amount: number): string {
+  const a = expandHex(hex).slice(1)
+  const b = expandHex(toward).slice(1)
+  const mix = (from: number, to: number) => Math.round(from + (to - from) * amount)
+  const r = mix(Number.parseInt(a.slice(0, 2), 16), Number.parseInt(b.slice(0, 2), 16))
+  const g = mix(Number.parseInt(a.slice(2, 4), 16), Number.parseInt(b.slice(2, 4), 16))
+  const bl = mix(Number.parseInt(a.slice(4, 6), 16), Number.parseInt(b.slice(4, 6), 16))
+  return `#${[r, g, bl].map((n) => n.toString(16).padStart(2, '0')).join('')}`
 }
 
 function initialsFromName(name: string): string {
@@ -59,52 +102,75 @@ function stillImageUrl(url?: string | null): string | null {
   return null
 }
 
-export function resolveWalletAccent(card: MyCardData | null | undefined): string {
+export function resolveOwnerBrandColors(card: MyCardData | null | undefined): { primary: string; secondary: string } {
   if (hasDynamicTheme(card?.theme_config)) {
     const template =
       card?.template === 'v1' || card?.template === 'dynamic' ? 'v1' : card?.template === 'v2' ? 'v2' : 'v3'
     const cfg = resolveCardThemeConfig(card?.theme_config, template)
     const brand = brandColorsFromThemeConfig(cfg, cfg.colors.defaultMode === 'light' ? 'light' : 'dark')
-    const hex = firstHex(brand.accentColor, brand.primaryColor)
-    if (hex) return hex
+    const primary = firstHex(brand.primaryColor, brand.accentColor)
+    const secondary = firstHex(brand.accentColor, brand.primaryColor)
+    if (primary) {
+      return {
+        primary,
+        secondary: secondary && secondary !== primary ? secondary : mixHex(primary, '#ffffff', 0.28),
+      }
+    }
   }
   const fromSettings = parseThemeJson(card?.settings?.theme_json)
-  return firstHex(fromSettings?.accentColor, fromSettings?.primaryColor) || DEFAULT_ACCENT
+  const primary = firstHex(fromSettings?.primaryColor, fromSettings?.accentColor)
+  const secondary = firstHex(fromSettings?.accentColor, fromSettings?.primaryColor)
+  if (primary) {
+    return {
+      primary,
+      secondary: secondary && secondary !== primary ? secondary : mixHex(primary, '#ffffff', 0.28),
+    }
+  }
+  return { ...DEFAULT_WALLET_THEME }
 }
 
-export function resolveWalletLogoUrl(card: MyCardData | null | undefined): string | null {
+export function resolveWalletPassTheme(card: MyCardData | null | undefined): WalletPassTheme {
+  const { primary, secondary } = resolveOwnerBrandColors(card)
+  const darkBg = hexLuminance(primary) <= 0.55
+  const text = darkBg ? '#FFFFFF' : '#111111'
+  const mutedText = darkBg ? 'rgba(255,255,255,0.82)' : 'rgba(17,17,17,0.72)'
+  return {
+    primary,
+    secondary,
+    text,
+    mutedText,
+    qrDark: '#111111',
+    qrLight: '#FFFFFF',
+  }
+}
+
+export function resolveWalletPhotoUrl(card: MyCardData | null | undefined): string | null {
   if (!card) return null
   return (
-    stillImageUrl(card.settings?.company_icon_url) ||
     resolvePwaAvatarUrl(card) ||
-    stillImageUrl(card.profile_media?.url)
+    stillImageUrl(card.profile_media?.url) ||
+    stillImageUrl(card.settings?.company_icon_url)
   )
 }
 
-export function resolveWalletRoleLine(card: MyCardData | null | undefined): string {
-  const designation = card?.profile?.designation?.trim() || ''
-  const company = card?.profile?.company_name?.trim() || ''
-  if (designation && company) return `${designation} | ${company}`
-  return designation || company
-}
-
-export function resolveWalletCardBrand(
+export function resolveWalletPassModel(
   card: MyCardData | null | undefined,
   slug: string,
   origin?: string
-): WalletCardBrand {
+): WalletPassModel {
   const name = resolvePwaDisplayName(card?.profile?.name, slug)
-  let logoUrl = resolveWalletLogoUrl(card)
-  if (logoUrl?.startsWith('/') && origin) logoUrl = `${origin.replace(/\/$/, '')}${logoUrl}`
+  let photoUrl = resolveWalletPhotoUrl(card)
+  if (photoUrl?.startsWith('/') && origin) photoUrl = `${origin.replace(/\/$/, '')}${photoUrl}`
+  const designation = card?.profile?.designation?.trim() || card?.profile?.company_name?.trim() || ''
   const path = `/v/${encodeURIComponent(slug.trim())}`
-  const cardUrl = origin ? `${origin.replace(/\/$/, '')}${path}` : path
   return {
     name,
-    roleLine: resolveWalletRoleLine(card),
-    accent: resolveWalletAccent(card),
-    logoUrl,
+    designation,
+    photoUrl,
     initials: initialsFromName(name),
-    cardUrl,
+    cardUrl: origin ? `${origin.replace(/\/$/, '')}${path}` : path,
+    theme: resolveWalletPassTheme(card),
+    templateVersion: WALLET_TEMPLATE_VERSION,
   }
 }
 
