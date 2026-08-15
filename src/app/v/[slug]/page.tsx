@@ -25,7 +25,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: name,
     description: `${name}'s digital business card`,
     applicationName: name,
-    themeColor: '#0b0f19',
     appleWebApp: {
       capable: true,
       title: name,

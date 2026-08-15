@@ -15,7 +15,11 @@ export function walletHttpErrorMessage(
     return `${wallet} is not live on the API yet. Deploy the latest backend, then try again.`
   }
   if (status === 404) {
-    return `${wallet} is not available on the live API yet. Deploy the latest backend, then try again.`
+    const detail = payload?.message || payload?.error
+    if (detail && /not found/i.test(detail)) {
+      return 'This card is not available to save yet. Open the public card URL, then try Save to Wallet again.'
+    }
+    return detail || `${wallet} pass was not found.`
   }
   if (status === 503) {
     return payload?.message || payload?.error || `${wallet} is not configured on the server.`
