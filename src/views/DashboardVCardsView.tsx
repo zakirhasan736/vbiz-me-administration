@@ -5,9 +5,10 @@ import {
   NoticeModal,
   QrCodeModal,
   VCardDetailSidebar,
-  VCardTrendsPopup,
+  VCardDirectoryListSkeleton,
   VCardsGrid,
   VCardsListHeader,
+  VCardTrendsPopup,
   type CardLifecycleTab,
   type NoticeType,
   type VCardSortOption,
@@ -16,6 +17,7 @@ import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { clearLocalCardNotice, noticeForCard, noticeTypeFromTeamNotice, writeLocalCardNotice } from '@/lib/cardNotice'
+import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
 import {
   mapApiProfileToVCardRecord,
@@ -98,12 +100,24 @@ const DashboardVCardsView = () => {
   }, [cards, query, lifecycleTab, sort])
 
   const openQrModal = (url: string, name?: string) => {
+    const matched = cards.find((c) => {
+      const slug = c.slug?.trim()
+      return Boolean(slug) && (url.includes(`/v/${slug}`) || url.endsWith(`/${slug}`))
+    })
+    if (matched && isOwnerCardLocked(matched.status)) {
+      notify.error(SUSPENDED_CARD_MESSAGE)
+      return
+    }
     setSelectedVCardUrl(url)
     setQrModalTitle(name ? `${name} · QR` : 'vCard QR Code')
     setIsQrModalOpen(true)
   }
 
   const openNotice = (card: VCardRecord) => {
+    if (isOwnerCardLocked(card.status)) {
+      notify.error(SUSPENDED_CARD_MESSAGE)
+      return
+    }
     setNoticeCard(card)
   }
 
@@ -142,7 +156,6 @@ const DashboardVCardsView = () => {
         createDisabledReason={createDisabledReason}
       />
 
-      {isLoading && <p className="mb-4 text-sm text-slate-500">Loading your vCards…</p>}
       {isError && (
         <p className="mb-4 text-sm text-rose-500">
           Could not load vCards from the server.{' '}
@@ -152,31 +165,37 @@ const DashboardVCardsView = () => {
         </p>
       )}
 
-      {!isLoading && filtered.length === 0 && cards.length > 0 ? (
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-[#0b0f19]">
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
-            {lifecycleTab === 'draft' ? 'No draft cards' : 'No active cards match your filters'}
-          </p>
-          <p className="mt-1 text-xs font-medium text-slate-400">
-            {lifecycleTab === 'draft'
-              ? 'Incomplete cards appear here after you create them.'
-              : 'Try clearing filters or check the Draft tab.'}
-          </p>
-        </div>
-      ) : null}
+      {isLoading ? (
+        <VCardDirectoryListSkeleton cardCount={3} />
+      ) : (
+        <>
+          {filtered.length === 0 && cards.length > 0 ? (
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-[#0b0f19]">
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                {lifecycleTab === 'draft' ? 'No draft cards' : 'No active cards match your filters'}
+              </p>
+              <p className="mt-1 text-xs font-medium text-slate-400">
+                {lifecycleTab === 'draft'
+                  ? 'Incomplete cards appear here after you create them.'
+                  : 'Try clearing filters or check the Draft tab.'}
+              </p>
+            </div>
+          ) : null}
 
-      <VCardsGrid
-        cards={filtered}
-        onOpenQr={openQrModal}
-        onPanel={(card) => setPanelCardId(card.id)}
-        onNotice={openNotice}
-        noticeVersion={noticeVersion}
-        teamNotices={teamNotices}
-        canCreate={canCreate && lifecycleTab === 'active'}
-        showLimitPlaceholder={isPersonal && !canCreate && cards.length > 0}
-        isPersonal={isPersonal}
-        onTrends={setTrendsCard}
-      />
+          <VCardsGrid
+            cards={filtered}
+            onOpenQr={openQrModal}
+            onPanel={(card) => setPanelCardId(card.id)}
+            onNotice={openNotice}
+            noticeVersion={noticeVersion}
+            teamNotices={teamNotices}
+            canCreate={canCreate && lifecycleTab === 'active'}
+            showLimitPlaceholder={isPersonal && !canCreate && cards.length > 0}
+            isPersonal={isPersonal}
+            onTrends={setTrendsCard}
+          />
+        </>
+      )}
 
       <QrCodeModal
         open={isQrModalOpen}
@@ -217,6 +236,11 @@ const DashboardVCardsView = () => {
         onClose={() => setNoticeCard(null)}
         onSave={(text, type) => {
           if (!noticeCard) return
+          if (isOwnerCardLocked(noticeCard.status)) {
+            notify.error(SUSPENDED_CARD_MESSAGE)
+            setNoticeCard(null)
+            return
+          }
           void (async () => {
             try {
               if (text.trim()) {
@@ -247,6 +271,11 @@ const DashboardVCardsView = () => {
         }}
         onClear={() => {
           if (!noticeCard) return
+          if (isOwnerCardLocked(noticeCard.status)) {
+            notify.error(SUSPENDED_CARD_MESSAGE)
+            setNoticeCard(null)
+            return
+          }
           void (async () => {
             clearLocalCardNotice(noticeCard.id)
             const existing = noticeForCard(noticeCard.id, teamNotices)

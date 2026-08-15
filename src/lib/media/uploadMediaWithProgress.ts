@@ -14,6 +14,8 @@ export type UploadMediaWithProgressOptions = {
   file: File
   profileId?: string | null
   attachmentType?: string
+  /** Override the default 50MB cap (e.g. field-specific 15MB / 30MB limits). */
+  maxBytes?: number
   onProgress?: (percent: number) => void
   signal?: AbortSignal
 }
@@ -28,10 +30,20 @@ export class MediaUploadError extends Error {
   }
 }
 
+export function mediaFileTooLargeMessage(maxBytes: number) {
+  const mb = Math.max(1, Math.round(maxBytes / (1024 * 1024)))
+  return `File is too large. Maximum size is ${mb}MB.`
+}
+
 export function assertMediaFileSize(file: File, maxBytes = MAX_MEDIA_UPLOAD_BYTES) {
   if (file.size > maxBytes) {
-    throw new MediaUploadError(`File size exceeds ${MAX_MEDIA_UPLOAD_MB}MB`)
+    throw new MediaUploadError(mediaFileTooLargeMessage(maxBytes))
   }
+}
+
+function isEntityTooLargeResponse(status: number, bodyText: string) {
+  if (status === 413) return true
+  return /entity too large|request entity too large|payload too large/i.test(bodyText)
 }
 
 type Envelope = {
@@ -43,9 +55,9 @@ type Envelope = {
 export function uploadMediaWithProgress(
   options: UploadMediaWithProgressOptions
 ): Promise<MediaUploadWithProgressResult> {
-  const { file, profileId, attachmentType, onProgress, signal } = options
+  const { file, profileId, attachmentType, maxBytes = MAX_MEDIA_UPLOAD_BYTES, onProgress, signal } = options
 
-  assertMediaFileSize(file)
+  assertMediaFileSize(file, maxBytes)
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -84,9 +96,10 @@ export function uploadMediaWithProgress(
 
     xhr.onload = () => {
       signal?.removeEventListener('abort', onAbort)
+      const raw = xhr.responseText || ''
       let parsed: Envelope | null = null
       try {
-        parsed = JSON.parse(xhr.responseText) as Envelope
+        parsed = JSON.parse(raw) as Envelope
       } catch {
         parsed = null
       }
@@ -101,10 +114,12 @@ export function uploadMediaWithProgress(
         return
       }
 
-      const message =
-        parsed?.message ||
-        (xhr.status === 413 ? `File size exceeds ${MAX_MEDIA_UPLOAD_MB}MB` : null) ||
-        `Upload failed (${xhr.status || 'network error'})`
+      if (isEntityTooLargeResponse(xhr.status, raw) || isEntityTooLargeResponse(xhr.status, parsed?.message || '')) {
+        reject(new MediaUploadError(mediaFileTooLargeMessage(maxBytes), 413))
+        return
+      }
+
+      const message = parsed?.message || `Upload failed (${xhr.status || 'network error'})`
       reject(new MediaUploadError(message, xhr.status))
     }
 

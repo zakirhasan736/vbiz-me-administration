@@ -60,14 +60,26 @@ function assignBentoColSpans(items: ProfileContactItem[]): BentoProfileContactIt
   }))
 }
 
-function resolveProfessionValue(personal: VCardPersonal, isVisible: (key: string) => boolean): string {
-  if (isVisible('MyInfo Profession') && personal.profession?.trim()) {
+/**
+ * Public/global title under the name: Profession first, Designation as fallback.
+ * Respects MyInfo visibility toggles when an `isVisible` checker is provided.
+ */
+export function resolveGlobalProfession(
+  personal: Pick<VCardPersonal, 'profession' | 'designation'>,
+  isVisible?: (key: string) => boolean
+): string {
+  const visible = isVisible ?? (() => true)
+  if (visible('MyInfo Profession') && personal.profession?.trim()) {
     return cleanProfileFieldValue(personal.profession)
   }
-  if (isVisible('MyInfo Designation') && personal.designation?.trim()) {
+  if (visible('MyInfo Designation') && personal.designation?.trim()) {
     return cleanProfileFieldValue(personal.designation)
   }
   return ''
+}
+
+function resolveProfessionValue(personal: VCardPersonal, isVisible: (key: string) => boolean): string {
+  return resolveGlobalProfession(personal, isVisible)
 }
 
 export function splitDisplayName(fullName: string) {

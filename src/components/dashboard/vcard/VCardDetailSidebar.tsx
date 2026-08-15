@@ -167,6 +167,10 @@ export function VCardDetailSidebar({
   }
 
   const handleCopyLink = async () => {
+    if (ownerLocked) {
+      setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+      return
+    }
     try {
       await navigator.clipboard.writeText(publicUrl)
       setCopied(true)
@@ -363,14 +367,25 @@ export function VCardDetailSidebar({
 
           <Section title="Manage card" icon={Edit2}>
             <div className="grid grid-cols-2 gap-2">
-              <a
-                href={publicPath}
-                target="_blank"
-                rel="noreferrer"
-                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-3 text-xs font-black tracking-wider text-white uppercase dark:bg-white dark:text-slate-900"
-              >
-                <ExternalLink className="h-4 w-4" /> View live card
-              </a>
+              {ownerLocked ? (
+                <button
+                  type="button"
+                  disabled
+                  title={SUSPENDED_CARD_MESSAGE}
+                  className="col-span-2 inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-slate-400 px-3 py-3 text-xs font-black tracking-wider text-white uppercase opacity-60"
+                >
+                  <ExternalLink className="h-4 w-4" /> View live card
+                </button>
+              ) : (
+                <a
+                  href={publicPath}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-3 text-xs font-black tracking-wider text-white uppercase dark:bg-white dark:text-slate-900"
+                >
+                  <ExternalLink className="h-4 w-4" /> View live card
+                </a>
+              )}
               <button
                 type="button"
                 onClick={handleEdit}
@@ -385,8 +400,13 @@ export function VCardDetailSidebar({
               </button>
               <button
                 type="button"
-                onClick={handleCopyLink}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200"
+                onClick={() => void handleCopyLink()}
+                disabled={ownerLocked}
+                title={ownerLocked ? SUSPENDED_CARD_MESSAGE : undefined}
+                className={cn(
+                  'inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 uppercase dark:border-white/10 dark:text-slate-200',
+                  ownerLocked && 'cursor-not-allowed opacity-60'
+                )}
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? 'Copied' : 'Copy link'}
@@ -474,8 +494,19 @@ export function VCardDetailSidebar({
                 {onNotice && (
                   <button
                     type="button"
-                    onClick={() => onNotice(card)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 uppercase dark:bg-amber-500/15 dark:text-amber-300"
+                    disabled={ownerLocked}
+                    title={ownerLocked ? SUSPENDED_CARD_MESSAGE : undefined}
+                    onClick={() => {
+                      if (ownerLocked) {
+                        setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+                        return
+                      }
+                      onNotice(card)
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 uppercase dark:bg-amber-500/15 dark:text-amber-300',
+                      ownerLocked && 'cursor-not-allowed opacity-60'
+                    )}
                   >
                     <ShieldAlert className="h-3.5 w-3.5" /> Notice
                   </button>

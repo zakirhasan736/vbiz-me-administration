@@ -55,6 +55,10 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
   const ownerLocked = isOwnerCardLocked(status)
 
   const handleCopyLink = async () => {
+    if (ownerLocked) {
+      setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+      return
+    }
     if (!fullUrl) return
     await navigator.clipboard.writeText(fullUrl)
     setCopied(true)
@@ -62,6 +66,10 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
   }
 
   const handleDeleteClick = () => {
+    if (ownerLocked) {
+      setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+      return
+    }
     setMenuOpen(false)
     setDeleteOpen(true)
   }
@@ -126,9 +134,10 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
           <div className="absolute top-10 right-0 min-w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
             <button
               type="button"
-              disabled={isDeleting}
+              disabled={isDeleting || ownerLocked}
+              title={ownerLocked ? SUSPENDED_CARD_MESSAGE : undefined}
               onClick={handleDeleteClick}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Delete card
@@ -283,8 +292,8 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
           >
             <button
               type="button"
-              disabled={!fullUrl}
-              onClick={handleCopyLink}
+              disabled={!fullUrl || ownerLocked}
+              onClick={() => void handleCopyLink()}
               className={cn(
                 'flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-40',
                 copied
@@ -292,6 +301,7 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
                   : 'border-slate-200 bg-white text-slate-400 hover:bg-white hover:text-slate-700 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-slate-700 dark:hover:text-slate-200'
               )}
               aria-label={copied ? 'Link copied' : 'Copy link'}
+              title={ownerLocked ? SUSPENDED_CARD_MESSAGE : undefined}
             >
               <AnimatePresence mode="wait" initial={false}>
                 {copied ? (
@@ -340,7 +350,16 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
               Edit
             </Link>
           )}
-          {slug ? (
+          {ownerLocked ? (
+            <button
+              type="button"
+              disabled
+              title={SUSPENDED_CARD_MESSAGE}
+              className="flex cursor-not-allowed items-center justify-center rounded-xl bg-slate-300 py-2.5 text-[13px] font-bold text-white opacity-60 dark:bg-slate-700"
+            >
+              View
+            </button>
+          ) : slug ? (
             <Link
               href={publicPath}
               className="flex items-center justify-center rounded-xl bg-slate-900 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-slate-900/10 transition-all hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:shadow-white/10 dark:hover:bg-slate-100"
@@ -357,13 +376,19 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
               View
             </Button>
           )}
-          <Tooltip content="Generate QR Code">
+          <Tooltip content={ownerLocked ? SUSPENDED_CARD_MESSAGE : 'Generate QR Code'}>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              disabled={!fullUrl}
-              onClick={() => fullUrl && onOpenQr(fullUrl, card.personal.fullName || undefined)}
+              disabled={!fullUrl || ownerLocked}
+              onClick={() => {
+                if (ownerLocked) {
+                  setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+                  return
+                }
+                if (fullUrl) onOpenQr(fullUrl, card.personal.fullName || undefined)
+              }}
               className="hover:border-primary-500/50 w-11 rounded-xl border-2"
             >
               <QrCode className="h-4 w-4" />

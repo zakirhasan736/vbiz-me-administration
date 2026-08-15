@@ -20,6 +20,10 @@ type Props = {
   isDuplicating?: boolean
   editDisabled?: boolean
   editTitle?: string
+  viewDisabled?: boolean
+  viewTitle?: string
+  qrDisabled?: boolean
+  qrTitle?: string
   className?: string
 }
 
@@ -43,6 +47,10 @@ export function VCardCardActions({
   isDuplicating = false,
   editDisabled,
   editTitle = 'Edit card',
+  viewDisabled,
+  viewTitle = 'View live card',
+  qrDisabled,
+  qrTitle = 'QR Code',
   className,
 }: Props) {
   const duplicateBusy = Boolean(duplicateDisabled || isDuplicating)
@@ -117,9 +125,21 @@ export function VCardCardActions({
         </button>
         <button
           type="button"
-          onClick={(e) => stop(e, onView)}
-          className="inline-flex items-center justify-center gap-1 rounded-lg bg-slate-100 py-1.5 text-[10px] font-black tracking-wider text-slate-700 uppercase hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          title="View live card"
+          onClick={(e) => {
+            if (viewDisabled) {
+              e.stopPropagation()
+              return
+            }
+            stop(e, onView)
+          }}
+          disabled={viewDisabled}
+          title={viewTitle}
+          className={cn(
+            'inline-flex items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-black tracking-wider uppercase',
+            viewDisabled
+              ? 'cursor-not-allowed bg-slate-100 text-slate-400 opacity-60 dark:bg-slate-800 dark:text-slate-500'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+          )}
         >
           <ExternalLink className="h-3 w-3" /> View
         </button>
@@ -136,9 +156,21 @@ export function VCardCardActions({
       <div className="grid grid-cols-2 gap-1.5">
         <button
           type="button"
-          onClick={(e) => stop(e, onQr)}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-2 text-[10px] font-black tracking-wider text-slate-700 uppercase hover:border-indigo-400/50 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200"
-          title="QR Code"
+          onClick={(e) => {
+            if (qrDisabled) {
+              e.stopPropagation()
+              return
+            }
+            stop(e, onQr)
+          }}
+          disabled={qrDisabled}
+          title={qrTitle}
+          className={cn(
+            'inline-flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-[10px] font-black tracking-wider uppercase',
+            qrDisabled
+              ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400 opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-slate-500'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-400/50 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200'
+          )}
         >
           <QrCode className="h-3.5 w-3.5" /> QR Code
         </button>

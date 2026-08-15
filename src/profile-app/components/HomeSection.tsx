@@ -25,7 +25,12 @@ import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useProfileDisplay } from '../lib/profileDisplayContext'
 import { openVbizmeLogin } from '../lib/profileExternalLinks'
-import { buildBentoContactItems, formatProfileViewCount, splitDisplayName } from '../lib/profileHomeData'
+import {
+  buildBentoContactItems,
+  formatProfileViewCount,
+  resolveGlobalProfession,
+  splitDisplayName,
+} from '../lib/profileHomeData'
 import { filterSocialItemsWithLinks, onTrackedSocialClick, resolveSocialLinkHref } from '../lib/profileSocialLinks'
 import { resolveProfileAvatarSrc } from '../profilePublicProps'
 import { CustomVideoPlayer } from './CustomVideoPlayer'
@@ -253,10 +258,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
     isVisible('MyInfo section Name') ? personal.fullName : ''
   )
   const professionLine =
-    (isVisible('MyInfo Designation') && personal.designation) ||
-    (isVisible('MyInfo Profession') && personal.profession) ||
-    (isVisible('MyInfo Company') && personal.company) ||
-    ''
+    resolveGlobalProfession(personal, isVisible) || (isVisible('MyInfo Company') && personal.company) || ''
 
   const bentoContactItems = useMemo(
     () => buildBentoContactItems(personal, isVisible, field),

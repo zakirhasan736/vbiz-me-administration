@@ -3,6 +3,7 @@
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
+import { notify } from '@/lib/toast/toast'
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
 import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
 import { DEFAULT_EDITOR_SECTION, buildEditorPath } from '@/lib/vcardEditorRoutes'
@@ -161,12 +162,35 @@ function dirtyBucketForPath(path: string): DirtyBucket {
 }
 
 function errorMessage(err: unknown): string {
-  if (err instanceof Error && err.message) return err.message
-  if (typeof err === 'object' && err && 'data' in err) {
-    const data = (err as { data?: { message?: string } }).data
+  if (err && typeof err === 'object' && 'data' in err) {
+    const data = (
+      err as {
+        data?: { message?: string; errorMessages?: { path?: string; message?: string }[] }
+      }
+    ).data
+    if (data?.message && data.message !== 'Validation Error') return data.message
+    const details = data?.errorMessages?.map((item) => item.message).filter((msg): msg is string => Boolean(msg))
+    if (details?.length) return details.join('. ')
     if (data?.message) return data.message
   }
+  if (err instanceof Error && err.message) return err.message
   return 'Failed to save changes'
+}
+
+const SAVE_ERROR_TOAST_DEDUPE_MS = 4000
+let lastSaveErrorToast: { message: string; at: number } | null = null
+
+function toastSaveError(message: string) {
+  const now = Date.now()
+  if (
+    lastSaveErrorToast &&
+    lastSaveErrorToast.message === message &&
+    now - lastSaveErrorToast.at < SAVE_ERROR_TOAST_DEDUPE_MS
+  ) {
+    return
+  }
+  lastSaveErrorToast = { message, at: now }
+  notify.error(message)
 }
 
 export function VCardProvider({ children }: { children: React.ReactNode }) {
@@ -592,6 +616,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const message = errorMessage(err)
         setSaveStatus('error')
         setSaveError(message)
+        toastSaveError(message)
         throw err instanceof Error ? err : new Error(message)
       } finally {
         savingRef.current = false

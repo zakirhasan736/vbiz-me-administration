@@ -5,7 +5,11 @@ import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
-import { cleanProfileFieldValue, formatProfileViewCount } from '@/profile-app/lib/profileHomeData'
+import {
+  cleanProfileFieldValue,
+  formatProfileViewCount,
+  resolveGlobalProfession,
+} from '@/profile-app/lib/profileHomeData'
 import {
   filterSocialItemsWithLinks,
   onTrackedSocialClick,
@@ -98,9 +102,8 @@ export function ProfileHeaderV2({
   const encodedAvatarSrc = avatarDisplaySrc ? encodeMediaUrl(avatarDisplaySrc) : ''
 
   const displayName = ownerName?.trim() || personal.fullName?.trim() || ''
-  const rawDesignation =
-    tagline?.trim() || (isVisible('MyInfo Designation') && personal.designation?.trim() ? personal.designation : '')
-  const designation = rawDesignation ? cleanProfileFieldValue(rawDesignation) : ''
+  const rawProfession = tagline?.trim() || resolveGlobalProfession(personal, isVisible)
+  const designation = rawProfession ? cleanProfileFieldValue(rawProfession) : ''
 
   const showShare = isProfileActionButtonEnabled('share', actionButtons, isVisible)
   const showViewCounter = isProfileActionButtonEnabled('view_counter', actionButtons, isVisible)
@@ -132,9 +135,11 @@ export function ProfileHeaderV2({
       ? { color: field('MyInfo section Name').textColor }
       : undefined
 
-  const designationStyle = field('MyInfo Designation').textColor
-    ? { color: field('MyInfo Designation').textColor }
-    : undefined
+  const professionStyle = field('MyInfo Profession').textColor
+    ? { color: field('MyInfo Profession').textColor }
+    : field('MyInfo Designation').textColor
+      ? { color: field('MyInfo Designation').textColor }
+      : undefined
 
   return (
     <header
@@ -201,7 +206,7 @@ export function ProfileHeaderV2({
         {designation ? (
           <p
             className="mb-0 text-base font-bold text-[#d97706] [text-shadow:0_1px_2px_rgba(255,255,255,0.8)] sm:mb-4 md:text-lg dark:text-[#f59e0b] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.85)]"
-            style={designationStyle}
+            style={professionStyle}
           >
             {designation}
           </p>

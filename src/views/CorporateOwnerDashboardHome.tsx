@@ -173,9 +173,25 @@ export default function CorporateOwnerDashboardHome() {
   }
 
   const openQr = (url: string, name?: string) => {
+    const matched = cards.find((c) => {
+      const slug = c.slug?.trim()
+      return Boolean(slug) && (url.includes(`/v/${slug}`) || url.endsWith(`/${slug}`))
+    })
+    if (matched && isOwnerCardLocked(matched.status)) {
+      notify.error(SUSPENDED_CARD_MESSAGE)
+      return
+    }
     setQrUrl(url)
     setQrTitle(name ? `${name} · QR` : 'vCard QR Code')
     setIsQrOpen(true)
+  }
+
+  const openNotice = (card: VCardRecord) => {
+    if (isOwnerCardLocked(card.status)) {
+      notify.error(SUSPENDED_CARD_MESSAGE)
+      return
+    }
+    setNoticeCard(card)
   }
 
   const handleExportCsv = () => {
@@ -351,7 +367,7 @@ export default function CorporateOwnerDashboardHome() {
             onDragStart={setDraggedIndex}
             onDragDrop={handleDragDrop}
             onPanel={(card) => setPanelCardId(card.id)}
-            onNotice={setNoticeCard}
+            onNotice={openNotice}
             onOpenQr={openQr}
             onDuplicate={(card) => void handleDuplicate(card)}
             onTrends={setTrendsCard}
@@ -393,7 +409,7 @@ export default function CorporateOwnerDashboardHome() {
       <VCardDetailSidebar
         card={panelCard}
         onClose={() => setPanelCardId(null)}
-        onNotice={setNoticeCard}
+        onNotice={openNotice}
         onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
         canDuplicate={canCreate}
         duplicateDisabledReason={createDisabledReason}
@@ -410,6 +426,11 @@ export default function CorporateOwnerDashboardHome() {
         onClose={() => setNoticeCard(null)}
         onSave={(text, type) => {
           if (!noticeCard) return
+          if (isOwnerCardLocked(noticeCard.status)) {
+            notify.error(SUSPENDED_CARD_MESSAGE)
+            setNoticeCard(null)
+            return
+          }
           void (async () => {
             try {
               if (text.trim()) {
@@ -438,6 +459,11 @@ export default function CorporateOwnerDashboardHome() {
         }}
         onClear={() => {
           if (!noticeCard) return
+          if (isOwnerCardLocked(noticeCard.status)) {
+            notify.error(SUSPENDED_CARD_MESSAGE)
+            setNoticeCard(null)
+            return
+          }
           void (async () => {
             clearLocalCardNotice(noticeCard.id)
             const existing = noticeForCard(noticeCard.id, teamNotices)

@@ -1,6 +1,7 @@
 'use client'
 
 import { useVCard } from '@/lib/VCardContext'
+import { resolveGlobalProfession } from '@/profile-app/lib/profileHomeData'
 import { cn } from '@/utils/cn'
 import { Briefcase, CheckCircle, Link2, Phone, Save, Share2 } from 'lucide-react'
 import Image from 'next/image'
@@ -50,7 +51,7 @@ export default function VCardPublicView() {
             {vCardData.personal.fullName || 'Your Name'}
           </h1>
           <p className="text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 mb-4 inline-flex rounded-full border px-5 py-2 text-[13px] font-bold tracking-[0.2em] uppercase shadow-sm">
-            {vCardData.personal.designation || 'Designation'}
+            {resolveGlobalProfession(vCardData.personal) || 'Profession'}
           </p>
           <p className="max-w-sm text-[16px] leading-relaxed font-medium text-slate-600 dark:text-slate-400">
             {vCardData.personal.about || 'Making Power Moves Electric'}

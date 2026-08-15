@@ -10,7 +10,7 @@ import { normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
 import { normalizeServiceList } from '@/lib/vcardServices'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import { DEFAULT_LIVE_AGENT_CARD, type LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
-import { cleanProfileFieldValue } from '@/profile-app/lib/profileHomeData'
+import { resolveGlobalProfession } from '@/profile-app/lib/profileHomeData'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
 import type {
   VCardCustomTab,
@@ -143,11 +143,9 @@ export function vCardDataToProfileProps(
   const ownerName = showName ? data.personal.fullName || 'Your Name' : ''
   const taglineParts: string[] = []
   if (showTagline) {
-    if (isFieldVisible(display, 'MyInfo Designation') && data.personal.designation) {
-      taglineParts.push(cleanProfileFieldValue(data.personal.designation))
-    }
-    if (isFieldVisible(display, 'MyInfo Profession') && data.personal.profession) {
-      taglineParts.push(data.personal.profession)
+    const globalProfession = resolveGlobalProfession(data.personal, (key) => isFieldVisible(display, key))
+    if (globalProfession) {
+      taglineParts.push(globalProfession)
     }
     if (isFieldVisible(display, 'MyInfo Company') && data.personal.company) {
       taglineParts.push(data.personal.company)

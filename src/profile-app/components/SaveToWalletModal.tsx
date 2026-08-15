@@ -5,6 +5,7 @@ import { UsaDigitalCardFace } from '@/profile-app/components/UsaDigitalCardFace'
 import { downloadAppleWalletPass } from '@/profile-app/lib/appleWallet'
 import { openGoogleWalletInNewTab } from '@/profile-app/lib/googleWallet'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { resolveGlobalProfession } from '@/profile-app/lib/profileHomeData'
 import { Loader2, Smartphone, Wallet, X } from 'lucide-react'
 import { useState } from 'react'
 
@@ -16,7 +17,7 @@ type SaveToWalletModalProps = {
 }
 
 export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: SaveToWalletModalProps) {
-  const { design, personal, homeMedia } = useProfileDisplay()
+  const { design, personal, homeMedia, isVisible } = useProfileDisplay()
   const primaryColor = design?.primaryColor || design?.accentColor || '#0B1F3A'
   const secondaryColor = design?.accentColor || '#C9A24A'
   const [savingGoogle, setSavingGoogle] = useState(false)
@@ -65,7 +66,7 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
         <div className="mb-5">
           <UsaDigitalCardFace
             holderName={holder}
-            designation={personal.designation}
+            designation={resolveGlobalProfession(personal, isVisible)}
             company={personal.company}
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}

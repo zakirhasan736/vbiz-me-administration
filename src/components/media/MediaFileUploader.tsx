@@ -1,6 +1,12 @@
 'use client'
 
-import { MAX_MEDIA_UPLOAD_MB, MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
+import {
+  MAX_MEDIA_UPLOAD_BYTES,
+  MAX_MEDIA_UPLOAD_MB,
+  mediaFileTooLargeMessage,
+  MediaUploadError,
+  uploadMediaWithProgress,
+} from '@/lib/media/uploadMediaWithProgress'
 import { cn } from '@/utils/cn'
 import { FileAudio, FileIcon, FileText, FileVideo, Image as ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -20,6 +26,8 @@ export type MediaFileUploaderProps = {
   attachmentType?: string
   /** MIME / extension accept string. Defaults to images, video, audio, and common docs. */
   accept?: string
+  /** Max file size in bytes. Defaults to the global media upload cap. */
+  maxBytes?: number
   label?: string
   hint?: string
   className?: string
@@ -107,6 +115,7 @@ export function MediaFileUploader({
   profileId,
   attachmentType,
   accept = DEFAULT_ACCEPT,
+  maxBytes = MAX_MEDIA_UPLOAD_BYTES,
   label = 'Media file',
   hint,
   className,
@@ -157,6 +166,12 @@ export function MediaFileUploader({
     async (file: File) => {
       if (disabled) return
       setError(null)
+
+      if (file.size > maxBytes) {
+        setError(mediaFileTooLargeMessage(maxBytes))
+        return
+      }
+
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -173,6 +188,7 @@ export function MediaFileUploader({
           file,
           profileId: profileId || undefined,
           attachmentType,
+          maxBytes,
           signal: controller.signal,
           onProgress: setProgress,
         })
@@ -194,7 +210,7 @@ export function MediaFileUploader({
         setUploading(false)
       }
     },
-    [attachmentType, clearLocalPreview, disabled, onChange, profileId]
+    [attachmentType, clearLocalPreview, disabled, maxBytes, onChange, profileId]
   )
 
   const handleFiles = (files: FileList | null) => {

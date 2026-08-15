@@ -9,8 +9,8 @@ import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
   buildBentoContactItems,
-  cleanProfileFieldValue,
   formatProfileViewCount,
+  resolveGlobalProfession,
 } from '@/profile-app/lib/profileHomeData'
 import {
   filterSocialItemsWithLinks,
@@ -107,8 +107,7 @@ export const HomeHero: React.FC<{
   const showShare = isVisible('Share Btn')
   const showViewCounter = isVisible('Vcard View Counter')
 
-  const designationLine =
-    isVisible('MyInfo Designation') && personal.designation?.trim() ? cleanProfileFieldValue(personal.designation) : ''
+  const designationLine = resolveGlobalProfession(personal, isVisible)
 
   const contactItems = useMemo(() => buildBentoContactItems(personal, isVisible, field), [personal, isVisible, field])
 

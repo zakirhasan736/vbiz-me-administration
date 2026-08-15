@@ -4,7 +4,7 @@ import { useCanvaConnection } from '@/components/canva'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
-import { MAX_MEDIA_UPLOAD_MB } from '@/lib/media/uploadMediaWithProgress'
+import { MAX_MEDIA_UPLOAD_BYTES, MAX_MEDIA_UPLOAD_MB } from '@/lib/media/uploadMediaWithProgress'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { useAuth } from '@/providers/AuthProvider'
@@ -498,6 +498,7 @@ export function Tab4HomeMedia() {
               profileId={profileId}
               attachmentType={FIELD_INTRO}
               accept="video/*"
+              maxBytes={MAX_MEDIA_UPLOAD_BYTES}
               browseLabel="Upload"
               selectPlaceholder="Select video"
               subtitle={`Plays before your vCard loads • Max ${MAX_MEDIA_UPLOAD_MB}MB`}
@@ -585,6 +586,7 @@ export function Tab4HomeMedia() {
               profileId={profileId}
               attachmentType={FIELD_MUSIC}
               accept="audio/*"
+              maxBytes={MAX_MEDIA_UPLOAD_BYTES}
               selectPlaceholder="Select audio file"
               subtitle={`Plays quietly in the background • Max ${MAX_MEDIA_UPLOAD_MB}MB`}
               previewKind="audio"
@@ -647,6 +649,7 @@ export function Tab4HomeMedia() {
                 profileId={profileId}
                 attachmentType={FIELD_BG}
                 accept="image/*,video/*"
+                maxBytes={MAX_MEDIA_UPLOAD_BYTES}
                 selectPlaceholder="Select media file"
                 subtitle={`Displayed as the background of your entire vCard. Image or Video loop. Max ${MAX_MEDIA_UPLOAD_MB}MB`}
                 previewKind="auto"

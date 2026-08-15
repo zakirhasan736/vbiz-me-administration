@@ -20,7 +20,7 @@ import {
   type TourKey,
 } from '@/lib/dashboardTour'
 import { useAuth } from '@/providers/AuthProvider'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   createContext,
   useCallback,
@@ -85,6 +85,8 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
   const isVcardOwner = role === 'vcard-owner'
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isAiAgentOpen = searchParams.get('agent') === '1'
   const [tourKey, setTourKey] = useState<TourKey | null>(null)
   const [stepIndex, setStepIndex] = useState(-1)
   const [started, setStarted] = useState(false)
@@ -95,12 +97,16 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
 
   const steps = useMemo(() => (tourKey ? getTourSteps(tourKey) : []), [tourKey])
 
-  const finishTour = useCallback(() => {
-    if (tourKey) markTourDone(tourKey)
+  const softDismissTour = useCallback(() => {
     setStepIndex(-1)
     setTourKey(null)
     setStarted(false)
-  }, [tourKey])
+  }, [])
+
+  const finishTour = useCallback(() => {
+    if (tourKey) markTourDone(tourKey)
+    softDismissTour()
+  }, [tourKey, softDismissTour])
 
   const skip = useCallback(() => {
     finishTour()
@@ -174,11 +180,17 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer)
   }, [loading, user?.uid, started, isVcardOwner, pathname])
 
-  // Create-card auto-start on editor routes
+  // Create-card auto-start on editor routes (skip when Card Studio / AI agent is open)
   useEffect(() => {
     if (loading || !user?.uid || started || createAutoStarted.current) return
     if (!isEditorPath(pathname)) return
     if (isTourCompleted('create_card', user.uid)) return
+
+    // AI create path: do not auto-start; keep tour incomplete so "Take a tour" still works
+    if (isAiAgentOpen) {
+      createAutoStarted.current = true
+      return
+    }
 
     createAutoStarted.current = true
     const timer = window.setTimeout(() => {
@@ -188,7 +200,14 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
     }, 700)
 
     return () => window.clearTimeout(timer)
-  }, [loading, user?.uid, started, pathname])
+  }, [loading, user?.uid, started, pathname, isAiAgentOpen])
+
+  // Soft-dismiss create-card tour when AI agent opens (adjust during render; no markTourDone)
+  if (isAiAgentOpen && tourKey === 'create_card' && started) {
+    setStepIndex(-1)
+    setTourKey(null)
+    setStarted(false)
+  }
 
   const currentStep = stepIndex >= 0 ? (steps[stepIndex] ?? null) : null
   const isActive = Boolean(tourKey) && stepIndex >= 0 && stepIndex < steps.length
