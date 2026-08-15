@@ -34,9 +34,10 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
   const brand = resolveWalletCardBrand(card, slug, origin)
   const canvas = WALLET_ART_SIZE[format]
   const source = WALLET_ART_SIZE.card
-  const fit = Math.min(canvas.width / source.width, canvas.height / source.height)
-  const drawW = Math.round(source.width * fit)
-  const drawH = Math.round(source.height * fit)
+  const fillSlot = format === 'wide'
+  const fit = fillSlot ? 1 : Math.min(canvas.width / source.width, canvas.height / source.height)
+  const drawW = fillSlot ? canvas.width : Math.round(source.width * fit)
+  const drawH = fillSlot ? canvas.height : Math.round(source.height * fit)
   const scale = drawH / source.height
   const pad = Math.max(16, Math.round(28 * scale))
   const logo = Math.max(52, Math.round(118 * scale))

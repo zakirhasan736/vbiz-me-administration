@@ -6,7 +6,7 @@ import type { MyCardData } from '@interfaces/api/myCard'
 const DEFAULT_ACCENT = '#C9A24A'
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
-export type WalletArtFormat = 'card' | 'hero' | 'strip'
+export type WalletArtFormat = 'card' | 'hero' | 'strip' | 'wide'
 
 export const WALLET_ART_SIZE: Record<WalletArtFormat, { width: number; height: number }> = {
   card: { width: 1012, height: 638 },
@@ -14,6 +14,8 @@ export const WALLET_ART_SIZE: Record<WalletArtFormat, { width: number; height: n
   hero: { width: 1032, height: 812 },
   /** Apple Wallet strip @3x. Card is letterboxed so proportions stay exact. */
   strip: { width: 1125, height: 432 },
+  /** Google wideLogo (1280×400). Layout fills the slot like a credit-card face. */
+  wide: { width: 1280, height: 400 },
 }
 
 export type WalletCardBrand = {
@@ -107,6 +109,6 @@ export function resolveWalletCardBrand(
 }
 
 export function parseWalletArtFormat(value?: string | null): WalletArtFormat {
-  if (value === 'hero' || value === 'strip') return value
+  if (value === 'hero' || value === 'strip' || value === 'wide') return value
   return 'card'
 }
