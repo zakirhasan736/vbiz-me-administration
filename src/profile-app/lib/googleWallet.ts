@@ -1,3 +1,4 @@
+import { walletHttpErrorMessage } from '@/profile-app/lib/walletErrors'
 import { baseUrl } from '@/redux/api/publicApi'
 
 /**
@@ -38,7 +39,7 @@ export async function fetchGoogleWalletSaveUrl(slug?: string): Promise<string> {
   const walletUrl = payload.wallet_url || (payload as { data?: { wallet_url?: string } }).data?.wallet_url
 
   if (!response.ok || !walletUrl) {
-    throw new Error(payload.message || payload.error || 'Could not generate your Google Wallet pass.')
+    throw new Error(walletHttpErrorMessage(response.status, payload, 'Google Wallet'))
   }
 
   return walletUrl

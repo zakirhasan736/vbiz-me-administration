@@ -13,8 +13,8 @@ export const baseUrl = `${apiBaseUrl.replace(/\/$/, '')}/public`
 /** Default unused-data TTL — shorter so back-office saves show sooner on public tabs. */
 const DEFAULT_KEEP_UNUSED_SECONDS = 5 * 60
 
-/** Max times a single request is retried after a 429 before giving up. */
-const MAX_RATE_LIMIT_RETRIES = 3
+/** One retry only — extra 429 retries burn the remaining public request budget. */
+const MAX_RATE_LIMIT_RETRIES = 1
 /** Cap any single backoff wait so the UI never hangs too long. */
 const MAX_RETRY_DELAY_MS = 8000
 
@@ -60,7 +60,7 @@ export const publicApi = createApi({
   reducerPath: 'publicApi',
   baseQuery: baseQuery,
   keepUnusedDataFor: DEFAULT_KEEP_UNUSED_SECONDS,
-  refetchOnMountOrArgChange: 60,
+  refetchOnMountOrArgChange: DEFAULT_KEEP_UNUSED_SECONDS,
   refetchOnFocus: false,
   refetchOnReconnect: true,
   tagTypes: [

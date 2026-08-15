@@ -1,3 +1,4 @@
+import { walletHttpErrorMessage } from '@/profile-app/lib/walletErrors'
 import { baseUrl } from '@/redux/api/publicApi'
 
 export function resolveAppleWalletUrl(slug?: string): string | null {
@@ -35,14 +36,13 @@ export async function downloadAppleWalletPass(slug?: string): Promise<void> {
     })
 
     if (!response.ok) {
-      let message = 'Could not generate your Apple Wallet pass.'
+      let payload: { message?: string; error?: string } = {}
       try {
-        const payload = (await response.json()) as { message?: string; error?: string }
-        message = payload.message || payload.error || message
+        payload = (await response.json()) as { message?: string; error?: string }
       } catch {
         /* ignore */
       }
-      throw new Error(message)
+      throw new Error(walletHttpErrorMessage(response.status, payload, 'Apple Wallet'))
     }
 
     if (isIosDevice()) {
