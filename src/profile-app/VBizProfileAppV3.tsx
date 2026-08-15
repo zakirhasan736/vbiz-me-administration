@@ -138,7 +138,7 @@ export function VBizProfileAppV3({
     >
       <ProfileThemeStyles design={design} />
 
-      <ProfileFloatingNav theme={theme}>
+      <ProfileFloatingNav theme={theme} embedded={embedded}>
         <Navigation
           tabs={navTabs}
           activeTab={activeSectionId}
@@ -148,7 +148,7 @@ export function VBizProfileAppV3({
         />
       </ProfileFloatingNav>
 
-      <div className="relative z-20 mt-0 flex h-full w-full flex-1 flex-col px-0 md:mt-18">
+      <div className="vbiz-profile-nav-clearance relative z-20 mt-0 flex h-full w-full flex-1 flex-col px-0 md:mt-18">
         <main
           className="no-scrollbar relative flex w-full flex-1 flex-col overflow-x-hidden md:overflow-x-visible"
           role="tabpanel"

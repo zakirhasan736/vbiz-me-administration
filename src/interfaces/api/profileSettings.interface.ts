@@ -56,6 +56,16 @@ export type ProfileSettingsThemeConfig = {
     button?: ProfileSettingsButtonComponents | ProfileSettingsComponentAppearance
     socialIcon?: ProfileSettingsComponentAppearance
   }
+  /** Cover wallpaper (Template → Wallpaper style). */
+  wallpaper?: {
+    style?: string
+    fillColor?: string
+    gradientMode?: string
+    gradientFrom?: string
+    gradientTo?: string
+    premadeId?: string
+    patternId?: string
+  }
   /** Legacy flat shape (also accepted) */
   button?: ProfileSettingsComponentAppearance & Record<string, unknown>
   socialIcon?: ProfileSettingsComponentAppearance & Record<string, unknown>

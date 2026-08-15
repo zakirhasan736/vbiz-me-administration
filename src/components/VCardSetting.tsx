@@ -1,15 +1,30 @@
 'use client'
 
 import { CanvaConnectRow } from '@/components/canva'
+import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { Button, Switch } from '@/components/ui'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
+import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
-import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
-import { notify } from '@/lib/toast/toast'
+import {
+  MAX_MEDIA_UPLOAD_BYTES,
+  MAX_MEDIA_UPLOAD_MB,
+  MediaUploadError,
+  uploadMediaWithProgress,
+} from '@/lib/media/uploadMediaWithProgress'
+import {
+  inferMediaWallpaperStyle,
+  patchThemeConfigWallpaper,
+  PREMADE_GRADIENTS,
+  resolveWallpaperConfig,
+  wallpaperNeedsMedia,
+  type WallpaperPatternId,
+  type WallpaperStyleId,
+} from '@/lib/theme/wallpaper'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
@@ -26,6 +41,7 @@ import {
   SOCIAL_LINK_FIELDS,
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
+import { DEFAULT_COVER } from '@/profile-app/profilePublicProps'
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import type { VCardAppearance } from '@/types/vcard'
@@ -58,6 +74,7 @@ import Link from 'next/link'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 const FIELD_PROFILE_IMAGE = 'Profile Image/Video'
+const FIELD_BACKGROUND_MEDIA = 'Background Video/Image'
 const MAX_PROFILE_IMAGE_BYTES = 15 * 1024 * 1024
 
 const settingTabs = [
@@ -112,16 +129,15 @@ function OptionCard({
   selected,
   onClick,
   children,
-  isPro = false,
 }: {
   label: string
   selected: boolean
   onClick: () => void
   children: React.ReactNode
-  isPro?: boolean
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
         'relative flex flex-col items-center justify-center rounded-2xl border p-3 transition-all duration-200',
@@ -130,11 +146,6 @@ function OptionCard({
           : 'hover:border-primary-500/50 border-slate-200 bg-slate-50 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
       )}
     >
-      {isPro && (
-        <div className="absolute top-2 right-2 mx-auto flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700">
-          <Zap className="text-primary-600 fill-primary-600 dark:text-primary-400 dark:fill-primary-400 h-2.5 w-2.5" />
-        </div>
-      )}
       <div className="mb-2 flex h-12 w-full items-center justify-center">{children}</div>
       <span
         className={cn(
@@ -148,6 +159,8 @@ function OptionCard({
   )
 }
 
+const COLOR_COMMIT_MS = 500
+
 function ColorPicker({
   label,
   value,
@@ -159,31 +172,73 @@ function ColorPicker({
   onChange?: (val: string) => void
   defaultValue?: string
 }) {
-  const [localValue, setLocalValue] = useState(defaultValue || '#000000')
-  const displayValue = value !== undefined ? value : localValue
+  const [localValue, setLocalValue] = useState(value ?? defaultValue ?? '#000000')
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingRef = useRef<string | null>(null)
+  const onChangeRef = useRef(onChange)
+
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
+
+  const flush = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    const pending = pendingRef.current
+    if (pending === null) return
+    pendingRef.current = null
+    onChangeRef.current?.(pending)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      flush()
+    }
+  }, [flush])
+
+  useEffect(() => {
+    if (value === undefined) return
+    if (pendingRef.current !== null) return
+    setLocalValue(value)
+  }, [value])
 
   const handleChange = (val: string) => {
-    if (onChange) {
-      onChange(val)
-    } else {
-      setLocalValue(val)
-    }
+    setLocalValue(val)
+    if (!onChangeRef.current) return
+    pendingRef.current = val
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null
+      const pending = pendingRef.current
+      if (pending === null) return
+      pendingRef.current = null
+      onChangeRef.current?.(pending)
+    }, COLOR_COMMIT_MS)
   }
 
   return (
-    <div className="hover:border-primary-500/50 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-white/10 dark:bg-[#070a13]">
+    <div
+      className="hover:border-primary-500/50 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-white/10 dark:bg-[#070a13]"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          flush()
+        }
+      }}
+    >
       <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">{label}</span>
       <div className="flex items-center gap-3">
         <input
           type="text"
-          value={displayValue}
+          value={localValue}
           onChange={(e) => handleChange(e.target.value)}
           className="focus:text-primary-600 dark:focus:text-primary-400 w-20 bg-transparent text-right font-mono text-[.75rem] font-medium text-slate-500 uppercase outline-none dark:text-slate-400"
         />
         <div className="relative h-7 w-7 shrink-0 cursor-pointer overflow-hidden rounded-full border border-slate-200 shadow-sm dark:border-white/20">
           <input
             type="color"
-            value={displayValue}
+            value={localValue}
             onChange={(e) => handleChange(e.target.value)}
             className="absolute -inset-2.5 h-14 w-14 cursor-pointer"
           />
@@ -320,22 +375,32 @@ function TemplateDesigner() {
     if (!profileUploading) profileImageInputRef.current?.click()
   }
 
-  const [titleStyle, setTitleStyle] = useState('Text')
-  const [titleSize, setTitleSize] = useState('Small')
+  const bgMediaUrl = getCustomValue(FIELD_BACKGROUND_MEDIA)
+  const wallpaper = resolveWallpaperConfig(vCardData.themeConfig, bgMediaUrl, DEFAULT_COVER)
+  const wallpaperStyle = wallpaper.style
+  const templateId = cardAppearance.profileTemplate ?? 'v3'
 
-  const [wallpaperStyle, setWallpaperStyle] = useState('Gradient')
-  const [gradientStyle, setGradientStyle] = useState('Custom')
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      if (file.size > 2 * 1024 * 1024) {
-        notify.error('File size exceeds 2MB limit.')
-        return
-      }
-      setLogoFile(file)
-    }
-  }
+  const patchWallpaper = useCallback(
+    (patch: Parameters<typeof patchThemeConfigWallpaper>[1]) => {
+      updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, patch, templateId))
+    },
+    [templateId, updateData, vCardData.themeConfig]
+  )
+
+  const setBackgroundMedia = useCallback(
+    (url: string) => {
+      setCustomValue(FIELD_BACKGROUND_MEDIA, url || '')
+      const storedStyle = vCardData.themeConfig?.wallpaper?.style
+      if (storedStyle && storedStyle !== 'image' && storedStyle !== 'video') return
+      const next = inferMediaWallpaperStyle(url, DEFAULT_COVER)
+      if (storedStyle === next) return
+      updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
+    },
+    [setCustomValue, templateId, updateData, vCardData.themeConfig]
+  )
+
+  const mediaAccept =
+    wallpaperStyle === 'image' ? 'image/*' : wallpaperStyle === 'video' ? 'video/*' : 'image/*,video/*'
 
   return (
     <div className="col-span-1 mx-auto flex w-full max-w-2xl flex-col pb-12 lg:col-span-2">
@@ -508,240 +573,105 @@ function TemplateDesigner() {
         </div>
       </SettingSection>
 
-      <SettingSection title="Title">
-        <input
-          type="text"
-          defaultValue="@zakirhossaib736"
-          className="focus:border-primary-500 focus:ring-primary-500 w-full rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm text-slate-900 shadow-sm transition-shadow outline-none focus:ring-1 dark:border-white/10 dark:bg-[#070a13] dark:text-white"
-        />
-      </SettingSection>
-
-      <SettingSection title="Title style">
-        <div className="flex flex-col gap-4">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setTitleStyle('Text')}
-              className={cn(
-                'flex-1 rounded-2xl border py-4 text-sm font-semibold transition-all',
-                titleStyle === 'Text'
-                  ? 'border-primary-600 bg-primary-600/5 dark:text-primary-400 dark:bg-primary-500/15 dark:border-primary-500/30 text-slate-900 shadow-sm'
-                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
-              )}
-            >
-              Aa Text
-            </button>
-            <button
-              onClick={() => setTitleStyle('Logo')}
-              className={cn(
-                'flex flex-1 items-center justify-center gap-2 rounded-2xl border py-4 text-sm font-semibold transition-all',
-                titleStyle === 'Logo'
-                  ? 'border-primary-600 bg-primary-600/5 dark:text-primary-400 dark:bg-primary-500/15 dark:border-primary-500/30 text-slate-900 shadow-sm'
-                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
-              )}
-            >
-              <ImageIcon className="h-4 w-4" /> Logo
-              <div className="ml-2 flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700">
-                <Zap className="text-primary-600 fill-primary-600 dark:text-primary-400 dark:fill-primary-400 h-2.5 w-2.5" />
-              </div>
-            </button>
-          </div>
-
-          {titleStyle === 'Logo' && (
-            <div className="animate-in fade-in zoom-in-95 duration-200">
-              <label className="group relative flex h-32 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[1.25rem] border-2 border-dashed border-black/10 bg-slate-50 transition-all hover:border-black/20 hover:bg-slate-100 dark:border-white/10 dark:bg-[#0b0f19] dark:hover:bg-[#27272a]">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  {logoFile ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <ImageIcon className="text-primary-600 dark:text-primary-400 h-8 w-8" />
-                      <span className="max-w-50 truncate text-[.8125rem] font-bold text-slate-900 dark:text-white">
-                        {logoFile.name}
-                      </span>
-                      <span className="text-[.6875rem] font-medium text-slate-500">Click to change</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 shadow-sm transition-transform group-hover:scale-110 dark:bg-slate-800">
-                        <svg
-                          className="h-5 w-5 text-slate-500 dark:text-slate-400"
-                          aria-hidden="true"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 20 16"
-                        >
-                          <path
-                            stroke="currentColor"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                          />
-                        </svg>
-                      </div>
-                      <p className="mb-1 text-[.8125rem] text-slate-500 dark:text-slate-400">
-                        <span className="font-bold text-slate-900 dark:text-white">Click to upload logo</span> or drag
-                        and drop
-                      </p>
-                      <p className="mt-1 text-[.6875rem] font-medium tracking-widest text-slate-500 uppercase dark:text-slate-400">
-                        SVG, PNG, JPG (MAX. 2MB)
-                      </p>
-                    </>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/svg+xml,image/png,image/jpeg"
-                  onChange={handleLogoUpload}
-                />
-              </label>
-            </div>
-          )}
-        </div>
-      </SettingSection>
-
-      <div className="mt-2 mb-8 flex items-center justify-between">
-        <div>
-          <h3 className="text-[.8125rem] font-bold text-slate-900 dark:text-white">Alternative title font</h3>
-          <p className="text-[.6875rem] text-slate-500 dark:text-slate-400">Matches page font by default</p>
-        </div>
-        <Toggle isPro checked={false} onChange={() => {}} />
-      </div>
-
-      <div className="mb-10">
-        <ColorPicker label="Title font color" defaultValue="#362630" />
-      </div>
-
-      {/* Button extras */}
-      <div className="border-t border-black/10 pt-8 dark:border-white/10">
-        <div className="mb-10 space-y-4">
-          <ColorPicker label="Button color" defaultValue="#FFFFFF" />
-          <ColorPicker label="Button text color" defaultValue="#362630" />
-        </div>
-      </div>
-
-      {/* Typography colors */}
-      <div className="border-t border-black/10 pt-8 dark:border-white/10">
-        <div className="mb-10 space-y-4">
-          <ColorPicker label="Page text color" defaultValue="#362630" />
-        </div>
-
-        <div className="mt-2 mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-[.8125rem] font-bold text-slate-900 dark:text-white">Alternative title font</h3>
-            <p className="text-[.6875rem] text-slate-500 dark:text-slate-400">Matches page font by default</p>
-          </div>
-          <Toggle isPro checked={false} onChange={() => {}} />
-        </div>
-
-        <div className="mb-8 space-y-4">
-          <ColorPicker label="Title color" defaultValue="#362630" />
-        </div>
-
-        <SettingSection title="Title size">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setTitleSize('Small')}
-              className={cn(
-                'flex-1 rounded-2xl border py-4 text-sm font-semibold transition-all',
-                titleSize === 'Small'
-                  ? 'border-primary-600 bg-primary-600/5 dark:text-primary-400 dark:bg-primary-500/15 dark:border-primary-500/30 text-slate-900 shadow-sm'
-                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
-              )}
-            >
-              Small
-            </button>
-            <button
-              onClick={() => setTitleSize('Large')}
-              className={cn(
-                'flex flex-1 items-center justify-center gap-2 rounded-2xl border py-4 text-sm font-semibold transition-all',
-                titleSize === 'Large'
-                  ? 'border-primary-600 bg-primary-600/5 dark:text-primary-400 dark:bg-primary-500/15 dark:border-primary-500/30 text-slate-900 shadow-sm'
-                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
-              )}
-            >
-              Large
-              <div className="ml-2 flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700">
-                <Zap className="text-primary-600 fill-primary-600 dark:text-primary-400 dark:fill-primary-400 h-2.5 w-2.5" />
-              </div>
-            </button>
-          </div>
-        </SettingSection>
-      </div>
-
-      {/* Wallpaper */}
-      <div className="border-t border-black/10 pt-8 dark:border-white/10">
-        <SettingSection title="Wallpaper style">
-          <div className="no-scrollbar flex gap-3 overflow-x-auto pt-2 pb-4">
-            <OptionCard label="Fill" selected={wallpaperStyle === 'Fill'} onClick={() => setWallpaperStyle('Fill')}>
-              <div className="h-12 w-12 rounded-[.625rem] bg-slate-200 dark:bg-[#1e2333]"></div>
-            </OptionCard>
+      <SettingSection title="Wallpaper style">
+        <p className="mb-2 text-[13px] font-medium text-slate-500 dark:text-slate-400">
+          Choose how your public vCard cover is painted. Image and video reuse Background Video/Image.
+        </p>
+        <div className="no-scrollbar flex gap-3 overflow-x-auto pt-2 pb-4">
+          {(
+            [
+              {
+                id: 'fill' as WallpaperStyleId,
+                label: 'Fill',
+                preview: <div className="h-12 w-12 rounded-[.625rem] bg-slate-200 dark:bg-[#1e2333]" />,
+              },
+              {
+                id: 'gradient' as WallpaperStyleId,
+                label: 'Gradient',
+                preview: (
+                  <div className="h-12 w-12 rounded-[.625rem] bg-linear-to-t from-[#B04C40] via-[#D1A0A6] to-[#A3C6D3]" />
+                ),
+              },
+              {
+                id: 'blur' as WallpaperStyleId,
+                label: 'Blur',
+                preview: <div className="h-12 w-12 rounded-[.625rem] bg-[#e2e4e9]" />,
+              },
+              {
+                id: 'pattern' as WallpaperStyleId,
+                label: 'Pattern',
+                preview: (
+                  <div className="grid h-12 w-12 grid-cols-3 grid-rows-3 gap-0.5 overflow-hidden rounded-[.625rem] bg-[#e2e4e9] p-1">
+                    {[...Array(9)].map((_, i) => (
+                      <div key={i} className="rounded-xs bg-white dark:bg-[#0b0f19]" />
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                id: 'image' as WallpaperStyleId,
+                label: 'Image',
+                preview: (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[.625rem] bg-[#e2e4e9]">
+                    <ImageIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                  </div>
+                ),
+              },
+              {
+                id: 'video' as WallpaperStyleId,
+                label: 'Video',
+                preview: (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[.625rem] bg-[#e2e4e9]">
+                    <svg
+                      className="h-5 w-5 text-slate-500 dark:text-slate-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                ),
+              },
+            ] as const
+          ).map((opt) => (
             <OptionCard
-              label="Gradient"
-              selected={wallpaperStyle === 'Gradient'}
-              onClick={() => setWallpaperStyle('Gradient')}
+              key={opt.id}
+              label={opt.label}
+              selected={wallpaperStyle === opt.id}
+              onClick={() => patchWallpaper({ style: opt.id })}
             >
-              <div className="h-12 w-12 rounded-[.625rem] bg-linear-to-t from-[#B04C40] via-[#D1A0A6] to-[#A3C6D3]"></div>
+              {opt.preview}
             </OptionCard>
-            <OptionCard label="Blur" selected={wallpaperStyle === 'Blur'} onClick={() => setWallpaperStyle('Blur')}>
-              <div className="h-12 w-12 rounded-[.625rem] bg-[#e2e4e9]"></div>
-            </OptionCard>
-            <OptionCard
-              label="Pattern"
-              selected={wallpaperStyle === 'Pattern'}
-              onClick={() => setWallpaperStyle('Pattern')}
-              isPro
-            >
-              <div className="grid h-12 w-12 grid-cols-3 grid-rows-3 gap-0.5 overflow-hidden rounded-[.625rem] bg-[#e2e4e9] p-1">
-                {[...Array(9)].map((_, i) => (
-                  <div key={i} className="rounded-xs bg-white dark:bg-[#0b0f19]" />
-                ))}
-              </div>
-            </OptionCard>
-            <OptionCard
-              label="Image"
-              selected={wallpaperStyle === 'Image'}
-              onClick={() => setWallpaperStyle('Image')}
-              isPro
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-[.625rem] bg-[#e2e4e9]">
-                <ImageIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-              </div>
-            </OptionCard>
-            <OptionCard
-              label="Video"
-              selected={wallpaperStyle === 'Video'}
-              onClick={() => setWallpaperStyle('Video')}
-              isPro
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-[.625rem] bg-[#e2e4e9]">
-                <svg
-                  className="h-5 w-5 text-slate-500 dark:text-slate-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                  />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </OptionCard>
-          </div>
-        </SettingSection>
+          ))}
+        </div>
 
-        {wallpaperStyle === 'Gradient' && (
+        {wallpaperStyle === 'fill' && (
+          <div className="mb-4">
+            <ColorPicker
+              label="Fill color"
+              value={wallpaper.fillColor || '#0a0a0a'}
+              onChange={(fillColor) => patchWallpaper({ fillColor })}
+            />
+          </div>
+        )}
+
+        {wallpaperStyle === 'gradient' && (
           <>
             <SettingSection title="Gradient style">
               <div className="flex gap-4">
                 <button
-                  onClick={() => setGradientStyle('Custom')}
+                  type="button"
+                  onClick={() => patchWallpaper({ gradientMode: 'custom' })}
                   className={cn(
                     'flex-1 rounded-2xl border py-4 text-sm font-semibold transition-all',
-                    gradientStyle === 'Custom'
+                    (wallpaper.gradientMode || 'custom') === 'custom'
                       ? 'border-primary-600 bg-primary-600/5 dark:bg-primary-500/15 dark:text-primary-400 dark:border-primary-500/30 text-slate-900 shadow-sm'
                       : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
                   )}
@@ -749,43 +679,54 @@ function TemplateDesigner() {
                   Custom
                 </button>
                 <button
-                  onClick={() => setGradientStyle('Pre-made')}
+                  type="button"
+                  onClick={() => patchWallpaper({ gradientMode: 'premade' })}
                   className={cn(
                     'flex flex-1 items-center justify-center gap-2 rounded-2xl border py-4 text-sm font-semibold transition-all',
-                    gradientStyle === 'Pre-made'
+                    wallpaper.gradientMode === 'premade'
                       ? 'border-primary-600 bg-primary-600/5 dark:bg-primary-500/15 dark:text-primary-400 dark:border-primary-500/30 text-slate-900 shadow-sm'
                       : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
                   )}
                 >
                   Pre-made
-                  <div className="ml-2 flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700">
-                    <Zap className="text-primary-600 fill-primary-600 dark:text-primary-400 dark:fill-primary-400 h-2.5 w-2.5" />
-                  </div>
                 </button>
               </div>
             </SettingSection>
 
-            {gradientStyle === 'Pre-made' && (
+            {(wallpaper.gradientMode || 'custom') === 'custom' ? (
+              <div className="mb-4 space-y-3">
+                <ColorPicker
+                  label="Gradient from"
+                  value={wallpaper.gradientFrom || '#B04C40'}
+                  onChange={(gradientFrom) => patchWallpaper({ gradientFrom })}
+                />
+                <ColorPicker
+                  label="Gradient to"
+                  value={wallpaper.gradientTo || '#A3C6D3'}
+                  onChange={(gradientTo) => patchWallpaper({ gradientTo })}
+                />
+              </div>
+            ) : (
               <SettingSection title="Gradient">
                 <div className="no-scrollbar flex gap-4 overflow-x-auto pt-2 pb-2">
-                  {[
-                    'from-[#DBA6CA] to-[#E5BDD9]',
-                    'from-[#DF8C4C] to-[#EFC6A6]',
-                    'from-[#CBEA8B] to-[#E3F2BE]',
-                    'from-[#A9E88E] to-[#D5F0C6]',
-                    'from-[#342F79] to-[#804253]',
-                    'from-[#120F3B] to-[#51365F]',
-                    'from-[#3F4882] to-[#B3709B]',
-                    'bg-[linear-gradient(to_top,#B04C40,#D1A0A6,#A3C6D3)]',
-                    'bg-[#B2462E]',
-                  ].map((g, i) => (
+                  {PREMADE_GRADIENTS.map((g) => (
                     <button
-                      key={i}
+                      key={g.id}
+                      type="button"
+                      title={g.id}
+                      onClick={() =>
+                        patchWallpaper({
+                          premadeId: g.id,
+                          gradientFrom: g.from,
+                          gradientTo: g.to,
+                          gradientMode: 'premade',
+                        })
+                      }
                       className={cn(
-                        'h-12 w-12 shrink-0 rounded-full transition-transform hover:scale-110',
-                        g.startsWith('bg-') ? g : `bg-linear-to-tr ${g}`,
-                        'border-2 border-transparent shadow-lg focus:border-white'
+                        'h-12 w-12 shrink-0 rounded-full border-2 shadow-lg transition-transform hover:scale-110',
+                        wallpaper.premadeId === g.id ? 'border-primary-500 scale-110' : 'border-transparent'
                       )}
+                      style={{ backgroundImage: g.css }}
                     />
                   ))}
                 </div>
@@ -794,14 +735,64 @@ function TemplateDesigner() {
           </>
         )}
 
-        <div className="mt-8 flex items-center justify-between">
-          <div>
-            <h3 className="text-[.8125rem] font-bold text-slate-900 dark:text-white">Noise</h3>
-            <p className="text-[.6875rem] text-slate-500 dark:text-slate-400">Add a subtle grain texture</p>
+        {wallpaperStyle === 'pattern' && (
+          <div className="mb-4 space-y-4">
+            <ColorPicker
+              label="Pattern base color"
+              value={wallpaper.fillColor || '#0a0a0a'}
+              onChange={(fillColor) => patchWallpaper({ fillColor })}
+            />
+            <div className="flex gap-3">
+              {(
+                [
+                  { id: 'dots' as WallpaperPatternId, label: 'Dots' },
+                  { id: 'grid' as WallpaperPatternId, label: 'Grid' },
+                  { id: 'diagonal' as WallpaperPatternId, label: 'Diagonal' },
+                ] as const
+              ).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => patchWallpaper({ patternId: p.id })}
+                  className={cn(
+                    'flex-1 rounded-2xl border py-3 text-sm font-semibold transition-all',
+                    (wallpaper.patternId || 'dots') === p.id
+                      ? 'border-primary-600 bg-primary-600/5 dark:bg-primary-500/15 dark:text-primary-400 dark:border-primary-500/30 text-slate-900 shadow-sm'
+                      : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <Toggle checked={false} onChange={() => {}} />
-        </div>
-      </div>
+        )}
+
+        {wallpaperNeedsMedia(wallpaperStyle) && (
+          <VCardMediaField
+            variant="inset"
+            value={bgMediaUrl}
+            onChange={(url) => setBackgroundMedia(url || '')}
+            profileId={profileId}
+            attachmentType={FIELD_BACKGROUND_MEDIA}
+            accept={mediaAccept}
+            maxBytes={MAX_MEDIA_UPLOAD_BYTES}
+            selectPlaceholder="Select media file"
+            subtitle={
+              wallpaperStyle === 'blur'
+                ? `Blurred cover media • Max ${MAX_MEDIA_UPLOAD_MB}MB`
+                : wallpaperStyle === 'video'
+                  ? `Video loop • Max ${MAX_MEDIA_UPLOAD_MB}MB`
+                  : `Cover image • Max ${MAX_MEDIA_UPLOAD_MB}MB`
+            }
+            previewKind="auto"
+            previewClassName="aspect-video max-h-56"
+            placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
+          >
+            <MediaSourceActions mode="both" onSelect={(asset) => setBackgroundMedia(asset.url)} />
+          </VCardMediaField>
+        )}
+      </SettingSection>
 
       <div className="pt-20"></div>
     </div>

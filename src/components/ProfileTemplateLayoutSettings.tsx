@@ -54,18 +54,14 @@ export function ProfileTemplateLayoutSettings({
   onAppearanceChange,
 }: ProfileTemplateLayoutSettingsProps) {
   const dispatch = useAppDispatch()
-  const accountAppearance = useAppSelector((s) => ({
-    profileTemplate: s.designSettings.profileTemplate ?? 'v2',
-    layoutStyle: s.designSettings.layoutStyle,
-    buttonStyle: s.designSettings.buttonStyle,
-    cornerStyle: s.designSettings.cornerStyle,
-  }))
+  const accountProfileTemplate = useAppSelector((s) => s.designSettings.profileTemplate ?? 'v2')
+  const accountLayoutStyle = useAppSelector((s) => s.designSettings.layoutStyle)
 
   const { data: activeTemplates, isError } = useGetActiveTemplatesQuery()
 
   const isVCardScope = scope === 'vcard' && appearanceProp && onAppearanceChange
-  const profileTemplate = isVCardScope ? appearanceProp.profileTemplate : accountAppearance.profileTemplate
-  const layoutStyle = isVCardScope ? appearanceProp.layoutStyle : accountAppearance.layoutStyle
+  const profileTemplate = isVCardScope ? appearanceProp.profileTemplate : accountProfileTemplate
+  const layoutStyle = isVCardScope ? appearanceProp.layoutStyle : accountLayoutStyle
 
   const templates = useMemo(() => {
     const catalog =

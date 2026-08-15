@@ -3,8 +3,10 @@
 import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
+import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButtons'
+import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
@@ -18,6 +20,7 @@ import {
   resolveSocialLinkHref,
 } from '@/profile-app/lib/profileSocialLinks'
 import { DEFAULT_COVER, DEFAULT_INTRO_VIDEO, resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
+import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
   Bell,
   CreditCard,
@@ -100,8 +103,11 @@ export const HomeHero: React.FC<{
     () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc, DEFAULT_INTRO_VIDEO),
     [homeMedia.profileMedia, introSrc]
   )
-  const coverSrc = encodeMediaUrl(homeMedia.bgMedia || DEFAULT_COVER)
-  const coverIsVideo = Boolean(coverSrc && isVideoUrl(coverSrc))
+  const profileTheme = useProfileTheme()
+  const wallpaper = resolveWallpaperConfig(profileTheme?.themeConfig, homeMedia.bgMedia, DEFAULT_COVER)
+  const coverMediaUrl = wallpaperNeedsMedia(wallpaper.style)
+    ? encodeMediaUrl(homeMedia.bgMedia || DEFAULT_COVER)
+    : encodeMediaUrl(homeMedia.bgMedia || '')
   const profileIsVideo = isVideoUrl(profileSrc)
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn')
@@ -145,31 +151,19 @@ export const HomeHero: React.FC<{
 
   return (
     <div
-      className={`border-gold/20 relative mx-auto flex w-full max-w-120 flex-col overflow-x-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 ${
+      className={`border-gold/20 relative mx-auto flex w-full max-w-120 flex-col overflow-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 ${
         compact ? 'min-h-0' : 'min-h-[calc(100dvh-72px)] md:max-w-none md:border-0'
       } ${theme === 'dark' ? 'bg-[#031327] text-white' : 'bg-white text-zinc-900'}`}
     >
       <div
         className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${theme === 'dark' ? 'bg-[#030914]' : 'bg-white'}`}
       >
-        <div className="absolute inset-0 mx-auto h-full w-full md:max-w-258">
-          {coverIsVideo ? (
-            <video
-              src={coverSrc}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 aspect-video h-full w-full object-cover opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten"
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverSrc}
-              alt=""
-              className="absolute inset-0 aspect-video h-full w-full object-cover opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten"
-            />
-          )}
+        <div className="absolute inset-0 mx-auto h-full w-full overflow-hidden md:max-w-258">
+          <ProfileWallpaperContent
+            wallpaper={wallpaper}
+            mediaUrl={coverMediaUrl}
+            mediaClassName="aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten"
+          />
           <div
             className={`absolute inset-0 bg-linear-to-b ${theme === 'dark' ? 'from-[#030914]/15 via-[#031327]/30 to-[#031327]' : 'from-white/5 via-white/10 to-white'}`}
           />

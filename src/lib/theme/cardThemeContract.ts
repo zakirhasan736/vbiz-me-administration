@@ -63,6 +63,17 @@ export type SocialIconComponent = ComponentAppearance & {
   cornerRadius: number | string
 }
 
+/** Optional cover wallpaper (Template → Wallpaper style). Persisted inside themeConfig JSON. */
+export type CardWallpaperConfig = {
+  style: 'fill' | 'gradient' | 'blur' | 'pattern' | 'image' | 'video'
+  fillColor?: string
+  gradientMode?: 'custom' | 'premade'
+  gradientFrom?: string
+  gradientTo?: string
+  premadeId?: string
+  patternId?: 'dots' | 'grid' | 'diagonal'
+}
+
 export type CardThemeConfig = {
   version: 1
   colors: GlobalThemeColors
@@ -76,6 +87,8 @@ export type CardThemeConfig = {
     buttonStyle: 'solid' | 'soft' | 'outline' | 'glass'
     cornerStyle: CornerStyle
   }
+  /** Cover wallpaper style; omit to infer image/video from Background Video/Image. */
+  wallpaper?: CardWallpaperConfig
 }
 
 /* ----------------------------- Template static palettes ----------------------------- */

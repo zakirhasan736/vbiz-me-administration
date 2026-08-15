@@ -1,5 +1,6 @@
 'use client'
 
+import { useCardScopeId } from '@/lib/card-scope'
 import { useGetPublicProfileAnnouncementQuery } from '@/redux/features/publicAnnouncements/publicAnnouncements.api'
 import type { Announcement, AnnouncementType } from '@/types/announcement'
 import { cn } from '@/utils/cn'
@@ -76,11 +77,16 @@ function isShowPublicBanner(value: Announcement | null | undefined): value is An
 }
 
 type Props = {
-  profileId: string
+  /** Prefer explicit id; falls back to CardScopeProvider. */
+  profileId?: string
+  /** chrome = under nav pill; mobileTop = fixed top strip on small screens. */
+  placement?: 'chrome' | 'mobileTop'
+  className?: string
 }
 
-export default function PublicAnnouncementBanner({ profileId }: Props) {
-  const trimmed = profileId.trim()
+export default function PublicAnnouncementBanner({ profileId, placement = 'chrome', className }: Props) {
+  const scopeId = useCardScopeId()
+  const trimmed = String(profileId ?? scopeId ?? '').trim()
   const { data } = useGetPublicProfileAnnouncementQuery(trimmed, {
     skip: !trimmed,
     pollingInterval: 60_000,
@@ -100,9 +106,11 @@ export default function PublicAnnouncementBanner({ profileId }: Props) {
 
   return (
     <div
+      data-public-announcement=""
+      data-placement={placement}
       role={ariaRole}
       aria-live={banner.type === 'warning' ? 'assertive' : 'polite'}
-      className={cn('relative z-40 mx-3 mt-3 overflow-hidden rounded-2xl border shadow-sm sm:mx-4', styles.wrap)}
+      className={cn('pointer-events-auto w-full overflow-hidden rounded-2xl border shadow-sm', styles.wrap, className)}
     >
       <div className="flex items-start gap-3 px-3 py-2.5 sm:items-center sm:px-4">
         <Icon className={cn('mt-0.5 h-4 w-4 shrink-0 sm:mt-0', styles.icon)} aria-hidden />

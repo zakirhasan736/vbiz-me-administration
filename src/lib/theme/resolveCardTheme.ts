@@ -15,6 +15,7 @@ import {
   type ThemeColorSet,
   type ThemeMode,
 } from '@/lib/theme/cardThemeContract'
+import { normalizeWallpaper } from '@/lib/theme/wallpaper'
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
 const COMPONENT_STYLES = new Set<ComponentStyle>(['filled', 'outlined', 'ghost', 'soft', 'glass'])
@@ -276,6 +277,8 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
 
   const socialIcon = mergeSocialIcon(defaults.components.socialIcon, socialSource, cornerStyle)
 
+  const wallpaper = normalizeWallpaper((r as { wallpaper?: unknown }).wallpaper)
+
   return {
     version: typeof r.version === 'number' ? r.version : 1,
     colors: mergeColors(
@@ -304,6 +307,7 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
           : defaults.appearance.buttonStyle,
       cornerStyle,
     },
+    ...(wallpaper ? { wallpaper } : {}),
   }
 }
 
