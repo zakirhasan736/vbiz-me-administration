@@ -67,7 +67,7 @@ export async function downloadAppleWalletPass(slug?: string): Promise<void> {
     link.remove()
     URL.revokeObjectURL(objectUrl)
     passTab?.close()
-    notify.success('Apple Wallet pass downloaded. Open it on iPhone to add.')
+    notify.success('Apple Wallet pass downloaded. Email or AirDrop the .pkpass to your iPhone, then tap it to add.')
   } catch (error) {
     passTab?.close()
     notify.error(error instanceof Error ? error.message : 'Could not open Apple Wallet.')

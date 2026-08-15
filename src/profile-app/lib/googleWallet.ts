@@ -72,7 +72,9 @@ export async function openGoogleWalletInNewTab(slug?: string): Promise<void> {
       // Tab was blocked or closed — fall back to a fresh tab.
       window.open(walletUrl, '_blank', 'noopener,noreferrer')
     }
-    notify.success('Opening Google Wallet…')
+    notify.success(
+      'Opening Google Wallet… If Google says this pass is for testing, add your Gmail as a tester in Pay Console.'
+    )
   } catch (error) {
     walletTab?.close()
     notify.error(error instanceof Error ? error.message : 'Could not open Google Wallet.')

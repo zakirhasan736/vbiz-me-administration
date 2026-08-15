@@ -10,8 +10,10 @@ export type WalletArtFormat = 'card' | 'hero' | 'strip'
 
 export const WALLET_ART_SIZE: Record<WalletArtFormat, { width: number; height: number }> = {
   card: { width: 1012, height: 638 },
-  hero: { width: 1032, height: 336 },
-  strip: { width: 750, height: 246 },
+  /** Google generic hero (1032×812). Card is letterboxed so proportions stay exact. */
+  hero: { width: 1032, height: 812 },
+  /** Apple Wallet strip @3x. Card is letterboxed so proportions stay exact. */
+  strip: { width: 1125, height: 432 },
 }
 
 export type WalletCardBrand = {

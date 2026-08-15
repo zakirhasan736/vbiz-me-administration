@@ -28,12 +28,16 @@ function Contactless({ color, size }: { color: string; size: number }) {
   )
 }
 
-/** Owner wallet pass art — black luxury card layout; accent/logo/name come from the vCard. */
+/** Owner wallet pass art — black luxury card at exact attachment proportions. */
 export async function renderWalletCardArt(slug: string, origin?: string, format: WalletArtFormat = 'card') {
   const card = await fetchMyCardBySlug(slug)
   const brand = resolveWalletCardBrand(card, slug, origin)
-  const { width, height } = WALLET_ART_SIZE[format]
-  const scale = height / WALLET_ART_SIZE.card.height
+  const canvas = WALLET_ART_SIZE[format]
+  const source = WALLET_ART_SIZE.card
+  const fit = Math.min(canvas.width / source.width, canvas.height / source.height)
+  const drawW = Math.round(source.width * fit)
+  const drawH = Math.round(source.height * fit)
+  const scale = drawH / source.height
   const pad = Math.max(16, Math.round(28 * scale))
   const logo = Math.max(52, Math.round(118 * scale))
   const qr = Math.max(72, Math.round(168 * scale))
@@ -61,18 +65,18 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
         width: '100%',
         height: '100%',
         display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         background: '#050505',
-        padding: 10,
       }}
     >
       <div
         style={{
-          width: '100%',
-          height: '100%',
+          width: drawW,
+          height: drawH,
           display: 'flex',
-          border: `1.5px solid ${brand.accent}`,
-          borderRadius: 22,
-          padding: 8,
+          background: '#050505',
+          padding: Math.max(6, Math.round(10 * scale)),
         }}
       >
         <div
@@ -80,156 +84,173 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
             width: '100%',
             height: '100%',
             display: 'flex',
-            flexDirection: 'column',
-            border: `1px solid ${brand.accent}`,
-            borderRadius: 16,
-            padding: `${pad}px ${pad + 6}px ${Math.round(pad * 0.7)}px`,
-            background: 'linear-gradient(160deg, #141414 0%, #0a0a0a 48%, #050505 100%)',
-            color: brand.accent,
+            border: `1.5px solid ${brand.accent}`,
+            borderRadius: Math.max(14, Math.round(22 * scale)),
+            padding: Math.max(5, Math.round(8 * scale)),
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', flex: 1, minHeight: 0 }}>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                flex: 1,
-                minWidth: 0,
-                paddingRight: 24,
-              }}
-            >
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              border: `1px solid ${brand.accent}`,
+              borderRadius: Math.max(10, Math.round(16 * scale)),
+              padding: `${pad}px ${pad + 6}px ${Math.round(pad * 0.7)}px`,
+              background: 'linear-gradient(160deg, #141414 0%, #0a0a0a 48%, #050505 100%)',
+              color: brand.accent,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', flex: 1, minHeight: 0 }}>
               <div
                 style={{
                   display: 'flex',
-                  width: logo,
-                  height: logo,
-                  borderRadius: logo / 2,
-                  border: `2px solid ${brand.accent}`,
-                  padding: 4,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  flex: 1,
+                  minWidth: 0,
+                  paddingRight: 24,
                 }}
               >
                 <div
                   style={{
                     display: 'flex',
-                    width: '100%',
-                    height: '100%',
+                    width: logo,
+                    height: logo,
                     borderRadius: logo / 2,
-                    border: `1px solid ${brand.accent}`,
-                    overflow: 'hidden',
+                    border: `2px solid ${brand.accent}`,
+                    padding: 4,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: '#111',
                   }}
                 >
-                  {brand.logoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={brand.logoUrl}
-                      alt=""
-                      width={logo - 12}
-                      height={logo - 12}
-                      style={{ width: logo - 12, height: logo - 12, objectFit: 'cover', borderRadius: logo / 2 }}
-                    />
-                  ) : (
+                  <div
+                    style={{
+                      display: 'flex',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: logo / 2,
+                      border: `1px solid ${brand.accent}`,
+                      overflow: 'hidden',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#111',
+                    }}
+                  >
+                    {brand.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={brand.logoUrl}
+                        alt=""
+                        width={logo - 12}
+                        height={logo - 12}
+                        style={{ width: logo - 12, height: logo - 12, objectFit: 'cover', borderRadius: logo / 2 }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          fontSize: initialSize,
+                          fontWeight: 700,
+                          letterSpacing: 2,
+                          color: brand.accent,
+                        }}
+                      >
+                        {brand.initials}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      fontFamily: 'Georgia, Times New Roman, serif',
+                      fontSize: nameSize,
+                      lineHeight: 1.15,
+                      color: brand.accent,
+                    }}
+                  >
+                    {brand.name}
+                  </div>
+                  {brand.roleLine ? (
                     <div
                       style={{
                         display: 'flex',
-                        fontSize: initialSize,
-                        fontWeight: 700,
-                        letterSpacing: 2,
-                        color: brand.accent,
+                        marginTop: 8,
+                        fontSize: roleSize,
+                        color: '#ffffff',
+                        letterSpacing: 0.3,
                       }}
                     >
-                      {brand.initials}
+                      {brand.roleLine}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    fontFamily: 'Georgia, Times New Roman, serif',
-                    fontSize: nameSize,
-                    lineHeight: 1.15,
-                    color: brand.accent,
-                  }}
-                >
-                  {brand.name}
-                </div>
-                {brand.roleLine ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Contactless color={brand.accent} size={Math.max(22, Math.round(36 * scale))} />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div
-                    style={{ display: 'flex', marginTop: 8, fontSize: roleSize, color: '#ffffff', letterSpacing: 0.3 }}
+                    style={{
+                      display: 'flex',
+                      marginBottom: 8,
+                      fontSize: scanSize,
+                      letterSpacing: 1.2,
+                      color: brand.accent,
+                    }}
                   >
-                    {brand.roleLine}
+                    Scan to Connect
                   </div>
-                ) : null}
+                  <div
+                    style={{
+                      display: 'flex',
+                      padding: 6,
+                      border: `1px solid ${brand.accent}`,
+                      background: '#0a0a0a',
+                    }}
+                  >
+                    {qrSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={qrSrc} alt="" width={qr} height={qr} />
+                    ) : (
+                      <div style={{ display: 'flex', width: qr, height: qr, background: '#111' }} />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
             <div
               style={{
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-end',
-                justifyContent: 'space-between',
+                marginTop: Math.round(14 * scale),
+                paddingTop: Math.round(10 * scale),
+                borderTop: `1px solid ${brand.accent}`,
+                justifyContent: 'center',
               }}
             >
-              <Contactless color={brand.accent} size={Math.max(22, Math.round(36 * scale))} />
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    marginBottom: 8,
-                    fontSize: scanSize,
-                    letterSpacing: 1.2,
-                    color: brand.accent,
-                  }}
-                >
-                  Scan to Connect
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    padding: 6,
-                    border: `1px solid ${brand.accent}`,
-                    background: '#0a0a0a',
-                  }}
-                >
-                  {qrSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={qrSrc} alt="" width={qr} height={qr} />
-                  ) : (
-                    <div style={{ display: 'flex', width: qr, height: qr, background: '#111' }} />
-                  )}
-                </div>
+              <div style={{ display: 'flex', fontSize: footerSize, letterSpacing: 1.4, color: brand.accent }}>
+                Apple Wallet & Google Wallet Ready
               </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              marginTop: Math.round(14 * scale),
-              paddingTop: Math.round(10 * scale),
-              borderTop: `1px solid ${brand.accent}`,
-              justifyContent: 'center',
-            }}
-          >
-            <div style={{ display: 'flex', fontSize: footerSize, letterSpacing: 1.4, color: brand.accent }}>
-              Apple Wallet & Google Wallet Ready
             </div>
           </div>
         </div>
       </div>
     </div>,
     {
-      width,
-      height,
+      width: canvas.width,
+      height: canvas.height,
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=300, stale-while-revalidate=86400',

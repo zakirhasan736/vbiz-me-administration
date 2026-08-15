@@ -1,7 +1,6 @@
 'use client'
 
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
-import { UsaDigitalCardFace } from '@/profile-app/components/UsaDigitalCardFace'
 import { downloadAppleWalletPass } from '@/profile-app/lib/appleWallet'
 import { openGoogleWalletInNewTab } from '@/profile-app/lib/googleWallet'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -16,14 +15,12 @@ type SaveToWalletModalProps = {
 }
 
 export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: SaveToWalletModalProps) {
-  const { design, personal, homeMedia, field } = useProfileDisplay()
+  const { design, personal } = useProfileDisplay()
   const accentColor = design?.accentColor ?? '#C9A24A'
   const [savingGoogle, setSavingGoogle] = useState(false)
   const [savingApple, setSavingApple] = useState(false)
 
   const holder = (personal.fullName || ownerName || 'Cardholder').trim()
-  const companyIcon = field('Company/Office Icon').customValue?.trim() || ''
-  const logoUrl = companyIcon || homeMedia.profileMedia || ''
 
   const handleGoogleWallet = async () => {
     setSavingGoogle(true)
@@ -55,22 +52,11 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
           <X size={16} />
         </button>
 
-        <div className="mb-4 pr-8">
+        <div className="mb-5 pr-8">
           <h3 className="vbiz-title text-xl font-bold tracking-tight">Save to Wallet</h3>
           <p className="vbiz-description mt-2 text-sm leading-relaxed">
             Add {holder}&apos;s digital card to Apple Wallet or Google Wallet.
           </p>
-        </div>
-
-        <div className="mb-5">
-          <UsaDigitalCardFace
-            holderName={holder}
-            designation={personal.designation}
-            company={personal.company}
-            accentColor={accentColor}
-            logoUrl={logoUrl}
-            cardSlug={cardSlug}
-          />
         </div>
 
         <div className="flex flex-col gap-3">
