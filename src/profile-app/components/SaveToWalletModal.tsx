@@ -19,7 +19,6 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
   const accentColor = design?.accentColor ?? '#C9A24A'
   const [savingGoogle, setSavingGoogle] = useState(false)
   const [savingApple, setSavingApple] = useState(false)
-
   const holder = (personal.fullName || ownerName || 'Cardholder').trim()
 
   const handleGoogleWallet = async () => {
@@ -65,10 +64,7 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
             onClick={() => void handleGoogleWallet()}
             disabled={savingGoogle}
             className="vbiz-btn flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold tracking-wide transition-all active:scale-[0.98] disabled:opacity-60"
-            style={{
-              background: accentColor,
-              color: '#0f172a',
-            }}
+            style={{ background: accentColor, color: '#0f172a' }}
           >
             {savingGoogle ? (
               <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden />
@@ -83,10 +79,7 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
             onClick={() => void handleAppleWallet()}
             disabled={savingApple}
             className="vbiz-btn flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold tracking-wide transition-all active:scale-[0.98] disabled:opacity-60"
-            style={{
-              background: accentColor,
-              color: '#0f172a',
-            }}
+            style={{ background: accentColor, color: '#0f172a' }}
           >
             {savingApple ? (
               <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden />
