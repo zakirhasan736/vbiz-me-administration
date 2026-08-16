@@ -81,7 +81,7 @@ export function EmptyNavSection({ title, sectionName }: EmptyNavSectionProps) {
         </div>
         <p className="text-lg font-black text-zinc-900 dark:text-zinc-100">{title}</p>
         <p className="mt-2 max-w-sm text-sm leading-relaxed font-medium text-zinc-500 dark:text-zinc-400">
-          Content for this section is not available yet. You can add it from the editor when ready.
+          Content for this section is not available yet.
         </p>
       </div>
     </V3SectionShell>

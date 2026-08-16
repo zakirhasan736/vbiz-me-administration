@@ -42,7 +42,7 @@ export function VBizProfileAppV3({
   previewTheme,
   onPreviewThemeChange,
 }: VBizProfileAppProps) {
-  const { design: contextDesign } = useProfileDisplay()
+  const { design: contextDesign, pageColors } = useProfileDisplay()
 
   const design: ResolvedProfileDesign =
     designProp ??
@@ -117,7 +117,11 @@ export function VBizProfileAppV3({
 
   useProfileHomeModalEvents(setActiveModal, { cardSlug })
 
-  const rootStyle = v3DesignToCssVars(design)
+  const rootStyle = {
+    ...v3DesignToCssVars(design),
+    ...(pageColors.pageBg ? { backgroundColor: pageColors.pageBg } : { backgroundColor: 'var(--vbiz-bg)' }),
+    color: 'var(--vbiz-text)',
+  }
   const homeHeroProps = {
     theme,
     onAction: handleHeroAction,
@@ -130,11 +134,7 @@ export function VBizProfileAppV3({
       data-embedded={embedded ? '' : undefined}
       data-theme={theme}
       className={`vbiz-profile-root vbiz-profile-v3 no-scrollbar relative flex min-h-dvh w-full flex-col items-center overflow-x-clip transition-colors duration-500 ${theme === 'dark' ? 'bg-ocean-deep text-zinc-100' : 'bg-white text-zinc-900'} ${embedded ? 'min-h-0 max-w-full' : ''}`}
-      style={{
-        ...rootStyle,
-        backgroundColor: 'var(--vbiz-bg)',
-        color: 'var(--vbiz-text)',
-      }}
+      style={rootStyle}
     >
       <ProfileThemeStyles design={design} />
 

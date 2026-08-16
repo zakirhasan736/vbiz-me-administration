@@ -1,8 +1,10 @@
 'use client'
 
 import PublicAnnouncementBanner from '@/components/PublicAnnouncementBanner'
+import { getNavTabBackgroundColor } from '@/lib/vcardDisplaySettings'
 import { getNavDisplayLabel } from '@/lib/vcardNavbar'
 import { useProfileNavScroll } from '@/profile-app/hooks/useProfileNavScroll'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useProfileNavigation } from '@/profile-app/providers/ProfileNavigationProvider'
 import { cn } from '@/utils/cn'
 import { motion } from 'motion/react'
@@ -15,6 +17,7 @@ type ProfileNavigationV2Props = {
 
 export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNavigationV2Props) {
   const { visibleTabs, activeSectionId, goToSection } = useProfileNavigation()
+  const { settings, pageColors } = useProfileDisplay()
   const { scrollRef: navScrollRef, scrollClassName: navScrollClassName } = useProfileNavScroll(
     slugForPersistence,
     'v2',
@@ -37,6 +40,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
           'vbiz-floating-nav-inner relative w-full max-w-full rounded-4xl border border-zinc-200/80 bg-white/80 p-2 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-3xl sm:rounded-full dark:border-zinc-700/50 dark:bg-zinc-900/80 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]',
           embedded ? 'max-w-[calc(100%-0.5rem)]' : ''
         )}
+        style={pageColors.navBg ? { backgroundColor: pageColors.navBg } : undefined}
       >
         <div className="min-w-0 flex-1 overflow-hidden">
           <div
@@ -48,6 +52,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
           >
             {visibleTabs.map((tab, index) => {
               const isActive = activeSectionId === tab.id
+              const tabBg = getNavTabBackgroundColor(settings, tab.id)
               const tabClassName = `vbiz-nav-tab relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 sm:h-14 sm:w-14 ${
                 isActive ? 'z-10 mx-0.5 shadow-[0_4px_15px_rgba(0,0,0,0.1)] sm:mx-1' : ''
               }`
@@ -88,6 +93,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
                   title={getNavDisplayLabel(tab)}
                   aria-label={getNavDisplayLabel(tab)}
                   className={tabClassName}
+                  style={tabBg ? { backgroundColor: tabBg } : undefined}
                 >
                   {isActive && (
                     <motion.div
@@ -100,7 +106,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
                   <div className="relative z-10 flex items-center justify-center">
                     <tab.icon
                       strokeWidth={isActive ? 2.5 : 2}
-                      className="vbiz-nav-tab-icon h-[18px] w-[18px] transition-colors duration-300 sm:h-[22px] sm:w-[22px]"
+                      className="vbiz-nav-tab-icon h-4.5 w-4.5 transition-colors duration-300 sm:h-5.5 sm:w-5.5"
                     />
                   </div>
                 </motion.button>

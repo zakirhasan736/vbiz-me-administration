@@ -1,6 +1,8 @@
 'use client'
 
+import { getNavTabBackgroundColor } from '@/lib/vcardDisplaySettings'
 import { useProfileNavScroll } from '@/profile-app/hooks/useProfileNavScroll'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { cn } from '@/utils/cn'
 import { ChevronLeft, ChevronRight, LucideIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -22,6 +24,7 @@ interface NavigationProps {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActiveTab, slugForPersistence }) => {
+  const { settings } = useProfileDisplay()
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [isOverflowing, setIsOverflowing] = useState(false)
 
@@ -94,6 +97,7 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id
           const isHovered = hoveredTab === tab.id
+          const tabBg = getNavTabBackgroundColor(settings, tab.id)
 
           return (
             <motion.button
@@ -111,6 +115,7 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
               className="vbiz-nav-tab focus-visible:ring-gold/60 relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] transition-all duration-300 outline-none focus-visible:ring-1 active:scale-95 md:h-12 md:w-12 md:rounded-[14px]"
               title={tab.label}
               aria-label={tab.label}
+              style={tabBg ? { backgroundColor: tabBg } : undefined}
             >
               {isHovered && !isActive && (
                 <motion.div

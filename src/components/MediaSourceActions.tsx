@@ -385,6 +385,11 @@ type Props = {
   compact?: boolean
   /** Optional profile id so Canva imports attach to the card media library */
   profileId?: string | null
+  /**
+   * When false, hide Gallery / Custom Made even if mode is video/both.
+   * Defaults to true so existing video fields keep those extras.
+   */
+  showVideoExtras?: boolean
 }
 
 /**
@@ -392,7 +397,14 @@ type Props = {
  * After Canva connect, opens the owner's real Canva designs, exports the pick,
  * uploads to vBiz media storage, and fills the field URL.
  */
-export function MediaSourceActions({ mode = 'image', onSelect, className, compact, profileId }: Props) {
+export function MediaSourceActions({
+  mode = 'image',
+  onSelect,
+  className,
+  compact,
+  profileId,
+  showVideoExtras: showVideoExtrasProp = true,
+}: Props) {
   const { user } = useAuth()
   const userId = user?.uid ?? null
   const { isConnected, isLoading, error, connect, justConnected, clearJustConnected } = useCanvaConnection({
@@ -418,7 +430,7 @@ export function MediaSourceActions({ mode = 'image', onSelect, className, compac
     return () => clearTimeout(t)
   }, [justConnected, isConnected, userId, clearJustConnected])
 
-  const showVideoExtras = mode === 'video' || mode === 'both'
+  const showVideoExtras = showVideoExtrasProp && (mode === 'video' || mode === 'both')
 
   const btnBase =
     'inline-flex items-center justify-center gap-2 rounded-[14px] text-[13px] font-bold transition-all active:scale-[0.98] whitespace-nowrap'
@@ -558,7 +570,7 @@ export function isCanvaConnected() {
 }
 
 /** @deprecated Demo helpers — kept for any legacy imports */
-export function setCanvaConnected(_v: boolean) {
+export function setCanvaConnected() {
   /* no-op */
 }
 

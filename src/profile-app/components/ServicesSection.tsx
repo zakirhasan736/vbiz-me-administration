@@ -49,7 +49,7 @@ export const ServicesSection = () => {
     return (
       <div className="w-full pb-20">
         <SectionHeader sectionTitle={sectionTitle} isLoading />
-        <div className="vbiz-bento-grid relative z-20 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="vbiz-bento-grid relative z-20 grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: SKELETON_CARD_COUNT }, (_, idx) => (
             <ServiceCardSkeleton key={idx} delay={idx * 0.08} />
           ))}
@@ -78,7 +78,7 @@ export const ServicesSection = () => {
           </div>
           <h2 className="mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{sectionTitle}</h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-            No services have been published yet. Add content from the vCard editor Services tab.
+            No services have been published yet.
           </p>
         </div>
       </div>
@@ -89,7 +89,7 @@ export const ServicesSection = () => {
     <div className="w-full pb-20">
       <SectionHeader sectionTitle={sectionTitle} />
 
-      <div className="vbiz-bento-grid relative z-20 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="vbiz-bento-grid relative z-20 grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
         {services.map((service, idx) => {
           const imageUrl = service.featuredImage.trim()
           const hasDetail = Boolean(service.htmlDescription.trim() || service.description.trim())

@@ -37,7 +37,10 @@ export function normalizeFieldConfig(config: DisplayFieldConfig): DisplayFieldCo
   return next
 }
 
-/** Remove API-driven colors so public profiles use static template styling only. */
+/**
+ * @deprecated Prefer normalizeFieldConfig — Card Settings colors now apply on public vCards.
+ * Kept for any legacy callers that still need a full color wipe.
+ */
 export function stripFieldDisplayColors(config: DisplayFieldConfig): DisplayFieldConfig {
   const next = normalizeFieldConfig({ ...config })
   delete next.textColor

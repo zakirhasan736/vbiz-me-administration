@@ -8,6 +8,8 @@ import type { ProfileAiData } from '@/interfaces/api/profileAiData'
 import type { ReviewsQueryResult } from '@/interfaces/api/reviews.interface'
 import type { ServicesQueryResult } from '@/interfaces/api/services.interface'
 import type { NavBarLinksData, PostTypeNavLink } from '@/interfaces/navbarLinks.interface'
+import { getAboutMeDraft, hasAboutMeDraftContent, subscribeAboutMeDraft, type AboutMeDraft } from '@/lib/aboutMeDraft'
+import { mapAboutMeItemToListItem } from '@/lib/api/aboutMe/mapAboutMe'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { dynamicSectionApi } from '@/redux/features/dynamicSection/dynamicSection.api'
 import { navBarLinksApi } from '@/redux/features/navbar/navbar.api'
@@ -28,7 +30,7 @@ import type {
   VCardServiceEntry,
   VCardSkillGroup,
 } from '@/types/vcard'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 function draftPostType(id: string, name: string, title: string): PostTypeNavLink {
   return {
@@ -55,7 +57,7 @@ function buildDraftNavBarLinks(input: {
   services?: VCardServiceEntry[]
   portfolio?: VCardPortfolioEntry[]
   reviews?: VCardReviewEntry[]
-  about?: string
+  aboutMeDraft?: AboutMeDraft
 }): NavBarLinksData {
   const post_types: PostTypeNavLink[] = []
   const pushUnique = (item: PostTypeNavLink) => {
@@ -63,7 +65,9 @@ function buildDraftNavBarLinks(input: {
     post_types.push(item)
   }
 
-  if ((input.about || '').trim()) pushUnique(draftPostType('about', 'About Me', 'About Me'))
+  if (input.aboutMeDraft && hasAboutMeDraftContent(input.aboutMeDraft)) {
+    pushUnique(draftPostType('about', 'About Me', 'About Me'))
+  }
   if ((input.services || []).some((s) => s.active !== false && s.title?.trim())) {
     pushUnique(draftPostType('services', 'services', 'Services'))
   }
@@ -225,7 +229,6 @@ function faqsToDynamic(faqs: VCardFaqEntry[]): DynamicPostsQueryResult {
 type EmbeddedDraftCacheSyncProps = {
   embedded?: boolean
   cardOwnerId?: string
-  about?: string
   sectionPosts?: Record<string, VCardSectionPostItem[]>
   customTabs?: VCardCustomTab[]
   generalPosts?: VCardGeneralPost[]
@@ -238,6 +241,29 @@ type EmbeddedDraftCacheSyncProps = {
   reviews?: VCardReviewEntry[]
 }
 
+function aboutMeDraftToQueryResult(draft: AboutMeDraft): AboutMeQueryResult {
+  if (!hasAboutMeDraftContent(draft)) {
+    return { sectionTitle: 'About Me', items: [] }
+  }
+  const title = draft.title.trim()
+  return {
+    sectionTitle: 'About Me',
+    items: [
+      mapAboutMeItemToListItem({
+        id: 1,
+        title,
+        description: draft.descriptionHtml || null,
+        profile_id: 0,
+        post_type_id: 0,
+        status: 1,
+        created_at: '',
+        updated_at: '',
+        featured_image: draft.featuredMediaUrl.trim() || null,
+      }),
+    ],
+  }
+}
+
 /**
  * When the editor live preview is embedded, push draft collections into the public RTK
  * Query cache so section tabs reflect unsaved edits without hitting the network.
@@ -245,7 +271,6 @@ type EmbeddedDraftCacheSyncProps = {
 export function EmbeddedDraftCacheSync({
   embedded,
   cardOwnerId,
-  about,
   sectionPosts,
   customTabs,
   generalPosts,
@@ -258,6 +283,7 @@ export function EmbeddedDraftCacheSync({
   reviews,
 }: EmbeddedDraftCacheSyncProps) {
   const dispatch = useAppDispatch()
+  const [aboutMeDraft, setAboutMeDraftState] = useState<AboutMeDraft>(() => getAboutMeDraft())
   /** Pure API `/post-types` payload — kept so draft merges do not permanently overwrite published tabs. */
   const apiNavBaselineRef = useRef<{ profileId: string; loaded: boolean; data?: NavBarLinksData }>({
     profileId: '',
@@ -268,6 +294,8 @@ export function EmbeddedDraftCacheSync({
     profileId: '',
     signatures: new Map(),
   })
+
+  useEffect(() => subscribeAboutMeDraft(() => setAboutMeDraftState(getAboutMeDraft())), [])
 
   useEffect(() => {
     if (!embedded || !cardOwnerId) return
@@ -354,29 +382,10 @@ export function EmbeddedDraftCacheSync({
       )
     }
 
-    if (about !== undefined) {
-      const aboutResult: AboutMeQueryResult = {
-        sectionTitle: 'About Me',
-        items: about.trim()
-          ? [
-              {
-                id: 1,
-                title: 'About Me',
-                plainDescription: about,
-                htmlDescription: about,
-                introHtml: about,
-                featuredImage: '',
-                pillars: [],
-                highlight: null,
-                footer: null,
-              },
-            ]
-          : [],
-      }
-      upsertIfChanged('about', aboutResult, (result) =>
-        dispatch(aboutMeApi.util.upsertQueryData('getAboutMe', profileId, result))
-      )
-    }
+    const aboutResult = aboutMeDraftToQueryResult(aboutMeDraft)
+    upsertIfChanged('about', aboutResult, (result) =>
+      dispatch(aboutMeApi.util.upsertQueryData('getAboutMe', profileId, result))
+    )
 
     if (services) {
       const servicesResult: ServicesQueryResult = {
@@ -452,6 +461,12 @@ export function EmbeddedDraftCacheSync({
         skills: (g.skills || []).map((s) => String(s || '').trim()).filter(Boolean),
       }))
       .filter((g) => g.skills.length > 0)
+    const aboutPlain =
+      aboutResult.items[0]?.plainDescription ||
+      aboutMeDraft.descriptionHtml
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
     const aiData: ProfileAiData = {
       slug: '',
       ownerName: '',
@@ -463,7 +478,7 @@ export function EmbeddedDraftCacheSync({
       whatsapp: '',
       website: '',
       location: '',
-      about: about || '',
+      about: aboutPlain || '',
       socials: {
         facebook: null,
         instagram: null,
@@ -531,7 +546,7 @@ export function EmbeddedDraftCacheSync({
       services,
       portfolio,
       reviews,
-      about,
+      aboutMeDraft,
     })
 
     // Merge draft tabs onto published API post-types (do not replace the catalog).
@@ -568,7 +583,7 @@ export function EmbeddedDraftCacheSync({
   }, [
     embedded,
     cardOwnerId,
-    about,
+    aboutMeDraft,
     sectionPosts,
     customTabs,
     generalPosts,

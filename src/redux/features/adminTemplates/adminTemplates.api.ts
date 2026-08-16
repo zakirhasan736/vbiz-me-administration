@@ -9,6 +9,7 @@ type Envelope<T> = {
 }
 
 const adminTemplatesApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getAdminTemplates: builder.query<CardTemplate[], void>({
       query: () => '/admin/templates',

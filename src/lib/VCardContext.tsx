@@ -1,8 +1,11 @@
 'use client'
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { hasAboutMeDraftContent } from '@/lib/aboutMeDraft'
+import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
 import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
+import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { notify } from '@/lib/toast/toast'
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
 import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
@@ -16,15 +19,22 @@ import { publicApi } from '@/redux/api/publicApi'
 import {
   BLOG_POST_TYPE,
   FAQ_POST_TYPE,
+  isLocalTempId,
   mapApiPostsToFaqs,
   mapApiPostsToGeneralPosts,
   mapApiProfileToVCardRecord,
   mapVCardDataToProfilePayload,
+  useCreateProfileBlogMutation,
   useCreateProfileMutation,
   useCreateProfilePostMutation,
+  useCreateProfileTabItemMutation,
+  useDeleteProfileBlogMutation,
   useDeleteProfilePostMutation,
+  useDeleteProfileTabItemMutation,
   useGetProfileQuery,
+  useLazyListProfileBlogsQuery,
   useLazyListProfilePostsQuery,
+  useLazyListProfileTabItemsQuery,
   useReplaceEducationMutation,
   useReplaceExperiencesMutation,
   useReplacePortfoliosMutation,
@@ -32,8 +42,10 @@ import {
   useReplaceServicesMutation,
   useReplaceSkillsMutation,
   useReplaceSocialLinksMutation,
+  useUpdateProfileBlogMutation,
   useUpdateProfileCardMutation,
   useUpdateProfilePostMutation,
+  useUpdateProfileTabItemMutation,
 } from '@/redux/features/profiles/profiles.api'
 import { addVCard, replaceVCardData, selectVCardById, updateVCard } from '@/redux/features/vcards/vcards.slice'
 import type { RootState } from '@/redux/store'
@@ -218,6 +230,14 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const [createPost] = useCreateProfilePostMutation()
   const [updatePost] = useUpdateProfilePostMutation()
   const [deletePost] = useDeleteProfilePostMutation()
+  const [listBlogs] = useLazyListProfileBlogsQuery()
+  const [createBlog] = useCreateProfileBlogMutation()
+  const [updateBlog] = useUpdateProfileBlogMutation()
+  const [deleteBlog] = useDeleteProfileBlogMutation()
+  const [listTabItems] = useLazyListProfileTabItemsQuery()
+  const [createTabItem] = useCreateProfileTabItemMutation()
+  const [updateTabItem] = useUpdateProfileTabItemMutation()
+  const [deleteTabItem] = useDeleteProfileTabItemMutation()
 
   const postsHydratedForId = useRef<string | null>(null)
   const postsSnapshotRef = useRef<{
@@ -325,14 +345,44 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     ;(async () => {
       try {
         const schemas = Object.values(VCARD_SECTION_SCHEMAS)
+        const publicNameToTabKey = (name: string) => {
+          const needle = name.trim().toLowerCase()
+          if (needle === 'faq') return 'faqs'
+          return Object.values(TAB_REGISTRY).find((t) => t.publicSectionName.toLowerCase() === needle)?.key || null
+        }
         const [blogPosts, faqPosts, ...sectionResults] = await Promise.all([
-          listPosts({ id: profileId, postType: BLOG_POST_TYPE }).unwrap(),
-          listPosts({ id: profileId, postType: FAQ_POST_TYPE }).unwrap(),
-          ...schemas.map((schema) =>
-            listPosts({ id: profileId, postType: schema.postTypeName })
+          (async () => {
+            try {
+              const rows = await listBlogs(profileId).unwrap()
+              if (rows.length) return rows
+            } catch {
+              /* fall through */
+            }
+            return listPosts({ id: profileId, postType: BLOG_POST_TYPE }).unwrap()
+          })(),
+          (async () => {
+            try {
+              const rows = await listTabItems({ id: profileId, tabKey: 'faqs' }).unwrap()
+              if (rows.length) return rows
+            } catch {
+              /* fall through */
+            }
+            return listPosts({ id: profileId, postType: FAQ_POST_TYPE }).unwrap()
+          })(),
+          ...schemas.map(async (schema) => {
+            const tabKey = publicNameToTabKey(schema.postTypeName)
+            if (tabKey && TAB_REGISTRY[tabKey]?.architecture === 'direct') {
+              try {
+                const rows = await listTabItems({ id: profileId, tabKey }).unwrap()
+                if (rows.length) return rows
+              } catch {
+                /* fall through */
+              }
+            }
+            return listPosts({ id: profileId, postType: schema.postTypeName })
               .unwrap()
               .catch(() => [])
-          ),
+          }),
         ])
         if (cancelled) return
 
@@ -369,7 +419,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [remoteProfile, isCreateMode, dispatch, listPosts])
+  }, [remoteProfile, isCreateMode, dispatch, listPosts, listBlogs, listTabItems])
 
   const accountDefaultsSig = designDefaultsSignature(design)
   const [createDraft, setCreateDraft] = useState<VCardData>(() => buildCreateDraft(design))
@@ -532,6 +582,14 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           createPost,
           updatePost,
           deletePost,
+          listBlogs,
+          createBlog,
+          updateBlog,
+          deleteBlog,
+          listTabItems,
+          createTabItem,
+          updateTabItem,
+          deleteTabItem,
         })
 
         const generalPosts = mapApiPostsToGeneralPosts(synced.blog)
@@ -571,6 +629,14 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       createPost,
       updatePost,
       deletePost,
+      listBlogs,
+      createBlog,
+      updateBlog,
+      deleteBlog,
+      listTabItems,
+      createTabItem,
+      updateTabItem,
+      deleteTabItem,
       dispatch,
     ]
   )
@@ -642,8 +708,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(autosaveTimerRef.current)
       autosaveTimerRef.current = null
     }
+    if (cardId && !isLocalTempId(cardId)) {
+      await flushAboutMeUpsert(dispatch)
+    }
     await runPersist()
-  }, [isCreateMode, runPersist])
+  }, [isCreateMode, cardId, dispatch, runPersist])
 
   const flushSaveRef = useRef(flushSave)
   useEffect(() => {
@@ -812,6 +881,9 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         editDataRef.current = seed
 
         await persistCollections(created.id, seed)
+        if (hasAboutMeDraftContent()) {
+          await flushAboutMeUpsert(dispatch, created.id)
+        }
         invalidatePublicTags()
 
         try {

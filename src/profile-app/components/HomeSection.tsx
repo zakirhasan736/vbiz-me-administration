@@ -273,7 +273,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
 
   const websiteHref = useMemo(() => resolveSocialLinkHref('Website', socialHref).trim(), [socialHref])
 
-  const visibleSocials = filterSocialItemsWithLinks(V1_SOCIAL_GRID, socialHref, personal.whatsapp).filter(
+  const visibleSocials = filterSocialItemsWithLinks(V1_SOCIAL_GRID, socialHref, personal.whatsapp, isVisible).filter(
     (item) => item.label !== 'Website'
   )
 
@@ -412,20 +412,32 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               {/* Mobile social icons (left column) */}
               {visibleSocials.length > 0 ? (
                 <div className="absolute top-0 left-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
-                  {visibleSocials.slice(0, 5).map((item, idx) => (
-                    <motion.a
-                      key={`${item.label}-${idx}`}
-                      href={socialHref(item.label)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl"
-                    >
-                      <item.icon size={16} fill="currentColor" />
-                    </motion.a>
-                  ))}
+                  {visibleSocials.slice(0, 5).map((item, idx) => {
+                    const socialStyle = field(item.label)
+                    const iconColor = socialStyle.iconColor ?? socialStyle.textColor
+                    const socialInlineStyle =
+                      iconColor || socialStyle.backgroundColor
+                        ? {
+                            ...(iconColor ? { color: iconColor } : {}),
+                            ...(socialStyle.backgroundColor ? { backgroundColor: socialStyle.backgroundColor } : {}),
+                          }
+                        : undefined
+                    return (
+                      <motion.a
+                        key={`${item.label}-${idx}`}
+                        href={socialHref(item.label)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl"
+                        style={socialInlineStyle}
+                      >
+                        <item.icon size={16} fill="currentColor" />
+                      </motion.a>
+                    )
+                  })}
                 </div>
               ) : null}
 

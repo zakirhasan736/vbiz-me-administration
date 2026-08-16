@@ -287,7 +287,7 @@ export const ImageGallerySection = () => {
           </div>
           <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight">{sectionTitle}</h2>
           <p className="vbiz-description max-w-md text-sm leading-relaxed font-medium">
-            No gallery images have been published yet. Add content from the vCard editor Gallery tab.
+            No gallery images have been published yet.
           </p>
         </div>
       </div>

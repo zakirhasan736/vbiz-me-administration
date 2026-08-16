@@ -1,13 +1,18 @@
 'use client'
 
 import { DocumentUploadArea, type UploadedDoc } from '@/components/DocumentUploadArea'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
+import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
-import { useVCard } from '@/lib/VCardContext'
+import { useAppDispatch } from '@/hooks/redux'
+import { getAboutMeDraft, isAboutMeDescriptionFilled, setAboutMeDraft } from '@/lib/aboutMeDraft'
+import { flushAboutMeUpsert, scheduleAboutMeUpsert } from '@/lib/aboutMePersist'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import type { CompletionFieldEdit, CompletionScalarControl, VCardCompletionField } from '@/lib/vcardCompletion'
+import { useVCard } from '@/lib/VCardContext'
 import { createDefaultEducationEntry } from '@/lib/vcardEducation'
 import { createDefaultExperienceEntry } from '@/lib/vcardExperience'
 import { createDefaultFaqEntry } from '@/lib/vcardFaq'
@@ -25,6 +30,9 @@ import { type ReactNode, useMemo, useState } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-4 py-3.5 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 shadow-sm'
+
+const aboutMeInputClasses =
+  'w-full rounded-xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#0b0f19] px-4 py-3 text-sm font-medium text-slate-900 dark:text-white outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 shadow-sm'
 
 const selectClasses = `${inputClasses} appearance-none cursor-pointer`
 
@@ -697,6 +705,87 @@ function ContentVideoFill() {
   )
 }
 
+function AboutMeDraftQuickFill({
+  fieldKey,
+  label,
+  profileId,
+}: {
+  fieldKey: Extract<CompletionFieldEdit, { type: 'about-me-draft' }>['field']
+  label: string
+  profileId?: string
+}) {
+  const dispatch = useAppDispatch()
+  const initial = getAboutMeDraft()
+  const [title, setTitle] = useState(initial.title)
+  const [descriptionHtml, setDescriptionHtml] = useState(initial.descriptionHtml)
+  const [featuredMediaUrl, setFeaturedMediaUrl] = useState(initial.featuredMediaUrl)
+
+  const persistDraft = (partial: Parameters<typeof setAboutMeDraft>[0], mode: 'schedule' | 'flush' = 'flush') => {
+    setAboutMeDraft(partial)
+    if (!profileId) return
+    if (mode === 'schedule') scheduleAboutMeUpsert(dispatch, profileId)
+    else void flushAboutMeUpsert(dispatch, profileId)
+  }
+
+  if (fieldKey === 'featuredMediaUrl') {
+    const commit = (next: string) => {
+      setFeaturedMediaUrl(next)
+      persistDraft({ featuredMediaUrl: next }, 'schedule')
+    }
+    return (
+      <div className="space-y-3">
+        <MediaFileUploader
+          label="Featured media"
+          accent="violet"
+          profileId={profileId}
+          attachmentType="About Me Featured"
+          accept="image/*,video/*"
+          allowUrlPaste={false}
+          hint="Upload an image or video — type is detected automatically"
+          value={featuredMediaUrl}
+          onChange={(next) => commit(next?.url || '')}
+        />
+        <MediaSourceActions
+          mode="both"
+          compact
+          showVideoExtras={false}
+          profileId={profileId}
+          onSelect={(asset) => commit(asset.url)}
+        />
+      </div>
+    )
+  }
+
+  if (fieldKey === 'descriptionHtml') {
+    const canApply =
+      isAboutMeDescriptionFilled(descriptionHtml) && descriptionHtml.trim() !== (initial.descriptionHtml || '').trim()
+    return (
+      <DeferredApplyRow label={label} stacked canApply={canApply} onApply={() => persistDraft({ descriptionHtml })}>
+        <RichTextEditor
+          value={descriptionHtml}
+          onChange={setDescriptionHtml}
+          placeholder="Share your story, background, and what makes you unique…"
+          minHeightClassName="min-h-36"
+        />
+      </DeferredApplyRow>
+    )
+  }
+
+  const trimmed = title.trim()
+  const canApply = Boolean(trimmed) && trimmed !== initial.title.trim()
+  return (
+    <DeferredApplyRow label={label} canApply={canApply} onApply={() => persistDraft({ title: trimmed })}>
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="About Me"
+        className={aboutMeInputClasses}
+      />
+    </DeferredApplyRow>
+  )
+}
+
 export function CompletionQuickFillEditor({ field }: { field: VCardCompletionField }) {
   const { vCardData, updateData, updateMeta, cardId, isCreateMode, avatarImageUrl } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
@@ -731,6 +820,9 @@ export function CompletionQuickFillEditor({ field }: { field: VCardCompletionFie
   if (edit.type === 'resume-document') return <ResumeDocumentFill />
   if (edit.type === 'content-gallery') return <ContentGalleryFill />
   if (edit.type === 'content-video') return <ContentVideoFill />
+  if (edit.type === 'about-me-draft') {
+    return <AboutMeDraftQuickFill fieldKey={edit.field} label={field.label} profileId={profileId} />
+  }
 
   if (edit.type === 'display-media') {
     const value = getCustomValue(edit.fieldKey) || (edit.alsoUpdateMeta === 'avatar' ? avatarImageUrl || '' : '')

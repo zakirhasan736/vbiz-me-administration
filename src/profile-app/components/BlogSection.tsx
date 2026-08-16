@@ -37,7 +37,7 @@ export const BlogSection = ({ sectionName = 'blog' }: BlogSectionProps) => {
       isLoading={isLoading}
       isError={isError}
       badgeLabel="Blog"
-      emptyMessage="No blog posts have been published yet. Add content from the vCard editor Blog tab."
+      emptyMessage="No blog posts have been published yet."
       onPostClick={(post) => setSelectedPostId(post.id)}
     />
   )

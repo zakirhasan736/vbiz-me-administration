@@ -125,13 +125,7 @@ export const MissionSection = () => {
   }
 
   if (showEmptyState) {
-    return (
-      <V3EmptyState
-        icon={BookOpen}
-        title={sectionTitle}
-        message="No mission statement has been published yet. Add content from the vCard editor Mission Statement tab."
-      />
-    )
+    return <V3EmptyState icon={BookOpen} title={sectionTitle} message="No mission statement has been published yet." />
   }
 
   return (

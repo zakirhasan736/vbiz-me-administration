@@ -89,8 +89,18 @@ export const HomeHero: React.FC<{
   toggleTheme?: () => void
 }> = ({ theme, onAction, toggleTheme }) => {
   const { t, lang } = useTranslation()
-  const { personal, isVisible, field, homeMedia, socialHref, profileViews, cardOwnerId, cardSlug, embedded } =
-    useProfileDisplay()
+  const {
+    personal,
+    isVisible,
+    field,
+    homeMedia,
+    socialHref,
+    profileViews,
+    cardOwnerId,
+    cardSlug,
+    embedded,
+    pageColors,
+  } = useProfileDisplay()
 
   /**
    * The editor phone preview is ~420px wide inside a desktop viewport, so `md:` would
@@ -121,10 +131,10 @@ export const HomeHero: React.FC<{
 
   const visibleSocials = useMemo(
     () =>
-      filterSocialItemsWithLinks(V3_SOCIAL_ITEMS, socialHref, personal.whatsapp).filter(
+      filterSocialItemsWithLinks(V3_SOCIAL_ITEMS, socialHref, personal.whatsapp, isVisible).filter(
         (item) => item.label !== 'Website'
       ),
-    [socialHref, personal.whatsapp]
+    [socialHref, personal.whatsapp, isVisible]
   )
 
   const viewCountLabel = formatProfileViewCount(profileViews)
@@ -149,14 +159,32 @@ export const HomeHero: React.FC<{
     return <Icon size={size} strokeWidth={2.5} />
   }
 
+  const socialInlineStyle = (label: string) => {
+    const socialStyle = field(label)
+    const iconColor = socialStyle.iconColor ?? socialStyle.textColor
+    if (!iconColor && !socialStyle.backgroundColor) return undefined
+    return {
+      ...(iconColor ? { color: iconColor } : {}),
+      ...(socialStyle.backgroundColor ? { backgroundColor: socialStyle.backgroundColor } : {}),
+    }
+  }
+
   return (
     <div
       className={`border-gold/20 relative mx-auto flex w-full max-w-120 flex-col overflow-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 ${
         compact ? 'min-h-0' : 'min-h-[calc(100dvh-72px)] md:max-w-none md:border-0'
       } ${theme === 'dark' ? 'bg-[#031327] text-white' : 'bg-white text-zinc-900'}`}
+      style={
+        pageColors.pageBg || pageColors.pageBanner
+          ? {
+              ...(pageColors.pageBg ? { backgroundColor: pageColors.pageBg } : {}),
+            }
+          : undefined
+      }
     >
       <div
         className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${theme === 'dark' ? 'bg-[#030914]' : 'bg-white'}`}
+        style={pageColors.pageBanner ? { backgroundColor: pageColors.pageBanner } : undefined}
       >
         <div className="absolute inset-0 mx-auto h-full w-full overflow-hidden md:max-w-258">
           <ProfileWallpaperContent
@@ -264,6 +292,7 @@ export const HomeHero: React.FC<{
                     className={`vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 hover:scale-[1.12] hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] ${
                       compact ? '' : 'md:h-10 md:w-10'
                     }`}
+                    style={socialInlineStyle(item.label)}
                   >
                     {renderSocialIcon(item, 18)}
                   </a>
@@ -323,9 +352,12 @@ export const HomeHero: React.FC<{
           {showName && (
             <h1
               className={`notranslate mt-2 mb-1 px-4 text-center text-[22px] leading-tight font-bold tracking-tight drop-shadow-md ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
-              style={
-                field('MyInfo section Name').textColor ? { color: field('MyInfo section Name').textColor } : undefined
-              }
+              style={{
+                ...(field('MyInfo section Name').textColor ? { color: field('MyInfo section Name').textColor } : {}),
+                ...(field('MyInfo section Name').backgroundColor
+                  ? { backgroundColor: field('MyInfo section Name').backgroundColor }
+                  : {}),
+              }}
             >
               {personal.fullName}
             </h1>
@@ -333,9 +365,19 @@ export const HomeHero: React.FC<{
           {designationLine && (
             <p
               className={`notranslate mb-4 text-[16px] font-medium opacity-90 drop-shadow-sm ${theme === 'dark' ? 'text-white/90' : 'text-zinc-700'}`}
-              style={
-                field('MyInfo Designation').textColor ? { color: field('MyInfo Designation').textColor } : undefined
-              }
+              style={{
+                ...(field('MyInfo Profession').textColor || field('MyInfo Designation').textColor
+                  ? {
+                      color: field('MyInfo Profession').textColor || field('MyInfo Designation').textColor,
+                    }
+                  : {}),
+                ...(field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor
+                  ? {
+                      backgroundColor:
+                        field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor,
+                    }
+                  : {}),
+              }}
             >
               {designationLine}
             </p>
@@ -368,11 +410,14 @@ export const HomeHero: React.FC<{
                 {showName && (
                   <h1
                     className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[56px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
-                    style={
-                      field('MyInfo section Name').textColor
+                    style={{
+                      ...(field('MyInfo section Name').textColor
                         ? { color: field('MyInfo section Name').textColor }
-                        : undefined
-                    }
+                        : {}),
+                      ...(field('MyInfo section Name').backgroundColor
+                        ? { backgroundColor: field('MyInfo section Name').backgroundColor }
+                        : {}),
+                    }}
                   >
                     {personal.fullName}
                   </h1>
@@ -380,11 +425,21 @@ export const HomeHero: React.FC<{
                 {designationLine && (
                   <p
                     className={`notranslate mb-5 ml-1 w-fit overflow-hidden bg-linear-to-r bg-clip-text text-[20px] font-bold text-transparent drop-shadow-lg xl:text-[24px] ${theme === 'dark' ? 'from-gold to-yellow-400' : 'from-amber-700 to-amber-950'}`}
-                    style={
-                      field('MyInfo Designation').textColor
-                        ? { color: field('MyInfo Designation').textColor }
-                        : undefined
-                    }
+                    style={{
+                      ...(field('MyInfo Profession').textColor || field('MyInfo Designation').textColor
+                        ? {
+                            color: field('MyInfo Profession').textColor || field('MyInfo Designation').textColor,
+                            backgroundImage: 'none',
+                            WebkitTextFillColor: 'unset',
+                          }
+                        : {}),
+                      ...(field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor
+                        ? {
+                            backgroundColor:
+                              field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor,
+                          }
+                        : {}),
+                    }}
                   >
                     {designationLine}
                   </p>
@@ -442,6 +497,7 @@ export const HomeHero: React.FC<{
                           rel="noopener noreferrer"
                           onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
                           className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
+                          style={socialInlineStyle(item.label)}
                         >
                           {renderSocialIcon(item, 18)}
                         </a>

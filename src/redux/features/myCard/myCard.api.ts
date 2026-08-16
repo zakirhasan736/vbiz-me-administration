@@ -20,7 +20,7 @@ export const myCardApi = api.injectEndpoints({
       keepUnusedDataFor: FIVE_MINUTES_SECONDS,
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetMyCardBySlugQuery, useLazyGetMyCardBySlugQuery } = myCardApi

@@ -16,7 +16,7 @@ export const videoExplainerApi = api.injectEndpoints({
       providesTags: (_result, _error, profileId) => [{ type: 'VideoExplainer', id: profileId }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetVideoExplainerQuery, useLazyGetVideoExplainerQuery } = videoExplainerApi

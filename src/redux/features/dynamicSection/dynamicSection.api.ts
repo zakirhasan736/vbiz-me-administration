@@ -18,7 +18,7 @@ export const dynamicSectionApi = api.injectEndpoints({
       providesTags: (_result, _error, arg) => [{ type: 'DynamicSection', id: `${arg.profileId}:${arg.sectionName}` }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetDynamicSectionQuery, useLazyGetDynamicSectionQuery } = dynamicSectionApi

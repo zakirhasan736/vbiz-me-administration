@@ -55,7 +55,11 @@ export function VBizProfileApp({
   const { openLanguageModal } = useTranslationUi()
   const { isScrolled } = useProfileSectionScroll(activeSectionId)
 
-  const headerTextColor = field('vCard Header Color').textColor || field('MyInfo section Name').textColor || undefined
+  const headerTextColor =
+    pageColors.headerColor ||
+    field('vCard Header Color').textColor ||
+    field('MyInfo section Name').textColor ||
+    undefined
   const design: ResolvedProfileDesign =
     designProp ??
     resolveProfileDesign(

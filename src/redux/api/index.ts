@@ -116,7 +116,12 @@ export {
 } from '@/redux/features/profileSettings/profileSettings.api'
 export { useGetPublicProfileAnnouncementQuery } from '@/redux/features/publicAnnouncements/publicAnnouncements.api'
 export { useGetPublicCardsQuery, useLazyGetPublicCardsQuery } from '@/redux/features/publicCards/publicCards.api'
-export { useGetAboutMeQuery, useLazyGetAboutMeQuery } from '@/redux/features/sections/aboutMe.api'
+export {
+  useGetAboutMeQuery,
+  useGetProfileAboutMeQuery,
+  useLazyGetAboutMeQuery,
+  useUpsertAboutMeMutation,
+} from '@/redux/features/sections/aboutMe.api'
 export { useGetClientsQuery, useLazyGetClientsQuery } from '@/redux/features/sections/clients.api'
 export { useGetGalleryQuery, useLazyGetGalleryQuery } from '@/redux/features/sections/gallery.api'
 export { useGetReviewsQuery, useLazyGetReviewsQuery } from '@/redux/features/sections/reviews.api'

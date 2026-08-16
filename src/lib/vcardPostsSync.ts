@@ -1,3 +1,4 @@
+import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { VCARD_SECTION_SCHEMAS } from '@/lib/vcardSectionSchemas'
 import type { ApiPost, PostDocumentPayload } from '@/redux/features/profiles/profiles.api'
 import { BLOG_POST_TYPE, FAQ_POST_TYPE, isLocalTempId } from '@/redux/features/profiles/profiles.api'
@@ -38,6 +39,22 @@ type DeletePostFn = (args: { id: string; postId: string }) => { unwrap: () => Pr
 
 type ListPostsFn = (args: { id: string; postType?: string }) => { unwrap: () => Promise<ApiPost[]> }
 
+type ListBlogsFn = (args: string) => { unwrap: () => Promise<ApiPost[]> }
+type CreateBlogFn = (args: { id: string; body: Record<string, unknown> }) => { unwrap: () => Promise<ApiPost> }
+type UpdateBlogFn = (args: { id: string; blogId: string; body: Record<string, unknown> }) => {
+  unwrap: () => Promise<ApiPost>
+}
+type DeleteBlogFn = (args: { id: string; blogId: string }) => { unwrap: () => Promise<unknown> }
+
+type ListTabItemsFn = (args: { id: string; tabKey: string }) => { unwrap: () => Promise<ApiPost[]> }
+type CreateTabItemFn = (args: { id: string; tabKey: string; body: Record<string, unknown> }) => {
+  unwrap: () => Promise<ApiPost>
+}
+type UpdateTabItemFn = (args: { id: string; tabKey: string; itemId: string; body: Record<string, unknown> }) => {
+  unwrap: () => Promise<ApiPost>
+}
+type DeleteTabItemFn = (args: { id: string; tabKey: string; itemId: string }) => { unwrap: () => Promise<unknown> }
+
 type SyncItem = {
   id: string
   title: string
@@ -48,6 +65,15 @@ type SyncItem = {
   metas?: Record<string, string>
   documents?: PostDocumentPayload[]
   sortOrder: number
+}
+
+function publicSectionNameToTabKey(postTypeName: string): string | null {
+  const needle = postTypeName.trim().toLowerCase()
+  if (needle === 'faq') return 'faqs'
+  for (const tab of Object.values(TAB_REGISTRY)) {
+    if (tab.publicSectionName.toLowerCase() === needle) return tab.key
+  }
+  return null
 }
 
 /**
@@ -107,6 +133,83 @@ export async function syncProfilePosts(options: {
       } else {
         saved.push(created)
       }
+    }
+  }
+  return saved
+}
+
+async function syncDirectBlogs(options: {
+  profileId: string
+  existing: ApiPost[]
+  items: SyncItem[]
+  createBlog: CreateBlogFn
+  updateBlog: UpdateBlogFn
+  deleteBlog: DeleteBlogFn
+}): Promise<ApiPost[]> {
+  const { profileId, existing, items, createBlog, updateBlog, deleteBlog } = options
+  const existingById = new Map(existing.map((p) => [p.id, p]))
+  const keptIds = new Set(items.filter((i) => existingById.has(i.id) && !isLocalTempId(i.id)).map((i) => i.id))
+
+  await Promise.all(
+    existing.filter((p) => !keptIds.has(p.id)).map((p) => deleteBlog({ id: profileId, blogId: p.id }).unwrap())
+  )
+
+  const saved: ApiPost[] = []
+  for (const item of items) {
+    const body = {
+      title: item.title,
+      description: item.description,
+      url: item.url,
+      featuredImage: item.featuredImage,
+      status: item.status,
+      sortOrder: item.sortOrder,
+      metas: item.metas,
+      category: item.metas?.category,
+      date: item.metas?.date,
+    }
+    if (existingById.has(item.id) && !isLocalTempId(item.id)) {
+      saved.push(await updateBlog({ id: profileId, blogId: item.id, body }).unwrap())
+    } else {
+      saved.push(await createBlog({ id: profileId, body }).unwrap())
+    }
+  }
+  return saved
+}
+
+async function syncDirectTabItems(options: {
+  profileId: string
+  tabKey: string
+  existing: ApiPost[]
+  items: SyncItem[]
+  createTabItem: CreateTabItemFn
+  updateTabItem: UpdateTabItemFn
+  deleteTabItem: DeleteTabItemFn
+}): Promise<ApiPost[]> {
+  const { profileId, tabKey, existing, items, createTabItem, updateTabItem, deleteTabItem } = options
+  const existingById = new Map(existing.map((p) => [p.id, p]))
+  const keptIds = new Set(items.filter((i) => existingById.has(i.id) && !isLocalTempId(i.id)).map((i) => i.id))
+
+  await Promise.all(
+    existing
+      .filter((p) => !keptIds.has(p.id))
+      .map((p) => deleteTabItem({ id: profileId, tabKey, itemId: p.id }).unwrap())
+  )
+
+  const saved: ApiPost[] = []
+  for (const item of items) {
+    const body = {
+      title: item.title,
+      description: item.description,
+      url: item.url,
+      featuredImage: item.featuredImage,
+      status: item.status,
+      sortOrder: item.sortOrder,
+      metas: item.metas,
+    }
+    if (existingById.has(item.id) && !isLocalTempId(item.id)) {
+      saved.push(await updateTabItem({ id: profileId, tabKey, itemId: item.id, body }).unwrap())
+    } else {
+      saved.push(await createTabItem({ id: profileId, tabKey, body }).unwrap())
     }
   }
   return saved
@@ -273,52 +376,111 @@ export async function loadAndSyncSectionPosts(options: {
   createPost: CreatePostFn
   updatePost: UpdatePostFn
   deletePost: DeletePostFn
+  listBlogs?: ListBlogsFn
+  createBlog?: CreateBlogFn
+  updateBlog?: UpdateBlogFn
+  deleteBlog?: DeleteBlogFn
+  listTabItems?: ListTabItemsFn
+  createTabItem?: CreateTabItemFn
+  updateTabItem?: UpdateTabItemFn
+  deleteTabItem?: DeleteTabItemFn
 }): Promise<{ blog: ApiPost[]; faqs: ApiPost[]; sectionPosts: Record<string, ApiPost[]> }> {
   const schemas = Object.values(VCARD_SECTION_SCHEMAS)
-  const sectionPostTypeNames = schemas.map((s) => s.postTypeName)
+  const useDirectBlogs = Boolean(options.listBlogs && options.createBlog && options.updateBlog && options.deleteBlog)
+  const useDirectTabs = Boolean(
+    options.listTabItems && options.createTabItem && options.updateTabItem && options.deleteTabItem
+  )
 
-  const [existingBlog, existingFaq, ...existingSections] = await Promise.all([
-    options.listPosts({ id: options.profileId, postType: BLOG_POST_TYPE }).unwrap(),
-    options.listPosts({ id: options.profileId, postType: FAQ_POST_TYPE }).unwrap(),
-    ...sectionPostTypeNames.map((postType) =>
-      options
-        .listPosts({ id: options.profileId, postType })
+  const existingBlog = useDirectBlogs
+    ? await options.listBlogs!(options.profileId).unwrap()
+    : await options.listPosts({ id: options.profileId, postType: BLOG_POST_TYPE }).unwrap()
+
+  const faqTabKey = 'faqs'
+  const existingFaq = useDirectTabs
+    ? await options.listTabItems!({ id: options.profileId, tabKey: faqTabKey }).unwrap()
+    : await options.listPosts({ id: options.profileId, postType: FAQ_POST_TYPE }).unwrap()
+
+  const existingSections = await Promise.all(
+    schemas.map(async (schema) => {
+      const tabKey = publicSectionNameToTabKey(schema.postTypeName)
+      if (useDirectTabs && tabKey && TAB_REGISTRY[tabKey]?.architecture === 'direct') {
+        return options.listTabItems!({ id: options.profileId, tabKey })
+          .unwrap()
+          .catch(() => [] as ApiPost[])
+      }
+      return options
+        .listPosts({ id: options.profileId, postType: schema.postTypeName })
         .unwrap()
         .catch(() => [] as ApiPost[])
-    ),
-  ])
+    })
+  )
 
-  const [blog, faqs, ...syncedSections] = await Promise.all([
-    syncProfilePosts({
-      profileId: options.profileId,
-      postTypeName: BLOG_POST_TYPE,
-      existing: existingBlog,
-      items: generalPostsToSyncItems(options.blogPosts),
-      createPost: options.createPost,
-      updatePost: options.updatePost,
-      deletePost: options.deletePost,
-    }),
-    syncProfilePosts({
-      profileId: options.profileId,
-      postTypeName: FAQ_POST_TYPE,
-      existing: existingFaq,
-      items: faqsToSyncItems(options.faqs),
-      createPost: options.createPost,
-      updatePost: options.updatePost,
-      deletePost: options.deletePost,
-    }),
-    ...schemas.map((schema, index) =>
-      syncProfilePosts({
+  const blog = useDirectBlogs
+    ? await syncDirectBlogs({
         profileId: options.profileId,
-        postTypeName: schema.postTypeName,
-        existing: existingSections[index] || [],
-        items: sectionPostsToSyncItems(options.sectionPosts?.[schema.postTypeName] || []),
+        existing: existingBlog,
+        items: generalPostsToSyncItems(options.blogPosts),
+        createBlog: options.createBlog!,
+        updateBlog: options.updateBlog!,
+        deleteBlog: options.deleteBlog!,
+      })
+    : await syncProfilePosts({
+        profileId: options.profileId,
+        postTypeName: BLOG_POST_TYPE,
+        existing: existingBlog,
+        items: generalPostsToSyncItems(options.blogPosts),
         createPost: options.createPost,
         updatePost: options.updatePost,
         deletePost: options.deletePost,
       })
-    ),
-  ])
+
+  const faqs =
+    useDirectTabs && TAB_REGISTRY.faqs?.architecture === 'direct'
+      ? await syncDirectTabItems({
+          profileId: options.profileId,
+          tabKey: faqTabKey,
+          existing: existingFaq,
+          items: faqsToSyncItems(options.faqs),
+          createTabItem: options.createTabItem!,
+          updateTabItem: options.updateTabItem!,
+          deleteTabItem: options.deleteTabItem!,
+        })
+      : await syncProfilePosts({
+          profileId: options.profileId,
+          postTypeName: FAQ_POST_TYPE,
+          existing: existingFaq,
+          items: faqsToSyncItems(options.faqs),
+          createPost: options.createPost,
+          updatePost: options.updatePost,
+          deletePost: options.deletePost,
+        })
+
+  const syncedSections = await Promise.all(
+    schemas.map((schema, index) => {
+      const tabKey = publicSectionNameToTabKey(schema.postTypeName)
+      const items = sectionPostsToSyncItems(options.sectionPosts?.[schema.postTypeName] || [])
+      if (useDirectTabs && tabKey && TAB_REGISTRY[tabKey]?.architecture === 'direct') {
+        return syncDirectTabItems({
+          profileId: options.profileId,
+          tabKey,
+          existing: existingSections[index] || [],
+          items,
+          createTabItem: options.createTabItem!,
+          updateTabItem: options.updateTabItem!,
+          deleteTabItem: options.deleteTabItem!,
+        })
+      }
+      return syncProfilePosts({
+        profileId: options.profileId,
+        postTypeName: schema.postTypeName,
+        existing: existingSections[index] || [],
+        items,
+        createPost: options.createPost,
+        updatePost: options.updatePost,
+        deletePost: options.deletePost,
+      })
+    })
+  )
 
   const sectionPosts: Record<string, ApiPost[]> = {}
   schemas.forEach((schema, index) => {

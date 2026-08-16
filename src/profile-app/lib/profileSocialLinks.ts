@@ -84,13 +84,17 @@ export function resolveSocialLinkHref(
   return socialHref(label)?.trim() ?? ''
 }
 
-/** Show social tiles when the profile/API value resolves to a link (ignores visibility flags). */
+/** Show social tiles when a link exists and Card Settings visibility allows it. */
 export function filterSocialItemsWithLinks<T extends { label: string }>(
   items: readonly T[],
   socialHref: (displayLabel: string) => string,
-  whatsapp?: string
+  whatsapp?: string,
+  isVisible?: (key: string) => boolean
 ): T[] {
-  return items.filter((item) => Boolean(resolveSocialLinkHref(item.label, socialHref, whatsapp)))
+  return items.filter((item) => {
+    if (isVisible && !isVisible(item.label)) return false
+    return Boolean(resolveSocialLinkHref(item.label, socialHref, whatsapp))
+  })
 }
 
 export function getProfileSocialLinks(

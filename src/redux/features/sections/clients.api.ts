@@ -10,7 +10,7 @@ export const clientsApi = api.injectEndpoints({
       providesTags: (_result, _error, profileId) => [{ type: 'Clients', id: profileId }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetClientsQuery, useLazyGetClientsQuery } = clientsApi

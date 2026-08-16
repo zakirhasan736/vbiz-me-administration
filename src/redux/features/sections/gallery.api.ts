@@ -10,7 +10,7 @@ export const galleryApi = api.injectEndpoints({
       providesTags: (_result, _error, profileId) => [{ type: 'Gallery', id: profileId }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetGalleryQuery, useLazyGetGalleryQuery } = galleryApi

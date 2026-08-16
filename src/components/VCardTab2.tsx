@@ -4,7 +4,6 @@ import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useVCard } from '@/lib/VCardContext'
 import {
-  AlignLeft,
   Briefcase,
   Building,
   Calendar,
@@ -60,9 +59,8 @@ export function Tab2PersonalInfo() {
       <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-3xl border p-6">
         <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Personal Information</h3>
         <p className="text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          This info appears in the &ldquo;About Me&rdquo; section of your vCard. Ensure your details are accurate as
-          they represent your public digital identity. Fields marked <span className="font-black text-red-500">*</span>{' '}
-          are required.
+          Update your contact details and public identity fields. Fields marked{' '}
+          <span className="font-black text-red-500">*</span> are required.
         </p>
       </div>
 
@@ -238,24 +236,6 @@ export function Tab2PersonalInfo() {
                 className={`${inputClasses} pl-11`}
               />
             </FieldGroup>
-          </div>
-        </section>
-
-        {/* About Me Section */}
-        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
-          <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-purple-100 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10">
-              <AlignLeft className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            </div>
-            <h4 className="text-[16px] font-black text-slate-900 dark:text-white">About Me</h4>
-          </div>
-          <div className="p-4 sm:p-8">
-            <textarea
-              value={vCardData.personal.about}
-              onChange={(e) => updateData('personal.about', e.target.value)}
-              rows={6}
-              className="focus:border-primary-500 focus:ring-primary-500 w-full resize-none rounded-[20px] border border-slate-200/80 bg-white px-6 py-5 text-[14px] leading-relaxed font-medium text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
-            />
           </div>
         </section>
       </div>

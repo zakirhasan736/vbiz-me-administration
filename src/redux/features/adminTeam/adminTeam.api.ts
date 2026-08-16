@@ -37,6 +37,7 @@ export type UpdateAdminTeamBody = {
 }
 
 const adminTeamApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getAdminTeam: builder.query<AdminTeamMemberRow[], void>({
       query: () => '/admin/team',

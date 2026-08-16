@@ -52,7 +52,7 @@ type V3EmptyStateProps = {
 export function V3EmptyState({ icon: Icon, title, message }: V3EmptyStateProps) {
   return (
     <V3SectionShell>
-      <div className="vbiz-card flex min-h-[320px] flex-col items-center justify-center rounded-4xl border border-dashed p-10 text-center">
+      <div className="vbiz-card flex min-h-80 flex-col items-center justify-center rounded-4xl border border-dashed p-10 text-center">
         <div className="vbiz-pill-icon mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border">
           <Icon size={24} />
         </div>
@@ -81,7 +81,7 @@ type V3LoadingSkeletonProps = {
   className?: string
 }
 
-export function V3LoadingSkeleton({ className = 'min-h-[360px]' }: V3LoadingSkeletonProps) {
+export function V3LoadingSkeleton({ className = 'min-h-90' }: V3LoadingSkeletonProps) {
   return (
     <V3SectionShell>
       <div

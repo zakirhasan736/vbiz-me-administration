@@ -66,13 +66,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
   }
 
   if (showEmptyState) {
-    return (
-      <V3EmptyState
-        icon={HelpCircle}
-        title={sectionTitle}
-        message="Add questions and answers from the vCard editor FAQ tab to show them here."
-      />
-    )
+    return <V3EmptyState icon={HelpCircle} title={sectionTitle} message="No FAQ items have been published yet." />
   }
 
   const cardClass =

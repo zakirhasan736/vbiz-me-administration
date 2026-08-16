@@ -1,6 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
+import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
 import {
   applyAnalyzeToDraft,
   draftFieldWrites,
@@ -338,6 +339,7 @@ function payloadHasContent(section: string, payload: Record<string, unknown>): b
 
 function sectionContentCount(data: VCardData, section: string): number {
   const personal = data.personal || ({} as VCardData['personal'])
+  const aboutMeFilled = isAboutMeDescriptionFilled(getAboutMeDraft().descriptionHtml) || hasText(personal.about)
   if (section === 'personal') {
     return [
       personal.fullName,
@@ -345,7 +347,7 @@ function sectionContentCount(data: VCardData, section: string): number {
       personal.phone,
       personal.designation,
       personal.company,
-      personal.about,
+      aboutMeFilled ? 'about' : '',
       personal.website,
       personal.address,
     ].filter(hasText).length
@@ -386,7 +388,16 @@ function buildSmartSectionPayload(
   const sourceNote = cleanSourceNote(source?.businessText || '')
   const company = personal.company?.trim() || personal.fullName?.trim() || labelFromUrl(sourceWebsite) || ''
   const role = personal.designation?.trim() || personal.profession?.trim() || ''
-  const about = personal.about?.trim() || ''
+  const aboutDraft = getAboutMeDraft()
+  const about =
+    (isAboutMeDescriptionFilled(aboutDraft.descriptionHtml)
+      ? aboutDraft.descriptionHtml
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/&nbsp;/g, ' ')
+          .trim()
+      : '') ||
+    personal.about?.trim() ||
+    ''
   const serviceTitles = (data.services || []).map((item) => item.title).filter(hasText)
   const serviceDescriptions = (data.services || []).map((item) => item.description).filter(hasText)
   const businessSummary =
@@ -405,6 +416,7 @@ function buildSmartSectionPayload(
         profession: personal.profession || role || '',
         about:
           personal.about ||
+          about ||
           businessSummary ||
           `${company || labelFromUrl(sourceWebsite) || 'This business'} helps clients with tailored services and support.`,
         website: personal.website || sourceWebsite,
@@ -501,7 +513,10 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
         { label: 'Display name', filled: hasText(personal.fullName), hint: 'Shown at the top of the card.' },
         { label: 'Public URL slug', filled: hasText(data.slug), hint: 'Needed before create.' },
         { label: 'Email or phone', filled: hasText(personal.email) || hasText(personal.phone) },
-        { label: 'About / bio', filled: hasText(personal.about) },
+        {
+          label: 'About Me',
+          filled: isAboutMeDescriptionFilled(getAboutMeDraft().descriptionHtml) || hasText(personal.about),
+        },
         { label: 'Company or title', filled: hasText(personal.company) || hasText(personal.designation) },
         {
           label: 'Profile image/video',
@@ -577,7 +592,6 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       )
     } else if (navId === 'profile') {
       fields.push(
-        { label: 'Profile story', filled: hasText(personal.about) },
         { label: 'Headline/title', filled: hasText(personal.designation) || hasText(personal.profession) },
         {
           label: 'Profile photo',
@@ -588,7 +602,13 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       )
     } else if (navId === 'resume') {
       fields.push(
-        { label: 'Resume summary', filled: hasText(resumeState.summary) || hasText(personal.about) },
+        {
+          label: 'Resume summary',
+          filled:
+            hasText(resumeState.summary) ||
+            isAboutMeDescriptionFilled(getAboutMeDraft().descriptionHtml) ||
+            hasText(personal.about),
+        },
         {
           label: 'Resume document',
           filled: resumeState.documents.length > 0,

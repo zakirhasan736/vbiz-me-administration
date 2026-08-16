@@ -71,6 +71,7 @@ function normalizeActiveAnnouncementResponse(
 }
 
 const adminAnnouncementsApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getAnnouncements: builder.query<AnnouncementListPage, AnnouncementListQuery | void>({
       query: (params) => {

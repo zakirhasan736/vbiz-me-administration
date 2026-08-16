@@ -109,6 +109,7 @@ function buildListSearch(params?: AdminProfilesListQuery) {
 }
 
 const adminProfilesApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getAdminProfiles: builder.query<AdminProfilesListPage, AdminProfilesListQuery | void>({
       query: (params) => `/admin/profiles?${buildListSearch(params || undefined).toString()}`,

@@ -1,3 +1,4 @@
+import { setAboutMeDraft } from '@/lib/aboutMeDraft'
 import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
 import { normalizeServiceType } from '@/lib/vcardServices'
 import type {
@@ -311,6 +312,13 @@ export function mapBlueprintToVCardData(
     generalPosts: generalPosts.length ? generalPosts : base?.generalPosts || [],
     faqs: faqs.length ? faqs : base?.faqs || [],
   })
+
+  const aboutText = String(blueprint.personal.about || '').trim()
+  if (aboutText) {
+    setAboutMeDraft({
+      descriptionHtml: aboutText.includes('<') ? aboutText : `<p>${aboutText}</p>`,
+    })
+  }
 
   const tabNames = new Set<string>(['Personal'])
   for (const name of blueprint.enabledTabs || []) {

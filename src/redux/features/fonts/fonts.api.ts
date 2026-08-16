@@ -14,6 +14,7 @@ type FontsListResponse = {
 }
 
 const fontsApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getGoogleFonts: builder.query<GoogleFontItem[], { q?: string; limit?: number } | void>({
       query: (args) => {

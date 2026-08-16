@@ -55,6 +55,7 @@ export type UpsertAdminPackageBody = {
 export type UpdateAdminPackageBody = Partial<UpsertAdminPackageBody>
 
 const adminPackagesApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getAdminPackages: builder.query<AdminPackageRow[], void>({
       query: () => '/admin/packages',

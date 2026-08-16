@@ -86,7 +86,7 @@ export function TruncatedClampText({
     <div className={className}>
       {hasHtml ? (
         <div
-          className={`prose prose-zinc dark:prose-invert mb-4 max-w-2xl ${textClassName}`}
+          className={`vcard-rich-html mb-4 max-w-2xl ${textClassName}`}
           style={clampStyle}
           dangerouslySetInnerHTML={{ __html: html! }}
         />

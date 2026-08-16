@@ -10,7 +10,7 @@ import type { VCardData, VCardPersonal } from '@/types/vcard'
 import {
   createDefaultDisplaySettings,
   createDefaultFieldConfig,
-  stripFieldDisplayColors,
+  normalizeFieldConfig,
   type DisplayFieldConfig,
   type VCardDisplaySettings,
 } from '@/types/vcardDisplaySettings'
@@ -155,7 +155,8 @@ export function resolveDisplaySettings(raw?: VCardDisplaySettings | null): VCard
   if (!raw) return DEFAULT_SETTINGS
   const fields = { ...DEFAULT_SETTINGS.fields }
   for (const [key, config] of Object.entries(raw.fields || {})) {
-    fields[key] = stripFieldDisplayColors({ ...fields[key], ...config })
+    // Keep Card Settings colors for public vCard; only strip legacy auto #000/#fff placeholders.
+    fields[key] = normalizeFieldConfig({ ...fields[key], ...config })
   }
   const editorNavOrder = Array.isArray(raw.editorNavOrder)
     ? raw.editorNavOrder.filter((id): id is string => typeof id === 'string' && Boolean(id))
@@ -278,20 +279,54 @@ export function getHomeMediaUrls(settings: VCardDisplaySettings, personal: VCard
   return { introVideo, introYoutube, bgMedia, profileMedia }
 }
 
-/** Background color for editor nav tabs from Card Settings → Nav Bar (not used on public vCard). */
+/** Background color for nav tabs from Card Settings → Nav Bar (editor + public). */
 export function getNavTabBackgroundColor(settings: VCardDisplaySettings, tabId: string): string | undefined {
   const navLabel = TAB_ID_TO_NAV_LABEL[tabId]
   if (!navLabel) return undefined
   return getFieldConfig(settings, navLabel).backgroundColor || undefined
 }
 
-/** Page-level colors from Card Settings are ignored on public profiles (static template styling). */
+/**
+ * When Nav Bar settings toggles a tab's visibility, keep `editorNavOrder` in sync
+ * with Add Tab so public nav enable/order stay consistent.
+ */
+export function syncEditorNavOrderAfterNavVisibilityChange(
+  settings: VCardDisplaySettings,
+  navLabel: string,
+  visible: boolean
+): VCardDisplaySettings {
+  const navItem = NAV_BAR_NAV_ITEMS.find((item) => item.label === navLabel)
+  if (!navItem) return settings
+  if (LOCKED_NAV_ITEM_IDS.has(navItem.id)) {
+    return patchDisplayField(settings, navLabel, { visible: true })
+  }
+
+  const currentOrder =
+    Array.isArray(settings.editorNavOrder) && settings.editorNavOrder.length > 0
+      ? [...settings.editorNavOrder]
+      : NAV_BAR_NAV_ITEMS.filter((item) => getFieldConfig(settings, item.label).visible).map((item) => item.id)
+
+  let nextOrder: string[]
+  if (visible) {
+    nextOrder = currentOrder.includes(navItem.id) ? currentOrder : [...currentOrder, navItem.id]
+  } else {
+    nextOrder = currentOrder.filter((id) => id !== navItem.id)
+  }
+
+  return applyEnabledNavOrderToDisplaySettings(settings, nextOrder)
+}
+
+/** Page-level colors from Card Settings → General / Home / Nav Bar. */
 export function getPageColors(settings: VCardDisplaySettings) {
-  void settings
+  const pageBg = getFieldConfig(settings, 'Home Page BG Color').backgroundColor || undefined
+  const pageBanner = getFieldConfig(settings, 'Home Page Banner Color').backgroundColor || undefined
+  const headerField = getFieldConfig(settings, 'vCard Header Color')
+  const headerColor = headerField.textColor || headerField.backgroundColor || undefined
+  const navBg = getFieldConfig(settings, 'Nav Background Color').backgroundColor || undefined
   return {
-    pageBg: undefined,
-    pageBanner: undefined,
-    headerColor: undefined,
-    navBg: undefined,
+    pageBg,
+    pageBanner,
+    headerColor,
+    navBg,
   }
 }

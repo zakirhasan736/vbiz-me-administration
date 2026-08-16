@@ -128,7 +128,7 @@ export const AdditionalServicesSection = () => {
           </div>
           <h2 className="mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{sectionTitle}</h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-            No additional services have been published yet. Add content from the vCard editor Additional Services tab.
+            No additional services have been published yet.
           </p>
         </div>
       </div>

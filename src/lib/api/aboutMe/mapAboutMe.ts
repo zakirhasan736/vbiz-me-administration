@@ -132,7 +132,7 @@ export function mapAboutMeItemToListItem(item: AboutMeItem): AboutMeListItem {
 
   return {
     id: item.id,
-    title: item.title.trim() || 'About Me',
+    title: item.title?.trim() || '',
     plainDescription: plain,
     htmlDescription: html,
     introHtml: parsed.introHtml || html,

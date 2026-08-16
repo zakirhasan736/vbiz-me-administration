@@ -2,6 +2,7 @@
 
 import { Modal } from '@/components/ui/Modal'
 import { CompletionQuickFillEditor } from '@/components/vcard/CompletionQuickFillEditor'
+import { subscribeAboutMeDraft } from '@/lib/aboutMeDraft'
 import {
   getEditorPanelCompletionFields,
   type PersonalCompletionMeta,
@@ -12,7 +13,7 @@ import type { EditorNavPanel } from '@/lib/vcardNavbar'
 import type { VCardData } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Check, ChevronDown, ChevronRight, FileUp, ListChecks, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 type TabCompletionInspectorButtonProps = {
   label: string
@@ -125,11 +126,17 @@ export function TabCompletionInspectorButton({
   const vCardData = vCardDataProp ?? liveData
   const [open, setOpen] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [aboutMeDraftVersion, setAboutMeDraftVersion] = useState(0)
 
-  const fields = useMemo(
-    () => getEditorPanelCompletionFields(panel, vCardData, completionMeta),
-    [panel, vCardData, completionMeta]
-  )
+  useEffect(() => {
+    if (panel.kind !== 'about-me') return
+    return subscribeAboutMeDraft(() => setAboutMeDraftVersion((n) => n + 1))
+  }, [panel.kind])
+
+  const fields = useMemo(() => {
+    void aboutMeDraftVersion
+    return getEditorPanelCompletionFields(panel, vCardData, completionMeta)
+  }, [panel, vCardData, completionMeta, aboutMeDraftVersion])
   const missingFields = useMemo(() => fields.filter((field) => !field.filled), [fields])
   const completedFields = useMemo(() => fields.filter((field) => field.filled), [fields])
   const percent = fieldPercent(fields)

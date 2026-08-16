@@ -12,7 +12,7 @@ export const publicCardsApi = api.injectEndpoints({
       providesTags: ['PublicCards'],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetPublicCardsQuery, useLazyGetPublicCardsQuery } = publicCardsApi

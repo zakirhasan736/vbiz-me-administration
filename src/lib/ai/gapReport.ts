@@ -1,3 +1,4 @@
+import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
 import type { VCardData } from '@/types/vcard'
 
 export type GapItem = {
@@ -58,15 +59,15 @@ export function buildGapReport(
     explanation: 'The slug becomes your shareable link (e.g. /v/your-name).',
     howToProvide: 'Reply with a short lowercase URL (letters, numbers, hyphens).',
   })
-  add(!empty(data.personal?.about), 3, {
-    id: 'personal.about',
-    tab: 'Personal',
-    navId: 'home',
+  add(isAboutMeDescriptionFilled(getAboutMeDraft().descriptionHtml) || !empty(data.personal?.about), 3, {
+    id: 'about-me.description',
+    tab: 'About Me',
+    navId: 'about',
     field: 'about',
     severity: 'recommended',
-    title: 'About / bio',
+    title: 'About Me story',
     explanation: 'A short story helps visitors trust you and understand what you do.',
-    howToProvide: 'Paste 2–4 sentences about the business, or upload an about PDF/image.',
+    howToProvide: 'Paste 2–4 sentences about the business in About Me, or upload an about PDF/image.',
   })
   add(!(empty(data.personal?.email) && empty(data.personal?.phone)), 3, {
     id: 'personal.contact',

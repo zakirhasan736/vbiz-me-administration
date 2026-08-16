@@ -53,15 +53,6 @@ export function TabProfile() {
             onChange={(e) => setPersonal('profession', e.target.value)}
           />
         </label>
-        <label className="block space-y-1.5">
-          <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">About / bio</span>
-          <textarea
-            rows={5}
-            className={`${inputClasses} resize-y`}
-            value={p.about || ''}
-            onChange={(e) => setPersonal('about', e.target.value)}
-          />
-        </label>
       </div>
     </div>
   )

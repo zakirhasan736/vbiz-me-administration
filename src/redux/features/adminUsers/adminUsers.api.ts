@@ -77,6 +77,7 @@ function buildListSearch(params?: AdminUsersListQuery) {
 }
 
 const adminUsersApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getAdminUsers: builder.query<AdminUsersListPage, AdminUsersListQuery | void>({
       query: (params) => `/admin/users?${buildListSearch(params || undefined).toString()}`,

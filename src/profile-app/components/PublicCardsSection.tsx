@@ -414,7 +414,7 @@ export const PublicCardsSection = () => {
                     type="button"
                     onClick={() => void loadMore()}
                     disabled={isLoadingMore || isPrefetchingAll}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#eab308]/40 bg-[#eab308]/15 px-3 py-1.5 text-[10px] font-bold text-[#b8940f] transition-all hover:border-[#eab308]/60 hover:bg-[#eab308]/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:text-xs dark:text-[#eab308]"
+                    className="inline-flex items-center gap-1.5 self-start rounded-lg border border-[#eab308]/40 bg-[#eab308]/15 px-3 py-1.5 text-[10px] font-bold text-[#b8940f] transition-all hover:border-[#eab308]/60 hover:bg-[#eab308]/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:text-xs dark:text-[#eab308]"
                   >
                     {isLoadingMore || isPrefetchingAll ? <Loader2 size={12} className="animate-spin" /> : null}
                     Load more

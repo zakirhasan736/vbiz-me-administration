@@ -18,7 +18,7 @@ export const profileSettingsApi = api.injectEndpoints({
       keepUnusedDataFor: 120,
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetProfileSettingsQuery, useLazyGetProfileSettingsQuery } = profileSettingsApi

@@ -19,6 +19,31 @@ export type ProfileContactItem = {
   style?: Pick<DisplayFieldConfig, 'textColor' | 'backgroundColor' | 'iconColor'>
 }
 
+/** Card Settings → Icons tab labels → contact / My Info fields. */
+const CONTACT_LABEL_TO_ICON_FIELD: Record<string, string> = {
+  Profession: 'Profession Icon',
+  Company: 'Company/Office Icon',
+  Email: 'Email Icon',
+  Phone: 'Phone Icon',
+  Website: 'My Info Website Icon',
+  Address: 'Address Icon',
+}
+
+function pickStyle(
+  primary: DisplayFieldConfig,
+  iconField?: DisplayFieldConfig
+): Pick<DisplayFieldConfig, 'textColor' | 'backgroundColor' | 'iconColor'> | undefined {
+  const textColor = primary.textColor
+  const backgroundColor = primary.backgroundColor
+  const iconColor = primary.iconColor || iconField?.iconColor || iconField?.textColor
+  if (!textColor && !backgroundColor && !iconColor) return undefined
+  return {
+    ...(textColor ? { textColor } : {}),
+    ...(backgroundColor ? { backgroundColor } : {}),
+    ...(iconColor ? { iconColor } : {}),
+  }
+}
+
 export const PROFILE_CONTACT_LABEL_ORDER = ['Profession', 'Company', 'Email', 'Phone', 'Website', 'Address'] as const
 
 export type BentoProfileContactItem = ProfileContactItem & {
@@ -104,20 +129,26 @@ export function buildProfileContactItems(
   field: (key: string) => DisplayFieldConfig
 ): ProfileContactItem[] {
   const items: ProfileContactItem[] = []
+  const iconFor = (contactLabel: string) => {
+    const iconKey = CONTACT_LABEL_TO_ICON_FIELD[contactLabel]
+    if (!iconKey || !isVisible(iconKey)) return undefined
+    return field(iconKey)
+  }
 
   const professionValue = resolveProfessionValue(personal, isVisible)
   if (professionValue) {
     const professionStyle = field('MyInfo Profession')
     const designationStyle = field('MyInfo Designation')
+    const primary =
+      professionStyle.textColor || professionStyle.backgroundColor || professionStyle.iconColor
+        ? professionStyle
+        : designationStyle
     items.push({
       icon: Briefcase,
       label: 'Profession',
       value: professionValue,
       detail: 'Role',
-      style:
-        professionStyle.textColor || professionStyle.backgroundColor || professionStyle.iconColor
-          ? professionStyle
-          : designationStyle,
+      style: pickStyle(primary, iconFor('Profession')),
     })
   }
   if (isVisible('MyInfo Company') && personal.company) {
@@ -126,7 +157,7 @@ export function buildProfileContactItems(
       label: 'Company',
       value: personal.company,
       detail: 'Org',
-      style: field('MyInfo Company'),
+      style: pickStyle(field('MyInfo Company'), iconFor('Company')),
     })
   }
   if (isVisible('MyInfo Email') && personal.email) {
@@ -137,7 +168,7 @@ export function buildProfileContactItems(
       isLink: true,
       href: `mailto:${personal.email}`,
       detail: 'Contact',
-      style: field('MyInfo Email'),
+      style: pickStyle(field('MyInfo Email'), iconFor('Email')),
     })
   }
   if (isVisible('MyInfo Phone') && personal.phone) {
@@ -148,7 +179,7 @@ export function buildProfileContactItems(
       isLink: true,
       href: `tel:${personal.phone.replace(/\s/g, '')}`,
       detail: 'Direct',
-      style: field('MyInfo Phone'),
+      style: pickStyle(field('MyInfo Phone'), iconFor('Phone')),
     })
   }
   const website = personal.website?.trim()
@@ -160,7 +191,7 @@ export function buildProfileContactItems(
       isLink: true,
       href: website.startsWith('http') ? website : `https://${website}`,
       detail: 'Digital',
-      style: field('MyInfo Website'),
+      style: pickStyle(field('MyInfo Website'), iconFor('Website')),
     })
   }
   if (isVisible('MyInfo Address') && personal.address) {
@@ -169,7 +200,7 @@ export function buildProfileContactItems(
       label: 'Address',
       value: personal.address,
       detail: 'HQ',
-      style: field('MyInfo Address'),
+      style: pickStyle(field('MyInfo Address'), iconFor('Address')),
     })
   }
 

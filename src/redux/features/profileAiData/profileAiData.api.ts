@@ -16,7 +16,7 @@ export const profileAiDataApi = api.injectEndpoints({
       providesTags: (_result, _error, profileId) => [{ type: 'ProfileAiData', id: profileId }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetProfileAiDataQuery, useLazyGetProfileAiDataQuery } = profileAiDataApi

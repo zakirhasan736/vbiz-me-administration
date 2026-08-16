@@ -15,6 +15,7 @@ type Envelope<T> = {
 }
 
 const meetingsApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getMeetings: builder.query<MeetingListPage, MeetingListQuery | void>({
       query: (params) => {

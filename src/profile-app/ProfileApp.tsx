@@ -64,7 +64,6 @@ export function ProfileApp(props: VBizProfileAppProps) {
       <EmbeddedDraftCacheSync
         embedded={props.embedded}
         cardOwnerId={props.cardOwnerId}
-        about={props.personal?.about}
         sectionPosts={props.sectionPosts}
         customTabs={props.customTabs}
         generalPosts={props.generalPosts}

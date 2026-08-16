@@ -16,6 +16,7 @@ type Envelope<T> = {
 }
 
 const adminActivityApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getActivityFeed: builder.query<ActivityFeedPage, ActivityFeedQuery | void>({
       query: (params) => {

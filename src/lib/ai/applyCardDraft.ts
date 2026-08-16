@@ -1,3 +1,4 @@
+import { setAboutMeDraft } from '@/lib/aboutMeDraft'
 import { mapBlueprintToVCardData, type CardBlueprint } from '@/lib/ai/cardBlueprint'
 import { normalizeServiceType } from '@/lib/vcardServices'
 import type {
@@ -151,6 +152,13 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
       about: p.about || next.personal.about,
       website: p.website || next.personal.website,
       address: p.address || next.personal.address,
+    }
+    const aboutText = String(p.about || '').trim()
+    if (aboutText) {
+      // About Me section is the public source of truth; keep personal.about for Home tagline.
+      setAboutMeDraft({
+        descriptionHtml: aboutText.includes('<') ? aboutText : `<p>${aboutText}</p>`,
+      })
     }
     const handles = (payload.socialHandles || {}) as Record<string, string>
     next.social = {

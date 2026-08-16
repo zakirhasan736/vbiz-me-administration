@@ -151,6 +151,33 @@ export type ApiPost = {
   }>
   createdAt?: string
   updatedAt?: string
+  category?: string | null
+  date?: string | null
+  tabKey?: string
+}
+
+/** Normalize Blog / TabItem API rows into the ApiPost shape used by editor sync mappers. */
+export function normalizeDirectItemToApiPost(row: ApiPost | null | undefined): ApiPost {
+  if (!row) return { id: '' }
+  const metasObj =
+    row.metas && !Array.isArray(row.metas) && typeof row.metas === 'object'
+      ? (row.metas as unknown as Record<string, string>)
+      : null
+  const metasArray = Array.isArray(row.metas)
+    ? row.metas
+    : metasObj
+      ? Object.entries(metasObj).map(([metaKey, metaValue]) => ({
+          metaKey,
+          metaValue: metaValue ?? null,
+        }))
+      : [
+          ...(row.category ? [{ metaKey: 'category', metaValue: row.category }] : []),
+          ...(row.date ? [{ metaKey: 'date', metaValue: row.date }] : []),
+        ]
+  return {
+    ...row,
+    metas: metasArray,
+  }
 }
 
 export type PostDocumentPayload = {
@@ -442,12 +469,12 @@ export function mapApiPostsToGeneralPosts(posts: ApiPost[]): VCardGeneralPost[] 
     const metas = metaMap(p.metas)
     return {
       id: p.id,
-      category: metas.category || '',
+      category: metas.category || p.category || '',
       title: p.title || '',
       description: p.description || '',
       customUrl: p.url || '',
       featuredImage: p.featuredImage || '',
-      date: toDateInputValue(metas.date || (p.createdAt ? String(p.createdAt) : '')),
+      date: toDateInputValue(metas.date || p.date || (p.createdAt ? String(p.createdAt) : '')),
       active: p.status !== '0' && p.status !== 'false',
     }
   })
@@ -627,7 +654,6 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     whatsapp: data.personal.whatsapp,
     website: data.personal.website,
     address: data.personal.address,
-    about: data.personal.about,
     prof: data.personal.profession,
     dob: dob || null,
     isPublic: data.isDraft ? false : data.isPublic,
@@ -755,6 +781,7 @@ function patchGetAdminProfilesCache(
 }
 
 const profilesApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getProfiles: builder.query<ProfilesListResult, ProfilesListQuery | void>({
       query: (params) => {
@@ -1057,6 +1084,153 @@ const profilesApi = api.injectEndpoints({
         { type: 'profiles', id: `${arg.id}:posts` },
       ],
     }),
+    listProfileBlogs: builder.query<ApiPost[], string>({
+      query: (id) => `/profiles/${id}/blogs`,
+      transformResponse: (res: Envelope<ApiPost[]>) => (res.data || []).map(normalizeDirectItemToApiPost),
+      providesTags: (_r, _e, id) => [{ type: 'profiles', id: `${id}:blogs` }],
+    }),
+    createProfileBlog: builder.mutation<
+      ApiPost,
+      {
+        id: string
+        body: {
+          title?: string
+          description?: string
+          url?: string
+          featuredImage?: string
+          status?: string
+          sortOrder?: number
+          metas?: Record<string, string>
+          category?: string
+          date?: string
+        }
+      }
+    >({
+      query: ({ id, body }) => ({
+        url: `/profiles/${id}/blogs`,
+        method: 'POST',
+        body: {
+          ...body,
+          category: body.category ?? body.metas?.category,
+          date: body.date ?? body.metas?.date,
+        },
+      }),
+      transformResponse: (res: Envelope<ApiPost>) => normalizeDirectItemToApiPost(res.data),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:blogs` },
+      ],
+    }),
+    updateProfileBlog: builder.mutation<
+      ApiPost,
+      {
+        id: string
+        blogId: string
+        body: {
+          title?: string
+          description?: string
+          url?: string
+          featuredImage?: string
+          status?: string
+          sortOrder?: number
+          metas?: Record<string, string>
+          category?: string
+          date?: string
+        }
+      }
+    >({
+      query: ({ id, blogId, body }) => ({
+        url: `/profiles/${id}/blogs/${blogId}`,
+        method: 'PATCH',
+        body: {
+          ...body,
+          category: body.category ?? body.metas?.category,
+          date: body.date ?? body.metas?.date,
+        },
+      }),
+      transformResponse: (res: Envelope<ApiPost>) => normalizeDirectItemToApiPost(res.data),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:blogs` },
+      ],
+    }),
+    deleteProfileBlog: builder.mutation<{ deleted: boolean }, { id: string; blogId: string }>({
+      query: ({ id, blogId }) => ({ url: `/profiles/${id}/blogs/${blogId}`, method: 'DELETE' }),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:blogs` },
+      ],
+    }),
+    listProfileTabItems: builder.query<ApiPost[], { id: string; tabKey: string }>({
+      query: ({ id, tabKey }) => `/profiles/${id}/tabs/${encodeURIComponent(tabKey)}`,
+      transformResponse: (res: Envelope<ApiPost[]>) => (res.data || []).map(normalizeDirectItemToApiPost),
+      providesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` }],
+    }),
+    createProfileTabItem: builder.mutation<
+      ApiPost,
+      {
+        id: string
+        tabKey: string
+        body: {
+          title?: string
+          description?: string
+          url?: string
+          featuredImage?: string
+          status?: string
+          sortOrder?: number
+          metas?: Record<string, string>
+        }
+      }
+    >({
+      query: ({ id, tabKey, body }) => ({
+        url: `/profiles/${id}/tabs/${encodeURIComponent(tabKey)}`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: Envelope<ApiPost>) => normalizeDirectItemToApiPost(res.data),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` },
+      ],
+    }),
+    updateProfileTabItem: builder.mutation<
+      ApiPost,
+      {
+        id: string
+        tabKey: string
+        itemId: string
+        body: {
+          title?: string
+          description?: string
+          url?: string
+          featuredImage?: string
+          status?: string
+          sortOrder?: number
+          metas?: Record<string, string>
+        }
+      }
+    >({
+      query: ({ id, tabKey, itemId, body }) => ({
+        url: `/profiles/${id}/tabs/${encodeURIComponent(tabKey)}/${itemId}`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: Envelope<ApiPost>) => normalizeDirectItemToApiPost(res.data),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` },
+      ],
+    }),
+    deleteProfileTabItem: builder.mutation<{ deleted: boolean }, { id: string; tabKey: string; itemId: string }>({
+      query: ({ id, tabKey, itemId }) => ({
+        url: `/profiles/${id}/tabs/${encodeURIComponent(tabKey)}/${itemId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` },
+      ],
+    }),
     getDashboardStats: builder.query<DashboardStats, DashboardStatsQuery | void>({
       query: (params) => {
         const search = new URLSearchParams()
@@ -1232,6 +1406,16 @@ export const {
   useCreateProfilePostMutation,
   useUpdateProfilePostMutation,
   useDeleteProfilePostMutation,
+  useListProfileBlogsQuery,
+  useLazyListProfileBlogsQuery,
+  useCreateProfileBlogMutation,
+  useUpdateProfileBlogMutation,
+  useDeleteProfileBlogMutation,
+  useListProfileTabItemsQuery,
+  useLazyListProfileTabItemsQuery,
+  useCreateProfileTabItemMutation,
+  useUpdateProfileTabItemMutation,
+  useDeleteProfileTabItemMutation,
   useGetDashboardStatsQuery,
   useGetRecentEngagementQuery,
   useGetWeeklyEngagementQuery,

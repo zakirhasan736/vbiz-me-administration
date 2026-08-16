@@ -13,7 +13,7 @@ export const videosApi = api.injectEndpoints({
       providesTags: (_result, _error, profileId) => [{ type: 'Videos', id: profileId }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetVideosQuery, useLazyGetVideosQuery } = videosApi

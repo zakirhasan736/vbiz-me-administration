@@ -47,7 +47,7 @@ export function VCardPreview({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       />
 
       {/* Preview Device Wrapper */}
-      <div className="animate-in slide-in-from-bottom-10 sm:slide-in-from-right-10 pointer-events-auto relative z-100 flex h-full max-h-[90vh] w-full max-w-[360px] flex-col overflow-hidden rounded-[48px] border-slate-200/80 bg-white shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] duration-500 ease-[0.23,1,0.32,1] sm:fixed sm:right-8 sm:bottom-24 sm:h-[720px] sm:border-10 dark:border-[#1e2333] dark:bg-[#0b0f19]">
+      <div className="animate-in slide-in-from-bottom-10 sm:slide-in-from-right-10 pointer-events-auto relative z-100 flex h-full max-h-[90vh] w-full max-w-90 flex-col overflow-hidden rounded-[48px] border-slate-200/80 bg-white shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] duration-500 ease-[0.23,1,0.32,1] sm:fixed sm:right-8 sm:bottom-24 sm:h-180 sm:border-10 dark:border-[#1e2333] dark:bg-[#0b0f19]">
         {/* Success Toast Overlay */}
         <div
           className={cn(
@@ -55,7 +55,7 @@ export function VCardPreview({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             saved ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
           )}
         >
-          <div className="flex items-center gap-2 rounded-[16px] bg-emerald-500 px-4 py-2.5 text-white shadow-[0_8px_30px_rgba(16,185,129,0.3)] backdrop-blur-md">
+          <div className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-white shadow-[0_8px_30px_rgba(16,185,129,0.3)] backdrop-blur-md">
             <CheckCircle className="h-4 w-4" />
             <span className="text-[13px] font-bold tracking-wide">Contact Saved Successfully!</span>
           </div>
@@ -63,7 +63,7 @@ export function VCardPreview({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
         {/* Phone notch (modern dynamic island) */}
         <div className="pointer-events-none absolute inset-x-0 top-2 z-30 hidden h-7 justify-center sm:flex">
-          <div className="flex h-full w-[120px] items-center justify-between rounded-full bg-slate-800 px-3 shadow-sm dark:bg-black">
+          <div className="flex h-full w-30 items-center justify-between rounded-full bg-slate-800 px-3 shadow-sm dark:bg-black">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 opacity-60"></div>
             <div className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-slate-700/50 dark:bg-white/10">
               <div className="h-1 w-1 rounded-full bg-slate-900 dark:bg-black"></div>
@@ -116,8 +116,8 @@ export function VCardPreview({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
           {/* Contact Details Cards */}
           <div className="z-10 mb-8 w-full space-y-3 px-6">
-            <div className="flex items-center gap-4 rounded-[24px] border border-slate-200/60 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
-              <div className="bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px]">
+            <div className="flex items-center gap-4 rounded-3xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
+              <div className="bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
                 <Phone className="h-5 w-5" />
               </div>
               <div className="flex-1 overflow-hidden">
@@ -128,8 +128,8 @@ export function VCardPreview({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               </div>
             </div>
 
-            <div className="flex items-center gap-4 rounded-[24px] border border-slate-200/60 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400">
+            <div className="flex items-center gap-4 rounded-3xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400">
                 <Briefcase className="h-5 w-5" />
               </div>
               <div className="flex-1 overflow-hidden">

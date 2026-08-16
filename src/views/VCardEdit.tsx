@@ -3,6 +3,7 @@
 import { EditorNavEmptyPanel } from '@/components/EditorNavEmptyPanel'
 import { EditorNavInfoPanel } from '@/components/EditorNavInfoPanel'
 import { TakeTourBanner } from '@/components/tour/TakeTourBanner'
+import { AboutMeEditorPanel } from '@/components/vcard/AboutMeEditorPanel'
 import { AddTabsModal } from '@/components/vcard/AddTabsModal'
 import { AiGenerateModal, type AiProfilePayload } from '@/components/vcard/AiGenerateModal'
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
@@ -151,7 +152,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     saveVCard,
     flushSave,
     saveStatus,
-    saveError,
     isCreateMode,
     cardId: contextCardId,
     avatarImageUrl,
@@ -302,7 +302,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const visibleNavItems = useMemo(() => filterEditorMainNavItems(enabledNavItems), [enabledNavItems])
   const enabledNavIds = useMemo(() => enabledNavItems.map((item) => item.id), [enabledNavItems])
   const personalSubs = useMemo(() => getPersonalSubCompletions(vCardData, completionMeta), [vCardData, completionMeta])
-  const hasAboutNavItem = useMemo(() => visibleNavItems.some((item) => item.id === 'about'), [visibleNavItems])
 
   const saveStatusLabel =
     saveStatus === 'saving'
@@ -312,11 +311,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
         : saveStatus === 'saved'
           ? 'Saved'
           : saveStatus === 'error'
-            ? saveError
-              ? saveError.length > 48
-                ? `${saveError.slice(0, 45)}…`
-                : saveError
-              : 'Save failed'
+            ? 'Save Failed'
             : null
 
   const SaveStatusIcon =
@@ -335,11 +330,9 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const activeTab = route.subTab ?? 1
   const isSettingsOpen = route.isSettings
   const activeMainNavId = useMemo(() => {
-    if (activeNavId === 'about') return 'about'
-    if (hasAboutNavItem && activeNavId === 'home' && activeTab === 2) return 'about'
     if (isPersonalEditorNavId(activeNavId)) return 'home'
     return activeNavId
-  }, [activeNavId, activeTab, hasAboutNavItem])
+  }, [activeNavId])
   const previewSectionForRoute = route.isSettings ? DEFAULT_PROFILE_SECTION : activeMainNavId
 
   useEffect(() => {
@@ -381,6 +374,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
             {activeTab === 5 && <Tab5ExtraFields />}
           </>
         )
+      case 'about-me':
+        return <AboutMeEditorPanel cardId={contextCardId} />
       case 'education':
         return <TabEducation />
       case 'experience':
@@ -492,11 +487,9 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   const sectionHref = (sectionId: string) => withEditorQuery(buildEditorSectionPath(basePath, sectionId, cardId))
   const settingsHref = withEditorQuery(buildEditorSettingsPath(basePath, route.settingsTab, cardId))
-  /** Keep About Me as its own visible tab while the rest of Personal stays under Home. */
+  /** Personal sub-tabs stay under Home; About Me is its own top-level section. */
   const subTabHref = (tabId: number) =>
-    withEditorQuery(
-      buildEditorPath(basePath, { sectionId: tabId === 2 && hasAboutNavItem ? 'about' : 'home', subTab: tabId }, cardId)
-    )
+    withEditorQuery(buildEditorPath(basePath, { sectionId: 'home', subTab: tabId }, cardId))
 
   /** Section changes only rewrite the URL — the shell in `layout.tsx` stays mounted. */
   const goToEditorPath = useCallback((path: string) => {
@@ -886,7 +879,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               {!isCreateMode && saveStatusLabel && SaveStatusIcon && (
                 <button
                   type="button"
-                  title={saveStatus === 'error' ? saveError || 'Save failed — click to retry' : saveStatusLabel}
+                  title={saveStatus === 'error' ? 'Save failed — click to retry' : saveStatusLabel}
                   onClick={() => {
                     if (saveStatus === 'error' || saveStatus === 'dirty') {
                       void flushSave().catch(() => undefined)

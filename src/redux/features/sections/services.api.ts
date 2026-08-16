@@ -10,7 +10,7 @@ export const servicesApi = api.injectEndpoints({
       providesTags: (_result, _error, profileId) => [{ type: 'Services', id: profileId }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetServicesQuery, useLazyGetServicesQuery } = servicesApi

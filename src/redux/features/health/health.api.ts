@@ -13,6 +13,7 @@ type HealthResponse = {
 }
 
 const healthApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getHealth: builder.query<HealthStatus, void>({
       query: () => '/health',

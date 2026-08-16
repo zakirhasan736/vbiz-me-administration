@@ -1,3 +1,4 @@
+import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
 import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import type { EditorNavPanel } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
@@ -68,6 +69,10 @@ export type CompletionFieldEdit =
       path: string
       control: CompletionScalarControl
       options?: { value: string; label: string }[]
+    }
+  | {
+      type: 'about-me-draft'
+      field: 'title' | 'descriptionHtml' | 'featuredMediaUrl'
     }
   | {
       type: 'display-media'
@@ -141,9 +146,7 @@ export function getPersonalSubCompletions(data: VCardData, meta?: PersonalComple
   const bgMusic = displayCustom(data, 'Background Music') || displayCustom(data, 'YouTube Background Music Link') || ''
 
   const mediaChecks = [filled(avatar), filled(background), filled(data.slug)]
-  const infoChecks = [p.fullName, p.email, p.phone, p.designation, p.company, p.about, p.address, p.profession].map(
-    filled
-  )
+  const infoChecks = [p.fullName, p.email, p.phone, p.designation, p.company, p.address, p.profession].map(filled)
   const socialChecks = [socialFilledCount > 0, handles.length > 0 || customLinks.length > 0, socialFilledCount >= 2]
   const homeChecks = [filled(intro), filled(bgMusic) || filled(background), filled(data.theme?.primaryColor)]
   const extras = data.extraFields || []
@@ -461,12 +464,6 @@ export function getEditorPanelCompletionFields(
         edit: { type: 'scalar', path: 'personal.company', control: 'text' },
       },
       {
-        id: 'personal.about',
-        label: 'About text',
-        filled: filled(p.about),
-        edit: { type: 'scalar', path: 'personal.about', control: 'textarea' },
-      },
-      {
         id: 'personal.address',
         label: 'Address/location',
         filled: filled(p.address),
@@ -565,6 +562,30 @@ export function getEditorPanelCompletionFields(
   switch (panel.kind) {
     case 'personal':
       return panel.subTab ? personalFields[panel.subTab] || [] : Object.values(personalFields).flat()
+    case 'about-me': {
+      const draft = getAboutMeDraft()
+      return [
+        {
+          id: 'about-me.title',
+          label: 'Title',
+          filled: filled(draft.title),
+          edit: { type: 'about-me-draft', field: 'title' },
+        },
+        {
+          id: 'about-me.description',
+          label: 'Description',
+          filled: isAboutMeDescriptionFilled(draft.descriptionHtml),
+          edit: { type: 'about-me-draft', field: 'descriptionHtml' },
+        },
+        {
+          id: 'about-me.featuredMedia',
+          label: 'Featured media',
+          filled: filled(draft.featuredMediaUrl),
+          upload: true,
+          edit: { type: 'about-me-draft', field: 'featuredMediaUrl' },
+        },
+      ]
+    }
     case 'education': {
       const items = data.education || []
       if (!items.length) {
@@ -911,12 +932,6 @@ export function getEditorPanelCompletionFields(
     case 'profile':
       return [
         {
-          id: 'profile.about',
-          label: 'Profile story',
-          filled: filled(p.about),
-          edit: { type: 'scalar', path: 'personal.about', control: 'textarea' },
-        },
-        {
           id: 'profile.headline',
           label: 'Headline/title',
           filled: filled(p.designation) || filled(p.profession),
@@ -1155,6 +1170,15 @@ function panelPercent(panel: EditorNavPanel, data: VCardData, meta?: PersonalCom
   switch (panel.kind) {
     case 'personal':
       return personalPercent(data, meta)
+    case 'about-me': {
+      const draft = getAboutMeDraft()
+      const checks = [
+        filled(draft.title),
+        isAboutMeDescriptionFilled(draft.descriptionHtml),
+        filled(draft.featuredMediaUrl),
+      ]
+      return pct(checks.filter(Boolean).length, checks.length)
+    }
     case 'education':
       return listProgress(data.education)
     case 'experience':

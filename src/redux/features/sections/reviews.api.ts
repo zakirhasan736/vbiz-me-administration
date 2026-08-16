@@ -10,7 +10,7 @@ export const reviewsApi = api.injectEndpoints({
       providesTags: (_result, _error, profileId) => [{ type: 'Reviews', id: profileId }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetReviewsQuery, useLazyGetReviewsQuery } = reviewsApi

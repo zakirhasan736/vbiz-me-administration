@@ -140,6 +140,7 @@ export type ProfileNavContentKey =
 
 export type EditorNavPanel =
   | { kind: 'personal'; subTab?: number }
+  | { kind: 'about-me' }
   | { kind: 'education' }
   | { kind: 'experience' }
   | { kind: 'skill' }
@@ -187,7 +188,7 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     profileContent: 'home',
     editorPanel: { kind: 'personal', subTab: 1 },
   },
-  { id: 'about', label: 'About Me', icon: User, profileContent: 'about', editorPanel: { kind: 'personal', subTab: 2 } },
+  { id: 'about', label: 'About Me', icon: User, profileContent: 'about', editorPanel: { kind: 'about-me' } },
   {
     id: 'mission',
     label: 'Company Mission Statement',
@@ -571,7 +572,7 @@ export function filterEditorMainNavItems(items: NavBarNavItem[]): NavBarNavItem[
 
 /** Whether this nav id should highlight the Personal (home) chip in the editor. */
 export function isPersonalEditorNavId(id: string): boolean {
-  return id === 'home' || id === 'about'
+  return id === 'home'
 }
 
 export function getNavItemBackgroundColor(settings: VCardDisplaySettings, label: string): string | undefined {

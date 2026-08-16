@@ -60,7 +60,7 @@ export default function VCardPublicView() {
 
         {/* Contact Details Cards */}
         <div className="z-10 mb-10 w-full space-y-4">
-          <div className="flex items-center gap-5 rounded-[24px] border border-slate-200/60 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
+          <div className="flex items-center gap-5 rounded-3xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
             <div className="bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px]">
               <Phone className="h-6 w-6" />
             </div>
@@ -72,7 +72,7 @@ export default function VCardPublicView() {
             </div>
           </div>
 
-          <div className="flex items-center gap-5 rounded-[24px] border border-slate-200/60 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
+          <div className="flex items-center gap-5 rounded-3xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#0b0f19]">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400">
               <Briefcase className="h-6 w-6" />
             </div>
@@ -88,21 +88,21 @@ export default function VCardPublicView() {
         {/* Floating Action Buttons Grid */}
         <div className="z-10 mb-10 grid w-full grid-cols-4 gap-4">
           <button onClick={() => {}} className="flex flex-col items-center justify-center gap-3">
-            <div className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/60 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)] dark:border-white/5 dark:bg-[#0b0f19] dark:text-slate-300">
+            <div className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl border border-slate-200/60 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)] dark:border-white/5 dark:bg-[#0b0f19] dark:text-slate-300">
               <div className="bg-primary-500/10 absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"></div>
               <Briefcase className="z-10 h-7 w-7" strokeWidth={1.5} />
             </div>
             <span className="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Portfolio</span>
           </button>
           <button onClick={() => {}} className="flex flex-col items-center justify-center gap-3">
-            <div className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/60 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)] dark:border-white/5 dark:bg-[#0b0f19] dark:text-slate-300">
+            <div className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl border border-slate-200/60 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)] dark:border-white/5 dark:bg-[#0b0f19] dark:text-slate-300">
               <div className="bg-primary-500/10 absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"></div>
               <Phone className="z-10 h-7 w-7" strokeWidth={1.5} />
             </div>
             <span className="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Call</span>
           </button>
           <button onClick={() => {}} className="flex flex-col items-center justify-center gap-3">
-            <div className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200/60 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)] dark:border-white/5 dark:bg-[#0b0f19] dark:text-slate-300">
+            <div className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl border border-slate-200/60 bg-white text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)] dark:border-white/5 dark:bg-[#0b0f19] dark:text-slate-300">
               <div className="bg-primary-500/10 absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"></div>
               <Link2 className="z-10 h-7 w-7" strokeWidth={1.5} />
             </div>
@@ -111,7 +111,7 @@ export default function VCardPublicView() {
           <button onClick={handleShare} className="flex flex-col items-center justify-center gap-3">
             <div
               className={cn(
-                'group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[24px] border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:scale-110',
+                'group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:scale-110',
                 copied
                   ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_8px_20px_rgba(16,185,129,0.3)]'
                   : 'bg-primary-600 border-primary-500 text-white shadow-[0_8px_20px_rgba(var(--primary-600),0.3)]'
@@ -141,7 +141,7 @@ export default function VCardPublicView() {
         <button
           onClick={handleSaveContact}
           className={cn(
-            'group pointer-events-auto relative flex w-full max-w-[360px] items-center justify-center gap-3 overflow-hidden rounded-[24px] border py-5 text-[16px] font-bold shadow-xl transition-all duration-300 active:scale-95',
+            'group pointer-events-auto relative flex w-full max-w-90 items-center justify-center gap-3 overflow-hidden rounded-3xl border py-5 text-[16px] font-bold shadow-xl transition-all duration-300 active:scale-95',
             saved
               ? 'border-emerald-500/20 bg-emerald-500 text-white shadow-emerald-500/20 hover:bg-emerald-600'
               : 'hover:shadow-primary-500/25 border-transparent bg-slate-900 text-white dark:bg-white dark:text-slate-900'

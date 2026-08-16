@@ -114,10 +114,10 @@ export function ProfileHeaderV2({
 
   const visibleSocials = useMemo(
     () =>
-      filterSocialItemsWithLinks(V2_SOCIAL_ITEMS, socialHref, personal.whatsapp).filter(
+      filterSocialItemsWithLinks(V2_SOCIAL_ITEMS, socialHref, personal.whatsapp, isVisible).filter(
         (item) => item.label !== 'Website'
       ),
-    [socialHref, personal.whatsapp]
+    [socialHref, personal.whatsapp, isVisible]
   )
 
   const renderSocialIcon = (item: V2SocialItem) => {
@@ -127,6 +127,16 @@ export function ProfileHeaderV2({
     }
     const Icon = item.icon as LucideIcon
     return <Icon size={14} className="md:h-4 md:w-4" />
+  }
+
+  const socialInlineStyle = (label: string) => {
+    const socialStyle = field(label)
+    const iconColor = socialStyle.iconColor ?? socialStyle.textColor
+    if (!iconColor && !socialStyle.backgroundColor) return undefined
+    return {
+      ...(iconColor ? { color: iconColor } : {}),
+      ...(socialStyle.backgroundColor ? { backgroundColor: socialStyle.backgroundColor } : {}),
+    }
   }
 
   const nameStyle = headerTextColor
@@ -158,6 +168,7 @@ export function ProfileHeaderV2({
                 onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
                 className="vbiz-social flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10"
                 aria-label={social.label}
+                style={socialInlineStyle(social.label)}
               >
                 {renderSocialIcon(social)}
               </a>
@@ -225,6 +236,7 @@ export function ProfileHeaderV2({
                   onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
                   className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full transition-colors"
                   aria-label={social.label}
+                  style={socialInlineStyle(social.label)}
                 >
                   {itemIcon(social)}
                 </a>

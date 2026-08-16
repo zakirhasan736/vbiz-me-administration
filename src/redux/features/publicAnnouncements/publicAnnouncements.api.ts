@@ -17,7 +17,7 @@ export const publicAnnouncementsApi = api.injectEndpoints({
       keepUnusedDataFor: 60,
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 
 export const { useGetPublicProfileAnnouncementQuery } = publicAnnouncementsApi

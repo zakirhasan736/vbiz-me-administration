@@ -15,6 +15,7 @@ type Envelope<T> = {
 }
 
 const adminSupportApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getSupportTickets: builder.query<SupportTicketListPage, SupportTicketListQuery | void>({
       query: (params) => {

@@ -16,6 +16,6 @@ export const navBarLinksApi = api.injectEndpoints({
       providesTags: ['NavBarLinks'],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 })
 export const { useGetNavBarLinksQuery, useLazyGetNavBarLinksQuery } = navBarLinksApi

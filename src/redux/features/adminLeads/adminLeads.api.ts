@@ -66,6 +66,7 @@ function buildListSearch(params?: AdminLeadsListQuery) {
 }
 
 const adminLeadsApi = api.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getAdminLeadsStats: builder.query<AdminLeadsStats, void>({
       query: () => '/admin/leads/stats',

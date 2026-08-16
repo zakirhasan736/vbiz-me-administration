@@ -29,6 +29,7 @@ import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
 import {
+  applyEnabledNavOrderToDisplaySettings,
   GENERAL_SETTINGS_FIELDS,
   getDisplaySettingsFromVCard,
   getFieldColorPreview,
@@ -39,8 +40,10 @@ import {
   patchDisplayField,
   setCategoryEnableAll,
   SOCIAL_LINK_FIELDS,
+  syncEditorNavOrderAfterNavVisibilityChange,
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
+import { LOCKED_NAV_ITEM_IDS, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
 import { DEFAULT_COVER } from '@/profile-app/profilePublicProps'
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
@@ -1214,6 +1217,11 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
   const patchDisplay = (next: VCardDisplaySettings) => updateData('displaySettings', next)
 
   const patchField = (key: string, patch: Partial<DisplayFieldConfig>) => {
+    if (activeTab === 'navbar' && typeof patch.visible === 'boolean' && key !== 'Nav Background Color') {
+      const withVisibility = patchDisplayField(display, key, patch)
+      patchDisplay(syncEditorNavOrderAfterNavVisibilityChange(withVisibility, key, patch.visible))
+      return
+    }
     patchDisplay(patchDisplayField(display, key, patch))
   }
 
@@ -1423,7 +1431,15 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
                         return
                       }
                       const keys = CATEGORY_FIELDS[activeTab]
-                      if (keys) patchDisplay(setCategoryEnableAll(display, keys, enabled))
+                      if (!keys) return
+                      if (activeTab === 'navbar') {
+                        const nextIds = enabled
+                          ? NAV_BAR_NAV_ITEMS.map((item) => item.id)
+                          : NAV_BAR_NAV_ITEMS.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id)).map((item) => item.id)
+                        patchDisplay(applyEnabledNavOrderToDisplaySettings(display, nextIds))
+                        return
+                      }
+                      patchDisplay(setCategoryEnableAll(display, keys, enabled))
                     }}
                   />
                 </div>
