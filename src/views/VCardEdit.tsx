@@ -313,7 +313,11 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
         : saveStatus === 'saved'
           ? 'Saved'
           : saveStatus === 'error'
-            ? 'Save failed'
+            ? saveError
+              ? saveError.length > 48
+                ? `${saveError.slice(0, 45)}…`
+                : saveError
+              : 'Save failed'
             : null
 
   const SaveStatusIcon =
@@ -622,7 +626,12 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     }
     setIsActivatingDraft(true)
     try {
-      await flushSave()
+      try {
+        await flushSave()
+      } catch {
+        // Persist errors are already toasted from VCardContext.
+        return
+      }
       await updateProfileCard({ id: activeCardId, body: { isDraft: false, isPublic: true } }).unwrap()
       dispatch(
         updateVCard({
@@ -1125,12 +1134,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                         try {
                           await flushSave()
                           notify.success('Profile saved.')
-                        } catch (e) {
-                          const message =
-                            (e as { data?: { message?: string } })?.data?.message ||
-                            (e as Error)?.message ||
-                            'Could not save profile.'
-                          notify.error(message)
+                        } catch {
+                          // Persist errors are already toasted from VCardContext.
                         } finally {
                           setIsSaving(false)
                         }

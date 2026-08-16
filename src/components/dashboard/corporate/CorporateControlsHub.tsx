@@ -10,6 +10,7 @@ import { CorporateLeadNotesRepliesPanel } from '@/components/dashboard/corporate
 import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { noticeForCard, noticeTypeFromTeamNotice } from '@/lib/cardNotice'
+import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import type { DashboardSocialChannel, TeamNotice } from '@/redux/features/profiles/profiles.api'
 import {
   useCreateTeamNoticeMutation,
@@ -133,6 +134,20 @@ export function CorporateControlsHub({
 
   const resolvedBroadcastCardFilter = broadcastCardFilter || cards[0]?.id || ''
 
+  const broadcastTargetCard = useMemo(
+    () => cards.find((c) => c.id === resolvedBroadcastCardFilter) || null,
+    [cards, resolvedBroadcastCardFilter]
+  )
+  const broadcastTargetLocked = Boolean(broadcastTargetCard && isOwnerCardLocked(broadcastTargetCard.status))
+
+  const cardStatusById = useMemo(() => {
+    const map = new Map<string, string | null | undefined>()
+    for (const c of cards) {
+      map.set(c.id, c.status)
+    }
+    return map
+  }, [cards])
+
   const cardNameById = useMemo(() => {
     const map = new Map<string, string>()
     for (const c of cards) {
@@ -210,6 +225,13 @@ export function CorporateControlsHub({
       setAlert({
         title: 'Select a card',
         description: 'Announcements must target one team card — they are never published to every card.',
+      })
+      return
+    }
+    if (broadcastTargetLocked) {
+      setAlert({
+        title: 'Card suspended',
+        description: SUSPENDED_CARD_MESSAGE,
       })
       return
     }
@@ -366,6 +388,12 @@ export function CorporateControlsHub({
                 </div>
               </div>
 
+              {broadcastTargetLocked ? (
+                <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                  {SUSPENDED_CARD_MESSAGE}
+                </p>
+              ) : null}
+
               <form
                 onSubmit={(e) => void handleCreateBroadcast(e)}
                 className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-12"
@@ -378,8 +406,9 @@ export function CorporateControlsHub({
                     required
                     value={newBroadcastText}
                     onChange={(e) => setNewBroadcastText(e.target.value)}
+                    disabled={broadcastTargetLocked}
                     placeholder="e.g. Please note: Our HQ office has relocated!"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-amber-500/50 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-white"
                   />
                 </div>
                 <div className="space-y-1.5 lg:col-span-2">
@@ -387,7 +416,8 @@ export function CorporateControlsHub({
                   <select
                     value={newBroadcastAudience}
                     onChange={(e) => setNewBroadcastAudience(e.target.value as 'all' | 'savers')}
-                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                    disabled={broadcastTargetLocked}
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-white"
                   >
                     <option value="all">This card (owner dashboard)</option>
                     <option value="savers">Savers of this card</option>
@@ -409,6 +439,7 @@ export function CorporateControlsHub({
                     {cards.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.personal.fullName || c.slug || c.id}
+                        {isOwnerCardLocked(c.status) ? ' (suspended)' : ''}
                       </option>
                     ))}
                   </select>
@@ -420,7 +451,8 @@ export function CorporateControlsHub({
                     onChange={(e) =>
                       setNewBroadcastType(e.target.value as 'broadcast' | 'system' | 'info' | 'warning' | 'success')
                     }
-                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                    disabled={broadcastTargetLocked}
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-white"
                   >
                     <option value="info">Info</option>
                     <option value="warning">Warning</option>
@@ -431,8 +463,9 @@ export function CorporateControlsHub({
                 </div>
                 <button
                   type="submit"
-                  disabled={creatingNotice}
-                  className="w-full rounded-xl bg-amber-600 py-3 text-xs font-black tracking-wider text-white uppercase transition-all hover:bg-amber-700 active:scale-95 disabled:opacity-60 lg:col-span-2"
+                  disabled={creatingNotice || broadcastTargetLocked}
+                  title={broadcastTargetLocked ? SUSPENDED_CARD_MESSAGE : undefined}
+                  className="w-full rounded-xl bg-amber-600 py-3 text-xs font-black tracking-wider text-white uppercase transition-all hover:bg-amber-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 lg:col-span-2"
                 >
                   {creatingNotice
                     ? 'Publishing…'
@@ -452,47 +485,62 @@ export function CorporateControlsHub({
                   <p className="text-[11px] font-bold text-slate-400 italic">No announcements for this card yet.</p>
                 ) : (
                   <div className="max-h-48 space-y-2 overflow-y-auto pr-2">
-                    {visibleTeamNotices.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-white p-3 text-xs dark:border-white/5 dark:bg-slate-900"
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                          <span
-                            className={cn(
-                              'rounded px-2 py-0.5 text-[8px] font-black tracking-wider uppercase',
-                              msg.type === 'warning' || msg.type === 'system'
-                                ? 'border border-amber-500/20 bg-amber-500/15 text-amber-600'
-                                : msg.type === 'success'
-                                  ? 'border border-emerald-500/20 bg-emerald-500/15 text-emerald-600'
-                                  : 'border border-indigo-500/20 bg-indigo-500/15 text-indigo-600'
-                            )}
-                          >
-                            {msg.type}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate pr-4 font-semibold text-slate-700 dark:text-zinc-200">{msg.text}</p>
-                            {msg.targetCardId ? (
-                              <p className="truncate text-[10px] font-bold text-slate-400">
-                                {cardNameById.get(msg.targetCardId) || 'Card'}
+                    {visibleTeamNotices.map((msg) => {
+                      const noticeTargetLocked = Boolean(
+                        msg.targetCardId && isOwnerCardLocked(cardStatusById.get(msg.targetCardId))
+                      )
+                      return (
+                        <div
+                          key={msg.id}
+                          className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-white p-3 text-xs dark:border-white/5 dark:bg-slate-900"
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                            <span
+                              className={cn(
+                                'rounded px-2 py-0.5 text-[8px] font-black tracking-wider uppercase',
+                                msg.type === 'warning' || msg.type === 'system'
+                                  ? 'border border-amber-500/20 bg-amber-500/15 text-amber-600'
+                                  : msg.type === 'success'
+                                    ? 'border border-emerald-500/20 bg-emerald-500/15 text-emerald-600'
+                                    : 'border border-indigo-500/20 bg-indigo-500/15 text-indigo-600'
+                              )}
+                            >
+                              {msg.type}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate pr-4 font-semibold text-slate-700 dark:text-zinc-200">
+                                {msg.text}
                               </p>
-                            ) : null}
+                              {msg.targetCardId ? (
+                                <p className="truncate text-[10px] font-bold text-slate-400">
+                                  {cardNameById.get(msg.targetCardId) || 'Card'}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-3">
+                            <span className="text-[10px] font-bold text-slate-400">
+                              {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString() : ''}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={noticeTargetLocked}
+                              title={noticeTargetLocked ? SUSPENDED_CARD_MESSAGE : 'Remove announcement'}
+                              onClick={() => {
+                                if (noticeTargetLocked) {
+                                  setAlert({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+                                  return
+                                }
+                                setDeleteBroadcastId(msg.id)
+                              }}
+                              className="rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-red-500/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-3">
-                          <span className="text-[10px] font-bold text-slate-400">
-                            {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString() : ''}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteBroadcastId(msg.id)}
-                            className="rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>

@@ -27,6 +27,7 @@ import { appendAuditLog } from '@/lib/mockStore'
 import { notifyCardOwner } from '@/lib/notifications'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
+import { api } from '@/redux/api/api'
 import {
   useCreateAnnouncementMutation,
   useGetAnnouncementsQuery,
@@ -112,6 +113,7 @@ export default function AdminVCards() {
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
+  const [highlightedPausedId, setHighlightedPausedId] = useState<string | null>(null)
   const listTopRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -130,6 +132,12 @@ export default function AdminVCards() {
     const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
     return () => window.clearTimeout(timer)
   }, [highlightedActivatedId])
+
+  useEffect(() => {
+    if (!highlightedPausedId) return
+    const timer = window.setTimeout(() => setHighlightedPausedId(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedPausedId])
 
   const listQuery = useMemo(
     () => ({
@@ -253,6 +261,7 @@ export default function AdminVCards() {
           dispatch(setLifecycleTab('active'))
           setHighlightedActivatedId(cardId)
           setHighlightedDuplicatedId(null)
+          setHighlightedPausedId(null)
           setPanelCard(null)
         },
       },
@@ -462,6 +471,8 @@ export default function AdminVCards() {
             onClick: () => {
               dispatch(setLifecycleTab('draft'))
               setHighlightedDuplicatedId(newId)
+              setHighlightedActivatedId(null)
+              setHighlightedPausedId(null)
               setPanelCard(null)
             },
           },
@@ -533,11 +544,14 @@ export default function AdminVCards() {
 
   const handleToggleStatus = async (card: AdminCard, targetStatus: string) => {
     try {
-      await updateCorporateCardControls(card.id, {
-        status: targetStatus as 'active' | 'inactive' | 'paused' | 'suspended',
-      })
+      const prevStatus = String(card.status || 'active').toLowerCase()
       const nextPublic = targetStatus === 'active'
       const nextDraft = targetStatus === 'paused'
+      await updateCorporateCardControls(card.id, {
+        status: targetStatus as 'active' | 'inactive' | 'paused' | 'suspended',
+        isPublic: nextPublic,
+        isDraft: nextDraft,
+      })
       setSelectedCard((prev) =>
         prev && prev.id === card.id ? { ...prev, status: targetStatus, isPublic: nextPublic, isDraft: nextDraft } : prev
       )
@@ -550,8 +564,46 @@ export default function AdminVCards() {
         details: `Modified ${personalField(card.personal, 'fullName')}'s account status to ${targetStatus.toUpperCase()}`,
         type: 'status',
       })
-      notify.info(`Card marked ${targetStatus}.`)
-      void refreshListFromStart()
+
+      const crossesLifecycle = targetStatus === 'paused' || (targetStatus === 'active' && prevStatus === 'paused')
+
+      if (crossesLifecycle) {
+        dispatch(api.util.invalidateTags([{ type: 'adminProfiles', id: 'LIST' }]))
+        void refreshListFromStart()
+
+        if (targetStatus === 'paused') {
+          notify.success('Moved to draft and hidden from the public.', {
+            title: 'Card paused',
+            action: {
+              label: 'View in Draft',
+              onClick: () => {
+                dispatch(setLifecycleTab('draft'))
+                setHighlightedPausedId(card.id)
+                setHighlightedDuplicatedId(null)
+                setHighlightedActivatedId(null)
+                setPanelCard(null)
+              },
+            },
+          })
+        } else {
+          notify.success('Your card is now active.', {
+            title: 'Card activated',
+            action: {
+              label: 'View in Active',
+              onClick: () => {
+                dispatch(setLifecycleTab('active'))
+                setHighlightedActivatedId(card.id)
+                setHighlightedDuplicatedId(null)
+                setHighlightedPausedId(null)
+                setPanelCard(null)
+              },
+            },
+          })
+        }
+      } else {
+        notify.info(`Card marked ${targetStatus}.`)
+        void refreshListFromStart()
+      }
     } catch {
       notify.info('Could not update card status.')
     }
@@ -567,7 +619,7 @@ export default function AdminVCards() {
       targetStatus === 'suspended'
         ? {
             title: 'Suspend this card?',
-            description: `${name} will be disabled and hidden from the public. The owner will not be able to edit, duplicate, or change visibility. The phone number cannot be reused on a new card, and the card still counts toward their package capacity.`,
+            description: `${name} will be disabled and hidden from the public. The owner will not be able to edit, duplicate, or change visibility. The card still counts toward their package capacity.`,
             confirmLabel: 'Suspend',
             variant: 'danger' as const,
           }
@@ -993,8 +1045,18 @@ export default function AdminVCards() {
                 }
                 onDuplicate={() => void handleDuplicateCard(card)}
                 isDuplicating={duplicatingCardId === card.id}
-                isNewlyDuplicated={highlightedDuplicatedId === card.id || highlightedActivatedId === card.id}
-                highlightLabel={highlightedActivatedId === card.id ? 'activated' : 'duplicated'}
+                isNewlyDuplicated={
+                  highlightedDuplicatedId === card.id ||
+                  highlightedActivatedId === card.id ||
+                  highlightedPausedId === card.id
+                }
+                highlightLabel={
+                  highlightedActivatedId === card.id
+                    ? 'activated'
+                    : highlightedPausedId === card.id
+                      ? 'paused'
+                      : 'duplicated'
+                }
                 onActivatedFromDraft={handleActivatedFromDraft}
                 onDeleted={async (id) => {
                   setSelectedCardIds((prev) => prev.filter((x) => x !== id))

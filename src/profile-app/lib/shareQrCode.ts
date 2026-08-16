@@ -221,14 +221,16 @@ export function buildShareProfileTitle(
   personal: { designation?: string; profession?: string; company?: string },
   isVisible: (key: string) => boolean
 ): string {
+  const profession = isVisible('MyInfo Profession') ? personal.profession?.trim() : ''
   const designation = isVisible('MyInfo Designation') ? personal.designation?.trim() : ''
   const company = isVisible('MyInfo Company') ? personal.company?.trim() : ''
-  const profession = isVisible('MyInfo Profession') ? personal.profession?.trim() : ''
+  const title = profession || designation
 
-  if (designation && company) return `${designation} of ${company}`
-  if (designation) return designation
-  if (profession && company) return `${profession} at ${company}`
-  return profession || company || ''
+  if (title && company) {
+    const connector = profession ? 'at' : 'of'
+    return `${title} ${connector} ${company}`
+  }
+  return title || company || ''
 }
 
 type GenerateShareQrOptions = {

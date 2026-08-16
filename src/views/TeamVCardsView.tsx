@@ -15,6 +15,7 @@ import {
   NoticeModal,
   QrCodeModal,
   VCardDetailSidebar,
+  VCardDirectoryListSkeleton,
   VCardTrendsPopup,
   type NoticeType,
 } from '@/components/dashboard/vcard'
@@ -26,6 +27,7 @@ import {
   readLocalCardNotice,
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
+import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
 import {
   useCreateTeamNoticeMutation,
@@ -90,10 +92,30 @@ export default function TeamVCardsView() {
   }
 
   const openQr = (card: VCardRecord) => {
+    if (isOwnerCardLocked(card.status)) {
+      notify.error(SUSPENDED_CARD_MESSAGE)
+      return
+    }
     const url = getVCardPublicUrl(card.slug?.trim() || 'profile')
     setQrUrl(url)
     setQrTitle(card.personal.fullName ? `${card.personal.fullName} · QR` : 'vCard QR Code')
     setIsQrOpen(true)
+  }
+
+  const openNotice = (card: VCardRecord) => {
+    if (isOwnerCardLocked(card.status)) {
+      notify.error(SUSPENDED_CARD_MESSAGE)
+      return
+    }
+    setNoticeCard(card)
+  }
+
+  const openPromptNotice = (card: VCardRecord) => {
+    if (isOwnerCardLocked(card.status)) {
+      notify.error(SUSPENDED_CARD_MESSAGE)
+      return
+    }
+    setPromptNoticeCard(card)
   }
 
   const goCreate = () => {
@@ -193,10 +215,7 @@ export default function TeamVCardsView() {
       ) : null}
 
       {directory.isLoading ? (
-        <div className="flex flex-col items-center justify-center rounded-4xl border border-dashed border-slate-300 py-20 text-center dark:border-white/10">
-          <div className="border-primary-500 mb-4 h-10 w-10 animate-spin rounded-full border-4 border-t-transparent" />
-          <p className="text-sm font-bold tracking-widest text-slate-500 uppercase">Loading vCards…</p>
-        </div>
+        <VCardDirectoryListSkeleton cardCount={3} />
       ) : filteredCards.length === 0 ? (
         <TeamVCardsEmptyState
           hasFilters={hasFilters}
@@ -236,7 +255,7 @@ export default function TeamVCardsView() {
                 onCardClick={() => setPanelCardId(card.id)}
                 onOpenQr={() => openQr(card)}
                 onPanel={(c) => setPanelCardId(c.id)}
-                onNotice={(c) => setPromptNoticeCard(c)}
+                onNotice={openPromptNotice}
                 noticeVersion={noticeVersion}
                 cardNoticeText={serverNotice?.text ?? null}
                 cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
@@ -277,7 +296,7 @@ export default function TeamVCardsView() {
       <VCardDetailSidebar
         card={panelCard}
         onClose={() => setPanelCardId(null)}
-        onNotice={setNoticeCard}
+        onNotice={openNotice}
         onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
         canDuplicate={directory.canCreate}
         duplicateDisabledReason={directory.createDisabledReason}
@@ -297,6 +316,11 @@ export default function TeamVCardsView() {
         onCancel={() => setPromptNoticeCard(null)}
         onConfirm={(text) => {
           if (!promptNoticeCard) return
+          if (isOwnerCardLocked(promptNoticeCard.status)) {
+            notify.error(SUSPENDED_CARD_MESSAGE)
+            setPromptNoticeCard(null)
+            return
+          }
           const trimmed = text.trim()
           void (async () => {
             try {
@@ -335,6 +359,11 @@ export default function TeamVCardsView() {
         onClose={() => setNoticeCard(null)}
         onSave={(text, type) => {
           if (!noticeCard) return
+          if (isOwnerCardLocked(noticeCard.status)) {
+            notify.error(SUSPENDED_CARD_MESSAGE)
+            setNoticeCard(null)
+            return
+          }
           void (async () => {
             try {
               if (text.trim()) {
@@ -363,6 +392,11 @@ export default function TeamVCardsView() {
         }}
         onClear={() => {
           if (!noticeCard) return
+          if (isOwnerCardLocked(noticeCard.status)) {
+            notify.error(SUSPENDED_CARD_MESSAGE)
+            setNoticeCard(null)
+            return
+          }
           void (async () => {
             clearLocalCardNotice(noticeCard.id)
             const existing = noticeForCard(noticeCard.id, teamNotices)

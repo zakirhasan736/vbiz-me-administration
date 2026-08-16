@@ -2,7 +2,7 @@
 
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { buildFullContactItems, cleanProfileFieldValue } from '@/profile-app/lib/profileHomeData'
+import { buildFullContactItems, resolveGlobalProfession } from '@/profile-app/lib/profileHomeData'
 import { Info, X } from 'lucide-react'
 import { useMemo } from 'react'
 
@@ -23,10 +23,7 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
 
   const name = (isVisible('MyInfo section Name') && personal.fullName?.trim()) || 'Contact Info'
   const title =
-    (isVisible('MyInfo Designation') && personal.designation?.trim() && cleanProfileFieldValue(personal.designation)) ||
-    (isVisible('MyInfo Profession') && personal.profession?.trim() && cleanProfileFieldValue(personal.profession)) ||
-    (isVisible('MyInfo Company') && personal.company?.trim()) ||
-    ''
+    resolveGlobalProfession(personal, isVisible) || (isVisible('MyInfo Company') && personal.company?.trim()) || ''
 
   return (
     <ProfileModalShell isOpen={isOpen} onClose={onClose} panelClassName="max-w-[400px] sm:max-w-[400px]">

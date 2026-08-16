@@ -167,11 +167,11 @@ export function resolveWalletPassTheme(card: MyCardData | null | undefined): Wal
   }
 }
 
-export function formatWalletTitle(designation?: string | null, company?: string | null): string {
-  const title = designation?.trim() || ''
+export function formatWalletTitle(title?: string | null, company?: string | null): string {
+  const role = title?.trim() || ''
   const org = company?.trim() || ''
-  if (title && org && !title.toLowerCase().includes(org.toLowerCase())) return `${title} | ${org}`
-  return title || org
+  if (role && org && !role.toLowerCase().includes(org.toLowerCase())) return `${role} | ${org}`
+  return role || org
 }
 
 export function resolveWalletPhotoUrl(card: MyCardData | null | undefined): string | null {
@@ -191,7 +191,8 @@ export function resolveWalletPassModel(
   const name = resolvePwaDisplayName(card?.profile?.name, slug)
   let photoUrl = resolveWalletPhotoUrl(card)
   if (photoUrl?.startsWith('/') && origin) photoUrl = `${origin.replace(/\/$/, '')}${photoUrl}`
-  const designation = formatWalletTitle(card?.profile?.designation, card?.profile?.company_name)
+  const globalTitle = card?.profile?.profession?.trim() || card?.profile?.designation?.trim() || ''
+  const designation = formatWalletTitle(globalTitle, card?.profile?.company_name)
   const path = `/v/${encodeURIComponent(slug.trim())}`
   return {
     name,

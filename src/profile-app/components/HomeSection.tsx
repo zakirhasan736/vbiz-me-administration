@@ -2,7 +2,10 @@
 
 import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
 import { useTranslation } from '@/lib/i18n/translationData'
-import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
+import { encodeMediaUrl } from '@/lib/mediaUrl'
+import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
+import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
+import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
   ArrowUpRight,
   Bell,
@@ -25,7 +28,12 @@ import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useProfileDisplay } from '../lib/profileDisplayContext'
 import { openVbizmeLogin } from '../lib/profileExternalLinks'
-import { buildBentoContactItems, formatProfileViewCount, splitDisplayName } from '../lib/profileHomeData'
+import {
+  buildBentoContactItems,
+  formatProfileViewCount,
+  resolveGlobalProfession,
+  splitDisplayName,
+} from '../lib/profileHomeData'
 import { filterSocialItemsWithLinks, onTrackedSocialClick, resolveSocialLinkHref } from '../lib/profileSocialLinks'
 import { resolveProfileAvatarSrc } from '../profilePublicProps'
 import { CustomVideoPlayer } from './CustomVideoPlayer'
@@ -242,8 +250,11 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const nameStyle = field('MyInfo section Name')
   const accent = design?.accentColor ?? '#dcc969'
 
-  const coverSrc = encodeMediaUrl(homeMedia.bgMedia || DEFAULT_COVER)
-  const coverIsVideo = Boolean(coverSrc && isVideoUrl(coverSrc))
+  const theme = useProfileTheme()
+  const wallpaper = resolveWallpaperConfig(theme?.themeConfig, homeMedia.bgMedia, DEFAULT_COVER)
+  const coverMediaUrl = wallpaperNeedsMedia(wallpaper.style)
+    ? encodeMediaUrl(homeMedia.bgMedia || DEFAULT_COVER)
+    : encodeMediaUrl(homeMedia.bgMedia || '')
   const introSrc = homeMedia.introVideo || personal.explainerVideoUrl || undefined
   const profileSrc = useMemo(
     () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc),
@@ -253,10 +264,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
     isVisible('MyInfo section Name') ? personal.fullName : ''
   )
   const professionLine =
-    (isVisible('MyInfo Designation') && personal.designation) ||
-    (isVisible('MyInfo Profession') && personal.profession) ||
-    (isVisible('MyInfo Company') && personal.company) ||
-    ''
+    resolveGlobalProfession(personal, isVisible) || (isVisible('MyInfo Company') && personal.company) || ''
 
   const bentoContactItems = useMemo(
     () => buildBentoContactItems(personal, isVisible, field),
@@ -305,29 +313,16 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
             {/* Ambient Glow */}
             <div className="from-yellow-primary/15 to-yellow-primary/5 pointer-events-none absolute -inset-1 -z-10 bg-linear-to-br via-transparent opacity-0 blur-3xl transition-opacity duration-1000 group-hover:opacity-100" />
 
-            {/* Background media layer */}
+            {/* Background wallpaper layer */}
             <motion.div
               style={{ y: yBg }}
               className="absolute top-[-20%] right-0 left-0 z-0 h-[120%] overflow-hidden bg-white dark:bg-gray-900"
             >
-              {coverIsVideo ? (
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="absolute inset-0 h-full w-full scale-105 object-cover opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen"
-                >
-                  <source src={coverSrc} type="video/mp4" />
-                </video>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={coverSrc}
-                  alt=""
-                  className="absolute inset-0 h-full w-full scale-105 object-cover opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen"
-                />
-              )}
+              <ProfileWallpaperContent
+                wallpaper={wallpaper}
+                mediaUrl={coverMediaUrl}
+                mediaClassName="scale-105 opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen"
+              />
               <div className="absolute inset-0 bg-linear-to-t from-white via-white/40 to-transparent dark:from-gray-950 dark:via-gray-950/40" />
               <div className="absolute inset-0 bg-linear-to-r from-white/90 via-transparent to-transparent dark:from-gray-950/90" />
 

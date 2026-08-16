@@ -1018,3 +1018,19 @@ html[data-pwa-standalone]
 html[data-pwa-standalone] .vbiz-profile-root[data-profile-template='v2']:not([data-embedded]) {
   padding-bottom: max(6rem, env(safe-area-inset-bottom, 0px));
 }
+
+/*
+ * Public notice is nested under the fixed nav chrome (v1/v3). Increase content
+ * clearance so the hero clears nav + gap + banner. When dismissed, md:mt-18 applies.
+ */
+body:has([data-public-announcement]) .vbiz-profile-root:not([data-embedded]) .vbiz-profile-nav-clearance {
+  /* Mobile: fixed top strip (~banner height + top-3) */
+  margin-top: 4.5rem;
+}
+
+@media (min-width: 768px) {
+  body:has([data-public-announcement]) .vbiz-profile-root:not([data-embedded]) .vbiz-profile-nav-clearance {
+    /* Desktop: top-5 + pill + gap-2 + banner ≈ 9.5rem */
+    margin-top: 9.5rem;
+  }
+}

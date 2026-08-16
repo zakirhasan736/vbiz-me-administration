@@ -202,6 +202,10 @@ export function VCardTeamCard({
   }
 
   const handleView = () => {
+    if (ownerLocked) {
+      setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+      return
+    }
     if (!slug || slug === 'profile') {
       setAlertState({ title: 'URL slug required', description: 'Set a URL slug in the editor first.' })
       return
@@ -210,6 +214,10 @@ export function VCardTeamCard({
   }
 
   const handleQr = () => {
+    if (ownerLocked) {
+      setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+      return
+    }
     if (!fullUrl) {
       setAlertState({ title: 'URL slug required', description: 'Set a URL slug in the editor first.' })
       return
@@ -485,21 +493,28 @@ export function VCardTeamCard({
             <ShareCountChip count={Number(card.shareCount || clicks) || 0} compact />
             <button
               type="button"
+              disabled={ownerLocked}
               onClick={(e) => {
                 e.stopPropagation()
+                if (ownerLocked) {
+                  setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
+                  return
+                }
                 onNotice(card)
               }}
               className={cn(
                 'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase transition-colors',
-                noticeText
-                  ? noticeTone === 'success'
-                    ? 'border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-200'
-                    : noticeTone === 'warning'
-                      ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
-                      : 'border-indigo-300/60 bg-indigo-100 text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/25 dark:text-indigo-200'
-                  : 'border-amber-200/80 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25'
+                ownerLocked
+                  ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400 opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-slate-500'
+                  : noticeText
+                    ? noticeTone === 'success'
+                      ? 'border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-200'
+                      : noticeTone === 'warning'
+                        ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
+                        : 'border-indigo-300/60 bg-indigo-100 text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/25 dark:text-indigo-200'
+                    : 'border-amber-200/80 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25'
               )}
-              title={noticeText || 'Card announcement'}
+              title={ownerLocked ? SUSPENDED_CARD_MESSAGE : noticeText || 'Card announcement'}
             >
               <Megaphone className="h-3 w-3" />
               Notice
@@ -540,6 +555,10 @@ export function VCardTeamCard({
           }
           editDisabled={ownerLocked}
           editTitle={ownerLocked ? SUSPENDED_CARD_MESSAGE : 'Edit card'}
+          viewDisabled={ownerLocked}
+          viewTitle={ownerLocked ? SUSPENDED_CARD_MESSAGE : 'View live card'}
+          qrDisabled={ownerLocked}
+          qrTitle={ownerLocked ? SUSPENDED_CARD_MESSAGE : 'QR Code'}
         />
       </div>
     </div>

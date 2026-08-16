@@ -1,7 +1,11 @@
 'use client'
 
 import { ConfirmModal } from '@/components/ConfirmModal'
-import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
+import {
+  mediaFileTooLargeMessage,
+  MediaUploadError,
+  uploadMediaWithProgress,
+} from '@/lib/media/uploadMediaWithProgress'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
 import { Film, Loader2, Music, Trash2, Upload, X } from 'lucide-react'
@@ -160,8 +164,7 @@ export function VCardMediaField({
       setError(null)
 
       if (maxBytes != null && file.size > maxBytes) {
-        const mb = Math.round(maxBytes / (1024 * 1024))
-        setError(`File size exceeds ${mb}MB`)
+        setError(mediaFileTooLargeMessage(maxBytes))
         return
       }
 
@@ -181,6 +184,7 @@ export function VCardMediaField({
           file,
           profileId: profileId || undefined,
           attachmentType,
+          maxBytes,
           signal: controller.signal,
           onProgress: setProgress,
         })

@@ -1,5 +1,6 @@
 'use client'
 
+import PublicAnnouncementBanner from '@/components/PublicAnnouncementBanner'
 import { getNavDisplayLabel } from '@/lib/vcardNavbar'
 import { useProfileNavScroll } from '@/profile-app/hooks/useProfileNavScroll'
 import { useProfileNavigation } from '@/profile-app/providers/ProfileNavigationProvider'
@@ -24,7 +25,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
   return (
     <div
       className={cn(
-        'vbiz-floating-nav sticky top-4 z-50 mb-8 flex w-full max-w-full justify-center px-3 sm:top-6 sm:px-0',
+        'vbiz-floating-nav sticky top-4 z-50 mb-8 flex w-full max-w-full flex-col items-center gap-2 px-3 sm:top-6 sm:px-0',
         embedded ? 'max-w-full' : ''
       )}
     >
@@ -108,6 +109,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
           </div>
         </div>
       </motion.div>
+      {!embedded ? <PublicAnnouncementBanner placement="chrome" /> : null}
     </div>
   )
 }

@@ -12,6 +12,7 @@ import {
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveCardStatus } from '@/lib/cardStatus'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
+import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
 import { patchItem as patchAdminVCardsListItem } from '@/redux/features/adminVCardsList/adminVCardsList.slice'
@@ -118,7 +119,10 @@ export type ApiProfile = {
     layoutStyle?: string | null
     buttonStyle?: string | null
     cornerStyle?: string | null
+    themeConfig?: unknown
   } | null
+  /** Legacy / top-level theme config mirror when present on profile payloads. */
+  themeConfig?: unknown
   settings?: Array<{ key: string; value: string | null }>
   attachments?: Array<{
     url?: string | null
@@ -466,6 +470,10 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   })
   const settingsMap = settingsRowsToMap(profile.settings)
   const profileTemplate = templateToAppearance(profile.profileSettings?.profileTemplate || profile.template)
+  const rawThemeConfig = profile.profileSettings?.themeConfig ?? profile.themeConfig
+  const themeConfig = hasDynamicTheme(rawThemeConfig)
+    ? resolveCardThemeConfig(rawThemeConfig, profileTemplate)
+    : undefined
   const staticTheme = getStaticProfileTheme(profileTemplate)
   const savedTheme = parseThemeJson(settingsMap[THEME_SETTING_KEY])
   const customTabs = parseCustomTabs(settingsMap[CUSTOM_TABS_SETTING_KEY])
@@ -482,6 +490,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     isPublic: profile.isPublic ?? true,
     isDraft: profile.isDraft === true,
     theme,
+    ...(themeConfig ? { themeConfig } : {}),
     personal: {
       fullName: profile.name,
       email: profile.email,

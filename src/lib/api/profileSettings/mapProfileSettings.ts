@@ -65,6 +65,7 @@ export function mapProfileSettings(
       components: themeRaw.components,
       button: themeRaw.button,
       socialIcon: themeRaw.socialIcon,
+      wallpaper: themeRaw.wallpaper,
       appearance: {
         profileTemplate: resolvedTemplate,
         layoutStyle: appearanceRaw.layoutStyle,
