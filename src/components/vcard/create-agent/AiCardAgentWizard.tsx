@@ -8,13 +8,12 @@ import {
   mergeSectionPayload,
   type AnalyzeResponse,
 } from '@/lib/ai/applyCardDraft'
-import { cardAgentForm, cardAgentJson } from '@/lib/ai/cardAgentClient'
+import { cardAgentForm, cardAgentJobGet, cardAgentJobPost } from '@/lib/ai/cardAgentClient'
 import { TAB_NAV_MAP } from '@/lib/ai/cardBlueprint'
 import { gapFieldToSection, type GapItem } from '@/lib/ai/gapReport'
 import {
   CREATE_CARD_TAB_BY_NAME,
   CREATE_CARD_TAB_BY_NAV_ID,
-  getCardTabCatalogForAi,
   getCreateCardDisplayLabel,
   normalizeNavOrderWithPinnedEnds,
   PINNED_END_NAV_IDS,
@@ -32,6 +31,7 @@ import {
   ChevronDown,
   Eye,
   FileUp,
+  Globe,
   GripVertical,
   Loader2,
   Paperclip,
@@ -45,7 +45,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type ChatRole = 'assistant' | 'user' | 'system'
 type Phase =
-  'intake' | 'working' | 'tabs' | 'section-gate' | 'coach' | 'features' | 'preview' | 'creating' | 'celebrate'
+  | 'intake'
+  | 'working'
+  | 'plan'
+  | 'field'
+  | 'tabs'
+  | 'section-gate'
+  | 'coach'
+  | 'features'
+  | 'preview'
+  | 'creating'
+  | 'celebrate'
 type LaunchMode = 'publish' | 'draft'
 
 type ChatMessage = {
@@ -69,6 +79,71 @@ type StoredSourceContext = {
   websiteUrl: string
   businessText: string
   files: File[]
+  sessionId?: string
+}
+
+type PipelineStepStatus = 'pending' | 'active' | 'done' | 'skipped' | 'failed'
+type PipelineStep = { id: string; label: string; status: PipelineStepStatus; detail?: string }
+
+const JOB_STORAGE_KEY = 'vbiz-ai-card-job-id'
+
+type CardPlanTab = {
+  tabId: string
+  name: string
+  reason: string
+  recommended: boolean
+  selected: boolean
+  percent: number
+  ready: number
+  empty: number
+  mark: 'ready' | 'needs' | 'empty'
+}
+
+type JobField = {
+  id: string
+  tabId: string
+  fieldKey: string
+  fieldLabel: string
+  status: string
+  source: string
+  currentValue?: unknown
+  aiGenerationAllowed: boolean
+  prompt: string
+  special?: string
+  required?: boolean
+}
+
+type JobSnapshot = AnalyzeResponse & {
+  jobId: string
+  status: string
+  userProgress?: PipelineStep[]
+  cardPercent?: number
+  cardPlan?: CardPlanTab[]
+  nextField?: JobField | null
+  field?: JobField
+  selectedNavIds?: string[]
+  addableTabs?: Array<{ navId: string; tab: string }>
+  errorMessage?: string | null
+  profileId?: string | null
+  blueprint?: AnalyzeResponse['blueprint']
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+const CARD_BUILD_PIPELINE: PipelineStep[] = [
+  { id: 'website', label: 'Reading your website', status: 'pending' },
+  { id: 'documents', label: 'Reading your documents', status: 'pending' },
+  { id: 'understand', label: 'Understanding your business', status: 'pending' },
+  { id: 'services', label: 'Finding your services', status: 'pending' },
+  { id: 'build', label: 'Building your vBiz Me card', status: 'pending' },
+  { id: 'write', label: 'Writing your content', status: 'pending' },
+  { id: 'check', label: 'Checking your information', status: 'pending' },
+]
+
+function setStep(steps: PipelineStep[], id: string, status: PipelineStepStatus, detail?: string): PipelineStep[] {
+  return steps.map((step) => (step.id === id ? { ...step, status, detail: detail ?? step.detail } : step))
 }
 
 type LaunchField = {
@@ -405,7 +480,7 @@ function buildSmartSectionPayload(
     sourceNote ||
     serviceDescriptions[0] ||
     (serviceTitles.length ? `Provides ${serviceTitles.join(', ')}.` : '')
-  const inferredCompany = company || 'Current business'
+  const inferredCompany = company || 'this business'
 
   if (section === 'personal' && (businessSummary || role || company || sourceWebsite)) {
     return {
@@ -418,68 +493,25 @@ function buildSmartSectionPayload(
           personal.about ||
           about ||
           businessSummary ||
-          `${company || labelFromUrl(sourceWebsite) || 'This business'} helps clients with tailored services and support.`,
+          `${inferredCompany} helps clients with tailored services and support.`,
         website: personal.website || sourceWebsite,
       },
       socialHandles: sourceWebsite ? { website: sourceWebsite } : {},
     }
   }
 
-  if (section === 'experience') {
-    return {
-      experience: [
-        {
-          company: inferredCompany,
-          jobTitle: role || 'Founder / Lead',
-          description: businessSummary || `Leads operations, client work, and delivery for ${inferredCompany}.`,
-          fromDate: '',
-          toDate: '',
-          tillNow: true,
-        },
-      ],
-    }
-  }
+  if (section === 'experience') return null
 
   if (section === 'skills') {
     const skills = splitSkillHints([role, personal.profession || '', ...serviceTitles])
     if (skills.length) return { skills: [{ type: 'Core', skills }] }
   }
 
-  if (section === 'services' && !data.services?.length && (role || businessSummary || company)) {
-    return {
-      services: [
-        {
-          title: role || `${inferredCompany} Services`,
-          description: businessSummary || `Core services offered by ${inferredCompany}.`,
-          url: personal.website || sourceWebsite,
-        },
-      ],
-    }
-  }
+  if (section === 'services') return null
 
-  if (section === 'portfolio' && (serviceTitles.length || businessSummary)) {
-    return {
-      portfolio: [
-        {
-          title: serviceTitles[0] ? `${serviceTitles[0]} Work` : 'Featured Work',
-          description: businessSummary || 'Representative work based on the current business profile.',
-          url: personal.website || sourceWebsite,
-        },
-      ],
-    }
-  }
+  if (section === 'portfolio') return null
 
-  if (section === 'blogs' && businessSummary) {
-    return {
-      blogs: [
-        {
-          title: `About ${company || personal.fullName || 'this business'}`,
-          description: businessSummary,
-          category: 'News',
-        },
-      ],
-    }
-  }
+  if (section === 'blogs') return null
 
   if (section === 'faqs' && (serviceTitles.length || personal.email || personal.phone || businessSummary)) {
     const serviceAnswer = serviceTitles.length
@@ -688,6 +720,14 @@ export function AiCardAgentWizard({
   const wasOpenRef = useRef(false)
   const skippedGapIdsRef = useRef<string[]>([])
   const sourceContextRef = useRef<StoredSourceContext>({ websiteUrl: '', businessText: '', files: [] })
+  const sessionIdRef = useRef('')
+  const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>(CARD_BUILD_PIPELINE)
+  const [recommendedAdds, setRecommendedAdds] = useState<string[]>([])
+  const [cardPlan, setCardPlan] = useState<CardPlanTab[]>([])
+  const [nextField, setNextField] = useState<JobField | null>(null)
+  const [fieldDraft, setFieldDraft] = useState('')
+  const [aiPreview, setAiPreview] = useState('')
+  const [cardPercent, setCardPercent] = useState(0)
 
   useEffect(() => {
     draftRef.current = vCardData
@@ -706,7 +746,7 @@ export function AiCardAgentWizard({
       {
         id: uid(),
         role: 'assistant',
-        text: `Welcome — I’ll craft your card with you, step by step.\n\n• Start with a website, docs, or a short business note\n• I’ll suggest only real card sections from your nav list\n• Approve each empty section to fill it, or skip for later\n• Drag tabs to set the perfect order (Global Connection & My Info stay last)\n\nSections I can work with:\n${getCardTabCatalogForAi()}`,
+        text: `I’ll build your vBiz Me card in a simple order:\n\n1. Read your website (if you add a link)\n2. Read your PDFs, photos, or notes\n3. Understand the business\n4. Choose the right card sections\n5. Write the content\n6. Show you a preview to create\n\nAdd a website, files, or a short description, then tap Start.`,
       },
     ])
     setWebsiteUrl('')
@@ -729,6 +769,9 @@ export function AiCardAgentWizard({
     setSkippedGapIds([])
     skippedGapIdsRef.current = []
     sourceContextRef.current = { websiteUrl: '', businessText: '', files: [] }
+    sessionIdRef.current = ''
+    setRecommendedAdds([])
+    setPipelineSteps(CARD_BUILD_PIPELINE)
     setDragNavId(null)
     setDragOverNavId(null)
     setOpenLaunchTabs([])
@@ -739,6 +782,31 @@ export function AiCardAgentWizard({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, phase, busy])
+
+  useEffect(() => {
+    if (phase !== 'working') return
+    const aiIds = ['understand', 'services', 'build', 'write', 'check']
+    let i = 0
+    const timer = window.setInterval(() => {
+      setPipelineSteps((prev) => {
+        const extractionDone = prev
+          .filter((s) => s.id === 'website' || s.id === 'documents')
+          .every((s) => s.status !== 'pending' && s.status !== 'active')
+        if (!extractionDone) return prev
+        const current = aiIds[i % aiIds.length]
+        i += 1
+        return prev.map((step) => {
+          if (step.id === 'website' || step.id === 'documents') return step
+          if (step.id === current) return { ...step, status: 'active' }
+          const idx = aiIds.indexOf(step.id)
+          const curIdx = aiIds.indexOf(current)
+          if (idx >= 0 && idx < curIdx) return { ...step, status: step.status === 'done' ? 'done' : 'done' }
+          return step.status === 'active' ? { ...step, status: 'pending' } : step
+        })
+      })
+    }, 2400)
+    return () => window.clearInterval(timer)
+  }, [phase])
 
   const pushMsg = useCallback((role: ChatRole, text: string, meta?: string) => {
     setMessages((prev) => [...prev, { id: uid(), role, text, meta }])
@@ -775,7 +843,7 @@ export function AiCardAgentWizard({
 
   const hasStoredSources = useCallback(() => {
     const source = sourceContextRef.current
-    return Boolean(source.websiteUrl || source.businessText || source.files.length)
+    return Boolean(source.sessionId || source.websiteUrl || source.businessText || source.files.length)
   }, [])
 
   const sourceSummaryLine = useCallback(() => {
@@ -790,6 +858,14 @@ export function AiCardAgentWizard({
 
   const appendStoredSourcesToForm = useCallback((form: FormData, sectionLabel: string) => {
     const source = sourceContextRef.current
+    if (source.sessionId) {
+      form.set('sessionId', source.sessionId)
+      form.set(
+        'text',
+        `The user approved filling "${sectionLabel}" from the saved business profile. Do not invent facts. If the profile does not support this section, return an empty array/object.`
+      )
+      return
+    }
     if (source.websiteUrl) form.set('websiteUrl', source.websiteUrl)
     const textParts = [
       `The user approved filling "${sectionLabel}" from the earlier create-card sources. Prefer real extracted data. If the source does not support this section, return an empty array/object for that section instead of inventing specific facts.`,
@@ -847,6 +923,21 @@ export function AiCardAgentWizard({
     setError('')
     setBusy(true)
     setPhase('working')
+    setPipelineSteps(
+      CARD_BUILD_PIPELINE.map((step) => {
+        if (step.id === 'website') {
+          return { ...step, status: url ? 'active' : 'skipped', detail: url ? undefined : 'No website was provided.' }
+        }
+        if (step.id === 'documents') {
+          return {
+            ...step,
+            status: uploadFiles.length ? 'active' : 'skipped',
+            detail: uploadFiles.length ? undefined : 'No files were uploaded.',
+          }
+        }
+        return { ...step, status: 'pending' }
+      })
+    )
     if (url || text || uploadFiles.length) {
       pushMsg(
         'user',
@@ -855,18 +946,81 @@ export function AiCardAgentWizard({
           .join('\n')
       )
     }
-    pushMsg('assistant', 'Reading your sources and shaping a first draft…')
+    pushMsg(
+      'assistant',
+      'First I’ll read your website and files. Then I’ll understand the business and build the card.'
+    )
 
     try {
-      const form = new FormData()
-      if (url) form.set('websiteUrl', url)
-      if (text) form.set('businessText', text)
-      for (const file of uploadFiles) form.append('files', file)
+      const extractForm = new FormData()
+      if (url) extractForm.set('websiteUrl', url)
+      if (text) extractForm.set('businessText', text)
+      for (const file of uploadFiles) extractForm.append('files', file)
+      extractForm.set('existingCard', JSON.stringify(draftRef.current || {}))
 
-      pushMsg('assistant', 'Crafting Personal, Services, Portfolio, Stories, FAQs, and Reviews from what you shared…')
-      const json = await cardAgentForm<AnalyzeResponse>('analyze', form)
+      let job = await cardAgentForm<JobSnapshot>('jobs', extractForm)
+      if (job.jobId) {
+        sessionIdRef.current = job.jobId
+        sourceContextRef.current.sessionId = job.jobId
+        try {
+          window.localStorage.setItem(JOB_STORAGE_KEY, job.jobId)
+        } catch {
+          /* ignore */
+        }
+      }
+      if (job.userProgress?.length) {
+        setPipelineSteps((prev) => {
+          let next = prev
+          for (const step of job.userProgress || []) {
+            next = setStep(next, step.id, step.status, step.detail)
+          }
+          return setStep(next, 'understand', 'active')
+        })
+      }
+      const working = new Set(['QUEUED', 'EXTRACTING', 'ARCHITECTING', 'MAPPING_FIELDS', 'GENERATING'])
+      while (working.has(job.status)) {
+        await sleep(1400)
+        job = await cardAgentJobGet<JobSnapshot>(job.jobId)
+        if (job.userProgress?.length) {
+          setPipelineSteps((prev) => {
+            let next = prev
+            for (const step of job.userProgress || []) {
+              next = setStep(next, step.id, step.status, step.detail)
+            }
+            return next
+          })
+        }
+      }
+      if (job.status === 'FAILED') {
+        throw new Error(job.errorMessage || 'Could not design your card.')
+      }
+
+      const json: AnalyzeResponse = {
+        ...job,
+        sessionId: job.jobId,
+        blueprint: job.blueprint || job,
+        enabledNavIds: job.selectedNavIds,
+      } as AnalyzeResponse
+      setPipelineSteps((prev) =>
+        prev.map((step) => ({
+          ...step,
+          status: step.status === 'failed' ? 'failed' : step.status === 'skipped' ? 'skipped' : 'done',
+        }))
+      )
       const mapped = applyAnalyzeToDraft(json, draftRef.current)
-      applyDraft(mapped.data, mapped.enabledNavIds)
+      applyDraft(mapped.data, job.selectedNavIds || mapped.enabledNavIds)
+      setCardPlan(job.cardPlan || [])
+      setCardPercent(job.cardPercent || 0)
+      setNextField(job.nextField || null)
+      setFieldDraft('')
+      setAiPreview('')
+
+      if (typeof job.completion?.completionScore === 'number') {
+        setScore(job.completion.completionScore)
+      } else if (typeof job.cardPercent === 'number') {
+        setScore(job.cardPercent)
+      }
+      setRecommendedAdds(job.completion?.recommended || [])
 
       const filledBits = [
         mapped.data.services?.length ? `${mapped.data.services.length} services` : null,
@@ -877,47 +1031,29 @@ export function AiCardAgentWizard({
       ].filter(Boolean)
 
       const enabledLabels = mapped.enabledNavIds.map((id) => getCreateCardDisplayLabel(id, id)).join(' · ')
+      const completeLine =
+        typeof job.cardPercent === 'number'
+          ? `Your vBiz Me card is ${job.cardPercent}% complete.`
+          : typeof json.completion?.completionScore === 'number'
+            ? `Your vBiz Me card is ${json.completion.completionScore}% complete.`
+            : 'Your card plan is ready.'
 
       pushMsg(
         'assistant',
-        `${mapped.businessSummary || 'First draft is ready.'}\n\nFilled: ${filledBits.join(', ') || 'core personal details'}.\nSections on: ${enabledLabels}.`
+        `${completeLine} ${mapped.businessSummary || job.businessSummary || ''}\n\nFilled: ${filledBits.join(', ') || 'core personal details'}${enabledLabels ? `\nTabs: ${enabledLabels}` : ''}.\n\nWe found most of what we need. Let's finish a few details.`
       )
 
-      if ((mapped.data.reviews || []).length >= 4) {
-        pushMsg(
-          'assistant',
-          `I found ${mapped.data.reviews?.length || 0} reviews and added them all. In preview, type "keep all reviews" or a number like "6 reviews" if you want to trim before launch.`
-        )
-      }
-
-      const suggestJson = await cardAgentJson<{ recommendations?: RecommendedTab[] }>('suggest-tabs', {
-        businessSummary: mapped.businessSummary,
-        enabledNavIds: mapped.enabledNavIds,
-        draftSummary: `${mapped.data.personal.fullName} — ${mapped.data.personal.company}`,
-      })
-      const enabledSet = new Set(mapped.enabledNavIds)
-      const recs: RecommendedTab[] = []
-      const seen = new Set<string>()
-      for (const raw of suggestJson.recommendations || mapped.recommendedTabs || []) {
-        const resolved = resolveRecommendedTab(raw)
-        if (!resolved || enabledSet.has(resolved.navId) || seen.has(resolved.navId)) continue
-        seen.add(resolved.navId)
-        recs.push(resolved)
-      }
+      const recs: RecommendedTab[] = (job.recommendedTabs || [])
+        .map((raw) => resolveRecommendedTab(raw))
+        .filter((item): item is RecommendedTab => Boolean(item))
       setRecommendations(recs)
-      setSelectedRecs(recs.filter((r) => r.priority === 'high').map((r) => r.navId))
-
-      const report = await refreshGaps(mapped.enabledNavIds, mapped.data)
-
-      if (recs.length) {
-        pushMsg(
-          'assistant',
-          `From your card nav list, these sections look like a great fit: ${recs.map((r) => r.tab).join(', ')}. Select what you want, then continue — or keep the current set.`
-        )
-        setPhase('tabs')
-      } else {
-        askNextGap(report)
-      }
+      setSelectedRecs((job.cardPlan || []).filter((t) => t.selected && t.tabId !== 'home').map((t) => t.tabId))
+      await refreshGaps(job.selectedNavIds || mapped.enabledNavIds, mapped.data)
+      pushMsg(
+        'assistant',
+        'How would you like to continue?\n\nReview everything, let AI handle what it can, or use only what we found.'
+      )
+      setPhase('plan')
 
       setComposer('')
       setFiles([])
@@ -927,6 +1063,93 @@ export function AiCardAgentWizard({
       setError(msg)
       pushMsg('assistant', `I hit a problem: ${msg}. You can retry with more details or another URL/document.`)
       setPhase('intake')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const ingestJob = useCallback(
+    (job: JobSnapshot) => {
+      setCardPlan(job.cardPlan || [])
+      setCardPercent(job.cardPercent || 0)
+      setNextField(job.nextField || null)
+      if (typeof job.cardPercent === 'number') setScore(job.cardPercent)
+      if (job.blueprint) {
+        const mapped = applyAnalyzeToDraft(
+          { blueprint: job.blueprint, sessionId: job.jobId, enabledNavIds: job.selectedNavIds } as AnalyzeResponse,
+          draftRef.current
+        )
+        applyDraft(mapped.data, job.selectedNavIds || mapped.enabledNavIds)
+      }
+      if (job.selectedNavIds?.length) {
+        const nextNav = normalizeNavOrderWithPinnedEnds(job.selectedNavIds)
+        setActiveNav(nextNav)
+        onEnableNavIds(nextNav)
+      }
+    },
+    [applyDraft, onEnableNavIds]
+  )
+
+  const continueFieldFlow = (job: JobSnapshot) => {
+    ingestJob(job)
+    if (job.status === 'READY' || (!job.nextField && job.status !== 'WAITING_FOR_USER_INPUT')) {
+      setPhase('preview')
+      pushMsg('assistant', 'Everything we can finish is ready. Preview the card, then fill it.')
+      return
+    }
+    if (job.nextField) {
+      setFieldDraft(typeof job.nextField.currentValue === 'string' ? job.nextField.currentValue : '')
+      setAiPreview('')
+      setPhase('field')
+      return
+    }
+    setPhase('preview')
+  }
+
+  const runFastModeChoice = async (mode: 'ai' | 'found' | 'review') => {
+    if (!sessionIdRef.current) return
+    setBusy(true)
+    try {
+      if (mode === 'review') {
+        pushMsg('user', 'Review everything')
+        const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'tabs', {
+          selectedNavIds: ['home', ...selectedRecs],
+        })
+        continueFieldFlow(job)
+        return
+      }
+      pushMsg('user', mode === 'ai' ? 'Let AI handle what it can' : 'Use only what we found')
+      await cardAgentJobPost(sessionIdRef.current, 'tabs', {
+        selectedNavIds: ['home', ...selectedRecs],
+      })
+      const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'fast-mode', { mode })
+      continueFieldFlow(job)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not continue')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const applyCurrentField = async (action: string, value?: unknown) => {
+    if (!sessionIdRef.current || !nextField) return
+    setBusy(true)
+    try {
+      const job = await cardAgentJobPost<JobSnapshot>(
+        sessionIdRef.current,
+        `fields/${encodeURIComponent(nextField.id)}`,
+        { action, value: value ?? fieldDraft, instruction: fieldDraft }
+      )
+      if (action === 'AI_GENERATE' || action === 'IMPROVE_WITH_AI') {
+        const generated = job.field?.currentValue
+        setAiPreview(typeof generated === 'string' ? generated : JSON.stringify(generated, null, 2))
+        ingestJob(job)
+        setBusy(false)
+        return
+      }
+      continueFieldFlow(job)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save that field')
     } finally {
       setBusy(false)
     }
@@ -1136,6 +1359,7 @@ export function AiCardAgentWizard({
       form.set('section', section)
       form.set('text', text)
       form.set('currentDraft', JSON.stringify(draftRef.current))
+      if (sessionIdRef.current) form.set('sessionId', sessionIdRef.current)
       for (const file of files) form.append('files', file)
 
       const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
@@ -1314,12 +1538,25 @@ export function AiCardAgentWizard({
     pushMsg('assistant', publish ? 'Creating and activating your vCard...' : 'Saving your vCard draft...')
 
     let tick: ReturnType<typeof setInterval> | undefined
-    let createdId: string | void
+    let createdId: string | undefined
     try {
       tick = setInterval(() => {
         setCreateProgress((p) => (p >= 88 ? p : p + Math.random() * 6 + 2))
       }, 160)
-      createdId = await onCreateCard({ publish })
+      if (sessionIdRef.current) {
+        try {
+          await cardAgentJobPost(sessionIdRef.current, 'assemble', {})
+          const applied = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'apply', { publish })
+          if (applied.profileId) {
+            createdId = applied.profileId
+          }
+        } catch {
+          createdId = undefined
+        }
+      }
+      if (!createdId) {
+        createdId = (await onCreateCard({ publish })) || undefined
+      }
       if (tick) clearInterval(tick)
       setCreateProgress(100)
       setCreatedCardId(typeof createdId === 'string' ? createdId : null)
@@ -1450,6 +1687,14 @@ export function AiCardAgentWizard({
     if (busy) return
     if (phase === 'section-gate') {
       void approveGateSection()
+      return
+    }
+    if (phase === 'plan') {
+      void runFastModeChoice('review')
+      return
+    }
+    if (phase === 'field') {
+      if (fieldDraft.trim()) void applyCurrentField('USER_INPUT')
       return
     }
     if (phase === 'intake' || (phase === 'working' && !score)) {
@@ -1627,6 +1872,49 @@ export function AiCardAgentWizard({
           </div>
         ) : null}
 
+        {phase === 'working' && busy ? (
+          <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+            <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-200">
+              Building your card
+            </p>
+            <ol className="space-y-1.5">
+              {pipelineSteps.map((step) => (
+                <li
+                  key={step.id}
+                  className="flex items-start gap-2 text-xs font-semibold text-emerald-900 dark:text-emerald-100"
+                >
+                  {step.status === 'active' ? (
+                    <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
+                  ) : step.status === 'done' ? (
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  ) : step.status === 'failed' ? (
+                    <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+                  ) : (
+                    <span className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-emerald-300 dark:border-emerald-700" />
+                  )}
+                  <span>
+                    <span className={step.status === 'skipped' ? 'opacity-50' : ''}>{step.label}</span>
+                    {step.detail ? (
+                      <span className="mt-0.5 block text-[11px] font-medium opacity-70">{step.detail}</span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
+
+        {recommendedAdds.length && (phase === 'preview' || phase === 'tabs' || phase === 'coach') ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+            <p className="mb-1 font-black text-slate-800 dark:text-white">Your vBiz Me card is {score}% complete.</p>
+            <ul className="list-disc space-y-1 pl-4">
+              {recommendedAdds.slice(0, 5).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         {messages.map((m) => (
           <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
             <div
@@ -1646,6 +1934,149 @@ export function AiCardAgentWizard({
         {busy ? (
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Crafting…
+          </div>
+        ) : null}
+
+        {phase === 'plan' ? (
+          <div className="space-y-3 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+            <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Your recommended card</p>
+            <p className="text-sm font-black text-slate-900 dark:text-white">Your card is {cardPercent}% complete</p>
+            <ul className="space-y-2">
+              {cardPlan.map((tab) => (
+                <li key={tab.tabId} className="flex items-center justify-between gap-3 text-sm">
+                  <label className="flex min-w-0 flex-1 items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={tab.tabId === 'home' || selectedRecs.includes(tab.tabId) || tab.selected}
+                      disabled={tab.tabId === 'home'}
+                      onChange={() =>
+                        setSelectedRecs((prev) =>
+                          prev.includes(tab.tabId) ? prev.filter((id) => id !== tab.tabId) : [...prev, tab.tabId]
+                        )
+                      }
+                    />
+                    <span className="font-bold text-slate-800 dark:text-white">{tab.name}</span>
+                  </label>
+                  <span className="text-xs font-bold text-slate-500">
+                    {tab.mark === 'ready' ? '✓ Ready' : tab.mark === 'needs' ? '● Needs information' : '○ Empty'} ·{' '}
+                    {tab.percent}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void runFastModeChoice('review')}
+                className="rounded-2xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+              >
+                Review everything
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void runFastModeChoice('ai')}
+                className="rounded-2xl bg-slate-950 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
+              >
+                Let AI handle what it can
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void runFastModeChoice('found')}
+                className="rounded-2xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+              >
+                Use only what we found
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {phase === 'field' && nextField ? (
+          <div className="space-y-3 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+            <p className="text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase">
+              {getCreateCardDisplayLabel(nextField.tabId, nextField.tabId)}
+            </p>
+            <p className="text-sm font-black text-slate-900 dark:text-white">{nextField.fieldLabel}</p>
+            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{nextField.prompt}</p>
+            {nextField.currentValue ? (
+              <p className="rounded-2xl bg-white/80 p-3 text-xs font-medium text-slate-700 dark:bg-black/20 dark:text-slate-200">
+                We found:{' '}
+                {typeof nextField.currentValue === 'string'
+                  ? nextField.currentValue
+                  : JSON.stringify(nextField.currentValue)}
+              </p>
+            ) : (
+              <p className="text-xs font-medium text-slate-500">We didn’t find this in your website or documents.</p>
+            )}
+            <textarea
+              value={fieldDraft}
+              onChange={(event) => setFieldDraft(event.target.value)}
+              placeholder="Paste or type here…"
+              className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
+            />
+            {aiPreview ? (
+              <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 text-xs dark:border-white/10">
+                <p className="font-black">Suggested copy</p>
+                <p className="whitespace-pre-wrap">{aiPreview}</p>
+                <button
+                  type="button"
+                  onClick={() => void applyCurrentField('USER_INPUT', aiPreview)}
+                  className="font-black text-emerald-700"
+                >
+                  Accept
+                </button>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              {nextField.aiGenerationAllowed ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void applyCurrentField('AI_GENERATE')}
+                  className="rounded-full bg-slate-950 px-3 py-2 text-[11px] font-black text-white"
+                >
+                  Write with AI
+                </button>
+              ) : null}
+              {nextField.status === 'PARTIAL' ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void applyCurrentField('KEEP_THIS')}
+                  className="rounded-full border px-3 py-2 text-[11px] font-black"
+                >
+                  Keep this
+                </button>
+              ) : null}
+              <button
+                type="button"
+                disabled={busy || !fieldDraft.trim()}
+                onClick={() => void applyCurrentField('USER_INPUT')}
+                className="rounded-full border px-3 py-2 text-[11px] font-black"
+              >
+                Save
+              </button>
+              {fieldDraft.trim() && nextField.aiGenerationAllowed ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void applyCurrentField('IMPROVE_WITH_AI', fieldDraft)}
+                  className="rounded-full border px-3 py-2 text-[11px] font-black"
+                >
+                  Improve with AI
+                </button>
+              ) : null}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void applyCurrentField('SKIP')}
+                className="rounded-full border px-3 py-2 text-[11px] font-black"
+              >
+                Skip
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -2324,18 +2755,29 @@ export function AiCardAgentWizard({
       {phase !== 'creating' && phase !== 'celebrate' ? (
         <div className="border-t border-slate-100 px-4 py-3 dark:border-white/5">
           {phase === 'intake' ? (
-            <div className="mb-2">
-              <input
-                value={websiteUrl}
-                onChange={(e) => setWebsiteUrl(e.target.value)}
-                placeholder="Website URL (optional) — I’ll crawl services, portfolio, blog, FAQ pages"
-                className="mb-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-              />
+            <div className="mb-2 space-y-2">
+              <label className="block text-[10px] font-black tracking-wider text-slate-400 uppercase">Website</label>
+              <div className="relative">
+                <Globe className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://yourbusiness.com"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-3 pl-9 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <p className="text-[11px] font-medium text-slate-400">
+                We read the live pages (About, Services, Contact). Photos of a website are not needed.
+              </p>
             </div>
           ) : null}
           {fileLabel ? (
             <p className="mb-1 flex items-center gap-1 text-[11px] font-bold text-slate-500">
               <Paperclip className="h-3 w-3" /> {fileLabel}
+            </p>
+          ) : phase === 'intake' ? (
+            <p className="mb-1 text-[11px] font-medium text-slate-400">
+              Attach PDFs, Word files, or photos. Text files are read directly; photos are read only when needed.
             </p>
           ) : null}
           <div className="flex items-end gap-2">
@@ -2355,11 +2797,11 @@ export function AiCardAgentWizard({
               rows={2}
               placeholder={
                 phase === 'intake'
-                  ? 'Describe the business, or paste text…'
+                  ? 'Business notes or instructions (optional)…'
                   : phase === 'section-gate'
                     ? 'Or tap Approve & fill / Skip above…'
                     : phase === 'coach'
-                      ? 'Paste content for the approved section…'
+                      ? 'Tell me what to rewrite — I’ll update only that section…'
                       : phase === 'features'
                         ? 'yes / no'
                         : phase === 'preview'
@@ -2390,7 +2832,7 @@ export function AiCardAgentWizard({
               onClick={() => void runAnalyze()}
               className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
             >
-              Start generating my card <ArrowRight className="h-3.5 w-3.5" />
+              Start — read sources, then build my card <ArrowRight className="h-3.5 w-3.5" />
             </button>
           ) : null}
           {phase === 'coach' && score >= 90 ? (

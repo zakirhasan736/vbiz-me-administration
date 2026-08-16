@@ -56,8 +56,8 @@ export function CreateCardModeModal({
           <span>
             <span className="block text-sm font-black text-slate-900 dark:text-white">Generate with AI</span>
             <span className="mt-1 block text-xs font-semibold text-slate-500 dark:text-slate-300">
-              Share a website, documents, or a short business description. The agent drafts all tabs, suggests what to
-              add, and helps fill empty fields.
+              Add a website, PDFs or photos, and a short note. We read the site and files first, then the AI builds your
+              card — tabs, about, services, FAQs, and more.
             </span>
           </span>
         </button>

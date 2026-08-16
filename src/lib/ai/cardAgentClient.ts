@@ -29,7 +29,10 @@ async function parseBackend<T>(res: Response): Promise<T> {
 }
 
 /** Authenticated call to backend card-agent (OpenAI key stays on the API server). */
-export async function cardAgentJson<T>(path: 'analyze' | 'suggest-tabs' | 'fill-section', body: unknown): Promise<T> {
+export async function cardAgentJson<T>(
+  path: 'analyze' | 'suggest-tabs' | 'fill-section' | 'regenerate-section' | 'extract-sources',
+  body: unknown
+): Promise<T> {
   const res = await fetch(`${baseUrl}/ai/card-agent/${path}`, {
     method: 'POST',
     credentials: 'include',
@@ -39,12 +42,34 @@ export async function cardAgentJson<T>(path: 'analyze' | 'suggest-tabs' | 'fill-
   return parseBackend<T>(res)
 }
 
-export async function cardAgentForm<T>(path: 'analyze' | 'fill-section', form: FormData): Promise<T> {
+export async function cardAgentForm<T>(
+  path: 'analyze' | 'fill-section' | 'regenerate-section' | 'extract-sources' | 'jobs',
+  form: FormData
+): Promise<T> {
   const res = await fetch(`${baseUrl}/ai/card-agent/${path}`, {
     method: 'POST',
     credentials: 'include',
     headers: authHeaders(),
     body: form,
+  })
+  return parseBackend<T>(res)
+}
+
+export async function cardAgentJobGet<T>(jobId: string): Promise<T> {
+  const res = await fetch(`${baseUrl}/ai/card-agent/jobs/${encodeURIComponent(jobId)}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: authHeaders(),
+  })
+  return parseBackend<T>(res)
+}
+
+export async function cardAgentJobPost<T>(jobId: string, path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${baseUrl}/ai/card-agent/jobs/${encodeURIComponent(jobId)}/${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
   })
   return parseBackend<T>(res)
 }
