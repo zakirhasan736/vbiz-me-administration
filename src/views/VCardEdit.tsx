@@ -49,6 +49,7 @@ import { pushEditorPath } from '@/lib/editorShallowRoute'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import { notify } from '@/lib/toast/toast'
 import {
+  getEditorPanelCompletionStats,
   getNavItemCompletionPercent,
   getOverallCardCompletionPercent,
   getPersonalSubCompletions,
@@ -763,8 +764,16 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 <div ref={mainNavRef} className={cn('items-center gap-1.5 pr-1 pl-5', mainNavScrollClassName)}>
                   {visibleNavItems.map((item, index) => {
                     const isActive = !isSettingsOpen && activeMainNavId === item.id
-                    const percent = getNavItemCompletionPercent(item.editorPanel, vCardData, completionMeta)
-                    const done = percent >= 100
+                    const stats = item.editorPanel
+                      ? getEditorPanelCompletionStats(item.editorPanel, vCardData, completionMeta)
+                      : {
+                          filled: 0,
+                          total: 0,
+                          empty: 0,
+                          percent: getNavItemCompletionPercent(item.editorPanel, vCardData, completionMeta),
+                        }
+                    const percent = stats.percent
+                    const done = stats.total ? stats.empty === 0 : percent >= 100
                     const chipLabel = getEditorNavLabel(item)
                     const isNeighbor =
                       activeNavIndex >= 0 && !isActive && index >= activeNavIndex - 2 && index <= activeNavIndex + 2
@@ -817,7 +826,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                                 : 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400'
                             )}
                           >
-                            {percent}%
+                            {stats.total ? `${stats.filled}/${stats.total}` : `${percent}%`}
                           </span>
                         )}
                         {isActive && (
@@ -980,7 +989,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                   >
                     {personalSubs.map((tab) => {
                       const isActive = activeTab === tab.id
-                      const done = tab.percent >= 100
+                      const done = tab.total ? tab.filled >= tab.total : tab.percent >= 100
                       const href = subTabHref(tab.id)
                       return (
                         <Link
@@ -1020,7 +1029,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                                     : 'bg-slate-100 text-slate-400 dark:bg-white/10'
                               )}
                             >
-                              {tab.percent}%
+                              {tab.total ? `${tab.filled}/${tab.total}` : `${tab.percent}%`}
                             </span>
                           </div>
                           {isActive && (

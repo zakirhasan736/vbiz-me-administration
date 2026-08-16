@@ -44,6 +44,8 @@ export type PersonalSubCompletion = {
   id: number
   name: string
   percent: number
+  filled: number
+  total: number
 }
 
 export type CompletionScalarControl =
@@ -123,44 +125,128 @@ function displayCustom(data: VCardData, key: string) {
   return getFieldConfig(getDisplaySettingsFromVCard(data), key).customValue?.trim() || ''
 }
 
+function getPathValue(data: VCardData, path: string): string {
+  const parts = path.split('.')
+  let cur: unknown = data
+  for (const part of parts) {
+    if (cur == null || typeof cur !== 'object') return ''
+    cur = (cur as Record<string, unknown>)[part]
+  }
+  return cur == null ? '' : String(cur)
+}
+
+function previewText(value: string, max = 42): string {
+  const text = value.replace(/\s+/g, ' ').trim()
+  if (!text) return ''
+  if (text.length <= max) return text
+  return `${text.slice(0, max - 1)}…`
+}
+
+export function getCompletionFieldPreview(
+  field: VCardCompletionField,
+  data: VCardData,
+  meta?: PersonalCompletionMeta
+): string {
+  if (!field.filled) return ''
+  const edit = field.edit
+  if (!edit) return 'Added'
+  if (edit.type === 'scalar') return previewText(getPathValue(data, edit.path)) || 'Added'
+  if (edit.type === 'dual-scalar') {
+    const a = getPathValue(data, edit.paths[0]).trim()
+    const b = getPathValue(data, edit.paths[1]).trim()
+    return previewText([a, b].filter(Boolean).join(' · ')) || 'Added'
+  }
+  if (edit.type === 'display-media') {
+    const value =
+      displayCustom(data, edit.fieldKey) || (edit.alsoUpdateMeta === 'avatar' ? meta?.avatarImageUrl || '' : '')
+    return filled(value) ? 'Uploaded' : ''
+  }
+  if (edit.type === 'list-field') {
+    if (edit.control === 'media') return 'Uploaded'
+    const raw = readPreviewListValue(data, edit)
+    if (edit.control === 'rating' && raw) return `${raw}★`
+    return previewText(raw) || 'Added'
+  }
+  if (edit.type === 'social-quick') return 'Links added'
+  if (edit.type === 'extra-row') return 'Added'
+  if (edit.type === 'resume-summary') return previewText(resumeSummary(data) || data.personal?.about || '') || 'Added'
+  if (edit.type === 'resume-document') return 'Uploaded'
+  if (edit.type === 'content-gallery' || edit.type === 'content-video') return 'Uploaded'
+  if (edit.type === 'seed-list') return ''
+  return 'Added'
+}
+
+function readPreviewListValue(data: VCardData, edit: Extract<CompletionFieldEdit, { type: 'list-field' }>): string {
+  const find = <T extends { id: string }>(items: T[] | undefined) =>
+    (items || []).find((item) => item.id === edit.itemId)
+  const read = (item: unknown) => {
+    if (!item || typeof item !== 'object') return ''
+    const value = (item as Record<string, unknown>)[edit.field]
+    if (Array.isArray(value)) return value.map(String).filter(Boolean).join(', ')
+    return value == null ? '' : String(value)
+  }
+  switch (edit.collection) {
+    case 'education':
+      return read(find(data.education))
+    case 'experience':
+      return read(find(data.experience))
+    case 'skills':
+      return read(find(data.skills))
+    case 'services':
+      return read(find(data.services))
+    case 'portfolio':
+      return read(find(data.portfolio))
+    case 'reviews':
+      return read(find(data.reviews))
+    case 'faqs':
+      return read(find(data.faqs))
+    case 'generalPosts':
+      return read(find(data.generalPosts))
+    case 'sectionPosts':
+    case 'certificates':
+      return read(find(data.sectionPosts?.[edit.postTypeName || '']))
+    case 'customTabItems':
+      return read(find(data.customTabs?.find((entry) => entry.id === edit.tabId)?.items))
+    default:
+      return ''
+  }
+}
+
+export type CompletionStats = {
+  fields: VCardCompletionField[]
+  filled: number
+  empty: number
+  total: number
+  percent: number
+}
+
+export function getEditorPanelCompletionStats(
+  panel: EditorNavPanel,
+  data: VCardData,
+  meta?: PersonalCompletionMeta
+): CompletionStats {
+  const fields = getEditorPanelCompletionFields(panel, data, meta)
+  const filledCount = fields.filter((field) => field.filled).length
+  return {
+    fields,
+    filled: filledCount,
+    empty: Math.max(0, fields.length - filledCount),
+    total: fields.length,
+    percent: fieldsPercent(fields),
+  }
+}
 export function getPersonalSubCompletions(data: VCardData, meta?: PersonalCompletionMeta): PersonalSubCompletion[] {
-  const p = data.personal || ({} as VCardData['personal'])
-  const social = data.social
-  const handles = social?.handles ? Object.values(social.handles).filter((v) => filled(v)) : []
-  const customLinks = (social?.customLinks || []).filter((l) => filled(l?.url))
-  const games = social?.games ? Object.values(social.games).filter((v) => filled(v)) : []
-  const socialFilledCount = handles.length + customLinks.length + games.length
-
-  const avatar = displayCustom(data, 'Profile Image/Video') || meta?.avatarImageUrl || ''
-  const background = displayCustom(data, 'Background Video/Image') || meta?.backgroundImageUrl || ''
-  const intro =
-    displayCustom(data, 'Intro vCard Video') ||
-    displayCustom(data, 'Intro YouTube vCard Video Link') ||
-    p.explainerVideoUrl ||
-    ''
-  const bgMusic = displayCustom(data, 'Background Music') || displayCustom(data, 'YouTube Background Music Link') || ''
-
-  const mediaChecks = [filled(avatar), filled(background), filled(data.slug)]
-  const infoChecks = [p.fullName, p.email, p.phone, p.designation, p.company, p.about, p.address, p.profession].map(
-    filled
-  )
-  const socialChecks = [socialFilledCount > 0, handles.length > 0 || customLinks.length > 0, socialFilledCount >= 2]
-  const homeChecks = [filled(intro), filled(bgMusic) || filled(background), filled(data.theme?.primaryColor)]
-  const extras = data.extraFields || []
-  const hasExtraRow = extras.some((f) => filled(f?.name) && filled(f?.value))
-  const extraChecks = [
-    hasExtraRow || filled(p.relationship),
-    filled(p.gender) || hasExtraRow,
-    filled(p.website) || filled(p.whatsapp),
-  ]
-
-  return [
-    { id: 1, name: 'Media & Profile', percent: pct(mediaChecks.filter(Boolean).length, mediaChecks.length) },
-    { id: 2, name: 'Personal Info', percent: pct(infoChecks.filter(Boolean).length, infoChecks.length) },
-    { id: 3, name: 'Social & Games', percent: pct(socialChecks.filter(Boolean).length, socialChecks.length) },
-    { id: 4, name: 'Home Media', percent: pct(homeChecks.filter(Boolean).length, homeChecks.length) },
-    { id: 5, name: 'Extra Fields', percent: pct(extraChecks.filter(Boolean).length, extraChecks.length) },
-  ]
+  const names = ['Media & Profile', 'Personal Info', 'Social & Games', 'Home Media', 'Extra Fields'] as const
+  return names.map((name, index) => {
+    const stats = getEditorPanelCompletionStats({ kind: 'personal', subTab: index + 1 }, data, meta)
+    return {
+      id: index + 1,
+      name,
+      percent: stats.percent,
+      filled: stats.filled,
+      total: stats.total,
+    }
+  })
 }
 
 function fieldsPercent(fields: VCardCompletionField[]): number {
@@ -1238,6 +1324,8 @@ export function getNavItemCompletionPercent(
   meta?: PersonalCompletionMeta
 ): number {
   if (!panel) return 0
+  const stats = getEditorPanelCompletionStats(panel, data, meta)
+  if (stats.total > 0) return Math.max(0, Math.min(100, stats.percent))
   return Math.max(0, Math.min(100, panelPercent(panel, data, meta)))
 }
 

@@ -15,6 +15,15 @@ export type AnalyzeResponse = {
   recommendedTabs?: CardBlueprint['recommendedTabs']
   optionalFeatures?: CardBlueprint['optionalFeatures']
   businessSummary?: string
+  sessionId?: string
+  completion?: {
+    completionScore: number
+    found: string[]
+    recommended: string[]
+  }
+  conflicts?: Array<{ field: string; values: Array<{ value: string; source?: string }> }>
+  warnings?: string[]
+  missingInformation?: string[]
 }
 
 export type SectionFillPayload = Record<string, unknown>
@@ -72,10 +81,18 @@ export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewE
   if (!Array.isArray(payload.reviews)) return []
   const out: VCardReviewEntry[] = []
   for (const row of payload.reviews) {
-    const r = row as { author?: string; text?: string; rating?: number }
+    const r = row as { author?: string; text?: string; rating?: number; isSample?: boolean; label?: string }
+    if (r.isSample) continue
+    if (
+      String(r.label || '')
+        .toUpperCase()
+        .includes('SAMPLE')
+    )
+      continue
     const author = String(r.author || '').trim()
     const text = String(r.text || '').trim()
     if (!author && !text) continue
+    if (`${author} ${text}`.toLowerCase().includes('draft / sample')) continue
     const ratingRaw = typeof r.rating === 'number' ? r.rating : Number(r.rating)
     const rating = Number.isFinite(ratingRaw) ? Math.min(5, Math.max(1, Math.round(ratingRaw))) : 5
     out.push({
