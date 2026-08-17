@@ -353,7 +353,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const [blogPosts, faqPosts, ...sectionResults] = await Promise.all([
           (async () => {
             try {
-              const rows = await listBlogs(profileId).unwrap()
+              const rows = await listBlogs({ id: profileId, limit: 50 }).unwrap()
               if (rows.length) return rows
             } catch {
               /* fall through */
@@ -362,7 +362,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           })(),
           (async () => {
             try {
-              const rows = await listTabItems({ id: profileId, tabKey: 'faqs' }).unwrap()
+              const rows = await listTabItems({ id: profileId, tabKey: 'faqs', limit: 50 }).unwrap()
               if (rows.length) return rows
             } catch {
               /* fall through */
@@ -373,7 +373,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             const tabKey = publicNameToTabKey(schema.postTypeName)
             if (tabKey && TAB_REGISTRY[tabKey]?.architecture === 'direct') {
               try {
-                const rows = await listTabItems({ id: profileId, tabKey }).unwrap()
+                const rows = await listTabItems({ id: profileId, tabKey, limit: 50 }).unwrap()
                 if (rows.length) return rows
               } catch {
                 /* fall through */

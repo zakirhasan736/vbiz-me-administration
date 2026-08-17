@@ -23,6 +23,7 @@ import {
   useExportDashboardOverviewMutation,
   useGetContactsQuery,
   useGetDashboardStatsQuery,
+  useGetDashboardSummaryQuery,
   useGetRecentEngagementQuery,
 } from '@/redux/features/profiles/profiles.api'
 import CorporateOwnerDashboardHome from '@/views/CorporateOwnerDashboardHome'
@@ -166,16 +167,27 @@ function SingleOwnerDashboardHome() {
   const [engagementPage, setEngagementPage] = useState(1)
   const { hasOrder, timeLeft } = useOrderTimer()
 
-  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period })
-  const { data: contactsRaw } = useGetContactsQuery()
+  const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery({ period })
+  const stats = summary?.stats
+  const { data: contactsRaw } = useGetContactsQuery(undefined, { skip: !showContactSavesModal })
   const engagementSkip = (engagementPage - 1) * ENGAGEMENT_PAGE_SIZE
-  const { data: engagement } = useGetRecentEngagementQuery({
-    skip: engagementSkip,
-    limit: ENGAGEMENT_PAGE_SIZE,
-  })
+  const { data: pagedEngagement } = useGetRecentEngagementQuery(
+    {
+      skip: engagementSkip,
+      limit: ENGAGEMENT_PAGE_SIZE,
+    },
+    { skip: engagementPage === 1 }
+  )
+  const engagement = engagementPage === 1 ? summary?.recentEngagement : pagedEngagement
   const [exportOverview, { isLoading: exporting }] = useExportDashboardOverviewMutation()
 
-  const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
+  const contacts = useMemo(
+    () =>
+      Array.isArray(contactsRaw)
+        ? (contactsRaw as DashboardContact[])
+        : ((summary?.contactsPreview || []) as DashboardContact[]),
+    [contactsRaw, summary?.contactsPreview]
+  )
   const statsReady = Boolean(stats) && !statsLoading
   const savesCount = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
   const uniqueViews = statsReady ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) : undefined

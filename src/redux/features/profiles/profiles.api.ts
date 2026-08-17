@@ -359,6 +359,12 @@ export type DashboardEngagementQuery = {
   eventType?: string
 }
 
+export type DashboardSummary = {
+  stats: DashboardStats
+  recentEngagement: DashboardEngagementPage
+  contactsPreview: ProfileContact[]
+}
+
 export type LiveSocialClickRow = {
   label: string
   channel: string
@@ -1084,10 +1090,17 @@ const profilesApi = api.injectEndpoints({
         { type: 'profiles', id: `${arg.id}:posts` },
       ],
     }),
-    listProfileBlogs: builder.query<ApiPost[], string>({
-      query: (id) => `/profiles/${id}/blogs`,
+    listProfileBlogs: builder.query<ApiPost[], string | { id: string; limit?: number }>({
+      query: (arg) => {
+        const id = typeof arg === 'string' ? arg : arg.id
+        const limit = typeof arg === 'string' ? undefined : arg.limit
+        return limit ? `/profiles/${id}/blogs?limit=${limit}` : `/profiles/${id}/blogs`
+      },
       transformResponse: (res: Envelope<ApiPost[]>) => (res.data || []).map(normalizeDirectItemToApiPost),
-      providesTags: (_r, _e, id) => [{ type: 'profiles', id: `${id}:blogs` }],
+      providesTags: (_r, _e, arg) => {
+        const id = typeof arg === 'string' ? arg : arg.id
+        return [{ type: 'profiles', id: `${id}:blogs` }]
+      },
     }),
     createProfileBlog: builder.mutation<
       ApiPost,
@@ -1161,8 +1174,9 @@ const profilesApi = api.injectEndpoints({
         { type: 'profiles', id: `${arg.id}:blogs` },
       ],
     }),
-    listProfileTabItems: builder.query<ApiPost[], { id: string; tabKey: string }>({
-      query: ({ id, tabKey }) => `/profiles/${id}/tabs/${encodeURIComponent(tabKey)}`,
+    listProfileTabItems: builder.query<ApiPost[], { id: string; tabKey: string; limit?: number }>({
+      query: ({ id, tabKey, limit }) =>
+        `/profiles/${id}/tabs/${encodeURIComponent(tabKey)}${limit ? `?limit=${limit}` : ''}`,
       transformResponse: (res: Envelope<ApiPost[]>) => (res.data || []).map(normalizeDirectItemToApiPost),
       providesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` }],
     }),
@@ -1239,6 +1253,16 @@ const profilesApi = api.injectEndpoints({
         return `/profiles/dashboard/stats?${search.toString()}`
       },
       transformResponse: (res: Envelope<DashboardStats>) => res.data,
+      providesTags: ['dashboard'],
+    }),
+    getDashboardSummary: builder.query<DashboardSummary, DashboardStatsQuery | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        search.set('period', params?.period ?? 'all')
+        if (params?.scope) search.set('scope', params.scope)
+        return `/profiles/dashboard/summary?${search.toString()}`
+      },
+      transformResponse: (res: Envelope<DashboardSummary>) => res.data,
       providesTags: ['dashboard'],
     }),
     getRecentEngagement: builder.query<DashboardEngagementPage, DashboardEngagementQuery | void>({
@@ -1417,6 +1441,7 @@ export const {
   useUpdateProfileTabItemMutation,
   useDeleteProfileTabItemMutation,
   useGetDashboardStatsQuery,
+  useGetDashboardSummaryQuery,
   useGetRecentEngagementQuery,
   useGetWeeklyEngagementQuery,
   useGetConsolidatedEngagementQuery,

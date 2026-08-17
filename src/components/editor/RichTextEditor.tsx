@@ -466,7 +466,7 @@ export function RichTextEditor({
       Placeholder.configure({ placeholder }),
     ],
     content: value || '',
-    onUpdate: ({ editor: ed }) => {
+    onUpdate: ({ editor: ed }: { editor: Editor }) => {
       onChangeRef.current?.(ed.getHTML())
     },
     editorProps: {
