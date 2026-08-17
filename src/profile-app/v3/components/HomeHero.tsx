@@ -122,7 +122,6 @@ export const HomeHero: React.FC<{
   const profileIsVideo = isVideoUrl(profileSrc)
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn')
-  const showViewCounter = isVisible('Vcard View Counter')
 
   const designationLine = resolveGlobalProfession(personal, isVisible)
 
@@ -209,22 +208,22 @@ export const HomeHero: React.FC<{
             <div
               className={`pointer-events-auto absolute top-8 right-2 flex flex-col gap-3 ${compact ? '' : 'md:right-6'}`}
             >
-              {showViewCounter && (
-                <div
-                  className="group relative transition-transform hover:scale-105"
-                  onClick={() => {
-                    triggerHaptic(10)
-                    openVbizmeLogin()
-                  }}
-                >
-                  <div className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                    {viewCountLabel}
-                  </div>
-                  <div className={railButtonClass}>
-                    <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
-                  </div>
-                </div>
-              )}
+              <button
+                type="button"
+                title="Total views"
+                className="group relative cursor-pointer transition-transform hover:scale-105"
+                onClick={() => {
+                  triggerHaptic(10)
+                  openVbizmeLogin()
+                }}
+              >
+                <span className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                  {viewCountLabel}
+                </span>
+                <span className={railButtonClass}>
+                  <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
+                </span>
+              </button>
               {websiteHref && (
                 <a
                   href={websiteHref}
