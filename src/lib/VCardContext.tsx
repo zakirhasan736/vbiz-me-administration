@@ -216,6 +216,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
   const { data: remoteProfile, isFetching } = useGetProfileQuery(cardId || '', {
     skip: isCreateMode || !cardId,
+    refetchOnMountOrArgChange: true,
   })
   const [createProfile, { isLoading: creating }] = useCreateProfileMutation()
   const [updateProfileCard] = useUpdateProfileCardMutation()
@@ -282,13 +283,13 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!remoteProfile || isCreateMode) return
-    if (saveGateRef.current.dirty || saveGateRef.current.saving) return
 
     const mapped = mapApiProfileToVCardRecord(remoteProfile)
     const profileId = mapped.id
 
     // Refetch after autosave must not rewrite the open editor — that remounts fields and steals focus.
     if (editorHydratedForIdRef.current === profileId) {
+      if (saveGateRef.current.dirty || saveGateRef.current.saving) return
       dispatch(
         updateVCard({
           id: profileId,
@@ -306,16 +307,17 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const alreadyHydratedPosts = postsHydratedForId.current === profileId
     const mappedData = toVCardData(mapped)
-    const data = alreadyHydratedPosts
-      ? {
-          ...mappedData,
-          generalPosts: postsSnapshotRef.current.generalPosts ?? [],
-          faqs: postsSnapshotRef.current.faqs ?? [],
-          sectionPosts: postsSnapshotRef.current.sectionPosts ?? {},
-        }
-      : mappedData
+    const posts = postsSnapshotRef.current
+    const generalPosts = posts.generalPosts ?? []
+    const faqs = posts.faqs ?? []
+    const sectionPosts = posts.sectionPosts ?? {}
+    const data = {
+      ...mappedData,
+      generalPosts: generalPosts.length ? generalPosts : mappedData.generalPosts,
+      faqs: faqs.length ? faqs : mappedData.faqs,
+      sectionPosts: Object.keys(sectionPosts).length ? sectionPosts : mappedData.sectionPosts,
+    }
 
     editDataRef.current = data
     dispatch(addVCard({ id: profileId, seed: data }))
@@ -335,12 +337,14 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         },
       })
     )
+    editorHydratedForIdRef.current = profileId
+  }, [remoteProfile, isCreateMode, dispatch])
 
-    if (alreadyHydratedPosts) {
-      editorHydratedForIdRef.current = profileId
-      return
-    }
+  useEffect(() => {
+    if (isCreateMode || !cardId) return
+    if (postsHydratedForId.current === cardId) return
 
+    const profileId = cardId
     let cancelled = false
     ;(async () => {
       try {
@@ -348,6 +352,9 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const publicNameToTabKey = (name: string) => {
           const needle = name.trim().toLowerCase()
           if (needle === 'faq') return 'faqs'
+          if (needle === 'mission' || needle === 'mission statement' || needle === 'company mission statement') {
+            return 'mission_statement'
+          }
           return Object.values(TAB_REGISTRY).find((t) => t.publicSectionName.toLowerCase() === needle)?.key || null
         }
         const [blogPosts, faqPosts, ...sectionResults] = await Promise.all([
@@ -358,7 +365,9 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             } catch {
               /* fall through */
             }
-            return listPosts({ id: profileId, postType: BLOG_POST_TYPE }).unwrap()
+            return listPosts({ id: profileId, postType: BLOG_POST_TYPE })
+              .unwrap()
+              .catch(() => [])
           })(),
           (async () => {
             try {
@@ -367,7 +376,9 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             } catch {
               /* fall through */
             }
-            return listPosts({ id: profileId, postType: FAQ_POST_TYPE }).unwrap()
+            return listPosts({ id: profileId, postType: FAQ_POST_TYPE })
+              .unwrap()
+              .catch(() => [])
           })(),
           ...schemas.map(async (schema) => {
             const tabKey = publicNameToTabKey(schema.postTypeName)
@@ -395,9 +406,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         postsHydratedForId.current = profileId
         postsSnapshotRef.current = { generalPosts, faqs, sectionPosts }
 
-        // Always merge into the latest local draft (skills/education/etc. edited during
-        // the posts fetch). Never reset collections from the stale `mapped` snapshot.
-        const latest = editDataRef.current || mappedData
+        const latest = editDataRef.current || (record ? toVCardData(record) : null)
+        if (!latest) return
         const withPosts = {
           ...latest,
           generalPosts,
@@ -405,21 +415,15 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           sectionPosts,
         }
         editDataRef.current = withPosts
-        dispatch(
-          replaceVCardData({
-            id: profileId,
-            data: withPosts,
-          })
-        )
-        editorHydratedForIdRef.current = profileId
+        dispatch(replaceVCardData({ id: profileId, data: withPosts }))
       } catch {
-        editorHydratedForIdRef.current = profileId
+        postsHydratedForId.current = profileId
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [remoteProfile, isCreateMode, dispatch, listPosts, listBlogs, listTabItems])
+  }, [cardId, isCreateMode, dispatch, listPosts, listBlogs, listTabItems, record])
 
   const accountDefaultsSig = designDefaultsSignature(design)
   const [createDraft, setCreateDraft] = useState<VCardData>(() => buildCreateDraft(design))

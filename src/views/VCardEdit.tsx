@@ -243,7 +243,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     return normalizeNavOrderWithPinnedEnds(display.editorNavOrder)
   }, [display.editorNavOrder])
 
-  const effectiveNavOrderIds = displayNavOrder ?? (isCreateMode ? navOrderIds : [])
+  const effectiveNavOrderIds = useMemo(
+    () => displayNavOrder ?? (isCreateMode ? navOrderIds : []),
+    [displayNavOrder, isCreateMode, navOrderIds]
+  )
 
   useEffect(() => {
     if (!isCreateMode) return

@@ -13,6 +13,7 @@ import {
 } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert, scheduleAboutMeUpsert } from '@/lib/aboutMePersist'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
+import { useVCard } from '@/lib/VCardContext'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import { useGetProfileAboutMeQuery } from '@/redux/features/sections/aboutMe.api'
 import { AlignLeft, FileBox, Type } from 'lucide-react'
@@ -27,33 +28,44 @@ type AboutMeEditorPanelProps = {
 
 export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
   const dispatch = useAppDispatch()
+  const { vCardData } = useVCard()
   const draft = useSyncExternalStore(subscribeAboutMeDraft, getAboutMeDraft, getAboutMeDraft)
   const hydratedForId = useRef<string | null>(null)
 
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
-  const { data, isSuccess, isFetching } = useGetProfileAboutMeQuery(profileId!, {
+  const { data, isSuccess, isFetching, isError } = useGetProfileAboutMeQuery(profileId!, {
     skip: !profileId,
   })
 
   useEffect(() => {
-    resetAboutMeDraft()
     hydratedForId.current = null
   }, [cardId])
 
   useEffect(() => {
-    if (!profileId || !isSuccess || isFetching) return
+    if (!profileId || isFetching) return
     if (hydratedForId.current === profileId) return
-    hydratedForId.current = profileId
-    if (data) {
+    if (isSuccess && data) {
+      hydratedForId.current = profileId
       setAboutMeDraft({
         title: data.title || '',
         descriptionHtml: data.description || '',
         featuredMediaUrl: data.featuredMediaUrl || '',
       })
+      return
+    }
+    if (!isSuccess && !isError) return
+    hydratedForId.current = profileId
+    const about = vCardData.personal?.about?.trim() || ''
+    if (about) {
+      setAboutMeDraft({
+        title: '',
+        descriptionHtml: about,
+        featuredMediaUrl: '',
+      })
     } else {
       resetAboutMeDraft()
     }
-  }, [profileId, data, isSuccess, isFetching])
+  }, [profileId, data, isSuccess, isFetching, isError, vCardData.personal?.about])
 
   useEffect(() => {
     return () => {
