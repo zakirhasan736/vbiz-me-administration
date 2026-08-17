@@ -3,15 +3,13 @@
 import { useAppDispatch } from '@/hooks/redux'
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { mapNavBarLinks } from '@/lib/api/navbar/mapNavBarLinks'
-import { orderAndDedupeNavItems } from '@/lib/api/navbar/orderNavTabs'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import {
   applyNavLabelOverrides,
-  filterNavItemsByVisibility,
   getNavItemById,
   mergeCustomNavItems,
   NAV_BAR_NAV_ITEMS,
-  sortNavItemsByOrder,
+  selectEnabledNavItems,
   type NavBarNavItem,
 } from '@/lib/vcardNavbar'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -57,7 +55,7 @@ type Props = {
 
 /**
  * Client-side section nav — no URL / route changes.
- * Tab list comes from `GET /post-types?profile_id=` (backend filters empty sections).
+ * Visible tabs follow Add Tabs / Card Settings order (`editorNavOrder`), including empty sections.
  */
 export function ProfileNavigationProvider({
   children,
@@ -104,17 +102,8 @@ export function ProfileNavigationProvider({
 
   const visibleTabs = useMemo(() => {
     if (!displaySettings.globalEnabled) return []
-    if (displaySettings.editorNavOrder?.length) {
-      const selected = new Set(displaySettings.editorNavOrder)
-      const ordered = orderAndDedupeNavItems(
-        filterNavItemsByVisibility(navItems, displaySettings).filter((item) => selected.has(item.id))
-      )
-      return sortNavItemsByOrder(ordered, displaySettings.editorNavOrder)
-    }
-    return orderAndDedupeNavItems(
-      applyNavLabelOverrides(mergeCustomNavItems(apiNavItems, customTabs), tabLabelOverrides)
-    )
-  }, [displaySettings, navItems, apiNavItems, customTabs, tabLabelOverrides])
+    return selectEnabledNavItems(navItems, displaySettings)
+  }, [displaySettings, navItems])
 
   const isNavLoading = hasPrefetchedNavLinks ? false : isNavLinksLoading
 

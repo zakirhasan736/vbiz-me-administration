@@ -1,7 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
-import { normalizeNavOrderWithPinnedEnds, normalizeNavOrderWithRequiredTabs } from '@/lib/createCardTabs'
+import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
 import { getNavItemCompletionPercent } from '@/lib/vcardCompletion'
 import {
   buildCustomNavItems,
@@ -35,7 +35,7 @@ type AddTabsModalProps = {
 }
 
 function normalizeDraft(ids: string[]): string[] {
-  return normalizeNavOrderWithRequiredTabs(ids)
+  return normalizeNavOrderWithPinnedEnds(ids)
 }
 
 function customId() {

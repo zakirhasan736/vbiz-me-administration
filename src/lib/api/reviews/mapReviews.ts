@@ -4,6 +4,7 @@ import type {
   ReviewsQueryResult,
   ReviewsSectionResponse,
 } from '@/interfaces/api/reviews.interface'
+import { isPublishedStatus, resolveFeaturedImageUrl } from '@/lib/api/resolveFeaturedImageUrl'
 
 function stripHtml(html: string): string {
   return html
@@ -41,7 +42,7 @@ export function mapReviewItemToListItem(item: ReviewItem): ReviewListItem {
     title: (item.title || '').trim() || (isLinkCard ? 'Leave a Review' : 'Review'),
     plainDescription: plain,
     htmlDescription: html,
-    image: item.featured_image?.trim() ?? '',
+    image: resolveFeaturedImageUrl(item.featured_image),
     linkUrl,
     isLinkCard,
     rating: normalizeRating(item.rating),
@@ -55,7 +56,9 @@ export function normalizeReviewsResponse(response: ReviewsSectionResponse): Revi
 
   const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Reviews'
 
-  const items = (response.data.items ?? []).filter((item) => item.status === 1).map(mapReviewItemToListItem)
+  const items = (response.data.items ?? [])
+    .filter((item) => isPublishedStatus(item.status))
+    .map(mapReviewItemToListItem)
 
   const linkCards = items
     .filter((item) => item.isLinkCard)

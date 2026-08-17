@@ -1,5 +1,7 @@
 'use client'
 
+import { MediaFileUploader } from '@/components/media/MediaFileUploader'
+import { MediaSourceActions } from '@/components/MediaSourceActions'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -28,9 +30,10 @@ const accent = {
 type FaqEditorPanelProps = {
   faqs: VCardFaqEntry[] | null | undefined
   onFaqsChange: (next: VCardFaqEntry[]) => void
+  profileId?: string | null
 }
 
-export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange }: FaqEditorPanelProps) {
+export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEditorPanelProps) {
   const faqs = normalizeFaqList(rawFaqs)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef } = useExpandableEntryList(faqs)
 
@@ -150,6 +153,25 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange }: FaqEditorPanelPr
                         onChange={(e) => updateFaq(faq.id, 'answer', e.target.value)}
                         placeholder="Write a clear, helpful answer..."
                         className={textareaClasses}
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <MediaFileUploader
+                        label="Image or attachment"
+                        accent="primary"
+                        profileId={profileId}
+                        attachmentType="Featured Image"
+                        value={faq.featuredImage || ''}
+                        accept="image/*,application/pdf,.pdf,.doc,.docx"
+                        hint="Optional image or file shown with this answer"
+                        onChange={(next) => updateFaq(faq.id, 'featuredImage', next?.url || '')}
+                      />
+                      <MediaSourceActions
+                        mode="both"
+                        compact
+                        profileId={profileId}
+                        onSelect={(asset) => updateFaq(faq.id, 'featuredImage', asset.url)}
                       />
                     </div>
 

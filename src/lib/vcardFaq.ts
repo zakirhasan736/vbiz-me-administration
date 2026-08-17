@@ -5,6 +5,8 @@ export function createDefaultFaqEntry(): VCardFaqEntry {
     id: `faq_${Date.now()}`,
     question: '',
     answer: '',
+    featuredImage: '',
+    url: '',
     active: true,
   }
 }
@@ -15,6 +17,8 @@ export function normalizeFaqList(raw?: VCardFaqEntry[] | null): VCardFaqEntry[] 
     id: entry.id || `faq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     question: entry.question ?? '',
     answer: entry.answer ?? '',
+    featuredImage: entry.featuredImage ?? '',
+    url: entry.url ?? '',
     active: entry.active !== false,
   }))
 }

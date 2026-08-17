@@ -52,6 +52,7 @@ const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
   dinner: 'dinner',
   events: 'events',
   faq: 'faq',
+  faqs: 'faq',
   'home solar': 'home-solar',
   'insurance license': 'insurance-license',
   inventory: 'inventory',
@@ -108,7 +109,7 @@ function withNavMeta(def: NavBarNavItem, options: { title?: string; apiSectionNa
   const displayTitle = options.title?.trim()
   const apiSectionName = options.apiSectionName?.trim()
   const next: NavBarNavItem = { ...def }
-  if (displayTitle && displayTitle !== def.label) next.displayLabel = displayTitle
+  if (displayTitle && displayTitle !== def.label && !def.displayLabel) next.displayLabel = displayTitle
   if (apiSectionName) next.apiSectionName = apiSectionName
   return next
 }

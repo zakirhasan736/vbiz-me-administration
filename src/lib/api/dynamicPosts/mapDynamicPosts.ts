@@ -23,6 +23,13 @@ function isActiveItem(status: unknown): boolean {
 }
 
 function resolveFeaturedImage(image: unknown): { url: string; id?: number | string; docName?: string } {
+  if (Array.isArray(image)) {
+    for (const entry of image) {
+      const resolved = resolveFeaturedImage(entry)
+      if (resolved.url) return resolved
+    }
+    return { url: '' }
+  }
   if (typeof image === 'string') {
     const url = image.trim()
     return url ? { url } : { url: '' }

@@ -97,9 +97,20 @@ export type ApiProfile = {
     description?: string | null
     url?: string | null
     imageUrl?: string | null
+    featuredImage?: string | null
     attachmentUrl?: string | null
     attachmentName?: string | null
-    status?: number | null
+    status?: number | string | null
+  }>
+  galleries?: Array<{
+    id: string
+    title?: string | null
+    description?: string | null
+    url?: string | null
+    featuredImage?: string | null
+    attachmentUrl?: string | null
+    attachmentName?: string | null
+    status?: string | null
   }>
   reviews?: Array<{
     id: string
@@ -500,6 +511,8 @@ export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
     id: p.id,
     question: p.title || '',
     answer: p.description || '',
+    featuredImage: p.featuredImage || '',
+    url: p.url || '',
     active: p.status !== '0' && p.status !== 'false',
   }))
 }
@@ -599,17 +612,57 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       featuredImage: s.imageUrl || '',
       active: s.status !== 0,
     })),
-    portfolio: (profile.portfolios || []).map((p) => ({
-      id: p.id,
-      type: 'Image',
-      title: p.title || '',
-      description: p.description || '',
-      imageUrl: p.imageUrl || '',
-      imageName: '',
-      attachments: p.attachmentUrl ? { url: p.attachmentUrl, name: p.attachmentName || '' } : null,
-      url: p.url || '',
-      active: p.status !== 0,
-    })),
+    portfolio: (() => {
+      const galleries = profile.galleries || []
+      const portfolios = profile.portfolios || []
+      const byTitle = new Map(
+        portfolios.map(
+          (row) =>
+            [
+              String(row.title || '')
+                .trim()
+                .toLowerCase(),
+              row,
+            ] as const
+        )
+      )
+      const rows =
+        galleries.length > 0
+          ? galleries.map((gallery, index) => {
+              const legacy =
+                byTitle.get(
+                  String(gallery.title || '')
+                    .trim()
+                    .toLowerCase()
+                ) || portfolios[index]
+              return {
+                ...gallery,
+                featuredImage: gallery.featuredImage || legacy?.imageUrl || gallery.featuredImage,
+                imageUrl: ('imageUrl' in gallery ? gallery.imageUrl : undefined) || legacy?.imageUrl,
+                attachmentUrl: gallery.attachmentUrl || legacy?.attachmentUrl || gallery.attachmentUrl,
+                attachmentName: gallery.attachmentName || legacy?.attachmentName || gallery.attachmentName,
+              }
+            })
+          : portfolios
+      return rows.map((p) => {
+        const imageUrl = String(('featuredImage' in p && p.featuredImage) || ('imageUrl' in p && p.imageUrl) || '')
+        const status = p.status
+        const active = status !== 0 && status !== '0'
+        const attachmentUrl = typeof p.attachmentUrl === 'string' ? p.attachmentUrl : ''
+        const attachmentName = typeof p.attachmentName === 'string' ? p.attachmentName : ''
+        return {
+          id: p.id,
+          type: 'Image' as const,
+          title: p.title || '',
+          description: p.description || '',
+          imageUrl,
+          imageName: attachmentName,
+          attachments: attachmentUrl ? { url: attachmentUrl, name: attachmentName } : null,
+          url: p.url || '',
+          active,
+        }
+      })
+    })(),
     reviews: (profile.reviews || []).map((r) => {
       const rawRating = typeof r.rating === 'number' ? r.rating : Number(r.rating)
       const rating = Number.isFinite(rawRating) ? Math.min(5, Math.max(1, Math.round(rawRating))) : 5

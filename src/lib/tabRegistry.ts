@@ -141,7 +141,7 @@ export const TAB_REGISTRY: Record<string, TabRegistryEntry> = {
   about_me: singleton('about_me', 'About Me', 'about-me', 'About Me', 16, 'about_me', 'about'),
   events: list('events', 'Events', 'events', 'Events', 17, 'profile_event'),
   media_press: list('media_press', 'Media/Press', 'media-press', 'Media Press', 18, 'media_press'),
-  mission_statement: singleton(
+  mission_statement: list(
     'mission_statement',
     'Mission Statement',
     'mission-statement',

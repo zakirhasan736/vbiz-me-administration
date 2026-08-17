@@ -43,7 +43,7 @@ import {
   syncEditorNavOrderAfterNavVisibilityChange,
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
-import { LOCKED_NAV_ITEM_IDS, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
+import { getEditorNavLabel, LOCKED_NAV_ITEM_IDS, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
 import { DEFAULT_COVER } from '@/profile-app/profilePublicProps'
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
@@ -1265,7 +1265,20 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
       case 'home':
         return renderFieldCards(HOME_PAGE_FIELDS, { showInput: true })
       case 'navbar':
-        return renderFieldCards(NAV_BAR_FIELDS, { showBgCol: true })
+        return NAV_BAR_FIELDS.map((key) => {
+          const item = NAV_BAR_NAV_ITEMS.find((nav) => nav.label === key)
+          const title = item ? vCardData.tabLabelOverrides?.[item.id]?.trim() || getEditorNavLabel(item) : key
+          return (
+            <FieldCard
+              key={key}
+              title={title}
+              config={display.fields[key] ?? { visible: true }}
+              onPatch={(patch) => patchField(key, patch)}
+              colorPreview={colorPreview}
+              showBgCol
+            />
+          )
+        })
       case 'template':
         return <TemplateDesigner />
       case 'seo':

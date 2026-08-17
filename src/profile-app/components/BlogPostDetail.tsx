@@ -72,9 +72,16 @@ export function BlogPostDetail({ post, sectionTitle, onBack }: BlogPostDetailPro
 
         <div className="space-y-8 p-8 lg:p-10">
           {post.description ? (
-            <p className="max-w-3xl text-base leading-relaxed font-medium whitespace-pre-wrap text-zinc-700 lg:text-lg dark:text-zinc-300">
-              {post.description}
-            </p>
+            /<\/?[a-z][\s\S]*>/i.test(post.description) ? (
+              <div
+                className="prose prose-sm dark:prose-invert max-w-3xl text-base leading-relaxed font-medium text-zinc-700 lg:text-lg dark:text-zinc-300"
+                dangerouslySetInnerHTML={{ __html: post.description }}
+              />
+            ) : (
+              <p className="max-w-3xl text-base leading-relaxed font-medium whitespace-pre-wrap text-zinc-700 lg:text-lg dark:text-zinc-300">
+                {post.description}
+              </p>
+            )
           ) : null}
 
           {contentImages.length > 0 ? (

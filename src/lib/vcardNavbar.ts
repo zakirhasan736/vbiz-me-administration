@@ -1,4 +1,8 @@
-import { ALWAYS_ENABLED_NAV_IDS, getDefaultCreateCardNavIds } from '@/lib/createCardTabs'
+import {
+  ALWAYS_ENABLED_NAV_IDS,
+  getDefaultCreateCardNavIds,
+  normalizeNavOrderWithPinnedEnds,
+} from '@/lib/createCardTabs'
 import type { VCardCustomTab, VCardTabLabelOverrides } from '@/types/vcard'
 import {
   createDefaultFieldConfig,
@@ -555,6 +559,25 @@ export function isNavItemVisible(settings: VCardDisplaySettings, label: string):
 
 export function filterNavItemsByVisibility(items: NavBarNavItem[], settings: VCardDisplaySettings): NavBarNavItem[] {
   return items.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id) || isNavItemVisible(settings, item.label))
+}
+
+/**
+ * Public + editor nav: every tab the owner enabled in Add Tabs / Card Settings,
+ * in that saved order. Empty sections still appear. Data from `/post-types` is not required.
+ */
+export function selectEnabledNavItems(catalog: NavBarNavItem[], settings: VCardDisplaySettings): NavBarNavItem[] {
+  const byId = new Map(catalog.map((item) => [item.id, item]))
+  const savedOrder =
+    Array.isArray(settings.editorNavOrder) && settings.editorNavOrder.length > 0
+      ? normalizeNavOrderWithPinnedEnds(settings.editorNavOrder)
+      : null
+
+  if (savedOrder) {
+    return savedOrder.map((id) => byId.get(id)).filter((item): item is NavBarNavItem => Boolean(item))
+  }
+
+  const visible = filterNavItemsByVisibility(catalog, settings)
+  return sortNavItemsByOrder(visible, normalizeNavOrderWithPinnedEnds(visible.map((item) => item.id)))
 }
 
 /**

@@ -11,6 +11,36 @@ type FaqItem = {
   id: number | string
   question: string
   answer: string
+  imageUrl: string
+  attachments: Array<{ url: string; name: string }>
+}
+
+function FaqMedia({ imageUrl, attachments }: { imageUrl: string; attachments: Array<{ url: string; name: string }> }) {
+  const extra = attachments.filter((a) => a.url !== imageUrl)
+  if (!imageUrl && extra.length === 0) return null
+  return (
+    <div className="mt-4 space-y-3">
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="" className="h-auto w-full rounded-2xl object-cover" />
+      ) : null}
+      {extra.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {extra.map((file) => (
+            <a
+              key={file.url}
+              href={file.url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-gold text-xs font-bold underline"
+            >
+              {file.name}
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 type FAQSectionProps = {
@@ -30,11 +60,15 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
   const faqs = useMemo<FaqItem[]>(() => {
     return [...(data?.posts ?? [])]
       .reverse()
-      .filter((item) => item.title.trim().length > 0 && item.description.trim().length > 0)
+      .filter((item) => item.title.trim().length > 0 || item.description.trim().length > 0 || item.featuredImage.trim())
       .map((item) => ({
         id: item.id,
         question: item.title,
         answer: item.description,
+        imageUrl: item.featuredImage.trim(),
+        attachments: (item.attachments || [])
+          .filter((a) => a.url?.trim())
+          .map((a) => ({ url: a.url.trim(), name: a.doc_name || 'Attachment' })),
       }))
   }, [data?.posts])
 
@@ -154,10 +188,10 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.25 }}
                         >
-                          <div
-                            className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-100 px-4 pt-1 pb-4 text-[11px] leading-relaxed font-medium text-zinc-700 **:text-inherit! sm:text-xs dark:border-zinc-800/40 dark:text-zinc-200"
-                            dangerouslySetInnerHTML={{ __html: faq.answer }}
-                          />
+                          <div className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-100 px-4 pt-1 pb-4 text-[11px] leading-relaxed font-medium text-zinc-700 **:text-inherit! sm:text-xs dark:border-zinc-800/40 dark:text-zinc-200">
+                            <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
+                            <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -232,10 +266,10 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <div
-                          className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-200 px-6 pt-6 pb-8 text-sm leading-relaxed font-medium text-zinc-700 **:text-inherit! md:text-base lg:px-8 dark:border-zinc-800/50 dark:text-zinc-200"
-                          dangerouslySetInnerHTML={{ __html: faq.answer }}
-                        />
+                        <div className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-200 px-6 pt-6 pb-8 text-sm leading-relaxed font-medium text-zinc-700 **:text-inherit! md:text-base lg:px-8 dark:border-zinc-800/50 dark:text-zinc-200">
+                          <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
+                          <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>

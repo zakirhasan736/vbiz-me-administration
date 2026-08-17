@@ -110,6 +110,8 @@ export type VCardFaqEntry = {
   id: string
   question: string
   answer: string
+  featuredImage?: string
+  url?: string
   active: boolean
 }
 

@@ -4,6 +4,7 @@ import type {
   ServicesQueryResult,
   ServicesSectionResponse,
 } from '@/interfaces/api/services.interface'
+import { isPublishedStatus } from '@/lib/api/resolveFeaturedImageUrl'
 import { encodeMediaUrl, isUsableImageSrc } from '@/lib/mediaUrl'
 
 function stripHtml(html: string): string {
@@ -61,7 +62,9 @@ export function normalizeServicesResponse(response: ServicesSectionResponse): Se
 
   const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Services'
 
-  const services = (response.data.items ?? []).filter((item) => item.status === 1).map(mapServiceItemToListItem)
+  const services = (response.data.items ?? [])
+    .filter((item) => isPublishedStatus(item.status))
+    .map(mapServiceItemToListItem)
 
   return { sectionTitle, services }
 }

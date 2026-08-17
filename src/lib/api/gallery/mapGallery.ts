@@ -47,17 +47,26 @@ function resolveFeaturedImage(item: GalleryItem): GalleryImageAsset | null {
     }
   }
 
+  const attachments = item.attachments
+  if (Array.isArray(attachments)) {
+    for (const entry of attachments) {
+      const asset = assetFromUnknown(entry)
+      if (asset) return asset
+    }
+  }
+
   return null
 }
 
 export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryListItem | null {
   const featured = resolveFeaturedImage(item)
-  if (!featured) return null
+  const rawTitle = item.title?.trim() || ''
+  if (!featured && !rawTitle) return null
 
   return {
-    id: item.id ?? featured.id ?? index + 1,
-    title: item.title?.trim() || featured.doc_name || 'Gallery',
-    imageUrl: featured.url,
+    id: item.id ?? featured?.id ?? index + 1,
+    title: rawTitle || featured?.doc_name || 'Gallery',
+    imageUrl: featured?.url ?? '',
     createdAt: item.created_at ?? '',
   }
 }

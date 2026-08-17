@@ -1,6 +1,7 @@
 import { DISPLAY_SETTINGS_SETTING_KEY } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import {
   ALL_DISPLAY_FIELD_KEYS,
+  applyEnabledNavOrderToDisplaySettings,
   createDefaultDisplaySettings,
   createDefaultFieldConfig,
 } from '@/lib/vcardDisplaySettings'
@@ -199,14 +200,20 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
   const introYoutube = fields['Intro YouTube vCard Video Link']?.customValue?.trim() || ''
   const explainerVideoUrl = introYoutube && isYoutubeMediaUrl(introYoutube) ? introYoutube : ''
 
+  const editorNavOrder = Array.isArray(snapshot?.editorNavOrder)
+    ? snapshot.editorNavOrder.filter((id): id is string => typeof id === 'string' && Boolean(id))
+    : []
+
+  const displaySettings: VCardDisplaySettings = {
+    globalEnabled: snapshot?.globalEnabled ?? true,
+    fields,
+    ...(editorNavOrder.length ? { editorNavOrder } : {}),
+  }
+
   return {
-    displaySettings: {
-      globalEnabled: snapshot?.globalEnabled ?? true,
-      fields,
-      ...(Array.isArray(snapshot?.editorNavOrder) && snapshot.editorNavOrder.length
-        ? { editorNavOrder: snapshot.editorNavOrder.filter((id): id is string => typeof id === 'string') }
-        : {}),
-    },
+    displaySettings: editorNavOrder.length
+      ? applyEnabledNavOrderToDisplaySettings(displaySettings, editorNavOrder)
+      : displaySettings,
     settingsMap,
     avatarImageUrl,
     backgroundImageUrl,

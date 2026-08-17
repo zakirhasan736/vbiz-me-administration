@@ -11,8 +11,8 @@ export type ClientItem = {
   description: string | null
   post_type_id: number
   created_at: string
-  status: number
-  featured_image: string | null
+  status: number | string
+  featured_image: string | { url?: string } | Array<{ url?: string }> | null
   review_link: ClientReviewLink
 }
 

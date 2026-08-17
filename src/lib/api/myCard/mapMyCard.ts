@@ -8,6 +8,7 @@ import {
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
+import { applyEnabledNavOrderToDisplaySettings } from '@/lib/vcardDisplaySettings'
 import { createDefaultNavFieldConfig, NAV_BAR_FIELDS } from '@/lib/vcardNavbar'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
@@ -193,12 +194,18 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
     fields[key] = fields[key] || createDefaultNavFieldConfig(key)
   }
 
-  for (const [apiKey, labels] of Object.entries(API_NAV_TO_LABELS)) {
-    const visible = isNavCheckboxEnabled(card, apiKey)
-    for (const label of labels) {
-      if (label === 'Nav Background Color') continue
-      if (!fields[label]) continue
-      fields[label] = { ...fields[label], visible }
+  const editorNavOrder = Array.isArray(snapshot?.editorNavOrder)
+    ? snapshot.editorNavOrder.filter((id): id is string => typeof id === 'string' && Boolean(id))
+    : []
+
+  if (!editorNavOrder.length) {
+    for (const [apiKey, labels] of Object.entries(API_NAV_TO_LABELS)) {
+      const visible = isNavCheckboxEnabled(card, apiKey)
+      for (const label of labels) {
+        if (label === 'Nav Background Color') continue
+        if (!fields[label]) continue
+        fields[label] = { ...fields[label], visible }
+      }
     }
   }
 
@@ -312,7 +319,12 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
     }
   }
 
-  return { globalEnabled: snapshot?.globalEnabled ?? true, fields }
+  const next: VCardDisplaySettings = {
+    globalEnabled: snapshot?.globalEnabled ?? true,
+    fields,
+    ...(editorNavOrder.length ? { editorNavOrder } : {}),
+  }
+  return editorNavOrder.length ? applyEnabledNavOrderToDisplaySettings(next, editorNavOrder) : next
 }
 
 function mapPersonal(card: MyCardData): VCardPersonal {

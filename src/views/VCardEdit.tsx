@@ -43,7 +43,6 @@ import {
   getAiSeedCreateCardNavIds,
   getDefaultCreateCardNavIds,
   normalizeNavOrderWithPinnedEnds,
-  normalizeNavOrderWithRequiredTabs,
 } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
@@ -67,13 +66,12 @@ import {
 import {
   applyNavLabelOverrides,
   filterEditorMainNavItems,
-  filterNavItemsByVisibility,
   getEditorNavLabel,
   getNavItemById,
   isPersonalEditorNavId,
   mergeCustomNavItems,
   NAV_BAR_NAV_ITEMS,
-  sortNavItemsByOrder,
+  selectEnabledNavItems,
   storageKeyForEditorNavOrder,
   type EditorNavPanel,
 } from '@/lib/vcardNavbar'
@@ -242,7 +240,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   const displayNavOrder = useMemo(() => {
     if (!Array.isArray(display.editorNavOrder) || !display.editorNavOrder.length) return null
-    return normalizeNavOrderWithRequiredTabs(display.editorNavOrder)
+    return normalizeNavOrderWithPinnedEnds(display.editorNavOrder)
   }, [display.editorNavOrder])
 
   const effectiveNavOrderIds = displayNavOrder ?? navOrderIds
@@ -274,7 +272,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     const onNavOrder = (e: Event) => {
       const detail = (e as CustomEvent<string[]>).detail
       if (Array.isArray(detail) && detail.length) {
-        setNavOrderIds(normalizeNavOrderWithRequiredTabs(detail))
+        setNavOrderIds(normalizeNavOrderWithPinnedEnds(detail))
       }
     }
     window.addEventListener('vbiz-open-live-preview', openPreview)
@@ -291,14 +289,14 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     [vCardData.customTabs, vCardData.tabLabelOverrides]
   )
 
-  const enabledNavItems = useMemo(() => {
-    const filtered = filterNavItemsByVisibility(editorNavCatalog, display)
-    const ordered = sortNavItemsByOrder(filtered, effectiveNavOrderIds)
-    if (!effectiveNavOrderIds.length) return ordered
-    const idSet = new Set(effectiveNavOrderIds)
-    const preferred = ordered.filter((item) => idSet.has(item.id))
-    return preferred.length ? preferred : ordered
-  }, [display, effectiveNavOrderIds, editorNavCatalog])
+  const enabledNavItems = useMemo(
+    () =>
+      selectEnabledNavItems(editorNavCatalog, {
+        ...display,
+        editorNavOrder: effectiveNavOrderIds.length ? effectiveNavOrderIds : display.editorNavOrder,
+      }),
+    [display, effectiveNavOrderIds, editorNavCatalog]
+  )
 
   const visibleNavItems = useMemo(() => filterEditorMainNavItems(enabledNavItems), [enabledNavItems])
   const enabledNavIds = useMemo(() => enabledNavItems.map((item) => item.id), [enabledNavItems])

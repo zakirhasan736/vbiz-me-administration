@@ -1,4 +1,4 @@
-import { normalizeNavOrderWithRequiredTabs } from '@/lib/createCardTabs'
+import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
 import {
   LOCKED_NAV_ITEM_IDS,
   NAV_BAR_FIELDS,
@@ -229,7 +229,7 @@ export function applyEnabledNavOrderToDisplaySettings(
   settings: VCardDisplaySettings,
   navIds: string[]
 ): VCardDisplaySettings {
-  const normalized = normalizeNavOrderWithRequiredTabs(navIds)
+  const normalized = normalizeNavOrderWithPinnedEnds(navIds)
   const idSet = new Set(normalized)
   let next: VCardDisplaySettings = {
     ...settings,

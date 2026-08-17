@@ -236,6 +236,8 @@ export function faqsToSyncItems(faqs: VCardFaqEntry[]) {
     id: f.id,
     title: f.question,
     description: f.answer,
+    featuredImage: f.featuredImage || undefined,
+    url: f.url || undefined,
     status: f.active ? '1' : '0',
     sortOrder: index,
   }))
