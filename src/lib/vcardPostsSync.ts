@@ -200,6 +200,10 @@ async function syncDirectTabItems(options: {
 
   const saved: ApiPost[] = []
   for (const item of items) {
+    const hasContent = Boolean(
+      item.title?.trim() || item.description?.trim() || item.url?.trim() || item.featuredImage?.trim()
+    )
+    if (!hasContent && (isLocalTempId(item.id) || !existingById.has(item.id))) continue
     const body = {
       title: item.title,
       description: item.description,
