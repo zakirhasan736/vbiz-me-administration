@@ -13,19 +13,28 @@ function ExplainerSectionSkeleton() {
   )
 }
 
+function isYoutubeHref(url: string): boolean {
+  return /youtu\.?be/i.test(url)
+}
+
 export const ExplainerSection = () => {
-  const { cardOwnerId } = useProfileDisplay()
+  const { cardOwnerId, homeMedia, personal } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const { data, isLoading, isError } = useGetVideoExplainerQuery(profileId, { skip: !profileId })
 
+  const fallbackFile = homeMedia.introVideo?.trim() || ''
+  const personalUrl = personal.explainerVideoUrl?.trim() || ''
+  const fallbackExternal =
+    homeMedia.introYoutube?.trim() || (personalUrl && isYoutubeHref(personalUrl) ? personalUrl : '') || ''
+
   const sectionTitle = data?.sectionTitle ?? '2D Video Explainer'
-  const videoUrl = data?.videoUrl ?? ''
-  const externalUrl = data?.externalUrl ?? null
+  const videoUrl = data?.videoUrl || fallbackFile
+  const externalUrl = data?.externalUrl || fallbackExternal || null
   const hasVideo = Boolean(videoUrl)
   const showInitialLoader = isLoading && !hasVideo && !externalUrl
-  const showEmptyState = !isLoading && !isError && !hasVideo && !externalUrl
+  const showEmptyState = !isLoading && !hasVideo && !externalUrl
 
   const handlePlayVideo = () => {
     const video = videoRef.current
@@ -40,7 +49,7 @@ export const ExplainerSection = () => {
     return <ExplainerSectionSkeleton />
   }
 
-  if (isError) {
+  if (isError && !hasVideo && !externalUrl) {
     return (
       <div className="w-full pb-20">
         <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">

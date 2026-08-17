@@ -141,6 +141,7 @@ export function CreateAgentUiProvider({ children }: { children: ReactNode }) {
     if (searchParams.get('agent') !== '1') return
     const params = new URLSearchParams(searchParams.toString())
     params.delete('agent')
+    params.delete('reset')
     const qs = params.toString()
     const path = typeof window !== 'undefined' ? window.location.pathname : '/vcards/create/home'
     router.replace(qs ? `${path}?${qs}` : path)

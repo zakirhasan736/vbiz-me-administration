@@ -68,6 +68,7 @@ import {
   filterEditorMainNavItems,
   getEditorNavLabel,
   getNavItemById,
+  isCustomNavItemId,
   isPersonalEditorNavId,
   mergeCustomNavItems,
   NAV_BAR_NAV_ITEMS,
@@ -605,8 +606,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     localStorage.setItem(storageKeyForEditorNavOrder(cardKey), JSON.stringify(normalized))
 
     const added = normalized.filter((id) => !enabledNavIds.includes(id))
-    if (added.length) {
-      goToEditorPath(sectionHref(added[0]))
+    const addedCustom = [...added].reverse().find((id) => isCustomNavItemId(id))
+    const nextSection = addedCustom || added[0]
+    if (nextSection) {
+      goToEditorPath(sectionHref(nextSection))
     } else if (!normalized.includes(activeNavId) && normalized[0]) {
       goToEditorPath(sectionHref(normalized[0]))
     }

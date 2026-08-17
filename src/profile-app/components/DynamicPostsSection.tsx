@@ -3,6 +3,7 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { formatGeneralPostDate } from '@/lib/vcardGeneralPosts'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
+import { V3SectionHeader } from '@/profile-app/sections'
 import { ArrowUpRight, BookOpen, Calendar, FileEdit } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { MouseEvent } from 'react'
@@ -106,41 +107,14 @@ export function DynamicPostsSection({
   )
 }
 
-function SectionHeader({
-  badge,
-  sectionTitle,
-  isLoading,
-}: {
-  badge: string
-  sectionTitle: string
-  isLoading?: boolean
-}) {
+function SectionHeader({ badge, sectionTitle }: { badge: string; sectionTitle: string; isLoading?: boolean }) {
   return (
-    <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
-      <div className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-8 backdrop-blur-xl lg:col-span-4 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900/50">
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
-        <div className="relative z-10">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-700 uppercase shadow-sm dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
-            <FileEdit size={12} className="text-[#eab308]" /> {badge}
-          </div>
-          {isLoading ? (
-            <>
-              <div className="mb-4 h-10 w-2/3 max-w-lg animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-700" />
-              <div className="h-5 w-full max-w-xl animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
-            </>
-          ) : (
-            <>
-              <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-                {sectionTitle}
-              </h2>
-              <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 lg:text-lg dark:text-zinc-400">
-                Articles and updates from your vBiz profile.
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    <V3SectionHeader
+      badge={badge}
+      badgeIcon={FileEdit}
+      title={sectionTitle}
+      subtitle="Articles and updates from your vBiz profile."
+    />
   )
 }
 

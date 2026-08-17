@@ -6,6 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "e2e:mock-api": "node --experimental-strip-types tests/e2e/mock-api.ts",
     "format": "prettier --write .",
     "prepare": "husky",
     "format:check": "prettier --check .",
@@ -66,8 +71,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/js-cookie": "^3",
+    "@types/jsdom": "^30",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
     "@types/qrcode": "^1.5.6",
@@ -78,12 +85,14 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "husky": "^9.1.7",
+    "jsdom": "^30.0.1",
     "lint-staged": "^17.0.5",
     "prettier": "^3.8.3",
     "prettier-plugin-organize-imports": "^4.3.0",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   },
   "packageManager": "yarn@4.17.1+sha512.ccbfabf7d7b6b32075088be9386fb9a2e00bb6887ef07fa56effabc890a56d53da1ccc4128d62db245fcbd3961b236d75335bdf7d5320ed6eafb7588b7ad4697"
 }

@@ -116,16 +116,22 @@ function withNavMeta(def: NavBarNavItem, options: { title?: string; apiSectionNa
 
 function createFallbackNavItem(postType: PostTypeNavLink): NavBarNavItem {
   const title = postType.title?.trim() || postType.name?.trim() || `Section ${postType.id}`
-  const slug = postType.slug?.trim()
-  const id = slug?.startsWith(CUSTOM_TAB_ID_PREFIX) ? slug : `post-type-${postType.id}`
+  const slug = postType.slug?.trim() || ''
+  const name = postType.name?.trim() || ''
+  const rawId = String(postType.id || '')
+  const customId = [slug, name, rawId].find((value) => value.startsWith(CUSTOM_TAB_ID_PREFIX))
+  const isCustom = Boolean(customId) || postType.type === 'custom'
+  const id = customId || (isCustom ? name || slug || rawId : `post-type-${postType.id}`)
   return {
     id,
     label: title,
     displayLabel: title,
-    apiSectionName: resolveApiSectionName(postType.name, postType.title, postType.slug),
+    apiSectionName: isCustom
+      ? resolveApiSectionName(customId, name, slug, rawId)
+      : resolveApiSectionName(postType.name, postType.title, postType.slug, rawId),
     icon: FileText,
     profileContent: 'empty',
-    editorPanel: { kind: 'empty' },
+    editorPanel: isCustom && id ? { kind: 'custom-tab', tabId: id } : { kind: 'empty' },
   }
 }
 

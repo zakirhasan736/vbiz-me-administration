@@ -9,13 +9,14 @@ export type StaticNavLink = {
 }
 
 export type PostTypeNavLink = {
-  id: number
+  id: number | string
   name: string
   title: string
   status: string
   type_id: string
   /** Optional URL slug from `/post-types?profile_id=` (e.g. "licensing"). */
   slug?: string
+  type?: 'standard' | 'custom' | string
 }
 
 export interface NavBarLinksData {

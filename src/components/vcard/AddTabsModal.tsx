@@ -9,8 +9,10 @@ import {
   getDefaultEnabledNavIds,
   getEditorNavLabel,
   getNavItemGroup,
+  getNavLabelOverride,
   isCustomNavItemId,
   LOCKED_NAV_ITEM_IDS,
+  MIN_NAV_LABEL_LENGTH,
   NAV_BAR_NAV_ITEMS,
   NAV_ITEM_GROUPS,
   type NavBarNavItem,
@@ -18,9 +20,8 @@ import {
 import type { VCardCustomTab, VCardData, VCardTabLabelOverrides } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { reorderByIndex } from '@/utils/reorderByIndex'
-import { Check, GripVertical, Layers, Pencil, Plus, X } from 'lucide-react'
+import { Check, GripVertical, Pencil, Plus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { CustomTabEditorPanel } from './CustomTabEditorPanel'
 
 type AddTabsModalProps = {
   open: boolean
@@ -77,7 +78,6 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
   }
 
   const allItems = useMemo(() => [...NAV_BAR_NAV_ITEMS, ...buildCustomNavItems(customTabs)], [customTabs])
-  const [editingCustomTabId, setEditingCustomTabId] = useState<string | null>(null)
 
   const draftItems = useMemo(
     () =>
@@ -100,13 +100,34 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
   }
 
   const itemLabel = (item: NavBarNavItem) => {
-    return labelOverrides[item.id]?.trim() || getEditorNavLabel(item)
+    return getNavLabelOverride(item.id, labelOverrides) || getEditorNavLabel(item)
+  }
+
+  const draftLabel = (item: NavBarNavItem) => {
+    if (Object.prototype.hasOwnProperty.call(labelOverrides, item.id)) {
+      return labelOverrides[item.id]
+    }
+    return getEditorNavLabel(item)
   }
 
   const updateLabel = (id: string, value: string) => {
     setLabelOverrides((prev) => ({ ...prev, [id]: value }))
-    if (isCustomNavItemId(id)) {
-      setCustomTabs((prev) => prev.map((tab) => (tab.id === id ? { ...tab, label: value } : tab)))
+  }
+
+  const commitLabel = (item: NavBarNavItem) => {
+    const trimmed = (labelOverrides[item.id] ?? '').trim()
+    if (trimmed.length < MIN_NAV_LABEL_LENGTH) {
+      setLabelOverrides((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, item.id)) return prev
+        const next = { ...prev }
+        delete next[item.id]
+        return next
+      })
+      return
+    }
+    setLabelOverrides((prev) => ({ ...prev, [item.id]: trimmed }))
+    if (isCustomNavItemId(item.id)) {
+      setCustomTabs((prev) => prev.map((tab) => (tab.id === item.id ? { ...tab, label: trimmed } : tab)))
     }
   }
 
@@ -123,20 +144,32 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
     setLabelOverrides({})
   }
 
+  const enableCustomTab = (id: string) => {
+    setDraftIds((prev) => (prev.includes(id) ? prev : normalizeDraft([...prev, id])))
+  }
+
+  const deleteCustomTab = (id: string) => {
+    setCustomTabs((prev) => prev.filter((tab) => tab.id !== id))
+    setDraftIds((prev) => prev.filter((tabId) => tabId !== id))
+    setLabelOverrides((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, id)) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
   const apply = () => {
     const normalizedIds = normalizeDraft(draftIds)
-    const activeCustomIds = new Set(normalizedIds.filter((id) => isCustomNavItemId(id)))
-    const nextCustomTabs = customTabs
-      .filter((tab) => activeCustomIds.has(tab.id))
-      .map((tab) => ({
-        ...tab,
-        label: labelOverrides[tab.id]?.trim() || tab.label?.trim() || 'Custom tab',
-        items: tab.items || [],
-      }))
+    const nextCustomTabs = customTabs.map((tab) => ({
+      ...tab,
+      label: getNavLabelOverride(tab.id, labelOverrides) || tab.label?.trim() || 'Custom tab',
+      items: tab.items || [],
+    }))
     const cleanedOverrides = Object.fromEntries(
       Object.entries(labelOverrides)
         .map(([id, label]) => [id, label.trim()] as const)
-        .filter(([, label]) => Boolean(label))
+        .filter(([, label]) => label.length >= MIN_NAV_LABEL_LENGTH)
     )
     onApply({ nextIds: normalizedIds, customTabs: nextCustomTabs, labelOverrides: cleanedOverrides })
   }
@@ -208,8 +241,16 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                     <Pencil className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
-                      value={itemLabel(item)}
+                      value={draftLabel(item)}
+                      placeholder={getEditorNavLabel(item)}
                       onChange={(event) => updateLabel(item.id, event.target.value)}
+                      onBlur={() => commitLabel(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          event.currentTarget.blur()
+                        }
+                      }}
                       className="w-full min-w-0 rounded-lg border border-transparent bg-transparent py-1 pr-1 pl-6 text-[12px] font-bold text-slate-800 transition outline-none focus:border-indigo-200 focus:bg-white dark:text-slate-100 dark:focus:border-indigo-500/40 dark:focus:bg-white/5"
                       aria-label={`Rename ${item.label}`}
                     />
@@ -230,7 +271,9 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                 Custom tabs
               </p>
               <p className="mt-1 text-xs font-semibold text-slate-500">
-                Add multiple flexible tabs for title, description, uploads, gallery, and Canva media.
+                Add an extra section that is not in the list. Rename it in Tab order, then Apply and open it in the
+                builder to add title, description, and media. Remove it from Tab order to hide it, or tap X on a chip to
+                delete it.
               </p>
             </div>
             <button
@@ -243,44 +286,40 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
           </div>
           {customTabs.length ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {customTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setEditingCustomTabId(tab.id)}
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-full border py-2 pr-3 pl-2.5 text-[12px] font-bold transition-all',
-                    editingCustomTabId === tab.id
-                      ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
-                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-teal-300 dark:border-white/10 dark:bg-white/3 dark:text-slate-300 dark:hover:border-teal-500/40'
-                  )}
-                >
-                  <Layers className="h-3.5 w-3.5 shrink-0 text-teal-600 opacity-90" />
-                  <span className="whitespace-nowrap">{tab.label || 'Custom tab'}</span>
-                </button>
-              ))}
+              {customTabs.map((tab) => {
+                const enabled = draftIds.includes(tab.id)
+                return (
+                  <span
+                    key={tab.id}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full border py-1.5 pr-1.5 pl-2.5 text-[12px] font-bold',
+                      enabled
+                        ? 'border-teal-200 bg-white text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200'
+                        : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => enableCustomTab(tab.id)}
+                      className="whitespace-nowrap"
+                      title={enabled ? 'Already in tab order' : 'Add this custom tab back to the order'}
+                    >
+                      {getNavLabelOverride(tab.id, labelOverrides) || tab.label || 'Custom tab'}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Delete custom tab"
+                      onClick={() => deleteCustomTab(tab.id)}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-current/70 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )
+              })}
             </div>
           ) : null}
         </div>
-
-        {editingCustomTabId ? (
-          <div className="px-6 py-4">
-            <CustomTabEditorPanel
-              tab={customTabs.find((t) => t.id === editingCustomTabId) as VCardCustomTab}
-              cardId={vCardData.slug || undefined}
-              onChange={(next) => setCustomTabs((prev) => prev.map((t) => (t.id === next.id ? next : t)))}
-            />
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingCustomTabId(null)}
-                className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        ) : null}
 
         {NAV_ITEM_GROUPS.map((group) => {
           const tabs = NAV_BAR_NAV_ITEMS.filter((item) => getNavItemGroup(item) === group.id)

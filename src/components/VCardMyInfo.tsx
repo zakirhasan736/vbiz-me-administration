@@ -1,39 +1,21 @@
 'use client'
 
 import { useVCard } from '@/lib/VCardContext'
+import { DEFAULT_VCARD_MY_INFO } from '@/lib/vcardMyInfo'
+import type { VCardMyInfo } from '@/types/vcard'
 import { Contact, Mail, MessageCircle, Phone } from 'lucide-react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-sm'
 
-type MyInfoState = {
-  headline: string
-  showCall: boolean
-  showText: boolean
-  showEmail: boolean
-  callLabel: string
-  textLabel: string
-  emailLabel: string
-}
-
-const defaults: MyInfoState = {
-  headline: 'Ready When You Are',
-  showCall: true,
-  showText: true,
-  showEmail: true,
-  callLabel: 'Call Now',
-  textLabel: 'Shoot Me A Text',
-  emailLabel: 'Email Me',
-}
-
 export function TabMyInfo() {
   const { vCardData, updateData } = useVCard()
-  const m: MyInfoState = {
-    ...defaults,
-    ...((vCardData as { myInfo?: Partial<MyInfoState> }).myInfo || {}),
+  const m: VCardMyInfo = {
+    ...DEFAULT_VCARD_MY_INFO,
+    ...(vCardData.myInfo || {}),
   }
 
-  const patch = (partial: Partial<MyInfoState>) => updateData('myInfo', { ...m, ...partial })
+  const patch = (partial: Partial<VCardMyInfo>) => updateData('myInfo', { ...m, ...partial })
 
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl space-y-6 pb-12 duration-500">
@@ -94,6 +76,20 @@ export function TabMyInfo() {
         <p className="text-[12px] font-semibold text-slate-400">
           Uses phone / WhatsApp / email from Personal info when visitors tap the buttons.
         </p>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4 text-[12px] font-semibold text-slate-500 dark:border-white/10 dark:bg-white/4 dark:text-slate-400">
+          <p>
+            Call &amp; Text:{' '}
+            <span className="text-slate-800 dark:text-white">
+              {vCardData.personal.phone || 'Add a phone in Personal'}
+            </span>
+          </p>
+          <p className="mt-1">
+            Email:{' '}
+            <span className="text-slate-800 dark:text-white">
+              {vCardData.personal.email || 'Add an email in Personal'}
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   )

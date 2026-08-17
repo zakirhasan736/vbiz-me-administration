@@ -10,6 +10,7 @@ import {
   isFieldVisibleInProfile,
   resolveDisplaySettings,
 } from '@/lib/vcardDisplaySettings'
+import { DEFAULT_VCARD_MY_INFO } from '@/lib/vcardMyInfo'
 import { createDefaultVCardSocial, getSocialHrefForDisplayLabel } from '@/lib/vcardSocial'
 import type {
   VCardCustomTab,
@@ -18,6 +19,7 @@ import type {
   VCardExtraField,
   VCardFaqEntry,
   VCardGeneralPost,
+  VCardMyInfo,
   VCardPersonal,
   VCardServiceEntry,
   VCardSocial,
@@ -32,6 +34,7 @@ export type ProfileDisplayContextValue = {
   personal: VCardPersonal
   social: VCardSocial
   extraFields: VCardExtraField[]
+  myInfo: VCardMyInfo
   education: VCardEducationEntry[]
   experience: VCardExperienceEntry[]
   services: VCardServiceEntry[]
@@ -78,6 +81,7 @@ const defaultValue: ProfileDisplayContextValue = {
   personal: FALLBACK_PERSONAL,
   social: createDefaultVCardSocial(),
   extraFields: [],
+  myInfo: DEFAULT_VCARD_MY_INFO,
   education: [],
   experience: [],
   services: [],
@@ -109,6 +113,7 @@ export function ProfileDisplayProvider({
   displaySettings,
   social,
   extraFields,
+  myInfo,
   education,
   experience,
   services,
@@ -132,6 +137,7 @@ export function ProfileDisplayProvider({
   displaySettings?: VCardDisplaySettings | null
   social?: VCardSocial | null
   extraFields?: VCardExtraField[]
+  myInfo?: VCardMyInfo
   education?: VCardEducationEntry[]
   experience?: VCardExperienceEntry[]
   services?: VCardServiceEntry[]
@@ -153,6 +159,7 @@ export function ProfileDisplayProvider({
     const p = personal ?? FALLBACK_PERSONAL
     const soc = social ?? createDefaultVCardSocial()
     const extras = extraFields ?? []
+    const info = myInfo ?? DEFAULT_VCARD_MY_INFO
     const edu = education ?? []
     const exp = experience ?? []
     const svc = services ?? []
@@ -165,6 +172,7 @@ export function ProfileDisplayProvider({
       personal: p,
       social: soc,
       extraFields: extras,
+      myInfo: info,
       education: edu,
       experience: exp,
       services: svc,
@@ -196,6 +204,7 @@ export function ProfileDisplayProvider({
     displaySettings,
     social,
     extraFields,
+    myInfo,
     education,
     experience,
     services,

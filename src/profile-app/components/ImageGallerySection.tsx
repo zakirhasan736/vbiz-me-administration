@@ -342,27 +342,27 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-3 grid grid-cols-1 gap-4 md:mb-4 lg:grid-cols-4">
-      <div className="vbiz-section-banner group relative flex flex-col items-start justify-between gap-2 overflow-hidden rounded-3xl border p-4 backdrop-blur-xl md:flex-row md:items-end md:gap-0 md:p-6 lg:col-span-4 lg:p-10">
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
-        <div className="bg-yellow-primary/10 dark:bg-yellow-primary/5 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
+      <div className="vbiz-hero-banner bg-ocean-deep dark:border-gold/20 group relative flex flex-col items-start justify-between gap-2 overflow-hidden rounded-3xl border border-zinc-800 p-4 shadow-xl backdrop-blur-xl md:flex-row md:items-end md:gap-0 md:p-6 lg:col-span-4 lg:p-10">
+        <div className="from-ocean-deep via-ocean-deep/80 pointer-events-none absolute inset-0 bg-linear-to-br to-violet-950/40" />
+        <div className="bg-gold/10 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
         <div className="pointer-events-none absolute bottom-0 left-0 -mb-24 -ml-24 rounded-full bg-black/5 p-24 blur-3xl transition-transform delay-100 duration-1000 group-hover:scale-110 dark:bg-white/5" />
 
         <div className="relative z-10 flex w-full flex-col gap-1 md:w-auto md:gap-2">
-          <div className="vbiz-eyebrow mb-0 rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
-            <Camera size={12} /> Image Vault
+          <div className="vbiz-hero-eyebrow vbiz-eyebrow mb-0 rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
+            <Camera size={12} className="text-gold" /> Image Vault
           </div>
 
           {isLoading ? (
             <>
-              <div className="h-8 w-2/3 max-w-lg animate-pulse rounded-lg bg-zinc-200 md:h-10 dark:bg-zinc-700" />
-              <div className="h-4 w-full max-w-xl animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
+              <div className="h-8 w-2/3 max-w-lg animate-pulse rounded-lg bg-white/15 md:h-10" />
+              <div className="h-4 w-full max-w-xl animate-pulse rounded-md bg-white/10" />
             </>
           ) : (
             <>
-              <h2 className="vbiz-title max-w-2xl text-2xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-4xl">
+              <h2 className="vbiz-hero-title max-w-2xl font-serif text-2xl leading-tight font-medium tracking-tight text-white italic sm:text-4xl lg:text-4xl">
                 {sectionTitle}
               </h2>
-              <p className="vbiz-description max-w-xl text-sm leading-snug font-medium md:text-base md:leading-normal">
+              <p className="vbiz-hero-subtitle max-w-xl text-sm leading-snug font-medium text-zinc-300 md:text-base md:leading-normal">
                 Browse curated gallery images from this profile.
               </p>
             </>

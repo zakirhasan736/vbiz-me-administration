@@ -1,5 +1,6 @@
 'use client'
 
+import { CustomTabSection } from '@/profile-app/components/CustomTabSection'
 import { DynamicPostsSection } from '@/profile-app/components/DynamicPostsSection'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3SectionShell } from '@/profile-app/sections'
@@ -27,37 +28,7 @@ export function EmptyNavSection({ title, sectionName }: EmptyNavSectionProps) {
   )
 
   if (customTab) {
-    return (
-      <DynamicPostsSection
-        sectionTitle={customTab.label || title}
-        posts={(customTab.items || [])
-          .filter((item) => item.active !== false)
-          .map((item) => ({
-            id: item.id,
-            title: item.title || '',
-            description: item.description || '',
-            featuredImage: item.mediaUrl || '',
-            generalInfoUrl: item.mediaUrl || '',
-            date: '',
-            issuer: '',
-            year: '',
-            attachments: item.mediaUrl
-              ? [
-                  {
-                    id: item.id,
-                    doc_name: item.mediaName || item.title || 'Media',
-                    attachment_type_id: 0,
-                    url: item.mediaUrl,
-                  },
-                ]
-              : [],
-          }))}
-        isLoading={false}
-        isError={false}
-        badgeLabel={customTab.label || title}
-        emptyMessage="No content is available for this custom tab yet."
-      />
-    )
+    return <CustomTabSection title={title} sectionName={resolvedSectionName || customTab.id} />
   }
 
   if (profileId && resolvedSectionName) {

@@ -28,10 +28,10 @@ export function Tab1MediaProfile() {
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl pb-12 duration-500">
       <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-3xl border p-6">
-        <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Profile Media & Assets</h3>
+        <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Profile Media</h3>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Upload your profile photo, video and 2D explainer. All are optional but highly recommended to help your vCard
-          stand out.
+          Upload your profile photo, video and 2D explainer. All are optional but help you stand out. The 2D explainer
+          also fills the 2D Video Explainer tab on your public card.
         </p>
       </div>
 
@@ -97,8 +97,8 @@ export function Tab1MediaProfile() {
             attachmentType={FIELD_INTRO}
             accept="video/*"
             maxBytes={MAX_EXPLAINER_BYTES}
-            title="Explainer Video"
-            subtitle="Video • Max 30MB"
+            title="2D Video Explainer"
+            subtitle="Shown as your explainer section. Max 30MB."
             icon={<Film className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
             iconWrapperClassName="border-purple-100 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10"
             selectPlaceholder="Select video"
@@ -119,9 +119,11 @@ export function Tab1MediaProfile() {
                 <LinkIcon className="h-5 w-5 text-rose-600 dark:text-rose-400" />
               </div>
               <div>
-                <h4 className="text-[15px] leading-none font-black text-slate-900 dark:text-white">External Link</h4>
+                <h4 className="text-[15px] leading-none font-black text-slate-900 dark:text-white">
+                  External Video URL
+                </h4>
                 <p className="mt-1.5 text-[12px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                  Youtube / Vimeo
+                  YouTube / Vimeo
                 </p>
               </div>
             </div>

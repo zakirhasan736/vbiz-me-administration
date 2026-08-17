@@ -10,8 +10,14 @@ import { notify } from '@/lib/toast/toast'
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
 import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
 import { DEFAULT_EDITOR_SECTION, buildEditorPath } from '@/lib/vcardEditorRoutes'
+import {
+  applyProfileMediaToExplainerTab,
+  explainerTabSignature,
+  isExplainerMediaPath,
+} from '@/lib/vcardExplainerFromProfileMedia'
 import { storageKeyForEditorNavOrder } from '@/lib/vcardNavbar'
 import { loadAndSyncSectionPosts, mapApiPostsToSectionPosts } from '@/lib/vcardPostsSync'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { VCARD_SECTION_SCHEMAS } from '@/lib/vcardSectionSchemas'
 import { skillGroupsToApiItems } from '@/lib/vcardSkills'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
@@ -254,6 +260,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const editDataRef = useRef<VCardData | null>(null)
   const dirtyBucketsRef = useRef<Set<DirtyBucket>>(new Set())
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleAutosaveRef = useRef<() => void>(() => undefined)
   const savingRef = useRef(false)
   const pendingResaveRef = useRef(false)
   const saveGateRef = useRef({ dirty: false, saving: false })
@@ -408,14 +415,20 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
         const latest = editDataRef.current || (record ? toVCardData(record) : null)
         if (!latest) return
-        const withPosts = {
+        const withPosts = applyProfileMediaToExplainerTab({
           ...latest,
           generalPosts,
           faqs,
           sectionPosts,
-        }
+        })
         editDataRef.current = withPosts
         dispatch(replaceVCardData({ id: profileId, data: withPosts }))
+        if (explainerTabSignature(withPosts) !== JSON.stringify(sectionPosts[PUBLIC_SECTION_NAMES.explainer] ?? [])) {
+          dirtyBucketsRef.current.add('posts')
+          saveGateRef.current.dirty = true
+          setSaveStatus('dirty')
+          scheduleAutosaveRef.current()
+        }
       } catch {
         postsHydratedForId.current = profileId
       }
@@ -478,6 +491,14 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const persistDirtyBuckets = useCallback(
     async (profileId: string, data: VCardData, buckets: Set<DirtyBucket>) => {
       const tasks: Promise<unknown>[] = []
+      data = applyProfileMediaToExplainerTab(data)
+      const explainerKey = PUBLIC_SECTION_NAMES.explainer
+      if (
+        JSON.stringify(data.sectionPosts?.[explainerKey] ?? []) !==
+        JSON.stringify(postsSnapshotRef.current.sectionPosts?.[explainerKey] ?? [])
+      ) {
+        buckets.add('posts')
+      }
 
       if (buckets.has('profile')) {
         tasks.push(updateProfileCard({ id: profileId, body: mapVCardDataToProfilePayload(data) }).unwrap())
@@ -603,15 +624,19 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           sectionPosts[postTypeName] = mapApiPostsToSectionPosts(apiPosts)
         }
         postsHydratedForId.current = profileId
-        postsSnapshotRef.current = { generalPosts, faqs, sectionPosts }
 
-        const next = {
+        const next = applyProfileMediaToExplainerTab({
           ...data,
           generalPosts,
           faqs,
           sectionPosts,
-        }
+        })
         editDataRef.current = next
+        postsSnapshotRef.current = {
+          generalPosts: next.generalPosts || [],
+          faqs: next.faqs || [],
+          sectionPosts: next.sectionPosts || {},
+        }
         dispatch(
           replaceVCardData({
             id: profileId,
@@ -706,6 +731,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     }, AUTOSAVE_DEBOUNCE_MS)
   }, [isCreateMode, runPersist])
 
+  scheduleAutosaveRef.current = scheduleAutosave
+
   const flushSave = useCallback(async () => {
     if (isCreateMode) return
     if (autosaveTimerRef.current) {
@@ -771,7 +798,12 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       }
       if (isCreateMode) {
         setCreateDraft((prev) => {
-          const next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+          let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+          if (isExplainerMediaPath(path)) {
+            next = applyProfileMediaToExplainerTab(next, {
+              syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
+            })
+          }
           createDraftRef.current = next
           return next
         })
@@ -780,10 +812,16 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (!cardId) return
       const base = editDataRef.current ?? (record ? toVCardData(record) : null)
       if (!base) return
-      const next = setByPath(base as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+      let next = setByPath(base as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+      if (isExplainerMediaPath(path)) {
+        next = applyProfileMediaToExplainerTab(next, {
+          syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
+        })
+      }
       editDataRef.current = next
       dispatch(replaceVCardData({ id: cardId, data: next }))
       markDirty(dirtyBucketForPath(path))
+      if (isExplainerMediaPath(path)) markDirty('posts')
       scheduleAutosave()
     },
     [isCreateMode, cardId, dispatch, record, markDirty, scheduleAutosave]
@@ -822,7 +860,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const saveVCard = useCallback(
     async (opts?: { skipNavigate?: boolean; publish?: boolean }) => {
       if (isCreateMode) {
-        const draftRaw = createDraftRef.current
+        const draftRaw = applyProfileMediaToExplainerTab(createDraftRef.current)
         let draft = draftRaw
         try {
           const rawOrder = localStorage.getItem(storageKeyForEditorNavOrder('draft'))

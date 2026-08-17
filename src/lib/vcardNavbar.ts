@@ -637,9 +637,13 @@ export function mergeCustomNavItems(items: NavBarNavItem[], customTabs?: VCardCu
   return customItems.length ? [...items, ...customItems] : items
 }
 
+/** Renames are ignored until the user types at least this many characters. */
+export const MIN_NAV_LABEL_LENGTH = 2
+
 export function getNavLabelOverride(id: string, overrides?: VCardTabLabelOverrides | null): string | undefined {
   const label = overrides?.[id]?.trim()
-  return label || undefined
+  if (!label || label.length < MIN_NAV_LABEL_LENGTH) return undefined
+  return label
 }
 
 export function applyNavLabelOverrides(

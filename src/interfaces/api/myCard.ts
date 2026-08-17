@@ -35,6 +35,7 @@ export type MyCardMyInfoField = {
   url?: string
   google_maps_url?: string
   tel_url?: string
+  sms_url?: string
   mailto_url?: string
 }
 
@@ -88,6 +89,15 @@ export type MyCardMyInfo = {
   professional?: Record<string, MyCardMyInfoField>
   contact?: Record<string, MyCardMyInfoField>
   additional_fields?: MyCardMyInfoAdditionalField[]
+  actions?: {
+    headline?: string
+    showCall?: boolean
+    showText?: boolean
+    showEmail?: boolean
+    callLabel?: string
+    textLabel?: string
+    emailLabel?: string
+  }
 }
 
 export type MyCardBackgroundAudio = {

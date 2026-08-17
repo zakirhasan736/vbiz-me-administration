@@ -61,6 +61,21 @@ export type VCardExtraField = {
   value: string
 }
 
+/** Public My Info tab: headline + Call / Text / Email buttons. Contact values come from Personal info. */
+export type VCardMyInfo = {
+  headline: string
+  showCall: boolean
+  showText: boolean
+  showEmail: boolean
+  callLabel: string
+  textLabel: string
+  emailLabel: string
+  /** Snapshot of Personal phone / WhatsApp / email stored with `my_info_json`. */
+  phone?: string
+  whatsapp?: string
+  email?: string
+}
+
 /** Back office → Education tab entries (shown on profile Resume section). */
 export type VCardEducationEntry = {
   id: string
@@ -143,6 +158,7 @@ export type VCardCustomTabItem = {
   id: string
   title: string
   description: string
+  url: string
   mediaUrl: string
   mediaName?: string
   mediaKind?: VCardCustomTabMediaKind
@@ -211,6 +227,8 @@ export type VCardData = {
   socials: unknown[]
   social?: VCardSocial
   extraFields?: VCardExtraField[]
+  /** Call / Text / Email screen on the public My Info tab. */
+  myInfo?: VCardMyInfo
   education?: VCardEducationEntry[]
   experience?: VCardExperienceEntry[]
   /** Card Settings tab: visibility, colors, and overrides per UI element */

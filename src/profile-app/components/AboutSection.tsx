@@ -89,7 +89,7 @@ function AboutHeroBackground({ src, alt }: { src: string; alt: string }) {
 }
 
 export const AboutSection = () => {
-  const { cardOwnerId } = useProfileDisplay()
+  const { cardOwnerId, personal } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
 
   const { data, isLoading, isFetching, isError } = useGetAboutMeQuery(profileId, { skip: !profileId })
@@ -121,6 +121,7 @@ export const AboutSection = () => {
   const footer = item?.footer
   const { lead: titleLead, accent: titleAccent } = splitSectionTitle(sectionTitle)
   const hasIntro = Boolean(item && (hasIntroHtml || item.plainDescription))
+  const ownerInitial = personal.fullName?.trim().charAt(0).toUpperCase() || ''
 
   return (
     <V3SectionShell>
@@ -135,6 +136,16 @@ export const AboutSection = () => {
             <div className="from-ocean-deep via-ocean-deep/80 to-ocean-deep/30 absolute inset-0 bg-linear-to-t" />
             <div className="from-ocean-deep via-ocean-deep/50 absolute inset-0 hidden bg-linear-to-r to-transparent md:block md:w-2/3" />
           </div>
+
+          {ownerInitial ? (
+            <div className="absolute top-4 right-4 z-20 md:top-6 md:right-6">
+              <div className="border-gold/30 flex h-10 w-10 flex-col items-center justify-center rounded-xl border bg-black/40 shadow-2xl backdrop-blur-xl md:h-12 md:w-12">
+                <span className="mb-0.5 font-serif text-lg font-black tracking-tighter text-white drop-shadow-md md:text-2xl">
+                  {ownerInitial}
+                </span>
+              </div>
+            </div>
+          ) : null}
 
           <div className="relative z-10 flex h-full w-full grow flex-col justify-end p-5 sm:p-6 md:p-8 lg:p-10">
             <div className="mt-auto flex max-w-3xl flex-col gap-3 pt-14 sm:gap-4 sm:pt-0 md:gap-4">

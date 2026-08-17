@@ -34,6 +34,7 @@ import {
   MeetOurTeamSection,
   MenuSection,
   MissionSection,
+  MyInfoSection,
   PostsSection,
   PropertyListingSection,
   PublicCardsSection,
@@ -126,6 +127,8 @@ export function renderProfileSection({
       return <SkillsSection key={tabId} sectionName={sectionName} />
     case 'public-cards':
       return <PublicCardsSection key={tabId} />
+    case 'my-info':
+      return <MyInfoSection key={tabId} />
     case 'clients':
       return <ClientsSection key={tabId} />
     case 'meet-team':

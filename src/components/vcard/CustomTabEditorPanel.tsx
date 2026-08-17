@@ -1,11 +1,12 @@
 'use client'
 
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import type { MediaAsset } from '@/components/MediaSourceActions'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import type { VCardCustomTab, VCardCustomTabItem } from '@/types/vcard'
 import { cn } from '@/utils/cn'
-import { Image as ImageIcon, Layers, Plus, Trash2, Type } from 'lucide-react'
+import { Image as ImageIcon, Layers, Link2, Plus, Trash2, Type } from 'lucide-react'
 
 const inputClasses =
   'w-full rounded-[16px] border border-slate-200/80 bg-white px-5 py-4 text-[13px] font-medium text-slate-900 shadow-sm outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white'
@@ -15,6 +16,7 @@ function createCustomItem(): VCardCustomTabItem {
     id: `custom_item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title: '',
     description: '',
+    url: '',
     mediaUrl: '',
     mediaName: '',
     mediaKind: 'upload',
@@ -28,6 +30,7 @@ function normalizeItem(item: VCardCustomTabItem): VCardCustomTabItem {
     id: item.id || `custom_item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title: item.title ?? '',
     description: item.description ?? '',
+    url: item.url ?? '',
     mediaUrl: item.mediaUrl ?? '',
     mediaName: item.mediaName ?? '',
     mediaKind: item.mediaKind ?? 'upload',
@@ -98,6 +101,10 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                 Custom tab
               </p>
               <h3 className="text-lg font-black text-teal-700 dark:text-teal-300">{tab.label || 'Custom tab'}</h3>
+              <p className="mt-1 text-[13px] font-medium text-slate-500 dark:text-slate-400">
+                Add one or more blocks. Each block has a title, rich description, featured image or video, and an
+                optional link.
+              </p>
             </div>
           </div>
           <button
@@ -129,7 +136,7 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
           </div>
           <h4 className="mb-2 text-[16px] font-black text-slate-900 dark:text-white">No content yet</h4>
           <p className="mx-auto mb-6 max-w-md text-[13px] text-slate-500 dark:text-slate-400">
-            Add flexible blocks with title, description, upload, gallery, or Canva media.
+            Add a block with a title, rich description, and a featured image or video.
           </p>
           <button
             type="button"
@@ -178,9 +185,20 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                       placeholder="Enter title"
                       className={inputClasses}
                     />
+                    <label className="mt-4 flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                      <Link2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                      Optional link
+                    </label>
+                    <input
+                      type="url"
+                      value={item.url}
+                      onChange={(event) => updateItem(item.id, 'url', event.target.value)}
+                      placeholder="https://"
+                      className={inputClasses}
+                    />
                   </div>
                   <MediaFileUploader
-                    label="Image or video"
+                    label="Featured image or video"
                     accent="teal"
                     profileId={cardId}
                     attachmentType={tab.label || 'Custom tab'}
@@ -202,12 +220,10 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                   <label className="mb-1.5 block pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                     Description
                   </label>
-                  <textarea
+                  <RichTextEditor
                     value={item.description}
-                    onChange={(event) => updateItem(item.id, 'description', event.target.value)}
-                    placeholder="Write a short description..."
-                    rows={4}
-                    className={cn(inputClasses, 'min-h-25 resize-y')}
+                    onChange={(html) => updateItem(item.id, 'description', html)}
+                    placeholder="Write the page content for this block…"
                   />
                 </div>
 

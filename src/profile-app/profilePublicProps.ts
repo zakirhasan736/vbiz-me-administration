@@ -20,6 +20,7 @@ import type {
   VCardExtraField,
   VCardFaqEntry,
   VCardGeneralPost,
+  VCardMyInfo,
   VCardPersonal,
   VCardPortfolioEntry,
   VCardRecord,
@@ -64,6 +65,7 @@ export type VBizProfileAppProps = {
   personal?: VCardPersonal
   social?: VCardSocial
   extraFields?: VCardExtraField[]
+  myInfo?: VCardMyInfo
   education?: VCardEducationEntry[]
   experience?: VCardExperienceEntry[]
   services?: VCardServiceEntry[]
@@ -173,6 +175,7 @@ export function vCardDataToProfileProps(
     personal: data.personal,
     social: data.social ?? createDefaultVCardSocial(),
     extraFields: data.extraFields ?? [],
+    myInfo: data.myInfo,
     education: data.education ?? [],
     experience: data.experience ?? [],
     services: normalizeServiceList(data.services),

@@ -334,28 +334,32 @@ export function EmbeddedDraftCacheSync({
 
     for (const tab of customTabs || []) {
       const sectionName = tab.id
-      const items: VCardSectionPostItem[] = (tab.items || []).map((item) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        url: item.mediaUrl,
-        featuredImage: item.mediaUrl,
-        date: '',
-        rating: '',
-        location: '',
-        active: item.active !== false,
-        metas: {
-          mediaName: item.mediaName || '',
-          mediaKind: item.mediaKind || '',
-        },
-      }))
-      dispatch(
-        dynamicSectionApi.util.upsertQueryData(
-          'getDynamicSection',
-          { profileId, sectionName },
-          toDynamicResult(sectionName, items)
-        )
-      )
+      const result: DynamicPostsQueryResult = {
+        sectionTitle: tab.label?.trim() || sectionName,
+        posts: (tab.items || [])
+          .filter((item) => item.active !== false)
+          .map((item) => ({
+            id: item.id,
+            title: item.title || '',
+            description: item.description || '',
+            featuredImage: item.mediaUrl || '',
+            generalInfoUrl: item.url || '',
+            date: '',
+            issuer: '',
+            year: '',
+            attachments: item.mediaUrl
+              ? [
+                  {
+                    id: item.id,
+                    doc_name: item.mediaName || 'Media',
+                    attachment_type_id: 0,
+                    url: item.mediaUrl,
+                  },
+                ]
+              : [],
+          })),
+      }
+      dispatch(dynamicSectionApi.util.upsertQueryData('getDynamicSection', { profileId, sectionName }, result))
     }
 
     if (generalPosts) {

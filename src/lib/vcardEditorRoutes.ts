@@ -1,4 +1,4 @@
-import { getNavItemById } from '@/lib/vcardNavbar'
+import { getNavItemById, isCustomNavItemId } from '@/lib/vcardNavbar'
 
 export const EDITOR_SETTINGS_ID = 'settings'
 export const DEFAULT_EDITOR_SECTION = 'home'
@@ -144,5 +144,5 @@ export function buildEditorSettingsPath(
 }
 
 export function isValidEditorSection(sectionId: string): boolean {
-  return sectionId === EDITOR_SETTINGS_ID || Boolean(getNavItemById(sectionId))
+  return sectionId === EDITOR_SETTINGS_ID || Boolean(getNavItemById(sectionId)) || isCustomNavItemId(sectionId)
 }

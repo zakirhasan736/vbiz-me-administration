@@ -9,6 +9,7 @@ import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfil
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { applyEnabledNavOrderToDisplaySettings } from '@/lib/vcardDisplaySettings'
+import { MY_INFO_SETTING_KEY, parseMyInfoJson } from '@/lib/vcardMyInfo'
 import { createDefaultNavFieldConfig, LOCKED_NAV_ITEM_IDS, NAV_BAR_FIELDS, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
@@ -151,7 +152,22 @@ function parseCustomTabs(raw?: string): VCardCustomTab[] {
       .map((tab) => ({
         id: typeof tab.id === 'string' ? tab.id : '',
         label: typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab',
-        items: Array.isArray(tab.items) ? tab.items : [],
+        items: Array.isArray(tab.items)
+          ? (tab.items as unknown[]).map((raw) => {
+              const item = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+              return {
+                id: typeof item.id === 'string' ? item.id : '',
+                title: typeof item.title === 'string' ? item.title : '',
+                description: typeof item.description === 'string' ? item.description : '',
+                url: typeof item.url === 'string' ? item.url : '',
+                mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
+                mediaName: typeof item.mediaName === 'string' ? item.mediaName : '',
+                mediaKind: item.mediaKind as VCardCustomTab['items'][number]['mediaKind'],
+                gallery: Array.isArray(item.gallery) ? item.gallery : [],
+                active: item.active !== false,
+              }
+            })
+          : [],
       }))
       .filter((tab) => tab.id.startsWith('custom-tab-'))
   } catch {
@@ -340,18 +356,21 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
 function mapPersonal(card: MyCardData): VCardPersonal {
   const p = card.profile
   const aboutSection = card.my_info.personal?.about?.value ?? p.description ?? ''
+  const contactPhone = card.my_info.contact?.phone?.value?.trim() || ''
+  const contactEmail = card.my_info.contact?.email?.value?.trim() || ''
+  const contactWhatsapp = card.my_info.contact?.whatsapp?.value?.trim() || ''
 
   return {
     fullName: p.name ?? '',
-    email: p.email ?? '',
+    email: p.email || contactEmail,
     dob: card.my_info.personal?.dob?.value ?? '',
     gender: p.gender ?? card.my_info.personal?.gender?.value ?? 'Male',
     relationship: p.marital_status ?? card.my_info.personal?.marital_status?.value ?? 'Single',
     profession: p.profession ?? '',
     designation: p.designation ?? '',
     company: p.company_name ?? '',
-    phone: p.phone ?? '',
-    whatsapp: p.whatsapp ?? p.phone ?? '',
+    phone: p.phone || contactPhone,
+    whatsapp: p.whatsapp || contactWhatsapp || p.phone || contactPhone,
     address: p.address ?? '',
     website: p.website ?? '',
     about: aboutSection,
@@ -442,6 +461,7 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
     socials: [],
     social: mapSocial(card),
     extraFields: mapExtraFields(card),
+    myInfo: parseMyInfoJson(card.settings?.[MY_INFO_SETTING_KEY]),
     education: [],
     experience: [],
     displaySettings: mapDisplaySettings(card),

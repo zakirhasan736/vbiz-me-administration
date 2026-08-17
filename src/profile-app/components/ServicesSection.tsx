@@ -2,6 +2,7 @@
 
 import { ServiceDetail } from '@/profile-app/components/ServiceDetail'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { V3SectionHeader } from '@/profile-app/sections'
 import { useGetServicesQuery } from '@/redux/api'
 import { ArrowUpRight, Layers, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -158,40 +159,13 @@ export const ServicesSection = () => {
   )
 }
 
-function SectionHeader({ sectionTitle, isLoading }: { sectionTitle: string; isLoading?: boolean }) {
+function SectionHeader({ sectionTitle }: { sectionTitle: string; isLoading?: boolean }) {
   return (
-    <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-50px' }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-8 backdrop-blur-xl md:col-span-3 lg:col-span-4 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900/50"
-      >
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
-        <div className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full bg-[#eab308]/10 p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110 dark:bg-[#eab308]/5" />
-
-        <div className="relative z-10">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-700 uppercase shadow-sm backdrop-blur-sm transition-colors dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
-            <Layers size={12} className="text-[#eab308]" /> Services
-          </div>
-          {isLoading ? (
-            <>
-              <div className="mb-4 h-10 w-2/3 max-w-lg animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-700" />
-              <div className="h-5 w-full max-w-xl animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
-            </>
-          ) : (
-            <>
-              <h2 className="mb-1 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-                {sectionTitle}
-              </h2>
-              <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 lg:text-lg dark:text-zinc-400">
-                Services and offerings from your vBiz profile.
-              </p>
-            </>
-          )}
-        </div>
-      </motion.div>
-    </div>
+    <V3SectionHeader
+      badge="Services"
+      badgeIcon={Layers}
+      title={sectionTitle}
+      subtitle="Services and offerings from your vBiz profile."
+    />
   )
 }

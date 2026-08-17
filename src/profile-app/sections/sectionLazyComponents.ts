@@ -118,3 +118,4 @@ export const InsuranceLicenseSection = lazyNamed(
   'InsuranceLicenseSection'
 )
 export const EmptyNavSection = lazyNamed(() => import('@/profile-app/components/EmptyNavSection'), 'EmptyNavSection')
+export const MyInfoSection = lazyNamed(() => import('@/profile-app/components/MyInfoSection'), 'MyInfoSection')

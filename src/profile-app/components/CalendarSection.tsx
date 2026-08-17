@@ -4,6 +4,7 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { resolveCalendarItemUrl, stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { V3SectionHeader } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, Calendar, Clock, Video } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -164,7 +165,6 @@ export const CalendarSection = () => {
 
 function SectionHeader({
   sectionTitle,
-  isLoading,
 }: {
   sectionTitle: string
   primaryLabel?: string
@@ -172,35 +172,11 @@ function SectionHeader({
   isLoading?: boolean
 }) {
   return (
-    <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
-      <div className="group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-8 backdrop-blur-xl md:flex-row md:items-center md:gap-0 lg:col-span-4 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900/50">
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
-
-        <div className="bg-yellow-primary/10 dark:bg-yellow-primary/5 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
-        <div className="pointer-events-none absolute bottom-0 left-0 -mb-24 -ml-24 rounded-full bg-black/5 p-24 blur-3xl transition-transform delay-100 duration-1000 group-hover:scale-110 dark:bg-white/5" />
-
-        <div className="relative z-10 w-full md:w-auto">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm transition-colors dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
-            <Calendar size={12} className="text-yellow-primary" /> Scheduling
-          </div>
-
-          {isLoading ? (
-            <>
-              <div className="mb-4 h-10 w-2/3 max-w-lg animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-700" />
-              <div className="h-5 w-full max-w-xl animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
-            </>
-          ) : (
-            <>
-              <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-                {sectionTitle}
-              </h2>
-              <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400">
-                {`Find a time that works for you. Let's connect and discuss how I can help you achieve your goals.`}
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    <V3SectionHeader
+      badge="Scheduling"
+      badgeIcon={Calendar}
+      title={sectionTitle}
+      subtitle="Find a time that works for you. Let's connect and discuss how I can help you achieve your goals."
+    />
   )
 }

@@ -1,4 +1,5 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import { mapMyInfoToApiSettings } from '@/lib/vcardMyInfo'
 import type { VCardData, VCardExtraField, VCardTheme } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
@@ -168,8 +169,9 @@ export function mapThemeToApiSettings(data: Pick<VCardData, 'theme'>): Record<st
 }
 
 function mapCustomTabsToApiSettings(data: VCardData): Record<string, string> {
-  const settings: Record<string, string> = {}
-  if (data.customTabs?.length) settings[CUSTOM_TABS_SETTING_KEY] = JSON.stringify(data.customTabs)
+  const settings: Record<string, string> = {
+    [CUSTOM_TABS_SETTING_KEY]: JSON.stringify(data.customTabs || []),
+  }
   if (data.tabLabelOverrides && Object.keys(data.tabLabelOverrides).length) {
     settings[TAB_LABEL_OVERRIDES_SETTING_KEY] = JSON.stringify(data.tabLabelOverrides)
   }
@@ -203,6 +205,7 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
     ...mapExtraFieldsToApiSettings(data.extraFields),
     ...mapThemeToApiSettings(data),
     ...mapCustomTabsToApiSettings(data),
+    ...mapMyInfoToApiSettings(data.myInfo, data.personal),
     [AI_ASSISTANCE_SETTING_KEY]: isAiAssistanceEnabled(data.aiAssistanceEnabled) ? '1' : '0',
   }
 }

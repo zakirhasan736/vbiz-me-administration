@@ -1766,19 +1766,8 @@ export function AiCardAgentWizard({
       : phase === 'preview'
         ? launchOverallPercent
         : score
-  // Keep the popup open for the whole AI create journey until Continue after celebrate.
-  const sessionLocked =
-    phase === 'working' ||
-    phase === 'tabs' ||
-    phase === 'section-gate' ||
-    phase === 'coach' ||
-    phase === 'features' ||
-    phase === 'preview' ||
-    phase === 'creating' ||
-    phase === 'celebrate' ||
-    busy ||
-    score > 0 ||
-    messages.length > 1
+  // X can close after an error or while reviewing. Only block it during the save request.
+  const preventDismiss = phase === 'creating'
 
   const stepLabel =
     phase === 'intake'
@@ -1805,12 +1794,12 @@ export function AiCardAgentWizard({
     <Modal
       open={open}
       onClose={() => {
-        if (sessionLocked) return
+        if (preventDismiss) return
         onClose()
       }}
-      preventClose={sessionLocked}
-      closeOnOverlayClick={!sessionLocked}
-      closeOnEscape={!sessionLocked}
+      preventClose={preventDismiss}
+      closeOnOverlayClick={!preventDismiss && !busy}
+      closeOnEscape={!preventDismiss}
       overlayClassName="items-start overflow-y-auto px-3 py-6 sm:items-center sm:p-6"
       className="relative flex max-h-[calc(100dvh-3rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
     >
@@ -1838,12 +1827,12 @@ export function AiCardAgentWizard({
             </div>
             <button
               type="button"
-              disabled={sessionLocked}
+              disabled={preventDismiss}
               onClick={() => {
-                if (sessionLocked) return
+                if (preventDismiss) return
                 onClose()
               }}
-              title={sessionLocked ? 'Finish creating the card first' : 'Close'}
+              title={preventDismiss ? 'Please wait while the card is created' : 'Close'}
               className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
             >
               <X className="h-4 w-4" />

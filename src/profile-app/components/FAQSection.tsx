@@ -112,7 +112,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
         <div className="flex flex-col gap-3">
           <div className={`${cardClass} p-5 shadow-sm`}>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 text-base font-black text-zinc-900 dark:text-zinc-100">
+              <h3 className="flex items-center gap-1.5 text-xl font-black text-zinc-900 dark:text-zinc-100">
                 <HelpCircle size={16} className="text-gold" /> {sectionTitle}
               </h3>
               <span className="text-gold bg-gold/10 rounded-full px-2 py-0.5 text-[9px] font-black tracking-widest uppercase">

@@ -13,6 +13,7 @@ import {
 import { resolveCardStatus } from '@/lib/cardStatus'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
+import { MY_INFO_SETTING_KEY, parseMyInfoJson } from '@/lib/vcardMyInfo'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
 import { patchItem as patchAdminVCardsListItem } from '@/redux/features/adminVCardsList/adminVCardsList.slice'
@@ -453,7 +454,22 @@ function parseCustomTabs(raw?: string): VCardCustomTab[] {
       .map((tab) => ({
         id: typeof tab.id === 'string' ? tab.id : '',
         label: typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab',
-        items: Array.isArray(tab.items) ? tab.items : [],
+        items: Array.isArray(tab.items)
+          ? (tab.items as unknown[]).map((raw) => {
+              const item = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+              return {
+                id: typeof item.id === 'string' ? item.id : '',
+                title: typeof item.title === 'string' ? item.title : '',
+                description: typeof item.description === 'string' ? item.description : '',
+                url: typeof item.url === 'string' ? item.url : '',
+                mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
+                mediaName: typeof item.mediaName === 'string' ? item.mediaName : '',
+                mediaKind: item.mediaKind as VCardCustomTab['items'][number]['mediaKind'],
+                gallery: Array.isArray(item.gallery) ? item.gallery : [],
+                active: item.active !== false,
+              }
+            })
+          : [],
       }))
       .filter((tab) => tab.id.startsWith('custom-tab-'))
   } catch {
@@ -677,6 +693,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     displaySettings,
     customTabs,
     tabLabelOverrides,
+    myInfo: parseMyInfoJson(settingsMap[MY_INFO_SETTING_KEY]),
     aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY]),
   })
 
@@ -926,7 +943,12 @@ const profilesApi = api.injectEndpoints({
       ],
     }),
     updateProfileCard: builder.mutation<ApiProfile, { id: string; body: Record<string, unknown> }>({
-      query: ({ id, body }) => ({ url: `/profiles/${id}`, method: 'PATCH', body }),
+      query: ({ id, body }) => {
+        // Production API still rejects PATCH when another card shares this phone.
+        // Phone lives on Profile already; omit it so the rest of the card can save.
+        const { phone: _phone, ...bodyWithoutPhone } = body
+        return { url: `/profiles/${id}`, method: 'PATCH', body: bodyWithoutPhone }
+      },
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       async onQueryStarted({ id, body }, { dispatch, queryFulfilled, getState }) {
         if (!isVisibilityStatusOnlyBody(body)) return

@@ -261,6 +261,7 @@ function createCustomTabItem(): VCardCustomTabItem {
     id: `custom_item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title: '',
     description: '',
+    url: '',
     mediaUrl: '',
     mediaName: '',
     mediaKind: 'upload',

@@ -89,6 +89,15 @@ export function toSmsHref(phone: string, body?: string): string | null {
   return `sms:${digits}?body=${encoded}`
 }
 
+/** WhatsApp click-to-chat. Digits only (no `+`); empty input returns null. */
+export function toWhatsAppHref(phone: string): string | null {
+  const trimmed = phone.trim()
+  if (!trimmed) return null
+  const digits = trimmed.replace(/\D/g, '')
+  if (!digits) return null
+  return `https://wa.me/${digits}`
+}
+
 function normalizeEmailPlainText(text: string): string {
   return text
     .replace(/\+/g, ' ')
