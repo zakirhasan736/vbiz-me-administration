@@ -69,9 +69,12 @@ type SyncItem = {
 
 function publicSectionNameToTabKey(postTypeName: string): string | null {
   const needle = postTypeName.trim().toLowerCase()
-  if (needle === 'faq') return 'faqs'
+  if (needle === 'faq' || needle === 'faqs') return 'faqs'
+  if (needle === 'mission' || needle === 'mission statement' || needle === 'company mission statement') {
+    return 'mission_statement'
+  }
   for (const tab of Object.values(TAB_REGISTRY)) {
-    if (tab.publicSectionName.toLowerCase() === needle) return tab.key
+    if (tab.publicSectionName.toLowerCase() === needle || tab.key.toLowerCase() === needle) return tab.key
   }
   return null
 }

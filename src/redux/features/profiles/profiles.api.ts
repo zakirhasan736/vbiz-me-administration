@@ -1159,7 +1159,11 @@ const profilesApi = api.injectEndpoints({
         const limit = typeof arg === 'string' ? undefined : arg.limit
         return limit ? `/profiles/${id}/blogs?limit=${limit}` : `/profiles/${id}/blogs`
       },
-      transformResponse: (res: Envelope<ApiPost[]>) => (res.data || []).map(normalizeDirectItemToApiPost),
+      transformResponse: (res: Envelope<ApiPost[] | { items?: ApiPost[] }>) => {
+        const payload = res.data
+        const rows = Array.isArray(payload) ? payload : payload?.items || []
+        return rows.map(normalizeDirectItemToApiPost)
+      },
       providesTags: (_r, _e, arg) => {
         const id = typeof arg === 'string' ? arg : arg.id
         return [{ type: 'profiles', id: `${id}:blogs` }]
@@ -1240,7 +1244,11 @@ const profilesApi = api.injectEndpoints({
     listProfileTabItems: builder.query<ApiPost[], { id: string; tabKey: string; limit?: number }>({
       query: ({ id, tabKey, limit }) =>
         `/profiles/${id}/tabs/${encodeURIComponent(tabKey)}${limit ? `?limit=${limit}` : ''}`,
-      transformResponse: (res: Envelope<ApiPost[]>) => (res.data || []).map(normalizeDirectItemToApiPost),
+      transformResponse: (res: Envelope<ApiPost[] | { items?: ApiPost[] }>) => {
+        const payload = res.data
+        const rows = Array.isArray(payload) ? payload : payload?.items || []
+        return rows.map(normalizeDirectItemToApiPost)
+      },
       providesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` }],
     }),
     createProfileTabItem: builder.mutation<

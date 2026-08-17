@@ -9,7 +9,7 @@ import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfil
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { applyEnabledNavOrderToDisplaySettings } from '@/lib/vcardDisplaySettings'
-import { createDefaultNavFieldConfig, NAV_BAR_FIELDS } from '@/lib/vcardNavbar'
+import { createDefaultNavFieldConfig, LOCKED_NAV_ITEM_IDS, NAV_BAR_FIELDS, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 import type {
@@ -199,6 +199,12 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
     : []
 
   if (!editorNavOrder.length) {
+    for (const item of NAV_BAR_NAV_ITEMS) {
+      fields[item.label] = {
+        ...(fields[item.label] || createDefaultNavFieldConfig(item.label)),
+        visible: LOCKED_NAV_ITEM_IDS.has(item.id),
+      }
+    }
     for (const [apiKey, labels] of Object.entries(API_NAV_TO_LABELS)) {
       const visible = isNavCheckboxEnabled(card, apiKey)
       for (const label of labels) {
@@ -206,6 +212,10 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
         if (!fields[label]) continue
         fields[label] = { ...fields[label], visible }
       }
+    }
+    for (const item of NAV_BAR_NAV_ITEMS) {
+      if (!LOCKED_NAV_ITEM_IDS.has(item.id)) continue
+      fields[item.label] = { ...(fields[item.label] || createDefaultNavFieldConfig(item.label)), visible: true }
     }
   }
 

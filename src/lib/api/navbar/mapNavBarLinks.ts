@@ -188,7 +188,7 @@ function dedupeNavItemsById(items: NavBarNavItem[]): NavBarNavItem[] {
 
 /**
  * Maps `GET /post-types?profile_id=` into profile nav items.
- * Backend returns only tabs with published data for that profile.
+ * Backend returns the owner-selected tabs from Add Tabs / editorNavOrder.
  * Each item keeps `apiSectionName` for `GET /dynamic-section/{name}?profile_id=`.
  */
 export function mapNavBarLinks(data: NavBarLinksData | undefined | null): NavBarNavItem[] {

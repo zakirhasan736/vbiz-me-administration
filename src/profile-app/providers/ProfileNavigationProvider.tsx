@@ -7,6 +7,7 @@ import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import {
   applyNavLabelOverrides,
   getNavItemById,
+  LOCKED_NAV_ITEM_IDS,
   mergeCustomNavItems,
   NAV_BAR_NAV_ITEMS,
   selectEnabledNavItems,
@@ -49,7 +50,7 @@ type Props = {
   children: ReactNode
   sectionId?: string
   onSectionChange?: (sectionId: string) => void
-  /** Server-prefetched `/post-types?profile_id=` — backend returns only tabs with data. */
+  /** Server-prefetched `/post-types?profile_id=` — backend returns owner-selected tabs. */
   initialNavBarLinks?: NavBarLinksData | null
 }
 
@@ -102,8 +103,17 @@ export function ProfileNavigationProvider({
 
   const visibleTabs = useMemo(() => {
     if (!displaySettings.globalEnabled) return []
-    return selectEnabledNavItems(navItems, displaySettings)
-  }, [displaySettings, navItems])
+    const selected = selectEnabledNavItems(navItems, displaySettings)
+    if (Array.isArray(displaySettings.editorNavOrder) && displaySettings.editorNavOrder.length) {
+      return selected
+    }
+    if (apiNavItems.length) {
+      const allowed = new Set(apiNavItems.map((item) => item.id))
+      const next = selected.filter((item) => allowed.has(item.id) || LOCKED_NAV_ITEM_IDS.has(item.id))
+      return next.length ? next : selected.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id))
+    }
+    return selected.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id))
+  }, [apiNavItems, displaySettings, navItems])
 
   const isNavLoading = hasPrefetchedNavLinks ? false : isNavLinksLoading
 

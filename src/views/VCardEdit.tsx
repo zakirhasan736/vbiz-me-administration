@@ -110,7 +110,7 @@ function readEditorNavOrderIds(cardKey: string, preferAiSeed = false): string[] 
     if (!raw) return preferAiSeed ? getAiSeedCreateCardNavIds() : getDefaultCreateCardNavIds()
     const parsed = JSON.parse(raw) as string[]
     if (Array.isArray(parsed) && parsed.length) {
-      return preferAiSeed ? normalizeNavOrderWithPinnedEnds(parsed) : parsed
+      return normalizeNavOrderWithPinnedEnds(parsed)
     }
     return preferAiSeed ? getAiSeedCreateCardNavIds() : getDefaultCreateCardNavIds()
   } catch {
@@ -243,10 +243,21 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     return normalizeNavOrderWithPinnedEnds(display.editorNavOrder)
   }, [display.editorNavOrder])
 
-  const effectiveNavOrderIds = displayNavOrder ?? navOrderIds
+  const effectiveNavOrderIds = displayNavOrder ?? (isCreateMode ? navOrderIds : [])
+
+  useEffect(() => {
+    if (!isCreateMode) return
+    const normalized = normalizeNavOrderWithPinnedEnds(
+      effectiveNavOrderIds.length ? effectiveNavOrderIds : getDefaultCreateCardNavIds()
+    )
+    const current = Array.isArray(display.editorNavOrder) ? display.editorNavOrder : []
+    if (current.join('|') === normalized.join('|')) return
+    updateData('displaySettings', applyEnabledNavOrderToDisplaySettings(display, normalized))
+  }, [isCreateMode, display, effectiveNavOrderIds, updateData])
 
   // One-shot: push AI seed visibility into draft displaySettings
   useEffect(() => {
+    if (!isCreateMode) return
     if (!pendingAiDisplayOrder) return
     const key = `${cardKey}:${pendingAiDisplayOrder.join('|')}`
     if (appliedAiDisplayKeyRef.current === key) return
@@ -255,7 +266,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
       'displaySettings',
       applyEnabledNavOrderToDisplaySettings(getDisplaySettingsFromVCard(vCardData), pendingAiDisplayOrder)
     )
-  }, [pendingAiDisplayOrder, cardKey, updateData, vCardData])
+  }, [isCreateMode, pendingAiDisplayOrder, cardKey, updateData, vCardData])
 
   // Persist display order to localStorage when it arrives from the API/draft
   useEffect(() => {
@@ -291,10 +302,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   const enabledNavItems = useMemo(
     () =>
-      selectEnabledNavItems(editorNavCatalog, {
-        ...display,
-        editorNavOrder: effectiveNavOrderIds.length ? effectiveNavOrderIds : display.editorNavOrder,
-      }),
+      selectEnabledNavItems(
+        editorNavCatalog,
+        effectiveNavOrderIds.length ? { ...display, editorNavOrder: effectiveNavOrderIds } : display
+      ),
     [display, effectiveNavOrderIds, editorNavCatalog]
   )
 

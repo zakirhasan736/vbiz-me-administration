@@ -1,10 +1,11 @@
-import { DISPLAY_SETTINGS_SETTING_KEY } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import { DISPLAY_SETTINGS_SETTING_KEY, LABEL_TO_NAV_CHECKBOX } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import {
   ALL_DISPLAY_FIELD_KEYS,
   applyEnabledNavOrderToDisplaySettings,
   createDefaultDisplaySettings,
   createDefaultFieldConfig,
 } from '@/lib/vcardDisplaySettings'
+import { LOCKED_NAV_ITEM_IDS, NAV_BAR_NAV_ITEMS, createDefaultNavFieldConfig } from '@/lib/vcardNavbar'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
 export type ProfileSettingRow = { key: string; value: string | null }
@@ -208,6 +209,31 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
     globalEnabled: snapshot?.globalEnabled ?? true,
     fields,
     ...(editorNavOrder.length ? { editorNavOrder } : {}),
+  }
+
+  if (!editorNavOrder.length) {
+    for (const item of NAV_BAR_NAV_ITEMS) {
+      displaySettings.fields[item.label] = {
+        ...(displaySettings.fields[item.label] || createDefaultNavFieldConfig(item.label)),
+        visible: LOCKED_NAV_ITEM_IDS.has(item.id),
+      }
+    }
+    for (const [label, checkbox] of Object.entries(LABEL_TO_NAV_CHECKBOX)) {
+      if (label === 'Nav Background Color') continue
+      const raw = settingsMap[checkbox]
+      if (raw === undefined) continue
+      displaySettings.fields[label] = {
+        ...(displaySettings.fields[label] || createDefaultNavFieldConfig(label)),
+        visible: raw === '1' || raw === 'true',
+      }
+    }
+    for (const item of NAV_BAR_NAV_ITEMS) {
+      if (!LOCKED_NAV_ITEM_IDS.has(item.id)) continue
+      displaySettings.fields[item.label] = {
+        ...(displaySettings.fields[item.label] || createDefaultNavFieldConfig(item.label)),
+        visible: true,
+      }
+    }
   }
 
   return {

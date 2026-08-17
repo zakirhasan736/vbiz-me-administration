@@ -3,7 +3,7 @@ import type { VCardData, VCardExtraField, VCardTheme } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
 /** Mirrors public myCard checkbox → label maps (write path). */
-const LABEL_TO_NAV_CHECKBOX: Record<string, string> = {
+export const LABEL_TO_NAV_CHECKBOX: Record<string, string> = {
   Home: 'navHome_checkbox',
   'About Me': 'aboutMeNav_checkbox',
   'Company Mission Statement': 'businessNav_checkbox',

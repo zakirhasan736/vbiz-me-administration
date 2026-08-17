@@ -29,10 +29,10 @@ export type CreateCardTabDef = {
   aiPriority?: 'core' | 'content' | 'optional'
 }
 
-export const ALWAYS_ENABLED_NAV_IDS = ['home', 'about', 'global-connection', 'my-info'] as const
+export const ALWAYS_ENABLED_NAV_IDS = ['home', 'about', 'public-cards', 'my-info'] as const
 
-/** Default utility tabs shown at the end on new cards. Users can reorder them later. */
-export const PINNED_END_NAV_IDS = ['global-connection', 'my-info'] as const
+/** Default utility tabs shown at the end: Public Cards, then My Info. */
+export const PINNED_END_NAV_IDS = ['public-cards', 'my-info'] as const
 
 /** Backoffice DEFAULT_ENABLED_TABS order — used for tour activateTab + manual create defaults. */
 export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
@@ -41,6 +41,13 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
     navId: 'home',
     icon: User,
     description: 'Profile, contact details, media & socials',
+    aiPriority: 'core',
+  },
+  {
+    name: 'About Me',
+    navId: 'about',
+    icon: User,
+    description: 'Company story, bio, and featured media',
     aiPriority: 'core',
   },
   {
@@ -122,10 +129,10 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
     aiPriority: 'optional',
   },
   {
-    name: 'Global Connection',
-    navId: 'global-connection',
+    name: 'Public Cards',
+    navId: 'public-cards',
     icon: Globe2,
-    description: 'Shared global contact directory (same list for all cards)',
+    description: 'Directory of other public vBiz cards',
     pinEnd: true,
   },
   {
@@ -159,29 +166,8 @@ export function getCreateCardDisplayLabel(navId: string, fallback: string): stri
   return CREATE_CARD_TAB_BY_NAV_ID[navId]?.name ?? fallback
 }
 
-/** Full default set for manual create. */
-export function getDefaultCreateCardNavIds(): string[] {
-  return CREATE_CARD_DEFAULT_TABS.map((t) => t.navId)
-}
-
 /**
- * Minimal seed for AI create: Personal + pinned end tabs only.
- * Extra tabs come only from AI suggestions / extracted content.
- */
-export function getAiSeedCreateCardNavIds(): string[] {
-  return ['home', 'about', ...PINNED_END_NAV_IDS]
-}
-
-/** Tabs AI should try to fill when source data exists. */
-export function getAiContentCandidateNavIds(): string[] {
-  return CREATE_CARD_DEFAULT_TABS.filter((t) => t.aiPriority === 'core' || t.aiPriority === 'content').map(
-    (t) => t.navId
-  )
-}
-
-/**
- * Keep pinned utility tabs at the end while preserving their user-chosen order
- * when one is supplied. Defaults remain Global Connection -> My Info.
+ * Keep Public Cards then My Info at the end, and Home then About Me at the start.
  */
 export function normalizeNavOrderWithPinnedEnds(navIds: string[]): string[] {
   const pinned = new Set<string>(PINNED_END_NAV_IDS)
@@ -201,10 +187,30 @@ export function normalizeNavOrderWithRequiredTabs(navIds: string[]): string[] {
     const homeIndex = next.indexOf('home')
     next.splice(homeIndex >= 0 ? homeIndex + 1 : 1, 0, 'about')
   }
-  for (const id of ['global-connection', 'my-info']) {
+  for (const id of PINNED_END_NAV_IDS) {
     if (!next.includes(id)) next.push(id)
   }
   return next.filter((id) => id && (required.has(id) || unique.includes(id)))
+}
+
+/** Full default set for manual create. */
+export function getDefaultCreateCardNavIds(): string[] {
+  return normalizeNavOrderWithPinnedEnds(CREATE_CARD_DEFAULT_TABS.map((t) => t.navId))
+}
+
+/**
+ * Minimal seed for AI create: Personal, About Me, Public Cards, My Info.
+ * Extra tabs come only from AI suggestions / extracted content.
+ */
+export function getAiSeedCreateCardNavIds(): string[] {
+  return normalizeNavOrderWithPinnedEnds(['home', 'about', ...PINNED_END_NAV_IDS])
+}
+
+/** Tabs AI should try to fill when source data exists. */
+export function getAiContentCandidateNavIds(): string[] {
+  return CREATE_CARD_DEFAULT_TABS.filter((t) => t.aiPriority === 'core' || t.aiPriority === 'content').map(
+    (t) => t.navId
+  )
 }
 
 /** Human-readable catalog for AI prompts / chat. */

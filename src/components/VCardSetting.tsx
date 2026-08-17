@@ -43,7 +43,12 @@ import {
   syncEditorNavOrderAfterNavVisibilityChange,
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
-import { getEditorNavLabel, LOCKED_NAV_ITEM_IDS, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
+import {
+  getEditorNavLabel,
+  getNavBarSettingKeysInOrder,
+  NAV_BAR_NAV_ITEMS,
+  navIdsAfterEnableAll,
+} from '@/lib/vcardNavbar'
 import { DEFAULT_COVER } from '@/profile-app/profilePublicProps'
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
@@ -1265,7 +1270,7 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
       case 'home':
         return renderFieldCards(HOME_PAGE_FIELDS, { showInput: true })
       case 'navbar':
-        return NAV_BAR_FIELDS.map((key) => {
+        return getNavBarSettingKeysInOrder(display).map((key) => {
           const item = NAV_BAR_NAV_ITEMS.find((nav) => nav.label === key)
           const title = item ? vCardData.tabLabelOverrides?.[item.id]?.trim() || getEditorNavLabel(item) : key
           return (
@@ -1446,10 +1451,9 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
                       const keys = CATEGORY_FIELDS[activeTab]
                       if (!keys) return
                       if (activeTab === 'navbar') {
-                        const nextIds = enabled
-                          ? NAV_BAR_NAV_ITEMS.map((item) => item.id)
-                          : NAV_BAR_NAV_ITEMS.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id)).map((item) => item.id)
-                        patchDisplay(applyEnabledNavOrderToDisplaySettings(display, nextIds))
+                        patchDisplay(
+                          applyEnabledNavOrderToDisplaySettings(display, navIdsAfterEnableAll(display, enabled))
+                        )
                         return
                       }
                       patchDisplay(setCategoryEnableAll(display, keys, enabled))

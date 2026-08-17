@@ -729,6 +729,35 @@ export function getNavItemGroup(item: NavBarNavItem): NavItemGroupId {
   return NAV_ITEM_GROUP_BY_ID[item.id] ?? 'content'
 }
 
+/** Card Settings Nav Bar rows: Add Tabs order first, then remaining catalog keys. */
+export function getNavBarSettingKeysInOrder(settings: VCardDisplaySettings): string[] {
+  const order =
+    Array.isArray(settings.editorNavOrder) && settings.editorNavOrder.length > 0
+      ? normalizeNavOrderWithPinnedEnds(settings.editorNavOrder)
+      : []
+  const orderedLabels = order.map((id) => TAB_ID_TO_NAV_LABEL[id]).filter((label): label is string => Boolean(label))
+  const seen = new Set(orderedLabels)
+  const rest = NAV_BAR_FIELDS.filter((key) => key !== NAV_BACKGROUND_COLOR_FIELD && !seen.has(key))
+  return [...orderedLabels, ...rest, NAV_BACKGROUND_COLOR_FIELD]
+}
+
+/** Enable All keeps the current Add Tabs order and appends any missing catalog tabs. */
+export function navIdsAfterEnableAll(settings: VCardDisplaySettings, enabled: boolean): string[] {
+  if (!enabled) {
+    return NAV_BAR_NAV_ITEMS.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id)).map((item) => item.id)
+  }
+  const catalogIds = NAV_BAR_NAV_ITEMS.map((item) => item.id)
+  const catalogSet = new Set(catalogIds)
+  const current =
+    Array.isArray(settings.editorNavOrder) && settings.editorNavOrder.length > 0
+      ? settings.editorNavOrder.filter((id) => catalogSet.has(id) || isCustomNavItemId(id))
+      : NAV_BAR_NAV_ITEMS.filter(
+          (item) => LOCKED_NAV_ITEM_IDS.has(item.id) || settings.fields[item.label]?.visible !== false
+        ).map((item) => item.id)
+  const seen = new Set(current)
+  return [...current, ...catalogIds.filter((id) => !seen.has(id))]
+}
+
 export function sortNavItemsByOrder(items: NavBarNavItem[], orderIds: string[]): NavBarNavItem[] {
   if (!orderIds.length) return items
   const rank = new Map(orderIds.map((id, index) => [id, index]))
