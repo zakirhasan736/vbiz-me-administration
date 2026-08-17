@@ -363,6 +363,15 @@ export type DashboardSummary = {
   stats: DashboardStats
   recentEngagement: DashboardEngagementPage
   contactsPreview: ProfileContact[]
+  socialClicks?: LiveSocialClickRow[]
+  socialClicksByCard?: SocialClicksByCardRow[]
+}
+
+/** Shared RTK options for overview dashboards: reuse cache, skip focus refetch. */
+export const dashboardOverviewQueryOptions = {
+  refetchOnFocus: false as const,
+  refetchOnReconnect: true as const,
+  refetchOnMountOrArgChange: 30,
 }
 
 export type LiveSocialClickRow = {
@@ -832,6 +841,7 @@ const profilesApi = api.injectEndpoints({
               { type: 'profiles' as const, id: 'LIST' },
             ]
           : [{ type: 'profiles', id: 'LIST' }],
+      keepUnusedDataFor: 60,
     }),
     getProfile: builder.query<ApiProfile, string>({
       query: (id) => `/profiles/${id}`,
@@ -1254,6 +1264,7 @@ const profilesApi = api.injectEndpoints({
       },
       transformResponse: (res: Envelope<DashboardStats>) => res.data,
       providesTags: ['dashboard'],
+      keepUnusedDataFor: 90,
     }),
     getDashboardSummary: builder.query<DashboardSummary, DashboardStatsQuery | void>({
       query: (params) => {
@@ -1264,6 +1275,7 @@ const profilesApi = api.injectEndpoints({
       },
       transformResponse: (res: Envelope<DashboardSummary>) => res.data,
       providesTags: ['dashboard'],
+      keepUnusedDataFor: 90,
     }),
     getRecentEngagement: builder.query<DashboardEngagementPage, DashboardEngagementQuery | void>({
       query: (params) => {
@@ -1289,6 +1301,7 @@ const profilesApi = api.injectEndpoints({
       },
       transformResponse: (res: Envelope<WeeklyEngagement>) => res.data,
       providesTags: ['dashboard'],
+      keepUnusedDataFor: 60,
     }),
     getConsolidatedEngagement: builder.query<ConsolidatedEngagement, ConsolidatedEngagementQuery | void>({
       query: (params) => {
@@ -1310,6 +1323,7 @@ const profilesApi = api.injectEndpoints({
       },
       transformResponse: (res: Envelope<LiveSocialClickRow[]>) => res.data || [],
       providesTags: ['dashboard'],
+      keepUnusedDataFor: 60,
     }),
     getSocialClicksByCard: builder.query<SocialClicksByCardRow[], SocialClicksQuery | void>({
       query: (params) => {
@@ -1320,6 +1334,7 @@ const profilesApi = api.injectEndpoints({
       },
       transformResponse: (res: Envelope<SocialClicksByCardRow[]>) => res.data || [],
       providesTags: ['dashboard'],
+      keepUnusedDataFor: 60,
     }),
     exportDashboardOverview: builder.mutation<Blob, DashboardStatsQuery | void>({
       query: (params) => {
@@ -1344,6 +1359,7 @@ const profilesApi = api.injectEndpoints({
         profileId ? `/profiles/contacts?profileId=${encodeURIComponent(profileId)}` : '/profiles/contacts',
       transformResponse: (res: Envelope<ProfileContact[]>) => res.data || [],
       providesTags: ['dashboard'],
+      keepUnusedDataFor: 60,
     }),
     patchContact: builder.mutation<
       ProfileContact,

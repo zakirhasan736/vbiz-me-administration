@@ -25,10 +25,11 @@ import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
 import {
+  dashboardOverviewQueryOptions,
   mapApiProfileToVCardRecord,
   useCreateTeamNoticeMutation,
   useDeleteTeamNoticeMutation,
-  useGetDashboardStatsQuery,
+  useGetDashboardSummaryQuery,
   useGetProfilesQuery,
   useGetTeamNoticesQuery,
   type DashboardSocialChannel,
@@ -85,8 +86,15 @@ export default function AdminMyCards() {
   const ownerId = reduxUser?.id || user?.uid
   const router = useRouter()
   const { createCorporateCard, setCurrentEditingCardId } = useVCard()
-  const { data: createdProfilesResult, isLoading: cardsLoading } = useGetProfilesQuery({ scope: 'created', limit: 100 })
-  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period: 'all', scope: 'created' })
+  const { data: createdProfilesResult, isLoading: cardsLoading } = useGetProfilesQuery(
+    { scope: 'created', limit: 100 },
+    dashboardOverviewQueryOptions
+  )
+  const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery(
+    { period: 'all', scope: 'created' },
+    dashboardOverviewQueryOptions
+  )
+  const stats = summary?.stats
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
   const [createTeamNotice] = useCreateTeamNoticeMutation()
   const [deleteTeamNotice] = useDeleteTeamNoticeMutation()

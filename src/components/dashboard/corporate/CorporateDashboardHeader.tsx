@@ -94,6 +94,7 @@ export function CorporateDashboardHeader({
               <StatNumber
                 value={totalViews}
                 loading={statsLoading}
+                live
                 className="font-black text-white/80"
                 skeletonClassName={badgeSkeleton}
               />{' '}
@@ -103,6 +104,7 @@ export function CorporateDashboardHeader({
               <StatNumber
                 value={uniqueViews}
                 loading={statsLoading}
+                live
                 className="font-black text-white/80"
                 skeletonClassName={badgeSkeleton}
               />{' '}

@@ -17,12 +17,13 @@ import {
 } from '@/components/dashboard/home'
 import { TakeTourBanner } from '@/components/tour/TakeTourBanner'
 import { useAppSelector } from '@/hooks/redux'
+import { useDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { useOrderTimer } from '@/hooks/useOrderTimer'
 import {
+  dashboardOverviewQueryOptions,
   type DashboardPeriod,
   useExportDashboardOverviewMutation,
   useGetContactsQuery,
-  useGetDashboardStatsQuery,
   useGetDashboardSummaryQuery,
   useGetRecentEngagementQuery,
 } from '@/redux/features/profiles/profiles.api'
@@ -54,7 +55,8 @@ function LegacyDashboardHome() {
   const [showContactModal, setShowContactModal] = useState(false)
   const [engagementPage, setEngagementPage] = useState(1)
   const { hasOrder, timeLeft } = useOrderTimer()
-  const { data: stats } = useGetDashboardStatsQuery({ period: '30' })
+  const { data: stats } = useGetDashboardSummaryQuery({ period: '30' }, dashboardOverviewQueryOptions)
+  const overviewStats = stats?.stats
   const engagementSkip = (engagementPage - 1) * ENGAGEMENT_PAGE_SIZE
   const { data: engagement } = useGetRecentEngagementQuery({
     skip: engagementSkip,
@@ -102,39 +104,45 @@ function LegacyDashboardHome() {
         </div>
       </div>
 
-      {(stats?.cards != null || stats?.totalViews != null) && (
+      {(overviewStats?.cards != null || overviewStats?.totalViews != null) && (
         <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
             <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Cards</p>
-            <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{stats?.cards ?? 0}</p>
+            <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{overviewStats?.cards ?? 0}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
             <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Total views</p>
-            <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{stats?.totalViews ?? 0}</p>
+            <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{overviewStats?.totalViews ?? 0}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
             <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Views (30d)</p>
-            <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{stats?.viewsLast30Days ?? 0}</p>
+            <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">
+              {overviewStats?.viewsLast30Days ?? 0}
+            </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
             <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Notes (30d)</p>
-            <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{stats?.notesLast30Days ?? 0}</p>
+            <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">
+              {overviewStats?.notesLast30Days ?? 0}
+            </p>
           </div>
         </div>
       )}
 
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <WebsiteVisitsChart
-          points={stats?.visitsChart?.points}
-          total={stats?.visitsChart?.total ?? stats?.viewsLast30Days ?? 0}
-          trendPercent={stats?.visitsChart?.trendPercent ?? 0}
+          points={overviewStats?.visitsChart?.points}
+          total={overviewStats?.visitsChart?.total ?? overviewStats?.viewsLast30Days ?? 0}
+          trendPercent={overviewStats?.visitsChart?.trendPercent ?? 0}
         />
         <div className="flex h-full flex-col gap-6">
-          <ContactsSavedCard count={(stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0)} />
+          <ContactsSavedCard
+            count={(overviewStats?.contactsLast30Days || 0) + (overviewStats?.guestsLast30Days || 0)}
+          />
         </div>
       </div>
 
-      <SocialEngagementSection channels={stats?.socialChannels} />
+      <SocialEngagementSection channels={overviewStats?.socialChannels} />
 
       {hasOrder && <ActiveOrdersSection timeLeft={timeLeft} onContactSupport={() => setShowContactModal(true)} />}
 
@@ -167,8 +175,12 @@ function SingleOwnerDashboardHome() {
   const [engagementPage, setEngagementPage] = useState(1)
   const { hasOrder, timeLeft } = useOrderTimer()
 
-  const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery({ period })
+  const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery(
+    { period },
+    dashboardOverviewQueryOptions
+  )
   const stats = summary?.stats
+  const { overlay: liveKpis } = useDashboardLiveKpis(period)
   const { data: contactsRaw } = useGetContactsQuery(undefined, { skip: !showContactSavesModal })
   const engagementSkip = (engagementPage - 1) * ENGAGEMENT_PAGE_SIZE
   const { data: pagedEngagement } = useGetRecentEngagementQuery(
@@ -189,10 +201,14 @@ function SingleOwnerDashboardHome() {
     [contactsRaw, summary?.contactsPreview]
   )
   const statsReady = Boolean(stats) && !statsLoading
-  const savesCount = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
-  const uniqueViews = statsReady ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) : undefined
+  const savesCount = statsReady
+    ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) + liveKpis.saves
+    : undefined
+  const uniqueViews = statsReady ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) + liveKpis.views : undefined
   const shares = statsReady ? (stats?.shares ?? 0) : undefined
-  const visitsTotal = statsReady ? (stats?.visitsChart?.total ?? stats?.viewsLast30Days ?? 0) : undefined
+  const visitsTotal = statsReady
+    ? (stats?.visitsChart?.total ?? stats?.viewsLast30Days ?? 0) + liveKpis.views
+    : undefined
   const trendPercent = statsReady ? (stats?.visitsChart?.trendPercent ?? 0) : 0
   const notesCount = statsReady ? (stats?.notesLast30Days ?? 0) : undefined
   const profileName = stats?.profiles?.[0]?.name || 'Your card'

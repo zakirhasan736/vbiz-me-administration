@@ -334,8 +334,11 @@ function isPublicCardDataRequest(url) {
 
 function isPublicCardAssetRequest(url) {
   const pathname = String(url.pathname || '').toLowerCase()
+  // Cross-origin S3/CDN media must load as <video>/<img> without CORS.
+  // Intercepting those requests causes opaque CORS failures on app.nextcreavo.com.
+  if (url.origin !== self.location.origin) return false
   if (pathname.startsWith('/_next/static/')) return false
-  if (url.origin === self.location.origin && pathname.startsWith('/_next/image')) return true
+  if (pathname.startsWith('/_next/image')) return true
   return /\.(?:avif|png|jpe?g|webp|gif|svg|ico|bmp|mp4|webm|mov|m4v|mp3|wav|ogg|woff2?|ttf|otf|css)$/i.test(pathname)
 }
 
@@ -422,18 +425,12 @@ async function cachePublicCardUrls(urls) {
     urls.map(async (raw) => {
       try {
         const url = new URL(raw, self.location.origin)
-        let request = new Request(url.href, {
-          credentials: url.origin === self.location.origin ? 'same-origin' : 'omit',
-          mode: url.origin === self.location.origin ? 'same-origin' : 'cors',
+        if (url.origin !== self.location.origin) return
+        const request = new Request(url.href, {
+          credentials: 'same-origin',
+          mode: 'same-origin',
         })
-        let res
-        try {
-          res = await fetch(request)
-        } catch (error) {
-          if (url.origin === self.location.origin || !isPublicCardAssetRequest(url)) throw error
-          request = new Request(url.href, { credentials: 'omit', mode: 'no-cors' })
-          res = await fetch(request)
-        }
+        const res = await fetch(request)
         if (!isCacheableResponse(res)) return
         const cache = await caches.open(cacheNameForUrl(url))
         await cache.put(request, res.clone())

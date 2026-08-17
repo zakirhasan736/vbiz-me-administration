@@ -68,17 +68,14 @@ function dispatchProfileAction(eventName: string) {
 
 function isCacheableRuntimeUrl(url: URL, cardPath: string): boolean {
   const pathname = url.pathname.toLowerCase()
-  if (url.origin === window.location.origin) {
-    return (
-      pathname.startsWith('/_next/static/') ||
-      pathname.startsWith('/_next/image') ||
-      pathname.startsWith(`${cardPath.toLowerCase()}/`) ||
-      pathname === cardPath.toLowerCase()
-    )
+  if (url.origin !== window.location.origin) {
+    return pathname.includes('/api/v1/public/')
   }
   return (
-    pathname.includes('/api/v1/public/') ||
-    /\.(?:avif|png|jpe?g|webp|gif|svg|ico|bmp|mp4|webm|mov|m4v|mp3|wav|ogg|woff2?|ttf|otf|css)$/i.test(pathname)
+    pathname.startsWith('/_next/static/') ||
+    pathname.startsWith('/_next/image') ||
+    pathname.startsWith(`${cardPath.toLowerCase()}/`) ||
+    pathname === cardPath.toLowerCase()
   )
 }
 

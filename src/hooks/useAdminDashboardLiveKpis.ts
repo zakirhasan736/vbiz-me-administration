@@ -43,11 +43,11 @@ async function hydrateAccessToken(): Promise<string | null> {
 }
 
 /**
- * Staff-only Socket.IO overlay for admin home KPIs.
+ * Socket.IO overlay for dashboard overview KPIs (admin, single owner, corporate).
  * Deltas reset on period change so period-filtered REST totals stay the base.
  * Connects with cookies even when Redux Bearer is missing; refreshes on connect_error.
  */
-export function useAdminDashboardLiveKpis(period: DashboardPeriod) {
+export function useDashboardLiveKpis(period: DashboardPeriod) {
   const dispatch = useAppDispatch()
   const token = useAppSelector((state) => state.user.token)
   const [overlay, setOverlay] = useState<LiveKpiOverlay>(EMPTY_OVERLAY)
@@ -115,4 +115,6 @@ export function useAdminDashboardLiveKpis(period: DashboardPeriod) {
   return { overlay, connected }
 }
 
-export default useAdminDashboardLiveKpis
+export const useAdminDashboardLiveKpis = useDashboardLiveKpis
+
+export default useDashboardLiveKpis

@@ -20,10 +20,11 @@ import {
   useGetMeetingsQuery,
 } from '@/redux/features/meetings/meetings.api'
 import {
+  dashboardOverviewQueryOptions,
   type DashboardPeriod,
   type DashboardSocialChannel,
   useGetContactsQuery,
-  useGetDashboardStatsQuery,
+  useGetDashboardSummaryQuery,
 } from '@/redux/features/profiles/profiles.api'
 import { MEETING_TYPES, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
@@ -80,19 +81,31 @@ export default function AdminDashboard() {
     isError: healthError,
     isFetching: healthFetching,
   } = useGetHealthQuery(undefined, {
-    pollingInterval: 45_000,
+    pollingInterval: 90_000,
+    refetchOnFocus: false,
   })
 
   const [themeConfig, setThemeConfig] = useState(() => getAdminThemeConfig())
   const [period, setPeriod] = useState<DashboardPeriod>('all')
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
+  const [showContactSavesModal, setShowContactSavesModal] = useState(false)
 
-  const { data: stats, isFetching: statsFetching } = useGetDashboardStatsQuery({ period })
+  const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery(
+    { period },
+    dashboardOverviewQueryOptions
+  )
+  const stats = summary?.stats
   const { overlay: liveKpis, connected: liveConnected } = useAdminDashboardLiveKpis(period)
-  const { data: contactsRaw } = useGetContactsQuery()
+  const { data: contactsRaw } = useGetContactsQuery(undefined, { skip: !showContactSavesModal })
 
-  const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
-  const statsReady = Boolean(stats) && !statsFetching
+  const contacts = useMemo(
+    () =>
+      Array.isArray(contactsRaw)
+        ? (contactsRaw as DashboardContact[])
+        : ((summary?.contactsPreview || []) as DashboardContact[]),
+    [contactsRaw, summary?.contactsPreview]
+  )
+  const statsReady = Boolean(stats) && !statsLoading
   const savedContactsBase = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
   const totalSavedContacts = statsReady ? (savedContactsBase || 0) + liveKpis.saves : undefined
   const platformUniqueViews = statsReady
@@ -128,7 +141,6 @@ export default function AdminDashboard() {
   const [deleteMeeting] = useDeleteMeetingMutation()
 
   const [showMtgModal, setShowMtgModal] = useState(false)
-  const [showContactSavesModal, setShowContactSavesModal] = useState(false)
   const [cancelMeetingId, setCancelMeetingId] = useState<string | null>(null)
   const [mtgOwner, setMtgOwner] = useState<ProfileOwnerSelection | null>(null)
   const [mtgType, setMtgType] = useState<MeetingType>('Growth Meeting')

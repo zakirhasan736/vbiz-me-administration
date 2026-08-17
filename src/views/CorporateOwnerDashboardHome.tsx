@@ -27,6 +27,7 @@ import {
 } from '@/components/dashboard/vcard'
 import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { useDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import {
   clearLocalCardNotice,
@@ -40,16 +41,15 @@ import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
 import { notify } from '@/lib/toast/toast'
 import {
+  dashboardOverviewQueryOptions,
   mapApiProfileToVCardRecord,
   mapVCardDataToProfilePayload,
   useCreateProfileMutation,
   useCreateTeamNoticeMutation,
   useDeleteTeamNoticeMutation,
   useGetContactsQuery,
-  useGetDashboardStatsQuery,
+  useGetDashboardSummaryQuery,
   useGetProfilesQuery,
-  useGetSocialClicksByCardQuery,
-  useGetSocialClicksQuery,
   useGetTeamNoticesQuery,
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
@@ -70,15 +70,24 @@ export default function CorporateOwnerDashboardHome() {
     data: profilesResult,
     isLoading: profilesLoading,
     refetch: refetchProfiles,
-  } = useGetProfilesQuery({
-    status: 'all',
-    skip: 0,
-    limit: 100,
-  })
-  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery({ period: 'all' })
-  const { data: contactsRaw } = useGetContactsQuery()
-  const { data: socialClickRows = [], isLoading: socialClicksLoading } = useGetSocialClicksQuery()
-  const { data: socialClicksByCardRows = [] } = useGetSocialClicksByCardQuery()
+  } = useGetProfilesQuery(
+    {
+      status: 'all',
+      skip: 0,
+      limit: 100,
+    },
+    dashboardOverviewQueryOptions
+  )
+  const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery(
+    { period: 'all' },
+    dashboardOverviewQueryOptions
+  )
+  const stats = summary?.stats
+  const { overlay: liveKpis } = useDashboardLiveKpis('all')
+  const [showContactSavesModal, setShowContactSavesModal] = useState(false)
+  const { data: contactsRaw } = useGetContactsQuery(undefined, { skip: !showContactSavesModal })
+  const socialClickRows = summary?.socialClicks ?? []
+  const socialClicksByCardRows = summary?.socialClicksByCard ?? []
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
   const [createProfile] = useCreateProfileMutation()
   const [createTeamNotice] = useCreateTeamNoticeMutation()
@@ -92,7 +101,6 @@ export default function CorporateOwnerDashboardHome() {
   const { canMutateVcards } = useAccountStatus()
   const profilesReady = Boolean(profilesResult) && !profilesLoading
   const statsReady = Boolean(stats) && !statsLoading
-  const socialsReady = !socialClicksLoading
   const headerQuotaLimit = profilesReady ? (capacity?.limit ?? 0) : undefined
   const headerCardCount = profilesReady ? (capacity?.used ?? liveCards.length) : undefined
   const headerCanCreate = (capacity?.canCreate ?? false) && canMutateVcards
@@ -102,15 +110,14 @@ export default function CorporateOwnerDashboardHome() {
       ? 'No active package with card capacity. Upgrade your package to create cards.'
       : `Maximum of ${headerQuotaLimit} corporate cards reached`
   const headerActiveCount = profilesReady ? liveCards.filter((c) => c.isActive).length : undefined
-  const headerTotalViews = statsReady ? (stats?.totalViews ?? 0) : undefined
-  const headerUniqueViews = statsReady ? (stats?.uniqueViews ?? 0) : undefined
+  const headerTotalViews = statsReady ? (stats?.totalViews ?? 0) + liveKpis.views : undefined
+  const headerUniqueViews = statsReady ? (stats?.uniqueViews ?? 0) + liveKpis.views : undefined
   const headerShares = statsReady ? (stats?.shares ?? 0) : undefined
 
   const [cardOrder, setCardOrder] = useState<string[]>(() => loadCardOrder(CORPORATE_CARD_ORDER_KEY))
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
-  const [showContactSavesModal, setShowContactSavesModal] = useState(false)
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
   const [hubTab, setHubTab] = useState<HubTab>('directory')
   const [panelCardId, setPanelCardId] = useState<string | null>(null)
@@ -139,17 +146,25 @@ export default function CorporateOwnerDashboardHome() {
 
   const cards = useMemo(() => applyCardOrder(liveCards, cardOrder), [liveCards, cardOrder])
 
-  const contacts = useMemo(() => (Array.isArray(contactsRaw) ? (contactsRaw as DashboardContact[]) : []), [contactsRaw])
+  const contacts = useMemo(
+    () =>
+      Array.isArray(contactsRaw)
+        ? (contactsRaw as DashboardContact[])
+        : ((summary?.contactsPreview || []) as DashboardContact[]),
+    [contactsRaw, summary?.contactsPreview]
+  )
   const quotaLimit = headerQuotaLimit ?? 0
   const metricQuotaLimit = profilesReady ? (capacity?.limit ?? 0) : undefined
   const metricTotalCards = profilesReady ? (capacity?.used ?? liveCards.length) : undefined
   const activeCount = headerActiveCount
   const totalViews = headerTotalViews
-  const savesCount = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
+  const savesCount = statsReady
+    ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) + liveKpis.saves
+    : undefined
   const viewsTrend = statsReady ? formatTrendPercent(stats?.visitsChart?.trendPercent) : {}
   const canCreate = headerCanCreate
   const createDisabledReason = headerCreateDisabledReason
-  const hubStatsLoading = !(statsReady && socialsReady)
+  const hubStatsLoading = !statsReady
 
   const socialClicksByCard = useMemo(() => {
     const map: Record<string, Array<{ platform: string; clickCount: number }>> = {}
