@@ -96,6 +96,7 @@ export const HomeHero: React.FC<{
     homeMedia,
     socialHref,
     profileViews,
+    actionButtons,
     cardOwnerId,
     cardSlug,
     embedded,
@@ -137,7 +138,7 @@ export const HomeHero: React.FC<{
     [socialHref, personal.whatsapp, isVisible]
   )
 
-  const viewCountLabel = formatProfileViewCount(profileViews)
+  const viewCountLabel = formatProfileViewCount(actionButtons?.view_counter?.count ?? profileViews)
 
   /** Right-side utility rail — phone sizing in the preview, larger on real desktops. */
   const railButtonClass = `vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 ${

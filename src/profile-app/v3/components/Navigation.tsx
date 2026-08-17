@@ -143,6 +143,12 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
                 />
               </div>
 
+              {(isActive || isHovered) && (
+                <span className="pointer-events-none absolute -top-8 left-1/2 z-30 -translate-x-1/2 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[9px] font-black tracking-wide whitespace-nowrap text-zinc-900 shadow-sm md:bottom-auto dark:border-white/15 dark:bg-[#0b0f19] dark:text-white">
+                  {tab.label}
+                </span>
+              )}
+
               {isActive && (
                 <span className="vbiz-nav-tab-dot absolute bottom-[2px] left-1/2 z-10 h-1.5 w-1.5 -translate-x-1/2 animate-pulse rounded-full md:hidden" />
               )}

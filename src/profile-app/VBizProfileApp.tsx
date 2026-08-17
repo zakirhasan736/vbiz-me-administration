@@ -267,18 +267,16 @@ export function VBizProfileApp({
         />
       ) : null}
 
-      {!embedded && (
-        <ProfileHomeModals
-          activeModal={activeModal}
-          onClose={() => setActiveModal(null)}
-          onSetModal={setActiveModal}
-          theme={theme}
-          cardOwnerId={cardOwnerId}
-          cardSlug={profileSlug ?? shareSlug ?? 'preview'}
-          ownerName={ownerName}
-          avatarUrl={avatarVideoUrl}
-        />
-      )}
+      <ProfileHomeModals
+        activeModal={activeModal}
+        onClose={() => setActiveModal(null)}
+        onSetModal={setActiveModal}
+        theme={theme}
+        cardOwnerId={cardOwnerId}
+        cardSlug={profileSlug ?? shareSlug ?? 'preview'}
+        ownerName={ownerName}
+        avatarUrl={avatarVideoUrl}
+      />
 
       <ProfileBackgroundAudio profileSlug={profileSlug} shareSlug={shareSlug} />
     </div>

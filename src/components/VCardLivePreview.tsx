@@ -122,8 +122,17 @@ export function VCardLivePreview() {
       design,
       themeConfig,
       themeFromApi: fromApi,
+      profileViews: record?.views ?? 0,
+      actionButtons: {
+        view_counter: {
+          enabled: true,
+          count: record?.views ?? 0,
+          label: 'Views',
+        },
+      },
+      profileSlug: draft.slug?.trim() || undefined,
     }
-  }, [draft, designSettings, cardId, record?.avatarImageUrl, themeConfig, settingsAppearance, fromApi])
+  }, [draft, designSettings, cardId, record?.avatarImageUrl, record?.views, themeConfig, settingsAppearance, fromApi])
 
   useGoogleFont(profileProps.design?.fontFamily)
 
