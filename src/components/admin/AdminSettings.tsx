@@ -63,8 +63,8 @@ export default function AdminSettings() {
   ]
 
   return (
-    <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 p-6 duration-500 md:p-10">
-      <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center dark:border-white/5">
+    <div className="animate-in fade-in mx-auto max-w-7xl space-y-3 p-6 duration-500 md:space-y-8 md:p-10">
+      <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-3 md:flex-row md:items-center md:pb-6 dark:border-white/5">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
             <Settings className={cn('h-7 w-7', themeClasses.text)} /> Platform control board
@@ -80,7 +80,7 @@ export default function AdminSettings() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+      <div className="grid grid-cols-1 items-start gap-3 md:gap-8 lg:grid-cols-12">
         <div className="space-y-1.5 rounded-[28px] border border-slate-200/85 bg-white p-4 shadow-sm lg:col-span-3 dark:border-white/10 dark:bg-[#0b0f19]">
           <div className="px-3 py-2">
             <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">

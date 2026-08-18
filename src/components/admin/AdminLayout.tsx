@@ -85,7 +85,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const router = useRouter()
   const activeTab = segmentFromPath(pathname)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [mobileMenuPath, setMobileMenuPath] = useState<string | null>(null)
+  const isMobileMenuOpen = mobileMenuPath === pathname
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const isDarkMode = useSyncExternalStore(subscribeToTheme, getDarkModeSnapshot, getServerDarkModeSnapshot)
@@ -109,6 +110,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     localStorage.removeItem('vbiz_admin_team')
     localStorage.removeItem('vbiz_active_admin_role')
   }, [])
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileMenuPath(null)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isMobileMenuOpen])
 
   const themeClasses = getThemeClasses(themeConfig.accent)
   const canAccess = (permission: AdminPermissionKey) => canAccessPermission(permission, accessContext)
@@ -151,6 +168,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return children
   }
 
+  const closeMobileMenu = () => setMobileMenuPath(null)
+
   const navLink = (item: NavItem, mobile = false) => {
     const href = `/admin/${item.id}`
     const isActive = activeTab === item.id
@@ -158,7 +177,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <Link
         key={item.id}
         href={href}
-        onClick={() => mobile && setIsMobileMenuOpen(false)}
+        onClick={() => {
+          if (mobile) closeMobileMenu()
+        }}
         className={cn(
           'flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-200',
           isActive
@@ -174,63 +195,91 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
+  const renderSidebar = ({ mobile = false }: { mobile?: boolean } = {}) => (
+    <>
+      <div
+        className={cn(
+          'flex h-20 shrink-0 items-center border-b border-slate-100 px-6 dark:border-white/5',
+          mobile && 'justify-between'
+        )}
+      >
+        <Link
+          href="/admin/dashboard"
+          className="group flex items-center gap-2"
+          onClick={() => {
+            if (mobile) closeMobileMenu()
+          }}
+        >
+          <div
+            className={cn(
+              'flex h-9 w-9 items-center justify-center rounded-xl font-black text-white shadow-md transition-transform group-hover:scale-105',
+              themeClasses.bg,
+              themeClasses.shadow
+            )}
+          >
+            {themeConfig.appName?.[0]?.toUpperCase() || 'V'}
+          </div>
+          <div>
+            <span className="block text-xl leading-none font-black tracking-tight text-slate-900 dark:text-white">
+              {themeConfig.appName}
+            </span>
+            <span className={cn('mt-0.5 block text-[10px] font-bold tracking-widest uppercase', themeClasses.text)}>
+              {themeConfig.subTitle}
+            </span>
+          </div>
+        </Link>
+        {mobile && (
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={closeMobileMenu}
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+
+      <div className="flex-1 space-y-1 overflow-y-auto p-4">{navItems.map((item) => navLink(item, mobile))}</div>
+
+      <div className="shrink-0 space-y-1 border-t border-slate-100 p-4 dark:border-white/5">
+        {canAccess('settings') && (
+          <Link
+            href="/admin/settings"
+            onClick={() => {
+              if (mobile) closeMobileMenu()
+            }}
+            className={cn(
+              'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-200',
+              activeTab === 'settings'
+                ? cn(themeClasses.lightBg, themeClasses.lightText, 'shadow-sm')
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200'
+            )}
+          >
+            <Settings className="h-5 w-5" />
+            <span>Settings</span>
+          </Link>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (mobile) closeMobileMenu()
+            setShowLogoutModal(true)
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-rose-500 transition-all hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Log Out</span>
+        </button>
+      </div>
+    </>
+  )
+
   return (
     <AdminVCardListProvider>
       <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500/30 dark:bg-[#070a13] dark:text-slate-100">
-        <aside className="z-20 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-all dark:border-white/10 dark:bg-[#0b0f19]">
-          <div className="flex h-20 shrink-0 items-center border-b border-slate-100 px-6 dark:border-white/5">
-            <Link href="/admin/dashboard" className="group flex items-center gap-2">
-              <div
-                className={cn(
-                  'flex h-9 w-9 items-center justify-center rounded-xl font-black text-white shadow-md transition-transform group-hover:scale-105',
-                  themeClasses.bg,
-                  themeClasses.shadow
-                )}
-              >
-                {themeConfig.appName?.[0]?.toUpperCase() || 'V'}
-              </div>
-              <div>
-                <span className="block text-xl leading-none font-black tracking-tight text-slate-900 dark:text-white">
-                  {themeConfig.appName}
-                </span>
-                <span className={cn('mt-0.5 block text-[10px] font-bold tracking-widest uppercase', themeClasses.text)}>
-                  {themeConfig.subTitle}
-                </span>
-              </div>
-            </Link>
-          </div>
-
-          <div className="flex-1 space-y-1 overflow-y-auto p-4">
-            <div className="mb-2 px-3 py-2">
-              <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Main Menu</span>
-            </div>
-            {navItems.map((item) => navLink(item))}
-          </div>
-
-          <div className="shrink-0 space-y-1 border-t border-slate-100 p-4 dark:border-white/5">
-            {canAccess('settings') && (
-              <Link
-                href="/admin/settings"
-                className={cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-200',
-                  activeTab === 'settings'
-                    ? cn(themeClasses.lightBg, themeClasses.lightText, 'shadow-sm')
-                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200'
-                )}
-              >
-                <Settings className="h-5 w-5" />
-                <span>Settings</span>
-              </Link>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowLogoutModal(true)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-rose-500 transition-all hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
-            >
-              <LogOut className="h-5 w-5" />
-              <span>Log Out</span>
-            </button>
-          </div>
+        <aside className="z-20 hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-all lg:flex dark:border-white/10 dark:bg-[#0b0f19]">
+          {renderSidebar()}
         </aside>
 
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-[#070a13]">
@@ -238,7 +287,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Open menu"
+                aria-expanded={isMobileMenuOpen}
+                onClick={() => setMobileMenuPath(isMobileMenuOpen ? null : pathname)}
                 className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:hidden dark:hover:bg-white/10 dark:hover:text-white"
               >
                 <Menu className="h-5 w-5" />
@@ -277,31 +328,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="fixed inset-0 z-200 flex lg:hidden">
               <div
                 className="animate-in fade-in fixed inset-0 bg-slate-900/50 backdrop-blur-sm"
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={closeMobileMenu}
               />
               <aside className="animate-in slide-in-from-left relative z-10 flex h-full w-64 flex-col bg-white shadow-2xl dark:bg-[#0b0f19]">
-                <div className="flex h-20 shrink-0 items-center justify-between border-b border-slate-100 px-6 dark:border-white/5">
-                  <Link
-                    href="/admin/dashboard"
-                    className="flex items-center gap-2"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 font-bold text-white">
-                      v
-                    </div>
-                    <span className="font-bold text-slate-900 dark:text-white">vbiz.me</span>
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <div className="flex-1 space-y-1 overflow-y-auto p-4">
-                  {navItems.map((item) => navLink(item, true))}
-                </div>
+                {renderSidebar({ mobile: true })}
               </aside>
             </div>
           </ModalPortal>

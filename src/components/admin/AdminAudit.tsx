@@ -48,8 +48,8 @@ export default function AdminAudit() {
   }, [data?.items, searchQuery])
 
   return (
-    <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 p-6 duration-500 md:p-10">
-      <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center dark:border-white/5">
+    <div className="animate-in fade-in mx-auto max-w-7xl space-y-3 p-6 duration-500 md:space-y-8 md:p-10">
+      <div className="flex flex-col justify-between gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-center md:gap-4 md:pb-6 dark:border-white/5">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
             <FileText className="h-7 w-7 text-indigo-600 dark:text-indigo-400" /> System Audits & Operations Trail
@@ -88,10 +88,10 @@ export default function AdminAudit() {
       </div>
 
       <div className="rounded-4xl border border-slate-200/80 bg-white p-6 shadow-sm md:p-8 dark:border-white/10 dark:bg-[#0b0f19]">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 flex flex-col items-start gap-2 md:mb-6 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="flex items-center gap-2 font-extrabold text-slate-900 dark:text-white">
-              <Clock className="h-5 w-5 text-indigo-500" /> Administrative Operations Audit Trails
+              <Clock className="h-5 w-5 shrink-0 text-indigo-500" /> Administrative Operations Audit Trails
             </h3>
             <p className="mt-0.5 text-xs font-semibold text-slate-400">
               Dispatched records tracking administrative command executions

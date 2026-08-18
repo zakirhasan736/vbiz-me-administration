@@ -181,6 +181,44 @@
     scrollbar-width: none;
   }
 
+  .engagement-table-scroll {
+    scrollbar-width: auto;
+    scrollbar-color: #94a3b8 #f1f5f9;
+  }
+
+  .engagement-table-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .engagement-table-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+
+  .engagement-table-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: #94a3b8;
+  }
+
+  .engagement-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+
+  .dark .engagement-table-scroll {
+    scrollbar-color: #64748b rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .engagement-table-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .engagement-table-scroll::-webkit-scrollbar-thumb {
+    background: #64748b;
+  }
+
+  .dark .engagement-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
   .vbiz-cinematic-scrollbar,
   .vbiz-thin-scrollbar {
     scrollbar-width: thin;

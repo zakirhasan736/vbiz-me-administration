@@ -229,17 +229,20 @@ export default function CorporateOwnerDashboardHome() {
         void refetchProfiles()
         const newId = created?.id
         if (newId) {
-          notify.success('Saved as a draft.', {
-            title: 'Card duplicated',
-            action: {
-              label: 'View in Draft',
-              onClick: () => {
-                setHubTab('directory')
-                setHighlightedDuplicatedId(newId)
-                setPanelCardId(null)
+          notify.success(
+            'Saved as a draft. Enter a unique email, phone, WhatsApp, and date of birth before activating.',
+            {
+              title: 'Card duplicated',
+              action: {
+                label: 'View in Draft',
+                onClick: () => {
+                  setHubTab('directory')
+                  setHighlightedDuplicatedId(newId)
+                  setPanelCardId(null)
+                },
               },
-            },
-          })
+            }
+          )
         }
       } catch (e) {
         const message =

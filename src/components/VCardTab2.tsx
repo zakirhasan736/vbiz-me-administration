@@ -2,6 +2,7 @@
 
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
+import { minCardAgeCutoffDate } from '@/lib/cardActivation'
 import { useVCard } from '@/lib/VCardContext'
 import {
   Briefcase,
@@ -23,11 +24,13 @@ function FieldGroup({
   required,
   children,
   icon,
+  hint,
 }: {
   label: string
   required?: boolean
   children: ReactNode
   icon?: ReactNode
+  hint?: string
 }) {
   return (
     <div className="group flex flex-col space-y-1.5">
@@ -42,6 +45,7 @@ function FieldGroup({
         )}
         {children}
       </div>
+      {hint && <p className="pl-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">{hint}</p>}
     </div>
   )
 }
@@ -117,10 +121,16 @@ export function Tab2PersonalInfo() {
               />
             </FieldGroup>
 
-            <FieldGroup label="Date of Birth" required icon={<Calendar className="h-4 w-4" />}>
+            <FieldGroup
+              label="Date of Birth"
+              required
+              icon={<Calendar className="h-4 w-4" />}
+              hint="You must be at least 12 years old."
+            >
               <VCardDateInput
                 value={vCardData.personal.dob}
                 onChange={(e) => updateData('personal.dob', e.target.value)}
+                max={minCardAgeCutoffDate()}
                 className={`${inputClasses} pl-10`}
               />
             </FieldGroup>
