@@ -102,12 +102,14 @@ const vcardsSlice = createSlice({
     updateVCard(state, action: PayloadAction<{ id: string; patch: Partial<VCardRecord> }>) {
       const cur = state.byId[action.payload.id]
       if (!cur) return
-      const next = {
+      const patch = action.payload.patch
+      const changed = (Object.keys(patch) as Array<keyof VCardRecord>).some((key) => cur[key] !== patch[key])
+      if (!changed) return
+      state.byId[action.payload.id] = {
         ...cur,
-        ...action.payload.patch,
-        updatedAt: new Date().toISOString(),
-      } as VCardRecord
-      state.byId[action.payload.id] = next
+        ...patch,
+        updatedAt: patch.updatedAt ?? new Date().toISOString(),
+      }
       reindexSlugs(state)
     },
     replaceVCardData(state, action: PayloadAction<{ id: string; data: VCardData }>) {
