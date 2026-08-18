@@ -205,8 +205,8 @@ export default function AdminTeam() {
   }
 
   return (
-    <div className="animate-in fade-in mx-auto max-w-6xl space-y-8 p-6 duration-500 md:p-10">
-      <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center dark:border-white/5">
+    <div className="animate-in fade-in mx-auto max-w-6xl space-y-3 p-4 duration-500 md:space-y-8 md:p-10">
+      <div className="flex flex-col justify-between gap-3 border-b border-slate-100 pb-3 md:flex-row md:items-center md:gap-4 md:pb-6 dark:border-white/5">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
             <ShieldCheck className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />

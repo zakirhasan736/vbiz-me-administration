@@ -134,17 +134,20 @@ export default function TeamVCardsView() {
     try {
       const newId = await directory.duplicateCard(card)
       if (newId) {
-        notify.success('Saved as a draft.', {
-          title: 'Card duplicated',
-          action: {
-            label: 'View in Draft',
-            onClick: () => {
-              setLifecycleTab('draft')
-              setHighlightedDuplicatedId(newId)
-              setPanelCardId(null)
+        notify.success(
+          'Saved as a draft. Enter a unique email, phone, WhatsApp, and date of birth before activating.',
+          {
+            title: 'Card duplicated',
+            action: {
+              label: 'View in Draft',
+              onClick: () => {
+                setLifecycleTab('draft')
+                setHighlightedDuplicatedId(newId)
+                setPanelCardId(null)
+              },
             },
-          },
-        })
+          }
+        )
       }
     } finally {
       setDuplicatingCardId(null)

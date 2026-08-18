@@ -464,7 +464,7 @@ export default function AdminDashboard() {
       <div className="space-y-6 rounded-4xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]">
         {themeConfig.showSocials !== false && (
           <div className="space-y-4">
-            <div className="space-y-3 px-1">
+            <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
                   <Globe className={cn('h-5 w-5 shrink-0', themeClasses.text)} />
@@ -476,7 +476,7 @@ export default function AdminDashboard() {
               </div>
               <span
                 className={cn(
-                  'inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] leading-none font-black tracking-wider whitespace-nowrap uppercase',
+                  'inline-flex shrink-0 items-center self-start rounded-full border px-3 py-1.5 text-[11px] leading-none font-black tracking-wider whitespace-nowrap uppercase sm:self-auto',
                   themeClasses.lightBg,
                   themeClasses.lightText,
                   themeClasses.border

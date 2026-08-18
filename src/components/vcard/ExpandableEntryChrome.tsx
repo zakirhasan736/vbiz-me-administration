@@ -100,7 +100,7 @@ export function ExpandableEntryHeader({
             e.stopPropagation()
             onRemove()
           }}
-          className="mr-2 flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 font-bold text-red-500 opacity-0 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 sm:px-4 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+          className="mr-2 flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 font-bold text-red-500 opacity-100 transition-all group-hover/card:opacity-100 hover:bg-red-100 hover:text-red-600 focus:opacity-100 sm:px-4 sm:opacity-0 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
           title="Remove Entry"
         >
           <Trash2 className="h-4 w-4" />

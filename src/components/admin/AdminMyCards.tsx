@@ -186,17 +186,20 @@ export default function AdminMyCards() {
       const created = await duplicateProfile(card.id).unwrap()
       const newId = created?.id
       if (newId) {
-        notify.success('Saved as a draft.', {
-          title: 'Card duplicated',
-          action: {
-            label: 'View in Draft',
-            onClick: () => {
-              setLifecycleTab('draft')
-              setHighlightedDuplicatedId(newId)
-              setPanelCard(null)
+        notify.success(
+          'Saved as a draft. Enter a unique email, phone, WhatsApp, and date of birth before activating.',
+          {
+            title: 'Card duplicated',
+            action: {
+              label: 'View in Draft',
+              onClick: () => {
+                setLifecycleTab('draft')
+                setHighlightedDuplicatedId(newId)
+                setPanelCard(null)
+              },
             },
-          },
-        })
+          }
+        )
       }
     } catch (e) {
       console.error(e)
@@ -348,7 +351,7 @@ export default function AdminMyCards() {
                   handleCreate()
                   open()
                 }}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black tracking-wider text-white uppercase hover:bg-indigo-700"
+                className="inline-flex w-fit shrink-0 items-center gap-2 self-start rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black tracking-wider text-white uppercase hover:bg-indigo-700"
               >
                 <Plus className="h-4 w-4" /> Create card
               </button>
