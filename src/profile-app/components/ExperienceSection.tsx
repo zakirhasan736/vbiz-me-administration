@@ -2,6 +2,7 @@
 
 import type { ProfileAiExperience } from '@/interfaces/api/profileAiData'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetProfileAiDataQuery } from '@/redux/api'
 import { Briefcase } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -60,9 +61,7 @@ export function ExperienceSection({ sectionName = 'Work Experience' }: Experienc
   if (isError) {
     return (
       <div className="w-full pb-20">
-        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          Unable to load {sectionTitle.toLowerCase()} right now. Please try again later.
-        </div>
+        <V3ErrorState sectionTitle={sectionTitle} />
       </div>
     )
   }
@@ -76,7 +75,7 @@ export function ExperienceSection({ sectionName = 'Work Experience' }: Experienc
           </div>
           <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight">{sectionTitle}</h2>
           <p className="vbiz-description max-w-md text-sm leading-relaxed font-medium">
-            No work experience entries have been published yet.
+            <V3PreviewAwareText published="No work experience entries have been published yet." />
           </p>
         </div>
       </div>

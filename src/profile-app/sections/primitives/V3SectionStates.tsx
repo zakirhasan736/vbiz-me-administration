@@ -1,7 +1,10 @@
 'use client'
 
-import type { LucideIcon } from 'lucide-react'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { Inbox, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+
+export const PREVIEW_EMPTY_MESSAGE = 'Nothing to preview yet. Add content in the editor to see it here.'
 
 type V3SectionShellProps = {
   children: ReactNode
@@ -9,7 +12,7 @@ type V3SectionShellProps = {
 }
 
 export function V3SectionShell({ children, className = '' }: V3SectionShellProps) {
-  return <div className={`mx-auto w-full max-w-6xl px-0 pb-24 md:px-5 lg:px-6 ${className}`}>{children}</div>
+  return <div className={`mx-auto w-full max-w-6xl px-0 pb-24 ${className}`}>{children}</div>
 }
 
 type V3SectionHeaderProps = {
@@ -69,6 +72,9 @@ type V3EmptyStateProps = {
 }
 
 export function V3EmptyState({ icon: Icon, title, message }: V3EmptyStateProps) {
+  const { embedded } = useProfileDisplay()
+  const displayMessage = embedded ? PREVIEW_EMPTY_MESSAGE : message
+
   return (
     <V3SectionShell>
       <div className="vbiz-card flex min-h-80 flex-col items-center justify-center rounded-4xl border border-dashed p-10 text-center">
@@ -76,10 +82,16 @@ export function V3EmptyState({ icon: Icon, title, message }: V3EmptyStateProps) 
           <Icon size={24} />
         </div>
         <h2 className="vbiz-title mb-3 text-2xl font-black tracking-tight">{title}</h2>
-        <p className="vbiz-description max-w-md text-sm leading-relaxed font-medium">{message}</p>
+        <p className="vbiz-description max-w-md text-sm leading-relaxed font-medium">{displayMessage}</p>
       </div>
     </V3SectionShell>
   )
+}
+
+/** Inline published-copy that becomes the preview empty message in the editor live preview. */
+export function V3PreviewAwareText({ published }: { published: string }) {
+  const { embedded } = useProfileDisplay()
+  return <>{embedded ? PREVIEW_EMPTY_MESSAGE : published}</>
 }
 
 type V3ErrorStateProps = {
@@ -87,6 +99,12 @@ type V3ErrorStateProps = {
 }
 
 export function V3ErrorState({ sectionTitle }: V3ErrorStateProps) {
+  const { embedded } = useProfileDisplay()
+
+  if (embedded) {
+    return <V3EmptyState icon={Inbox} title={sectionTitle} message={PREVIEW_EMPTY_MESSAGE} />
+  }
+
   return (
     <V3SectionShell>
       <div className="rounded-4xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">

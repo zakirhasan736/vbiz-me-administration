@@ -131,7 +131,13 @@ export const HomeHero: React.FC<{
 
   const designationLine = resolveGlobalProfession(personal, isVisible)
 
-  const contactItems = useMemo(() => buildBentoContactItems(personal, isVisible, field), [personal, isVisible, field])
+  const contactItems = useMemo(
+    () =>
+      buildBentoContactItems(personal, isVisible, field).map((item) =>
+        item.label === 'Phone' || item.label === 'Website' ? { ...item, colSpan: 2 as const } : item
+      ),
+    [personal, isVisible, field]
+  )
 
   const websiteHref = useMemo(() => resolveSocialLinkHref('Website', socialHref).trim(), [socialHref])
   const showWebsite = Boolean(websiteHref) && isVisible('Website')
@@ -170,8 +176,8 @@ export const HomeHero: React.FC<{
 
   return (
     <div
-      className={`vbiz-home-canvas border-gold/20 relative mx-auto flex w-full max-w-120 flex-col overflow-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 ${
-        compact ? 'min-h-0' : 'min-h-[calc(100dvh-72px)] md:max-w-none md:border-0'
+      className={`vbiz-home-canvas border-gold/20 relative mx-auto flex w-full max-w-120 flex-col overflow-hidden rounded-none border-x-0 font-sans transition-colors duration-500 ${
+        compact ? 'min-h-full flex-1 shadow-none' : 'min-h-[calc(100dvh-72px)] shadow-2xl md:max-w-none md:border-0'
       } ${theme === 'dark' ? 'bg-[#031327] text-white' : 'bg-white text-zinc-900'}`}
     >
       <div
@@ -181,23 +187,35 @@ export const HomeHero: React.FC<{
           <ProfileWallpaperContent
             wallpaper={wallpaper}
             mediaUrl={coverMediaUrl}
-            mediaClassName="aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten"
+            mediaClassName={
+              compact
+                ? 'h-full w-full opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
+                : 'aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten'
+            }
           />
           <div
-            className={`absolute inset-0 bg-linear-to-b ${theme === 'dark' ? 'from-[#030914]/15 via-[#031327]/30 to-[#031327]' : 'from-white/5 via-white/10 to-white'}`}
+            className={`absolute inset-0 bg-linear-to-b ${
+              compact
+                ? theme === 'dark'
+                  ? 'from-[#030914]/15 via-transparent to-transparent'
+                  : 'from-white/5 via-transparent to-transparent'
+                : theme === 'dark'
+                  ? 'from-[#030914]/15 via-[#031327]/30 to-[#031327]'
+                  : 'from-white/5 via-white/10 to-white'
+            }`}
           />
         </div>
       </div>
 
       <div className="relative z-10 flex min-h-full w-full flex-1 flex-col justify-start">
         <div
-          className={`pointer-events-none absolute top-5 left-0 z-40 flex w-full justify-center px-2 ${
-            compact ? '' : 'md:top-28 md:px-0'
+          className={`pointer-events-none absolute top-5 left-0 z-40 flex w-full justify-center ${
+            compact ? 'px-0' : 'px-2 md:top-28 md:px-0'
           }`}
         >
           <div className="relative h-0 w-full max-w-258">
             <div
-              className={`pointer-events-auto absolute top-8 right-2 flex flex-col gap-3 ${compact ? '' : 'md:right-6'}`}
+              className={`pointer-events-auto absolute flex flex-col gap-3 ${compact ? 'top-24 right-1' : 'top-8 right-2 md:right-6'}`}
             >
               {showViews && (
                 <button
@@ -268,12 +286,12 @@ export const HomeHero: React.FC<{
 
         {/* Phone View — also used by the editor preview frame */}
         <div
-          className={`relative flex flex-1 flex-col items-center pt-6.25 ${
-            compact ? 'pb-6' : 'pb-2 sm:pb-17.5 md:hidden'
+          className={`relative flex flex-col items-center ${
+            compact ? 'flex-1 pt-16 pb-5' : 'flex-1 pt-6.25 pb-2 sm:pb-17.5 md:hidden'
           }`}
         >
           {visibleSocials.length > 0 && (
-            <div className="absolute top-8 left-2 z-30 flex flex-col gap-2">
+            <div className={`absolute z-30 flex flex-col gap-2 ${compact ? 'top-24 left-0' : 'top-8 left-2'}`}>
               {visibleSocials.map((item) => {
                 const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
                 return (
@@ -299,8 +317,8 @@ export const HomeHero: React.FC<{
           )}
 
           <div
-            className={`relative z-20 mx-auto mb-4 aspect-4/4.5 max-w-60 border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
-              compact ? 'w-[58%]' : 'w-[56%] sm:w-[60%] md:w-[65%]'
+            className={`relative z-20 mx-auto mb-2 aspect-4/4.5 max-w-60 border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
+              compact ? 'w-[52%]' : 'w-[56%] sm:w-[60%] md:w-[65%]'
             }`}
           >
             <ProfileMedia
@@ -310,78 +328,80 @@ export const HomeHero: React.FC<{
             />
           </div>
 
-          <div className="relative z-20 mt-1.5 flex justify-center gap-2">
-            {showShare && (
+          <div className="relative z-20 mt-5 flex w-full flex-col items-center">
+            <div className="flex justify-center gap-2">
+              {showShare && (
+                <button
+                  title="Share"
+                  className="vbiz-icon-btn group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110"
+                  style={shareChrome}
+                  onClick={() => {
+                    triggerHaptic(10)
+                    onAction?.('share')
+                  }}
+                >
+                  <Share2 size={20} />
+                </button>
+              )}
               <button
-                title="Share"
-                className="vbiz-icon-btn group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110"
-                style={shareChrome}
+                title="Notification"
+                className={`group relative flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
                 onClick={() => {
                   triggerHaptic(10)
-                  onAction?.('share')
+                  onAction?.('settings')
                 }}
               >
-                <Share2 size={20} />
+                <Bell size={20} />
+                <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
               </button>
+              <button
+                title="Notepad"
+                className={`group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
+                onClick={() => {
+                  triggerHaptic(10)
+                  onAction?.('notepad')
+                }}
+              >
+                <FileText size={20} />
+              </button>
+            </div>
+
+            {showName && (
+              <h1
+                className={`notranslate mt-4 mb-0.5 px-4 text-center text-[22px] leading-tight font-bold tracking-tight drop-shadow-md ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
+                style={{
+                  ...(field('MyInfo section Name').textColor ? { color: field('MyInfo section Name').textColor } : {}),
+                  ...(field('MyInfo section Name').backgroundColor
+                    ? { backgroundColor: field('MyInfo section Name').backgroundColor }
+                    : {}),
+                }}
+              >
+                {personal.fullName}
+              </h1>
             )}
-            <button
-              title="Notification"
-              className={`group relative flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
-              onClick={() => {
-                triggerHaptic(10)
-                onAction?.('settings')
-              }}
-            >
-              <Bell size={20} />
-              <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
-            </button>
-            <button
-              title="Notepad"
-              className={`group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
-              onClick={() => {
-                triggerHaptic(10)
-                onAction?.('notepad')
-              }}
-            >
-              <FileText size={20} />
-            </button>
+            {designationLine && (
+              <p
+                className={`notranslate mb-2 text-[16px] font-medium opacity-90 drop-shadow-sm ${theme === 'dark' ? 'text-white/90' : 'text-zinc-700'}`}
+                style={{
+                  ...(field('MyInfo Profession').textColor || field('MyInfo Designation').textColor
+                    ? {
+                        color: field('MyInfo Profession').textColor || field('MyInfo Designation').textColor,
+                      }
+                    : {}),
+                  ...(field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor
+                    ? {
+                        backgroundColor:
+                          field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor,
+                      }
+                    : {}),
+                }}
+              >
+                {designationLine}
+              </p>
+            )}
+
+            <ProfileActionButtons theme={theme} onAction={onAction} visibleOn="mobile" mobileClassName="!mt-0" />
           </div>
-
-          {showName && (
-            <h1
-              className={`notranslate mt-2 mb-1 px-4 text-center text-[22px] leading-tight font-bold tracking-tight drop-shadow-md ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
-              style={{
-                ...(field('MyInfo section Name').textColor ? { color: field('MyInfo section Name').textColor } : {}),
-                ...(field('MyInfo section Name').backgroundColor
-                  ? { backgroundColor: field('MyInfo section Name').backgroundColor }
-                  : {}),
-              }}
-            >
-              {personal.fullName}
-            </h1>
-          )}
-          {designationLine && (
-            <p
-              className={`notranslate mb-4 text-[16px] font-medium opacity-90 drop-shadow-sm ${theme === 'dark' ? 'text-white/90' : 'text-zinc-700'}`}
-              style={{
-                ...(field('MyInfo Profession').textColor || field('MyInfo Designation').textColor
-                  ? {
-                      color: field('MyInfo Profession').textColor || field('MyInfo Designation').textColor,
-                    }
-                  : {}),
-                ...(field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor
-                  ? {
-                      backgroundColor:
-                        field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor,
-                    }
-                  : {}),
-              }}
-            >
-              {designationLine}
-            </p>
-          )}
-
-          <ProfileActionButtons theme={theme} onAction={onAction} visibleOn="mobile" />
         </div>
 
         {/* Desktop View — skipped in the preview frame, which is phone width */}

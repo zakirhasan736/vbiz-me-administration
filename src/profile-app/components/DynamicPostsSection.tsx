@@ -4,7 +4,7 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { formatGeneralPostDate } from '@/lib/vcardGeneralPosts'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
-import { V3SectionHeader } from '@/profile-app/sections'
+import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { ArrowUpRight, BookOpen, Calendar, FileEdit } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { MouseEvent } from 'react'
@@ -51,9 +51,7 @@ export function DynamicPostsSection({
     return (
       <div className="w-full pb-20">
         <SectionHeader badge={badge} sectionTitle={sectionTitle} />
-        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          Unable to load {sectionTitle.toLowerCase()} right now. Please try again later.
-        </div>
+        <V3ErrorState sectionTitle={sectionTitle} />
       </div>
     )
   }
@@ -61,7 +59,7 @@ export function DynamicPostsSection({
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-[#eab308] dark:border-zinc-700 dark:bg-zinc-800/80">
             <FileEdit size={24} />
           </div>
@@ -69,7 +67,7 @@ export function DynamicPostsSection({
             {sectionTitle}
           </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-            {emptyMessage}
+            <V3PreviewAwareText published={emptyMessage} />
           </p>
         </div>
       </div>
@@ -85,14 +83,14 @@ export function DynamicPostsSection({
       {featured ? (
         <div className="vbiz-bento-grid mb-4 grid w-full grid-cols-1 items-start gap-4 md:grid-cols-3 lg:grid-cols-4">
           <FeaturedPostCard post={featured} onPostClick={onPostClick} />
-          <div className="group relative flex min-h-[300px] flex-col items-center justify-center overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 backdrop-blur-xl transition-all duration-500 hover:border-zinc-300 md:col-span-3 lg:col-span-1 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700">
+          <div className="group relative flex min-h-75 flex-col items-center justify-center overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 backdrop-blur-xl transition-all duration-500 hover:border-zinc-300 md:col-span-3 lg:col-span-1 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700">
             <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-center text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100">
               <BookOpen size={24} className="text-[#eab308]" />
             </div>
             <h3 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
               {posts.length} {posts.length === 1 ? 'Entry' : 'Entries'}
             </h3>
-            <p className="max-w-[200px] text-center text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
+            <p className="max-w-50 text-center text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
               {sectionTitle} from your vBiz profile.
             </p>
           </div>
@@ -160,7 +158,7 @@ function FeaturedPostCard({
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555529733-0e67056058e1?q=80&w=1200&fit=crop')] bg-cover bg-center opacity-30 mix-blend-multiply grayscale transition-transform duration-1000 group-hover:scale-105 dark:opacity-40 dark:mix-blend-overlay" />
       )}
       <div className="absolute inset-0 bg-linear-to-t from-zinc-50 via-zinc-100/90 to-transparent dark:from-zinc-950 dark:via-zinc-900/80" />
-      <div className="relative z-10 flex min-h-[400px] w-full flex-col justify-end p-8 lg:p-10">
+      <div className="relative z-10 flex min-h-100 w-full flex-col justify-end p-8 lg:p-10">
         <div className="mb-6 flex flex-wrap items-center gap-4">
           <span className="rounded-md bg-zinc-900 px-3 py-1.5 text-[10px] font-bold tracking-wider text-white uppercase sm:text-xs dark:bg-zinc-100 dark:text-zinc-950">
             Latest
@@ -201,7 +199,7 @@ function FeaturedPostCard({
   )
 
   const className =
-    'group relative flex min-h-[400px] flex-col justify-end overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100 md:col-span-3 lg:col-span-3 dark:border-zinc-800/80 dark:bg-zinc-900' +
+    'group relative flex min-h-100 flex-col justify-end overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100 md:col-span-3 lg:col-span-3 dark:border-zinc-800/80 dark:bg-zinc-900' +
     (isClickable ? ' cursor-pointer' : '')
 
   if (isClickable && onPostClick) {

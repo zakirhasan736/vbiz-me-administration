@@ -17,6 +17,7 @@ import {
   resolveSocialLinkHref,
 } from '@/profile-app/lib/profileSocialLinks'
 import { resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
+import { cn } from '@/utils/cn'
 import {
   Bell,
   Eye,
@@ -94,7 +95,6 @@ export function ProfileHeaderV2({
 }: ProfileHeaderV2Props) {
   const { personal, isVisible, field, socialHref, profileViews, actionButtons, cardOwnerId, cardSlug } =
     useProfileDisplay()
-
   const avatarDisplaySrc = useMemo(
     () => resolveProfileAvatarSrc(avatarVideoUrl, explainerVideoUrl),
     [avatarVideoUrl, explainerVideoUrl]
@@ -177,7 +177,7 @@ export function ProfileHeaderV2({
 
       <div className="group relative shrink-0">
         <div
-          className={`relative z-10 overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-900 shadow-xl transition-transform duration-500 group-hover:scale-[1.02] dark:border-zinc-800 ${embedded ? 'h-48 w-40' : 'h-60 w-48 md:h-64 md:w-56'}`}
+          className={`relative z-10 overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-900 shadow-xl transition-transform duration-500 group-hover:scale-[1.02] dark:border-zinc-800 ${embedded ? 'mt-2 h-48 w-40' : 'h-60 w-48 md:h-64 md:w-56'}`}
         >
           {avatarIsVideo ? (
             <CustomVideoPlayer
@@ -222,7 +222,9 @@ export function ProfileHeaderV2({
         ) : null}
 
         {visibleSocials.length > 0 && (
-          <div className="mb-6 hidden flex-wrap items-center justify-start gap-2 md:flex">
+          <div
+            className={cn('mb-6 hidden flex-wrap items-center justify-start gap-2 md:flex', embedded ? 'mb-2' : 'mb-6')}
+          >
             {visibleSocials.map((social) => {
               const href = resolveSocialLinkHref(social.label, socialHref, personal.whatsapp)
               return (
@@ -244,7 +246,12 @@ export function ProfileHeaderV2({
         )}
       </div>
 
-      <div className="absolute top-0 right-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:gap-4 md:p-2 dark:border-zinc-700/50 dark:bg-zinc-900/50">
+      <div
+        className={cn(
+          'absolute top-0 right-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:gap-4 md:p-2 dark:border-zinc-700/50 dark:bg-zinc-900/50',
+          embedded ? 'top-4 right-1' : 'top-0 right-0'
+        )}
+      >
         {showViewCounter && (
           <button
             type="button"

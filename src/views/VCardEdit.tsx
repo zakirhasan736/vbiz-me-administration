@@ -756,7 +756,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
             <button
               type="button"
               onClick={opensPublicCard ? openPublicCard : openLivePreview}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700"
+              className={cn(
+                'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
+                !opensPublicCard && 'hidden md:inline-flex'
+              )}
               title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
             >
               <Eye className="h-4 w-4" />
@@ -775,7 +778,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
             <button
               type="button"
               onClick={opensPublicCard ? openPublicCard : openLivePreview}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700"
+              className={cn(
+                'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
+                !opensPublicCard && 'hidden md:inline-flex'
+              )}
               title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
             >
               <Eye className="h-4 w-4" />
@@ -1218,9 +1224,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
         aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
         title={showPreview ? 'Hide live preview' : 'Show live preview'}
         className={cn(
-          'group fixed right-4 bottom-4 z-60 flex items-center justify-center overflow-hidden rounded-2xl border transition-all duration-300 lg:right-8 lg:bottom-8',
-          showPreview &&
-            'max-sm:right-3 max-sm:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] max-sm:scale-90 max-sm:opacity-90',
+          'group fixed right-4 bottom-4 z-60 hidden items-center justify-center overflow-hidden rounded-2xl border transition-all duration-300 md:flex lg:right-8 lg:bottom-8',
           showPreview
             ? 'h-14 w-14 border-slate-200 bg-white text-slate-900 shadow-lg hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700'
             : 'bg-primary-600 h-14 w-14 border-transparent text-white shadow-xl hover:scale-105'

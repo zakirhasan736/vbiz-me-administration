@@ -2,7 +2,7 @@
 
 import { ServiceDetail } from '@/profile-app/components/ServiceDetail'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { V3SectionHeader } from '@/profile-app/sections'
+import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { useGetServicesQuery } from '@/redux/api'
 import { ArrowUpRight, Layers, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -63,9 +63,7 @@ export const ServicesSection = () => {
     return (
       <div className="w-full pb-20">
         <SectionHeader sectionTitle={sectionTitle} />
-        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          Unable to load services right now. Please try again later.
-        </div>
+        <V3ErrorState sectionTitle="Services" />
       </div>
     )
   }
@@ -81,7 +79,7 @@ export const ServicesSection = () => {
             {sectionTitle}
           </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-            No services have been published yet.
+            <V3PreviewAwareText published="No services have been published yet." />
           </p>
         </div>
       </div>

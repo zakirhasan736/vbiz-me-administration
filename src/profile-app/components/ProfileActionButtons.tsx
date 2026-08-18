@@ -112,7 +112,7 @@ function CtaButtonGrid({
   return (
     <div className={`flex flex-col ${gap}`}>
       {layout.rows.map((row, rowIdx) =>
-        row.length === 2 ? (
+        row.length === 2 && isDesktop ? (
           <div key={rowIdx} className={`grid grid-cols-2 ${rowGap}`}>
             {row.map((button) => (
               <HomeCtaButton
@@ -144,7 +144,7 @@ function CtaButtonGrid({
   )
 }
 
-/** Shared home CTA grid for v1, v2, and v3 — mobile [2,1,1,1], desktop [2,1,1]. */
+/** Shared home CTA grid for v1, v2, and v3 — phone stacks every button; desktop keeps [2,1,1]. */
 export function ProfileActionButtons({
   onAction,
   className,
@@ -152,7 +152,7 @@ export function ProfileActionButtons({
   visibleOn = 'both',
 }: ProfileActionButtonsProps) {
   const { t } = useTranslation()
-  const { actionButtons, design, cardSlug, isVisible } = useProfileDisplay()
+  const { actionButtons, design, cardSlug, isVisible, embedded } = useProfileDisplay()
   const accentColor = design?.accentColor ?? '#eab308'
   const template = (design?.profileTemplate ?? 'v3') as ProfileTemplateId
 
@@ -208,7 +208,7 @@ export function ProfileActionButtons({
             layout={desktopLayout}
             template={template}
             accentColor={accentColor}
-            isDesktop
+            isDesktop={!embedded}
             onClick={click}
           />
         </div>

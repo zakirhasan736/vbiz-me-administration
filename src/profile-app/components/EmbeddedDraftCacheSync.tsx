@@ -234,6 +234,7 @@ function faqsToDynamic(faqs: VCardFaqEntry[]): DynamicPostsQueryResult {
 
 type EmbeddedDraftCacheSyncProps = {
   embedded?: boolean
+  previewActive?: boolean
   cardOwnerId?: string
   sectionPosts?: Record<string, VCardSectionPostItem[]>
   customTabs?: VCardCustomTab[]
@@ -278,6 +279,7 @@ function aboutMeDraftToQueryResult(draft: AboutMeDraft): AboutMeQueryResult {
  */
 export function EmbeddedDraftCacheSync({
   embedded,
+  previewActive = true,
   cardOwnerId,
   sectionPosts,
   customTabs,
@@ -303,7 +305,7 @@ export function EmbeddedDraftCacheSync({
   useEffect(() => subscribeAboutMeDraft(() => setAboutMeDraftState(getAboutMeDraft())), [])
 
   useLayoutEffect(() => {
-    if (!embedded || !cardOwnerId) return
+    if (!embedded || !previewActive || !cardOwnerId) return
     const profileId = cardOwnerId
 
     if (signaturesRef.current.profileId !== profileId) {
@@ -363,7 +365,9 @@ export function EmbeddedDraftCacheSync({
               : [],
           })),
       }
-      dispatch(dynamicSectionApi.util.upsertQueryData('getDynamicSection', { profileId, sectionName }, result))
+      upsertIfChanged(`custom:${sectionName}`, result, (value) =>
+        dispatch(dynamicSectionApi.util.upsertQueryData('getDynamicSection', { profileId, sectionName }, value))
+      )
     }
 
     if (generalPosts) {
@@ -565,6 +569,7 @@ export function EmbeddedDraftCacheSync({
     )
   }, [
     embedded,
+    previewActive,
     cardOwnerId,
     aboutMeDraft,
     sectionPosts,

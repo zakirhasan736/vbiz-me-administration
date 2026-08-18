@@ -1,6 +1,7 @@
 'use client'
 
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetClientsQuery } from '@/redux/api'
 import { ArrowRight, ExternalLink, Handshake } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -109,15 +110,13 @@ export const ClientsSection = () => {
         </div>
       ) : null}
 
-      {isError ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          Unable to load clients right now. Please try again later.
-        </div>
-      ) : null}
+      {isError ? <V3ErrorState sectionTitle="Clients" /> : null}
 
       {showEmptyState ? (
         <div className="rounded-3xl border border-zinc-200 bg-white/50 px-6 py-12 text-center backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
-          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">No clients have been added yet.</p>
+          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+            <V3PreviewAwareText published="No clients have been added yet." />
+          </p>
         </div>
       ) : null}
 

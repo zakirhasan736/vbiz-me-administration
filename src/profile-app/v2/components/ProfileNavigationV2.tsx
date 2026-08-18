@@ -109,7 +109,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
                       className="vbiz-nav-tab-icon h-4.5 w-4.5 transition-colors duration-300 sm:h-5.5 sm:w-5.5"
                     />
                   </div>
-                  {isActive ? (
+                  {isActive && !embedded ? (
                     <span className="pointer-events-none absolute -top-8 left-1/2 z-30 -translate-x-1/2 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[9px] font-black tracking-wide whitespace-nowrap text-zinc-900 shadow-sm dark:border-white/15 dark:bg-[#0b0f19] dark:text-white">
                       {getNavDisplayLabel(tab)}
                     </span>

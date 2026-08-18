@@ -3,6 +3,7 @@
 import type { GalleryListItem } from '@/interfaces/api/gallery.interface'
 import { useDragScroll } from '@/profile-app/hooks/useDragScroll'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetGalleryQuery } from '@/redux/api'
 import { Camera, Image as ImageIcon, Maximize2, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -271,9 +272,7 @@ export const ImageGallerySection = () => {
     return (
       <div className="w-full pb-20">
         <SectionHeader sectionTitle={sectionTitle} showFilters={false} />
-        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          Unable to load gallery right now. Please try again later.
-        </div>
+        <V3ErrorState sectionTitle="Gallery" />
       </div>
     )
   }
@@ -287,7 +286,7 @@ export const ImageGallerySection = () => {
           </div>
           <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight">{sectionTitle}</h2>
           <p className="vbiz-description max-w-md text-sm leading-relaxed font-medium">
-            No gallery images have been published yet.
+            <V3PreviewAwareText published="No gallery images have been published yet." />
           </p>
         </div>
       </div>
@@ -348,7 +347,7 @@ function SectionHeader({
         <div className="pointer-events-none absolute bottom-0 left-0 -mb-24 -ml-24 rounded-full bg-black/5 p-24 blur-3xl transition-transform delay-100 duration-1000 group-hover:scale-110 dark:bg-white/5" />
 
         <div className="relative z-10 flex w-full flex-col gap-1 md:w-auto md:gap-2">
-          <div className="vbiz-hero-eyebrow vbiz-eyebrow mb-0 rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
+          <div className="vbiz-hero-eyebrow vbiz-eyebrow mb-0 w-fit self-start rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
             <Camera size={12} className="text-gold" /> Image Vault
           </div>
 

@@ -233,10 +233,10 @@ export const CARD_THEME_UTILITY_CSS = `
 
 /* Home canvas / banner — only apply when Card Settings set --vbiz-home-* on the root */
 .vbiz-profile-root .vbiz-home-canvas {
-  background-color: var(--vbiz-home-bg) !important;
+  background-color: var(--vbiz-home-bg, var(--vbiz-bg)) !important;
 }
 .vbiz-profile-root .vbiz-home-banner {
-  background-color: var(--vbiz-home-banner) !important;
+  background-color: var(--vbiz-home-banner, var(--vbiz-home-bg, var(--vbiz-bg))) !important;
 }
 .vbiz-profile-root[data-pages-header="off"] .vbiz-section-banner,
 .vbiz-profile-root[data-pages-header="off"] .vbiz-title {

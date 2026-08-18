@@ -149,13 +149,15 @@ export function ProfileNavigationProvider({
   const goToSection = useCallback(
     (tabId: string) => {
       const nextId = resolveActiveSection(tabId, visibleTabs)
-      // A transition keeps the current section painted while the next chunk resolves.
-      startTransition(() => {
+      const apply = () => {
         setLocalSectionId(nextId)
         onSectionChange?.(nextId)
-      })
+      }
+      // Public cards can wait a frame for the next chunk. The editor phone must follow instantly.
+      if (embedded) apply()
+      else startTransition(apply)
     },
-    [onSectionChange, visibleTabs]
+    [embedded, onSectionChange, visibleTabs]
   )
 
   const value = useMemo<ProfileNavigationContextValue>(

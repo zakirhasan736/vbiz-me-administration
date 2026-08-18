@@ -48,7 +48,7 @@ type FAQSectionProps = {
 }
 
 export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
-  const { cardOwnerId } = useProfileDisplay()
+  const { cardOwnerId, embedded } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
   const resolvedSectionName = sectionName.trim() || 'Faq'
 
@@ -83,6 +83,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  const isNarrow = embedded || isMobile
   const filteredFaqs = faqs.filter((faq) => faq.question.toLowerCase().includes(searchQuery.toLowerCase()))
 
   const sectionTitle = data?.sectionTitle ?? 'FAQ'
@@ -108,7 +109,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
 
   return (
     <V3SectionShell className="overflow-hidden select-none">
-      {isMobile ? (
+      {isNarrow ? (
         <div className="flex flex-col gap-3">
           <div className={`${cardClass} p-5 shadow-sm`}>
             <div className="mb-3 flex items-center justify-between">
