@@ -11,6 +11,7 @@ import {
   buildPublicCardJsonLd,
   buildPublicCardSeoMetadata,
   resolvePublicOrigin,
+  resolveRequestOrigin,
   serializeJsonLd,
 } from '@/lib/seo/publicCardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
@@ -38,8 +39,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const myCard = await fetchMyCardBySlug(trimmed)
   const name = resolvePwaDisplayName(myCard?.profile?.name, trimmed)
+  const headerStore = await headers()
+  const requestOrigin = resolveRequestOrigin(
+    headerStore.get('x-forwarded-host') || headerStore.get('host'),
+    headerStore.get('x-forwarded-proto')
+  )
+  const icon192 = `/v/${encodeURIComponent(trimmed)}/icon/192`
+  const icon512 = `/v/${encodeURIComponent(trimmed)}/icon/512`
+  const pwaMeta: Metadata = {
+    metadataBase: new URL(requestOrigin),
+    applicationName: name,
+    appleWebApp: {
+      capable: true,
+      title: name,
+      statusBarStyle: 'black-translucent',
+    },
+    icons: {
+      apple: icon192,
+      icon: [
+        { url: icon192, sizes: '192x192', type: 'image/png' },
+        { url: icon512, sizes: '512x512', type: 'image/png' },
+      ],
+    },
+    manifest: buildPwaManifestUrl(trimmed),
+    other: {
+      'mobile-web-app-capable': 'yes',
+    },
+  }
+
   if (!myCard) {
-    return { title: name, description: `${name}'s digital business card` }
+    return { title: name, description: `${name}'s digital business card`, ...pwaMeta }
   }
 
   const origin = await publicCardOrigin()
@@ -53,22 +82,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     ...seo,
+    ...pwaMeta,
     applicationName: title,
     appleWebApp: {
       capable: true,
       title,
       statusBarStyle: 'black-translucent',
-    },
-    icons: {
-      apple: `/v/${encodeURIComponent(trimmed)}/icon/192`,
-      icon: [
-        { url: `/v/${encodeURIComponent(trimmed)}/icon/192`, sizes: '192x192', type: 'image/png' },
-        { url: `/v/${encodeURIComponent(trimmed)}/icon/512`, sizes: '512x512', type: 'image/png' },
-      ],
-    },
-    manifest: buildPwaManifestUrl(trimmed),
-    other: {
-      'mobile-web-app-capable': 'yes',
     },
   }
 }
@@ -113,6 +132,8 @@ export default async function PublicProfilePage({ params }: Props) {
 
   return (
     <>
+      <link rel="manifest" href={buildPwaManifestUrl(trimmed)} />
+      <link rel="apple-touch-icon" href={`${cardPath}/icon/192`} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <PublicProfileLayout
         slug={trimmed}

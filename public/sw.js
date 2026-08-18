@@ -508,10 +508,8 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (sameOrigin && isPublicCardMeta(url.pathname)) {
-    event.respondWith(networkFirst(event.request, CARD_SHELL_CACHE))
-    return
-  }
+  // Let Next serve the live manifest + PNG icons so Chrome can show the install icon.
+  if (sameOrigin && isPublicCardMeta(url.pathname)) return
 
   if (isPublicCardDataRequest(url)) {
     event.respondWith(networkFirst(event.request, CARD_DATA_CACHE, offlineCardDataResponse, { bypassHttpCache: true }))
