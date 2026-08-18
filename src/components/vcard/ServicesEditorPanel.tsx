@@ -106,6 +106,7 @@ export function ServicesEditorPanel({
 
       <AiDropFillZone
         section="services"
+        profileId={profileId}
         currentDraft={{ services }}
         hint="Drop or paste a service list — AI fills type, title, and description (OCR for images)"
         onFilled={applyFilled}

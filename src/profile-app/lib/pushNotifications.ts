@@ -543,8 +543,7 @@ export async function subscribeToCard(options: {
       try {
         const result = await updateCardBackendPreferences(options.cardSlug, backendPreferences)
         savedBackendPreferences = result.preferences
-      } catch (preferenceError) {
-        console.warn('Push subscribed, but preferences update failed:', preferenceError)
+      } catch {
         savedBackendPreferences = backendPreferences
       }
     }
@@ -566,11 +565,6 @@ export async function subscribeToCard(options: {
 
     return { subscription, preferences: uiPreferences, backendPreferences: savedBackendPreferences }
   } catch (error) {
-    console.error('[push] subscribeToCard failed', {
-      name: error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    })
     throw mapPushSubscribeError(error)
   }
 }

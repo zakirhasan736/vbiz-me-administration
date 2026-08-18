@@ -62,7 +62,6 @@ export async function POST(req: NextRequest) {
       themeColor: 'indigo',
     })
   } catch (err: unknown) {
-    console.error('Error in /api/ai/scrape-url:', err instanceof Error ? err.message : 'unknown')
     const message = err instanceof Error ? err.message : 'Failed to parse website details'
     return NextResponse.json({ error: message }, { status: 500 })
   }

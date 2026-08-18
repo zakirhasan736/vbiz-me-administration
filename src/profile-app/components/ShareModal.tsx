@@ -69,8 +69,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       .then((url) => {
         if (!cancelled) setQrCodeUrl(url)
       })
-      .catch((err) => {
-        console.error('Error generating QR code:', err)
+      .catch(() => {
+        /* ignore */
       })
 
     return () => {
@@ -83,8 +83,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       await navigator.clipboard.writeText(shareUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy text: ', err)
+    } catch {
+      /* ignore */
     }
   }
 

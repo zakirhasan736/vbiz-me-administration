@@ -9,6 +9,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
 export type LiveAgentProps = UseLiveAgentOptions & {
+  enabled?: boolean
   embedded?: boolean
   /** Accent from the card theme (`design.accentColor`). */
   accentColor?: string
@@ -17,6 +18,10 @@ export type LiveAgentProps = UseLiveAgentOptions & {
 }
 
 const PREVIEW_PHONE_SELECTOR = '.vbiz-preview-phone'
+
+export function isLiveAgentVisible(enabled: boolean): boolean {
+  return enabled
+}
 
 function getPreviewPhoneShell(): HTMLElement | null {
   if (typeof document === 'undefined') return null
@@ -31,6 +36,7 @@ function subscribeToPreviewPhoneShell(onStoreChange: () => void) {
 
 /** Shared live agent (central configuration & UI) for all profile templates. */
 export function LiveAgent({
+  enabled = true,
   accentColor,
   embedded = false,
   cardData = DEFAULT_LIVE_AGENT_CARD,
@@ -47,6 +53,7 @@ export function LiveAgent({
 
   const phoneShell = useSyncExternalStore(subscribe, getSnapshot, () => null)
 
+  if (!isLiveAgentVisible(enabled)) return null
   if (isInIframe()) return null
 
   const panel = (

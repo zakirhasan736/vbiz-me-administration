@@ -466,6 +466,7 @@ export function EmbeddedDraftCacheSync({
         .replace(/\s+/g, ' ')
         .trim()
     const aiData: ProfileAiData = {
+      profileId,
       slug: '',
       ownerName: '',
       title: '',
@@ -528,6 +529,10 @@ export function EmbeddedDraftCacheSync({
             date: '',
           }))
       ),
+      reviews: reviews || [],
+      blogs: generalPosts || [],
+      faqs: faqs || [],
+      assistantContext: { businessBrief: '', knowledge: [] },
     }
     upsertIfChanged('aiData', aiData, (result) =>
       dispatch(profileAiDataApi.util.upsertQueryData('getProfileAiData', profileId, result))

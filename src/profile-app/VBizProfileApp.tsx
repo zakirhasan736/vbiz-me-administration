@@ -258,16 +258,15 @@ export function VBizProfileApp({
         )}
       </AnimatePresence>
 
-      {liveAgentEnabled ? (
-        <LiveAgent
-          embedded={embedded}
-          accentColor={design.accentColor}
-          cardData={liveAgentCardData}
-          systemInstruction={liveAgentSystemPrompt}
-          readyToConnect={introAllowed}
-          wrapperClassName="right-3 top-1/2 -translate-y-1/2 md:right-6 md:top-auto md:bottom-[60px] md:translate-y-0 lg:right-10 lg:bottom-[60px]"
-        />
-      ) : null}
+      <LiveAgent
+        enabled={liveAgentEnabled}
+        embedded={embedded}
+        accentColor={design.accentColor}
+        cardData={liveAgentCardData}
+        systemInstruction={liveAgentSystemPrompt}
+        readyToConnect={introAllowed}
+        wrapperClassName="right-3 top-1/2 -translate-y-1/2 md:right-6 md:top-auto md:bottom-[60px] md:translate-y-0 lg:right-10 lg:bottom-[60px]"
+      />
 
       <ProfileHomeModals
         activeModal={activeModal}

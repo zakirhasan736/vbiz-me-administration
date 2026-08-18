@@ -4,7 +4,7 @@ import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfil
 import { fetchNavBarLinks } from '@/lib/api/navbar/fetchNavBarLinks'
 import { resolveProfileSettingsTheme } from '@/lib/api/profileSettings/fetchProfileSettings'
 import { fetchPublicReviews } from '@/lib/api/reviews/fetchPublicReviews'
-import { fallbackLiveAgentPrompt, resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
+import { resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
 import { buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
 import {
@@ -120,7 +120,7 @@ export default async function PublicProfilePage({ params }: Props) {
     fetchPublicReviews(String(profileId)),
   ])
 
-  const agent = liveAgentEnabled ? (liveAgent ?? fallbackLiveAgentPrompt()) : null
+  const agent = liveAgentEnabled ? liveAgent : null
   const jsonLd = buildPublicCardJsonLd({
     slug: trimmed,
     origin,

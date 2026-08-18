@@ -1,6 +1,6 @@
 'use client'
 
-import { getGeminiApiKey } from '@/lib/gemini'
+import { LiveTokenError, requestGeminiLiveToken } from '@/lib/gemini'
 import { LIVE_AGENT_CONFIG } from '@/lib/liveAgent/config'
 import { getLiveAgentInitialPromptForLanguage, getSelectedLanguageForLiveAgent } from '@/lib/liveAgent/languagePrompt'
 import {
@@ -21,21 +21,11 @@ import {
   type SetStateAction,
 } from 'react'
 
-/** Primary model matches working Vite reference; fallbacks if Google renames endpoints. */
-const LIVE_MODEL_CANDIDATES = [
-  'gemini-3.1-flash-live-preview',
-  'gemini-live-2.5-flash-preview',
-  'gemini-2.0-flash-live-preview-04-09',
-] as const
-
 const MIC_INPUT_GAIN = 2.4
 const USER_SPEECH_THRESHOLD = 0.01
 const AGENT_SILENCE_RECOVERY_MS = 6500
 const SESSION_WAKE_INTERVAL_MS = 30000
 const NUDGE_COOLDOWN_MS = 9000
-
-export const MISSING_API_KEY_ERROR =
-  'Gemini API key is missing. Add GEMINI_API_KEY or NEXT_PUBLIC_GEMINI_API_KEY to .env and restart the dev server.'
 
 /** Text must use sendClientContent — sendRealtimeInput only accepts audio/media blobs. */
 function sendInitialGreetingSafe(session: Session, cardData: LiveAgentCardData) {
@@ -47,8 +37,8 @@ function sendInitialGreetingSafe(session: Session, cardData: LiveAgentCardData) 
       turns: greetingPrompt,
       turnComplete: true,
     })
-  } catch (e) {
-    console.error('Could not send initial greeting:', e)
+  } catch {
+    /* ignore */
   }
 }
 
@@ -139,8 +129,7 @@ export function useLiveAgent({
   const [isMuted, setIsMuted] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
 
-  const apiKey = getGeminiApiKey()
-  const canAutoOpen = Boolean(apiKey && readyToConnect)
+  const canAutoOpen = Boolean(cardData.profileId && readyToConnect)
   const isOpen = canAutoOpen && !panelDismissed
 
   const setIsOpen = useCallback(
@@ -157,7 +146,7 @@ export function useLiveAgent({
     () => systemInstructionProp ?? buildLiveAgentSystemPrompt(cardData),
     [systemInstructionProp, cardData]
   )
-  const displayError = error ?? (apiKey ? null : MISSING_API_KEY_ERROR)
+  const displayError = error
 
   const isMutedRef = useRef(false)
   const systemInstructionRef = useRef(systemInstruction)
@@ -349,8 +338,8 @@ export function useLiveAgent({
         checkSpeakingRef.current = 0
       }
       scheduledSourcesRef.current = []
-    } catch (e) {
-      console.error('Disconnect error', e)
+    } catch {
+      /* ignore */
     }
 
     setIsConnected(false)
@@ -381,9 +370,8 @@ export function useLiveAgent({
   const startConnection = useCallback(async () => {
     if (isConnectedRef.current || isConnectingRef.current) return
 
-    const key = getGeminiApiKey()
-    if (!key) {
-      setError(MISSING_API_KEY_ERROR)
+    if (!cardDataRef.current.profileId) {
+      setError('This card is not ready for AI Assistance yet.')
       return
     }
 
@@ -412,7 +400,6 @@ export function useLiveAgent({
     const attemptGen = ++connectionGenRef.current
 
     try {
-      const ai = new GoogleGenAI({ apiKey: key })
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -436,6 +423,14 @@ export function useLiveAgent({
 
       const micSource = audioContext.createMediaStreamSource(stream)
       micSourceRef.current = micSource
+      const liveToken = await requestGeminiLiveToken(cardDataRef.current.profileId)
+      if (Date.parse(liveToken.expiresAt) <= Date.now()) {
+        throw new Error('The live session token expired before connection. Please try again.')
+      }
+      const ai = new GoogleGenAI({ apiKey: liveToken.token })
+      const sessionInstruction = liveToken.context
+        ? `${systemInstructionRef.current}\n\nAUTHORITATIVE SERVER CARD CONTEXT:\n${liveToken.context}`
+        : systemInstructionRef.current
 
       const connectWithModel = (model: string, gen: number) => {
         const beginMicCapture = (sessionPromise: Promise<Session>) => {
@@ -508,7 +503,7 @@ export function useLiveAgent({
             speechConfig: {
               voiceConfig: { prebuiltVoiceConfig: { voiceName: LIVE_AGENT_CONFIG.voice } },
             },
-            systemInstruction: systemInstructionRef.current,
+            systemInstruction: sessionInstruction,
             tools: buildLiveAgentTools(),
           },
           callbacks: {
@@ -533,7 +528,9 @@ export function useLiveAgent({
                     scheduleSessionWake()
                   }, 8000)
                 })
-                .catch((e: unknown) => console.error('Could not get session:', e))
+                .catch(() => {
+                  /* ignore */
+                })
             },
             onmessage: (message: LiveServerMessage) => {
               if (gen !== connectionGenRef.current) return
@@ -599,7 +596,6 @@ export function useLiveAgent({
             onerror: (err: ErrorEvent) => {
               if (gen !== connectionGenRef.current) return
               const errDetails = err.message || 'unknown'
-              console.error('Live API Error:', err, 'Details:', errDetails)
               setError(`Connection error: ${errDetails}`)
               disconnect()
             },
@@ -621,38 +617,25 @@ export function useLiveAgent({
         return sessionPromise
       }
 
-      let lastError: unknown
-      for (const model of LIVE_MODEL_CANDIDATES) {
-        if (attemptGen !== connectionGenRef.current) return
-
+      const session = await connectWithModel(liveToken.model, attemptGen)
+      if (attemptGen !== connectionGenRef.current) {
         try {
-          const session = await connectWithModel(model, attemptGen)
-          if (attemptGen !== connectionGenRef.current) {
-            try {
-              session.close()
-            } catch {
-              /* stale attempt */
-            }
-            return
-          }
-          sessionRef.current = session
-          return
-        } catch (modelErr) {
-          lastError = modelErr
-          console.warn(`Live model "${model}" failed:`, modelErr)
-          endLiveSession(attemptGen)
+          session.close()
+        } catch {
+          /* stale attempt */
         }
+        return
       }
-
-      throw lastError ?? new Error('Could not connect to any Live API model.')
+      sessionRef.current = session
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Could not start voice session.'
-      console.error('Failed to start Live API', err)
 
       if (message.includes('Permission denied') || message.includes('NotAllowedError')) {
         setError('Microphone access is required for the Live Agent. Allow the mic, then tap the bot to retry.')
-      } else if (!getGeminiApiKey()) {
-        setError(MISSING_API_KEY_ERROR)
+      } else if (err instanceof LiveTokenError) {
+        setError(err.message)
+      } else if (message.toLowerCase().includes('expired')) {
+        setError('Your assistant session expired. Tap the mic to reconnect.')
       } else {
         setError(message)
       }
@@ -673,21 +656,21 @@ export function useLiveAgent({
   ])
 
   useEffect(() => {
-    if (!apiKey || !readyToConnect) return
+    if (!cardData.profileId || !readyToConnect) return
 
     return () => {
       hasStartedRef.current = false
       disconnect()
     }
-  }, [apiKey, disconnect, readyToConnect])
+  }, [cardData.profileId, disconnect, readyToConnect])
 
   useEffect(() => {
-    if (!apiKey || !readyToConnect) return
+    if (!cardData.profileId || !readyToConnect) return
     if (hasStartedRef.current || isConnectedRef.current || isConnectingRef.current) return
 
     hasStartedRef.current = true
     void startConnection()
-  }, [apiKey, readyToConnect, startConnection])
+  }, [cardData.profileId, readyToConnect, startConnection])
 
   const toggleConnection = useCallback(() => {
     if (isConnectedRef.current || isConnectingRef.current) {

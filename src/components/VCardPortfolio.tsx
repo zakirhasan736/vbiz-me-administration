@@ -108,6 +108,7 @@ export function TabPortfolio() {
 
       <AiDropFillZone
         section="portfolio"
+        profileId={cardId}
         currentDraft={{ portfolio: portfolios }}
         accent="violet"
         hint="Paste or upload projects — AI fills title, description, and URL (OCR for images)"

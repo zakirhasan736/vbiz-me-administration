@@ -36,8 +36,8 @@ export function LanguageModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             setFallbackLang(data.fallback)
           }
         }
-      } catch (err) {
-        console.error('Error fetching languages from backend API:', err)
+      } catch {
+        /* ignore */
       } finally {
         setIsLoading(false)
       }

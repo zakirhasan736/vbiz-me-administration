@@ -53,7 +53,13 @@ export type ProfileAiSkillGroup = {
   skills: string[]
 }
 
+export type ProfileAiAssistantContext = {
+  businessBrief: string
+  knowledge: string[]
+}
+
 export type ProfileAiData = {
+  profileId: string
   slug: string
   ownerName: string
   title: string
@@ -72,4 +78,8 @@ export type ProfileAiData = {
   education: ProfileAiEducation[]
   portfolio: ProfileAiPortfolio[]
   customSections: ProfileAiCustomSection[]
+  reviews: unknown[]
+  blogs: unknown[]
+  faqs: unknown[]
+  assistantContext: ProfileAiAssistantContext
 }

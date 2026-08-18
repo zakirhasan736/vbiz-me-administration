@@ -179,8 +179,8 @@ export async function initTranslation(): Promise<TranslationConfig> {
     if (cachedStr) {
       cachedConfig = JSON.parse(cachedStr)
     }
-  } catch (e) {
-    console.error('Failed to parse cached translation config:', e)
+  } catch {
+    /* ignore */
   }
 
   const fetchAndUpdateConfig = async (): Promise<TranslationConfig> => {
@@ -195,8 +195,8 @@ export async function initTranslation(): Promise<TranslationConfig> {
 
   if (cachedConfig) {
     applyTranslationConfigToDOM(cachedConfig)
-    void fetchAndUpdateConfig().catch((err) => {
-      console.warn('Background config refresh failed:', err)
+    void fetchAndUpdateConfig().catch(() => {
+      /* ignore */
     })
     return cachedConfig
   }
@@ -205,8 +205,7 @@ export async function initTranslation(): Promise<TranslationConfig> {
     const config = await fetchAndUpdateConfig()
     applyTranslationConfigToDOM(config)
     return config
-  } catch (error) {
-    console.error('initTranslation error, using fallback:', error)
+  } catch {
     const fallbackConfig = buildTranslationConfig()
     applyTranslationConfigToDOM(fallbackConfig)
     return fallbackConfig

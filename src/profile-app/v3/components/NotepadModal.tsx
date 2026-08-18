@@ -42,7 +42,6 @@ export const NotepadModal = ({
     try {
       setNotes(await fetchProfileNotes(cardOwnerId, visitorId))
     } catch (error) {
-      console.error('Error fetching public notes:', error)
       setNotes([])
       setErrorMsg(error instanceof Error ? error.message : 'Unable to load your notes.')
     } finally {
@@ -85,7 +84,6 @@ export const NotepadModal = ({
         setSuccessMsg('')
       }, 2500)
     } catch (err) {
-      console.error(err)
       setErrorMsg(err instanceof Error ? err.message : 'Unable to post your note.')
     } finally {
       setIsSaving(false)

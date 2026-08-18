@@ -118,8 +118,8 @@ export function handleLiveAgentToolCalls(functionCalls: FunctionCall[], session:
           response: { result },
         },
       })
-    } catch (e) {
-      console.error('Could not send tool response:', e)
+    } catch {
+      /* ignore */
     }
   }
 }
