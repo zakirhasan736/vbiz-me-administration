@@ -213,7 +213,6 @@ export function DashboardTourOverlay() {
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null)
   const [tooltip, setTooltip] = useState<TooltipPos>({ top: 0, left: 0, placement: 'center' })
   const [measuredVersion, setMeasuredVersion] = useState('')
-  const sizePassRef = useRef(0)
 
   const assistKey = useMemo(() => JSON.stringify(editorAssist), [editorAssist])
 
@@ -226,7 +225,6 @@ export function DashboardTourOverlay() {
 
   useEffect(() => {
     cardSizeRef.current = null
-    sizePassRef.current = 0
   }, [layoutVersion])
 
   const updateLayout = useCallback(
@@ -324,9 +322,7 @@ export function DashboardTourOverlay() {
       !prev || Math.abs(prev.width - nextSize.width) > 1 || Math.abs(prev.height - nextSize.height) > 1
 
     if (!sizeChanged) return
-    if (sizePassRef.current >= 3) return
 
-    sizePassRef.current += 1
     cardSizeRef.current = nextSize
     updateLayout(nextSize)
   }, [ready, isActive, currentStep, layoutVersion, updateLayout])

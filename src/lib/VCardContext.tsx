@@ -226,6 +226,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const isCreateMode = mode === 'create'
   const design = useAppSelector((s) => s.designSettings)
   const record = useAppSelector((s: RootState) => selectVCardById(s, cardId))
+  const recordRef = useRef(record)
+  recordRef.current = record
 
   const { data: remoteProfile, isFetching } = useGetProfileQuery(cardId || '', {
     skip: isCreateMode || !cardId,
@@ -327,29 +329,36 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     const mapped = mapApiProfileToVCardRecord(remoteProfile)
     const profileId = mapped.id
 
+    const metaPatch = {
+      views: mapped.views,
+      avatarImageUrl: mapped.avatarImageUrl,
+      backgroundImageUrl: mapped.backgroundImageUrl,
+      isActive: mapped.isActive,
+      isDraft: mapped.isDraft,
+      isPublic: mapped.isPublic,
+    }
+
     // Refetch after autosave must not rewrite the open editor — that remounts fields and steals focus.
     if (editorHydratedForIdRef.current === profileId) {
       if (saveGateRef.current.dirty || saveGateRef.current.saving) return
-      dispatch(
-        updateVCard({
-          id: profileId,
-          patch: {
-            views: mapped.views,
-            avatarImageUrl: mapped.avatarImageUrl,
-            backgroundImageUrl: mapped.backgroundImageUrl,
-            updatedAt: mapped.updatedAt,
-            isActive: mapped.isActive,
-            isDraft: mapped.isDraft,
-            isPublic: mapped.isPublic,
-          },
-        })
-      )
+      const current = recordRef.current
+      const metaChanged =
+        !current ||
+        current.views !== metaPatch.views ||
+        current.avatarImageUrl !== metaPatch.avatarImageUrl ||
+        current.backgroundImageUrl !== metaPatch.backgroundImageUrl ||
+        current.isActive !== metaPatch.isActive ||
+        current.isDraft !== metaPatch.isDraft ||
+        current.isPublic !== metaPatch.isPublic
+      if (!metaChanged) return
+      dispatch(updateVCard({ id: profileId, patch: metaPatch }))
       return
     }
 
     const mappedData = toVCardData(mapped)
     const pending = readPendingCardSave(profileId)
-    const localData = record?.id === profileId ? toVCardData(record) : null
+    const localRecord = recordRef.current
+    const localData = localRecord?.id === profileId ? toVCardData(localRecord) : null
 
     if (pending && localData) {
       editDataRef.current = localData
@@ -358,21 +367,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       for (const bucket of pending.buckets) dirtyBucketsRef.current.add(bucket)
       saveGateRef.current.dirty = true
       dispatch(addVCard({ id: profileId, seed: localData }))
-      dispatch(
-        updateVCard({
-          id: profileId,
-          patch: {
-            views: mapped.views,
-            avatarImageUrl: mapped.avatarImageUrl,
-            backgroundImageUrl: mapped.backgroundImageUrl,
-            createdAt: mapped.createdAt,
-            updatedAt: mapped.updatedAt,
-            isActive: mapped.isActive,
-            isDraft: mapped.isDraft,
-            isPublic: mapped.isPublic,
-          },
-        })
-      )
+      dispatch(updateVCard({ id: profileId, patch: { ...metaPatch, createdAt: mapped.createdAt } }))
       editorHydratedForIdRef.current = profileId
       window.setTimeout(() => {
         setSaveStatus('dirty')
@@ -397,23 +392,9 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(data))
     dispatch(addVCard({ id: profileId, seed: data }))
     dispatch(replaceVCardData({ id: profileId, data }))
-    dispatch(
-      updateVCard({
-        id: profileId,
-        patch: {
-          views: mapped.views,
-          avatarImageUrl: mapped.avatarImageUrl,
-          backgroundImageUrl: mapped.backgroundImageUrl,
-          createdAt: mapped.createdAt,
-          updatedAt: mapped.updatedAt,
-          isActive: mapped.isActive,
-          isDraft: mapped.isDraft,
-          isPublic: mapped.isPublic,
-        },
-      })
-    )
+    dispatch(updateVCard({ id: profileId, patch: { ...metaPatch, createdAt: mapped.createdAt } }))
     editorHydratedForIdRef.current = profileId
-  }, [remoteProfile, isCreateMode, dispatch, record])
+  }, [remoteProfile, isCreateMode, dispatch])
 
   useEffect(() => {
     if (isCreateMode || !cardId) return
