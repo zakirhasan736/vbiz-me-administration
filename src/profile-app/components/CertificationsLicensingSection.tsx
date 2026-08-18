@@ -3,11 +3,13 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useGetDynamicSectionQuery } from '@/redux/api'
-import { Award, ExternalLink } from 'lucide-react'
-import { motion } from 'motion/react'
+import { Award } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
+import { useState } from 'react'
 
 function resolveCertificateImage(item: DynamicPostListItem): string {
   const featured = item.featuredImage.trim()
@@ -32,10 +34,19 @@ function CertificationsLicensingSkeleton() {
   )
 }
 
-function CertificationCard({ item, idx, accent }: { item: DynamicPostListItem; idx: number; accent: string }) {
+function CertificationCard({
+  item,
+  idx,
+  accent,
+  onOpen,
+}: {
+  item: DynamicPostListItem
+  idx: number
+  accent: string
+  onOpen: (item: DynamicPostListItem) => void
+}) {
   const imageUrl = resolveCertificateImage(item)
   const preview = stripHtml(item.description)
-  const detailUrl = item.generalInfoUrl.trim() || item.attachments.find((a) => a.url?.trim())?.url?.trim() || ''
   const year = item.year?.trim() || formatYear(item.date)
   const issuer = item.issuer?.trim() || ''
   const credentialLabel = item.attachments[0]?.doc_name?.trim() || issuer || `CERT-${item.id}`
@@ -43,12 +54,21 @@ function CertificationCard({ item, idx, accent }: { item: DynamicPostListItem; i
     Boolean(imageUrl) &&
     (/\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(imageUrl) || !/\.(pdf|docx?|txt)(\?|$)/i.test(imageUrl))
 
-  const card = (
+  return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: idx * 0.1 }}
-      className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${detailUrl ? 'cursor-pointer' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(item)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onOpen(item)
+        }
+      }}
+      className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308] dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
       <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
         <div className="absolute inset-0 z-10 bg-linear-to-t from-white to-transparent dark:from-zinc-900" />
@@ -98,22 +118,12 @@ function CertificationCard({ item, idx, accent }: { item: DynamicPostListItem; i
             <span />
           )}
 
-          {detailUrl ? (
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm transition-colors duration-300 group-hover:bg-zinc-900 dark:border-zinc-700 dark:bg-zinc-800">
-              <ExternalLink size={16} style={{ color: accent }} />
-            </span>
-          ) : null}
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm transition-colors duration-300 group-hover:bg-zinc-900 dark:border-zinc-700 dark:bg-zinc-800">
+            <Award size={16} style={{ color: accent }} />
+          </span>
         </div>
       </div>
     </motion.article>
-  )
-
-  if (!detailUrl) return card
-
-  return (
-    <a href={detailUrl} target="_blank" rel="noopener noreferrer" className="block h-full">
-      {card}
-    </a>
   )
 }
 
@@ -122,6 +132,7 @@ export const CertificationsLicensingSection = () => {
   const profileId = cardOwnerId?.trim() ?? ''
   const template = design?.profileTemplate === 'v1' ? 'v1' : 'v2'
   const accent = design?.accentColor ?? (template === 'v1' ? '#dcc969' : '#eab308')
+  const [preview, setPreview] = useState<CertificatePreview | null>(null)
 
   const { data, isLoading, isError } = useGetDynamicSectionQuery(
     { profileId, sectionName: PUBLIC_SECTION_NAMES.certificates },
@@ -132,6 +143,17 @@ export const CertificationsLicensingSection = () => {
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0
+
+  const openCertificate = (item: DynamicPostListItem) => {
+    setPreview({
+      title: item.title,
+      imageUrl: resolveCertificateImage(item),
+      description: stripHtml(item.description),
+      detailUrl: item.generalInfoUrl.trim(),
+      credentialLabel: item.attachments[0]?.doc_name?.trim() || item.issuer?.trim() || `CERT-${item.id}`,
+      year: item.year?.trim() || formatYear(item.date),
+    })
+  }
 
   if (!profileId) return null
   if (showInitialLoader) return <CertificationsLicensingSkeleton />
@@ -189,9 +211,15 @@ export const CertificationsLicensingSection = () => {
 
       <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {items.map((item, idx) => (
-          <CertificationCard key={item.id} item={item} idx={idx} accent={accent} />
+          <CertificationCard key={item.id} item={item} idx={idx} accent={accent} onOpen={openCertificate} />
         ))}
       </div>
+
+      <AnimatePresence>
+        {preview ? (
+          <CertificateImageLightbox preview={preview} accent={accent} onClose={() => setPreview(null)} />
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }
