@@ -1,9 +1,10 @@
 'use client'
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
-import { redirectToLogin, shouldSilentlyRefreshSession } from '@/lib/auth/sessionPolicy'
+import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
+import { requestSessionExpiryWarning, shouldSilentlyRefreshSession } from '@/lib/auth/sessionPolicy'
 import { baseUrl } from '@/redux/api/api'
-import { logout, updateAuthState } from '@/redux/features/auth/user.slice'
+import { updateAuthState } from '@/redux/features/auth/user.slice'
 import type { DashboardPeriod } from '@/redux/features/profiles/profiles.api'
 import { useEffect, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
@@ -22,33 +23,6 @@ type DashboardKpiPayload = {
 
 function socketOriginFromApiUrl(apiUrl: string): string {
   return apiUrl.replace(/\/api\/v1\/?$/, '')
-}
-
-function clearServerSession(): void {
-  void fetch(`${baseUrl}/auth/logout`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  }).catch(() => undefined)
-}
-
-async function hydrateAccessToken(): Promise<string | null> {
-  try {
-    const res = await fetch(`${baseUrl}/auth/refresh-token`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    if (!res.ok) return null
-
-    const body = (await res.json()) as {
-      success?: boolean
-      data?: { accessToken?: string }
-    }
-    return body?.success && body?.data?.accessToken ? body.data.accessToken : null
-  } catch {
-    return null
-  }
 }
 
 /**
@@ -98,22 +72,18 @@ export function useDashboardLiveKpis(period: DashboardPeriod) {
     }
     const onConnectError = (error: Error) => {
       if (cancelled || refreshAttempted) return
+      if (!/auth|unauthori[sz]ed|token|jwt|expired/i.test(error?.message || '')) return
       refreshAttempted = true
 
       if (!shouldSilentlyRefreshSession(role)) {
-        if (!/auth|unauthori[sz]ed|token|jwt|expired/i.test(error?.message || '')) return
-        clearServerSession()
-        dispatch(logout())
-        redirectToLogin()
+        requestSessionExpiryWarning('unauthorized')
         return
       }
 
-      void hydrateAccessToken().then((accessToken) => {
+      void refreshSessionAccessToken(token).then((accessToken) => {
         if (cancelled) return
         if (!accessToken) {
-          clearServerSession()
-          dispatch(logout())
-          redirectToLogin()
+          requestSessionExpiryWarning('expired')
           return
         }
         dispatch(updateAuthState({ token: accessToken }))
