@@ -85,6 +85,76 @@ export default function PublicProfileLayout({
     }
   }, [record, designSettings, actionButtons, settingsAppearance, themeConfig, fromApi, myCard, initialMyCard])
 
+  const resolvedLiveAgentCardData = useMemo<LiveAgentCardData | undefined>(() => {
+    if (liveAgentCardData) {
+      return { ...liveAgentCardData, profileId: liveAgentCardData.profileId || earlyProfileId }
+    }
+    if (!record || !profileProps || !profileProps.liveAgentEnabled) return undefined
+    const personal = record.personal
+    const handles = record.social?.handles ?? {}
+    return {
+      profileId: earlyProfileId,
+      slug,
+      ownerName: personal.fullName,
+      title: personal.designation,
+      profession: personal.profession || null,
+      company: personal.company,
+      email: personal.email,
+      phone: personal.phone,
+      whatsapp: personal.whatsapp,
+      website: personal.website ?? '',
+      location: personal.address,
+      about: personal.about,
+      socials: {
+        facebook: handles.facebook || null,
+        instagram: handles.instagram || null,
+        twitter: handles.twitter || null,
+        linkedin: handles.linkedin || null,
+        youtube: handles.youtube || null,
+        tiktok: handles.tiktok || null,
+        rumble: handles.rumble || null,
+        truth: handles.truth || null,
+      },
+      skills: (record.skills ?? []).map((group) => ({ category: group.type, skills: group.skills })),
+      services: (record.services ?? []).map(({ title, description }) => ({ title, description })),
+      experience: (record.experience ?? []).map((item) => ({
+        title: item.jobTitle,
+        job_title: item.jobTitle,
+        company: item.company,
+        description: item.description,
+        from_date: item.fromDate,
+        to_date: item.toDate || null,
+        current_status: item.tillNow ? 1 : 0,
+      })),
+      education: (record.education ?? []).map((item) => ({
+        title: item.degree,
+        institute: item.institute,
+        from_date: item.fromDate,
+        to_date: item.toDate || null,
+        current_status: item.tillNow ? 1 : 0,
+      })),
+      portfolio: (record.portfolio ?? []).map(({ title, description, url }) => ({
+        title,
+        description,
+        url: url || null,
+        status: 1,
+      })),
+      customSections: (record.customTabs ?? []).flatMap((tab) =>
+        tab.items.map((item) => ({
+          section: tab.label,
+          title: item.title,
+          summary: item.description,
+          content: item.description,
+          date: '',
+        }))
+      ),
+      reviews: record.reviews ?? [],
+      blogs: record.generalPosts ?? [],
+      faqs: record.faqs ?? [],
+      assistantContext: { businessBrief: '', knowledge: [] },
+    }
+  }, [liveAgentCardData, earlyProfileId, record, profileProps, slug])
+
   useGoogleFont(profileProps?.design?.fontFamily)
 
   if (isLoading) {
@@ -114,7 +184,10 @@ export default function PublicProfileLayout({
   }
 
   const ownerName =
-    liveAgentCardData?.ownerName?.trim() || record.personal?.fullName?.trim() || profileProps.ownerName?.trim() || slug
+    resolvedLiveAgentCardData?.ownerName?.trim() ||
+    record.personal?.fullName?.trim() ||
+    profileProps.ownerName?.trim() ||
+    slug
 
   return (
     <ProfileThemeShell config={themeConfig} fromApi={fromApi} template={template}>
@@ -131,8 +204,8 @@ export default function PublicProfileLayout({
             {...profileProps}
             profileSlug={slug}
             initialNavBarLinks={initialNavBarLinks}
-            liveAgentCardData={liveAgentCardData}
-            liveAgentSystemPrompt={liveAgentSystemPrompt}
+            liveAgentCardData={resolvedLiveAgentCardData}
+            liveAgentSystemPrompt={liveAgentCardData ? liveAgentSystemPrompt : undefined}
           />
         </CardScopeProvider>
       </ProfileThemeProvider>

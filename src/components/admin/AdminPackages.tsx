@@ -19,16 +19,17 @@ import { useEffect, useMemo, useState } from 'react'
 
 const MAX_CARDS_FEATURE_KEY = 'max_cards'
 
-const DEFAULT_FEATURE_LABELS = [
-  'Allow 2D explainer',
-  'Background video upload',
-  'Background music upload',
-  'Intro video upload',
-  'Music upload',
-  'Video upload',
-  'YouTube background music',
-  'Extra profile fields',
-  'Social links',
+const DEFAULT_FEATURE_KEYS = [
+  'max_social_links',
+  'max_extra_fields',
+  'allow_video_upload',
+  'allow_music_upload',
+  'allow_intro_video_upload',
+  'allow_2d_explainer',
+  'max_file_size_mb',
+  'allow_yt_bg_music_upload',
+  'allow_bg_music_upload',
+  'allow_background_video_upload',
 ]
 
 type FormState = {
@@ -52,7 +53,7 @@ const emptyForm = (): FormState => ({
   sortOrder: '0',
   isActive: true,
   maxCards: '',
-  features: [...DEFAULT_FEATURE_LABELS],
+  features: [...DEFAULT_FEATURE_KEYS],
 })
 
 function isSystemFeatureKey(key: string) {
@@ -287,10 +288,10 @@ export default function AdminPackages() {
             Packages & Upgrades
           </h1>
           <p className="mt-1 text-xs font-semibold text-slate-400 md:text-sm">
-            Create and manage subscription packages, feature lists, pricing, and subscriber counts. The first active
-            package (lowest sort order) is auto-assigned to new corporate owners — set{' '}
-            <span className="font-bold text-slate-500 dark:text-slate-300">Max cards</span> on the package to control
-            their card limit.
+            Create and manage subscription packages, feature lists, pricing, and subscriber counts. New owner accounts
+            receive the matching free starter slug (corporate-starter or single-starter), with a compatible free-package
+            fallback when available. Set <span className="font-bold text-slate-500 dark:text-slate-300">Max cards</span>{' '}
+            on the package to control their card limit.
           </p>
         </div>
         <button
@@ -534,7 +535,7 @@ export default function AdminPackages() {
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                   />
                   <p className="text-[10px] font-semibold text-slate-400">
-                    Card limit for corporate owners on this package. Leave blank for no limit entitlement.
+                    Card limit for owner accounts on this package. Leave blank for no limit entitlement.
                   </p>
                 </div>
 

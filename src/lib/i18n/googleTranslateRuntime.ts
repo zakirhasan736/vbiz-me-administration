@@ -121,8 +121,7 @@ export function ensureGoogleTranslateLoaded(config: TranslationConfig, langCode?
         mountGoogleWidget(config)
         const combo = await waitForGoogleTranslateCombo()
         await finish(Boolean(combo))
-      } catch (error) {
-        console.error('Google Translate init failed:', error)
+      } catch {
         translateReadyPromise = null
         await finish(false)
       }
@@ -149,7 +148,6 @@ export function ensureGoogleTranslateLoaded(config: TranslationConfig, langCode?
       ? `${config.scriptUrl}&cb=googleTranslateElementInit`
       : `${config.scriptUrl}?cb=googleTranslateElementInit`
     script.onerror = () => {
-      console.error('Failed to load Google Translate script')
       translateReadyPromise = null
       void finish(false)
     }

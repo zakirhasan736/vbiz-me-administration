@@ -2,7 +2,7 @@
 
 import { EditorNavEmptyPanel } from '@/components/EditorNavEmptyPanel'
 import { EditorNavInfoPanel } from '@/components/EditorNavInfoPanel'
-import { TakeTourBanner } from '@/components/tour/TakeTourBanner'
+import { TakeTourTrigger } from '@/components/tour/TakeTourBanner'
 import { AboutMeEditorPanel } from '@/components/vcard/AboutMeEditorPanel'
 import { AddTabsModal } from '@/components/vcard/AddTabsModal'
 import { AiGenerateModal, type AiProfilePayload } from '@/components/vcard/AiGenerateModal'
@@ -692,11 +692,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
       <div className="bg-primary-500/10 pointer-events-none fixed top-20 left-1/2 h-125 w-full max-w-250 -translate-x-1/2 rounded-full blur-[150px]" />
 
       <div className="relative z-10 flex w-full max-w-325 flex-col gap-6">
-        <TakeTourBanner
-          variant="compact"
-          tourKey="create_card"
-          className="fixed bottom-4 left-1/2 z-60 -translate-x-1/2 px-3.5 py-2.5 text-[12px] shadow-lg max-sm:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[11px]"
-        />
         {isCreateMode && createOwner ? (
           <div className="animate-in slide-in-from-top-4 flex w-full flex-col gap-1 rounded-3xl border border-indigo-500/25 bg-indigo-500/10 p-5 px-6 text-indigo-900 duration-300 dark:text-indigo-100">
             <p className="text-[15px] font-bold">
@@ -753,18 +748,25 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={opensPublicCard ? openPublicCard : openLivePreview}
-              className={cn(
-                'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
-                !opensPublicCard && 'hidden md:inline-flex'
-              )}
-              title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
-            >
-              <Eye className="h-4 w-4" />
-              {opensPublicCard ? 'View' : 'Preview'}
-            </button>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <TakeTourTrigger
+                tourKey="create_card"
+                triggerLabel="Take card tour"
+                className="px-4 py-2.5 text-xs font-black"
+              />
+              <button
+                type="button"
+                onClick={opensPublicCard ? openPublicCard : openLivePreview}
+                className={cn(
+                  'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
+                  !opensPublicCard && 'hidden md:inline-flex'
+                )}
+                title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
+              >
+                <Eye className="h-4 w-4" />
+                {opensPublicCard ? 'View' : 'Preview'}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -775,18 +777,25 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               <ArrowLeft className="h-4 w-4" />
               {directoryLabel}
             </Link>
-            <button
-              type="button"
-              onClick={opensPublicCard ? openPublicCard : openLivePreview}
-              className={cn(
-                'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
-                !opensPublicCard && 'hidden md:inline-flex'
-              )}
-              title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
-            >
-              <Eye className="h-4 w-4" />
-              {opensPublicCard ? 'View' : 'Preview'}
-            </button>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <TakeTourTrigger
+                tourKey="create_card"
+                triggerLabel="Take card tour"
+                className="px-4 py-2.5 text-xs font-black"
+              />
+              <button
+                type="button"
+                onClick={opensPublicCard ? openPublicCard : openLivePreview}
+                className={cn(
+                  'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
+                  !opensPublicCard && 'hidden md:inline-flex'
+                )}
+                title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
+              >
+                <Eye className="h-4 w-4" />
+                {opensPublicCard ? 'View' : 'Preview'}
+              </button>
+            </div>
           </div>
         )}
 

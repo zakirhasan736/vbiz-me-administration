@@ -100,6 +100,7 @@ export function TabReviews() {
 
       <AiDropFillZone
         section="reviews"
+        profileId={cardId}
         currentDraft={{ reviews }}
         accent="amber"
         hint="Paste or upload reviews — AI maps author, quote, and rating (OCR for images)"

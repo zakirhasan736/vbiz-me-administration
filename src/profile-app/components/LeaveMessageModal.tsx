@@ -126,7 +126,6 @@ function LeaveMessageModalPanel({
     try {
       setVisitorNotes(await fetchProfileNotes(profileId, visitorId))
     } catch (error) {
-      console.error('Error loading public notes:', error)
       setVisitorNotes([])
       setNotesError(error instanceof Error ? error.message : 'Unable to load replies.')
     } finally {

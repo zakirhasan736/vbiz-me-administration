@@ -7,13 +7,20 @@ export type ReviewLink = {
 
 export type ReviewItem = {
   id: string | number
-  title: string
-  description: string | null
+  /** Current reviews API fields. */
+  author?: string | null
+  text?: string | null
+  imageUrl?: string | null
+  reviewUrl?: string | null
+  sortOrder?: number | null
+  /** Legacy dynamic-section fields. */
+  title?: string | null
+  description?: string | null
   post_type_id?: number
   created_at?: string
-  status: number
-  featured_image: string | { url?: string } | Array<{ url?: string }> | null
-  review_link: ReviewLink
+  status?: number | string | boolean | null
+  featured_image?: string | { url?: string } | Array<{ url?: string }> | null
+  review_link?: ReviewLink | null
   rating?: number | null
   general_info_url?: string | null
 }
@@ -24,9 +31,9 @@ export type ReviewsSectionPostType = {
 }
 
 export type ReviewsSectionData = {
-  type: string
-  postType: ReviewsSectionPostType
-  profile: { id: string }
+  type?: string
+  postType?: ReviewsSectionPostType
+  profile?: { id: string }
   items: ReviewItem[]
 }
 

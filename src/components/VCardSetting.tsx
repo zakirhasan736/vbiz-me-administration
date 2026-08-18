@@ -11,6 +11,14 @@ import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { cardAgentJson } from '@/lib/ai/cardAgentClient'
 import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import {
+  deleteAssistantKnowledge,
+  extractAssistantKnowledge,
+  getAssistantConfig,
+  getAssistantKnowledge,
+  patchAssistantConfig,
+  type AssistantKnowledgeItem,
+} from '@/lib/assistantApi'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
 import {
   MAX_MEDIA_UPLOAD_BYTES,
@@ -1135,36 +1143,43 @@ function AiAgentTrainModal({
   open,
   onClose,
   onTrained,
+  profileId,
 }: {
   open: boolean
   onClose: () => void
   onTrained: (summary: string) => void
+  profileId: string
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
   const [about, setAbout] = useState('')
   const [step, setStep] = useState<'form' | 'training' | 'done'>('form')
+  const [error, setError] = useState<string | null>(null)
 
   if (!open) return null
 
-  const handleTrain = () => {
+  const handleTrain = async () => {
     if (!about.trim() && files.length === 0) {
-      alert('Upload a document or write about your business first.')
+      setError('Upload a document or write about your business first.')
       return
     }
+    setError(null)
     setStep('training')
-    window.setTimeout(() => {
-      setStep('done')
+    try {
+      if (about.trim()) {
+        await patchAssistantConfig(profileId, { businessBrief: about.trim() })
+      }
+      await extractAssistantKnowledge(profileId, about, files)
       const summary =
-        about.trim().slice(0, 120) || (files[0] ? `Trained from ${files[0].name}` : 'Business profile trained')
-      window.setTimeout(() => {
-        onTrained(summary)
-        setStep('form')
-        setFiles([])
-        setAbout('')
-        onClose()
-      }, 900)
-    }, 1600)
+        about.trim().slice(0, 120) ||
+        (files.length === 1 ? `Trained from ${files[0].name}` : `Trained from ${files.length} files`)
+      onTrained(summary)
+      setStep('done')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not train the assistant.'
+      setError(message)
+      setStep('form')
+    }
   }
 
   return (
@@ -1205,7 +1220,7 @@ function AiAgentTrainModal({
               <input
                 ref={fileRef}
                 type="file"
-                accept=".pdf,.doc,.docx,.txt,.md"
+                accept=".pdf,.docx,.txt,.md,image/*,.png,.jpg,.jpeg,.webp"
                 multiple
                 className="hidden"
                 onChange={(e) => setFiles(Array.from(e.target.files || []))}
@@ -1217,7 +1232,9 @@ function AiAgentTrainModal({
               >
                 <Upload className="mx-auto mb-2 h-6 w-6 text-violet-500" />
                 <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Drop or choose files</p>
-                <p className="mt-1 text-[.6875rem] font-semibold text-slate-400">PDF, DOC, DOCX, TXT</p>
+                <p className="mt-1 text-[.6875rem] font-semibold text-slate-400">
+                  PDF, DOCX, TXT, MD, and images (including scanned documents)
+                </p>
               </button>
               {files.length > 0 && (
                 <ul className="mt-3 space-y-1.5">
@@ -1253,6 +1270,7 @@ function AiAgentTrainModal({
             >
               <Sparkles className="h-4 w-4" /> Read & train assistant
             </button>
+            {error ? <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">{error}</p> : null}
           </div>
         )}
 
@@ -1273,6 +1291,18 @@ function AiAgentTrainModal({
             <p className="mt-1 text-[.75rem] font-semibold text-slate-500">
               Ready to chat with guests using your business knowledge.
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                setStep('form')
+                setFiles([])
+                setAbout('')
+                onClose()
+              }}
+              className="mt-5 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-black text-white uppercase"
+            >
+              Done
+            </button>
           </div>
         )}
       </div>
@@ -1281,10 +1311,47 @@ function AiAgentTrainModal({
 }
 
 function CardAiAssistancePanel() {
-  const { vCardData, updateData } = useVCard()
+  const { cardId, vCardData, updateData } = useVCard()
   const active = isAiAssistanceEnabled(vCardData.aiAssistanceEnabled)
   const [showTrain, setShowTrain] = useState(false)
   const [lastTrain, setLastTrain] = useState<string | null>(null)
+  const [knowledge, setKnowledge] = useState<AssistantKnowledgeItem[]>([])
+  const [loadingKnowledge, setLoadingKnowledge] = useState(false)
+  const [configBusy, setConfigBusy] = useState(false)
+
+  const refreshTraining = useCallback(async () => {
+    if (!cardId || isLocalTempId(cardId)) return
+    setLoadingKnowledge(true)
+    try {
+      const [config, items] = await Promise.all([getAssistantConfig(cardId), getAssistantKnowledge(cardId)])
+      setKnowledge(items)
+      setLastTrain(config.lastTrainedSummary || config.lastTrainedAt || items[0]?.createdAt || null)
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Could not load assistant training.')
+    } finally {
+      setLoadingKnowledge(false)
+    }
+  }, [cardId])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void refreshTraining(), 0)
+    return () => window.clearTimeout(timer)
+  }, [refreshTraining])
+
+  const toggleAssistant = async () => {
+    const next = !active
+    updateData('aiAssistanceEnabled', next)
+    if (!cardId || isLocalTempId(cardId)) return
+    setConfigBusy(true)
+    try {
+      await patchAssistantConfig(cardId, { enabled: next })
+    } catch (err) {
+      updateData('aiAssistanceEnabled', active)
+      notify.error(err instanceof Error ? err.message : 'Could not update AI Assistance.')
+    } finally {
+      setConfigBusy(false)
+    }
+  }
 
   return (
     <div className="max-w-3xl space-y-5">
@@ -1315,7 +1382,8 @@ function CardAiAssistancePanel() {
           </div>
           <button
             type="button"
-            onClick={() => updateData('aiAssistanceEnabled', !active)}
+            disabled={configBusy}
+            onClick={() => void toggleAssistant()}
             className={cn(
               'relative inline-flex h-8 w-14 shrink-0 items-center self-start rounded-full transition-colors sm:self-center',
               active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
@@ -1334,17 +1402,49 @@ function CardAiAssistancePanel() {
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            disabled={!active}
+            disabled={!active || !cardId || isLocalTempId(cardId)}
             onClick={() => setShowTrain(true)}
             className={cn(
               'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-[.6875rem] font-black tracking-wider uppercase',
-              active
+              active && cardId && !isLocalTempId(cardId)
                 ? 'bg-violet-600 text-white hover:bg-violet-700'
                 : 'cursor-not-allowed bg-slate-100 text-slate-400 dark:bg-white/5'
             )}
           >
             <Sparkles className="h-3.5 w-3.5" /> Train with docs / business brief
           </button>
+        </div>
+
+        <div className="mt-5 border-t border-violet-200/60 pt-4 dark:border-violet-500/20">
+          <p className="text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">Knowledge sources</p>
+          {loadingKnowledge ? (
+            <p className="mt-2 text-xs font-semibold text-slate-500">Loading training history…</p>
+          ) : knowledge.length ? (
+            <ul className="mt-2 space-y-2">
+              {knowledge.map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-3 text-xs font-semibold">
+                  <span className="min-w-0 truncate text-slate-700 dark:text-slate-200">{item.name}</span>
+                  <button
+                    type="button"
+                    className="shrink-0 text-rose-600 hover:underline"
+                    onClick={async () => {
+                      if (!cardId) return
+                      try {
+                        await deleteAssistantKnowledge(cardId, item.id)
+                        setKnowledge((current) => current.filter((entry) => entry.id !== item.id))
+                      } catch (err) {
+                        notify.error(err instanceof Error ? err.message : 'Could not delete this source.')
+                      }
+                    }}
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-xs font-semibold text-slate-500">No training sources yet.</p>
+          )}
         </div>
       </div>
 
@@ -1360,7 +1460,11 @@ function CardAiAssistancePanel() {
       <AiAgentTrainModal
         open={showTrain}
         onClose={() => setShowTrain(false)}
-        onTrained={(summary) => setLastTrain(summary)}
+        profileId={cardId ?? ''}
+        onTrained={(summary) => {
+          setLastTrain(summary)
+          void refreshTraining()
+        }}
       />
     </div>
   )

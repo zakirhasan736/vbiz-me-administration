@@ -11,7 +11,13 @@ import { SYSTEM_PROMPT_TEMPLATE } from '@/lib/liveAgent/systemPromptTemplate'
 import type { LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
 
 export function buildCardPayloadForPrompt(data: LiveAgentCardData): string {
+  const bounded = (value: unknown, maxLength: number) => {
+    const text = typeof value === 'string' ? value : JSON.stringify(value ?? '')
+    return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text
+  }
   return JSON.stringify({
+    profileId: data.profileId,
+    slug: data.slug,
     ownerName: data.ownerName,
     title: data.title,
     company: data.company,
@@ -25,6 +31,14 @@ export function buildCardPayloadForPrompt(data: LiveAgentCardData): string {
     experience: data.experience ?? [],
     education: data.education ?? [],
     portfolio: data.portfolio ?? [],
+    reviews: data.reviews ?? [],
+    blogs: data.blogs ?? [],
+    faqs: data.faqs ?? [],
+    customSections: data.customSections ?? [],
+    assistantContext: {
+      businessBrief: bounded(data.assistantContext?.businessBrief ?? '', 6000),
+      knowledge: (data.assistantContext?.knowledge ?? []).slice(0, 30).map((item) => bounded(item, 3000)),
+    },
   })
 }
 

@@ -105,13 +105,13 @@ type JobField = {
   tabId: string
   fieldKey: string
   fieldLabel: string
+  required: boolean
   status: string
   source: string
   currentValue?: unknown
   aiGenerationAllowed: boolean
   prompt: string
   special?: string
-  required?: boolean
 }
 
 type JobSnapshot = AnalyzeResponse & {
@@ -131,6 +131,19 @@ type JobSnapshot = AnalyzeResponse & {
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+const WORKING_JOB_STATUSES = new Set(['QUEUED', 'EXTRACTING', 'ARCHITECTING', 'MAPPING_FIELDS', 'GENERATING'])
+
+async function waitForCardAgentJob(
+  snapshot: JobSnapshot,
+  onProgress: (next: JobSnapshot) => void
+): Promise<JobSnapshot> {
+  if (!WORKING_JOB_STATUSES.has(snapshot.status)) return snapshot
+  await sleep(1400)
+  const next = await cardAgentJobGet<JobSnapshot>(snapshot.jobId)
+  onProgress(next)
+  return waitForCardAgentJob(next, onProgress)
 }
 
 const CARD_BUILD_PIPELINE: PipelineStep[] = [
@@ -1073,39 +1086,36 @@ export function AiCardAgentWizard({
       for (const file of uploadFiles) extractForm.append('files', file)
       extractForm.set('existingCard', JSON.stringify(draftRef.current || {}))
 
-      let job = await cardAgentForm<JobSnapshot>('jobs', extractForm)
-      if (job.jobId) {
-        sessionIdRef.current = job.jobId
-        sourceContextRef.current.sessionId = job.jobId
+      const initialJob = await cardAgentForm<JobSnapshot>('jobs', extractForm)
+      if (initialJob.jobId) {
+        sessionIdRef.current = initialJob.jobId
+        sourceContextRef.current.sessionId = initialJob.jobId
         try {
-          window.localStorage.setItem(JOB_STORAGE_KEY, job.jobId)
+          window.localStorage.setItem(JOB_STORAGE_KEY, initialJob.jobId)
         } catch {
           /* ignore */
         }
       }
-      if (job.userProgress?.length) {
+      if (initialJob.userProgress?.length) {
         setPipelineSteps((prev) => {
           let next = prev
-          for (const step of job.userProgress || []) {
+          for (const step of initialJob.userProgress || []) {
             next = setStep(next, step.id, step.status, step.detail)
           }
           return setStep(next, 'understand', 'active')
         })
       }
-      const working = new Set(['QUEUED', 'EXTRACTING', 'ARCHITECTING', 'MAPPING_FIELDS', 'GENERATING'])
-      while (working.has(job.status)) {
-        await sleep(1400)
-        job = await cardAgentJobGet<JobSnapshot>(job.jobId)
-        if (job.userProgress?.length) {
+      const job = await waitForCardAgentJob(initialJob, (nextJob) => {
+        if (nextJob.userProgress?.length) {
           setPipelineSteps((prev) => {
             let next = prev
-            for (const step of job.userProgress || []) {
+            for (const step of nextJob.userProgress || []) {
               next = setStep(next, step.id, step.status, step.detail)
             }
             return next
           })
         }
-      }
+      })
       if (job.status === 'FAILED') {
         throw new Error(job.errorMessage || 'Could not design your card.')
       }
@@ -1197,10 +1207,9 @@ export function AiCardAgentWizard({
         )
         .map((tab) => tab.tabId)
       setSelectedRecs(preselected.length ? preselected : recs.map((item) => item.navId))
-      const report = await refreshGaps(job.selectedNavIds || mapped.enabledNavIds, mapped.data)
       if (!recs.length) {
-        pushMsg('assistant', 'No extra tabs to suggest — I’ll check empty fields on the current card next.')
-        askNextGap(report)
+        pushMsg('assistant', 'No extra tabs to suggest — I’ll collect the required owner details next.')
+        await continueFieldFlow(job)
       } else {
         pushMsg(
           'assistant',
@@ -1244,20 +1253,52 @@ export function AiCardAgentWizard({
     [applyDraft, onEnableNavIds]
   )
 
-  const continueFieldFlow = (job: JobSnapshot) => {
+  const continueFieldFlow = async (job: JobSnapshot) => {
     ingestJob(job)
+    if (job.nextField && !job.nextField.required) {
+      const generated = sessionIdRef.current
+        ? await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'fast-mode', { mode: 'ai' })
+        : job
+      ingestJob(generated)
+      const report = await refreshGaps(generated.selectedNavIds || activeNav, draftRef.current)
+      pushMsg(
+        'assistant',
+        'Thanks — I have the required owner details. I used your supplied context for optional copy where it was safe, and I’ll now review the selected sections with you.'
+      )
+      askNextGap(report)
+      return
+    }
+    if (!job.nextField && job.status === 'WAITING_FOR_USER_INPUT' && sessionIdRef.current) {
+      const assembled = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'assemble', {})
+      ingestJob(assembled)
+      const report = await refreshGaps(assembled.selectedNavIds || activeNav, draftRef.current)
+      askNextGap(report)
+      return
+    }
     if (job.status === 'READY' || (!job.nextField && job.status !== 'WAITING_FOR_USER_INPUT')) {
-      setPhase('preview')
-      pushMsg('assistant', 'Everything we can finish is ready. Preview the card, then fill it.')
+      const report = await refreshGaps(job.selectedNavIds || activeNav, draftRef.current)
+      askNextGap(report)
       return
     }
     if (job.nextField) {
       setFieldDraft(typeof job.nextField.currentValue === 'string' ? job.nextField.currentValue : '')
       setAiPreview('')
       setPhase('field')
+      const question =
+        job.nextField.fieldKey === 'fullName'
+          ? 'What name should appear publicly on the card?'
+          : job.nextField.fieldKey === 'email'
+            ? 'What email address should visitors use to contact the card owner?'
+            : job.nextField.fieldKey === 'dob'
+              ? "What is the card owner's date of birth? It is required to create the card and cannot be inferred or generated by AI. Please use YYYY-MM-DD."
+              : job.nextField.fieldKey === 'company'
+                ? 'What business or company name should appear on the card?'
+                : job.nextField.prompt
+      pushMsg('assistant', question)
       return
     }
-    setPhase('preview')
+    const report = await refreshGaps(job.selectedNavIds || activeNav, draftRef.current)
+    askNextGap(report)
   }
 
   const runFastModeChoice = async (mode: 'ai' | 'found' | 'review') => {
@@ -1269,7 +1310,7 @@ export function AiCardAgentWizard({
         const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'tabs', {
           selectedNavIds: ['home', ...selectedRecs],
         })
-        continueFieldFlow(job)
+        await continueFieldFlow(job)
         return
       }
       pushMsg('user', mode === 'ai' ? 'Let AI handle what it can' : 'Use only what we found')
@@ -1277,7 +1318,7 @@ export function AiCardAgentWizard({
         selectedNavIds: ['home', ...selectedRecs],
       })
       const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'fast-mode', { mode })
-      continueFieldFlow(job)
+      await continueFieldFlow(job)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not continue')
     } finally {
@@ -1301,7 +1342,7 @@ export function AiCardAgentWizard({
         setBusy(false)
         return
       }
-      continueFieldFlow(job)
+      await continueFieldFlow(job)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save that field')
     } finally {
@@ -1322,11 +1363,10 @@ export function AiCardAgentWizard({
     setBusy(true)
     try {
       if (sessionIdRef.current) {
-        try {
-          await cardAgentJobPost(sessionIdRef.current, 'tabs', { selectedNavIds: nextNav })
-        } catch {
-          /* local draft still has the chosen tabs */
-        }
+        const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'tabs', { selectedNavIds: nextNav })
+        pushMsg('assistant', `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}.`)
+        await continueFieldFlow(job)
+        return
       }
       const report = await refreshGaps(nextNav)
       pushMsg(
@@ -2265,14 +2305,16 @@ export function AiCardAgentWizard({
                   Improve with AI
                 </button>
               ) : null}
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void applyCurrentField('SKIP')}
-                className="rounded-full border px-3 py-2 text-[11px] font-black"
-              >
-                Skip
-              </button>
+              {!nextField.required ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void applyCurrentField('SKIP')}
+                  className="rounded-full border px-3 py-2 text-[11px] font-black"
+                >
+                  Skip
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}

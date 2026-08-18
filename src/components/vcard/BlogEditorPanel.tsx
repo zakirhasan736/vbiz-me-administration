@@ -108,6 +108,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
 
       <AiDropFillZone
         section="blogs"
+        profileId={profileId}
         currentDraft={{ blogs: posts }}
         accent="violet"
         hint="Drop or paste posts — AI extracts title, summary, and category (OCR for images)"

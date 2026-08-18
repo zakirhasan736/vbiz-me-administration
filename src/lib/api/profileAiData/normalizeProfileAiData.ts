@@ -209,6 +209,37 @@ function normalizeCustomSections(raw: unknown): ProfileAiCustomSection[] {
     .filter((c): c is ProfileAiCustomSection => Boolean(c))
 }
 
+function normalizeUnknownList(raw: unknown): unknown[] {
+  return Array.isArray(raw) ? raw.slice(0, 100) : []
+}
+
+function normalizeAssistantContext(data: LooseRecord): ProfileAiData['assistantContext'] {
+  const context = asRecord(data.assistantContext ?? data.assistant_context) ?? {}
+  const rawKnowledge = context.knowledge ?? context.knowledgeText ?? context.knowledge_text ?? data.knowledge
+  const knowledge = Array.isArray(rawKnowledge)
+    ? rawKnowledge
+        .map((item) => {
+          if (typeof item === 'string') return item.trim()
+          const row = asRecord(item)
+          return row ? asString(row.content ?? row.text ?? row.summary).trim() : ''
+        })
+        .filter(Boolean)
+        .slice(0, 50)
+    : typeof rawKnowledge === 'string' && rawKnowledge.trim()
+      ? [rawKnowledge.trim()]
+      : []
+  return {
+    businessBrief: asString(
+      context.businessBrief ??
+        context.business_brief ??
+        context.businessText ??
+        data.businessBrief ??
+        data.business_brief
+    ),
+    knowledge,
+  }
+}
+
 /**
  * Normalizes Laravel snake_case and Node camelCase `/profile-ai-data` payloads
  * into the frontend `ProfileAiData` shape used by Education/Experience/Skills/Live Agent.
@@ -225,6 +256,7 @@ export function normalizeProfileAiData(raw: unknown): ProfileAiData | null {
       : outer
 
   return {
+    profileId: asString(data.profileId ?? data.profile_id ?? data.id),
     slug: asString(data.slug),
     ownerName: asString(data.ownerName || data.owner_name || data.name),
     title: asString(data.title || data.designation),
@@ -243,5 +275,9 @@ export function normalizeProfileAiData(raw: unknown): ProfileAiData | null {
     education: normalizeEducation(data.education),
     portfolio: normalizePortfolio(data.portfolio || data.portfolios),
     customSections: normalizeCustomSections(data.customSections || data.custom_sections),
+    reviews: normalizeUnknownList(data.reviews),
+    blogs: normalizeUnknownList(data.blogs || data.posts),
+    faqs: normalizeUnknownList(data.faqs),
+    assistantContext: normalizeAssistantContext(data),
   }
 }

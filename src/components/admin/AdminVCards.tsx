@@ -214,8 +214,8 @@ export default function AdminVCards() {
           })
         )
       }
-    } catch (err) {
-      console.error('List refresh failed:', err)
+    } catch {
+      /* ignore */
     }
   }
 
@@ -236,8 +236,7 @@ export default function AdminVCards() {
       if (typeof result.total === 'number') {
         dispatch(setTotal(result.total))
       }
-    } catch (err) {
-      console.error('Show more failed:', err)
+    } catch {
       notify.info('Could not load more cards.')
     } finally {
       setIsLoadingMore(false)
@@ -386,8 +385,7 @@ export default function AdminVCards() {
       if (trendsCard && ids.includes(trendsCard.id)) setTrendsCard(null)
       notify.info('Selected cards deleted successfully.')
       void refreshListFromStart()
-    } catch (err) {
-      console.error('Batch delete failed:', err)
+    } catch {
       notify.info('Error executing bulk delete.')
     } finally {
       setIsBatchDeleting(false)
@@ -470,7 +468,6 @@ export default function AdminVCards() {
         })
       }
     } catch (e) {
-      console.error(e)
       const message =
         (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not duplicate card.'
       notify.error(message)
@@ -494,8 +491,7 @@ export default function AdminVCards() {
     try {
       await exportAdminProfilesCsv(exportFilterParams, () => token || undefined)
       notify.info('CSV export downloaded.')
-    } catch (err) {
-      console.error('Export failed:', err)
+    } catch {
       notify.info('Error exporting CSV data.')
     } finally {
       setIsExporting(false)
@@ -529,8 +525,7 @@ export default function AdminVCards() {
       downloadAnchor.click()
       downloadAnchor.remove()
       setSelectedCardIds([])
-    } catch (err) {
-      console.error('Batch export failed:', err)
+    } catch {
       notify.info('Error exporting CSV data.')
     }
   }

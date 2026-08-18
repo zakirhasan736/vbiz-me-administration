@@ -10,6 +10,7 @@ import type { ServicesQueryResult } from '@/interfaces/api/services.interface'
 import type { NavBarLinksData, PostTypeNavLink } from '@/interfaces/navbarLinks.interface'
 import { getAboutMeDraft, hasAboutMeDraftContent, subscribeAboutMeDraft, type AboutMeDraft } from '@/lib/aboutMeDraft'
 import { mapAboutMeItemToListItem } from '@/lib/api/aboutMe/mapAboutMe'
+import { buildReviewsQueryResult } from '@/lib/api/reviews/mapReviews'
 import { NAV_ITEM_BY_ID } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { dynamicSectionApi } from '@/redux/features/dynamicSection/dynamicSection.api'
@@ -100,7 +101,7 @@ function buildDraftNavBarLinks(input: {
   if ((input.portfolio || []).some((p) => p.active !== false && (p.title?.trim() || p.imageUrl?.trim()))) {
     pushUnique(draftPostType('gallery', 'gallery', 'Gallery'))
   }
-  if ((input.reviews || []).some((r) => r.author?.trim() || r.text?.trim())) {
+  if ((input.reviews || []).some((r) => r.author?.trim() || r.text?.trim() || r.url?.trim())) {
     pushUnique(draftPostType('reviews', 'reviews', 'Reviews'))
   }
   if ((input.education || []).some((e) => e.institute?.trim() || e.degree?.trim())) {
@@ -437,32 +438,20 @@ export function EmbeddedDraftCacheSync({
 
     const reviewDraft = reviews
     if (reviewDraft) {
-      const slides = reviewDraft
-        .filter((r) => r.author?.trim() || r.text?.trim())
-        .map((r, index) => {
-          const rawRating = typeof r.rating === 'number' ? r.rating : Number(r.rating)
-          const rating = Number.isFinite(rawRating) ? Math.min(5, Math.max(1, Math.round(rawRating))) : 5
-          const linkUrl = r.url?.trim() || null
-          return {
+      const reviewsResult: ReviewsQueryResult = buildReviewsQueryResult(
+        reviewDraft
+          .filter((r) => r.author?.trim() || r.text?.trim() || r.url?.trim())
+          .map((r, index) => ({
             id: r.id || index + 1,
-            title: r.author || (linkUrl ? 'Leave a Review' : 'Review'),
-            plainDescription: r.text || '',
-            htmlDescription: r.text || '',
-            image: r.imageUrl || '',
-            linkUrl,
-            isLinkCard: Boolean(linkUrl) && !(r.author?.trim() || r.text?.trim()),
-            rating,
-          }
-        })
-      const averageRating =
-        slides.length > 0 ? Math.round((slides.reduce((sum, s) => sum + s.rating, 0) / slides.length) * 10) / 10 : 0
-      const reviewsResult: ReviewsQueryResult = {
-        sectionTitle: 'Reviews',
-        slides,
-        leaveReviewUrl: null,
-        reviewCount: slides.length,
-        averageRating,
-      }
+            author: r.author,
+            text: r.text,
+            rating: r.rating,
+            imageUrl: r.imageUrl,
+            reviewUrl: r.url,
+            status: 1,
+            sortOrder: index,
+          }))
+      )
       upsertIfChanged('reviews', reviewsResult, (result) =>
         dispatch(reviewsApi.util.upsertQueryData('getReviews', profileId, result))
       )
@@ -481,6 +470,7 @@ export function EmbeddedDraftCacheSync({
         .replace(/\s+/g, ' ')
         .trim()
     const aiData: ProfileAiData = {
+      profileId,
       slug: '',
       ownerName: '',
       title: '',
@@ -543,6 +533,10 @@ export function EmbeddedDraftCacheSync({
             date: '',
           }))
       ),
+      reviews: reviews || [],
+      blogs: generalPosts || [],
+      faqs: faqs || [],
+      assistantContext: { businessBrief: '', knowledge: [] },
     }
     upsertIfChanged('aiData', aiData, (result) =>
       dispatch(profileAiDataApi.util.upsertQueryData('getProfileAiData', profileId, result))

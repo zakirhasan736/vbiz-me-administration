@@ -199,7 +199,6 @@ export default function AdminMyCards() {
         })
       }
     } catch (e) {
-      console.error(e)
       const message =
         (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not duplicate card.'
       notify.error(message)

@@ -14,7 +14,8 @@ export async function fetchProfileAiData(profileId: number | string): Promise<Pr
 
     if (!response.ok) return null
 
-    return normalizeProfileAiData(await response.json())
+    const data = normalizeProfileAiData(await response.json())
+    return data ? { ...data, profileId: data.profileId || id } : null
   } catch {
     return null
   }

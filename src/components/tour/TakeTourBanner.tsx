@@ -14,6 +14,7 @@ type TakeTourBannerProps = {
   variant?: 'banner' | 'compact'
   className?: string
   onStart?: () => void
+  triggerLabel?: string
   title?: string
   body?: string
   tourKey?: TourKey
@@ -25,7 +26,8 @@ export function TakeTourTrigger({
   className,
   onStart,
   tourKey = 'dashboard',
-}: Pick<TakeTourBannerProps, 'className' | 'onStart' | 'tourKey'>) {
+  triggerLabel = 'Take a tour',
+}: Pick<TakeTourBannerProps, 'className' | 'onStart' | 'tourKey' | 'triggerLabel'>) {
   const { user, loading } = useAuth()
   const role = useAppSelector((state) => state.user.user?.role)
   const { startTour, isActive } = useDashboardTour()
@@ -52,7 +54,7 @@ export function TakeTourTrigger({
       )}
     >
       <Compass className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-      <span className="truncate">Take a tour</span>
+      <span className="truncate">{triggerLabel}</span>
     </button>
   )
 }
@@ -61,6 +63,7 @@ export function TakeTourBanner({
   variant = 'banner',
   className,
   onStart,
+  triggerLabel,
   title = 'Take a dashboard tour',
   body = 'New to vBiz? Walk through overview metrics and actions — you can start this anytime.',
   tourKey = 'dashboard',
@@ -86,7 +89,7 @@ export function TakeTourBanner({
   if (loading || !user?.uid || isActive || aiOpen) return null
   if (tourKey === 'dashboard' && role !== 'vcard-owner') return null
   if (variant === 'compact') {
-    return <TakeTourTrigger className={className} onStart={onStart} tourKey={tourKey} />
+    return <TakeTourTrigger className={className} onStart={onStart} tourKey={tourKey} triggerLabel={triggerLabel} />
   }
   if (dismissed || isTourBannerDismissed(tourKey, user.uid)) return null
   if (!alwaysShow && !isTourCompleted(tourKey, user.uid)) return null

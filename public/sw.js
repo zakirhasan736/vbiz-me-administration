@@ -1,4 +1,3 @@
-const DEFAULT_ICON = '/favicon.ico'
 const CARD_PUSH_MEDIA_CACHE = 'vbiz-card-push-media-v1'
 const LAST_MEDIA_SLUG = '__last__'
 const CLIENT_MEDIA_TIMEOUT_MS = 900
@@ -138,12 +137,15 @@ function normalizePushPayload(raw) {
   const url = normalizeCardUrl(raw.url, slug)
 
   const avatarImageUrl = firstNonEmpty(
+    raw.icon,
+    raw.avatarUrl,
+    raw.avatarImageUrl,
     raw.logo,
     raw.company_logo,
     raw.companyLogo,
     raw.company_icon,
     raw.companyIcon,
-    raw.avatarImageUrl,
+    raw.avatar_url,
     raw.avatar_image_url,
     raw.profile_image,
     raw.profileImage,
@@ -152,7 +154,7 @@ function normalizePushPayload(raw) {
   )
   const avatarUrl = firstNonEmpty(raw.avatarUrl, raw.avatar_url, avatarImageUrl)
   const avatarVideoUrl = firstNonEmpty(raw.avatarVideoUrl, raw.avatar_video_url, raw.video)
-  const icon = firstNonEmpty(avatarImageUrl, avatarUrl)
+  const icon = firstNonEmpty(raw.icon, avatarImageUrl, avatarUrl)
 
   return {
     title: firstNonEmpty(raw.title, raw.notification_title),
@@ -558,9 +560,12 @@ self.addEventListener('push', (event) => {
         displayLink: copy.displayLink,
       }
 
-      const iconSource = firstNonEmpty(payload.avatarImageUrl, payload.avatarUrl, payload.icon)
-      const icon = toAbsoluteUrl(isStaticImageUrl(iconSource) ? iconSource : DEFAULT_ICON)
-      const hasCardImage = isStaticImageUrl(iconSource)
+      const iconSource = firstNonEmpty(payload.icon, payload.avatarUrl, payload.avatarImageUrl)
+      const icon = isStaticImageUrl(iconSource)
+        ? toAbsoluteUrl(iconSource)
+        : payload.slug
+          ? toAbsoluteUrl(`/v/${payload.slug}/icon/192`)
+          : ''
 
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       const hasFocusedClient = clientList.some((client) => client.focused)
@@ -574,9 +579,7 @@ self.addEventListener('push', (event) => {
 
       await self.registration.showNotification(copy.title, {
         body: copy.body,
-        icon,
-        badge: icon,
-        ...(hasCardImage ? { image: icon } : {}),
+        ...(icon ? { icon, badge: icon, image: icon } : {}),
         data: richPayload,
         tag: payload.slug ? `vbiz-card-${payload.slug}` : 'vbiz-card-update',
         renotify: true,

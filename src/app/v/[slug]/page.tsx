@@ -4,7 +4,7 @@ import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfil
 import { fetchNavBarLinks } from '@/lib/api/navbar/fetchNavBarLinks'
 import { resolveProfileSettingsTheme } from '@/lib/api/profileSettings/fetchProfileSettings'
 import { fetchPublicReviews } from '@/lib/api/reviews/fetchPublicReviews'
-import { fallbackLiveAgentPrompt, resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
+import { resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
 import { buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
 import {
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!trimmed) return {}
 
   const myCard = await fetchMyCardBySlug(trimmed)
-  const name = resolvePwaDisplayName(myCard?.profile?.name, trimmed)
+  const name = resolvePwaDisplayName(myCard?.profile?.name?.trim() || myCard?.profile?.company_name, trimmed)
   const headerStore = await headers()
   const requestOrigin = resolveRequestOrigin(
     headerStore.get('x-forwarded-host') || headerStore.get('host'),
@@ -78,15 +78,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     cardPath: buildProfilePath(trimmed),
     myCard,
   })
-  const title = typeof seo.title === 'string' ? seo.title : name
 
   return {
     ...seo,
     ...pwaMeta,
-    applicationName: title,
+    applicationName: name,
     appleWebApp: {
       capable: true,
-      title,
+      title: name,
       statusBarStyle: 'black-translucent',
     },
   }
@@ -121,7 +120,7 @@ export default async function PublicProfilePage({ params }: Props) {
     fetchPublicReviews(String(profileId)),
   ])
 
-  const agent = liveAgentEnabled ? (liveAgent ?? fallbackLiveAgentPrompt()) : null
+  const agent = liveAgentEnabled ? liveAgent : null
   const jsonLd = buildPublicCardJsonLd({
     slug: trimmed,
     origin,

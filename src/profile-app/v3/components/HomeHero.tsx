@@ -123,7 +123,6 @@ export const HomeHero: React.FC<{
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showLanguage = isVisible('Language')
-  const showViews = isVisible('Vcard View Counter')
   const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
   const languageChrome = displayIconChromeStyle(field('Language'))
   const websiteChrome = displayIconChromeStyle(field('Website'))
@@ -217,24 +216,22 @@ export const HomeHero: React.FC<{
             <div
               className={`pointer-events-auto absolute flex flex-col gap-3 ${compact ? 'top-24 right-1' : 'top-8 right-2 md:right-6'}`}
             >
-              {showViews && (
-                <button
-                  type="button"
-                  title="Total views"
-                  className="group relative cursor-pointer transition-transform hover:scale-105"
-                  onClick={() => {
-                    triggerHaptic(10)
-                    openVbizmeLogin()
-                  }}
-                >
-                  <span className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                    {viewCountLabel}
-                  </span>
-                  <span className={railButtonClass} style={viewsChrome}>
-                    <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
-                  </span>
-                </button>
-              )}
+              <button
+                type="button"
+                title="Total views"
+                className="group relative cursor-pointer transition-transform hover:scale-105"
+                onClick={() => {
+                  triggerHaptic(10)
+                  openVbizmeLogin()
+                }}
+              >
+                <span className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                  {viewCountLabel}
+                </span>
+                <span className={railButtonClass} style={viewsChrome}>
+                  <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
+                </span>
+              </button>
               {showWebsite && (
                 <a
                   href={websiteHref}

@@ -228,15 +228,14 @@ export function VBizProfileAppV1({
         </main>
       </div>
 
-      {liveAgentEnabled ? (
-        <LiveAgent
-          embedded={embedded}
-          accentColor={design.accentColor}
-          cardData={liveAgentCardData}
-          systemInstruction={liveAgentSystemPrompt}
-          readyToConnect={introAllowed}
-        />
-      ) : null}
+      <LiveAgent
+        enabled={liveAgentEnabled}
+        embedded={embedded}
+        accentColor={design.accentColor}
+        cardData={liveAgentCardData}
+        systemInstruction={liveAgentSystemPrompt}
+        readyToConnect={introAllowed}
+      />
 
       <ProfileHomeModals
         activeModal={activeModal}

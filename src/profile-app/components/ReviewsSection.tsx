@@ -1,6 +1,7 @@
 'use client'
 
 import { AllReviewsView, SliderReviewCard } from '@/profile-app/components/AllReviewsView'
+import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetReviewsQuery } from '@/redux/api'
@@ -17,11 +18,9 @@ import {
   Star,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-const REVIEW_IMAGE_FALLBACK = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&fit=crop'
 const SKELETON_CARD_COUNT = 4
 
 function ReviewsHeaderSkeleton({ compact }: { compact: boolean }) {
@@ -311,46 +310,6 @@ export const ReviewsSection = () => {
           {slides.map((item, idx) => {
             const isFeatured = idx === 0 || idx === 3
 
-            if (item.isLinkCard && item.linkUrl) {
-              return (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: idx * 0.05 }}
-                  key={item.id}
-                  className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50 ${
-                    compact
-                      ? 'col-span-1 p-4'
-                      : `p-6 sm:p-8 ${isFeatured ? 'md:col-span-2 lg:col-span-2' : 'col-span-1'}`
-                  }`}
-                >
-                  <Link href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="flex h-full flex-col">
-                    <div className="mb-6 flex items-center gap-4">
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 dark:border-zinc-700/50">
-                        <Image
-                          width={100}
-                          height={100}
-                          src={item.image || REVIEW_IMAGE_FALLBACK}
-                          alt={item.title}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
-                    </div>
-                    {item.htmlDescription ? (
-                      <div
-                        className="prose prose-sm dark:prose-invert max-w-none flex-1"
-                        dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
-                      />
-                    ) : null}
-                    <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-zinc-600 dark:text-zinc-400">
-                      Open review page <ExternalLink size={14} />
-                    </span>
-                  </Link>
-                </motion.div>
-              )
-            }
-
             return (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -396,21 +355,26 @@ export const ReviewsSection = () => {
                 </div>
 
                 <div className="relative z-10 mt-auto flex items-center gap-4 border-t border-zinc-200 pt-5 dark:border-zinc-800/80">
-                  <div
-                    className={`shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 shadow-sm dark:border-zinc-700/50 ${isFeatured ? 'h-14 w-14' : 'h-10 w-10'}`}
-                  >
-                    <Image
-                      width={100}
-                      height={100}
-                      src={item.image || REVIEW_IMAGE_FALLBACK}
-                      alt={item.title}
-                      className="h-full w-full object-cover grayscale-30 transition-all duration-300 group-hover:grayscale-0"
-                    />
-                  </div>
-                  <div>
+                  <ReviewAvatar
+                    imageUrl={item.image}
+                    alt={item.title || 'Reviewer'}
+                    className={isFeatured ? 'h-14 w-14 shadow-sm' : 'h-10 w-10 shadow-sm'}
+                    imageClassName="grayscale-30 transition-all duration-300 group-hover:grayscale-0"
+                  />
+                  <div className="min-w-0 flex-1">
                     <p className={`font-bold text-zinc-900 dark:text-zinc-100 ${isFeatured ? 'text-base' : 'text-sm'}`}>
                       {item.title}
                     </p>
+                    {item.linkUrl ? (
+                      <Link
+                        href={item.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-zinc-500 underline-offset-4 hover:underline dark:text-zinc-400"
+                      >
+                        View Original Review <ExternalLink size={12} />
+                      </Link>
+                    ) : null}
                   </div>
                 </div>
               </motion.div>

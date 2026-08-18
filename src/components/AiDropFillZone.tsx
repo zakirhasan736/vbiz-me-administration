@@ -2,6 +2,7 @@
 
 import { countFillPayloadEntries, type SectionFillPayload } from '@/lib/ai/applyCardDraft'
 import { cardAgentForm } from '@/lib/ai/cardAgentClient'
+import { fillAssistantSection, scopeAssistantSectionPayload } from '@/lib/assistantApi'
 import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
 import { Loader2, Sparkles, Upload } from 'lucide-react'
@@ -179,6 +180,7 @@ type Props = {
   onParsed?: (entries: ParsedEntry[]) => void
   section?: AiDropFillSection
   currentDraft?: unknown
+  profileId?: string | null
   accent?: string
   hint?: string
 }
@@ -189,6 +191,7 @@ export function AiDropFillZone({
   onParsed,
   section = 'services',
   currentDraft,
+  profileId,
   accent = 'indigo',
   hint = 'Drop a document or paste text — AI arranges titles & details into entries',
 }: Props) {
@@ -270,22 +273,34 @@ export function AiDropFillZone({
       }
       setPhase('filling')
 
-      const form = new FormData()
-      form.set('section', section)
-      if (hasText) form.set('text', text.trim())
-      form.set('currentDraft', JSON.stringify(currentDraft || {}))
-      for (const file of files) form.append('files', file)
+      const json = profileId
+        ? await fillAssistantSection<{
+            payload?: SectionFillPayload
+            data?: SectionFillPayload
+            message?: string
+            section?: string
+          }>(profileId, section, text, files)
+        : await (() => {
+            const form = new FormData()
+            form.set('section', section)
+            if (hasText) form.set('text', text.trim())
+            form.set('currentDraft', JSON.stringify(currentDraft || {}))
+            for (const file of files) form.append('files', file)
+            return cardAgentForm<{
+              payload?: SectionFillPayload
+              data?: SectionFillPayload
+              message?: string
+              section?: string
+            }>('fill-section', form)
+          })()
 
-      const json = await cardAgentForm<{
-        payload?: SectionFillPayload
-        message?: string
-        section?: string
-      }>('fill-section', form)
-
-      const payload =
+      const rawPayload =
         json.payload && typeof json.payload === 'object'
-          ? (json.payload as SectionFillPayload)
-          : (json as SectionFillPayload)
+          ? json.payload
+          : json.data && typeof json.data === 'object'
+            ? json.data
+            : (json as SectionFillPayload)
+      const payload = scopeAssistantSectionPayload(section, rawPayload as Record<string, unknown>) as SectionFillPayload
 
       const count = countFillPayloadEntries(section, payload)
       if (!count) {
@@ -361,6 +376,11 @@ export function AiDropFillZone({
               <p className="mt-0.5 text-[11px] leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
                 {busy ? phaseLabel(phase) : hint}
               </p>
+              {!busy ? (
+                <p className="mt-1 text-[10px] font-medium text-slate-400">
+                  Images and scanned PDFs are OCR&apos;d by GPT-4o. PDF, DOCX, TXT, and MD are supported.
+                </p>
+              ) : null}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -386,7 +406,7 @@ export function AiDropFillZone({
         <input
           ref={inputRef}
           type="file"
-          accept=".txt,.md,.csv,.pdf,.docx,text/plain,application/pdf,image/*,.png,.jpg,.jpeg,.webp"
+          accept=".txt,.md,.pdf,.docx,text/plain,application/pdf,image/*,.png,.jpg,.jpeg,.webp"
           multiple
           className="hidden"
           onChange={(e) => {
