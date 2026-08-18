@@ -3,7 +3,7 @@ import { getNavItemById, isCustomNavItemId } from '@/lib/vcardNavbar'
 export const EDITOR_SETTINGS_ID = 'settings'
 export const DEFAULT_EDITOR_SECTION = 'home'
 export const DEFAULT_PERSONAL_SUB_TAB = 1
-export const DEFAULT_SETTINGS_TAB = 'info'
+export const DEFAULT_SETTINGS_TAB = 'general'
 
 export const SETTINGS_TAB_IDS = [
   'info',
@@ -11,7 +11,6 @@ export const SETTINGS_TAB_IDS = [
   'icons',
   'general',
   'home',
-  'navbar',
   'template',
   'seo',
   'ai-assistance',
@@ -37,6 +36,7 @@ function defaultSubTabForSection(sectionId: string): number | undefined {
 }
 
 function parseSettingsTab(value: string | undefined): SettingsTabId {
+  if (value === 'info' || value === 'icons') return DEFAULT_SETTINGS_TAB
   if (value && (SETTINGS_TAB_IDS as readonly string[]).includes(value)) {
     return value as SettingsTabId
   }

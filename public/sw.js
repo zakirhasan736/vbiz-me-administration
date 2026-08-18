@@ -292,6 +292,10 @@ self.addEventListener('message', (event) => {
   }
   if (event.data?.type === 'CACHE_PUBLIC_CARD' && Array.isArray(event.data.urls)) {
     event.waitUntil(cachePublicCardUrls(event.data.urls))
+    return
+  }
+  if (event.data?.type === 'BUST_PUBLIC_CARD_CACHE') {
+    event.waitUntil(Promise.all([caches.delete(CARD_DATA_CACHE), caches.delete(CARD_SHELL_CACHE)]))
   }
 })
 
@@ -441,10 +445,11 @@ async function cachePublicCardUrls(urls) {
   )
 }
 
-async function networkFirst(request, cacheName, fallback) {
+async function networkFirst(request, cacheName, fallback, options) {
   const cache = await caches.open(cacheName)
+  const bypassHttpCache = Boolean(options?.bypassHttpCache)
   try {
-    const res = await fetch(request)
+    const res = await fetch(request, bypassHttpCache ? { cache: 'no-store' } : undefined)
     if (isCacheableResponse(res)) await cache.put(request, res.clone())
     return res
   } catch {
@@ -509,7 +514,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isPublicCardDataRequest(url)) {
-    event.respondWith(networkFirst(event.request, CARD_DATA_CACHE, offlineCardDataResponse))
+    event.respondWith(networkFirst(event.request, CARD_DATA_CACHE, offlineCardDataResponse, { bypassHttpCache: true }))
     return
   }
 

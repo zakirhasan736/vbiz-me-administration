@@ -74,9 +74,12 @@ export function resolveProfileDesign(
     options?.themeConfig?.colors.defaultMode ??
     (staticTheme.darkMode === false ? 'light' : 'dark')
 
-  const brand = options?.themeConfig
+  const configBrand = options?.themeConfig
     ? brandColorsFromThemeConfig(options.themeConfig, mode)
     : { primaryColor: staticTheme.primaryColor, accentColor: staticTheme.accentColor }
+
+  const livePrimary = typeof cardTheme?.primaryColor === 'string' ? cardTheme.primaryColor.trim() : ''
+  const liveAccent = typeof cardTheme?.accentColor === 'string' ? cardTheme.accentColor.trim() : ''
 
   const fontFamily =
     (typeof cardTheme?.fontFamily === 'string' && cardTheme.fontFamily.trim()) ||
@@ -85,8 +88,8 @@ export function resolveProfileDesign(
     'inter'
 
   return {
-    primaryColor: brand.primaryColor || staticTheme.primaryColor,
-    accentColor: brand.accentColor || staticTheme.accentColor,
+    primaryColor: livePrimary || configBrand.primaryColor || staticTheme.primaryColor,
+    accentColor: liveAccent || configBrand.accentColor || staticTheme.accentColor,
     fontFamily,
     profileTemplate: appearance.profileTemplate,
     layoutStyle: appearance.layoutStyle,

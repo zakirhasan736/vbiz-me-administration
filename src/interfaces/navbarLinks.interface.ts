@@ -10,6 +10,8 @@ export type StaticNavLink = {
 
 export type PostTypeNavLink = {
   id: number | string
+  /** Nav id from Add Tabs / editorNavOrder when present. */
+  key?: string
   name: string
   title: string
   status: string

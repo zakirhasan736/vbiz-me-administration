@@ -1,5 +1,6 @@
 import { setAboutMeDraft } from '@/lib/aboutMeDraft'
 import { mapBlueprintToVCardData, type CardBlueprint } from '@/lib/ai/cardBlueprint'
+import { normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
 import { normalizeServiceType } from '@/lib/vcardServices'
 import type {
   VCardData,
@@ -134,6 +135,12 @@ export function countFillPayloadEntries(section: string, payload: SectionFillPay
   if (section === 'personal') {
     return payload.personal && typeof payload.personal === 'object' ? 1 : 0
   }
+  if (section === 'seo') {
+    const seo = payload.seo
+    if (!seo || typeof seo !== 'object') return 0
+    const normalized = normalizeCardSeoPayload(seo)
+    return normalized.metaTitle || normalized.metaDescription ? 1 : 0
+  }
   if (section === 'services') return mapServicesFromPayload(payload).length
   if (section === 'portfolio') return mapPortfolioFromPayload(payload).length
   if (section === 'reviews') return mapReviewsFromPayload(payload).length
@@ -156,6 +163,10 @@ export function countFillPayloadEntries(section: string, payload: SectionFillPay
 /** Merge a fill-section payload into an existing draft. */
 export function mergeSectionPayload(draft: VCardData, section: string, payload: SectionFillPayload): VCardData {
   const next: VCardData = { ...draft }
+
+  if (section === 'seo' && payload.seo && typeof payload.seo === 'object') {
+    next.seo = normalizeCardSeoPayload(payload.seo)
+  }
 
   if (section === 'personal' && payload.personal && typeof payload.personal === 'object') {
     const p = payload.personal as Record<string, string>
@@ -298,5 +309,6 @@ export function draftFieldWrites(data: VCardData): Array<{ path: string; value: 
     { path: 'reviews', value: data.reviews || [] },
     { path: 'generalPosts', value: data.generalPosts || [] },
     { path: 'faqs', value: data.faqs || [] },
+    { path: 'seo', value: data.seo },
   ]
 }

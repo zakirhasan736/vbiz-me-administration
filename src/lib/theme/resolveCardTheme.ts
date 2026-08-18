@@ -226,12 +226,6 @@ function applyComponentStyleToButtons(buttons: ButtonComponents, style: Componen
   }
 }
 
-function buttonRootStyleSent(raw: unknown): boolean {
-  if (!raw || typeof raw !== 'object') return false
-  const r = raw as { style?: unknown }
-  return r.style != null && r.style !== undefined
-}
-
 /**
  * Merge a raw `theme_config` from the API with safe defaults.
  * Returns a fully-populated, type-safe config — never throws on bad input.
@@ -269,9 +263,9 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
 
   let buttons = mergeButtons(buttonSource, defaults.components.button)
 
-  // appearance.buttonStyle (solid | outline | glass | soft) when components.button.style not sent
+  // Card Settings button style is the source of truth over stale component styles.
   const appearanceStyle = appearanceButtonStyleToComponentStyle(appearance.buttonStyle)
-  if (appearanceStyle && !buttonRootStyleSent(buttonSource)) {
+  if (appearanceStyle) {
     buttons = applyComponentStyleToButtons(buttons, appearanceStyle)
   }
 
@@ -325,5 +319,102 @@ export function brandColorsFromThemeConfig(
   return {
     primaryColor: set.primary,
     accentColor: set.accent,
+  }
+}
+
+function pickBrandColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+/**
+ * Overlay live Card Settings (primary/accent, template, button, corner, layout)
+ * onto theme_config so preview + public CSS vars match the editor immediately.
+ */
+export function applyEditorSettingsToThemeConfig(
+  current: CardThemeConfig | null | undefined,
+  theme: { primaryColor?: string; accentColor?: string } | null | undefined,
+  appearance:
+    | {
+        profileTemplate?: unknown
+        layoutStyle?: unknown
+        buttonStyle?: unknown
+        cornerStyle?: unknown
+      }
+    | null
+    | undefined
+): CardThemeConfig {
+  const template: ProfileTemplateId =
+    appearance?.profileTemplate === 'v1' || appearance?.profileTemplate === 'v2' || appearance?.profileTemplate === 'v3'
+      ? appearance.profileTemplate
+      : (current?.appearance.profileTemplate ?? 'v3')
+
+  const layoutStyle =
+    appearance?.layoutStyle === 'hero' || appearance?.layoutStyle === 'classic'
+      ? appearance.layoutStyle
+      : (current?.appearance.layoutStyle ?? 'classic')
+  const buttonStyle =
+    appearance?.buttonStyle === 'soft' || appearance?.buttonStyle === 'outline' || appearance?.buttonStyle === 'glass'
+      ? appearance.buttonStyle
+      : appearance?.buttonStyle === 'solid'
+        ? 'solid'
+        : (current?.appearance.buttonStyle ?? 'solid')
+  const cornerStyle: CornerStyle =
+    appearance?.cornerStyle === 'square' ||
+    appearance?.cornerStyle === 'soft' ||
+    appearance?.cornerStyle === 'round' ||
+    appearance?.cornerStyle === 'pill'
+      ? appearance.cornerStyle
+      : (current?.appearance.cornerStyle ?? 'round')
+
+  const mergedAppearance = {
+    ...(current?.appearance ?? {}),
+    profileTemplate: template,
+    layoutStyle,
+    buttonStyle,
+    cornerStyle,
+  }
+
+  const base = resolveCardThemeConfig(
+    {
+      ...(current ?? {}),
+      appearance: mergedAppearance,
+    },
+    template
+  )
+
+  const appearanceStyle = appearanceButtonStyleToComponentStyle(mergedAppearance.buttonStyle)
+  const buttons = appearanceStyle
+    ? applyComponentStyleToButtons(base.components.button, appearanceStyle)
+    : base.components.button
+
+  const primary = pickBrandColor(theme?.primaryColor)
+  const accent = pickBrandColor(theme?.accentColor)
+
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      light: {
+        ...base.colors.light,
+        ...(primary ? { primary } : {}),
+        ...(accent ? { accent } : {}),
+      },
+      dark: {
+        ...base.colors.dark,
+        ...(primary ? { primary } : {}),
+        ...(accent ? { accent } : {}),
+      },
+    },
+    components: {
+      ...base.components,
+      button: buttons,
+    },
+    appearance: {
+      ...base.appearance,
+      ...mergedAppearance,
+      profileTemplate: template,
+    },
   }
 }

@@ -16,6 +16,7 @@ function normalizeKey(value: string): string {
 }
 
 const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
+  home: 'home',
   services: 'services',
   clients: 'clients',
   reviews: 'reviews',
@@ -79,6 +80,8 @@ const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
   education: 'education',
   skills: 'skills',
   skill: 'skills',
+  'my info': 'my-info',
+  'my-info': 'my-info',
 }
 
 function resolveNavIdFromLabel(value?: string | null): string | undefined {
@@ -88,10 +91,16 @@ function resolveNavIdFromLabel(value?: string | null): string | undefined {
 }
 
 function resolvePostTypeNavId(postType: PostTypeNavLink): string | undefined {
+  const key = typeof postType.key === 'string' ? postType.key.trim() : ''
+  const id = String(postType.id ?? '').trim()
   return (
-    resolveNavIdFromLabel(postType.name) ??
-    resolveNavIdFromLabel(postType.title) ??
-    resolveNavIdFromLabel(postType.slug) ??
+    (key && NAV_ITEM_BY_ID[key]?.id) ||
+    (id && NAV_ITEM_BY_ID[id]?.id) ||
+    resolveNavIdFromLabel(key) ||
+    resolveNavIdFromLabel(id) ||
+    resolveNavIdFromLabel(postType.name) ||
+    resolveNavIdFromLabel(postType.title) ||
+    resolveNavIdFromLabel(postType.slug) ||
     resolveNavIdFromLabel(postType.type_id)
   )
 }
@@ -194,15 +203,21 @@ function dedupeNavItemsById(items: NavBarNavItem[]): NavBarNavItem[] {
 
 /**
  * Maps `GET /post-types?profile_id=` into profile nav items.
- * Backend returns the owner-selected tabs from Add Tabs / editorNavOrder.
+ * When `post_types` is present it is the selected Add Tabs list, in that order.
  * Each item keeps `apiSectionName` for `GET /dynamic-section/{name}?profile_id=`.
  */
 export function mapNavBarLinks(data: NavBarLinksData | undefined | null): NavBarNavItem[] {
   if (!data) return []
 
   const staticItems = (data.StaticLink ?? []).map(mapStaticLink).filter((item): item is NavBarNavItem => Boolean(item))
-
   const postTypeItems = (data.post_types ?? []).map(mapPostType).filter((item): item is NavBarNavItem => Boolean(item))
 
-  return dedupeNavItemsById([...staticItems, ...postTypeItems])
+  if (postTypeItems.length) {
+    const ids = new Set(postTypeItems.map((item) => item.id))
+    const missingStatic = staticItems.filter((item) => !ids.has(item.id))
+    const hasHome = ids.has('home')
+    return dedupeNavItemsById(hasHome ? [...postTypeItems, ...missingStatic] : [...missingStatic, ...postTypeItems])
+  }
+
+  return dedupeNavItemsById(staticItems)
 }

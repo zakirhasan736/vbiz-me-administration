@@ -15,8 +15,7 @@ export function EditorNavInfoPanel({ infoKey, tourTargetId }: EditorNavInfoPanel
     >
       <p className="text-base font-bold text-slate-900 dark:text-white">Public Cards</p>
       <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
-        This section shows the public directory of cards and is not edited here. Enable or disable it from Card Settings
-        → Nav Bar.
+        This section shows the public directory of cards and is not edited here. Enable or disable it from Add Tabs.
       </p>
     </div>
   )

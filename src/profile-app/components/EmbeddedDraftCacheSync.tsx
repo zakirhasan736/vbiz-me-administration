@@ -10,6 +10,7 @@ import type { ServicesQueryResult } from '@/interfaces/api/services.interface'
 import type { NavBarLinksData, PostTypeNavLink } from '@/interfaces/navbarLinks.interface'
 import { getAboutMeDraft, hasAboutMeDraftContent, subscribeAboutMeDraft, type AboutMeDraft } from '@/lib/aboutMeDraft'
 import { mapAboutMeItemToListItem } from '@/lib/api/aboutMe/mapAboutMe'
+import { NAV_ITEM_BY_ID } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { dynamicSectionApi } from '@/redux/features/dynamicSection/dynamicSection.api'
 import { navBarLinksApi } from '@/redux/features/navbar/navbar.api'
@@ -29,12 +30,14 @@ import type {
   VCardSectionPostItem,
   VCardServiceEntry,
   VCardSkillGroup,
+  VCardTabLabelOverrides,
 } from '@/types/vcard'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 function draftPostType(id: string, name: string, title: string): PostTypeNavLink {
   return {
-    id: id as unknown as number,
+    id,
+    key: id,
     name,
     title,
     status: 'active',
@@ -58,7 +61,30 @@ function buildDraftNavBarLinks(input: {
   portfolio?: VCardPortfolioEntry[]
   reviews?: VCardReviewEntry[]
   aboutMeDraft?: AboutMeDraft
+  editorNavOrder?: string[]
+  tabLabelOverrides?: VCardTabLabelOverrides
 }): NavBarLinksData {
+  const selectedOrder = Array.isArray(input.editorNavOrder)
+    ? input.editorNavOrder.filter((id): id is string => typeof id === 'string' && Boolean(id.trim()))
+    : []
+
+  if (selectedOrder.length) {
+    const customById = new Map((input.customTabs || []).map((tab) => [tab.id, tab]))
+    const overrides = input.tabLabelOverrides || {}
+    const post_types = selectedOrder.map((id) => {
+      const custom = customById.get(id)
+      const def = NAV_ITEM_BY_ID[id]
+      const title =
+        (typeof overrides[id] === 'string' && overrides[id].trim()) ||
+        custom?.label?.trim() ||
+        def?.displayLabel ||
+        def?.label ||
+        id
+      return draftPostType(id, id, title)
+    })
+    return { StaticLink: [], post_types }
+  }
+
   const post_types: PostTypeNavLink[] = []
   const pushUnique = (item: PostTypeNavLink) => {
     if (post_types.some((t) => t.name.toLowerCase() === item.name.toLowerCase())) return
@@ -109,26 +135,6 @@ function buildDraftNavBarLinks(input: {
   return {
     StaticLink: [{ id: 'home', title: 'Home', name: 'Home', post_type: 'static', active: true }],
     post_types,
-  }
-}
-
-const DEFAULT_HOME_STATIC: NavBarLinksData['StaticLink'] = [
-  { id: 'home', title: 'Home', name: 'Home', post_type: 'static', active: true },
-]
-
-/** Keep published API tabs and add any draft-only sections that already have content. */
-function mergeNavBarLinks(api: NavBarLinksData | undefined, draft: NavBarLinksData): NavBarLinksData {
-  const byName = new Map<string, PostTypeNavLink>()
-  for (const item of api?.post_types ?? []) {
-    byName.set(item.name.toLowerCase(), item)
-  }
-  for (const item of draft.post_types ?? []) {
-    const key = item.name.toLowerCase()
-    if (!byName.has(key)) byName.set(key, item)
-  }
-  return {
-    StaticLink: api?.StaticLink?.length ? api.StaticLink : (draft.StaticLink ?? DEFAULT_HOME_STATIC),
-    post_types: Array.from(byName.values()),
   }
 }
 
@@ -239,6 +245,8 @@ type EmbeddedDraftCacheSyncProps = {
   services?: VCardServiceEntry[]
   portfolio?: VCardPortfolioEntry[]
   reviews?: VCardReviewEntry[]
+  editorNavOrder?: string[]
+  tabLabelOverrides?: VCardTabLabelOverrides
 }
 
 function aboutMeDraftToQueryResult(draft: AboutMeDraft): AboutMeQueryResult {
@@ -281,14 +289,11 @@ export function EmbeddedDraftCacheSync({
   services,
   portfolio,
   reviews,
+  editorNavOrder,
+  tabLabelOverrides,
 }: EmbeddedDraftCacheSyncProps) {
   const dispatch = useAppDispatch()
   const [aboutMeDraft, setAboutMeDraftState] = useState<AboutMeDraft>(() => getAboutMeDraft())
-  /** Pure API `/post-types` payload — kept so draft merges do not permanently overwrite published tabs. */
-  const apiNavBaselineRef = useRef<{ profileId: string; loaded: boolean; data?: NavBarLinksData }>({
-    profileId: '',
-    loaded: false,
-  })
   /** Last payload written per cache slice — the draft object identity changes on every keystroke. */
   const signaturesRef = useRef<{ profileId: string; signatures: Map<string, { value: string; writtenAt: number }> }>({
     profileId: '',
@@ -297,10 +302,9 @@ export function EmbeddedDraftCacheSync({
 
   useEffect(() => subscribeAboutMeDraft(() => setAboutMeDraftState(getAboutMeDraft())), [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!embedded || !cardOwnerId) return
     const profileId = cardOwnerId
-    let cancelled = false
 
     if (signaturesRef.current.profileId !== profileId) {
       signaturesRef.current = { profileId, signatures: new Map() }
@@ -551,39 +555,13 @@ export function EmbeddedDraftCacheSync({
       portfolio,
       reviews,
       aboutMeDraft,
+      editorNavOrder,
+      tabLabelOverrides,
     })
 
-    // Merge draft tabs onto published API post-types (do not replace the catalog).
-    if (hasChanged('nav', JSON.stringify(draftNav))) {
-      void (async () => {
-        if (apiNavBaselineRef.current.profileId !== profileId) {
-          apiNavBaselineRef.current = { profileId, loaded: false, data: undefined }
-        }
-        if (!apiNavBaselineRef.current.loaded) {
-          const result = await dispatch(
-            navBarLinksApi.endpoints.getNavBarLinks.initiate(profileId, { forceRefetch: true })
-          )
-          if (cancelled) return
-          apiNavBaselineRef.current = {
-            profileId,
-            loaded: true,
-            data: 'data' in result ? result.data : undefined,
-          }
-        }
-        if (cancelled) return
-        dispatch(
-          navBarLinksApi.util.upsertQueryData(
-            'getNavBarLinks',
-            profileId,
-            mergeNavBarLinks(apiNavBaselineRef.current.data, draftNav)
-          )
-        )
-      })()
-    }
-
-    return () => {
-      cancelled = true
-    }
+    upsertIfChanged('nav', draftNav, (result) =>
+      dispatch(navBarLinksApi.util.upsertQueryData('getNavBarLinks', profileId, result))
+    )
   }, [
     embedded,
     cardOwnerId,
@@ -598,6 +576,8 @@ export function EmbeddedDraftCacheSync({
     services,
     portfolio,
     reviews,
+    editorNavOrder,
+    tabLabelOverrides,
     dispatch,
   ])
 

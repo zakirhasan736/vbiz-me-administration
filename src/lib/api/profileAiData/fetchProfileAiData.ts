@@ -1,5 +1,5 @@
 import { normalizeProfileAiData } from '@/lib/api/profileAiData/normalizeProfileAiData'
-import { getApiBaseUrl, SERVER_FETCH_REVALIDATE_SECONDS } from '@/lib/api/serverApi'
+import { getApiBaseUrl } from '@/lib/api/serverApi'
 import type { ProfileAiData } from '@interfaces/api/profileAiData'
 
 export async function fetchProfileAiData(profileId: number | string): Promise<ProfileAiData | null> {
@@ -9,7 +9,7 @@ export async function fetchProfileAiData(profileId: number | string): Promise<Pr
   try {
     const response = await fetch(`${getApiBaseUrl()}/profile-ai-data/${encodeURIComponent(id)}`, {
       headers: { Accept: 'application/json' },
-      next: { revalidate: SERVER_FETCH_REVALIDATE_SECONDS },
+      cache: 'no-store',
     })
 
     if (!response.ok) return null

@@ -6,6 +6,7 @@ import {
   THEME_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
+import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { applyEnabledNavOrderToDisplaySettings } from '@/lib/vcardDisplaySettings'
@@ -462,6 +463,7 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
     social: mapSocial(card),
     extraFields: mapExtraFields(card),
     myInfo: parseMyInfoJson(card.settings?.[MY_INFO_SETTING_KEY]),
+    seo: parseSeoSettings(card.settings || {}),
     education: [],
     experience: [],
     displaySettings: mapDisplaySettings(card),

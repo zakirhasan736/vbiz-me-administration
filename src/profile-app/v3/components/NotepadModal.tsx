@@ -1,19 +1,13 @@
 'use client'
 
+import type { SavedNote } from '@/interfaces/api/saveNote'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
-import { db, isFirebaseAvailable } from '@/profile-app/v3/lib/firebase'
-import { handleFirestoreError, OperationType } from '@/profile-app/v3/lib/firebaseUtils'
-import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore'
+import { fetchProfileNotes, getProfileVisitorId, saveProfileNote } from '@/profile-app/lib/saveProfileNote'
 import { Check, MessageCircle, Save, StickyNote, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import React, { useCallback, useEffect, useState } from 'react'
 
-interface Note {
-  id: string
-  authorName: string
-  content: string
-  createdAt: Date
-}
+type Note = SavedNote
 
 export const NotepadModal = ({
   isOpen,
@@ -33,61 +27,24 @@ export const NotepadModal = ({
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
   const displayOwnerName = ownerName?.trim() || 'the card owner'
 
-  // Fetch existing notes
   const fetchNotes = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      if (isFirebaseAvailable) {
-        const path = 'notes'
-        const q = query(collection(db, path), where('cardOwnerId', '==', cardOwnerId))
-        const querySnapshot = await getDocs(q)
-        const fetched: Note[] = []
-        querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data()
-          fetched.push({
-            id: docSnap.id,
-            authorName: data.authorName || 'Anonymous',
-            content: data.content || '',
-            createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
-          })
-        })
+    const visitorId = getProfileVisitorId(cardOwnerId)
+    if (!visitorId) {
+      setNotes([])
+      return
+    }
 
-        // Sort client-side by createdAt descending (most recent first)
-        fetched.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-        setNotes(fetched)
-      } else {
-        // Fallback to localStorage
-        const stored = localStorage.getItem(`vbiz_notes_${cardOwnerId}`)
-        if (stored) {
-          setNotes(JSON.parse(stored))
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching notes from Firestore:', err)
-      // Fallback list of sample default notes in case query or security rule is initial
-      const stored = localStorage.getItem(`vbiz_notes_${cardOwnerId}`)
-      if (stored) {
-        setNotes(JSON.parse(stored))
-      } else {
-        setNotes([
-          {
-            id: 'sample-1',
-            authorName: 'Sarah Jenkins',
-            content:
-              'Absolutely phenomenal vBiz card! The interactive AI agent felt like speaking with a human receptionist. Outstanding experience.',
-            createdAt: new Date(Date.now() - 3600000 * 24),
-          },
-          {
-            id: 'sample-2',
-            authorName: 'Marcus Brodie',
-            content:
-              'Met Michaelangelo at the Web3 Summit. Incredible vision and strategy. Saved your info directly to my contact list!',
-            createdAt: new Date(Date.now() - 3600000 * 48),
-          },
-        ])
-      }
+    setIsLoading(true)
+    setErrorMsg('')
+    try {
+      setNotes(await fetchProfileNotes(cardOwnerId, visitorId))
+    } catch (error) {
+      console.error('Error fetching public notes:', error)
+      setNotes([])
+      setErrorMsg(error instanceof Error ? error.message : 'Unable to load your notes.')
     } finally {
       setIsLoading(false)
     }
@@ -104,27 +61,14 @@ export const NotepadModal = ({
     if (!authorName.trim() || !content.trim()) return
 
     setIsSaving(true)
-    const newNoteObj = {
-      authorName: authorName.trim(),
-      content: content.trim(),
-      createdAt: new Date(),
-    }
+    setErrorMsg('')
 
     try {
-      if (isFirebaseAvailable) {
-        const path = 'notes'
-        await addDoc(collection(db, path), {
-          cardOwnerId,
-          authorName: newNoteObj.authorName,
-          content: newNoteObj.content,
-          createdAt: serverTimestamp(),
-        })
-      }
+      const visitorId = getProfileVisitorId(cardOwnerId)
+      if (!visitorId) throw new Error('This card is not connected to a public profile.')
 
-      // Add to local state list immediately
-      const updatedLocal: Note[] = [{ id: Math.random().toString(), ...newNoteObj }, ...notes]
-      setNotes(updatedLocal)
-      localStorage.setItem(`vbiz_notes_${cardOwnerId}`, JSON.stringify(updatedLocal))
+      await saveProfileNote(cardOwnerId, content, { authorName, visitorId })
+      await fetchNotes()
 
       setAuthorName('')
       setContent('')
@@ -133,7 +77,7 @@ export const NotepadModal = ({
       // Dispatch custom event for platform updates
       window.dispatchEvent(
         new CustomEvent('vbiz_platform_update', {
-          detail: { title: 'Note Posted', message: `New message left by ${newNoteObj.authorName}` },
+          detail: { title: 'Note Posted', message: `New message left by ${authorName.trim()}` },
         })
       )
 
@@ -142,9 +86,7 @@ export const NotepadModal = ({
       }, 2500)
     } catch (err) {
       console.error(err)
-      if (isFirebaseAvailable) {
-        handleFirestoreError(err, OperationType.CREATE, 'notes')
-      }
+      setErrorMsg(err instanceof Error ? err.message : 'Unable to post your note.')
     } finally {
       setIsSaving(false)
     }
@@ -235,6 +177,7 @@ export const NotepadModal = ({
                     <Check size={14} /> {successMsg}
                   </span>
                 )}
+                {errorMsg && !successMsg && <span role="alert">{errorMsg}</span>}
               </div>
 
               <button
@@ -284,10 +227,10 @@ export const NotepadModal = ({
                   </p>
 
                   <div className="mt-3 flex shrink-0 items-center justify-between border-t border-[#faf5df]/80 pt-2 font-sans text-[calc(0.75rem*1.15)] text-black">
-                    <span className="font-semibold text-black">— {note.authorName}</span>
+                    <span className="font-semibold text-black">— {note.author_name}</span>
                     <span className="text-black">
-                      {note.createdAt instanceof Date
-                        ? note.createdAt.toLocaleDateString(undefined, {
+                      {note.created_at
+                        ? new Date(note.created_at).toLocaleDateString(undefined, {
                             month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
@@ -296,6 +239,17 @@ export const NotepadModal = ({
                         : 'Just now'}
                     </span>
                   </div>
+
+                  {note.reply && (
+                    <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-black">
+                      <p className="font-sans text-[calc(0.6875rem*1.15)] font-bold tracking-wider text-emerald-800 uppercase">
+                        Reply from {displayOwnerName}
+                      </p>
+                      <p className="font-notebook mt-1 text-[calc(1.05rem*1.15)] leading-snug wrap-break-word text-emerald-950">
+                        {note.reply}
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>

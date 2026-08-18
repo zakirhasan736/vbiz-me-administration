@@ -8,8 +8,6 @@ function assertMyCardResponse(response: MyCardResponse): MyCardData {
   return response.data
 }
 
-const FIVE_MINUTES_SECONDS = 5 * 60
-
 export const myCardApi = api.injectEndpoints({
   endpoints: (build) => ({
     /** Raw MyCard payload from `GET /v/{slug}`. */
@@ -17,7 +15,7 @@ export const myCardApi = api.injectEndpoints({
       query: (slug) => `/v/${encodeURIComponent(slug.trim())}`,
       transformResponse: assertMyCardResponse,
       providesTags: (_result, _error, slug) => [{ type: 'MyCard', id: slug }],
-      keepUnusedDataFor: FIVE_MINUTES_SECONDS,
+      keepUnusedDataFor: 15,
     }),
   }),
   overrideExisting: true,

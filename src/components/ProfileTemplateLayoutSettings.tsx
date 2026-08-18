@@ -113,9 +113,12 @@ export function ProfileTemplateLayoutSettings({
   return (
     <div className={mergeLayout ? 'space-y-5' : 'space-y-8'}>
       <div id="tour-card-template-picker" data-tour-id="tour-card-template-picker">
-        <h4 className={cn('mb-4 font-black text-slate-900 dark:text-white', isCompact ? 'text-[14px]' : 'text-[15px]')}>
+        <h4 className={cn('mb-1 font-black text-slate-900 dark:text-white', isCompact ? 'text-[14px]' : 'text-[15px]')}>
           {sectionTitle}
         </h4>
+        <p className="mb-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          Changes layout only. Tab order and visibility stay as set in Add Tabs.
+        </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {templates.map((tpl) => (
             <button

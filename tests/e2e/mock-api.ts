@@ -71,6 +71,20 @@ const baseProfile = (): Profile => ({
 
 const profiles = new Map<string, Profile>([['card-1', baseProfile()]])
 
+type MockPublicNote = {
+  id: string
+  profile_id: string
+  content: string
+  author_name: string
+  visitor_id: string
+  created_at: string
+  updated_at: string
+  reply: string | null
+  reply_at: string | null
+}
+
+const publicNotes: MockPublicNote[] = []
+
 const publicCard = () => ({
   profile: {
     id: 'public-card-1',
@@ -106,6 +120,16 @@ const publicCard = () => ({
     aboutMeNav_checkbox: '1',
     pCardsNav_checkbox: '1',
     contactNav_checkbox: '1',
+    seo_meta_title: 'Public Test Card | Virtual Card',
+    seo_meta_description: 'Explore the Public Test Card digital business profile.',
+    seo_meta_keywords_json: JSON.stringify([
+      'vbizme',
+      'vbiz me',
+      'virtual card',
+      'digital business card',
+      'online business card',
+      'public test card',
+    ]),
   },
   features: { is_public: true, is_draft: false },
   template: 'v2',
@@ -227,6 +251,46 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       sendJson(res, 200, envelope(publicCard()))
       return
     }
+    if (path === '/api/v1/public/notes' && method === 'GET') {
+      const profileId = requestUrl.searchParams.get('profile_id') || ''
+      const visitorId = requestUrl.searchParams.get('visitor_id') || ''
+      if (!profileId || !visitorId) {
+        sendJson(res, 400, envelope(null, 'profile_id and visitor_id are required', 400))
+        return
+      }
+      sendJson(
+        res,
+        200,
+        envelope(publicNotes.filter((note) => note.profile_id === profileId && note.visitor_id === visitorId))
+      )
+      return
+    }
+    if (path === '/api/v1/public/save-note' && method === 'POST') {
+      const body = await readJson(req)
+      const profileId = requestUrl.searchParams.get('profile_id') || String(body.profile_id || '')
+      const content = requestUrl.searchParams.get('content') || String(body.content || '')
+      const authorName = requestUrl.searchParams.get('author_name') || String(body.author_name || 'Guest')
+      const visitorId = requestUrl.searchParams.get('visitor_id') || String(body.visitor_id || '')
+      if (!profileId || !content) {
+        sendJson(res, 400, envelope(null, 'profile_id and content are required', 400))
+        return
+      }
+      const now = new Date().toISOString()
+      const note: MockPublicNote = {
+        id: `mock-note-${publicNotes.length + 1}`,
+        profile_id: profileId,
+        content,
+        author_name: authorName,
+        visitor_id: visitorId,
+        created_at: now,
+        updated_at: now,
+        reply: null,
+        reply_at: null,
+      }
+      publicNotes.unshift(note)
+      sendJson(res, 200, envelope(note))
+      return
+    }
     if (path === '/api/v1/public/post-types' && method === 'GET') {
       sendJson(res, 200, envelope([]))
       return
@@ -339,6 +403,28 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   if (path.startsWith('/api/v1/admin/profiles')) {
     const item = profiles.get('card-1')!
     sendJson(res, 200, envelope({ items: [item], total: 1, skip: 0, limit: 20, showAll: false }))
+    return
+  }
+
+  if (path === '/api/v1/admin/leads/notes' && method === 'GET') {
+    sendJson(res, 200, envelope(publicNotes))
+    return
+  }
+
+  const adminNoteMatch = path.match(/^\/api\/v1\/admin\/leads\/notes\/([^/]+)$/)
+  if (adminNoteMatch && method === 'PATCH') {
+    const body = await readJson(req)
+    const note = publicNotes.find((item) => item.id === adminNoteMatch[1])
+    if (!note) {
+      sendJson(res, 404, envelope(null, 'Note not found', 404))
+      return
+    }
+    if (typeof body.lastReply === 'string') {
+      note.reply = body.lastReply
+      note.reply_at = new Date().toISOString()
+      note.updated_at = note.reply_at
+    }
+    sendJson(res, 200, envelope(note, 'Lead note updated'))
     return
   }
 

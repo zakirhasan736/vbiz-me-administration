@@ -5,6 +5,7 @@ import { fetchNavBarLinks } from '@/lib/api/navbar/fetchNavBarLinks'
 import { resolveProfileSettingsTheme } from '@/lib/api/profileSettings/fetchProfileSettings'
 import { fallbackLiveAgentPrompt, resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
+import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
@@ -20,14 +21,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const myCard = await fetchMyCardBySlug(trimmed)
   const name = resolvePwaDisplayName(myCard?.profile?.name, trimmed)
+  const seo = parseSeoSettings(myCard?.settings || {})
+  const title = seo.metaTitle || name
+  const description = seo.metaDescription || `${name}'s digital business card`
 
   return {
-    title: name,
-    description: `${name}'s digital business card`,
-    applicationName: name,
+    title,
+    description,
+    applicationName: title,
     appleWebApp: {
       capable: true,
-      title: name,
+      title,
       statusBarStyle: 'black-translucent',
     },
     icons: {

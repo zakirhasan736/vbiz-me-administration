@@ -451,7 +451,7 @@ export default function SettingsDialog() {
             <Section id="appearance" active={activeTab === 'appearance'} title="Dashboard appearance">
               <p className="mb-6 text-[13px] font-medium text-slate-500 dark:text-slate-400">
                 These settings affect your private dashboard and back office only — not your public vCards. Customize
-                each vCard under Card settings → Template in the editor.
+                each vCard under Card settings → Template Settings in the editor.
               </p>
               <div className="space-y-6">
                 <ToggleRow

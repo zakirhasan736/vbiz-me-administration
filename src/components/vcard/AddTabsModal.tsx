@@ -185,7 +185,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         <div>
           <h3 className="text-lg font-black text-slate-900 dark:text-white">Add tab</h3>
           <p className="mt-1 text-xs font-semibold text-slate-500">
-            Same sections, names, and order used by the editor and public card.
+            Same sections, names, and order used by the builder and the public card.
           </p>
         </div>
         <button

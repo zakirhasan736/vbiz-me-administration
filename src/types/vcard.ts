@@ -10,6 +10,12 @@ export type VCardTheme = {
   fontFamily?: string
 }
 
+export type VCardSeo = {
+  metaTitle: string
+  metaDescription: string
+  metaKeywords: string[]
+}
+
 /** Per-vCard template & layout snapshot (defaults copied from account profile settings on create). */
 export type ButtonShadowId = 'none' | 'soft' | 'strong' | 'hard'
 
@@ -237,6 +243,8 @@ export type VCardData = {
   themeConfig?: CardThemeConfig
   /** Guest-facing Live Agent on this card. Default off; persisted as `aiAssistance_checkbox`. */
   aiAssistanceEnabled?: boolean
+  /** Per-card SEO metadata used by the public card head and search previews. */
+  seo?: VCardSeo
 }
 
 export type VCardListMeta = {
@@ -289,6 +297,11 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
       darkMode: true,
       fontFamily: 'inter',
     },
+    seo: {
+      metaTitle: '',
+      metaDescription: '',
+      metaKeywords: ['vbizme', 'vbiz me', 'virtual card', 'digital business card', 'online business card'],
+    },
     appearance: { ...DEFAULT_VCARD_APPEARANCE },
     services: [],
     generalPosts: [],
@@ -331,6 +344,13 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     reviews: overrides.reviews ?? base.reviews,
     skills: overrides.skills ?? base.skills,
     displaySettings: overrides.displaySettings,
+    seo: overrides.seo
+      ? {
+          ...base.seo,
+          ...overrides.seo,
+          metaKeywords: overrides.seo.metaKeywords ?? base.seo!.metaKeywords,
+        }
+      : base.seo,
   }
 }
 

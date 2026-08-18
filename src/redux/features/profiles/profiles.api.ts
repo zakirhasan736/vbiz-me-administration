@@ -11,8 +11,9 @@ import {
   THEME_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveCardStatus } from '@/lib/cardStatus'
+import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
-import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
+import { applyEditorSettingsToThemeConfig, hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { MY_INFO_SETTING_KEY, parseMyInfoJson } from '@/lib/vcardMyInfo'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
@@ -694,6 +695,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     customTabs,
     tabLabelOverrides,
     myInfo: parseMyInfoJson(settingsMap[MY_INFO_SETTING_KEY]),
+    seo: parseSeoSettings(settingsMap),
     aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY]),
   })
 
@@ -728,6 +730,7 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     profileMediaUrl && !profileMediaUrl.startsWith('blob:') && /^(https?:\/\/|\/)/i.test(profileMediaUrl)
       ? profileMediaUrl
       : ''
+  const themeConfig = applyEditorSettingsToThemeConfig(data.themeConfig, data.theme, data.appearance)
 
   return {
     name: data.personal.fullName,
@@ -766,13 +769,13 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
             cornerStyle: data.appearance.cornerStyle,
           }
         : {}),
-      ...(data.themeConfig ? { themeConfig: data.themeConfig } : {}),
+      ...(themeConfig ? { themeConfig } : {}),
     },
   }
 }
 
 function isLocalTempId(id: string): boolean {
-  return /^(pf_|sk_|post_|faq_|svc_|sec_|rev_)/.test(id)
+  return /^(pf_|sk_|post_|faq_|svc_|sec_|rev_|edu_|exp_|cert_|custom_item_)/.test(id)
 }
 
 type VisibilityPatchTarget = {
@@ -951,10 +954,21 @@ const profilesApi = api.injectEndpoints({
       },
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       async onQueryStarted({ id, body }, { dispatch, queryFulfilled, getState }) {
-        if (!isVisibilityStatusOnlyBody(body)) return
+        const runDispatch = dispatch as unknown as (action: unknown) => { undo: () => void }
+        if (!isVisibilityStatusOnlyBody(body)) {
+          try {
+            const { data } = await queryFulfilled
+            if (!data) return
+            patchGetProfileCache(runDispatch, id, (draft) => {
+              Object.assign(draft, data)
+            })
+          } catch {
+            /* keep existing cache on failed save */
+          }
+          return
+        }
 
         const patchResults: Array<{ undo: () => void }> = []
-        const runDispatch = dispatch as unknown as (action: unknown) => { undo: () => void }
         const applyServerVisibility = (item: VisibilityPatchTarget, data: ApiProfile) => {
           item.isPublic = data.isPublic
           item.isDraft = data.isDraft
@@ -1062,14 +1076,7 @@ const profilesApi = api.injectEndpoints({
           }
         }
       },
-      invalidatesTags: (_r, _e, arg) => {
-        // Visibility/draft-only: cache patched in onQueryStarted — skip LIST refetch flicker.
-        if (isVisibilityStatusOnlyBody(arg.body)) return []
-        return [
-          { type: 'profiles', id: arg.id },
-          { type: 'profiles', id: 'LIST' },
-        ]
-      },
+      invalidatesTags: () => [],
     }),
     deleteProfile: builder.mutation<{ id: string }, string>({
       query: (id) => ({ url: `/profiles/${id}`, method: 'DELETE' }),
@@ -1083,37 +1090,37 @@ const profilesApi = api.injectEndpoints({
     replaceEducation: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/education`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+      invalidatesTags: () => [],
     }),
     replaceExperiences: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/experiences`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+      invalidatesTags: () => [],
     }),
     replaceServices: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/services`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+      invalidatesTags: () => [],
     }),
     replacePortfolios: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/portfolios`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+      invalidatesTags: () => [],
     }),
     replaceReviews: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/reviews`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+      invalidatesTags: () => [],
     }),
     replaceSkills: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/skills`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+      invalidatesTags: () => [],
     }),
     replaceSocialLinks: builder.mutation<ApiProfile, { id: string; items: unknown[] }>({
       query: ({ id, items }) => ({ url: `/profiles/${id}/social-links`, method: 'PUT', body: { items } }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+      invalidatesTags: () => [],
     }),
     listProfilePosts: builder.query<ApiPost[], { id: string; postType?: string }>({
       query: ({ id, postType }) =>
@@ -1139,10 +1146,7 @@ const profilesApi = api.injectEndpoints({
     >({
       query: ({ id, body }) => ({ url: `/profiles/${id}/posts`, method: 'POST', body }),
       transformResponse: (res: Envelope<ApiPost>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:posts` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:posts` }],
     }),
     updateProfilePost: builder.mutation<
       ApiPost,
@@ -1163,17 +1167,11 @@ const profilesApi = api.injectEndpoints({
     >({
       query: ({ id, postId, body }) => ({ url: `/profiles/${id}/posts/${postId}`, method: 'PATCH', body }),
       transformResponse: (res: Envelope<ApiPost>) => res.data,
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:posts` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:posts` }],
     }),
     deleteProfilePost: builder.mutation<{ id: string; deleted: boolean }, { id: string; postId: string }>({
       query: ({ id, postId }) => ({ url: `/profiles/${id}/posts/${postId}`, method: 'DELETE' }),
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:posts` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:posts` }],
     }),
     listProfileBlogs: builder.query<ApiPost[], string | { id: string; limit?: number }>({
       query: (arg) => {
@@ -1218,10 +1216,7 @@ const profilesApi = api.injectEndpoints({
         },
       }),
       transformResponse: (res: Envelope<ApiPost>) => normalizeDirectItemToApiPost(res.data),
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:blogs` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:blogs` }],
     }),
     updateProfileBlog: builder.mutation<
       ApiPost,
@@ -1251,17 +1246,26 @@ const profilesApi = api.injectEndpoints({
         },
       }),
       transformResponse: (res: Envelope<ApiPost>) => normalizeDirectItemToApiPost(res.data),
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:blogs` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:blogs` }],
     }),
     deleteProfileBlog: builder.mutation<{ deleted: boolean }, { id: string; blogId: string }>({
       query: ({ id, blogId }) => ({ url: `/profiles/${id}/blogs/${blogId}`, method: 'DELETE' }),
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:blogs` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:blogs` }],
+    }),
+    listEditorSections: builder.query<{ blogs: ApiPost[]; tabs: Record<string, ApiPost[]> }, string>({
+      query: (id) => `/profiles/${id}/editor-sections`,
+      transformResponse: (res: Envelope<{ blogs?: ApiPost[]; tabs?: Record<string, ApiPost[]> }>) => {
+        const payload = res.data || {}
+        const tabs: Record<string, ApiPost[]> = {}
+        for (const [key, rows] of Object.entries(payload.tabs || {})) {
+          tabs[key] = (Array.isArray(rows) ? rows : []).map(normalizeDirectItemToApiPost)
+        }
+        return {
+          blogs: (payload.blogs || []).map(normalizeDirectItemToApiPost),
+          tabs,
+        }
+      },
+      providesTags: (_r, _e, id) => [{ type: 'profiles', id: `${id}:editor-sections` }],
     }),
     listProfileTabItems: builder.query<ApiPost[], { id: string; tabKey: string; limit?: number }>({
       query: ({ id, tabKey, limit }) =>
@@ -1295,10 +1299,7 @@ const profilesApi = api.injectEndpoints({
         body,
       }),
       transformResponse: (res: Envelope<ApiPost>) => normalizeDirectItemToApiPost(res.data),
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` }],
     }),
     updateProfileTabItem: builder.mutation<
       ApiPost,
@@ -1323,20 +1324,14 @@ const profilesApi = api.injectEndpoints({
         body,
       }),
       transformResponse: (res: Envelope<ApiPost>) => normalizeDirectItemToApiPost(res.data),
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` }],
     }),
     deleteProfileTabItem: builder.mutation<{ deleted: boolean }, { id: string; tabKey: string; itemId: string }>({
       query: ({ id, tabKey, itemId }) => ({
         url: `/profiles/${id}/tabs/${encodeURIComponent(tabKey)}/${itemId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_r, _e, arg) => [
-        { type: 'profiles', id: arg.id },
-        { type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` },
-      ],
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:tab:${arg.tabKey}` }],
     }),
     getDashboardStats: builder.query<DashboardStats, DashboardStatsQuery | void>({
       query: (params) => {
@@ -1531,6 +1526,8 @@ export const {
   useDeleteProfilePostMutation,
   useListProfileBlogsQuery,
   useLazyListProfileBlogsQuery,
+  useListEditorSectionsQuery,
+  useLazyListEditorSectionsQuery,
   useCreateProfileBlogMutation,
   useUpdateProfileBlogMutation,
   useDeleteProfileBlogMutation,

@@ -11,8 +11,9 @@ const SECTION_LOADERS = new Map<string, () => Promise<unknown>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function lazyNamed(loader: () => Promise<Record<string, ComponentType<any>>>, exportName: string) {
   SECTION_LOADERS.set(exportName, loader)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return dynamic(() => loader().then((mod) => ({ default: mod[exportName] }))) as ComponentType<any>
+  return dynamic(() => loader().then((mod) => ({ default: mod[exportName] })), {
+    loading: () => null,
+  }) as ComponentType<any> // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 /** Fetches a section chunk without rendering it — later renders resolve from cache. */
@@ -22,9 +23,9 @@ export function preloadSectionComponent(exportName: string) {
   void loader().catch(() => undefined)
 }
 
-export const HomeSectionV1 = lazyNamed(() => import('@/profile-app/components/HomeSection'), 'HomeSection')
-export const HomeSectionV2 = lazyNamed(() => import('@/profile-app/components/HomeSectionV2'), 'HomeSectionV2')
-export const HomeHero = lazyNamed(() => import('@/profile-app/v3/components/HomeHero'), 'HomeHero')
+export { HomeSection as HomeSectionV1 } from '@/profile-app/components/HomeSection'
+export { HomeSectionV2 } from '@/profile-app/components/HomeSectionV2'
+export { HomeHero } from '@/profile-app/v3/components/HomeHero'
 
 export const AboutSection = lazyNamed(() => import('@/profile-app/components/AboutSection'), 'AboutSection')
 export const MissionSection = lazyNamed(() => import('@/profile-app/components/MissionSection'), 'MissionSection')

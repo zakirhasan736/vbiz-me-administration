@@ -5,10 +5,11 @@ import { useAppSelector } from '@/hooks/redux'
 import { useGoogleFont } from '@/hooks/useGoogleFont'
 import { useVCard } from '@/lib/VCardContext'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
+import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
+import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { getNavItemById } from '@/lib/vcardNavbar'
 import { ProfileApp } from '@/profile-app/ProfileApp'
 import { ProfileThemeShell } from '@/profile-app/components/ProfileThemeShell'
-import { useResolvedProfileTheme } from '@/profile-app/hooks/useResolvedProfileTheme'
 import '@/profile-app/profile-app.css'
 import { vCardDataToProfileProps } from '@/profile-app/profilePublicProps'
 import { ProfileThemeProvider } from '@/profile-app/providers/ProfileThemeProvider'
@@ -79,25 +80,42 @@ function useIsMobileSheet(): boolean {
 }
 
 export function VCardLivePreview() {
-  const { isOpen, hasMounted, close, editorSectionId } = useLivePreview()
+  const { isOpen, close, editorSectionId } = useLivePreview()
   const { vCardData, cardId } = useVCard()
-  /** Keeps typing in the editor at high priority; the preview repaints right after. */
-  const draft = useDeferredValue(vCardData)
+  /** Keeps typing in the editor at high priority; settings/theme still paint immediately. */
+  const deferred = useDeferredValue(vCardData)
+  const draft = useMemo(() => {
+    if (deferred === vCardData) return vCardData
+    return {
+      ...deferred,
+      theme: vCardData.theme,
+      appearance: vCardData.appearance,
+      themeConfig: vCardData.themeConfig,
+      seo: vCardData.seo,
+      displaySettings: vCardData.displaySettings,
+      aiAssistanceEnabled: vCardData.aiAssistanceEnabled,
+      personal: vCardData.personal,
+      social: vCardData.social,
+      extraFields: vCardData.extraFields,
+      myInfo: vCardData.myInfo,
+      slug: vCardData.slug,
+    }
+  }, [deferred, vCardData])
   const designSettings = useAppSelector((s) => s.designSettings)
   const record = useAppSelector((s) => (cardId ? selectVCardById(s, cardId) : null))
 
   const earlyTemplate: ProfileTemplateId =
-    (draft.appearance?.profileTemplate as ProfileTemplateId | undefined) ?? designSettings.profileTemplate ?? 'v3'
-
-  const {
-    themeConfig,
-    appearance: settingsAppearance,
-    fromApi,
-  } = useResolvedProfileTheme({
-    profileId: cardId ?? '',
-    template: earlyTemplate,
-    cardThemeConfig: draft.themeConfig ?? null,
-  })
+    (vCardData.appearance?.profileTemplate as ProfileTemplateId | undefined) ?? designSettings.profileTemplate ?? 'v3'
+  const themeConfig = useMemo(
+    () =>
+      applyEditorSettingsToThemeConfig(
+        vCardData.themeConfig ?? getDefaultThemeConfig(earlyTemplate),
+        vCardData.theme,
+        vCardData.appearance
+      ),
+    [vCardData.themeConfig, vCardData.theme, vCardData.appearance, earlyTemplate]
+  )
+  const fromApi = true
 
   const profileProps = useMemo(() => {
     const base = vCardDataToProfileProps(draft, designSettings, {
@@ -105,16 +123,9 @@ export function VCardLivePreview() {
       avatarImageUrl: record?.avatarImageUrl,
       themeConfig,
       themeFromApi: fromApi,
-      appearance: {
-        ...draft.appearance,
-        ...settingsAppearance,
-      },
+      appearance: draft.appearance,
     })
-    const appearance = {
-      ...draft.appearance,
-      ...settingsAppearance,
-    }
-    const design = resolveProfileDesign(designSettings, draft.theme, appearance, {
+    const design = resolveProfileDesign(designSettings, draft.theme, draft.appearance, {
       themeConfig,
     })
     return {
@@ -132,7 +143,7 @@ export function VCardLivePreview() {
       },
       profileSlug: draft.slug?.trim() || undefined,
     }
-  }, [draft, designSettings, cardId, record?.avatarImageUrl, record?.views, themeConfig, settingsAppearance, fromApi])
+  }, [draft, designSettings, cardId, record?.avatarImageUrl, record?.views, themeConfig, fromApi])
 
   useGoogleFont(profileProps.design?.fontFamily)
 
@@ -298,10 +309,6 @@ export function VCardLivePreview() {
     }
   }, [])
 
-  // Nothing is rendered until the eye icon is used the first time; after that the
-  // tree stays mounted so reopening keeps scroll position, section, and theme.
-  if (!hasMounted) return null
-
   const collapseShift = isCollapsed ? ` + (100% - ${COLLAPSED_RAIL})` : ''
   const phoneTransform = `translate3d(calc(${offset.x}px${collapseShift}), ${offset.y}px, 0)`
 
@@ -415,6 +422,7 @@ export function VCardLivePreview() {
             <ProfileThemeShell config={themeConfig} fromApi={fromApi} template={template} forcedMode={previewTheme}>
               <ProfileThemeProvider themeConfig={themeConfig} fromApi={fromApi}>
                 <ProfileApp
+                  key={template}
                   {...profileProps}
                   embedded
                   previewActive={isOpen && !isCollapsed}

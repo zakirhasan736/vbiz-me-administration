@@ -13,7 +13,7 @@ export function EditorNavEmptyPanel({ title, tourTargetId }: EditorNavEmptyPanel
     >
       <p className="text-base font-bold text-slate-900 dark:text-white">{title}</p>
       <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
-        This section does not have an editor yet. You can still show it on your vCard from Nav Bar settings.
+        This section does not have an editor yet. You can still show it on your vCard from Add Tabs.
       </p>
     </div>
   )

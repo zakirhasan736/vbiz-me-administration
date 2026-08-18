@@ -15,7 +15,7 @@ export const profileSettingsApi = api.injectEndpoints({
       query: ({ profileId }) => `/profiles/${encodeURIComponent(profileId.trim())}/settings`,
       transformResponse: (response: ProfileSettingsResponse, _meta, arg) => mapProfileSettings(response, arg.template),
       providesTags: (_result, _error, arg) => [{ type: 'ProfileSettings', id: arg.profileId }],
-      keepUnusedDataFor: 120,
+      keepUnusedDataFor: 15,
     }),
   }),
   overrideExisting: true,

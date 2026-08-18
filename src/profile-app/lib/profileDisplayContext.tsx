@@ -181,7 +181,7 @@ export function ProfileDisplayProvider({
       customTabs: custom,
       tabLabelOverrides: labels,
       design: design ?? null,
-      isVisible: (key: string) => (embedded ? true : isFieldVisibleInProfile(settings, key)),
+      isVisible: (key: string) => isFieldVisibleInProfile(settings, key),
       isNavVisible: (label: string) => isFieldVisible(settings, label),
       field: (key: string) => getFieldConfig(settings, key),
       personalValue: (fieldKey: string) => getPersonalValueForField(p, fieldKey),

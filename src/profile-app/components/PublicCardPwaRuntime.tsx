@@ -3,7 +3,7 @@
 import { useAppDispatch } from '@/hooks/redux'
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { mapNavBarLinks } from '@/lib/api/navbar/mapNavBarLinks'
-import { orderAndDedupeNavItems } from '@/lib/api/navbar/orderNavTabs'
+import { subscribePublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import type { NavBarNavItem, ProfileNavContentKey } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { publicApi } from '@/redux/api/publicApi'
@@ -261,7 +261,7 @@ export function PublicCardPwaRuntime({
   const dispatch = useAppDispatch()
   const trimmed = slug.trim()
   const normalizedProfileId = profileId?.trim() ?? ''
-  const navItems = useMemo(() => orderAndDedupeNavItems(mapNavBarLinks(initialNavBarLinks)), [initialNavBarLinks])
+  const navItems = useMemo(() => mapNavBarLinks(initialNavBarLinks), [initialNavBarLinks])
   const [connectionState, setConnectionState] = useState<'online' | 'offline' | 'syncing'>(() =>
     isOnline() ? 'online' : 'offline'
   )
@@ -418,9 +418,12 @@ export function PublicCardPwaRuntime({
       if (document.visibilityState === 'visible') syncLatest(true)
     }
 
+    const onSettingsSaved = () => syncLatest(true)
+
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
     document.addEventListener('visibilitychange', onVisible)
+    const unsubscribeSettings = subscribePublicCardSettingsSaved(onSettingsSaved)
 
     void warmLazyProfileChunks().finally(cacheShell)
     syncLatest(false)
@@ -433,6 +436,7 @@ export function PublicCardPwaRuntime({
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
       document.removeEventListener('visibilitychange', onVisible)
+      unsubscribeSettings()
       window.clearTimeout(cacheTimer)
       window.clearTimeout(postPrefetchCacheTimer)
     }

@@ -1,7 +1,8 @@
 'use client'
 
+import type { SavedNote } from '@/interfaces/api/saveNote'
 import { notepadThemeFromDesign, resolveProfileDesign, type ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
-import { saveProfileNote } from '@/profile-app/lib/saveProfileNote'
+import { fetchProfileNotes, getProfileVisitorId, saveProfileNote } from '@/profile-app/lib/saveProfileNote'
 import { cn } from '@/utils/cn'
 import { Bold, CheckCircle2, Cloud, Italic, List, Pin, Underline, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -74,19 +75,22 @@ export const LeaveMessageModal = ({ isOpen, embedded = false, ...props }: LeaveM
   if (!portalTarget) return null
 
   return createPortal(
-    <AnimatePresence>{isOpen ? <LeaveMessageModalPanel embedded={embedded} {...props} /> : null}</AnimatePresence>,
+    <AnimatePresence>
+      {isOpen ? <LeaveMessageModalPanel isOpen={isOpen} embedded={embedded} {...props} /> : null}
+    </AnimatePresence>,
     portalTarget
   )
 }
 
 function LeaveMessageModalPanel({
+  isOpen,
   onClose,
   ownerName = 'the card owner',
   onSubmit,
   profileId,
   design,
   embedded = false,
-}: Omit<LeaveMessageModalProps, 'isOpen'>) {
+}: Omit<LeaveMessageModalProps, 'isOpen'> & { isOpen: boolean }) {
   const editorRef = useRef<HTMLDivElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -98,12 +102,43 @@ function LeaveMessageModalPanel({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [charCount, setCharCount] = useState(0)
   const [isEmpty, setIsEmpty] = useState(true)
+  const [visitorNotes, setVisitorNotes] = useState<SavedNote[]>([])
+  const [notesLoading, setNotesLoading] = useState(false)
+  const [notesError, setNotesError] = useState<string | null>(null)
 
   const resolvedDesign = design ?? FALLBACK_DESIGN
   const noteThemeStyle = useMemo(() => notepadThemeFromDesign(resolvedDesign), [resolvedDesign])
   const isV1 = resolvedDesign.profileTemplate === 'v1'
 
   const overlayClass = embedded ? 'absolute inset-0' : 'fixed inset-0'
+
+  const loadVisitorNotes = useCallback(async () => {
+    if (embedded || !profileId) {
+      setVisitorNotes([])
+      return
+    }
+
+    const visitorId = getProfileVisitorId(profileId)
+    if (!visitorId) return
+
+    setNotesLoading(true)
+    setNotesError(null)
+    try {
+      setVisitorNotes(await fetchProfileNotes(profileId, visitorId))
+    } catch (error) {
+      console.error('Error loading public notes:', error)
+      setVisitorNotes([])
+      setNotesError(error instanceof Error ? error.message : 'Unable to load replies.')
+    } finally {
+      setNotesLoading(false)
+    }
+  }, [embedded, profileId])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const timer = window.setTimeout(() => void loadVisitorNotes(), 0)
+    return () => window.clearTimeout(timer)
+  }, [isOpen, loadVisitorNotes])
 
   const getPlainText = useCallback(() => editorRef.current?.innerText ?? '', [])
 
@@ -201,10 +236,11 @@ function LeaveMessageModalPanel({
       if (onSubmit) {
         await onSubmit(payload)
       } else if (profileId && !embedded && profileId !== 'preview') {
-        await saveProfileNote(profileId, trimmed)
+        await saveProfileNote(profileId, trimmed, { visitorId: getProfileVisitorId(profileId) ?? undefined })
       } else {
         await new Promise((r) => setTimeout(r, 400))
       }
+      await loadVisitorNotes()
       try {
         localStorage.removeItem(draftKey)
       } catch {
@@ -313,6 +349,40 @@ function LeaveMessageModalPanel({
                   onInput={handleInput}
                   className="vbiz-notepad-editor relative z-10 min-h-[220px] w-full text-[1.15rem] leading-[1.85rem] outline-none"
                 />
+
+                {!embedded && profileId && (
+                  <section
+                    className="relative z-10 mt-5 border-t border-black/10 pt-3"
+                    aria-label="Your notes and replies"
+                  >
+                    <p className="text-xs font-semibold text-zinc-800">Your notes and replies</p>
+                    {notesLoading ? <p className="mt-2 text-xs text-zinc-600">Loading replies...</p> : null}
+                    {notesError ? (
+                      <p className="mt-2 text-xs text-red-700" role="alert">
+                        {notesError}
+                      </p>
+                    ) : null}
+                    {!notesLoading && !notesError && visitorNotes.length === 0 ? (
+                      <p className="mt-2 text-xs text-zinc-600">Your owner replies will appear here.</p>
+                    ) : null}
+                    <div className="mt-2 space-y-2">
+                      {visitorNotes.map((note) => (
+                        <article
+                          key={note.id}
+                          className="rounded-lg border border-black/10 bg-white/45 px-3 py-2 text-sm"
+                        >
+                          <p className="wrap-break-word whitespace-pre-wrap text-zinc-900">{note.content}</p>
+                          {note.reply ? (
+                            <div className="mt-2 border-l-2 border-emerald-600 pl-2 text-emerald-950">
+                              <p className="text-[11px] font-bold uppercase">Reply from {ownerName}</p>
+                              <p className="mt-0.5 wrap-break-word whitespace-pre-wrap">{note.reply}</p>
+                            </div>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </div>
 
               <div className="vbiz-notepad-footer flex items-center justify-between gap-3 border-t px-4 py-2">

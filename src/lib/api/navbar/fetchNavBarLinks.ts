@@ -1,7 +1,7 @@
 import type { NavBarLinksData, NavBarLinksResponse } from '@/interfaces/navbarLinks.interface'
-import { getApiBaseUrl, SERVER_FETCH_REVALIDATE_SECONDS } from '@/lib/api/serverApi'
+import { getApiBaseUrl } from '@/lib/api/serverApi'
 
-/** Fetches profile nav catalog from `GET /post-types?profile_id=` (server-only, ISR-cached). */
+/** Fetches profile nav catalog from `GET /post-types?profile_id=` (never ISR-cached). */
 export async function fetchNavBarLinks(profileId: string | number): Promise<NavBarLinksData | null> {
   const id = String(profileId).trim()
   if (!id) return null
@@ -9,7 +9,7 @@ export async function fetchNavBarLinks(profileId: string | number): Promise<NavB
   try {
     const response = await fetch(`${getApiBaseUrl()}/post-types?profile_id=${encodeURIComponent(id)}`, {
       headers: { Accept: 'application/json' },
-      next: { revalidate: SERVER_FETCH_REVALIDATE_SECONDS },
+      cache: 'no-store',
     })
 
     if (!response.ok) return null

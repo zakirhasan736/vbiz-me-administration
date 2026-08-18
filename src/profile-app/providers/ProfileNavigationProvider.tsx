@@ -56,7 +56,7 @@ type Props = {
 
 /**
  * Client-side section nav — no URL / route changes.
- * Visible tabs follow Add Tabs / Card Settings order (`editorNavOrder`), including empty sections.
+ * Visible tabs follow Add Tabs order (`editorNavOrder`), including empty sections.
  */
 export function ProfileNavigationProvider({
   children,
@@ -65,7 +65,14 @@ export function ProfileNavigationProvider({
   initialNavBarLinks = null,
 }: Props) {
   const dispatch = useAppDispatch()
-  const { settings: displaySettings, cardOwnerId, customTabs, tabLabelOverrides, design } = useProfileDisplay()
+  const {
+    settings: displaySettings,
+    cardOwnerId,
+    customTabs,
+    tabLabelOverrides,
+    design,
+    embedded,
+  } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
   const template = (design?.profileTemplate as ProfileTemplateVariant | undefined) ?? 'v3'
 
@@ -80,7 +87,9 @@ export function ProfileNavigationProvider({
     data: navBarLinksFromQuery,
     isLoading: isNavLinksLoading,
     isError: isNavError,
-  } = useGetNavBarLinksQuery(profileId, { skip: !profileId || hasPrefetchedNavLinks })
+  } = useGetNavBarLinksQuery(profileId, {
+    skip: !profileId || hasPrefetchedNavLinks || embedded,
+  })
 
   const navBarLinks = initialNavBarLinks ?? navBarLinksFromQuery
 
@@ -103,19 +112,18 @@ export function ProfileNavigationProvider({
 
   const visibleTabs = useMemo(() => {
     if (!displaySettings.globalEnabled) return []
-    const selected = selectEnabledNavItems(navItems, displaySettings)
     if (Array.isArray(displaySettings.editorNavOrder) && displaySettings.editorNavOrder.length) {
-      return selected
+      return selectEnabledNavItems(navItems, displaySettings)
     }
     if (apiNavItems.length) {
-      const allowed = new Set(apiNavItems.map((item) => item.id))
-      const next = selected.filter((item) => allowed.has(item.id) || LOCKED_NAV_ITEM_IDS.has(item.id))
-      return next.length ? next : selected.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id))
+      const byId = new Map(navItems.map((item) => [item.id, item]))
+      return apiNavItems.map((item) => byId.get(item.id) ?? item)
     }
-    return selected.filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id))
-  }, [apiNavItems, displaySettings, navItems])
+    if (embedded) return selectEnabledNavItems(navItems, displaySettings)
+    return selectEnabledNavItems(navItems, displaySettings).filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id))
+  }, [apiNavItems, displaySettings, embedded, navItems])
 
-  const isNavLoading = hasPrefetchedNavLinks ? false : isNavLinksLoading
+  const isNavLoading = embedded || hasPrefetchedNavLinks ? false : isNavLinksLoading
 
   // Warm every reachable section chunk so tab switches never suspend.
   useEffect(() => {

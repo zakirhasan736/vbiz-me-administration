@@ -17,6 +17,14 @@ import {
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
 import {
+  MAX_SEO_DESCRIPTION_LENGTH,
+  MAX_SEO_KEYWORDS,
+  MAX_SEO_TITLE_LENGTH,
+  normalizeCardSeo,
+  normalizeSeoKeywords,
+  SEO_FIXED_KEYWORDS,
+} from '@/lib/seo/cardSeo'
+import {
   inferMediaWallpaperStyle,
   patchThemeConfigWallpaper,
   PREMADE_GRADIENTS,
@@ -29,26 +37,17 @@ import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
 import {
-  applyEnabledNavOrderToDisplaySettings,
   GENERAL_SETTINGS_FIELDS,
   getDisplaySettingsFromVCard,
   getFieldColorPreview,
   HOME_PAGE_FIELDS,
   ICON_FIELDS,
   MY_INFO_FIELDS,
-  NAV_BAR_FIELDS,
   patchDisplayField,
   setCategoryEnableAll,
   SOCIAL_LINK_FIELDS,
-  syncEditorNavOrderAfterNavVisibilityChange,
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
-import {
-  getEditorNavLabel,
-  getNavBarSettingKeysInOrder,
-  NAV_BAR_NAV_ITEMS,
-  navIdsAfterEnableAll,
-} from '@/lib/vcardNavbar'
 import { DEFAULT_COVER } from '@/profile-app/profilePublicProps'
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
@@ -67,11 +66,9 @@ import {
   Link2,
   Loader2,
   Menu,
-  Palette,
   Search,
   Settings2,
   Sparkles,
-  Star,
   Upload,
   User,
   X,
@@ -86,13 +83,10 @@ const FIELD_BACKGROUND_MEDIA = 'Background Video/Image'
 const MAX_PROFILE_IMAGE_BYTES = 15 * 1024 * 1024
 
 const settingTabs = [
-  { id: 'info', label: 'My Info Color Settings', icon: Palette },
-  { id: 'social', label: 'Social and general Links', icon: Link2 },
-  { id: 'icons', label: 'Icons', icon: Star },
   { id: 'general', label: 'General Settings', icon: Settings2 },
+  { id: 'social', label: 'Social and general Links', icon: Link2 },
   { id: 'home', label: 'Home Page Settings', icon: Home },
-  { id: 'navbar', label: 'Nav Bar settings', icon: Menu },
-  { id: 'template', label: 'Template', icon: LayoutTemplate },
+  { id: 'template', label: 'Template Settings', icon: LayoutTemplate },
   { id: 'seo', label: 'SEO', icon: Search },
   { id: 'ai-assistance', label: 'AI Assistance', icon: Bot },
 ]
@@ -101,17 +95,15 @@ const cardInputClasses =
   'w-full rounded-[.875rem] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[.8125rem] font-medium text-slate-900 shadow-sm outline-none transition-all focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-slate-800 dark:text-white'
 
 const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'seo', 'ai-assistance'])
-const FIELD_CARD_TABS = new Set(['info', 'social', 'icons', 'general', 'home', 'navbar'])
+const FIELD_CARD_TABS = new Set(['info', 'social', 'icons', 'general', 'home'])
 
 const settingTabTourIds: Record<string, string> = {
   home: 'tour-card-home-tab',
-  navbar: 'tour-card-navbar-tab',
   template: 'tour-card-template-tab',
 }
 
 const settingContentTourIds: Record<string, string> = {
   home: 'tour-card-home-content',
-  navbar: 'tour-card-navbar-content',
 }
 
 const CATEGORY_FIELDS: Record<string, readonly string[]> = {
@@ -120,7 +112,6 @@ const CATEGORY_FIELDS: Record<string, readonly string[]> = {
   icons: ICON_FIELDS,
   general: GENERAL_SETTINGS_FIELDS,
   home: HOME_PAGE_FIELDS,
-  navbar: NAV_BAR_FIELDS,
 }
 
 function SettingSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -898,18 +889,31 @@ const FieldCard: React.FC<{
 }
 
 function CardSeoPanel() {
-  const [keywords, setKeywords] = useState<string[]>([])
+  const { vCardData, updateData } = useVCard()
+  const seo = normalizeCardSeo(vCardData.seo)
+  const seoRef = useRef(seo)
   const [keywordInput, setKeywordInput] = useState('')
+
+  useEffect(() => {
+    seoRef.current = seo
+  }, [seo])
+
+  const updateSeo = (patch: Partial<typeof seo>) => {
+    const next = normalizeCardSeo({ ...seoRef.current, ...patch })
+    seoRef.current = next
+    updateData('seo', next)
+  }
 
   const addKeyword = (raw: string) => {
     const value = raw.trim()
     if (!value) return
-    setKeywords((prev) => (prev.includes(value) ? prev : [...prev, value]))
+    updateSeo({ metaKeywords: normalizeSeoKeywords([...seoRef.current.metaKeywords, value]) })
     setKeywordInput('')
   }
 
   const removeKeyword = (keyword: string) => {
-    setKeywords((prev) => prev.filter((item) => item !== keyword))
+    if (SEO_FIXED_KEYWORDS.some((item) => item.toLowerCase() === keyword.toLowerCase())) return
+    updateSeo({ metaKeywords: seoRef.current.metaKeywords.filter((item) => item !== keyword) })
   }
 
   const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -924,47 +928,74 @@ function CardSeoPanel() {
         SEO for this specific card — only users who can open Card Settings can edit these fields.
       </p>
       <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
-        <h4 className="text-sm font-black text-slate-900 dark:text-white">Custom metadata</h4>
-        <input type="text" placeholder="Meta title (Example: @yourname)" className={cardInputClasses} />
+        <h4 className="text-sm font-black text-slate-900 dark:text-white">Card metadata</h4>
+        <label htmlFor="card-seo-meta-title" className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          Meta title
+        </label>
+        <input
+          id="card-seo-meta-title"
+          type="text"
+          value={seo.metaTitle}
+          onChange={(event) => updateSeo({ metaTitle: event.target.value })}
+          placeholder="Example: Maya Design Studio | Virtual Card"
+          maxLength={MAX_SEO_TITLE_LENGTH}
+          className={cardInputClasses}
+        />
+        <label htmlFor="card-seo-meta-description" className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          Meta description
+        </label>
         <textarea
-          placeholder="Meta description (Example: Make your link do more.)"
+          id="card-seo-meta-description"
+          value={seo.metaDescription}
+          onChange={(event) => updateSeo({ metaDescription: event.target.value })}
+          placeholder="Example: Discover Maya Design Studio's services, work, and contact details."
+          maxLength={MAX_SEO_DESCRIPTION_LENGTH}
           className={cn(cardInputClasses, 'min-h-27.5 resize-none')}
         />
+        <label htmlFor="card-seo-keyword-input" className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          Meta keywords
+        </label>
         <div
           className={cn(
             cardInputClasses,
             'focus-within:border-primary-500 focus-within:ring-primary-500 flex min-h-13 flex-wrap items-center gap-2 py-2.5 focus-within:ring-1'
           )}
         >
-          {keywords.map((keyword) => (
+          {seo.metaKeywords.map((keyword) => (
             <span
               key={keyword}
               className="border-primary-200/80 bg-primary-50 text-primary-700 dark:border-primary-500/25 dark:bg-primary-500/10 dark:text-primary-300 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[.75rem] font-semibold"
             >
               {keyword}
-              <button
-                type="button"
-                onClick={() => removeKeyword(keyword)}
-                className="hover:bg-primary-100 hover:text-primary-900 dark:hover:bg-primary-500/20 dark:hover:text-primary-200 rounded-md p-0.5 transition-colors"
-                aria-label={`Remove keyword ${keyword}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
+              {SEO_FIXED_KEYWORDS.some((item) => item.toLowerCase() === keyword.toLowerCase()) ? null : (
+                <button
+                  type="button"
+                  onClick={() => removeKeyword(keyword)}
+                  className="hover:bg-primary-100 hover:text-primary-900 dark:hover:bg-primary-500/20 dark:hover:text-primary-200 rounded-md p-0.5 transition-colors"
+                  aria-label={`Remove keyword ${keyword}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </span>
           ))}
           <input
+            id="card-seo-keyword-input"
             type="text"
             value={keywordInput}
             onChange={(e) => setKeywordInput(e.target.value)}
             onKeyDown={handleKeywordKeyDown}
+            disabled={seo.metaKeywords.length >= MAX_SEO_KEYWORDS}
             placeholder={
-              keywords.length > 0
-                ? 'Add another keyword and press Enter'
-                : 'Meta keywords (Example: business, networking, vcard)'
+              seo.metaKeywords.length >= MAX_SEO_KEYWORDS ? 'Keyword limit reached' : 'Add keyword and press Enter'
             }
+            maxLength={80}
             className="min-w-30 flex-1 bg-transparent py-1 text-[.8125rem] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
           />
         </div>
+        <p className="text-[.6875rem] font-semibold text-slate-400">
+          {seo.metaKeywords.length}/{MAX_SEO_KEYWORDS} keywords. Five vBiz Me keywords are always included.
+        </p>
       </div>
     </div>
   )
@@ -1211,7 +1242,7 @@ type TabSettingProps = {
   cardId?: string
 }
 
-export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettingProps) {
+export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSettingProps) {
   const { vCardData, updateData } = useVCard()
   const display = getDisplaySettingsFromVCard(vCardData)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -1222,11 +1253,6 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
   const patchDisplay = (next: VCardDisplaySettings) => updateData('displaySettings', next)
 
   const patchField = (key: string, patch: Partial<DisplayFieldConfig>) => {
-    if (activeTab === 'navbar' && typeof patch.visible === 'boolean' && key !== 'Nav Background Color') {
-      const withVisibility = patchDisplayField(display, key, patch)
-      patchDisplay(syncEditorNavOrderAfterNavVisibilityChange(withVisibility, key, patch.visible))
-      return
-    }
     patchDisplay(patchDisplayField(display, key, patch))
   }
 
@@ -1269,21 +1295,6 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
         return renderFieldCards(GENERAL_SETTINGS_FIELDS, { showTextCol: true, showBgCol: true })
       case 'home':
         return renderFieldCards(HOME_PAGE_FIELDS, { showInput: true })
-      case 'navbar':
-        return getNavBarSettingKeysInOrder(display).map((key) => {
-          const item = NAV_BAR_NAV_ITEMS.find((nav) => nav.label === key)
-          const title = item ? vCardData.tabLabelOverrides?.[item.id]?.trim() || getEditorNavLabel(item) : key
-          return (
-            <FieldCard
-              key={key}
-              title={title}
-              config={display.fields[key] ?? { visible: true }}
-              onPatch={(patch) => patchField(key, patch)}
-              colorPreview={colorPreview}
-              showBgCol
-            />
-          )
-        })
       case 'template':
         return <TemplateDesigner />
       case 'seo':
@@ -1300,7 +1311,9 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
       ? 'Per-card SEO metadata for this public profile.'
       : activeTab === 'ai-assistance'
         ? 'Guest-facing assistant for this card — chats with visitors about your business.'
-        : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
+        : activeTab === 'template'
+          ? 'Choose the public card layout. Tab order and visibility are set from Add Tabs.'
+          : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
 
   const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)
 
@@ -1450,12 +1463,6 @@ export function TabSetting({ basePath, settingsTab = 'info', cardId }: TabSettin
                       }
                       const keys = CATEGORY_FIELDS[activeTab]
                       if (!keys) return
-                      if (activeTab === 'navbar') {
-                        patchDisplay(
-                          applyEnabledNavOrderToDisplaySettings(display, navIdsAfterEnableAll(display, enabled))
-                        )
-                        return
-                      }
                       patchDisplay(setCategoryEnableAll(display, keys, enabled))
                     }}
                   />

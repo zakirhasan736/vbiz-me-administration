@@ -727,15 +727,37 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 </p>
               </div>
             </div>
+            {!isCreateMode ? (
+              <button
+                type="button"
+                onClick={openLivePreview}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700"
+              >
+                <Eye className="h-4 w-4" />
+                View
+              </button>
+            ) : null}
           </div>
         ) : (
-          <Link
-            href={directoryHref}
-            className="hover:border-primary-500/30 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm backdrop-blur transition-all hover:text-slate-900 dark:border-white/10 dark:bg-[#0b0f19]/80 dark:text-slate-300 dark:hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {directoryLabel}
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link
+              href={directoryHref}
+              className="hover:border-primary-500/30 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm backdrop-blur transition-all hover:text-slate-900 dark:border-white/10 dark:bg-[#0b0f19]/80 dark:text-slate-300 dark:hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {directoryLabel}
+            </Link>
+            {!isCreateMode ? (
+              <button
+                type="button"
+                onClick={openLivePreview}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700"
+              >
+                <Eye className="h-4 w-4" />
+                View
+              </button>
+            ) : null}
+          </div>
         )}
 
         <div

@@ -48,4 +48,46 @@ test.describe('Card Builder', () => {
     await page.goto('/vcards/edit/home/2?cardId=card-1')
     await expect(page.locator('[data-tour="tab-form"] input').nth(1)).toHaveValue('Autosaved E2E Card')
   })
+
+  test('card settings opens General Settings and hides deprecated color tabs', async ({ page }) => {
+    await signIn(page)
+    await page.goto('/vcards/edit/settings?cardId=card-1')
+
+    await expect(page.getByRole('heading', { name: 'General Settings', exact: true })).toBeVisible()
+    const settingsLinks = page.locator('a[href^="/vcards/edit/settings"]:not(#tour-editor-settings)')
+    await expect(settingsLinks.first()).toHaveText(/General Settings/)
+    await expect(page.getByRole('link', { name: 'My Info Color Settings', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Icons', exact: true })).toHaveCount(0)
+  })
+
+  test('card settings SEO fields autosave per-card metadata', async ({ page }) => {
+    await signIn(page)
+    await page.goto('/vcards/edit/settings/seo?cardId=card-1')
+
+    await expect(page.locator('#card-seo-meta-title')).toBeVisible()
+    await page.locator('#card-seo-meta-title').fill('E2E Card | Virtual Business Card')
+    await page.locator('#card-seo-meta-description').fill('A searchable description for the E2E card.')
+    await page.locator('#card-seo-keyword-input').fill('e2e card')
+
+    const patchResponse = page.waitForResponse(
+      (response) => response.url().includes('/api/v1/profiles/card-1') && response.request().method() === 'PATCH'
+    )
+    await page.locator('#card-seo-keyword-input').press('Enter')
+
+    const response = await patchResponse
+    expect(response.status()).toBe(200)
+    const body = response.request().postDataJSON() as { settings?: Record<string, string> }
+    expect(body.settings).toMatchObject({
+      seo_meta_title: 'E2E Card | Virtual Business Card',
+      seo_meta_description: 'A searchable description for the E2E card.',
+    })
+    expect(JSON.parse(body.settings?.seo_meta_keywords_json || '[]')).toEqual([
+      'vbizme',
+      'vbiz me',
+      'virtual card',
+      'digital business card',
+      'online business card',
+      'e2e card',
+    ])
+  })
 })

@@ -68,6 +68,12 @@ export function CardThemeStyles({
     return [
       config.version,
       config.colors.defaultMode,
+      config.colors.light.primary,
+      config.colors.light.accent,
+      config.colors.dark.primary,
+      config.colors.dark.accent,
+      config.appearance.profileTemplate,
+      config.appearance.layoutStyle,
       config.appearance.cornerStyle,
       config.appearance.buttonStyle,
       b.primary.style,

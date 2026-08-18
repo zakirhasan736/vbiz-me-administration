@@ -5,8 +5,30 @@ import { hasAboutMeDraftContent } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
 import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
+import { broadcastPublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
+import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { notify } from '@/lib/toast/toast'
+import {
+  AUTOSAVE_DEBOUNCE_MS,
+  dirtyBucketForPath,
+  hasPersistablePostsDelta,
+  isEmptyFaq,
+  isEmptyGeneralPost,
+  isEmptySectionPost,
+  isSaveWorthyChange,
+  mergeLocalEmptyDrafts,
+  persistableEducation,
+  persistableExperience,
+  persistableFaqs,
+  persistableGeneralPosts,
+  persistablePortfolio,
+  persistableReviews,
+  persistableSectionPosts,
+  persistableServices,
+  persistableSkills,
+  setByPath,
+} from '@/lib/vcardAutosave'
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
 import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
 import { DEFAULT_EDITOR_SECTION, buildEditorPath } from '@/lib/vcardEditorRoutes'
@@ -38,6 +60,7 @@ import {
   useDeleteProfilePostMutation,
   useDeleteProfileTabItemMutation,
   useGetProfileQuery,
+  useLazyListEditorSectionsQuery,
   useLazyListProfileBlogsQuery,
   useLazyListProfilePostsQuery,
   useLazyListProfileTabItemsQuery,
@@ -77,7 +100,7 @@ const ALL_DIRTY_BUCKETS: DirtyBucket[] = [
   'posts',
 ]
 
-const AUTOSAVE_DEBOUNCE_MS = 1000
+const PUBLIC_INVALIDATE_DEBOUNCE_MS = 4000
 
 const PUBLIC_INVALIDATION_TAGS = [
   'MyCard',
@@ -94,6 +117,9 @@ const PUBLIC_INVALIDATION_TAGS = [
   'VideoExplainer',
 ] as const
 
+/** Settings/SEO/template/theme — do not blast section caches on autosave. */
+const SETTINGS_PUBLIC_TAGS = ['MyCard', 'ProfileSettings', 'NavBarLinks', 'ProfileAiData'] as const
+
 interface VCardContextType {
   cardId: string | null
   isCreateMode: boolean
@@ -109,21 +135,6 @@ interface VCardContextType {
 }
 
 const VCardContext = createContext<VCardContextType | undefined>(undefined)
-
-function setByPath(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
-  const keys = path.split('.')
-  const clone = JSON.parse(JSON.stringify(obj)) as Record<string, unknown>
-  let current: Record<string, unknown> = clone
-  for (let i = 0; i < keys.length - 1; i++) {
-    const k = keys[i]
-    if (typeof current[k] !== 'object' || current[k] === null) {
-      current[k] = {}
-    }
-    current = current[k] as Record<string, unknown>
-  }
-  current[keys[keys.length - 1]] = value
-  return clone
-}
 
 function toVCardData(record: VCardRecord): VCardData {
   const rest = { ...record } as Record<string, unknown>
@@ -148,35 +159,6 @@ function buildCreateDraft(design: RootState['designSettings']): VCardData {
 function designDefaultsSignature(design: RootState['designSettings']): string {
   const d = designSettingsToVCardDefaults(design)
   return JSON.stringify(d)
-}
-
-function dirtyBucketForPath(path: string): DirtyBucket {
-  if (path === 'education' || path.startsWith('education.')) return 'education'
-  if (path === 'experience' || path.startsWith('experience.')) return 'experience'
-  if (path === 'services' || path.startsWith('services.')) return 'services'
-  if (path === 'portfolio' || path.startsWith('portfolio.')) return 'portfolio'
-  if (path === 'reviews' || path.startsWith('reviews.')) return 'reviews'
-  if (path === 'skills' || path.startsWith('skills.')) return 'skills'
-  if (path === 'social.customLinks' || path.startsWith('social.customLinks.')) return 'socialLinks'
-  if (
-    path === 'customTabs' ||
-    path.startsWith('customTabs.') ||
-    path === 'tabLabelOverrides' ||
-    path.startsWith('tabLabelOverrides.')
-  ) {
-    return 'profile'
-  }
-  if (
-    path === 'generalPosts' ||
-    path.startsWith('generalPosts.') ||
-    path === 'faqs' ||
-    path.startsWith('faqs.') ||
-    path === 'sectionPosts' ||
-    path.startsWith('sectionPosts.')
-  ) {
-    return 'posts'
-  }
-  return 'profile'
 }
 
 function errorMessage(err: unknown): string {
@@ -211,6 +193,20 @@ function toastSaveError(message: string) {
   notify.error(message)
 }
 
+const SETTINGS_SAVED_TOAST_DEDUPE_MS = 2500
+let lastSettingsSavedToastAt = 0
+
+function toastSettingsSaved() {
+  const now = Date.now()
+  if (now - lastSettingsSavedToastAt < SETTINGS_SAVED_TOAST_DEDUPE_MS) return
+  lastSettingsSavedToastAt = now
+  notify.success('Settings saved.')
+}
+
+function isAppearanceOrThemePath(path: string): boolean {
+  return path === 'theme' || path.startsWith('theme.') || path === 'appearance' || path.startsWith('appearance.')
+}
+
 export function VCardProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch()
   const router = useRouter()
@@ -242,6 +238,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const [updateBlog] = useUpdateProfileBlogMutation()
   const [deleteBlog] = useDeleteProfileBlogMutation()
   const [listTabItems] = useLazyListProfileTabItemsQuery()
+  const [listEditorSections] = useLazyListEditorSectionsQuery()
   const [createTabItem] = useCreateProfileTabItemMutation()
   const [updateTabItem] = useUpdateProfileTabItemMutation()
   const [deleteTabItem] = useDeleteProfileTabItemMutation()
@@ -257,6 +254,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     sectionPosts: {},
   })
 
+  const lastSavedDataRef = useRef<VCardData | null>(null)
+  const lastSavedProfilePayloadRef = useRef<string>('')
   const editDataRef = useRef<VCardData | null>(null)
   const dirtyBucketsRef = useRef<Set<DirtyBucket>>(new Set())
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -272,6 +271,29 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const invalidatePublicTags = useCallback(() => {
     dispatch(publicApi.util.invalidateTags([...PUBLIC_INVALIDATION_TAGS]))
   }, [dispatch])
+
+  const invalidateSettingsPublicTags = useCallback(() => {
+    dispatch(publicApi.util.invalidateTags([...SETTINGS_PUBLIC_TAGS]))
+  }, [dispatch])
+
+  const publicInvalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const schedulePublicInvalidate = useCallback(
+    (immediate = false) => {
+      if (publicInvalidateTimerRef.current) {
+        clearTimeout(publicInvalidateTimerRef.current)
+        publicInvalidateTimerRef.current = null
+      }
+      if (immediate) {
+        invalidatePublicTags()
+        return
+      }
+      publicInvalidateTimerRef.current = setTimeout(() => {
+        publicInvalidateTimerRef.current = null
+        invalidatePublicTags()
+      }, PUBLIC_INVALIDATE_DEBOUNCE_MS)
+    },
+    [invalidatePublicTags]
+  )
 
   useEffect(() => {
     editorHydratedForIdRef.current = null
@@ -327,6 +349,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     }
 
     editDataRef.current = data
+    lastSavedDataRef.current = data
+    lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(data))
     dispatch(addVCard({ id: profileId, seed: data }))
     dispatch(replaceVCardData({ id: profileId, data }))
     dispatch(
@@ -353,17 +377,65 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
     const profileId = cardId
     let cancelled = false
+    const publicNameToTabKey = (name: string) => {
+      const needle = name.trim().toLowerCase()
+      if (needle === 'faq') return 'faqs'
+      if (needle === 'mission' || needle === 'mission statement' || needle === 'company mission statement') {
+        return 'mission_statement'
+      }
+      return Object.values(TAB_REGISTRY).find((t) => t.publicSectionName.toLowerCase() === needle)?.key || null
+    }
+
+    const applyHydratedPosts = (
+      generalPosts: VCardData['generalPosts'],
+      faqs: VCardData['faqs'],
+      sectionPosts: Record<string, VCardSectionPostItem[]>
+    ) => {
+      if (cancelled) return
+      postsHydratedForId.current = profileId
+      postsSnapshotRef.current = { generalPosts, faqs, sectionPosts }
+
+      const latest = editDataRef.current || (record ? toVCardData(record) : null)
+      if (!latest) return
+      const withPosts = applyProfileMediaToExplainerTab({
+        ...latest,
+        generalPosts,
+        faqs,
+        sectionPosts,
+      })
+      editDataRef.current = withPosts
+      lastSavedDataRef.current = withPosts
+      lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(withPosts))
+      dispatch(replaceVCardData({ id: profileId, data: withPosts }))
+      if (explainerTabSignature(withPosts) !== JSON.stringify(sectionPosts[PUBLIC_SECTION_NAMES.explainer] ?? [])) {
+        dirtyBucketsRef.current.add('posts')
+        saveGateRef.current.dirty = true
+        setSaveStatus('dirty')
+        if (!autosaveTimerRef.current) scheduleAutosaveRef.current()
+      }
+    }
+
     ;(async () => {
       try {
         const schemas = Object.values(VCARD_SECTION_SCHEMAS)
-        const publicNameToTabKey = (name: string) => {
-          const needle = name.trim().toLowerCase()
-          if (needle === 'faq') return 'faqs'
-          if (needle === 'mission' || needle === 'mission statement' || needle === 'company mission statement') {
-            return 'mission_statement'
+        try {
+          const bundle = await listEditorSections(profileId).unwrap()
+          if (!bundle || Array.isArray(bundle) || !bundle.tabs) {
+            throw new Error('editor-sections unavailable')
           }
-          return Object.values(TAB_REGISTRY).find((t) => t.publicSectionName.toLowerCase() === needle)?.key || null
+          const generalPosts = mapApiPostsToGeneralPosts(bundle.blogs || [])
+          const faqs = mapApiPostsToFaqs(bundle.tabs.faqs || [])
+          const sectionPosts: Record<string, VCardSectionPostItem[]> = {}
+          schemas.forEach((schema) => {
+            const tabKey = publicNameToTabKey(schema.postTypeName)
+            sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts((tabKey && bundle.tabs[tabKey]) || [])
+          })
+          applyHydratedPosts(generalPosts, faqs, sectionPosts)
+          return
+        } catch {
+          /* older API without /editor-sections */
         }
+
         const [blogPosts, faqPosts, ...sectionResults] = await Promise.all([
           (async () => {
             try {
@@ -410,25 +482,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         schemas.forEach((schema, index) => {
           sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts(sectionResults[index] || [])
         })
-        postsHydratedForId.current = profileId
-        postsSnapshotRef.current = { generalPosts, faqs, sectionPosts }
-
-        const latest = editDataRef.current || (record ? toVCardData(record) : null)
-        if (!latest) return
-        const withPosts = applyProfileMediaToExplainerTab({
-          ...latest,
-          generalPosts,
-          faqs,
-          sectionPosts,
-        })
-        editDataRef.current = withPosts
-        dispatch(replaceVCardData({ id: profileId, data: withPosts }))
-        if (explainerTabSignature(withPosts) !== JSON.stringify(sectionPosts[PUBLIC_SECTION_NAMES.explainer] ?? [])) {
-          dirtyBucketsRef.current.add('posts')
-          saveGateRef.current.dirty = true
-          setSaveStatus('dirty')
-          scheduleAutosaveRef.current()
-        }
+        applyHydratedPosts(generalPosts, faqs, sectionPosts)
       } catch {
         postsHydratedForId.current = profileId
       }
@@ -436,7 +490,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [cardId, isCreateMode, dispatch, listPosts, listBlogs, listTabItems, record])
+  }, [cardId, isCreateMode, dispatch, listPosts, listBlogs, listTabItems, listEditorSections, record])
 
   const accountDefaultsSig = designDefaultsSignature(design)
   const [createDraft, setCreateDraft] = useState<VCardData>(() => buildCreateDraft(design))
@@ -478,6 +532,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       portfolio: base.portfolio ?? [],
       reviews: base.reviews ?? [],
       skills: base.skills ?? [],
+      seo: base.seo ?? createDefaultVCardData().seo,
     }
   }, [isCreateMode, createDraft, record])
 
@@ -489,9 +544,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const persistDirtyBuckets = useCallback(
-    async (profileId: string, data: VCardData, buckets: Set<DirtyBucket>) => {
+    async (profileId: string, data: VCardData, buckets: Set<DirtyBucket>): Promise<{ wroteProfile: boolean }> => {
       const tasks: Promise<unknown>[] = []
+      let wroteProfile = false
       data = applyProfileMediaToExplainerTab(data)
+      const saved = lastSavedDataRef.current
       const explainerKey = PUBLIC_SECTION_NAMES.explainer
       if (
         JSON.stringify(data.sectionPosts?.[explainerKey] ?? []) !==
@@ -501,108 +558,172 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (buckets.has('profile')) {
-        tasks.push(updateProfileCard({ id: profileId, body: mapVCardDataToProfilePayload(data) }).unwrap())
+        const payload = mapVCardDataToProfilePayload(data)
+        const payloadJson = JSON.stringify(payload)
+        if (payloadJson === lastSavedProfilePayloadRef.current) {
+          buckets.delete('profile')
+        } else {
+          tasks.push(
+            updateProfileCard({ id: profileId, body: payload })
+              .unwrap()
+              .then(() => {
+                lastSavedProfilePayloadRef.current = payloadJson
+                wroteProfile = true
+              })
+          )
+        }
       }
       if (buckets.has('education')) {
-        tasks.push(
-          replaceEducation({
-            id: profileId,
-            items: (data.education || []).map((e) => ({
-              institute: e.institute,
-              degree: e.degree,
-              fromDate: e.fromDate || null,
-              toDate: e.toDate || null,
-              tillNow: e.tillNow,
-            })),
-          }).unwrap()
-        )
+        const items = persistableEducation(data.education)
+        if (saved && JSON.stringify(persistableEducation(saved.education)) === JSON.stringify(items)) {
+          buckets.delete('education')
+        } else {
+          tasks.push(
+            replaceEducation({
+              id: profileId,
+              items: items.map((e) => ({
+                institute: e.institute,
+                degree: e.degree,
+                fromDate: e.fromDate || null,
+                toDate: e.toDate || null,
+                tillNow: e.tillNow,
+              })),
+            }).unwrap()
+          )
+        }
       }
       if (buckets.has('experience')) {
-        tasks.push(
-          replaceExperiences({
-            id: profileId,
-            items: (data.experience || []).map((e) => ({
-              company: e.company,
-              jobTitle: e.jobTitle,
-              description: e.description,
-              fromDate: e.fromDate || null,
-              toDate: e.toDate || null,
-              tillNow: e.tillNow,
-            })),
-          }).unwrap()
-        )
+        const items = persistableExperience(data.experience)
+        if (saved && JSON.stringify(persistableExperience(saved.experience)) === JSON.stringify(items)) {
+          buckets.delete('experience')
+        } else {
+          tasks.push(
+            replaceExperiences({
+              id: profileId,
+              items: items.map((e) => ({
+                company: e.company,
+                jobTitle: e.jobTitle,
+                description: e.description,
+                fromDate: e.fromDate || null,
+                toDate: e.toDate || null,
+                tillNow: e.tillNow,
+              })),
+            }).unwrap()
+          )
+        }
       }
       if (buckets.has('services')) {
-        tasks.push(
-          replaceServices({
-            id: profileId,
-            items: (data.services || []).map((s) => ({
-              title: s.title,
-              description: s.description,
-              imageUrl: s.featuredImage,
-              reviewUrl: s.url,
-              status: s.active ? 1 : 0,
-            })),
-          }).unwrap()
-        )
+        const items = persistableServices(data.services)
+        if (saved && JSON.stringify(persistableServices(saved.services)) === JSON.stringify(items)) {
+          buckets.delete('services')
+        } else {
+          tasks.push(
+            replaceServices({
+              id: profileId,
+              items: items.map((s) => ({
+                title: s.title,
+                description: s.description,
+                imageUrl: s.featuredImage,
+                reviewUrl: s.url,
+                status: s.active ? 1 : 0,
+              })),
+            }).unwrap()
+          )
+        }
       }
       if (buckets.has('portfolio')) {
-        tasks.push(
-          replacePortfolios({
-            id: profileId,
-            items: (data.portfolio || []).map((p) => ({
-              title: p.title,
-              description: p.description,
-              imageUrl: p.imageUrl,
-              attachmentUrl: p.attachments?.url || null,
-              attachmentName: p.attachments?.name || null,
-              url: p.url,
-              status: p.active ? 1 : 0,
-            })),
-          }).unwrap()
-        )
+        const items = persistablePortfolio(data.portfolio)
+        if (saved && JSON.stringify(persistablePortfolio(saved.portfolio)) === JSON.stringify(items)) {
+          buckets.delete('portfolio')
+        } else {
+          tasks.push(
+            replacePortfolios({
+              id: profileId,
+              items: items.map((p) => ({
+                title: p.title,
+                description: p.description,
+                imageUrl: p.imageUrl,
+                attachmentUrl: p.attachments?.url || null,
+                attachmentName: p.attachments?.name || null,
+                url: p.url,
+                status: p.active ? 1 : 0,
+              })),
+            }).unwrap()
+          )
+        }
       }
       if (buckets.has('reviews')) {
-        tasks.push(
-          replaceReviews({
-            id: profileId,
-            items: (data.reviews || []).map((r) => ({
-              author: r.author,
-              text: r.text,
-              rating: r.rating,
-              status: 1,
-            })),
-          }).unwrap()
-        )
+        const items = persistableReviews(data.reviews)
+        if (saved && JSON.stringify(persistableReviews(saved.reviews)) === JSON.stringify(items)) {
+          buckets.delete('reviews')
+        } else {
+          tasks.push(
+            replaceReviews({
+              id: profileId,
+              items: items.map((r) => ({
+                author: r.author,
+                text: r.text,
+                rating: r.rating,
+                status: 1,
+              })),
+            }).unwrap()
+          )
+        }
       }
       if (buckets.has('skills')) {
-        tasks.push(
-          replaceSkills({
-            id: profileId,
-            items: skillGroupsToApiItems(data.skills || []),
-          }).unwrap()
-        )
+        const items = persistableSkills(data.skills)
+        if (saved && JSON.stringify(persistableSkills(saved.skills)) === JSON.stringify(items)) {
+          buckets.delete('skills')
+        } else {
+          tasks.push(
+            replaceSkills({
+              id: profileId,
+              items: skillGroupsToApiItems(items),
+            }).unwrap()
+          )
+        }
       }
       if (buckets.has('socialLinks')) {
-        tasks.push(
-          replaceSocialLinks({
-            id: profileId,
-            items: (data.social?.customLinks || []).map((l) => ({
-              name: l.name,
-              url: l.url,
-            })),
-          }).unwrap()
+        const items = (data.social?.customLinks || []).filter(
+          (l) => l.name?.trim() || l.url?.trim() || !isLocalTempId(l.id)
         )
+        const savedItems = (saved?.social?.customLinks || []).filter(
+          (l) => l.name?.trim() || l.url?.trim() || !isLocalTempId(l.id)
+        )
+        if (JSON.stringify(items) === JSON.stringify(savedItems)) {
+          buckets.delete('socialLinks')
+        } else {
+          tasks.push(
+            replaceSocialLinks({
+              id: profileId,
+              items: items.map((l) => ({
+                name: l.name,
+                url: l.url,
+              })),
+            }).unwrap()
+          )
+        }
+      }
+
+      if (buckets.has('posts') && postsHydratedForId.current !== profileId) {
+        dirtyBucketsRef.current.add('posts')
+        buckets.delete('posts')
+      }
+
+      if (buckets.has('posts') && !hasPersistablePostsDelta(data, postsSnapshotRef.current)) {
+        buckets.delete('posts')
       }
 
       await Promise.all(tasks)
 
-      if (buckets.has('posts')) {
+      const shouldSyncPosts = buckets.has('posts')
+      if (shouldSyncPosts) {
         const synced = await loadAndSyncSectionPosts({
           profileId,
           blogPosts: data.generalPosts || [],
           faqs: data.faqs || [],
           sectionPosts: data.sectionPosts || {},
+          snapshot: postsSnapshotRef.current,
           listPosts,
           createPost,
           updatePost,
@@ -617,33 +738,48 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           deleteTabItem,
         })
 
-        const generalPosts = mapApiPostsToGeneralPosts(synced.blog)
-        const faqs = mapApiPostsToFaqs(synced.faqs)
-        const sectionPosts: Record<string, VCardSectionPostItem[]> = {}
-        for (const [postTypeName, apiPosts] of Object.entries(synced.sectionPosts || {})) {
-          sectionPosts[postTypeName] = mapApiPostsToSectionPosts(apiPosts)
-        }
-        postsHydratedForId.current = profileId
+        const wrotePosts = Boolean(synced.blog || synced.faqs || Object.keys(synced.sectionPosts || {}).length)
+        if (wrotePosts) {
+          const generalPosts = synced.blog
+            ? mergeLocalEmptyDrafts(data.generalPosts, mapApiPostsToGeneralPosts(synced.blog), isEmptyGeneralPost)
+            : data.generalPosts || []
+          const faqs = synced.faqs
+            ? mergeLocalEmptyDrafts(data.faqs, mapApiPostsToFaqs(synced.faqs), isEmptyFaq)
+            : data.faqs || []
+          const sectionPosts: Record<string, VCardSectionPostItem[]> = { ...(data.sectionPosts || {}) }
+          for (const [postTypeName, apiPosts] of Object.entries(synced.sectionPosts || {})) {
+            sectionPosts[postTypeName] = mergeLocalEmptyDrafts(
+              data.sectionPosts?.[postTypeName],
+              mapApiPostsToSectionPosts(apiPosts),
+              isEmptySectionPost
+            )
+          }
+          postsHydratedForId.current = profileId
 
-        const next = applyProfileMediaToExplainerTab({
-          ...data,
-          generalPosts,
-          faqs,
-          sectionPosts,
-        })
-        editDataRef.current = next
-        postsSnapshotRef.current = {
-          generalPosts: next.generalPosts || [],
-          faqs: next.faqs || [],
-          sectionPosts: next.sectionPosts || {},
-        }
-        dispatch(
-          replaceVCardData({
-            id: profileId,
-            data: next,
+          const next = applyProfileMediaToExplainerTab({
+            ...data,
+            generalPosts,
+            faqs,
+            sectionPosts,
           })
-        )
+          editDataRef.current = next
+          data = next
+          dispatch(
+            replaceVCardData({
+              id: profileId,
+              data: next,
+            })
+          )
+        }
+        postsSnapshotRef.current = {
+          generalPosts: persistableGeneralPosts(data.generalPosts),
+          faqs: persistableFaqs(data.faqs),
+          sectionPosts: persistableSectionPosts(data.sectionPosts),
+        }
       }
+
+      lastSavedDataRef.current = data
+      return { wroteProfile }
     },
     [
       updateProfileCard,
@@ -692,14 +828,22 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       setSaveError(null)
 
       try {
-        await persistDirtyBuckets(cardId, data, buckets)
-        invalidatePublicTags()
+        const { wroteProfile } = await persistDirtyBuckets(cardId, data, buckets)
+        if (wroteProfile) {
+          toastSettingsSaved()
+          invalidateSettingsPublicTags()
+          broadcastPublicCardSettingsSaved({ profileId: cardId, slug: data.slug })
+        }
 
         if (dirtyBucketsRef.current.size > 0 || pendingResaveRef.current) {
           pendingResaveRef.current = false
           if (dirtyBucketsRef.current.size > 0) {
             saveGateRef.current.dirty = true
             setSaveStatus('dirty')
+            if (postsHydratedForId.current !== cardId) {
+              scheduleAutosaveRef.current()
+              return
+            }
             continue
           }
         }
@@ -718,7 +862,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         saveGateRef.current.saving = false
       }
     }
-  }, [isCreateMode, cardId, persistDirtyBuckets, invalidatePublicTags])
+  }, [isCreateMode, cardId, persistDirtyBuckets, invalidateSettingsPublicTags])
 
   const scheduleAutosave = useCallback(() => {
     if (isCreateMode) return
@@ -743,7 +887,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       await flushAboutMeUpsert(dispatch)
     }
     await runPersist()
-  }, [isCreateMode, cardId, dispatch, runPersist])
+    schedulePublicInvalidate(true)
+  }, [isCreateMode, cardId, dispatch, runPersist, schedulePublicInvalidate])
 
   const flushSaveRef = useRef(flushSave)
   useEffect(() => {
@@ -780,22 +925,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
   const updateData = useCallback(
     (path: string, value: unknown) => {
-      if (path === 'generalPosts') {
-        postsSnapshotRef.current = {
-          ...postsSnapshotRef.current,
-          generalPosts: value as VCardData['generalPosts'],
-        }
-      } else if (path === 'faqs') {
-        postsSnapshotRef.current = {
-          ...postsSnapshotRef.current,
-          faqs: value as VCardData['faqs'],
-        }
-      } else if (path === 'sectionPosts') {
-        postsSnapshotRef.current = {
-          ...postsSnapshotRef.current,
-          sectionPosts: value as Record<string, VCardSectionPostItem[]>,
-        }
-      }
       if (isCreateMode) {
         setCreateDraft((prev) => {
           let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
@@ -803,6 +932,12 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             next = applyProfileMediaToExplainerTab(next, {
               syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
             })
+          }
+          if (isAppearanceOrThemePath(path)) {
+            next = {
+              ...next,
+              themeConfig: applyEditorSettingsToThemeConfig(next.themeConfig, next.theme, next.appearance),
+            }
           }
           createDraftRef.current = next
           return next
@@ -818,8 +953,18 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
         })
       }
+      if (isAppearanceOrThemePath(path)) {
+        next = {
+          ...next,
+          themeConfig: applyEditorSettingsToThemeConfig(next.themeConfig, next.theme, next.appearance),
+        }
+      }
       editDataRef.current = next
       dispatch(replaceVCardData({ id: cardId, data: next }))
+      const saveWorthy =
+        isSaveWorthyChange(path, base, next) ||
+        (isExplainerMediaPath(path) && isSaveWorthyChange('sectionPosts', base, next))
+      if (!saveWorthy) return
       markDirty(dirtyBucketForPath(path))
       if (isExplainerMediaPath(path)) markDirty('posts')
       scheduleAutosave()

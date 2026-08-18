@@ -10,8 +10,8 @@ import { baseUrl as apiBaseUrl } from './api'
 /** Public vcard API — always `{NEXT_PUBLIC_API_URL}/public`. */
 export const baseUrl = `${apiBaseUrl.replace(/\/$/, '')}/public`
 
-/** Default unused-data TTL — shorter so back-office saves show sooner on public tabs. */
-const DEFAULT_KEEP_UNUSED_SECONDS = 5 * 60
+/** Default unused-data TTL — public card settings must refresh quickly. */
+const DEFAULT_KEEP_UNUSED_SECONDS = 15
 
 /** One retry only — extra 429 retries burn the remaining public request budget. */
 const MAX_RATE_LIMIT_RETRIES = 1
@@ -21,6 +21,7 @@ const MAX_RETRY_DELAY_MS = 8000
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: baseUrl,
   credentials: 'omit',
+  fetchFn: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
   prepareHeaders: (headers) => {
     headers.set('Accept', 'application/json')
     return headers
@@ -60,8 +61,8 @@ export const publicApi = createApi({
   reducerPath: 'publicApi',
   baseQuery: baseQuery,
   keepUnusedDataFor: DEFAULT_KEEP_UNUSED_SECONDS,
-  refetchOnMountOrArgChange: DEFAULT_KEEP_UNUSED_SECONDS,
-  refetchOnFocus: false,
+  refetchOnMountOrArgChange: true,
+  refetchOnFocus: true,
   refetchOnReconnect: true,
   tagTypes: [
     'MyCard',

@@ -1,11 +1,17 @@
 'use client'
 
+import { useAppDispatch } from '@/hooks/redux'
 import type { MappedProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
+import {
+  PUBLIC_CARD_LIVE_POLL_MS,
+  subscribePublicCardSettingsSaved,
+  useDocumentVisible,
+} from '@/lib/publicCardLiveSync'
 import { getDefaultThemeConfig, type CardThemeConfig } from '@/lib/theme/cardThemeContract'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
-import { useGetProfileSettingsQuery } from '@/redux/features/profileSettings/profileSettings.api'
+import { profileSettingsApi, useGetProfileSettingsQuery } from '@/redux/features/profileSettings/profileSettings.api'
 import type { VCardAppearance } from '@/types/vcard'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 type UseResolvedProfileThemeOptions = {
   profileId: string
@@ -26,7 +32,9 @@ export function useResolvedProfileTheme({
   initialSettings,
   cardThemeConfig,
 }: UseResolvedProfileThemeOptions) {
+  const dispatch = useAppDispatch()
   const id = profileId.trim()
+  const visible = useDocumentVisible()
 
   const { data: liveSettings } = useGetProfileSettingsQuery(
     { profileId: id, template },
@@ -35,8 +43,22 @@ export function useResolvedProfileTheme({
       refetchOnMountOrArgChange: true,
       refetchOnFocus: true,
       refetchOnReconnect: true,
+      pollingInterval: id && visible ? PUBLIC_CARD_LIVE_POLL_MS : 0,
     }
   )
+
+  useEffect(() => {
+    if (!id) return
+    return subscribePublicCardSettingsSaved((event) => {
+      if (event.profileId && event.profileId !== id) return
+      void dispatch(
+        profileSettingsApi.endpoints.getProfileSettings.initiate(
+          { profileId: id, template },
+          { forceRefetch: true, subscribe: false }
+        )
+      )
+    })
+  }, [dispatch, id, template])
 
   return useMemo(() => {
     const mapped = liveSettings ?? initialSettings

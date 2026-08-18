@@ -302,9 +302,12 @@ export function ProfileHeaderV2({
         </button>
         <button
           type="button"
-          onClick={onOpenNotepad}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
           aria-label="Open notepad"
+          onClick={() => {
+            onOpenNotepad?.()
+            window.dispatchEvent(new CustomEvent('openNotepadAction'))
+          }}
         >
           <FileEdit size={14} className="text-[#eab308] md:h-4 md:w-4" />
         </button>

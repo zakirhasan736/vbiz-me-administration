@@ -1,4 +1,5 @@
 import { CardScopeProvider, type CardScopeMode } from '@/lib/card-scope'
+import { AUTOSAVE_DEBOUNCE_MS } from '@/lib/vcardAutosave'
 import { useVCard, VCardProvider } from '@/lib/VCardContext'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
 import type { ApiProfile } from '@/redux/features/profiles/profiles.api'
@@ -96,6 +97,7 @@ vi.mock('@/redux/features/profiles/profiles.api', async (importOriginal) => {
     useUpdateProfilePostMutation: postMutation(mocks.updatePostMutation),
     useDeleteProfilePostMutation: postMutation(mocks.deletePostMutation),
     useLazyListProfileBlogsQuery: listQuery,
+    useLazyListEditorSectionsQuery: listQuery,
     useCreateProfileBlogMutation: postMutation(mocks.createPostMutation),
     useUpdateProfileBlogMutation: postMutation(mocks.updatePostMutation),
     useDeleteProfileBlogMutation: postMutation(mocks.deletePostMutation),
@@ -281,7 +283,7 @@ describe('VCardProvider autosave and creation', () => {
     mocks.listQuery.mockImplementation(() => ({
       unwrap: () => mocks.listQueryUnwrap(),
     }))
-    mocks.listQueryUnwrap.mockResolvedValue([])
+    mocks.listQueryUnwrap.mockResolvedValue({ blogs: [], tabs: {} })
     mocks.createPostMutation.mockImplementation(() => ({ unwrap: () => Promise.resolve({}) }))
     mocks.updatePostMutation.mockImplementation(() => ({ unwrap: () => Promise.resolve({}) }))
     mocks.deletePostMutation.mockImplementation(() => ({ unwrap: () => Promise.resolve({}) }))
@@ -317,7 +319,7 @@ describe('VCardProvider autosave and creation', () => {
     expect(mocks.updateProfileCard).not.toHaveBeenCalled()
 
     await act(async () => {
-      vi.advanceTimersByTime(999)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS - 1)
       await flushMicrotasks()
     })
 
@@ -336,6 +338,34 @@ describe('VCardProvider autosave and creation', () => {
         slug: 'existing-card',
       }),
     })
+  })
+
+  it('autosaves card SEO metadata with the profile payload', async () => {
+    mocks.state = makeState(makeRecord('card-1', { personal: personal({ fullName: 'Ada Lovelace' }) }))
+    rendered = await renderProvider({ mode: 'edit', cardId: 'card-1' })
+
+    await act(async () => {
+      rendered!.api.updateData('seo.metaTitle', 'Ada Lovelace | Digital Business Card')
+      rendered!.api.updateData('seo.metaDescription', 'Contact Ada Lovelace and explore professional services.')
+      rendered!.api.updateData('seo.metaKeywords', ['ada lovelace', 'web design'])
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      await flushMicrotasks()
+    })
+
+    const body = mocks.updateProfileCard.mock.calls[0]?.[0]?.body
+    expect(body.settings).toMatchObject({
+      seo_meta_title: 'Ada Lovelace | Digital Business Card',
+      seo_meta_description: 'Contact Ada Lovelace and explore professional services.',
+    })
+    expect(JSON.parse(body.settings.seo_meta_keywords_json)).toEqual([
+      'vbizme',
+      'vbiz me',
+      'virtual card',
+      'digital business card',
+      'online business card',
+      'ada lovelace',
+      'web design',
+    ])
   })
 
   it('flushes edit-mode changes immediately when Save now runs', async () => {
@@ -371,7 +401,7 @@ describe('VCardProvider autosave and creation', () => {
 
     await act(async () => {
       rendered!.api.updateData('personal.fullName', 'First Save Name')
-      vi.advanceTimersByTime(1000)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
       await flushMicrotasks()
     })
 
@@ -379,7 +409,7 @@ describe('VCardProvider autosave and creation', () => {
 
     await act(async () => {
       rendered!.api.updateData('personal.company', 'Second Save Company')
-      vi.advanceTimersByTime(1000)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
       await flushMicrotasks()
     })
 
@@ -398,6 +428,35 @@ describe('VCardProvider autosave and creation', () => {
         companyName: 'Second Save Company',
       }),
     })
+  })
+
+  it('does not autosave an empty newly added section item until the user types', async () => {
+    mocks.state = makeState(makeRecord('card-1', { personal: personal({ fullName: 'Ada' }) }))
+    rendered = await renderProvider({ mode: 'edit', cardId: 'card-1' })
+
+    await act(async () => {
+      rendered!.api.updateData('sectionPosts', {
+        Events: [
+          {
+            id: 'sec_draft_1',
+            title: '',
+            description: '',
+            url: '',
+            featuredImage: '',
+            date: '',
+            rating: '',
+            location: '',
+            active: true,
+          },
+        ],
+      })
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS + 50)
+      await flushMicrotasks()
+    })
+
+    expect(mocks.updateProfileCard).not.toHaveBeenCalled()
+    expect(mocks.createPostMutation).not.toHaveBeenCalled()
+    expect(rendered!.api.saveStatus).not.toBe('saving')
   })
 
   it('keeps create-mode edits local until creating the draft', async () => {

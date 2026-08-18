@@ -562,8 +562,8 @@ export function filterNavItemsByVisibility(items: NavBarNavItem[], settings: VCa
 }
 
 /**
- * Public + editor nav: every tab the owner enabled in Add Tabs / Card Settings,
- * in that saved order. Empty sections still appear. Data from `/post-types` is not required.
+ * Public + editor nav: every tab the owner enabled in Add Tabs, in that saved order.
+ * Empty sections still appear. Data from `/post-types` is not required when editorNavOrder is set.
  */
 export function selectEnabledNavItems(catalog: NavBarNavItem[], settings: VCardDisplaySettings): NavBarNavItem[] {
   const byId = new Map(catalog.map((item) => [item.id, item]))

@@ -4,7 +4,7 @@ import {
   mapProfileSettings,
   type MappedProfileSettings,
 } from '@/lib/api/profileSettings/mapProfileSettings'
-import { getApiBaseUrl, SERVER_FETCH_REVALIDATE_SECONDS } from '@/lib/api/serverApi'
+import { getApiBaseUrl } from '@/lib/api/serverApi'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 
 /** Fetches `GET /profiles/{id}/settings` (theme + appearance). */
@@ -15,7 +15,7 @@ export async function fetchProfileSettings(profileId: string | number): Promise<
   try {
     const response = await fetch(`${getApiBaseUrl()}/profiles/${encodeURIComponent(id)}/settings`, {
       headers: { Accept: 'application/json' },
-      next: { revalidate: SERVER_FETCH_REVALIDATE_SECONDS },
+      cache: 'no-store',
     })
 
     if (!response.ok) return null

@@ -13,31 +13,21 @@ import type { VBizProfileAppProps } from '@/profile-app/profilePublicProps'
 import { ProfileIntroProvider } from '@/profile-app/providers/ProfileIntroProvider'
 import { ProfileNavigationProvider } from '@/profile-app/providers/ProfileNavigationProvider'
 import { TranslationProvider } from '@/profile-app/providers/TranslationProvider'
-import dynamic from 'next/dynamic'
+import { VBizProfileApp } from '@/profile-app/VBizProfileApp'
+import { VBizProfileAppV1 } from '@/profile-app/VBizProfileAppV1'
+import { VBizProfileAppV3 } from '@/profile-app/VBizProfileAppV3'
 
-/** Lazy-load only the active template shell to reduce initial JS. */
-const VBizProfileApp = dynamic(() =>
-  import('@/profile-app/VBizProfileApp').then((m) => ({ default: m.VBizProfileApp }))
-)
-const VBizProfileAppV1 = dynamic(() =>
-  import('@/profile-app/VBizProfileAppV1').then((m) => ({ default: m.VBizProfileAppV1 }))
-)
-const VBizProfileAppV3 = dynamic(() =>
-  import('@/profile-app/VBizProfileAppV3').then((m) => ({ default: m.VBizProfileAppV3 }))
-)
+/** Same public v1 / v2 / v3 shells as `/v/{slug}` — no separate preview UI. */
+function ProfileTemplateShell(props: VBizProfileAppProps) {
+  const template = props.design?.profileTemplate ?? 'v3'
+  if (template === 'v1') return <VBizProfileAppV1 {...props} />
+  if (template === 'v2') return <VBizProfileApp {...props} />
+  return <VBizProfileAppV3 {...props} />
+}
 
 /** Renders v1, v2, or v3 profile shell from resolved design settings. */
 export function ProfileApp(props: VBizProfileAppProps) {
-  const template = props.design?.profileTemplate ?? 'v3'
-
-  const shell =
-    template === 'v1' ? (
-      <VBizProfileAppV1 {...props} />
-    ) : template === 'v2' ? (
-      <VBizProfileApp {...props} />
-    ) : (
-      <VBizProfileAppV3 {...props} />
-    )
+  const shell = <ProfileTemplateShell {...props} />
 
   return (
     <ProfileDisplayProvider
@@ -75,6 +65,8 @@ export function ProfileApp(props: VBizProfileAppProps) {
         services={props.services}
         portfolio={props.portfolio}
         reviews={props.reviews}
+        editorNavOrder={props.displaySettings?.editorNavOrder}
+        tabLabelOverrides={props.tabLabelOverrides}
       />
       <TranslationProvider
         cardOwnerId={props.cardOwnerId}

@@ -3,8 +3,13 @@
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { mapMyCardToVCardRecord } from '@/lib/api/myCard/mapMyCard'
 import { DEFAULT_PROFILE_SLUG } from '@/lib/constants/profile'
+import {
+  PUBLIC_CARD_LIVE_POLL_MS,
+  subscribePublicCardSettingsSaved,
+  useDocumentVisible,
+} from '@/lib/publicCardLiveSync'
 import type { MyCardData } from '@interfaces/api/myCard'
-import { useLayoutEffect, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useMemo } from 'react'
 import { myCardApi, useGetMyCardBySlugQuery } from './myCard.api'
 import {
   selectMyCardRawBySlug,
@@ -33,6 +38,7 @@ export function useProfile(slug: string = DEFAULT_PROFILE_SLUG, options?: UsePro
   const skip = options?.skip || !trimmed
   const initialMyCard = options?.initialMyCard ?? null
   const hasPrefetched = Boolean(initialMyCard)
+  const visible = useDocumentVisible()
 
   useLayoutEffect(() => {
     if (!initialMyCard || !trimmed) return
@@ -44,7 +50,17 @@ export function useProfile(slug: string = DEFAULT_PROFILE_SLUG, options?: UsePro
     skip,
     refetchOnReconnect: true,
     refetchOnFocus: true,
+    refetchOnMountOrArgChange: true,
+    pollingInterval: !skip && visible ? PUBLIC_CARD_LIVE_POLL_MS : 0,
   })
+
+  useEffect(() => {
+    if (skip || !trimmed) return
+    return subscribePublicCardSettingsSaved((event) => {
+      if (event.slug && event.slug !== trimmed) return
+      void dispatch(myCardApi.endpoints.getMyCardBySlug.initiate(trimmed, { forceRefetch: true, subscribe: false }))
+    })
+  }, [dispatch, skip, trimmed])
 
   useLayoutEffect(() => {
     if (!trimmed || skip) return

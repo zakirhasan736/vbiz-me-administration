@@ -8,7 +8,7 @@ import {
   mergeSectionPayload,
   type AnalyzeResponse,
 } from '@/lib/ai/applyCardDraft'
-import { cardAgentForm, cardAgentJobGet, cardAgentJobPost } from '@/lib/ai/cardAgentClient'
+import { cardAgentForm, cardAgentJobGet, cardAgentJobPost, cardAgentJson } from '@/lib/ai/cardAgentClient'
 import { TAB_NAV_MAP } from '@/lib/ai/cardBlueprint'
 import { gapFieldToSection, type GapItem } from '@/lib/ai/gapReport'
 import {
@@ -20,6 +20,7 @@ import {
   resolveCreateCardTabName,
 } from '@/lib/createCardTabs'
 import { ensureNotificationPermission, saveNotificationPrefs } from '@/lib/notifications'
+import { normalizeCardSeo, normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
 import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import type { SettingsTabId } from '@/lib/vcardEditorRoutes'
 import type { VCardData } from '@/types/vcard'
@@ -185,6 +186,21 @@ function cleanSourceNote(text: string): string {
   return text.replace(/\s+/g, ' ').trim().slice(0, 700)
 }
 
+function fallbackSeoFromDraft(data: VCardData) {
+  const business = data.personal.company?.trim() || data.personal.fullName?.trim() || 'Professional'
+  const role = data.personal.designation?.trim() || data.personal.profession?.trim()
+  const title = `${business}${role ? ` | ${role}` : ''} | vBiz Me`
+  const description =
+    data.personal.about?.trim() ||
+    `${business}${role ? ` provides ${role.toLowerCase()}` : ' helps clients'} with trusted services and contact information.`
+  const serviceKeywords = (data.services || []).flatMap((service) => [service.title, service.type])
+  return normalizeCardSeo({
+    metaTitle: title,
+    metaDescription: description,
+    metaKeywords: [business, role, ...serviceKeywords],
+  })
+}
+
 function featureSettingsLabel(feature: Pick<AcceptedFeature, 'key' | 'settingsSection'>): string {
   if (feature.key === 'aiAssistance') return 'Settings > AI Assistance'
   if (feature.key === 'canva') return 'Settings > Canva Integration'
@@ -299,6 +315,14 @@ function ConfettiBurst() {
 
 function uid() {
   return `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+}
+
+function nextEmptyTabGaps(gaps: GapItem[], skippedIds: string[]): GapItem[] {
+  const skipped = new Set(skippedIds)
+  const remaining = gaps.filter((gap) => !skipped.has(gap.id))
+  if (!remaining.length) return []
+  const navId = remaining[0].navId
+  return remaining.filter((gap) => gap.navId === navId)
 }
 
 function resolveRecommendedTab(raw: {
@@ -746,7 +770,7 @@ export function AiCardAgentWizard({
       {
         id: uid(),
         role: 'assistant',
-        text: `I’ll build your vBiz Me card in a simple order:\n\n1. Read your website (if you add a link)\n2. Read your PDFs, photos, or notes\n3. Understand the business\n4. Choose the right card sections\n5. Write the content\n6. Show you a preview to create\n\nAdd a website, files, or a short description, then tap Start.`,
+        text: `I’ll build your vBiz Me card with you, step by step:\n\n1. Read your website, files, or notes\n2. Suggest the right card tabs\n3. For each empty tab, ask “fill now?” — yes or skip\n4. Offer optional extras (live AI, Canva, SEO, notifications)\n5. Preview, then create\n\nAdd a website, files, or a short description, then tap Start.`,
       },
     ])
     setWebsiteUrl('')
@@ -875,39 +899,63 @@ export function AiCardAgentWizard({
     for (const file of source.files) form.append('files', file)
   }, [])
 
-  const askNextGap = useCallback(
-    (report: { score: number; gaps: GapItem[]; nextBest: GapItem | null }) => {
-      const skipped = new Set(skippedGapIdsRef.current)
-      const next =
-        report.gaps.find((g) => !skipped.has(g.id)) ||
-        (report.nextBest && !skipped.has(report.nextBest.id) ? report.nextBest : null)
+  const generateCardSeo = useCallback(async () => {
+    const form = new FormData()
+    form.set('section', 'seo')
+    form.set('currentDraft', JSON.stringify(draftRef.current))
+    appendStoredSourcesToForm(form, 'SEO metadata')
+    const json = await cardAgentForm<{ payload?: Record<string, unknown> }>('fill-section', form)
+    if (!json.payload || typeof json.payload.seo !== 'object' || json.payload.seo === null) {
+      throw new Error('AI did not return SEO metadata')
+    }
+    return normalizeCardSeoPayload(json.payload.seo)
+  }, [appendStoredSourcesToForm])
 
-      if (!next || report.score >= 95) {
-        pushMsg(
-          'assistant',
-          `Looking sharp — you’re at ${report.score}%. Next up: optional extras (live assistant, Canva, SEO, alerts). A quick yes or no for each.`
-        )
-        const queue = [...OPTIONAL_ITEMS]
-        setFeatureQueue(queue)
-        setFeatureIndex(0)
-        setGateGap(null)
-        setPhase('features')
-        if (queue[0]) {
-          pushMsg('assistant', `Enable ${queue[0].title}? ${queue[0].description}`)
-        }
-        return
-      }
-
-      setCoachSection(gapFieldToSection(next.field))
-      setGateGap(next)
-      setPhase('section-gate')
+  const startFeaturesPhase = useCallback(
+    (reportScore: number) => {
+      const queue = [...OPTIONAL_ITEMS]
+      setFeatureQueue(queue)
+      setFeatureIndex(0)
+      setGateGap(null)
+      setPhase('features')
+      const first = queue[0]
       pushMsg(
         'assistant',
-        `“${next.tab}” still needs attention — ${next.title}.\n\nApprove to fill it now, or Skip to leave it for the editor later.`,
-        `${report.gaps.filter((g) => !skipped.has(g.id)).length} open`
+        `Nice work — the tab pass is done (about ${reportScore}% complete). Content can still be polished in the editor.\n\nBefore preview, a few optional extras. None of these are required.\n\nFirst: ${first.title}. ${first.description}\n\nWant this on the card? Yes or skip.`
       )
     },
     [pushMsg]
+  )
+
+  const askNextGap = useCallback(
+    (report: { score: number; gaps: GapItem[]; nextBest: GapItem | null }) => {
+      const group = nextEmptyTabGaps(report.gaps, skippedGapIdsRef.current)
+      if (!group.length) {
+        startFeaturesPhase(report.score)
+        return
+      }
+
+      const primary = group[0]
+      const fieldNames = group.map((gap) => gap.title).join(', ')
+      setCoachSection(gapFieldToSection(primary.field))
+      setGateGap({
+        ...primary,
+        title: fieldNames,
+        explanation: group.length > 1 ? `${primary.tab} still has empty fields: ${fieldNames}.` : primary.explanation,
+      })
+      setPhase('section-gate')
+      const remainingTabs = new Set(
+        report.gaps.filter((gap) => !skippedGapIdsRef.current.includes(gap.id)).map((gap) => gap.navId)
+      ).size
+      pushMsg(
+        'assistant',
+        `Let’s look at “${primary.tab}”. ${
+          group.length > 1 ? `I still see empty fields: ${fieldNames}.` : `${primary.explanation}`
+        }\n\nWant me to fill this now from your website and files? Tap Yes to fill, or Skip to leave it for the editor.`,
+        `${remainingTabs} tab${remainingTabs === 1 ? '' : 's'} still open`
+      )
+    },
+    [pushMsg, startFeaturesPhase]
   )
 
   const runAnalyze = async (opts?: { text?: string; url?: string; files?: File[] }) => {
@@ -948,7 +996,7 @@ export function AiCardAgentWizard({
     }
     pushMsg(
       'assistant',
-      'First I’ll read your website and files. Then I’ll understand the business and build the card.'
+      'I’m reading your sources now. After that I’ll suggest the right tabs, then we’ll fill empty ones together — yes or skip, one tab at a time.'
     )
 
     try {
@@ -1040,20 +1088,59 @@ export function AiCardAgentWizard({
 
       pushMsg(
         'assistant',
-        `${completeLine} ${mapped.businessSummary || job.businessSummary || ''}\n\nFilled: ${filledBits.join(', ') || 'core personal details'}${enabledLabels ? `\nTabs: ${enabledLabels}` : ''}.\n\nWe found most of what we need. Let's finish a few details.`
+        `${completeLine} ${mapped.businessSummary || job.businessSummary || ''}\n\nI already drafted: ${filledBits.join(', ') || 'core personal details'}${enabledLabels ? `\nSuggested tabs: ${enabledLabels}` : ''}.\n\nNext I’ll show tab suggestions. Pick what belongs on this card — then I’ll ask about each empty tab.`
       )
 
-      const recs: RecommendedTab[] = (job.recommendedTabs || [])
-        .map((raw) => resolveRecommendedTab(raw))
-        .filter((item): item is RecommendedTab => Boolean(item))
+      const recs: RecommendedTab[] = []
+      const seenRecs = new Set<string>()
+      const pushRec = (item: RecommendedTab | null) => {
+        if (!item || seenRecs.has(item.navId)) return
+        seenRecs.add(item.navId)
+        recs.push(item)
+      }
+      for (const tab of job.cardPlan || []) {
+        if (tab.tabId === 'home' || (PINNED_END_NAV_IDS as readonly string[]).includes(tab.tabId)) continue
+        pushRec(
+          resolveRecommendedTab({
+            navId: tab.tabId,
+            tab: tab.name,
+            reason: tab.reason || (tab.recommended ? 'Fits this business' : 'Available for this card'),
+            priority: tab.recommended ? 'high' : 'medium',
+          })
+        )
+      }
+      for (const raw of job.recommendedTabs || []) pushRec(resolveRecommendedTab(raw))
+      try {
+        const extra = await cardAgentJson<{
+          recommendations?: Array<{ tab?: string; navId?: string; reason?: string; priority?: string }>
+        }>('suggest-tabs', {
+          businessSummary: mapped.businessSummary || job.businessSummary || '',
+          enabledNavIds: job.selectedNavIds || mapped.enabledNavIds,
+          sessionId: sessionIdRef.current,
+        })
+        for (const raw of extra.recommendations || []) pushRec(resolveRecommendedTab(raw))
+      } catch {
+        /* job recommendations are enough */
+      }
       setRecommendations(recs)
-      setSelectedRecs((job.cardPlan || []).filter((t) => t.selected && t.tabId !== 'home').map((t) => t.tabId))
-      await refreshGaps(job.selectedNavIds || mapped.enabledNavIds, mapped.data)
-      pushMsg(
-        'assistant',
-        'How would you like to continue?\n\nReview everything, let AI handle what it can, or use only what we found.'
-      )
-      setPhase('plan')
+      const preselected = (job.cardPlan || [])
+        .filter(
+          (tab) =>
+            tab.selected && tab.tabId !== 'home' && !(PINNED_END_NAV_IDS as readonly string[]).includes(tab.tabId)
+        )
+        .map((tab) => tab.tabId)
+      setSelectedRecs(preselected.length ? preselected : recs.map((item) => item.navId))
+      const report = await refreshGaps(job.selectedNavIds || mapped.enabledNavIds, mapped.data)
+      if (!recs.length) {
+        pushMsg('assistant', 'No extra tabs to suggest — I’ll check empty fields on the current card next.')
+        askNextGap(report)
+      } else {
+        pushMsg(
+          'assistant',
+          `Here are the tabs I recommend for this business. Tick the ones you want, then continue.\n\nAfter that I’ll pause on each empty tab and ask: fill now, or skip?`
+        )
+        setPhase('tabs')
+      }
 
       setComposer('')
       setFiles([])
@@ -1156,21 +1243,28 @@ export function AiCardAgentWizard({
   }
 
   const acceptTabs = async () => {
-    const nextNav = normalizeNavOrderWithPinnedEnds([...activeNav, ...selectedRecs])
+    const nextNav = normalizeNavOrderWithPinnedEnds(['home', ...selectedRecs])
     onEnableNavIds(nextNav)
     setActiveNav(nextNav)
     pushMsg(
       'user',
       selectedRecs.length
-        ? `Add sections: ${selectedRecs.map((id) => getCreateCardDisplayLabel(id, id)).join(', ')}`
-        : 'Keep current sections'
+        ? `Use these tabs: ${selectedRecs.map((id) => getCreateCardDisplayLabel(id, id)).join(', ')}`
+        : 'Keep the core tabs only'
     )
     setBusy(true)
     try {
+      if (sessionIdRef.current) {
+        try {
+          await cardAgentJobPost(sessionIdRef.current, 'tabs', { selectedNavIds: nextNav })
+        } catch {
+          /* local draft still has the chosen tabs */
+        }
+      }
       const report = await refreshGaps(nextNav)
       pushMsg(
         'assistant',
-        `Sections locked in (${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}). Completeness ${report.score}%. Drag to reorder anytime — Global Connection and My Info stay last.`
+        `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}.\n\nNow I’ll walk empty tabs one by one. For each, tell me yes (fill now) or skip.`
       )
       askNextGap(report)
     } catch (e) {
@@ -1254,20 +1348,20 @@ export function AiCardAgentWizard({
     if (!gateGap) return
     const gap = gateGap
     const section = gapFieldToSection(gap.field)
-    pushMsg('user', `Approve - fill ${gap.tab}`)
+    pushMsg('user', `Yes — fill ${gap.tab} now`)
     setCoachSection(section)
 
     if (!hasStoredSources()) {
       setPhase('coach')
       pushMsg(
         'assistant',
-        `${gap.explanation}\n\n${gap.howToProvide}\n\nShare text, a link note, or attach a PDF/DOCX/image - I will fill "${gap.tab}" for you.`
+        `I don’t have the original website/files in this session for “${gap.tab}”.\n\n${gap.howToProvide}\n\nPaste a note or attach a file and I’ll fill it.`
       )
       return
     }
 
     setBusy(true)
-    pushMsg('assistant', `Reading the earlier ${sourceSummaryLine()} again for ${gap.tab}...`)
+    pushMsg('assistant', `On it — filling “${gap.tab}” from your ${sourceSummaryLine()}…`)
     try {
       const form = new FormData()
       form.set('section', section)
@@ -1289,10 +1383,10 @@ export function AiCardAgentWizard({
       pushMsg(
         'assistant',
         usedFallback
-          ? `I drafted ${gap.tab} from the current card context because the saved sources did not contain a direct ${gap.tab} section. Card is now ${report.score}% complete.`
+          ? `I drafted “${gap.tab}” from the rest of the card because the sources didn’t have a direct match. You’re at ${report.score}% — next tab coming up.`
           : afterCount > beforeCount
-            ? `Filled ${gap.tab} from the saved sources. Card is now ${report.score}% complete.`
-            : `Updated ${gap.tab} from the saved sources. Card is now ${report.score}% complete.`
+            ? `Filled “${gap.tab}”. Card is now ${report.score}% complete. Let’s check the next tab.`
+            : `Updated “${gap.tab}”. Card is now ${report.score}% complete. Let’s check the next tab.`
       )
       setGateGap(null)
       askNextGap(report)
@@ -1308,30 +1402,29 @@ export function AiCardAgentWizard({
       setPhase('coach')
       pushMsg(
         'assistant',
-        `I could not auto-fill ${gap.tab} from the earlier sources: ${msg}.\n\n${gap.howToProvide}\n\nYou can paste details now or skip this section for later.`
+        `I couldn’t auto-fill “${gap.tab}” from the saved sources: ${msg}.\n\n${gap.howToProvide}\n\nPaste details now, or skip this tab for later.`
       )
     } finally {
       setBusy(false)
     }
-    if (hasStoredSources()) return
-    pushMsg('user', `Approve — fill ${gateGap.tab}`)
-    setCoachSection(gapFieldToSection(gateGap.field))
-    setPhase('coach')
-    pushMsg(
-      'assistant',
-      `${gateGap.explanation}\n\n${gateGap.howToProvide}\n\nShare text, a link note, or attach a PDF/DOCX/image — I’ll fill “${gateGap.tab}” for you.`
-    )
   }
 
   const skipGateSection = async () => {
     if (!gateGap) return
-    pushMsg('user', `Skip — ${gateGap.tab} for now`)
-    const nextSkipped = [...skippedGapIdsRef.current, gateGap.id]
+    const skippedTab = gateGap.tab
+    const skippedNavId = gateGap.navId
+    pushMsg('user', `Skip — ${skippedTab} for now`)
+    const sameTabIds = gaps.filter((gap) => gap.navId === skippedNavId).map((gap) => gap.id)
+    const nextSkipped = [...new Set([...skippedGapIdsRef.current, gateGap.id, ...sameTabIds])]
     skippedGapIdsRef.current = nextSkipped
     setSkippedGapIds(nextSkipped)
     setGateGap(null)
     setBusy(true)
     try {
+      pushMsg(
+        'assistant',
+        `Okay — “${skippedTab}” stays on the card, and you can finish it in the editor. Checking the next tab…`
+      )
       const report = await refreshGaps(activeNav)
       askNextGap(report)
     } catch (e) {
@@ -1352,7 +1445,10 @@ export function AiCardAgentWizard({
     const section = inferSectionFromText(text, coachSection)
     setCoachSection(section)
     pushMsg('user', text || `Attached ${files.length} file(s) for ${section}`)
-    pushMsg('assistant', `Shaping ${SECTION_OPTIONS.find((s) => s.id === section)?.label || section}…`)
+    pushMsg(
+      'assistant',
+      `Shaping ${SECTION_OPTIONS.find((s) => s.id === section)?.label || section} from what you just shared…`
+    )
 
     try {
       const form = new FormData()
@@ -1413,8 +1509,18 @@ export function AiCardAgentWizard({
         note =
           'Canva uses secure authorization from Settings > Canva Integration. Connect Canva there, create profile images, backgrounds, gallery assets, or intro media, then import or upload those assets into the empty media fields.'
       } else if (item.key === 'seo') {
-        note =
-          'SEO can be polished from Settings > SEO after create. Use the card name, location, services, reviews, and a short meta description.'
+        try {
+          const generatedSeo = await generateCardSeo()
+          draftRef.current = { ...draftRef.current, seo: generatedSeo }
+          updateData('seo', generatedSeo)
+          note =
+            'AI generated a business-specific meta title, description, and keyword set. You can edit them in Settings > SEO.'
+        } catch {
+          const fallbackSeo = fallbackSeoFromDraft(draftRef.current)
+          draftRef.current = { ...draftRef.current, seo: fallbackSeo }
+          updateData('seo', fallbackSeo)
+          note = 'SEO metadata was prepared from the card details. You can review or edit it in Settings > SEO.'
+        }
       } else if (item.key === 'pushNotifications') {
         saveNotificationPrefs({ browserPush: true })
         const permission = await ensureNotificationPermission()
@@ -1456,7 +1562,7 @@ export function AiCardAgentWizard({
     if (nextIdx < featureQueue.length) {
       setFeatureIndex(nextIdx)
       const next = featureQueue[nextIdx]
-      pushMsg('assistant', `Next: do you want ${next.title}? ${next.description} Reply yes or no.`)
+      pushMsg('assistant', `Next: ${next.title}? ${next.description}\n\nYes to enable, or skip.`)
       return
     }
 
@@ -1546,7 +1652,10 @@ export function AiCardAgentWizard({
       if (sessionIdRef.current) {
         try {
           await cardAgentJobPost(sessionIdRef.current, 'assemble', {})
-          const applied = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'apply', { publish })
+          const applied = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'apply', {
+            publish,
+            seo: draftRef.current.seo,
+          })
           if (applied.profileId) {
             createdId = applied.profileId
           }
@@ -1686,7 +1795,14 @@ export function AiCardAgentWizard({
   const handleSend = () => {
     if (busy) return
     if (phase === 'section-gate') {
-      void approveGateSection()
+      const t = composer.trim().toLowerCase()
+      setComposer('')
+      if (/^(n|no|skip|later|nah)/.test(t)) void skipGateSection()
+      else void approveGateSection()
+      return
+    }
+    if (phase === 'tabs') {
+      void acceptTabs()
       return
     }
     if (phase === 'plan') {
@@ -1774,11 +1890,11 @@ export function AiCardAgentWizard({
       ? 'Share sources'
       : phase === 'working'
         ? 'Crafting draft'
-        : phase === 'tabs'
-          ? 'Choose sections'
+        : phase === 'tabs' || phase === 'plan'
+          ? 'Choose tabs'
           : phase === 'section-gate'
-            ? 'Approve sections'
-            : phase === 'coach'
+            ? 'Fill empty tabs'
+            : phase === 'field' || phase === 'coach'
               ? 'Fill details'
               : phase === 'features'
                 ? 'Extras'
@@ -2072,11 +2188,10 @@ export function AiCardAgentWizard({
         {phase === 'tabs' && recommendations.length > 0 ? (
           <div className="space-y-3 rounded-3xl border border-slate-200/80 bg-linear-to-b from-white to-slate-50 p-4 shadow-sm dark:border-white/10 dark:from-white/5 dark:to-transparent">
             <div>
-              <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">
-                Suggested from your nav list
-              </p>
+              <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Suggested card tabs</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">
-                Only real card sections — pick what fits this business.
+                These fit this business. Tick what you want on the public card, then continue. I’ll ask about empty tabs
+                next.
               </p>
             </div>
             {recommendations.map((rec) => {
@@ -2123,7 +2238,7 @@ export function AiCardAgentWizard({
               onClick={() => void acceptTabs()}
               className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-3.5 text-xs font-black tracking-wide text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-950"
             >
-              Continue with selected <ArrowRight className="h-3.5 w-3.5" />
+              Continue with selected tabs <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
         ) : null}
@@ -2232,12 +2347,12 @@ export function AiCardAgentWizard({
         {phase === 'section-gate' && gateGap ? (
           <div className="overflow-hidden rounded-3xl border border-amber-200/80 bg-linear-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm dark:border-amber-500/25 dark:from-amber-500/15 dark:via-transparent dark:to-transparent">
             <p className="text-[10px] font-black tracking-[0.14em] text-amber-700 uppercase dark:text-amber-300">
-              Empty section · your call
+              Empty tab · fill now?
             </p>
             <h4 className="mt-2 text-base font-black text-slate-950 dark:text-white">{gateGap.tab}</h4>
-            <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">{gateGap.title}</p>
+            <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">Want me to fill this now?</p>
             <p className="mt-2 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
-              {gateGap.explanation}
+              Empty: {gateGap.title}. {gateGap.explanation}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
@@ -2246,7 +2361,7 @@ export function AiCardAgentWizard({
                 onClick={() => void approveGateSection()}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-md shadow-emerald-600/20"
               >
-                <Check className="h-3.5 w-3.5" /> Approve & auto-fill
+                <Check className="h-3.5 w-3.5" /> Yes, fill now
               </button>
               <button
                 type="button"
@@ -2254,7 +2369,7 @@ export function AiCardAgentWizard({
                 onClick={() => void skipGateSection()}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
               >
-                <SkipForward className="h-3.5 w-3.5" /> Skip for now
+                <SkipForward className="h-3.5 w-3.5" /> Skip
               </button>
             </div>
           </div>
@@ -2289,17 +2404,7 @@ export function AiCardAgentWizard({
                 disabled={busy}
                 onClick={() => {
                   pushMsg('user', 'Skip remaining gaps for now')
-                  pushMsg(
-                    'assistant',
-                    'Okay — moving to optional features. You can still fill gaps later in the editor.'
-                  )
-                  const queue = [...OPTIONAL_ITEMS]
-                  setFeatureQueue(queue)
-                  setFeatureIndex(0)
-                  setPhase('features')
-                  if (queue[0]) {
-                    pushMsg('assistant', `Do you want ${queue[0].title}? ${queue[0].description} Reply yes or no.`)
-                  }
+                  startFeaturesPhase(score)
                 }}
                 className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
@@ -2310,23 +2415,34 @@ export function AiCardAgentWizard({
         ) : null}
 
         {phase === 'features' && featureQueue[featureIndex] ? (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void answerFeature(true)}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white"
-            >
-              Yes — {featureQueue[featureIndex].title}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void answerFeature(false)}
-              className="rounded-xl bg-slate-200 px-4 py-2 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              No thanks
-            </button>
+          <div className="overflow-hidden rounded-3xl border border-indigo-200/80 bg-linear-to-br from-indigo-50 via-white to-violet-50 p-4 shadow-sm dark:border-indigo-500/25 dark:from-indigo-500/15 dark:via-transparent dark:to-transparent">
+            <p className="text-[10px] font-black tracking-[0.14em] text-indigo-600 uppercase dark:text-indigo-300">
+              Optional extra {featureIndex + 1} of {featureQueue.length}
+            </p>
+            <h4 className="mt-2 text-base font-black text-slate-950 dark:text-white">
+              {featureQueue[featureIndex].title}
+            </h4>
+            <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
+              {featureQueue[featureIndex].description} This is optional — skip if you do not need it yet.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void answerFeature(true)}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
+              >
+                <Check className="h-3.5 w-3.5" /> Yes, enable
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void answerFeature(false)}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <SkipForward className="h-3.5 w-3.5" /> Skip
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -2787,15 +2903,17 @@ export function AiCardAgentWizard({
               placeholder={
                 phase === 'intake'
                   ? 'Business notes or instructions (optional)…'
-                  : phase === 'section-gate'
-                    ? 'Or tap Approve & fill / Skip above…'
-                    : phase === 'coach'
-                      ? 'Tell me what to rewrite — I’ll update only that section…'
-                      : phase === 'features'
-                        ? 'yes / no'
-                        : phase === 'preview'
-                          ? 'Type “yes” to confirm create…'
-                          : 'Message the assistant…'
+                  : phase === 'tabs'
+                    ? 'Tap Continue when your tabs look right…'
+                    : phase === 'section-gate'
+                      ? 'Type yes to fill, or skip…'
+                      : phase === 'coach'
+                        ? 'Paste details or attach a file for this tab…'
+                        : phase === 'features'
+                          ? 'yes / skip'
+                          : phase === 'preview'
+                            ? 'Type “yes” to confirm create…'
+                            : 'Message the assistant…'
               }
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
