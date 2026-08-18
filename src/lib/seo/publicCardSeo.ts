@@ -48,13 +48,18 @@ function stripHtml(html: string): string {
     .trim()
 }
 
-export function resolvePublicOrigin(envUrl?: string | null, host?: string | null, proto?: string | null): string {
-  const fromEnv = envUrl?.trim().replace(/\/$/, '')
-  if (fromEnv) return fromEnv
+/** The origin the browser is actually on. PWA manifest/icons must be same-origin. */
+export function resolveRequestOrigin(host?: string | null, proto?: string | null): string {
   const hostname = host?.split(',')[0]?.trim()
   const protocol = (proto?.split(',')[0]?.trim() || 'https').replace(/:$/, '')
   if (hostname) return `${protocol}://${hostname}`
   return 'https://vbiz.me'
+}
+
+export function resolvePublicOrigin(envUrl?: string | null, host?: string | null, proto?: string | null): string {
+  const fromEnv = envUrl?.trim().replace(/\/$/, '')
+  if (fromEnv) return fromEnv
+  return resolveRequestOrigin(host, proto)
 }
 
 export function toAbsoluteUrl(origin: string, value: string): string {
