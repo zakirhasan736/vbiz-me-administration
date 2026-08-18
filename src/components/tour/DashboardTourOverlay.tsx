@@ -97,6 +97,16 @@ function measureSpotlight(step: DashboardTourStep): SpotlightRect | null {
   }
 }
 
+function sameSpotlight(a: SpotlightRect | null, b: SpotlightRect | null): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height
+}
+
+function sameTooltip(a: TooltipPos, b: TooltipPos): boolean {
+  return a.placement === b.placement && a.top === b.top && a.left === b.left && a.bottom === b.bottom
+}
+
 function computeTooltipPosition(
   spotlight: SpotlightRect | null,
   preferred: 'top' | 'bottom' | 'left' | 'right' | 'center',
@@ -203,6 +213,7 @@ export function DashboardTourOverlay() {
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null)
   const [tooltip, setTooltip] = useState<TooltipPos>({ top: 0, left: 0, placement: 'center' })
   const [measuredVersion, setMeasuredVersion] = useState('')
+  const sizePassRef = useRef(0)
 
   const assistKey = useMemo(() => JSON.stringify(editorAssist), [editorAssist])
 
@@ -215,6 +226,7 @@ export function DashboardTourOverlay() {
 
   useEffect(() => {
     cardSizeRef.current = null
+    sizePassRef.current = 0
   }, [layoutVersion])
 
   const updateLayout = useCallback(
@@ -233,14 +245,14 @@ export function DashboardTourOverlay() {
         setTourTargetHighlight(currentStep.target, currentStep.route)
       }
 
-      setSpotlight(nextSpotlight)
-      setTooltip(
-        computeTooltipPosition(
-          useCenter ? null : nextSpotlight,
-          useCenter ? 'center' : (currentStep.placement ?? 'bottom'),
-          size
-        )
+      const nextTooltip = computeTooltipPosition(
+        useCenter ? null : nextSpotlight,
+        useCenter ? 'center' : (currentStep.placement ?? 'bottom'),
+        size
       )
+
+      setSpotlight((prev) => (sameSpotlight(prev, nextSpotlight) ? prev : nextSpotlight))
+      setTooltip((prev) => (sameTooltip(prev, nextTooltip) ? prev : nextTooltip))
 
       return targetResolved
     },
@@ -311,25 +323,13 @@ export function DashboardTourOverlay() {
     const sizeChanged =
       !prev || Math.abs(prev.width - nextSize.width) > 1 || Math.abs(prev.height - nextSize.height) > 1
 
-    if (sizeChanged) {
-      cardSizeRef.current = nextSize
-      updateLayout(nextSize)
-      return
-    }
+    if (!sizeChanged) return
+    if (sizePassRef.current >= 3) return
 
-    if (tooltip.placement === 'center' || tooltip.placement === 'dock') return
-
-    const margin = VIEWPORT_MARGIN
-    const overflows =
-      (tooltip.top ?? 0) + nextSize.height > window.innerHeight - margin + 0.5 ||
-      tooltip.left + nextSize.width > window.innerWidth - margin + 0.5 ||
-      (tooltip.top ?? 0) < margin - 0.5 ||
-      tooltip.left < margin - 0.5
-
-    if (overflows) {
-      updateLayout(nextSize)
-    }
-  }, [ready, isActive, currentStep, layoutVersion, tooltip, updateLayout])
+    sizePassRef.current += 1
+    cardSizeRef.current = nextSize
+    updateLayout(nextSize)
+  }, [ready, isActive, currentStep, layoutVersion, updateLayout])
 
   useEffect(() => {
     if (!isActive) return
