@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SESSION_EXPIRING_EVENT } from '@/lib/auth/sessionPolicy'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { baseQueryWithRefreshToken } from './api'
 
 function response(body: unknown, status: number): Response {
@@ -21,7 +22,7 @@ function apiContext(role: string) {
       type: 'query',
       forced: false,
       extra: {},
-      getState: () => ({ user: { user: { role }, token: 'expired-access-token' } }),
+      getState: () => ({ user: { user: { id: 'user-1', role }, token: 'expired-access-token' } }),
       dispatch: (action: unknown) => dispatched.push(action),
     },
     dispatched,
@@ -31,6 +32,10 @@ function apiContext(role: string) {
 describe('authenticated API session handling', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/login')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('refreshes an owner token once and retries the failed request', async () => {
@@ -52,20 +57,40 @@ describe('authenticated API session handling', () => {
     expect(dispatched).toHaveLength(1)
   })
 
-  it('does not refresh a staff token and clears the session instead', async () => {
+  it('keeps staff state stable and opens the expiry warning instead of redirecting', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(response({ message: 'Access token expired' }, 401))
+    vi.stubGlobal('fetch', fetchMock)
+    const { context, dispatched } = apiContext('admin')
+    const warning = vi.fn()
+    window.addEventListener(SESSION_EXPIRING_EVENT, warning)
+
+    const result = await baseQueryWithRefreshToken({ url: '/protected' }, context, {})
+
+    expect(result).toMatchObject({ error: { status: 401 } })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls.some(([input]) => requestUrl(input).includes('/auth/refresh-token'))).toBe(false)
+    expect(dispatched).toHaveLength(0)
+    expect(warning).toHaveBeenCalledTimes(1)
+    window.removeEventListener(SESSION_EXPIRING_EVENT, warning)
+  })
+
+  it('opens the expiry warning when an owner refresh token is no longer valid', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(response({ message: 'Access token expired' }, 401))
-      .mockResolvedValueOnce(response({ success: true, data: null }, 200))
+      .mockResolvedValueOnce(response({ message: 'Refresh token expired' }, 401))
     vi.stubGlobal('fetch', fetchMock)
-    const { context, dispatched } = apiContext('admin')
+    const { context, dispatched } = apiContext('vcard-owner')
+    const warning = vi.fn()
+    window.addEventListener(SESSION_EXPIRING_EVENT, warning)
 
     const result = await baseQueryWithRefreshToken({ url: '/protected' }, context, {})
 
     expect(result).toMatchObject({ error: { status: 401 } })
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(requestUrl(fetchMock.mock.calls[1][0])).toContain('/auth/logout')
-    expect(fetchMock.mock.calls.some(([input]) => requestUrl(input).includes('/auth/refresh-token'))).toBe(false)
-    expect(dispatched).toHaveLength(1)
+    expect(requestUrl(fetchMock.mock.calls[1][0])).toContain('/auth/refresh-token')
+    expect(dispatched).toHaveLength(0)
+    expect(warning).toHaveBeenCalledTimes(1)
+    window.removeEventListener(SESSION_EXPIRING_EVENT, warning)
   })
 })

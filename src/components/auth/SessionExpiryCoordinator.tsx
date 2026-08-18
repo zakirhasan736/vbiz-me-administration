@@ -1,0 +1,238 @@
+'use client'
+
+import { Modal } from '@/components/ui/Modal'
+import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
+import {
+  jwtExpiresAt,
+  markSessionExpired,
+  redirectToLogin,
+  SESSION_EXPIRING_EVENT,
+  SESSION_RECENT_ACTIVITY_MS,
+  SESSION_WARNING_SECONDS,
+  type SessionExpiryReason,
+} from '@/lib/auth/sessionPolicy'
+import { updateAuthState } from '@/redux/features/auth/user.slice'
+import { Clock3, LoaderCircle, LogOut, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+type SessionExpiryCoordinatorProps = {
+  onSignOut: () => Promise<void>
+}
+
+type SessionWarning = {
+  deadline: number
+  reason: SessionExpiryReason
+  userId: string
+}
+
+const WARNING_DURATION_MS = SESSION_WARNING_SECONDS * 1000
+
+export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinatorProps) {
+  const dispatch = useAppDispatch()
+  const { user, token } = useAppSelector((state) => state.user)
+  const userId = user?.id || ''
+  const lastActivityRef = useRef(0)
+  const renewalPendingRef = useRef(false)
+  const signOutPendingRef = useRef(false)
+  const [warning, setWarning] = useState<SessionWarning | null>(null)
+  const [clock, setClock] = useState(0)
+  const [isRenewing, setIsRenewing] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const [renewalError, setRenewalError] = useState('')
+
+  const currentWarning = warning?.userId === userId ? warning : null
+  const expiresAt = useMemo(() => jwtExpiresAt(token), [token])
+
+  const openWarning = useCallback(
+    (reason: SessionExpiryReason) => {
+      if (!userId) return
+      const now = Date.now()
+      setClock(now)
+      setRenewalError('')
+      setWarning((current) =>
+        current?.userId === userId
+          ? current
+          : {
+              deadline: now + WARNING_DURATION_MS,
+              reason,
+              userId,
+            }
+      )
+    },
+    [userId]
+  )
+
+  const renewSession = useCallback(
+    async (interactive: boolean) => {
+      if (!userId || renewalPendingRef.current) return
+      renewalPendingRef.current = true
+      if (interactive) {
+        setIsRenewing(true)
+        setRenewalError('')
+      }
+
+      try {
+        const accessToken = await refreshSessionAccessToken(token)
+        if (!accessToken) {
+          if (interactive) {
+            setRenewalError('We could not renew your session. Sign in again or wait for automatic sign out.')
+          } else {
+            openWarning('expired')
+          }
+          return
+        }
+
+        dispatch(updateAuthState({ token: accessToken }))
+        setWarning(null)
+        setRenewalError('')
+        lastActivityRef.current = Date.now()
+      } finally {
+        renewalPendingRef.current = false
+        if (interactive) setIsRenewing(false)
+      }
+    },
+    [dispatch, openWarning, token, userId]
+  )
+
+  const finishSignOut = useCallback(async () => {
+    if (signOutPendingRef.current) return
+    signOutPendingRef.current = true
+    setIsSigningOut(true)
+    markSessionExpired()
+    try {
+      await onSignOut()
+    } finally {
+      redirectToLogin()
+    }
+  }, [onSignOut])
+
+  useEffect(() => {
+    const noteActivity = () => {
+      lastActivityRef.current = Date.now()
+    }
+    const noteVisibleActivity = () => {
+      if (document.visibilityState === 'visible') noteActivity()
+    }
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'scroll', 'touchstart']
+
+    events.forEach((eventName) => window.addEventListener(eventName, noteActivity, { passive: true }))
+    document.addEventListener('visibilitychange', noteVisibleActivity)
+    return () => {
+      events.forEach((eventName) => window.removeEventListener(eventName, noteActivity))
+      document.removeEventListener('visibilitychange', noteVisibleActivity)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onSessionExpiring = (event: Event) => {
+      const reason = (event as CustomEvent<SessionExpiryReason>).detail
+      openWarning(reason || 'unauthorized')
+    }
+
+    window.addEventListener(SESSION_EXPIRING_EVENT, onSessionExpiring)
+    return () => window.removeEventListener(SESSION_EXPIRING_EVENT, onSessionExpiring)
+  }, [openWarning])
+
+  useEffect(() => {
+    if (!userId || !token) return
+
+    const warningAt = expiresAt === null ? Date.now() : expiresAt - WARNING_DURATION_MS
+    const timerId = window.setTimeout(
+      () => {
+        const recentlyActive = Date.now() - lastActivityRef.current <= SESSION_RECENT_ACTIVITY_MS
+        if (recentlyActive) {
+          void renewSession(false)
+          return
+        }
+        openWarning(expiresAt !== null && expiresAt <= Date.now() ? 'expired' : 'idle')
+      },
+      Math.max(0, warningAt - Date.now())
+    )
+
+    return () => window.clearTimeout(timerId)
+  }, [expiresAt, openWarning, renewSession, token, userId])
+
+  useEffect(() => {
+    if (!currentWarning) return
+    const intervalId = window.setInterval(() => setClock(Date.now()), 250)
+    return () => window.clearInterval(intervalId)
+  }, [currentWarning])
+
+  useEffect(() => {
+    if (!currentWarning) return
+    const timeoutId = window.setTimeout(() => void finishSignOut(), Math.max(0, currentWarning.deadline - Date.now()))
+    return () => window.clearTimeout(timeoutId)
+  }, [currentWarning, finishSignOut])
+
+  if (!currentWarning) return null
+
+  const remainingMs = Math.max(0, currentWarning.deadline - clock)
+  const remainingSeconds = Math.ceil(remainingMs / 1000)
+  const progressPercent = Math.max(0, Math.min(100, (remainingMs / WARNING_DURATION_MS) * 100))
+  const isBusy = isRenewing || isSigningOut
+
+  return (
+    <Modal
+      open
+      preventClose
+      labelledBy="session-expiry-title"
+      describedBy="session-expiry-description"
+      className="max-w-md rounded-2xl p-6 sm:p-7"
+      overlayClassName="z-300 bg-slate-950/60"
+    >
+      <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-400/10">
+        <Clock3 className="h-6 w-6 text-amber-600 dark:text-amber-300" />
+      </div>
+      <h2 id="session-expiry-title" className="text-center text-xl font-bold text-slate-950 dark:text-white">
+        Session expiring
+      </h2>
+      <p
+        id="session-expiry-description"
+        className="mt-2 text-center text-sm leading-6 font-medium text-slate-600 dark:text-slate-300"
+      >
+        You have been inactive. Stay logged in to continue without losing your current place.
+      </p>
+
+      <div className="mt-6" aria-live="polite">
+        <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <span>Automatic sign out</span>
+          <span className="tabular-nums">0:{String(remainingSeconds).padStart(2, '0')}</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+          <div
+            className="h-full rounded-full bg-amber-500 transition-[width] duration-200 ease-linear"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
+      {renewalError ? (
+        <p role="alert" className="mt-4 text-center text-xs leading-5 font-semibold text-rose-600 dark:text-rose-300">
+          {renewalError}
+        </p>
+      ) : null}
+
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => void finishSignOut()}
+          disabled={isBusy}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-transparent dark:text-slate-200 dark:hover:bg-white/5"
+        >
+          {isSigningOut ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+          Sign out
+        </button>
+        <button
+          type="button"
+          onClick={() => void renewSession(true)}
+          disabled={isBusy}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-400 dark:text-slate-950 dark:hover:bg-amber-300"
+        >
+          {isRenewing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          Stay logged in
+        </button>
+      </div>
+    </Modal>
+  )
+}

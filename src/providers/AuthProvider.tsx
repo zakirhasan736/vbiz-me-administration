@@ -1,11 +1,13 @@
 'use client'
 
+import { SessionExpiryCoordinator } from '@/components/auth/SessionExpiryCoordinator'
 import { useAppSelector } from '@/hooks/redux'
 import type { IUser } from '@/interfaces/user.interface'
+import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
 import {
   isJwtExpired,
-  redirectToLogin,
   redirectToRoleHome,
+  requestSessionExpiryWarning,
   shouldSilentlyRefreshSession,
 } from '@/lib/auth/sessionPolicy'
 import { hydrateCompletedTours } from '@/lib/dashboardTour'
@@ -65,33 +67,6 @@ export function useAuth(): AuthState {
   }
 }
 
-async function hydrateAccessToken(): Promise<string | null> {
-  try {
-    const res = await fetch(`${baseUrl}/auth/refresh-token`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    if (!res.ok) return null
-
-    const body = (await res.json()) as {
-      success?: boolean
-      data?: { accessToken?: string }
-    }
-    return body?.success && body?.data?.accessToken ? body.data.accessToken : null
-  } catch {
-    return null
-  }
-}
-
-function clearServerSession(): void {
-  void fetch(`${baseUrl}/auth/logout`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  }).catch(() => undefined)
-}
-
 function authorHeaders(): HeadersInit {
   const token = store.getState().user.token
   return {
@@ -119,20 +94,13 @@ function useAuthBootstrap() {
       }
     }
 
-    const clearExpiredSession = () => {
-      clearServerSession()
-      store.dispatch(clearAuth())
-      store.dispatch(api.util.resetApiState())
-      redirectToLogin()
-    }
-
     const syncOwnerToken = (role?: string | null) => {
       if (!shouldSilentlyRefreshSession(role)) return
 
-      void hydrateAccessToken().then((accessToken) => {
+      void refreshSessionAccessToken(store.getState().user.token).then((accessToken) => {
         if (cancelled) return
         if (!accessToken) {
-          clearExpiredSession()
+          requestSessionExpiryWarning('expired')
           return
         }
         if (store.getState().user.token !== accessToken) {
@@ -146,7 +114,8 @@ function useAuthBootstrap() {
     if (persistedUser?.id) {
       if (!shouldSilentlyRefreshSession(persistedUser.role)) {
         if (isJwtExpired(store.getState().user.token)) {
-          clearExpiredSession()
+          finishLoading()
+          requestSessionExpiryWarning('expired')
           return () => {
             cancelled = true
           }
@@ -222,9 +191,7 @@ function AccountStatusSync() {
       if (!user?.id) return
 
       if (!shouldSilentlyRefreshSession(user.role) && isJwtExpired(store.getState().user.token)) {
-        store.dispatch(clearAuth())
-        store.dispatch(api.util.resetApiState())
-        redirectToLogin()
+        requestSessionExpiryWarning('expired')
         return
       }
 
@@ -287,6 +254,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <>
       <AccountStatusSync />
+      <SessionExpiryCoordinator onSignOut={logout} />
       {children}
     </>
   )

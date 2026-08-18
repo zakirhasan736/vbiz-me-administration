@@ -1,58 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { redirectToLogin, redirectToRoleHome, shouldSilentlyRefreshSession } from '@/lib/auth/sessionPolicy'
+import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
+import { requestSessionExpiryWarning, shouldSilentlyRefreshSession } from '@/lib/auth/sessionPolicy'
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import Cookies from 'js-cookie'
-import { logout, updateAuthState } from '../features/auth/user.slice'
+import { updateAuthState } from '../features/auth/user.slice'
 import { RootState } from '../store'
 
 export const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'
 
-const clearServerSession = () =>
-  fetch(`${baseUrl}/auth/logout`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  }).catch(() => undefined)
-
-let refreshPromise: Promise<string | null> | null = null
-
-function refreshAccessToken(token: string | null): Promise<string | null> {
-  if (refreshPromise) return refreshPromise
-
-  refreshPromise = fetch(`${baseUrl}/auth/refresh-token`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  })
-    .then(async (res) => {
-      if (!res.ok) return null
-
-      try {
-        const data = (await res.json()) as {
-          success?: boolean
-          data?: { accessToken?: string }
-        }
-        return data?.success && data?.data?.accessToken ? data.data.accessToken : null
-      } catch {
-        return null
-      }
-    })
-    .catch(() => null)
-    .finally(() => {
-      refreshPromise = null
-    })
-
-  return refreshPromise
-}
-
-const expireSession = async (api: any) => {
-  Cookies.remove('redirect_after_login')
-  await clearServerSession()
-  api?.dispatch(logout())
-  redirectToLogin()
+const warnAboutExpiredSession = (api: any) => {
+  const state = api?.getState?.() as RootState | undefined
+  if (!state?.user?.user?.id) return
+  requestSessionExpiryWarning('unauthorized')
 }
 
 const baseQuery = fetchBaseQuery({
@@ -68,7 +26,7 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
   let result = await baseQuery(args, api, extraOptions)
 
   if (result?.error?.status === 419) {
-    await expireSession(api)
+    warnAboutExpiredSession(api)
     return result
   }
 
@@ -78,19 +36,21 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
     const role = state?.user?.user?.role
 
     if (!shouldSilentlyRefreshSession(role)) {
-      await expireSession(api)
+      warnAboutExpiredSession(api)
       return result
     }
 
-    const accessToken = await refreshAccessToken(token)
+    const accessToken = await refreshSessionAccessToken(token)
     if (!accessToken) {
-      await expireSession(api)
+      warnAboutExpiredSession(api)
       return result
     }
 
     api?.dispatch(updateAuthState({ token: accessToken }))
-    redirectToRoleHome(role)
     result = await baseQuery(args, api, extraOptions)
+    if (result?.error?.status === 401 || result?.error?.status === 419) {
+      warnAboutExpiredSession(api)
+    }
     return result
   }
 
@@ -101,7 +61,7 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
     'message' in result.error.data &&
     result.error.data.message === 'Unauthorized'
   ) {
-    await expireSession(api)
+    warnAboutExpiredSession(api)
   }
 
   return result

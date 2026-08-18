@@ -2,6 +2,11 @@ import { isStaffRole } from '@/constants/userRole'
 
 export const SESSION_EXPIRED_LOGIN_PATH = '/login?reason=session-expired'
 export const SESSION_EXPIRED_STORAGE_KEY = 'vbiz.session-expired'
+export const SESSION_EXPIRING_EVENT = 'vbiz:session-expiring'
+export const SESSION_WARNING_SECONDS = 45
+export const SESSION_RECENT_ACTIVITY_MS = 60_000
+
+export type SessionExpiryReason = 'idle' | 'expired' | 'unauthorized'
 
 export function shouldSilentlyRefreshSession(role?: string | null): boolean {
   return !isStaffRole(role)
@@ -13,30 +18,45 @@ export function homePathForRole(role?: string | null): string {
   return '/'
 }
 
-/** Client-side expiry check used only to avoid refreshing staff sessions. */
-export function isJwtExpired(token: string | null | undefined, now = Date.now()): boolean {
-  if (!token) return true
+export function jwtExpiresAt(token: string | null | undefined): number | null {
+  if (!token) return null
 
   try {
     const payload = token.split('.')[1]
-    if (!payload || typeof atob !== 'function') return true
+    if (!payload || typeof atob !== 'function') return null
 
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
     const decoded = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='))
     const parsed = JSON.parse(decoded) as { exp?: unknown }
-    return typeof parsed.exp !== 'number' || parsed.exp * 1000 <= now
+    return typeof parsed.exp === 'number' ? parsed.exp * 1000 : null
   } catch {
-    return true
+    return null
   }
 }
 
-export function redirectToLogin(): void {
-  if (typeof window === 'undefined' || window.location.pathname.startsWith('/login')) return
+/** Client-side expiry check used only to schedule or guard session renewal. */
+export function isJwtExpired(token: string | null | undefined, now = Date.now()): boolean {
+  const expiresAt = jwtExpiresAt(token)
+  return expiresAt === null || expiresAt <= now
+}
+
+export function requestSessionExpiryWarning(reason: SessionExpiryReason = 'unauthorized'): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent<SessionExpiryReason>(SESSION_EXPIRING_EVENT, { detail: reason }))
+}
+
+export function markSessionExpired(): void {
+  if (typeof window === 'undefined') return
   try {
     window.sessionStorage.setItem(SESSION_EXPIRED_STORAGE_KEY, '1')
   } catch {
     // Continue with the redirect if session storage is unavailable.
   }
+}
+
+export function redirectToLogin(): void {
+  if (typeof window === 'undefined' || window.location.pathname.startsWith('/login')) return
+  markSessionExpired()
   window.location.replace(SESSION_EXPIRED_LOGIN_PATH)
 }
 

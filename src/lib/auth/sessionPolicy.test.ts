@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { homePathForRole, isJwtExpired, resolvePostLoginPath, shouldSilentlyRefreshSession } from './sessionPolicy'
+import {
+  homePathForRole,
+  isJwtExpired,
+  jwtExpiresAt,
+  resolvePostLoginPath,
+  shouldSilentlyRefreshSession,
+} from './sessionPolicy'
 
 function tokenWithExpiry(exp: number): string {
   const encode = (value: string) => btoa(value).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
@@ -33,5 +39,6 @@ describe('session policy', () => {
     expect(isJwtExpired('not-a-jwt')).toBe(true)
     expect(isJwtExpired(tokenWithExpiry(100), 100_000)).toBe(true)
     expect(isJwtExpired(tokenWithExpiry(200), 100_000)).toBe(false)
+    expect(jwtExpiresAt(tokenWithExpiry(200))).toBe(200_000)
   })
 })
