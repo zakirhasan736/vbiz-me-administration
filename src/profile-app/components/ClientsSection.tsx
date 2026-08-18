@@ -7,8 +7,29 @@ import { motion } from 'motion/react'
 import Image from 'next/image'
 import Link from 'next/link'
 
-const CLIENT_LOGO_FALLBACK = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=400&fit=crop'
 const SKELETON_CARD_COUNT = 6
+
+const CLIENT_PLACEHOLDER_COLORS = [
+  { backgroundColor: '#e0f2fe', color: '#075985' },
+  { backgroundColor: '#dcfce7', color: '#166534' },
+  { backgroundColor: '#fef3c7', color: '#92400e' },
+  { backgroundColor: '#fce7f3', color: '#9d174d' },
+  { backgroundColor: '#ede9fe', color: '#5b21b6' },
+]
+
+function clientInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+}
+
+function clientPlaceholderStyle(name: string) {
+  const colorIndex = Array.from(name).reduce((total, char) => total + char.charCodeAt(0), 0)
+  return CLIENT_PLACEHOLDER_COLORS[colorIndex % CLIENT_PLACEHOLDER_COLORS.length]
+}
 
 function ClientCardSkeleton({ idx }: { idx: number }) {
   return (
@@ -112,13 +133,23 @@ export const ClientsSection = () => {
               className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
             >
               <div className="relative h-36 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-                <Image
-                  width={400}
-                  height={200}
-                  src={client.logo || CLIENT_LOGO_FALLBACK}
-                  alt={client.name}
-                  className="h-full w-full object-cover opacity-80 grayscale-50 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90 group-hover:grayscale-0"
-                />
+                {client.logo ? (
+                  <Image
+                    width={400}
+                    height={200}
+                    src={client.logo}
+                    alt={client.name}
+                    className="h-full w-full object-cover opacity-80 grayscale-50 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90 group-hover:grayscale-0"
+                  />
+                ) : (
+                  <div
+                    className="flex h-full w-full items-center justify-center text-4xl font-black"
+                    style={clientPlaceholderStyle(client.name)}
+                    aria-label={`${client.name} logo unavailable`}
+                  >
+                    {clientInitials(client.name)}
+                  </div>
+                )}
               </div>
 
               <div className="relative z-20 -mt-4 flex flex-1 flex-col p-6">

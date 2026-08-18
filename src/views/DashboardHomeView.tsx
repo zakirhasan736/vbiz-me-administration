@@ -15,7 +15,6 @@ import {
   SocialEngagementSection,
   WebsiteVisitsChart,
 } from '@/components/dashboard/home'
-import { TakeTourBanner } from '@/components/tour/TakeTourBanner'
 import { useAppSelector } from '@/hooks/redux'
 import { useDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { useOrderTimer } from '@/hooks/useOrderTimer'
@@ -229,11 +228,6 @@ function SingleOwnerDashboardHome() {
 
   return (
     <div className="animate-in fade-in min-w-0 duration-500">
-      <TakeTourBanner
-        tourKey="dashboard"
-        title="Take a dashboard tour"
-        body="New to vBiz? Walk through overview metrics and actions — you can start this anytime."
-      />
       <DashboardHomeHeader
         period={period}
         onPeriodChange={(next) => {

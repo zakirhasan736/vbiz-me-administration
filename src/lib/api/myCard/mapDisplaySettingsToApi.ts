@@ -71,6 +71,13 @@ const LABEL_TO_FIELD_CHECKBOX: Record<string, string> = {
   'About Me': 'about_checkbox',
   'Save Contact': 'save_contact_checkbox',
   'Share Btn': 'share_checkbox',
+  Share: 'share_checkbox',
+  'My Info Btn': 'my_info_checkbox',
+  'My vCard Btn': 'my_vcard_checkbox',
+  'Your QR Code': 'my_vcard_checkbox',
+  'Get your VCard Now': 'get_vcard_now_checkbox',
+  'Home Page BG Color': 'home_page_bg_checkbox',
+  'Home Page Banner Color': 'home_page_banner_checkbox',
   FaceBook: 'facebook_checkbox',
   Twitter: 'twitter_checkbox',
   Instagram: 'instagram_checkbox',
@@ -90,10 +97,11 @@ const LABEL_TO_FIELD_CHECKBOX: Record<string, string> = {
   'Pages Header': 'pageHeader_checkbox',
   'Vcard View Counter': 'viewCounter_checkbox',
   Language: 'language_checkbox',
+  CRM: 'crm_checkbox',
+  Website: 'website_link_checkbox',
   'Profession Icon': 'professionIcon_checkbox',
   'Company/Office Icon': 'company_nameIcon_checkbox',
   'My Info Website Icon': 'websiteIcon_checkbox',
-  'My Info Btn': 'name_checkbox',
 }
 
 const CUSTOM_VALUE_SETTING_KEYS: Record<string, string> = {

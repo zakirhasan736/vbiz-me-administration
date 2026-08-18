@@ -350,52 +350,26 @@ export function DashboardTourOverlay() {
   const routeOk = routeMatchesStep(pathname, currentStep)
   const isCenter = tooltip.placement === 'center'
   const isLastStep = currentStepIndex === totalSteps - 1
-  const hasSpotlight = !isCenter && Boolean(spotlight)
-
-  if (!routeOk) {
-    return (
-      <ModalPortal>
-        <TourBackdrop />
-      </ModalPortal>
-    )
-  }
-
-  if (!ready) {
-    return (
-      <ModalPortal>
-        <TourBackdrop />
-        <TourCard
-          cardRef={cardRef}
-          tooltip={{ top: window.innerHeight / 2, left: window.innerWidth / 2, placement: 'center' }}
-          stepNumber={currentStepIndex + 1}
-          totalSteps={totalSteps}
-          title={currentStep.title}
-          description={currentStep.description}
-          tips={currentStep.tips}
-          canGoBack={canGoBack}
-          isLastStep={isLastStep}
-          onSkip={skip}
-          onBack={back}
-          onNext={next}
-        />
-      </ModalPortal>
-    )
-  }
+  const hasSpotlight = routeOk && ready && !isCenter && Boolean(spotlight)
+  const cardTooltip =
+    routeOk && ready
+      ? tooltip
+      : { top: window.innerHeight / 2, left: window.innerWidth / 2, placement: 'center' as const }
 
   return (
     <ModalPortal>
-      {!hasSpotlight && <TourBackdrop />}
-
-      {hasSpotlight && spotlight && (
+      {hasSpotlight && spotlight ? (
         <>
           <TourSpotlightMask rect={spotlight} />
           <TourSpotlightRing rect={spotlight} />
         </>
+      ) : (
+        <TourBackdrop />
       )}
 
       <TourCard
         cardRef={cardRef}
-        tooltip={tooltip}
+        tooltip={cardTooltip}
         stepNumber={currentStepIndex + 1}
         totalSteps={totalSteps}
         title={currentStep.title}
@@ -529,7 +503,7 @@ function TourCard({
       ref={cardRef}
       data-vbiz-tour-ui
       className={cn(
-        'fixed w-[min(340px,calc(100vw-32px))] rounded-2xl border border-indigo-200/60 bg-white p-5 shadow-xl transition-all duration-300 dark:border-indigo-500/20 dark:bg-[#0b0f19]',
+        'pointer-events-auto fixed w-[min(340px,calc(100vw-32px))] rounded-2xl border border-indigo-200/60 bg-white p-5 shadow-xl transition-all duration-300 dark:border-indigo-500/20 dark:bg-[#0b0f19]',
         isCentered && '-translate-x-1/2 -translate-y-1/2',
         isDocked && '-translate-x-1/2'
       )}
@@ -603,14 +577,26 @@ function TourCard({
 
       <div className={cn('flex gap-3', !canGoBack && 'flex-col', !tips?.length && 'mt-2')}>
         {canGoBack && (
-          <button type="button" onClick={onBack} className={secondaryButtonClass}>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onBack()
+            }}
+            className={secondaryButtonClass}
+          >
             <ChevronLeft className="h-4 w-4" />
             Back
           </button>
         )}
         <button
           type="button"
-          onClick={onNext}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onNext()
+          }}
           className={cn(
             'flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-[0.98]',
             canGoBack ? 'flex-1' : 'w-full'

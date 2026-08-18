@@ -7,5 +7,8 @@ export async function signIn(page: Page) {
   const loginResponse = page.waitForResponse((response) => response.url().includes('/auth/login'))
   await page.getByRole('button', { name: 'Log In' }).click()
   await loginResponse
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/admin\/dashboard$/)
+  await expect(page.getByRole('heading', { name: /Welcome back, E2E Admin/ })).toBeVisible()
+  // Allow redux-persist to commit the authenticated state before tests perform a full navigation.
+  await page.waitForTimeout(250)
 }

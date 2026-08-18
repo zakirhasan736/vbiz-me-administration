@@ -393,8 +393,71 @@ export function getTourSteps(key: TourKey): DashboardTourStep[] {
   return key === 'create_card' ? CREATE_CARD_TOUR_STEPS : DASHBOARD_TOUR_STEPS
 }
 
-export function getTourStorageKey(tourKey: TourKey) {
-  return `${TOUR_STORAGE_PREFIX}${tourKey}`
+export const TOUR_KEYS: TourKey[] = ['dashboard', 'create_card']
+
+export function isTourKey(value: string): value is TourKey {
+  return value === 'dashboard' || value === 'create_card'
+}
+
+export const AI_CARD_AGENT_EVENT = 'vbiz-ai-card-agent'
+export const AI_CARD_AGENT_DATASET = 'vbizAiCardAgent'
+const TOUR_COOKIE_NAME = 'vbiz_tours_v1'
+const TOUR_COOKIE_MAX_AGE = 60 * 60 * 24 * 400
+
+export function getTourStorageKey(tourKey: TourKey, uid?: string | null) {
+  return uid ? `${TOUR_STORAGE_PREFIX}${tourKey}_${uid}` : `${TOUR_STORAGE_PREFIX}${tourKey}`
+}
+
+function readCookieMap(): Record<string, string[]> {
+  if (typeof document === 'undefined') return {}
+  try {
+    const match = document.cookie.split('; ').find((row) => row.startsWith(`${TOUR_COOKIE_NAME}=`))
+    if (!match) return {}
+    const parsed = JSON.parse(decodeURIComponent(match.slice(TOUR_COOKIE_NAME.length + 1))) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const out: Record<string, string[]> = {}
+    for (const [uid, keys] of Object.entries(parsed as Record<string, unknown>)) {
+      if (!Array.isArray(keys)) continue
+      out[uid] = keys.filter((key): key is string => typeof key === 'string')
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+function writeCookieMap(next: Record<string, string[]>) {
+  if (typeof document === 'undefined') return
+  document.cookie = `${TOUR_COOKIE_NAME}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${TOUR_COOKIE_MAX_AGE}; samesite=lax`
+}
+
+function cookieHasTour(uid: string, tourKey: TourKey): boolean {
+  return Boolean(readCookieMap()[uid]?.includes(tourKey))
+}
+
+function writeTourCookie(uid: string, tourKey: TourKey) {
+  const current = readCookieMap()
+  const keys = new Set(current[uid] ?? [])
+  keys.add(tourKey)
+  current[uid] = [...keys]
+  writeCookieMap(current)
+}
+
+export function setAiCardAgentOpen(open: boolean) {
+  if (typeof document === 'undefined') return
+  if (open) document.documentElement.dataset[AI_CARD_AGENT_DATASET] = '1'
+  else delete document.documentElement.dataset[AI_CARD_AGENT_DATASET]
+  window.dispatchEvent(new CustomEvent(AI_CARD_AGENT_EVENT, { detail: { open } }))
+}
+
+export function readAiCardAgentOpen(): boolean {
+  if (typeof document === 'undefined') return false
+  if (document.documentElement.dataset[AI_CARD_AGENT_DATASET] === '1') return true
+  try {
+    return new URLSearchParams(window.location.search).get('agent') === '1'
+  } catch {
+    return false
+  }
 }
 
 function migrateLegacyDashboardDone(uid?: string | null): boolean {
@@ -403,7 +466,7 @@ function migrateLegacyDashboardDone(uid?: string | null): boolean {
     if (uid) {
       const legacy = localStorage.getItem(`${LEGACY_DASHBOARD_TOUR_PREFIX}${uid}`)
       if (legacy === 'completed') {
-        markTourDone('dashboard')
+        markTourDone('dashboard', uid)
         return true
       }
     }
@@ -416,7 +479,12 @@ function migrateLegacyDashboardDone(uid?: string | null): boolean {
 export function isTourCompleted(tourKey: TourKey, uid?: string | null): boolean {
   if (typeof window === 'undefined') return true
   try {
-    if (localStorage.getItem(getTourStorageKey(tourKey)) === '1') return true
+    if (uid && localStorage.getItem(getTourStorageKey(tourKey, uid)) === '1') return true
+    if (uid && cookieHasTour(uid, tourKey)) return true
+    if (localStorage.getItem(getTourStorageKey(tourKey)) === '1') {
+      if (uid) markTourDone(tourKey, uid)
+      return true
+    }
     if (tourKey === 'dashboard' && migrateLegacyDashboardDone(uid)) return true
   } catch {
     /* ignore */
@@ -424,20 +492,34 @@ export function isTourCompleted(tourKey: TourKey, uid?: string | null): boolean 
   return false
 }
 
-export function markTourDone(tourKey: TourKey) {
+export function shouldAutoStartTour(tourKey: TourKey, uid?: string | null, serverKeys?: string[] | null): boolean {
+  if (!uid) return false
+  if (serverKeys?.includes(tourKey)) return false
+  return !isTourCompleted(tourKey, uid)
+}
+
+export function hydrateCompletedTours(uid: string, keys: string[]) {
+  for (const key of keys) {
+    if (isTourKey(key)) markTourDone(key, uid)
+  }
+}
+
+export function markTourDone(tourKey: TourKey, uid?: string | null) {
   try {
+    if (uid) {
+      localStorage.setItem(getTourStorageKey(tourKey, uid), '1')
+      writeTourCookie(uid, tourKey)
+      return
+    }
     localStorage.setItem(getTourStorageKey(tourKey), '1')
-    localStorage.setItem(`vbiz_tour_v2_${tourKey}`, '1')
-    localStorage.setItem(`vbiz_tour_${tourKey}`, '1')
   } catch {
     /* ignore */
   }
 }
 
-/** @deprecated Use markTourDone('dashboard') */
+/** @deprecated Use markTourDone('dashboard', uid) */
 export function markTourCompleted(_uid?: string) {
-  void _uid
-  markTourDone('dashboard')
+  markTourDone('dashboard', _uid)
 }
 
 export function getTourBannerDismissKey(tourKey: TourKey, uid: string) {
@@ -657,12 +739,12 @@ export function clearTourTargetHighlight() {
   })
 }
 
-export function resolveTourRouteForStep(steps: DashboardTourStep[], stepIndex: number): string {
+export function resolveTourRouteForStep(steps: DashboardTourStep[], stepIndex: number): string | null {
   for (let i = stepIndex; i >= 0; i--) {
     const route = steps[i]?.route
     if (route) return route
   }
-  return '/'
+  return null
 }
 
 export function resolveTourBackDestination(
@@ -677,6 +759,10 @@ export function resolveTourBackDestination(
   if (!prevStep) return null
 
   const prevRoute = resolveTourRouteForStep(steps, prevIndex)
+  // Create-card steps have no route — stay on the editor. Defaulting to '/' used to
+  // dump first-time create tours onto the dashboard, which hid Next/Back.
+  if (!prevRoute) return null
+
   const prevStepForRoute = { ...prevStep, route: prevStep.route ?? prevRoute }
 
   if (!routeMatchesStep(pathname, prevStepForRoute)) {

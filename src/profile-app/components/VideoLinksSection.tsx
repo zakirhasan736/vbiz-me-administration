@@ -1,5 +1,7 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { resolveVideoLinkUrl } from '@/lib/api/videoLinks/resolveVideoLinkUrl'
+import { isVideoUrl } from '@/lib/mediaUrl'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, PlayCircle, Video } from 'lucide-react'
@@ -24,8 +26,42 @@ function VideoLinksSkeleton() {
 
 function VideoLinksCard({ item, idx, accent }: { item: DynamicPostListItem; idx: number; accent: string }) {
   const imageUrl = resolveVideoImage(item)
+  const mediaIsVideo = isVideoUrl(imageUrl)
   const preview = stripHtml(item.description)
-  const videoUrl = item.generalInfoUrl.trim()
+  const videoUrl = resolveVideoLinkUrl(item)
+
+  const thumbnail = (
+    <>
+      {mediaIsVideo ? (
+        <video
+          src={imageUrl}
+          muted
+          playsInline
+          preload="metadata"
+          aria-hidden
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+      ) : imageUrl ? (
+        <Image
+          src={imageUrl}
+          alt={item.title}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
+          <Video size={40} className="text-zinc-400 dark:text-zinc-500" />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/85 text-zinc-900 shadow-lg backdrop-blur-sm transition-transform group-hover:scale-105">
+          <PlayCircle size={24} />
+        </span>
+      </div>
+    </>
+  )
 
   return (
     <motion.article
@@ -34,27 +70,20 @@ function VideoLinksCard({ item, idx, accent }: { item: DynamicPostListItem; idx:
       transition={{ duration: 0.4, delay: idx * 0.08 }}
       className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
-      <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={item.title}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
-            <Video size={40} className="text-zinc-400 dark:text-zinc-500" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/85 text-zinc-900 shadow-lg backdrop-blur-sm">
-            <PlayCircle size={24} />
-          </span>
-        </div>
-      </div>
+      {videoUrl ? (
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Watch ${item.title}`}
+          className="relative block h-56 overflow-hidden bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-zinc-950"
+          style={{ outlineColor: accent }}
+        >
+          {thumbnail}
+        </a>
+      ) : (
+        <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">{thumbnail}</div>
+      )}
 
       <div className="flex flex-1 flex-col p-6">
         <h3 className="mb-3 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
@@ -124,7 +153,9 @@ export const VideoLinksSection = ({ sectionName = 'Video Links' }: VideoLinksSec
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <Video size={24} style={{ color: accent }} />
           </div>
-          <h2 className="mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{sectionTitle}</h2>
+          <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            {sectionTitle}
+          </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
             No video links have been published yet.
           </p>

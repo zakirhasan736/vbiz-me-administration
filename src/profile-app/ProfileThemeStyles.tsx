@@ -15,7 +15,10 @@ function buildProfileThemeCss(design: ResolvedProfileDesign): string {
   return `
     .vbiz-profile-root .text-\\[\\#eab308\\],
     .vbiz-profile-root .text-\\[\\#ca8a04\\],
-    .vbiz-profile-root .text-\\[\\#eed677\\] {
+    .vbiz-profile-root .text-\\[\\#eed677\\],
+    .vbiz-profile-root .text-\\[\\#d97706\\],
+    .vbiz-profile-root .text-\\[\\#f59e0b\\],
+    .vbiz-profile-root .dark\\:text-\\[\\#f59e0b\\] {
       color: ${accent} !important;
     }
     .vbiz-profile-root .bg-\\[\\#eab308\\],

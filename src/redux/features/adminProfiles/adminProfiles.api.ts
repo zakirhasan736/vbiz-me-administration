@@ -56,6 +56,10 @@ export type AdminProfileFilterOptions = {
   professions: { id: string; name: string }[]
 }
 
+export type AdminProfileEmailResult = {
+  recipient: string
+}
+
 export type PortfolioMemberRow = {
   id: string
   name: string | null
@@ -132,6 +136,14 @@ const adminProfilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<PortfolioMemberRow[]>) => res.data,
       providesTags: [{ type: 'adminTeam', id: 'PORTFOLIO' }],
     }),
+    sendAdminProfileEmail: builder.mutation<AdminProfileEmailResult, { id: string; subject: string; message: string }>({
+      query: ({ id, subject, message }) => ({
+        url: `/admin/profiles/${id}/email`,
+        method: 'POST',
+        body: { subject, message },
+      }),
+      transformResponse: (res: Envelope<AdminProfileEmailResult>) => res.data,
+    }),
   }),
 })
 
@@ -171,6 +183,7 @@ export const {
   useLazyGetAdminProfilesQuery,
   useGetAdminProfileFiltersQuery,
   useGetPortfolioMembersQuery,
+  useSendAdminProfileEmailMutation,
 } = adminProfilesApi
 
 export default adminProfilesApi

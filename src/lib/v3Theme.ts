@@ -1,5 +1,5 @@
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
-import { cornerStyleToRadius, designToCssVars, fontFamilyToStack } from '@/lib/resolvedProfileDesign'
+import { designToCssVars } from '@/lib/resolvedProfileDesign'
 import type { CSSProperties } from 'react'
 
 /** Darken accent for gradients and hover states. */
@@ -14,26 +14,7 @@ export function accentLight(accent: string, mix = 12): string {
 
 /** CSS variables for v3 shell — set on `.vbiz-profile-v3` so Tailwind `gold` tokens follow API accent. */
 export function v3DesignToCssVars(design: ResolvedProfileDesign): CSSProperties {
-  const accent = design.accentColor
-  const primary = design.primaryColor
-  const dark = accentDark(accent)
-
-  return {
-    ...designToCssVars(design),
-    ['--color-gold' as string]: accent,
-    ['--color-gold-dark' as string]: dark,
-    ['--vbiz-accent-dark' as string]: dark,
-    ['--vbiz-accent-light' as string]: accentLight(accent),
-    ['--vbiz-accent-muted' as string]: `color-mix(in srgb, ${accent} 70%, transparent)`,
-    ['--vbiz-accent-subtle' as string]: `color-mix(in srgb, ${accent} 15%, transparent)`,
-    ['--vbiz-accent-faint' as string]: `color-mix(in srgb, ${accent} 10%, transparent)`,
-    ['--vbiz-accent-border' as string]: `color-mix(in srgb, ${accent} 55%, transparent)`,
-    ['--vbiz-accent-shadow' as string]: `color-mix(in srgb, ${accent} 30%, transparent)`,
-    ['--vbiz-accent-glow' as string]: `color-mix(in srgb, ${accent} 75%, transparent)`,
-    ['--vbiz-primary-surface' as string]: `color-mix(in srgb, ${primary} 12%, #020914)`,
-    fontFamily: fontFamilyToStack(design.fontFamily),
-    ['--vbiz-radius' as string]: cornerStyleToRadius(design.cornerStyle),
-  }
+  return designToCssVars(design)
 }
 
 /** Runtime overrides for hardcoded hex / yellow / amber utilities used across v3 components. */

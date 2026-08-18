@@ -4,6 +4,7 @@ import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
+import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButtons'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
@@ -100,7 +101,6 @@ export const HomeHero: React.FC<{
     cardOwnerId,
     cardSlug,
     embedded,
-    pageColors,
   } = useProfileDisplay()
 
   /**
@@ -121,13 +121,20 @@ export const HomeHero: React.FC<{
     : encodeMediaUrl(homeMedia.bgMedia || '')
   const profileIsVideo = isVideoUrl(profileSrc)
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
-  const showShare = isVisible('Share Btn')
+  const showShare = isVisible('Share Btn') || isVisible('Share')
+  const showLanguage = isVisible('Language')
+  const showViews = isVisible('Vcard View Counter')
+  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
+  const languageChrome = displayIconChromeStyle(field('Language'))
+  const websiteChrome = displayIconChromeStyle(field('Website'))
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'))
 
   const designationLine = resolveGlobalProfession(personal, isVisible)
 
   const contactItems = useMemo(() => buildBentoContactItems(personal, isVisible, field), [personal, isVisible, field])
 
   const websiteHref = useMemo(() => resolveSocialLinkHref('Website', socialHref).trim(), [socialHref])
+  const showWebsite = Boolean(websiteHref) && isVisible('Website')
 
   const visibleSocials = useMemo(
     () =>
@@ -159,32 +166,16 @@ export const HomeHero: React.FC<{
     return <Icon size={size} strokeWidth={2.5} />
   }
 
-  const socialInlineStyle = (label: string) => {
-    const socialStyle = field(label)
-    const iconColor = socialStyle.iconColor ?? socialStyle.textColor
-    if (!iconColor && !socialStyle.backgroundColor) return undefined
-    return {
-      ...(iconColor ? { color: iconColor } : {}),
-      ...(socialStyle.backgroundColor ? { backgroundColor: socialStyle.backgroundColor } : {}),
-    }
-  }
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label))
 
   return (
     <div
-      className={`border-gold/20 relative mx-auto flex w-full max-w-120 flex-col overflow-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 ${
+      className={`vbiz-home-canvas border-gold/20 relative mx-auto flex w-full max-w-120 flex-col overflow-hidden rounded-none border-x-0 font-sans shadow-2xl transition-colors duration-500 ${
         compact ? 'min-h-0' : 'min-h-[calc(100dvh-72px)] md:max-w-none md:border-0'
       } ${theme === 'dark' ? 'bg-[#031327] text-white' : 'bg-white text-zinc-900'}`}
-      style={
-        pageColors.pageBg || pageColors.pageBanner
-          ? {
-              ...(pageColors.pageBg ? { backgroundColor: pageColors.pageBg } : {}),
-            }
-          : undefined
-      }
     >
       <div
-        className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${theme === 'dark' ? 'bg-[#030914]' : 'bg-white'}`}
-        style={pageColors.pageBanner ? { backgroundColor: pageColors.pageBanner } : undefined}
+        className={`vbiz-home-banner pointer-events-none absolute inset-0 z-0 overflow-hidden ${theme === 'dark' ? 'bg-[#030914]' : 'bg-white'}`}
       >
         <div className="absolute inset-0 mx-auto h-full w-full overflow-hidden md:max-w-258">
           <ProfileWallpaperContent
@@ -208,23 +199,25 @@ export const HomeHero: React.FC<{
             <div
               className={`pointer-events-auto absolute top-8 right-2 flex flex-col gap-3 ${compact ? '' : 'md:right-6'}`}
             >
-              <button
-                type="button"
-                title="Total views"
-                className="group relative cursor-pointer transition-transform hover:scale-105"
-                onClick={() => {
-                  triggerHaptic(10)
-                  openVbizmeLogin()
-                }}
-              >
-                <span className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                  {viewCountLabel}
-                </span>
-                <span className={railButtonClass}>
-                  <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
-                </span>
-              </button>
-              {websiteHref && (
+              {showViews && (
+                <button
+                  type="button"
+                  title="Total views"
+                  className="group relative cursor-pointer transition-transform hover:scale-105"
+                  onClick={() => {
+                    triggerHaptic(10)
+                    openVbizmeLogin()
+                  }}
+                >
+                  <span className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                    {viewCountLabel}
+                  </span>
+                  <span className={railButtonClass} style={viewsChrome}>
+                    <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
+                  </span>
+                </button>
+              )}
+              {showWebsite && (
                 <a
                   href={websiteHref}
                   target="_blank"
@@ -232,25 +225,29 @@ export const HomeHero: React.FC<{
                   title="Website"
                   onClick={() => triggerHaptic(10)}
                   className={railButtonClass}
+                  style={websiteChrome}
                 >
                   <Globe size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
                 </a>
               )}
-              <div
-                title="Language"
-                className={`${railButtonClass} notranslate flex-col`}
-                onClick={() => {
-                  triggerHaptic(10)
-                  onAction?.('language')
-                }}
-              >
-                <span className={`text-base leading-none ${compact ? '' : 'md:text-lg'}`}>
-                  {(LANGUAGE_LABELS[lang] || { flag: '🇺🇸' }).flag}
-                </span>
-                <span className={`mt-0.5 text-[7px] font-bold tracking-wider ${compact ? '' : 'md:text-[8px]'}`}>
-                  {(LANGUAGE_LABELS[lang] || { label: 'EN' }).label}
-                </span>
-              </div>
+              {showLanguage && (
+                <div
+                  title="Language"
+                  className={`${railButtonClass} notranslate flex-col`}
+                  style={languageChrome}
+                  onClick={() => {
+                    triggerHaptic(10)
+                    onAction?.('language')
+                  }}
+                >
+                  <span className={`text-base leading-none ${compact ? '' : 'md:text-lg'}`}>
+                    {(LANGUAGE_LABELS[lang] || { flag: '🇺🇸' }).flag}
+                  </span>
+                  <span className={`mt-0.5 text-[7px] font-bold tracking-wider ${compact ? '' : 'md:text-[8px]'}`}>
+                    {(LANGUAGE_LABELS[lang] || { label: 'EN' }).label}
+                  </span>
+                </div>
+              )}
               <div
                 title="Toggle Theme"
                 onClick={() => {
@@ -317,7 +314,8 @@ export const HomeHero: React.FC<{
             {showShare && (
               <button
                 title="Share"
-                className={`group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
+                className="vbiz-icon-btn group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110"
+                style={shareChrome}
                 onClick={() => {
                   triggerHaptic(10)
                   onAction?.('share')
@@ -397,7 +395,7 @@ export const HomeHero: React.FC<{
                   className="h-full w-full object-cover opacity-90 transition-opacity hover:opacity-100"
                 />
                 {profileIsVideo && (
-                  <div className="border-gold/40 absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full border bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-md transition-colors group-hover:bg-black/80">
+                  <div className="border-gold/40 absolute top-3 right-3 z-30 flex items-center gap-1.5 rounded-full border bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-md transition-colors group-hover:bg-black/80">
                     <CreditCard size={14} className="text-gold" />
                     <span className="text-gold text-[10px] font-black tracking-widest">
                       {t('hero.premium', 'PREMIUM')}
@@ -451,6 +449,7 @@ export const HomeHero: React.FC<{
                       type="button"
                       title="Share"
                       className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                      style={shareChrome}
                       onClick={() => {
                         triggerHaptic(10)
                         onAction?.('share')

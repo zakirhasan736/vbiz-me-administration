@@ -2,6 +2,7 @@
 
 import ForgotPasswordSentModal from '@/components/auth/ForgotPasswordSentModal'
 import PasswordSetupRequiredModal from '@/components/auth/PasswordSetupRequiredModal'
+import TurnstileWidget, { isTurnstileConfigured } from '@/components/auth/TurnstileWidget'
 import FormErrorMessage from '@/components/shared/FormErrorMessage'
 import { Button, Input } from '@/components/ui'
 import type { TPasswordSetupRequiredData } from '@/interfaces'
@@ -26,14 +27,30 @@ const validationSchema = yup.object().shape({
 const ForgotPasswordView = () => {
   const [sentEmail, setSentEmail] = useState<string | null>(null)
   const [passwordSetup, setPasswordSetup] = useState<TPasswordSetupRequiredData | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0)
   const [forgotPassword, { isLoading }] = useForgotPasswordMutation()
 
+  const resetTurnstile = () => {
+    setTurnstileToken(null)
+    setTurnstileResetSignal((value) => value + 1)
+  }
+
   const handleSubmit = async (values: typeof initialValues) => {
+    if (isTurnstileConfigured && !turnstileToken) {
+      toast.error('Please complete the security check')
+      return
+    }
+
     const email = values.email.trim()
-    const res = await forgotPassword({ email })
+    const res = await forgotPassword({
+      email,
+      ...(turnstileToken ? { turnstileToken } : {}),
+    })
     const error = res.error as IQueryMutationErrorResponse | undefined
 
     if (error) {
+      resetTurnstile()
       if (isPasswordSetupRequired(error)) {
         const data = getPasswordSetupRequiredData(error)
         if (data) {
@@ -47,6 +64,7 @@ const ForgotPasswordView = () => {
     }
 
     setSentEmail(email)
+    resetTurnstile()
   }
 
   return (
@@ -82,6 +100,8 @@ const ForgotPasswordView = () => {
                 />
                 {emailInvalid ? <FormErrorMessage message={errors.email!} /> : null}
               </div>
+
+              <TurnstileWidget resetSignal={turnstileResetSignal} onToken={setTurnstileToken} />
 
               <Button type="submit" size="lg" loading={isLoading} className="mt-2 w-full py-4">
                 {isLoading ? 'Sending…' : 'Send reset link'}

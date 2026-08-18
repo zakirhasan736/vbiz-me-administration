@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { redirectToLogin, redirectToRoleHome, shouldSilentlyRefreshSession } from '@/lib/auth/sessionPolicy'
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import Cookies from 'js-cookie'
 import { logout, updateAuthState } from '../features/auth/user.slice'
@@ -13,6 +14,47 @@ const clearServerSession = () =>
     headers: { 'Content-Type': 'application/json' },
   }).catch(() => undefined)
 
+let refreshPromise: Promise<string | null> | null = null
+
+function refreshAccessToken(token: string | null): Promise<string | null> {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = fetch(`${baseUrl}/auth/refresh-token`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+    .then(async (res) => {
+      if (!res.ok) return null
+
+      try {
+        const data = (await res.json()) as {
+          success?: boolean
+          data?: { accessToken?: string }
+        }
+        return data?.success && data?.data?.accessToken ? data.data.accessToken : null
+      } catch {
+        return null
+      }
+    })
+    .catch(() => null)
+    .finally(() => {
+      refreshPromise = null
+    })
+
+  return refreshPromise
+}
+
+const expireSession = async (api: any) => {
+  Cookies.remove('redirect_after_login')
+  await clearServerSession()
+  api?.dispatch(logout())
+  redirectToLogin()
+}
+
 const baseQuery = fetchBaseQuery({
   baseUrl: baseUrl,
   credentials: 'include',
@@ -22,53 +64,44 @@ const baseQuery = fetchBaseQuery({
     return headers
   },
 })
-const baseQueryWithRefreshToken = async (args: any, api: any, extraOptions: any) => {
+export const baseQueryWithRefreshToken = async (args: any, api: any, extraOptions: any) => {
   let result = await baseQuery(args, api, extraOptions)
 
   if (result?.error?.status === 419) {
-    // session expired
-    Cookies.remove('redirect_after_login')
-    await clearServerSession()
-    api?.dispatch(logout())
+    await expireSession(api)
     return result
   }
 
   if (result?.error?.status === 401) {
     const state = api.getState() as RootState
     const token = state?.user?.token
+    const role = state?.user?.user?.role
 
-    const res = await fetch(`${baseUrl}/auth/refresh-token`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    })
-
-    if (res.status == 419) {
-      Cookies.remove('redirect_after_login')
-      await clearServerSession()
-      api?.dispatch(logout())
+    if (!shouldSilentlyRefreshSession(role)) {
+      await expireSession(api)
       return result
     }
 
-    const data = (await res.json()) as {
-      success: boolean
-      data: {
-        accessToken: string
-      }
+    const accessToken = await refreshAccessToken(token)
+    if (!accessToken) {
+      await expireSession(api)
+      return result
     }
 
-    if (data?.success && data?.data?.accessToken) {
-      api?.dispatch(updateAuthState({ token: data?.data?.accessToken }))
-      result = await baseQuery(args, api, extraOptions)
-    } else {
-      Cookies.remove('redirect_after_login')
-      await clearServerSession()
-      api?.dispatch(logout())
-    }
+    api?.dispatch(updateAuthState({ token: accessToken }))
+    redirectToRoleHome(role)
+    result = await baseQuery(args, api, extraOptions)
     return result
+  }
+
+  if (
+    result?.error?.status === 403 &&
+    typeof result.error.data === 'object' &&
+    result.error.data !== null &&
+    'message' in result.error.data &&
+    result.error.data.message === 'Unauthorized'
+  ) {
+    await expireSession(api)
   }
 
   return result

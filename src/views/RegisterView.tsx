@@ -2,6 +2,7 @@
 
 import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import PasswordSetupRequiredModal from '@/components/auth/PasswordSetupRequiredModal'
+import TurnstileWidget, { isTurnstileConfigured } from '@/components/auth/TurnstileWidget'
 import FormErrorMessage from '@/components/shared/FormErrorMessage'
 import { Button, Input, Select } from '@/components/ui'
 import { USER_ROLE_LABELS, USER_ROLES } from '@/constants/userRole'
@@ -49,22 +50,35 @@ const validationSchema = yup.object().shape({
 
 const RegisterView = () => {
   const [passwordSetup, setPasswordSetup] = useState<TPasswordSetupRequiredData | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0)
   const [register, { isLoading }] = useRegisterMutation()
   const router = useRouter()
 
+  const resetTurnstile = () => {
+    setTurnstileToken(null)
+    setTurnstileResetSignal((value) => value + 1)
+  }
+
   const handleSubmit = async (values: TRegisterFormValues) => {
     if (!values.role) return
+    if (isTurnstileConfigured && !turnstileToken) {
+      toast.error('Please complete the security check')
+      return
+    }
 
     const payload: TRegisterPayload = {
       name: values.name,
       email: values.email,
       password: values.password,
       role: values.role,
+      ...(turnstileToken ? { turnstileToken } : {}),
     }
 
     const res = await register(payload)
     const error = res.error as IQueryMutationErrorResponse | undefined
     if (error) {
+      resetTurnstile()
       if (isPasswordSetupRequired(error)) {
         const data = getPasswordSetupRequiredData(error)
         if (data) {
@@ -231,6 +245,8 @@ const RegisterView = () => {
                 />
                 {confirmPasswordInvalid ? <FormErrorMessage message={errors.confirmPassword!} /> : null}
               </div>
+
+              <TurnstileWidget resetSignal={turnstileResetSignal} onToken={setTurnstileToken} />
 
               <Button type="submit" size="lg" loading={isLoading} className="mt-2 w-full py-4">
                 {isLoading ? 'Registering...' : 'Register'}

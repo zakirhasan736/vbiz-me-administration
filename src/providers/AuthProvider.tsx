@@ -2,6 +2,13 @@
 
 import { useAppSelector } from '@/hooks/redux'
 import type { IUser } from '@/interfaces/user.interface'
+import {
+  isJwtExpired,
+  redirectToLogin,
+  redirectToRoleHome,
+  shouldSilentlyRefreshSession,
+} from '@/lib/auth/sessionPolicy'
+import { hydrateCompletedTours } from '@/lib/dashboardTour'
 import { api, baseUrl } from '@/redux/api/api'
 import { logout as clearAuth, updateAuthState, updateUser } from '@/redux/features/auth/user.slice'
 import { persistor, store } from '@/redux/store'
@@ -77,6 +84,14 @@ async function hydrateAccessToken(): Promise<string | null> {
   }
 }
 
+function clearServerSession(): void {
+  void fetch(`${baseUrl}/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  }).catch(() => undefined)
+}
+
 function authorHeaders(): HeadersInit {
   const token = store.getState().user.token
   return {
@@ -104,17 +119,48 @@ function useAuthBootstrap() {
       }
     }
 
-    const syncToken = () => {
+    const clearExpiredSession = () => {
+      clearServerSession()
+      store.dispatch(clearAuth())
+      store.dispatch(api.util.resetApiState())
+      redirectToLogin()
+    }
+
+    const syncOwnerToken = (role?: string | null) => {
+      if (!shouldSilentlyRefreshSession(role)) return
+
       void hydrateAccessToken().then((accessToken) => {
-        if (cancelled || !accessToken) return
-        if (store.getState().user.token === accessToken) return
-        store.dispatch(updateAuthState({ token: accessToken }))
+        if (cancelled) return
+        if (!accessToken) {
+          clearExpiredSession()
+          return
+        }
+        if (store.getState().user.token !== accessToken) {
+          store.dispatch(updateAuthState({ token: accessToken }))
+        }
+        redirectToRoleHome(role)
       })
     }
 
-    if (store.getState().user.user?.id) {
+    const persistedUser = store.getState().user.user
+    if (persistedUser?.id) {
+      if (!shouldSilentlyRefreshSession(persistedUser.role)) {
+        if (isJwtExpired(store.getState().user.token)) {
+          clearExpiredSession()
+          return () => {
+            cancelled = true
+          }
+        }
+
+        finishLoading()
+        redirectToRoleHome(persistedUser.role)
+        return () => {
+          cancelled = true
+        }
+      }
+
       finishLoading()
-      syncToken()
+      syncOwnerToken(persistedUser.role)
       return () => {
         cancelled = true
       }
@@ -132,6 +178,9 @@ function useAuthBootstrap() {
           headers: authorHeaders(),
         })
         if (cancelled) return
+        // Login can finish while the initial anonymous author request is in flight.
+        // Never let that stale response overwrite the newer authenticated state.
+        if (store.getState().user.user?.id) return
 
         if (!res.ok) {
           store.dispatch(updateAuthState({ user: null, token: null, isLoading: false }))
@@ -146,7 +195,11 @@ function useAuthBootstrap() {
         }
 
         store.dispatch(updateAuthState({ user: profile, isLoading: false }))
-        syncToken()
+        if (profile.id && Array.isArray(profile.completedTours)) {
+          hydrateCompletedTours(profile.id, profile.completedTours)
+        }
+        syncOwnerToken(profile.role)
+        redirectToRoleHome(profile.role)
       } catch {
         if (!cancelled) {
           store.dispatch(updateAuthState({ user: null, token: null, isLoading: false }))
@@ -167,6 +220,13 @@ function AccountStatusSync() {
     const sync = async () => {
       const { user } = store.getState().user
       if (!user?.id) return
+
+      if (!shouldSilentlyRefreshSession(user.role) && isJwtExpired(store.getState().user.token)) {
+        store.dispatch(clearAuth())
+        store.dispatch(api.util.resetApiState())
+        redirectToLogin()
+        return
+      }
 
       try {
         const res = await fetch(`${baseUrl}/auth/author`, {
@@ -190,6 +250,14 @@ function AccountStatusSync() {
         if (typeof remote.isActive === 'boolean' && current.isActive !== remote.isActive) {
           patch.isActive = remote.isActive
         }
+        if (Array.isArray(remote.completedTours)) {
+          const same =
+            Array.isArray(current.completedTours) &&
+            current.completedTours.length === remote.completedTours.length &&
+            current.completedTours.every((key, i) => key === remote.completedTours?.[i])
+          if (!same) patch.completedTours = remote.completedTours
+          if (current.id) hydrateCompletedTours(current.id, remote.completedTours)
+        }
         if (Object.keys(patch).length === 0) return
 
         store.dispatch(updateUser(patch))
@@ -202,6 +270,7 @@ function AccountStatusSync() {
       void sync()
     }, 60_000)
     window.addEventListener('focus', sync)
+    void sync()
 
     return () => {
       cancelled = true

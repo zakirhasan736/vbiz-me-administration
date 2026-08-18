@@ -1,4 +1,4 @@
-import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
+import { designToCssVars, resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
 import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
@@ -43,6 +43,18 @@ describe('applyEditorSettingsToThemeConfig', () => {
     expect(next.appearance.buttonStyle).toBe('outline')
     expect(next.appearance.cornerStyle).toBe('pill')
     expect(next.components.button.primary.style).toBe('outlined')
+    expect(next.components.socialIcon.style).toBe('outlined')
+  })
+
+  it('stores the selected font on theme_config so public cards can load it', () => {
+    const next = applyEditorSettingsToThemeConfig(
+      getDefaultThemeConfig('v3'),
+      { fontFamily: 'poppins' },
+      { buttonShadow: 'strong' }
+    )
+
+    expect(next.appearance.fontFamily).toBe('poppins')
+    expect(next.appearance.buttonShadow).toBe('strong')
   })
 })
 
@@ -67,5 +79,23 @@ describe('resolveProfileDesign', () => {
     expect(design.primaryColor).toBe('#00ff00')
     expect(design.accentColor).toBe('#0000ff')
     expect(design.fontFamily).toBe('outfit')
+  })
+
+  it('does not freeze brand colors onto inline vars so light/dark can swap surfaces', () => {
+    const vars = designToCssVars({
+      primaryColor: '#112233',
+      accentColor: '#445566',
+      fontFamily: 'poppins',
+      profileTemplate: 'v3',
+      layoutStyle: 'classic',
+      buttonStyle: 'solid',
+      cornerStyle: 'round',
+      darkMode: true,
+    }) as Record<string, string>
+
+    expect(vars['--vbiz-primary']).toBeUndefined()
+    expect(vars['--vbiz-accent']).toBeUndefined()
+    expect(vars['--font-sans']).toContain('Poppins')
+    expect(vars['--font-heading']).toContain('Poppins')
   })
 })

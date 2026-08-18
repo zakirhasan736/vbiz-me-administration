@@ -67,10 +67,13 @@ export function mapProfileSettings(
       socialIcon: themeRaw.socialIcon,
       wallpaper: themeRaw.wallpaper,
       appearance: {
+        ...(themeRaw.appearance && typeof themeRaw.appearance === 'object' ? themeRaw.appearance : {}),
         profileTemplate: resolvedTemplate,
-        layoutStyle: appearanceRaw.layoutStyle,
-        buttonStyle: appearanceRaw.buttonStyle,
-        cornerStyle: appearanceRaw.cornerStyle,
+        layoutStyle: appearanceRaw.layoutStyle ?? themeRaw.appearance?.layoutStyle,
+        buttonStyle: appearanceRaw.buttonStyle ?? themeRaw.appearance?.buttonStyle,
+        cornerStyle: appearanceRaw.cornerStyle ?? themeRaw.appearance?.cornerStyle,
+        fontFamily: appearanceRaw.fontFamily ?? themeRaw.appearance?.fontFamily,
+        buttonShadow: appearanceRaw.buttonShadow ?? themeRaw.appearance?.buttonShadow,
       },
     },
     resolvedTemplate
@@ -83,6 +86,7 @@ export function mapProfileSettings(
     buttonStyle: mapButtonStyleToAppearance(appearanceRaw.buttonStyle ?? themeConfig.appearance.buttonStyle),
     cornerStyle:
       typeof appearanceRaw.cornerStyle === 'string' ? appearanceRaw.cornerStyle : defaults.appearance.cornerStyle,
+    buttonShadow: themeConfig.appearance.buttonShadow,
   }
 
   const hasThemeConfig = Boolean(payload?.theme_config && typeof payload.theme_config === 'object')

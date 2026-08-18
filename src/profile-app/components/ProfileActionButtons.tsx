@@ -1,16 +1,19 @@
 'use client'
 
 import { useTranslation } from '@/lib/i18n/translationData'
+import { displayCtaChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import {
   buildHomeCtaInlineStyle,
+  filterHomeCtaLayout,
   handleHomeCtaClick,
+  HOME_CTA_SETTING_KEYS,
   resolveHomeCtaLayout,
   type HomeCtaLayout,
   type ResolvedHomeCtaButton,
 } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
-import { useMemo } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 
 type ProfileActionButtonsProps = {
   theme?: string
@@ -63,12 +66,14 @@ function HomeCtaButton({
   accentColor,
   isDesktop,
   onClick,
+  chromeStyle,
 }: {
   button: ResolvedHomeCtaButton
   template: ProfileTemplateId
   accentColor: string
   isDesktop: boolean
   onClick: () => void
+  chromeStyle?: CSSProperties
 }) {
   const iconSize = isDesktop ? (template === 'v1' ? 18 : 16) : 16
 
@@ -78,7 +83,7 @@ function HomeCtaButton({
       data-role={button.role}
       onClick={onClick}
       className={getCtaButtonClasses(template, isDesktop)}
-      style={buildHomeCtaInlineStyle(button, accentColor)}
+      style={{ ...buildHomeCtaInlineStyle(button, accentColor), ...chromeStyle }}
     >
       <CtaButtonContent button={button} iconSize={iconSize} />
     </button>
@@ -98,8 +103,11 @@ function CtaButtonGrid({
   isDesktop: boolean
   onClick: (button: ResolvedHomeCtaButton) => void
 }) {
+  const { field } = useProfileDisplay()
   const gap = isDesktop ? (template === 'v1' ? 'gap-4' : 'gap-3') : 'gap-2'
   const rowGap = isDesktop ? 'gap-3' : 'gap-2'
+  const chromeFor = (button: ResolvedHomeCtaButton) =>
+    displayCtaChromeStyle(mergeDisplayFieldConfigs(...HOME_CTA_SETTING_KEYS[button.key].map((key) => field(key))))
 
   return (
     <div className={`flex flex-col ${gap}`}>
@@ -113,6 +121,7 @@ function CtaButtonGrid({
                 template={template}
                 accentColor={accentColor}
                 isDesktop={isDesktop}
+                chromeStyle={chromeFor(button)}
                 onClick={() => onClick(button)}
               />
             ))}
@@ -125,6 +134,7 @@ function CtaButtonGrid({
               template={template}
               accentColor={accentColor}
               isDesktop={isDesktop}
+              chromeStyle={chromeFor(button)}
               onClick={() => onClick(button)}
             />
           ))
@@ -142,7 +152,7 @@ export function ProfileActionButtons({
   visibleOn = 'both',
 }: ProfileActionButtonsProps) {
   const { t } = useTranslation()
-  const { actionButtons, design, cardSlug } = useProfileDisplay()
+  const { actionButtons, design, cardSlug, isVisible } = useProfileDisplay()
   const accentColor = design?.accentColor ?? '#eab308'
   const template = (design?.profileTemplate ?? 'v3') as ProfileTemplateId
 
@@ -158,13 +168,14 @@ export function ProfileActionButtons({
   )
 
   const desktopLayout = useMemo(
-    () => resolveHomeCtaLayout({ actionButtons, accentColor, labels }),
-    [actionButtons, accentColor, labels]
+    () => filterHomeCtaLayout(resolveHomeCtaLayout({ actionButtons, accentColor, labels }), isVisible),
+    [actionButtons, accentColor, labels, isVisible]
   )
 
   const mobileLayout = useMemo(
-    () => resolveHomeCtaLayout({ actionButtons, accentColor, includeMyInfo: true, labels }),
-    [actionButtons, accentColor, labels]
+    () =>
+      filterHomeCtaLayout(resolveHomeCtaLayout({ actionButtons, accentColor, includeMyInfo: true, labels }), isVisible),
+    [actionButtons, accentColor, labels, isVisible]
   )
 
   const click = (button: ResolvedHomeCtaButton) => {

@@ -46,7 +46,7 @@ import {
 } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
-import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
+import { buildProfilePath, DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import { notify } from '@/lib/toast/toast'
 import {
   getEditorPanelCompletionStats,
@@ -327,6 +327,32 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
           : saveStatus === 'error'
             ? 'Save Failed'
             : null
+
+  const publicCardPath = useMemo(() => buildProfilePath(vCardData.slug || ''), [vCardData.slug])
+  const openPublicCard = useCallback(() => {
+    if (!vCardData.slug?.trim()) {
+      notify.warning('Set a public URL slug before opening the card.')
+      return
+    }
+    const previewWindow = window.open('about:blank', '_blank')
+    if (!previewWindow) {
+      notify.error('Allow pop-ups to open your public card in a new tab.')
+      return
+    }
+    previewWindow.opener = null
+    const navigate = () => {
+      if (!previewWindow.closed) previewWindow.location.href = publicCardPath
+    }
+    if (saveStatus === 'dirty' || saveStatus === 'error') {
+      previewWindow.document.title = 'Saving card...'
+      void flushSave()
+        .then(navigate)
+        .catch(() => previewWindow.close())
+      return
+    }
+    navigate()
+  }, [flushSave, publicCardPath, saveStatus, vCardData.slug])
+  const opensPublicCard = Boolean(!isCreateMode && !vCardData.isDraft && vCardData.isPublic)
 
   const SaveStatusIcon =
     saveStatus === 'saving'
@@ -667,9 +693,9 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
       <div className="relative z-10 flex w-full max-w-325 flex-col gap-6">
         <TakeTourBanner
+          variant="compact"
           tourKey="create_card"
-          title="Take a create-card tour"
-          body="Guided walkthrough of Generate, Portfolio, Services, Skill, AI Auto-fill, My Info, and every major tab — start anytime."
+          className="fixed bottom-4 left-1/2 z-60 -translate-x-1/2 px-3.5 py-2.5 text-[12px] shadow-lg max-sm:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[11px]"
         />
         {isCreateMode && createOwner ? (
           <div className="animate-in slide-in-from-top-4 flex w-full flex-col gap-1 rounded-3xl border border-indigo-500/25 bg-indigo-500/10 p-5 px-6 text-indigo-900 duration-300 dark:text-indigo-100">
@@ -727,16 +753,15 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 </p>
               </div>
             </div>
-            {!isCreateMode ? (
-              <button
-                type="button"
-                onClick={openLivePreview}
-                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700"
-              >
-                <Eye className="h-4 w-4" />
-                View
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={opensPublicCard ? openPublicCard : openLivePreview}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700"
+              title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
+            >
+              <Eye className="h-4 w-4" />
+              {opensPublicCard ? 'View' : 'Preview'}
+            </button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -747,16 +772,15 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               <ArrowLeft className="h-4 w-4" />
               {directoryLabel}
             </Link>
-            {!isCreateMode ? (
-              <button
-                type="button"
-                onClick={openLivePreview}
-                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700"
-              >
-                <Eye className="h-4 w-4" />
-                View
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={opensPublicCard ? openPublicCard : openLivePreview}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700"
+              title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
+            >
+              <Eye className="h-4 w-4" />
+              {opensPublicCard ? 'View' : 'Preview'}
+            </button>
           </div>
         )}
 
@@ -1136,7 +1160,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                         setIsSaving(true)
                         try {
                           await saveVCard()
-                          notify.success('vCard draft saved.')
+                          notify.success('Draft saved. Use Preview to review it, then Activate card when ready.')
                         } catch (e) {
                           const message =
                             (e as { data?: { message?: string } })?.data?.message ||
@@ -1163,7 +1187,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                         setIsSaving(true)
                         try {
                           await flushSave()
-                          notify.success('Profile saved.')
                         } catch {
                           // Persist errors are already toasted from VCardContext.
                         } finally {

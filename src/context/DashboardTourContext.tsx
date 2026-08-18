@@ -1,26 +1,33 @@
 'use client'
 
+import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
+import { useAiCardAgentOpen } from '@/hooks/useAiCardAgentOpen'
 import {
   attachTourScrollLock,
   CREATE_CARD_TOUR_STEPS,
   DASHBOARD_TOUR_STEPS,
   getTourSteps,
+  hydrateCompletedTours,
   isMobileNavViewport,
   isTourCompleted,
   markTourDone,
+  readAiCardAgentOpen,
   requestTourRemeasure,
   resolveTourBackDestination,
   routeMatchesStep,
   scrollTourTargetIntoView,
+  shouldAutoStartTour,
   shouldScrollTourStep,
+  TOUR_KEYS,
   type DashboardTourStep,
   type EditorTourAssist,
   type SettingsTourAssist,
   type TourKey,
 } from '@/lib/dashboardTour'
+import { persistCompletedToursRemote } from '@/lib/dashboardTourPersist'
 import { useAuth } from '@/providers/AuthProvider'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   createContext,
   useCallback,
@@ -82,20 +89,50 @@ function isEditorPath(pathname: string) {
 export function DashboardTourProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
   const role = useAppSelector((state) => state.user.user?.role)
+  const serverTours = useAppSelector((state) => state.user.user?.completedTours)
   const isVcardOwner = role === 'vcard-owner'
   const pathname = usePathname()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const isAiAgentOpen = searchParams.get('agent') === '1'
+  const isAiAgentOpen = useAiCardAgentOpen()
   const [tourKey, setTourKey] = useState<TourKey | null>(null)
   const [stepIndex, setStepIndex] = useState(-1)
   const [started, setStarted] = useState(false)
+  const [waitedUid, setWaitedUid] = useState('')
   const mobileNavOpenerRef = useRef<(() => void) | null>(null)
   const activateTabRef = useRef<((tab: string) => void) | null>(null)
   const dashboardAutoStarted = useRef(false)
   const createAutoStarted = useRef(false)
 
   const steps = useMemo(() => (tourKey ? getTourSteps(tourKey) : []), [tourKey])
+  const toursReady = Array.isArray(serverTours) || Boolean(user?.uid && waitedUid === user.uid)
+
+  const rememberTourOffered = useCallback(
+    (key: TourKey) => {
+      if (!user?.uid) return
+      markTourDone(key, user.uid)
+      persistCompletedToursRemote([key])
+    },
+    [user]
+  )
+
+  useEffect(() => {
+    dashboardAutoStarted.current = false
+    createAutoStarted.current = false
+  }, [user?.uid])
+
+  useEffect(() => {
+    if (!user?.uid || !Array.isArray(serverTours)) return
+    hydrateCompletedTours(user.uid, serverTours)
+    const missing = TOUR_KEYS.filter((key) => isTourCompleted(key, user.uid) && !serverTours.includes(key))
+    if (missing.length) persistCompletedToursRemote(missing)
+  }, [user?.uid, serverTours])
+
+  useEffect(() => {
+    if (Array.isArray(serverTours) || !user?.uid) return
+    const token = user.uid
+    const timer = window.setTimeout(() => setWaitedUid(token), 1800)
+    return () => window.clearTimeout(timer)
+  }, [serverTours, user?.uid])
 
   const softDismissTour = useCallback(() => {
     setStepIndex(-1)
@@ -104,9 +141,9 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const finishTour = useCallback(() => {
-    if (tourKey) markTourDone(tourKey)
+    if (tourKey) rememberTourOffered(tourKey)
     softDismissTour()
-  }, [tourKey, softDismissTour])
+  }, [tourKey, rememberTourOffered, softDismissTour])
 
   const skip = useCallback(() => {
     finishTour()
@@ -124,6 +161,7 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
       return
     }
     setStepIndex(nextIndex)
+    requestAnimationFrame(() => requestTourRemeasure())
   }, [stepIndex, steps, router, finishTour])
 
   const back = useCallback(() => {
@@ -132,7 +170,7 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
     const prevIndex = stepIndex - 1
     const destination = resolveTourBackDestination(steps, stepIndex, pathname)
 
-    if (destination) {
+    if (destination && destination !== pathname) {
       router.push(destination)
     }
 
@@ -151,6 +189,7 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
   const startTour = useCallback(
     (key: TourKey = 'dashboard') => {
       if (key === 'dashboard' && !isVcardOwner) return
+      if (key === 'create_card' && (isAiAgentOpen || readAiCardAgentOpen())) return
 
       setTourKey(key)
       setStarted(true)
@@ -160,47 +199,46 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
         router.push('/')
       }
     },
-    [isVcardOwner, pathname, router]
+    [isVcardOwner, isAiAgentOpen, pathname, router]
   )
 
-  // Dashboard auto-start (vcard-owner on home only)
+  // Dashboard auto-start (vcard-owner on home only) — once per registered user
   useEffect(() => {
-    if (loading || !user?.uid || started || dashboardAutoStarted.current) return
+    if (loading || !user?.uid || !toursReady || started || dashboardAutoStarted.current) return
     if (!isVcardOwner) return
     if (pathname !== '/') return
-    if (isTourCompleted('dashboard', user.uid)) return
+    if (!shouldAutoStartTour('dashboard', user.uid, serverTours)) return
 
     dashboardAutoStarted.current = true
     const timer = window.setTimeout(() => {
+      rememberTourOffered('dashboard')
       setTourKey('dashboard')
       setStarted(true)
       setStepIndex(0)
     }, 700)
 
     return () => window.clearTimeout(timer)
-  }, [loading, user?.uid, started, isVcardOwner, pathname])
+  }, [loading, user?.uid, toursReady, started, isVcardOwner, pathname, serverTours, rememberTourOffered])
 
-  // Create-card auto-start on editor routes (skip when Card Studio / AI agent is open)
+  // Create-card auto-start: wait while AI Card Studio is open, then run once
   useEffect(() => {
-    if (loading || !user?.uid || started || createAutoStarted.current) return
+    if (loading || !user?.uid || !toursReady || started || createAutoStarted.current) return
+    if (isStaffRole(role)) return
     if (!isEditorPath(pathname)) return
-    if (isTourCompleted('create_card', user.uid)) return
+    if (!shouldAutoStartTour('create_card', user.uid, serverTours)) return
+    if (isAiAgentOpen || readAiCardAgentOpen()) return
 
-    // AI create path: do not auto-start; keep tour incomplete so "Take a tour" still works
-    if (isAiAgentOpen) {
-      createAutoStarted.current = true
-      return
-    }
-
-    createAutoStarted.current = true
     const timer = window.setTimeout(() => {
+      if (readAiCardAgentOpen() || createAutoStarted.current) return
+      createAutoStarted.current = true
+      rememberTourOffered('create_card')
       setTourKey('create_card')
       setStarted(true)
       setStepIndex(0)
     }, 700)
 
     return () => window.clearTimeout(timer)
-  }, [loading, user?.uid, started, pathname, isAiAgentOpen])
+  }, [loading, user?.uid, toursReady, started, role, pathname, isAiAgentOpen, serverTours, rememberTourOffered])
 
   // Soft-dismiss create-card tour when AI agent opens (adjust during render; no markTourDone)
   if (isAiAgentOpen && tourKey === 'create_card' && started) {

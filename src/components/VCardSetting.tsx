@@ -3,11 +3,13 @@
 import { CanvaConnectRow } from '@/components/canva'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { Button, Switch } from '@/components/ui'
+import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { cardAgentJson } from '@/lib/ai/cardAgentClient'
 import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
 import {
@@ -17,12 +19,12 @@ import {
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
 import {
+  MAX_OWNER_SEO_KEYWORDS,
   MAX_SEO_DESCRIPTION_LENGTH,
-  MAX_SEO_KEYWORDS,
   MAX_SEO_TITLE_LENGTH,
   normalizeCardSeo,
   normalizeSeoKeywords,
-  SEO_FIXED_KEYWORDS,
+  ownerSeoKeywords,
 } from '@/lib/seo/cardSeo'
 import {
   inferMediaWallpaperStyle,
@@ -33,6 +35,7 @@ import {
   type WallpaperPatternId,
   type WallpaperStyleId,
 } from '@/lib/theme/wallpaper'
+import { notify } from '@/lib/toast/toast'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
@@ -341,6 +344,7 @@ function TemplateDesigner() {
           file,
           profileId: profileId || undefined,
           attachmentType: FIELD_PROFILE_IMAGE,
+          maxBytes: MAX_PROFILE_IMAGE_BYTES,
           signal: controller.signal,
           onProgress: setProfileUploadProgress,
         })
@@ -888,11 +892,45 @@ const FieldCard: React.FC<{
   )
 }
 
+function buildSeoGenerateBody(
+  vCardData: ReturnType<typeof useVCard>['vCardData'],
+  seo: ReturnType<typeof normalizeCardSeo>
+) {
+  const services = (vCardData.services ?? [])
+    .map((service) => service.title?.trim() || service.type?.trim() || '')
+    .filter(Boolean)
+    .slice(0, 12)
+
+  return {
+    name: vCardData.personal?.fullName?.trim() || '',
+    company: vCardData.personal?.company?.trim() || '',
+    designation: vCardData.personal?.designation?.trim() || '',
+    profession: vCardData.personal?.profession?.trim() || '',
+    about: vCardData.personal?.about?.trim() || '',
+    address: vCardData.personal?.address?.trim() || '',
+    website: vCardData.personal?.website?.trim() || '',
+    services,
+    metaTitle: seo.metaTitle,
+    metaDescription: seo.metaDescription,
+  }
+}
+
+function SeoGenerateButton({ busy, disabled, onClick }: { busy: boolean; disabled?: boolean; onClick: () => void }) {
+  return (
+    <Button type="button" size="sm" variant="secondary" loading={busy} disabled={disabled || busy} onClick={onClick}>
+      {busy ? null : <Sparkles className="h-3.5 w-3.5" />}
+      Generate with AI
+    </Button>
+  )
+}
+
 function CardSeoPanel() {
   const { vCardData, updateData } = useVCard()
   const seo = normalizeCardSeo(vCardData.seo)
   const seoRef = useRef(seo)
   const [keywordInput, setKeywordInput] = useState('')
+  const [generating, setGenerating] = useState<'title' | 'description' | 'keywords' | null>(null)
+  const visibleKeywords = ownerSeoKeywords(seo.metaKeywords)
 
   useEffect(() => {
     seoRef.current = seo
@@ -907,13 +945,14 @@ function CardSeoPanel() {
   const addKeyword = (raw: string) => {
     const value = raw.trim()
     if (!value) return
-    updateSeo({ metaKeywords: normalizeSeoKeywords([...seoRef.current.metaKeywords, value]) })
+    updateSeo({ metaKeywords: normalizeSeoKeywords([...ownerSeoKeywords(seoRef.current.metaKeywords), value]) })
     setKeywordInput('')
   }
 
   const removeKeyword = (keyword: string) => {
-    if (SEO_FIXED_KEYWORDS.some((item) => item.toLowerCase() === keyword.toLowerCase())) return
-    updateSeo({ metaKeywords: seoRef.current.metaKeywords.filter((item) => item !== keyword) })
+    updateSeo({
+      metaKeywords: ownerSeoKeywords(seoRef.current.metaKeywords).filter((item) => item !== keyword),
+    })
   }
 
   const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -922,28 +961,110 @@ function CardSeoPanel() {
     addKeyword(keywordInput)
   }
 
+  const generateField = async (field: 'title' | 'description' | 'keywords') => {
+    const current = seoRef.current
+    if (field === 'keywords' && !current.metaTitle.trim() && !current.metaDescription.trim()) {
+      notify.info('Add a meta title or description first so AI can suggest keywords.')
+      return
+    }
+
+    setGenerating(field)
+    try {
+      const data = await cardAgentJson<{
+        metaTitle?: string
+        metaDescription?: string
+        keywords?: string[]
+      }>('generate-seo', { field, ...buildSeoGenerateBody(vCardData, current) })
+
+      if (field === 'title' && data.metaTitle?.trim()) {
+        updateSeo({ metaTitle: data.metaTitle })
+        notify.success('Meta title generated.')
+        const nextTitle = data.metaTitle.trim()
+        const description = seoRef.current.metaDescription.trim()
+        if (description) {
+          setGenerating('keywords')
+          const keywordData = await cardAgentJson<{ keywords?: string[] }>('generate-seo', {
+            field: 'keywords',
+            ...buildSeoGenerateBody(vCardData, { ...seoRef.current, metaTitle: nextTitle }),
+          })
+          if (keywordData.keywords?.length) {
+            updateSeo({ metaKeywords: normalizeSeoKeywords(keywordData.keywords) })
+            notify.success('Keywords suggested from your title and description.')
+          }
+        }
+        return
+      }
+
+      if (field === 'description' && data.metaDescription?.trim()) {
+        updateSeo({ metaDescription: data.metaDescription })
+        notify.success('Meta description generated.')
+        const nextDescription = data.metaDescription.trim()
+        const title = seoRef.current.metaTitle.trim()
+        if (title) {
+          setGenerating('keywords')
+          const keywordData = await cardAgentJson<{ keywords?: string[] }>('generate-seo', {
+            field: 'keywords',
+            ...buildSeoGenerateBody(vCardData, { ...seoRef.current, metaDescription: nextDescription }),
+          })
+          if (keywordData.keywords?.length) {
+            updateSeo({ metaKeywords: normalizeSeoKeywords(keywordData.keywords) })
+            notify.success('Keywords suggested from your title and description.')
+          }
+        }
+        return
+      }
+
+      if (field === 'keywords' && data.keywords?.length) {
+        updateSeo({ metaKeywords: normalizeSeoKeywords(data.keywords) })
+        notify.success('Keywords generated.')
+      }
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : 'Could not generate SEO. Try again.')
+    } finally {
+      setGenerating(null)
+    }
+  }
+
   return (
     <div className="max-w-3xl space-y-6">
       <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
-        SEO for this specific card — only users who can open Card Settings can edit these fields.
+        SEO for this specific card — write or generate a title, description, and keywords. JSON-LD, social tags, reviews
+        markup, and the canonical URL are built automatically from this card.
       </p>
       <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
         <h4 className="text-sm font-black text-slate-900 dark:text-white">Card metadata</h4>
-        <label htmlFor="card-seo-meta-title" className="text-xs font-bold text-slate-600 dark:text-slate-300">
-          Meta title
-        </label>
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="card-seo-meta-title" className="text-xs font-bold text-slate-600 dark:text-slate-300">
+            Meta title
+          </label>
+          <SeoGenerateButton
+            busy={generating === 'title'}
+            disabled={Boolean(generating)}
+            onClick={() => void generateField('title')}
+          />
+        </div>
         <input
           id="card-seo-meta-title"
           type="text"
           value={seo.metaTitle}
           onChange={(event) => updateSeo({ metaTitle: event.target.value })}
-          placeholder="Example: Maya Design Studio | Virtual Card"
+          placeholder="Example: Maya Design Studio | Brand Designer"
           maxLength={MAX_SEO_TITLE_LENGTH}
           className={cardInputClasses}
         />
-        <label htmlFor="card-seo-meta-description" className="text-xs font-bold text-slate-600 dark:text-slate-300">
-          Meta description
-        </label>
+        <p className="text-[.6875rem] font-semibold text-slate-400">
+          {seo.metaTitle.length}/{MAX_SEO_TITLE_LENGTH}
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="card-seo-meta-description" className="text-xs font-bold text-slate-600 dark:text-slate-300">
+            Meta description
+          </label>
+          <SeoGenerateButton
+            busy={generating === 'description'}
+            disabled={Boolean(generating)}
+            onClick={() => void generateField('description')}
+          />
+        </div>
         <textarea
           id="card-seo-meta-description"
           value={seo.metaDescription}
@@ -952,31 +1073,39 @@ function CardSeoPanel() {
           maxLength={MAX_SEO_DESCRIPTION_LENGTH}
           className={cn(cardInputClasses, 'min-h-27.5 resize-none')}
         />
-        <label htmlFor="card-seo-keyword-input" className="text-xs font-bold text-slate-600 dark:text-slate-300">
-          Meta keywords
-        </label>
+        <p className="text-[.6875rem] font-semibold text-slate-400">
+          {seo.metaDescription.length}/{MAX_SEO_DESCRIPTION_LENGTH}
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="card-seo-keyword-input" className="text-xs font-bold text-slate-600 dark:text-slate-300">
+            Meta keywords
+          </label>
+          <SeoGenerateButton
+            busy={generating === 'keywords'}
+            disabled={Boolean(generating)}
+            onClick={() => void generateField('keywords')}
+          />
+        </div>
         <div
           className={cn(
             cardInputClasses,
             'focus-within:border-primary-500 focus-within:ring-primary-500 flex min-h-13 flex-wrap items-center gap-2 py-2.5 focus-within:ring-1'
           )}
         >
-          {seo.metaKeywords.map((keyword) => (
+          {visibleKeywords.map((keyword) => (
             <span
               key={keyword}
               className="border-primary-200/80 bg-primary-50 text-primary-700 dark:border-primary-500/25 dark:bg-primary-500/10 dark:text-primary-300 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[.75rem] font-semibold"
             >
               {keyword}
-              {SEO_FIXED_KEYWORDS.some((item) => item.toLowerCase() === keyword.toLowerCase()) ? null : (
-                <button
-                  type="button"
-                  onClick={() => removeKeyword(keyword)}
-                  className="hover:bg-primary-100 hover:text-primary-900 dark:hover:bg-primary-500/20 dark:hover:text-primary-200 rounded-md p-0.5 transition-colors"
-                  aria-label={`Remove keyword ${keyword}`}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => removeKeyword(keyword)}
+                className="hover:bg-primary-100 hover:text-primary-900 dark:hover:bg-primary-500/20 dark:hover:text-primary-200 rounded-md p-0.5 transition-colors"
+                aria-label={`Remove keyword ${keyword}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
             </span>
           ))}
           <input
@@ -985,16 +1114,17 @@ function CardSeoPanel() {
             value={keywordInput}
             onChange={(e) => setKeywordInput(e.target.value)}
             onKeyDown={handleKeywordKeyDown}
-            disabled={seo.metaKeywords.length >= MAX_SEO_KEYWORDS}
+            disabled={visibleKeywords.length >= MAX_OWNER_SEO_KEYWORDS}
             placeholder={
-              seo.metaKeywords.length >= MAX_SEO_KEYWORDS ? 'Keyword limit reached' : 'Add keyword and press Enter'
+              visibleKeywords.length >= MAX_OWNER_SEO_KEYWORDS ? 'Keyword limit reached' : 'Add keyword and press Enter'
             }
             maxLength={80}
             className="min-w-30 flex-1 bg-transparent py-1 text-[.8125rem] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
           />
         </div>
         <p className="text-[.6875rem] font-semibold text-slate-400">
-          {seo.metaKeywords.length}/{MAX_SEO_KEYWORDS} keywords. Five vBiz Me keywords are always included.
+          {visibleKeywords.length}/{MAX_OWNER_SEO_KEYWORDS} keywords. vBiz Me platform keywords are added automatically
+          and stay hidden here.
         </p>
       </div>
     </div>
@@ -1247,6 +1377,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const display = getDisplaySettingsFromVCard(vCardData)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const { isActive: isTourActive, editorAssist, currentStep, startTour } = useDashboardTour()
+  const { showAgent } = useCreateAgentUi()
 
   const activeTab = isTourActive && currentStep?.id && editorAssist.settingsTab ? editorAssist.settingsTab : settingsTab
 
@@ -1411,7 +1542,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
             </Link>
           ))}
 
-          {!isTourActive ? (
+          {!isTourActive && !showAgent ? (
             <button
               type="button"
               onClick={() => startTour('create_card')}

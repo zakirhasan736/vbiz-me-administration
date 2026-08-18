@@ -69,7 +69,7 @@ export function Tab1MediaProfile() {
           accept="image/*,video/*"
           maxBytes={MAX_AVATAR_BYTES}
           title="Avatar"
-          subtitle="Image • Max 15MB"
+          subtitle="Image or video • Max 15MB"
           icon={<User className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
           iconWrapperClassName="border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
           selectPlaceholder="Select image"

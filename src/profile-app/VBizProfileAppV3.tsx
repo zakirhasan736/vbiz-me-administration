@@ -4,6 +4,7 @@ import { resolveNotificationModalTarget } from '@/lib/push/notificationRouting'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { v3DesignToCssVars } from '@/lib/v3Theme'
+import { displayGeneralRootStyle, isPagesHeaderVisible } from '@/lib/vcardDisplaySettings'
 import { LiveAgent } from '@/profile-app/components/LiveAgent'
 import { ProfileBackgroundAudio } from '@/profile-app/components/ProfileBackgroundAudio'
 import { ProfileFloatingNav } from '@/profile-app/components/ProfileFloatingNav'
@@ -42,7 +43,7 @@ export function VBizProfileAppV3({
   previewTheme,
   onPreviewThemeChange,
 }: VBizProfileAppProps) {
-  const { design: contextDesign, pageColors } = useProfileDisplay()
+  const { design: contextDesign, settings } = useProfileDisplay()
 
   const design: ResolvedProfileDesign =
     designProp ??
@@ -119,7 +120,7 @@ export function VBizProfileAppV3({
 
   const rootStyle = {
     ...v3DesignToCssVars(design),
-    ...(pageColors.pageBg ? { backgroundColor: pageColors.pageBg } : { backgroundColor: 'var(--vbiz-bg)' }),
+    ...displayGeneralRootStyle(settings),
     color: 'var(--vbiz-text)',
   }
   const homeHeroProps = {
@@ -133,6 +134,7 @@ export function VBizProfileAppV3({
       data-profile-template="v3"
       data-embedded={embedded ? '' : undefined}
       data-theme={theme}
+      data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
       className={`vbiz-profile-root vbiz-profile-v3 no-scrollbar relative flex min-h-dvh w-full flex-col items-center overflow-x-clip transition-colors duration-500 ${theme === 'dark' ? 'bg-ocean-deep text-zinc-100' : 'bg-white text-zinc-900'} ${embedded ? 'min-h-0 max-w-full' : ''}`}
       style={rootStyle}
     >

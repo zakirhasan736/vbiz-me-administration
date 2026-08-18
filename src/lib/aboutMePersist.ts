@@ -1,12 +1,42 @@
 import { getAboutMeDraft } from '@/lib/aboutMeDraft'
+import { notify } from '@/lib/toast/toast'
 import { aboutMeAuthApi } from '@/redux/features/sections/aboutMe.api'
 import type { AppDispatch } from '@/redux/store'
 
-const DEBOUNCE_MS = 1000
+const DEBOUNCE_MS = 3000
 
 let timer: ReturnType<typeof setTimeout> | null = null
 let pendingProfileId: string | null = null
 let inflight: Promise<void> | null = null
+let lastSuccessToastAt = 0
+let lastErrorToast: { message: string; at: number } | null = null
+
+function errorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'data' in err) {
+    const data = (err as { data?: { message?: string; errorMessages?: { message?: string }[] } }).data
+    const details = data?.errorMessages
+      ?.map((item) => item.message)
+      .filter((message): message is string => Boolean(message))
+    if (details?.length) return details.join('. ')
+    if (data?.message) return data.message
+  }
+  if (err instanceof Error && err.message) return err.message
+  return 'Failed to save About Me'
+}
+
+function toastAboutMeSaved() {
+  const now = Date.now()
+  if (now - lastSuccessToastAt < 1800) return
+  lastSuccessToastAt = now
+  notify.success('About Me saved.')
+}
+
+function toastAboutMeError(message: string) {
+  const now = Date.now()
+  if (lastErrorToast && lastErrorToast.message === message && now - lastErrorToast.at < 4000) return
+  lastErrorToast = { message, at: now }
+  notify.error(message)
+}
 
 function buildUpsertBody() {
   const draft = getAboutMeDraft()
@@ -64,7 +94,12 @@ export async function flushAboutMeUpsert(dispatch: AppDispatch, profileId?: stri
   }
 
   const task = runUpsert(dispatch, id)
-    .catch(() => undefined)
+    .then(() => {
+      toastAboutMeSaved()
+    })
+    .catch((err) => {
+      toastAboutMeError(errorMessage(err))
+    })
     .finally(() => {
       if (inflight === task) inflight = null
     })

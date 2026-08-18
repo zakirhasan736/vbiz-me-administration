@@ -60,6 +60,38 @@ function resolveAttachments(item: DynamicPostItem): DynamicPostAttachment[] {
   return fromApi
 }
 
+function readUrl(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  if (value && typeof value === 'object' && 'url' in value) {
+    const url = (value as { url?: unknown }).url
+    return typeof url === 'string' ? url.trim() : ''
+  }
+  return ''
+}
+
+function resolveGeneralInfoUrl(item: DynamicPostItem, metas: Record<string, string | null | undefined>): string {
+  const candidates: unknown[] = [
+    item.general_info_url,
+    item.url,
+    item.external_url,
+    item.review_link,
+    item.video_url,
+    metas.general_info_url,
+    metas.video_url,
+    metas.external_url,
+    metas.youtube_url,
+    metas.watch_url,
+    metas.url,
+    metas.link,
+  ]
+
+  for (const candidate of candidates) {
+    const url = readUrl(candidate)
+    if (url) return url
+  }
+  return ''
+}
+
 export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): DynamicPostListItem {
   const featured = resolveFeaturedImage(item.featured_image)
   const attachments = resolveAttachments(item)
@@ -91,7 +123,7 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
     title: item.title?.trim() || featured.docName || 'Update',
     description,
     featuredImage: featured.url,
-    generalInfoUrl: item.general_info_url?.trim() ?? '',
+    generalInfoUrl: resolveGeneralInfoUrl(item, metas),
     date: year || item.created_at || item.updated_at || '',
     issuer,
     year,

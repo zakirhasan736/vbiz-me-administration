@@ -945,13 +945,18 @@ const profilesApi = api.injectEndpoints({
         'dashboard',
       ],
     }),
+    duplicateProfile: builder.mutation<ApiProfile, string>({
+      query: (id) => ({ url: `/profiles/${id}/duplicate`, method: 'POST' }),
+      transformResponse: (res: Envelope<ApiProfile>) => res.data,
+      invalidatesTags: [
+        { type: 'profiles', id: 'LIST' },
+        { type: 'adminProfiles', id: 'LIST' },
+        { type: 'adminProfiles', id: 'FILTERS' },
+        'dashboard',
+      ],
+    }),
     updateProfileCard: builder.mutation<ApiProfile, { id: string; body: Record<string, unknown> }>({
-      query: ({ id, body }) => {
-        // Production API still rejects PATCH when another card shares this phone.
-        // Phone lives on Profile already; omit it so the rest of the card can save.
-        const { phone: _phone, ...bodyWithoutPhone } = body
-        return { url: `/profiles/${id}`, method: 'PATCH', body: bodyWithoutPhone }
-      },
+      query: ({ id, body }) => ({ url: `/profiles/${id}`, method: 'PATCH', body }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       async onQueryStarted({ id, body }, { dispatch, queryFulfilled, getState }) {
         const runDispatch = dispatch as unknown as (action: unknown) => { undo: () => void }
@@ -1510,6 +1515,7 @@ export const {
   useGetProfileQuery,
   useCheckSlugQuery,
   useCreateProfileMutation,
+  useDuplicateProfileMutation,
   useUpdateProfileCardMutation,
   useDeleteProfileMutation,
   useReplaceEducationMutation,

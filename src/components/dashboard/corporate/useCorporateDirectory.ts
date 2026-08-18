@@ -7,8 +7,7 @@ import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { notify } from '@/lib/toast/toast'
 import {
   mapApiProfileToVCardRecord,
-  mapVCardDataToProfilePayload,
-  useCreateProfileMutation,
+  useDuplicateProfileMutation,
   useGetProfilesQuery,
   useUpdateProfileCardMutation,
 } from '@/redux/features/profiles/profiles.api'
@@ -58,16 +57,15 @@ export function useCorporateDirectory(filters: {
     limit: 100,
   })
 
-  const [createProfile] = useCreateProfileMutation()
+  const [duplicateProfile] = useDuplicateProfileMutation()
   const [updateProfileCard] = useUpdateProfileCardMutation()
   const { canMutateVcards } = useAccountStatus()
 
   const [cardOrder, setCardOrder] = useState<string[]>(() => loadCardOrder(CORPORATE_CARD_ORDER_KEY))
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
-  const profiles = profilesResult?.items ?? []
   const capacity = profilesResult?.capacity
-  const cards = useMemo(() => profiles.map(mapApiProfileToVCardRecord), [profiles])
+  const cards = useMemo(() => (profilesResult?.items ?? []).map(mapApiProfileToVCardRecord), [profilesResult?.items])
 
   const quotaLimit = capacity?.limit ?? 0
   const currentCount = capacity?.used ?? cards.length
@@ -114,16 +112,8 @@ export function useCorporateDirectory(filters: {
         notify.error(SUSPENDED_CARD_MESSAGE)
         return null
       }
-      const suffix = Math.floor(1000 + Math.random() * 9000)
-      const payload = mapVCardDataToProfilePayload(card)
       try {
-        const created = await createProfile({
-          ...payload,
-          name: `${payload.name || 'Card'} (Copy)`,
-          slug: `${payload.slug || 'card'}-${suffix}`,
-          isDraft: true,
-          isPublic: false,
-        }).unwrap()
+        const created = await duplicateProfile(card.id).unwrap()
         void refetch()
         return created?.id ?? null
       } catch (e) {
@@ -133,7 +123,7 @@ export function useCorporateDirectory(filters: {
         return null
       }
     },
-    [canCreate, createProfile, refetch]
+    [canCreate, duplicateProfile, refetch]
   )
 
   const bulkUpdateStatus = useCallback(

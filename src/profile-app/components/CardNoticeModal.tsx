@@ -81,7 +81,7 @@ export function CardNoticeModal({ open, notice, ownerName, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-black tracking-wider text-white uppercase"
+            className="vbiz-btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black tracking-wider uppercase"
           >
             <Icon className="h-3.5 w-3.5" aria-hidden />
             Got it

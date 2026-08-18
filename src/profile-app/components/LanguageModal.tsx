@@ -142,7 +142,7 @@ export function LanguageModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
           type="button"
           disabled={isLoading || isApplying}
           onClick={handleApply}
-          className="vbiz-modal-btn-accent flex w-[85%] cursor-pointer items-center justify-center gap-2 rounded-full py-3.5 text-xs font-extrabold tracking-wider uppercase transition-all duration-300 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 md:text-sm"
+          className="vbiz-btn vbiz-modal-btn-accent flex w-[85%] cursor-pointer items-center justify-center gap-2 rounded-full py-3.5 text-xs font-extrabold tracking-wider uppercase transition-all duration-300 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 md:text-sm"
         >
           {isApplying ? (
             <>

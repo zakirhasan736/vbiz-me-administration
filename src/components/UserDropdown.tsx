@@ -167,7 +167,10 @@ export function UserDropdown() {
                   </button>
                 </>
               ) : null}
-              {role === 'vcard-owner' && !isTourActive ? (
+              {role === 'vcard-owner' &&
+              !isTourActive &&
+              !pathname.startsWith('/vcards/create') &&
+              !pathname.startsWith('/vcards/edit') ? (
                 <button
                   type="button"
                   onClick={(e) => {

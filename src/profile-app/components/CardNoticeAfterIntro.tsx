@@ -1,66 +1,43 @@
 'use client'
 
+import { useCardScopeId } from '@/lib/card-scope'
 import { CardNoticeModal } from '@/profile-app/components/CardNoticeModal'
+import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
 import { useProfileIntroContextOptional } from '@/profile-app/providers/ProfileIntroProvider'
-import type { MyCardTeamNotice } from '@interfaces/api/myCard'
-import { useMemo, useState, useSyncExternalStore } from 'react'
-
-const SESSION_PREFIX = 'vbiz_card_notice_seen:'
-
-function sessionKey(slug: string, noticeId: string) {
-  return `${SESSION_PREFIX}${slug}:${noticeId}`
-}
-
-function hasSeenNotice(slug: string, noticeId: string): boolean {
-  if (typeof window === 'undefined' || !slug || !noticeId) return true
-  try {
-    return sessionStorage.getItem(sessionKey(slug, noticeId)) === '1'
-  } catch {
-    return false
-  }
-}
-
-function markNoticeSeen(slug: string, noticeId: string) {
-  if (typeof window === 'undefined' || !slug || !noticeId) return
-  try {
-    sessionStorage.setItem(sessionKey(slug, noticeId), '1')
-  } catch {
-    /* ignore */
-  }
-}
-
-function pickActiveNotice(notices: MyCardTeamNotice[] | null | undefined): MyCardTeamNotice | null {
-  if (!notices?.length) return null
-  const active = notices.filter((n) => (n.status || 'active') === 'active' && Boolean(n.text?.trim()))
-  if (!active.length) return null
-  return [...active].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null
-}
-
-function useHasSeenNotice(slug: string, noticeId: string | undefined): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    () => (noticeId ? hasSeenNotice(slug, noticeId) : true),
-    () => true
-  )
-}
+import {
+  useDismissPublicProfileTeamNoticeMutation,
+  useGetPublicProfileTeamNoticeQuery,
+} from '@/redux/features/publicAnnouncements/publicAnnouncements.api'
+import { useMemo, useState } from 'react'
 
 type Props = {
   embedded?: boolean
   profileSlug?: string
   ownerName?: string
-  teamNotices?: MyCardTeamNotice[] | null
+  teamNotices?: unknown
 }
 
 /**
- * After intro skip / end, show the latest active owner/corporate card notice once per session.
+ * After intro skip / end, show the latest active owner/corporate card notice once per 24 hours.
  */
-export function CardNoticeAfterIntro({ embedded, profileSlug, ownerName, teamNotices }: Props) {
+export function CardNoticeAfterIntro({ embedded, profileSlug, ownerName }: Props) {
   const intro = useProfileIntroContextOptional()
-  const notice = useMemo(() => pickActiveNotice(teamNotices), [teamNotices])
+  const profileId = useCardScopeId()
   const slug = profileSlug?.trim() || ''
-  const noticeId = notice?.id
-  const hasSeen = useHasSeenNotice(slug, noticeId)
+  const visitorId = useMemo(() => getOrCreateGuestId(), [])
   const [dismissedId, setDismissedId] = useState<string | null>(null)
+  const [dismissTeamNotice] = useDismissPublicProfileTeamNoticeMutation()
+  const { data: notice } = useGetPublicProfileTeamNoticeQuery(
+    { profileId: profileId || '', visitorId },
+    {
+      skip: !profileId || !slug || embedded || !intro?.introAllowed,
+      pollingInterval: 60_000,
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+    }
+  )
+  const noticeId = notice?.id
 
   const eligible =
     !embedded &&
@@ -69,14 +46,21 @@ export function CardNoticeAfterIntro({ embedded, profileSlug, ownerName, teamNot
     Boolean(slug) &&
     Boolean(intro?.introAllowed) &&
     !intro?.showPreloader &&
-    !hasSeen
+    Boolean(profileId)
 
   const open = Boolean(eligible && noticeId && dismissedId !== noticeId)
 
-  const handleClose = () => {
-    if (notice) markNoticeSeen(slug, notice.id)
+  const handleClose = async () => {
     if (noticeId) setDismissedId(noticeId)
+    if (!notice || !profileId) return
+    try {
+      await dismissTeamNotice({ profileId, noticeId: notice.id, visitorId }).unwrap()
+    } catch {
+      setDismissedId(null)
+    }
   }
 
-  return <CardNoticeModal open={open} notice={notice} ownerName={ownerName} onClose={handleClose} />
+  return (
+    <CardNoticeModal open={open} notice={notice ?? null} ownerName={ownerName} onClose={() => void handleClose()} />
+  )
 }

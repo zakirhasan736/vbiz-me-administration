@@ -13,7 +13,113 @@ import type {
   VCardSkillGroup,
 } from '@/types/vcard'
 
-export const AUTOSAVE_DEBOUNCE_MS = 2000
+/** Pause after the last keystroke before writing the card to the API. */
+export const AUTOSAVE_IDLE_MS = 3000
+/** Checkpoint while the user keeps typing so a crash/power-off loses at most this window. */
+export const AUTOSAVE_MAX_MS = 5000
+/** @deprecated Use AUTOSAVE_IDLE_MS */
+export const AUTOSAVE_DEBOUNCE_MS = AUTOSAVE_IDLE_MS
+
+export type AutosaveDirtyBucket =
+  'profile' | 'education' | 'experience' | 'services' | 'portfolio' | 'reviews' | 'skills' | 'socialLinks' | 'posts'
+
+const AUTOSAVE_BUCKETS = new Set<AutosaveDirtyBucket>([
+  'profile',
+  'education',
+  'experience',
+  'services',
+  'portfolio',
+  'reviews',
+  'skills',
+  'socialLinks',
+  'posts',
+])
+
+const PENDING_SAVE_PREFIX = 'vbiz_pending_card_save_'
+
+export function pendingSaveStorageKey(cardId: string) {
+  return `${PENDING_SAVE_PREFIX}${cardId}`
+}
+
+export function writePendingCardSave(cardId: string, buckets: Iterable<string>) {
+  if (typeof window === 'undefined' || !cardId) return
+  const next = [...new Set([...buckets])].filter((key): key is AutosaveDirtyBucket =>
+    AUTOSAVE_BUCKETS.has(key as AutosaveDirtyBucket)
+  )
+  if (!next.length) return
+  try {
+    localStorage.setItem(pendingSaveStorageKey(cardId), JSON.stringify({ buckets: next, at: Date.now() }))
+  } catch {
+    /* ignore quota */
+  }
+}
+
+export function readPendingCardSave(cardId: string): { buckets: AutosaveDirtyBucket[]; at: number } | null {
+  if (typeof window === 'undefined' || !cardId) return null
+  try {
+    const raw = localStorage.getItem(pendingSaveStorageKey(cardId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { buckets?: unknown; at?: unknown }
+    const buckets = Array.isArray(parsed.buckets)
+      ? parsed.buckets.filter((key): key is AutosaveDirtyBucket => AUTOSAVE_BUCKETS.has(key as AutosaveDirtyBucket))
+      : []
+    if (!buckets.length) return null
+    return { buckets, at: typeof parsed.at === 'number' ? parsed.at : 0 }
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingCardSave(cardId: string) {
+  if (typeof window === 'undefined' || !cardId) return
+  try {
+    localStorage.removeItem(pendingSaveStorageKey(cardId))
+  } catch {
+    /* ignore */
+  }
+}
+
+export type AutosaveScheduler = {
+  schedule: (run: () => void) => void
+  cancel: () => void
+  isPending: () => boolean
+}
+
+export function createAutosaveScheduler(options?: { idleMs?: number; maxMs?: number }): AutosaveScheduler {
+  const idleMs = options?.idleMs ?? AUTOSAVE_IDLE_MS
+  const maxMs = options?.maxMs ?? AUTOSAVE_MAX_MS
+  let idleTimer: ReturnType<typeof setTimeout> | null = null
+  let maxTimer: ReturnType<typeof setTimeout> | null = null
+  let pending: (() => void) | null = null
+
+  const clearTimers = () => {
+    if (idleTimer) clearTimeout(idleTimer)
+    if (maxTimer) clearTimeout(maxTimer)
+    idleTimer = null
+    maxTimer = null
+  }
+
+  const fire = () => {
+    const run = pending
+    pending = null
+    clearTimers()
+    run?.()
+  }
+
+  return {
+    schedule(run) {
+      pending = run
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(fire, idleMs)
+      if (!maxTimer) maxTimer = setTimeout(fire, maxMs)
+    },
+    cancel() {
+      pending = null
+      clearTimers()
+    },
+    isPending: () => Boolean(pending),
+  }
+}
 
 const LOCAL_DRAFT_ID_RE = /^(pf_|sk_|post_|faq_|svc_|sec_|rev_|edu_|exp_|cert_|custom_item_)/
 

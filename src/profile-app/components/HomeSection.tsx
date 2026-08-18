@@ -4,6 +4,7 @@ import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
+import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
@@ -233,20 +234,15 @@ type HomeSectionProps = {
 
 export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const { lang } = useTranslation()
-  const {
-    personal,
-    isVisible,
-    field,
-    pageColors,
-    homeMedia,
-    design,
-    socialHref,
-    embedded,
-    cardOwnerId,
-    cardSlug,
-    profileViews,
-  } = useProfileDisplay()
-  const showShare = isVisible('Share Btn')
+  const { personal, isVisible, field, homeMedia, design, socialHref, embedded, cardOwnerId, cardSlug, profileViews } =
+    useProfileDisplay()
+  const showShare = isVisible('Share Btn') || isVisible('Share')
+  const showLanguage = isVisible('Language')
+  const showViews = isVisible('Vcard View Counter')
+  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
+  const languageChrome = displayIconChromeStyle(field('Language'))
+  const websiteChrome = displayIconChromeStyle(field('Website'))
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'))
   const nameStyle = field('MyInfo section Name')
   const accent = design?.accentColor ?? '#dcc969'
 
@@ -272,6 +268,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   )
 
   const websiteHref = useMemo(() => resolveSocialLinkHref('Website', socialHref).trim(), [socialHref])
+  const showWebsite = Boolean(websiteHref) && isVisible('Website')
 
   const visibleSocials = filterSocialItemsWithLinks(V1_SOCIAL_GRID, socialHref, personal.whatsapp, isVisible).filter(
     (item) => item.label !== 'Website'
@@ -299,7 +296,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
     <SectionContainer>
       <div
         ref={containerRef}
-        className="flex h-full w-full flex-1 items-center justify-center px-4 pt-4 pb-12 sm:px-6 md:pt-12"
+        className="vbiz-home-canvas flex h-full w-full flex-1 items-center justify-center px-4 pt-4 pb-12 sm:px-6 md:pt-12"
       >
         {/* Bento Grid Container */}
         <div className="mx-auto grid min-h-max w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
@@ -307,8 +304,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-            className="group relative col-span-1 flex min-h-[70vh] flex-col justify-end overflow-hidden rounded-4xl border border-black/5 bg-white p-5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] ring-1 ring-black/5 sm:min-h-125 sm:p-10 lg:col-span-8 lg:min-h-145 lg:rounded-[3rem] dark:border-white/5 dark:bg-gray-900 dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] dark:ring-white/5"
-            style={pageColors.pageBanner ? { backgroundColor: pageColors.pageBanner } : undefined}
+            className="vbiz-home-banner group relative col-span-1 flex min-h-[70vh] flex-col justify-end overflow-hidden rounded-4xl border border-black/5 bg-white p-5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] ring-1 ring-black/5 sm:min-h-125 sm:p-10 lg:col-span-8 lg:min-h-145 lg:rounded-[3rem] dark:border-white/5 dark:bg-gray-900 dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] dark:ring-white/5"
           >
             {/* Ambient Glow */}
             <div className="from-yellow-primary/15 to-yellow-primary/5 pointer-events-none absolute -inset-1 -z-10 bg-linear-to-br via-transparent opacity-0 blur-3xl transition-opacity duration-1000 group-hover:opacity-100" />
@@ -335,17 +331,21 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               <div className="absolute top-6 right-6 z-50 hidden shrink-0 flex-col gap-3 sm:flex">
                 {[
                   ...(showShare ? [{ icon: Share2, label: 'Share', action: () => triggerAction('share') }] : []),
-                  {
-                    icon: Eye,
-                    label: 'Views',
-                    badge: (
-                      <div className="absolute -top-1.5 -right-3 z-20 rounded-full bg-[#b91c1c] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-md">
-                        {formatProfileViewCount(profileViews)}
-                      </div>
-                    ),
-                    action: () => openVbizmeLogin(),
-                  },
-                  ...(websiteHref
+                  ...(showViews
+                    ? [
+                        {
+                          icon: Eye,
+                          label: 'Views',
+                          badge: (
+                            <div className="absolute -top-1.5 -right-3 z-20 rounded-full bg-[#b91c1c] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-md">
+                              {formatProfileViewCount(profileViews)}
+                            </div>
+                          ),
+                          action: () => openVbizmeLogin(),
+                        },
+                      ]
+                    : []),
+                  ...(showWebsite
                     ? [
                         {
                           icon: Globe,
@@ -354,18 +354,22 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         },
                       ]
                     : []),
-                  {
-                    content: (
-                      <div className="flex flex-col items-center justify-center leading-none">
-                        <span className="text-[11px] font-black text-gray-700 dark:text-gray-300">
-                          {currentLanguage}
-                        </span>
-                        <span className="text-yellow-primary text-[8px] font-bold">LANG</span>
-                      </div>
-                    ),
-                    label: 'Language',
-                    action: () => triggerAction('language'),
-                  },
+                  ...(showLanguage
+                    ? [
+                        {
+                          content: (
+                            <div className="flex flex-col items-center justify-center leading-none">
+                              <span className="text-[11px] font-black text-gray-700 dark:text-gray-300">
+                                {currentLanguage}
+                              </span>
+                              <span className="text-yellow-primary text-[8px] font-bold">LANG</span>
+                            </div>
+                          ),
+                          label: 'Language',
+                          action: () => triggerAction('language'),
+                        },
+                      ]
+                    : []),
                   {
                     icon: Moon,
                     label: 'Theme',
@@ -384,7 +388,18 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       boxShadow: `0 0 20px color-mix(in srgb, ${accent} 40%, transparent)`,
                     }}
                     whileTap={{ scale: 0.9 }}
-                    className="group/btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-12 w-12 items-center justify-center overflow-visible rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl transition-all duration-500 dark:bg-black/40 dark:text-gray-300"
+                    className="vbiz-icon-btn group/btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-12 w-12 items-center justify-center overflow-visible rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl transition-all duration-500 dark:bg-black/40 dark:text-gray-300"
+                    style={
+                      action.label === 'Share'
+                        ? shareChrome
+                        : action.label === 'Views'
+                          ? viewsChrome
+                          : action.label === 'Website'
+                            ? websiteChrome
+                            : action.label === 'Language'
+                              ? languageChrome
+                              : undefined
+                    }
                   >
                     {'icon' in action && action.icon ? (
                       <action.icon
@@ -413,15 +428,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               {visibleSocials.length > 0 ? (
                 <div className="absolute top-0 left-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
                   {visibleSocials.slice(0, 5).map((item, idx) => {
-                    const socialStyle = field(item.label)
-                    const iconColor = socialStyle.iconColor ?? socialStyle.textColor
-                    const socialInlineStyle =
-                      iconColor || socialStyle.backgroundColor
-                        ? {
-                            ...(iconColor ? { color: iconColor } : {}),
-                            ...(socialStyle.backgroundColor ? { backgroundColor: socialStyle.backgroundColor } : {}),
-                          }
-                        : undefined
+                    const socialInlineStyle = displaySocialChromeStyle(field(item.label))
                     return (
                       <motion.a
                         key={`${item.label}-${idx}`}
@@ -445,17 +452,21 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               {homeHeroProps ? (
                 <div className="absolute top-0 right-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
                   {[
-                    {
-                      icon: Eye,
-                      label: 'Views',
-                      badge: (
-                        <div className="absolute -top-1.5 -right-3 z-20 rounded-full bg-[#b91c1c] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-md">
-                          {formatProfileViewCount(profileViews)}
-                        </div>
-                      ),
-                      action: () => openVbizmeLogin(),
-                    },
-                    ...(websiteHref
+                    ...(showViews
+                      ? [
+                          {
+                            icon: Eye,
+                            label: 'Views',
+                            badge: (
+                              <div className="absolute -top-1.5 -right-3 z-20 rounded-full bg-[#b91c1c] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-md">
+                                {formatProfileViewCount(profileViews)}
+                              </div>
+                            ),
+                            action: () => openVbizmeLogin(),
+                          },
+                        ]
+                      : []),
+                    ...(showWebsite
                       ? [
                           {
                             icon: Globe,
@@ -464,18 +475,22 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           },
                         ]
                       : []),
-                    {
-                      content: (
-                        <div className="flex flex-col items-center justify-center leading-none">
-                          <span className="text-[11px] font-black text-gray-700 dark:text-gray-300">
-                            {currentLanguage}
-                          </span>
-                          <span className="text-yellow-primary text-[8px] font-bold">LANG</span>
-                        </div>
-                      ),
-                      label: 'Language',
-                      action: () => triggerAction('language'),
-                    },
+                    ...(showLanguage
+                      ? [
+                          {
+                            content: (
+                              <div className="flex flex-col items-center justify-center leading-none">
+                                <span className="text-[11px] font-black text-gray-700 dark:text-gray-300">
+                                  {currentLanguage}
+                                </span>
+                                <span className="text-yellow-primary text-[8px] font-bold">LANG</span>
+                              </div>
+                            ),
+                            label: 'Language',
+                            action: () => triggerAction('language'),
+                          },
+                        ]
+                      : []),
                     {
                       icon: Moon,
                       label: 'Theme',
@@ -487,7 +502,16 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       type="button"
                       onClick={action.action}
                       whileTap={{ scale: 0.9 }}
-                      className="border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-10 w-10 items-center justify-center rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl dark:bg-black/40 dark:text-gray-300"
+                      className="vbiz-icon-btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-10 w-10 items-center justify-center rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl dark:bg-black/40 dark:text-gray-300"
+                      style={
+                        action.label === 'Views'
+                          ? viewsChrome
+                          : action.label === 'Website'
+                            ? websiteChrome
+                            : action.label === 'Language'
+                              ? languageChrome
+                              : undefined
+                      }
                     >
                       {'icon' in action && action.icon ? <action.icon size={16} strokeWidth={2.5} /> : null}
                       {'content' in action && action.content ? action.content : null}
@@ -587,7 +611,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         key={idx}
                         type="button"
                         onClick={item.onClick}
-                        className={`flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover}`}
+                        className={`vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover}`}
+                        style={idx === 0 && showShare ? shareChrome : undefined}
                       >
                         <item.icon size={18} />
                       </button>
@@ -650,7 +675,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         boxShadow: `0 0 30px color-mix(in srgb, ${accent} 40%, transparent)`,
                       }}
                       whileTap={{ scale: 0.9 }}
-                      className="group/btn relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-black/5 bg-gray-50 text-gray-500 backdrop-blur-2xl transition-all duration-500 lg:h-14 lg:w-14 dark:border-white/20 dark:bg-white/5 dark:text-white/90"
+                      className="vbiz-icon-btn group/btn relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-black/5 bg-gray-50 text-gray-500 backdrop-blur-2xl transition-all duration-500 lg:h-14 lg:w-14 dark:border-white/20 dark:bg-white/5 dark:text-white/90"
+                      style={shareChrome}
                     >
                       <div className="absolute inset-0 bg-linear-to-tr from-black/20 to-transparent opacity-0 transition-opacity duration-500 group-hover/btn:opacity-100 dark:from-white/20" />
                       <Share2 size={22} className="relative z-10 transition-transform group-hover/btn:scale-110" />
@@ -696,15 +722,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                   </h3>
                   <div className="grid grid-cols-5 gap-1">
                     {visibleSocials.map((item, idx) => {
-                      const socialStyle = field(item.label)
-                      const iconColor = socialStyle.iconColor ?? socialStyle.textColor
-                      const socialInlineStyle =
-                        iconColor || socialStyle.backgroundColor
-                          ? {
-                              ...(iconColor ? { color: iconColor } : {}),
-                              ...(socialStyle.backgroundColor ? { backgroundColor: socialStyle.backgroundColor } : {}),
-                            }
-                          : undefined
+                      const socialInlineStyle = displaySocialChromeStyle(field(item.label))
                       const href = socialHref(item.label)
                       return (
                         <a
@@ -756,7 +774,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         key={idx}
                         type="button"
                         onClick={item.onClick}
-                        className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border border-black/5 bg-gray-50 py-3 text-gray-500 shadow-sm transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] dark:border-white/10 dark:bg-white/5 dark:text-white/80 ${item.hover}`}
+                        className={`vbiz-icon-btn flex flex-col items-center justify-center gap-1.5 rounded-xl border border-black/5 bg-gray-50 py-3 text-gray-500 shadow-sm transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] dark:border-white/10 dark:bg-white/5 dark:text-white/80 ${item.hover}`}
+                        style={item.label === 'Share' ? shareChrome : undefined}
                       >
                         <item.icon size={18} />
                         <span className="text-[10px] leading-none font-extrabold tracking-widest uppercase">

@@ -65,6 +65,9 @@ test.describe('Card Builder', () => {
     await page.goto('/vcards/edit/settings/seo?cardId=card-1')
 
     await expect(page.locator('#card-seo-meta-title')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Generate with AI' })).toHaveCount(3)
+    await expect(page.getByText('vbizme', { exact: true })).toHaveCount(0)
+
     await page.locator('#card-seo-meta-title').fill('E2E Card | Virtual Business Card')
     await page.locator('#card-seo-meta-description').fill('A searchable description for the E2E card.')
     await page.locator('#card-seo-keyword-input').fill('e2e card')

@@ -220,9 +220,13 @@ export default function VCardTeamCard({
       .then(() => {
         if (activatingFromDraft) onActivatedFromDraft?.(cardId)
       })
-      .catch(() => {
+      .catch((error) => {
         setOptimisticVisibility((current) => (current?.cardId === cardId && current.isPublic === next ? null : current))
-        notify.error('Could not update card visibility. Please try again.')
+        const message =
+          (error as { data?: { message?: string } })?.data?.message ||
+          (error as Error)?.message ||
+          'Could not update card visibility. Please try again.'
+        notify.error(message)
       })
   }
 

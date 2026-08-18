@@ -3,6 +3,10 @@ import type { MyCardActionButton, MyCardActionButtons } from '@interfaces/api/my
 import { ArrowUpRight, Download, Eye, Globe, QrCode, RefreshCw, Share2, User, type LucideIcon } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
+type CSSPropertiesWithVariables = CSSProperties & {
+  [name: `--${string}`]: string | number | undefined
+}
+
 export type ProfileActionButtonKey = 'my_info' | 'save_contact' | 'share' | 'refresh' | 'language' | 'view_counter'
 
 /** Fixed home-page CTAs (left column). Marked buttons always render. */
@@ -164,10 +168,42 @@ export function buildHomeCtaInlineStyle(
   button: ResolvedHomeCtaButton,
   _accentColor?: string
 ): CSSProperties | undefined {
-  const style: CSSProperties = {}
-  if (button.backgroundColor) style.background = button.backgroundColor
-  if (button.textColor) style.color = button.textColor
+  const style: CSSPropertiesWithVariables = {}
+  if (button.backgroundColor) {
+    style['--vbiz-btn-fill'] = button.backgroundColor
+    style['--vbiz-btn-accent-fill'] = button.backgroundColor
+    style['--vbiz-btn-primary-fill'] = button.backgroundColor
+    style['--vbiz-btn-secondary-fill'] = button.backgroundColor
+  }
+  if (button.textColor) {
+    style['--vbiz-btn-fg'] = button.textColor
+    style['--vbiz-btn-accent-fg'] = button.textColor
+    style['--vbiz-btn-primary-fg'] = button.textColor
+    style['--vbiz-btn-secondary-fg'] = button.textColor
+  }
   return Object.keys(style).length > 0 ? style : undefined
+}
+
+export const HOME_CTA_SETTING_KEYS: Record<HomeCtaKey, string[]> = {
+  my_info: ['My Info Btn'],
+  save_my_info: ['Save Contact'],
+  my_vcard: ['My vCard Btn', 'Your QR Code'],
+  google_wallet: [],
+  get_vcard_now: ['Get your VCard Now'],
+}
+
+export function isHomeCtaSettingVisible(key: HomeCtaKey, isVisible: (fieldKey: string) => boolean): boolean {
+  const keys = HOME_CTA_SETTING_KEYS[key]
+  if (!keys.length) return true
+  return keys.some((fieldKey) => isVisible(fieldKey))
+}
+
+export function filterHomeCtaLayout(layout: HomeCtaLayout, isVisible: (fieldKey: string) => boolean): HomeCtaLayout {
+  return {
+    rows: layout.rows
+      .map((row) => row.filter((button) => isHomeCtaSettingVisible(button.key, isVisible)))
+      .filter((row) => row.length > 0),
+  }
 }
 
 /** Utility actions rendered in the card header sidebar (right rail). */

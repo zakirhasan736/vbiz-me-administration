@@ -14,6 +14,11 @@ import {
   type DisplayFieldConfig,
   type VCardDisplaySettings,
 } from '@/types/vcardDisplaySettings'
+import type { CSSProperties } from 'react'
+
+type CSSPropertiesWithVariables = CSSProperties & {
+  [name: `--${string}`]: string | number | undefined
+}
 
 export { NAV_BAR_FIELDS } from '@/lib/vcardNavbar'
 
@@ -318,8 +323,10 @@ export function syncEditorNavOrderAfterNavVisibilityChange(
 
 /** Page-level colors from Card Settings → General / Home / Nav Bar. */
 export function getPageColors(settings: VCardDisplaySettings) {
-  const pageBg = getFieldConfig(settings, 'Home Page BG Color').backgroundColor || undefined
-  const pageBanner = getFieldConfig(settings, 'Home Page Banner Color').backgroundColor || undefined
+  const pageBgField = getFieldConfig(settings, 'Home Page BG Color')
+  const pageBannerField = getFieldConfig(settings, 'Home Page Banner Color')
+  const pageBg = pageBgField.visible === false ? undefined : pageBgField.backgroundColor || undefined
+  const pageBanner = pageBannerField.visible === false ? undefined : pageBannerField.backgroundColor || undefined
   const headerField = getFieldConfig(settings, 'vCard Header Color')
   const headerColor = headerField.textColor || headerField.backgroundColor || undefined
   const navBg = getFieldConfig(settings, 'Nav Background Color').backgroundColor || undefined
@@ -329,4 +336,125 @@ export function getPageColors(settings: VCardDisplaySettings) {
     headerColor,
     navBg,
   }
+}
+
+function firstColor(...values: Array<string | undefined>): string | undefined {
+  for (const value of values) {
+    const trimmed = value?.trim()
+    if (trimmed) return trimmed
+  }
+  return undefined
+}
+
+/** First non-empty color from several Card Settings fields (e.g. Share + Share Btn). */
+export function mergeDisplayFieldConfigs(...configs: Array<DisplayFieldConfig | undefined>): DisplayFieldConfig {
+  return {
+    visible: configs.some((config) => config?.visible !== false),
+    textColor: firstColor(...configs.map((config) => config?.textColor)),
+    backgroundColor: firstColor(...configs.map((config) => config?.backgroundColor)),
+    iconColor: firstColor(...configs.map((config) => config?.iconColor)),
+  }
+}
+
+/**
+ * Per-button colors from Card Settings. Sets CSS variables the themed
+ * `.vbiz-social` / `.vbiz-icon-btn` / `.vbiz-btn` rules already read, so
+ * `!important` theme tokens still apply — but use the owner's color when set.
+ * Unset fields keep light/dark theme tokens.
+ */
+export function displaySocialChromeStyle(config?: DisplayFieldConfig): CSSProperties | undefined {
+  const fill = firstColor(config?.backgroundColor)
+  const fg = firstColor(config?.iconColor, config?.textColor)
+  if (!fill && !fg) return undefined
+  const style: CSSPropertiesWithVariables = {}
+  if (fill) {
+    style['--vbiz-social-fill'] = fill
+    style['--vbiz-social-border-color'] = fill
+    style.backgroundColor = fill
+  }
+  if (fg) {
+    style['--vbiz-social-fg'] = fg
+    style.color = fg
+  }
+  return style
+}
+
+export function displayIconChromeStyle(config?: DisplayFieldConfig): CSSProperties | undefined {
+  const fill = firstColor(config?.backgroundColor)
+  const fg = firstColor(config?.iconColor, config?.textColor)
+  if (!fill && !fg) return undefined
+  const style: CSSPropertiesWithVariables = {}
+  if (fill) {
+    style['--vbiz-btn-secondary-fill'] = fill
+    style['--vbiz-btn-secondary-border-color'] = fill
+    style.backgroundColor = fill
+  }
+  if (fg) {
+    style['--vbiz-btn-secondary-fg'] = fg
+    style.color = fg
+  }
+  return style
+}
+
+export function displayCtaChromeStyle(config?: DisplayFieldConfig): CSSProperties | undefined {
+  const fill = firstColor(config?.backgroundColor)
+  const fg = firstColor(config?.textColor, config?.iconColor)
+  if (!fill && !fg) return undefined
+  const style: CSSPropertiesWithVariables = {}
+  if (fill) {
+    style['--vbiz-btn-fill'] = fill
+    style['--vbiz-btn-accent-fill'] = fill
+    style['--vbiz-btn-primary-fill'] = fill
+    style['--vbiz-btn-secondary-fill'] = fill
+  }
+  if (fg) {
+    style['--vbiz-btn-fg'] = fg
+    style['--vbiz-btn-accent-fg'] = fg
+    style['--vbiz-btn-primary-fg'] = fg
+    style['--vbiz-btn-secondary-fg'] = fg
+  }
+  return style
+}
+
+export function displayLiveAgentChromeStyle(config?: DisplayFieldConfig): CSSProperties | undefined {
+  const fill = firstColor(config?.backgroundColor)
+  const fg = firstColor(config?.iconColor, config?.textColor)
+  if (!fill && !fg) return undefined
+  const style: CSSPropertiesWithVariables = {}
+  if (fill) style['--vbiz-live-agent-fill'] = fill
+  if (fg) style['--vbiz-live-agent-fg'] = fg
+  return style
+}
+
+/**
+ * Card Settings → General. Sets scoped CSS variables on the profile root.
+ * Home/banner/header colors apply only to those areas; `--vbiz-bg` / `--vbiz-surface`
+ * still swap with dark/light.
+ */
+export function displayGeneralRootStyle(settings: VCardDisplaySettings): CSSProperties | undefined {
+  const style: CSSPropertiesWithVariables = {}
+  const pageBg = getFieldConfig(settings, 'Home Page BG Color')
+  const pageBanner = getFieldConfig(settings, 'Home Page Banner Color')
+  const pagesHeader = getFieldConfig(settings, 'Pages Header')
+
+  if (pageBg.visible !== false) {
+    const fill = firstColor(pageBg.backgroundColor)
+    if (fill) style['--vbiz-home-bg'] = fill
+  }
+  if (pageBanner.visible !== false) {
+    const fill = firstColor(pageBanner.backgroundColor)
+    if (fill) style['--vbiz-home-banner'] = fill
+  }
+  if (pagesHeader.visible !== false) {
+    const fg = firstColor(pagesHeader.textColor, pagesHeader.iconColor)
+    const fill = firstColor(pagesHeader.backgroundColor)
+    if (fg) style['--vbiz-page-header-fg'] = fg
+    if (fill) style['--vbiz-page-header-fill'] = fill
+  }
+
+  return Object.keys(style).length > 0 ? style : undefined
+}
+
+export function isPagesHeaderVisible(settings: VCardDisplaySettings): boolean {
+  return getFieldConfig(settings, 'Pages Header').visible !== false
 }

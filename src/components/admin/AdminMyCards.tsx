@@ -29,6 +29,7 @@ import {
   mapApiProfileToVCardRecord,
   useCreateTeamNoticeMutation,
   useDeleteTeamNoticeMutation,
+  useDuplicateProfileMutation,
   useGetDashboardSummaryQuery,
   useGetProfilesQuery,
   useGetTeamNoticesQuery,
@@ -85,7 +86,8 @@ export default function AdminMyCards() {
   const reduxUser = useAppSelector((s) => s.user.user)
   const ownerId = reduxUser?.id || user?.uid
   const router = useRouter()
-  const { createCorporateCard, setCurrentEditingCardId } = useVCard()
+  const { setCurrentEditingCardId } = useVCard()
+  const [duplicateProfile] = useDuplicateProfileMutation()
   const { data: createdProfilesResult, isLoading: cardsLoading } = useGetProfilesQuery(
     { scope: 'created', limit: 100 },
     dashboardOverviewQueryOptions
@@ -181,17 +183,8 @@ export default function AdminMyCards() {
     if (!card.id || duplicatingCardId) return
     setDuplicatingCardId(card.id)
     try {
-      const suffix = String(myCards.length + 1).padStart(4, '0')
-      const newId = await createCorporateCard({
-        slug: `${card.slug || 'card'}-${suffix}`,
-        personal: {
-          ...card.personal,
-          fullName: `${card.personal?.fullName || 'Member'} (Copy)`,
-        },
-        services: card.services,
-        portfolio: card.portfolio,
-        socials: card.socials,
-      })
+      const created = await duplicateProfile(card.id).unwrap()
+      const newId = created?.id
       if (newId) {
         notify.success('Saved as a draft.', {
           title: 'Card duplicated',
@@ -207,7 +200,9 @@ export default function AdminMyCards() {
       }
     } catch (e) {
       console.error(e)
-      notify.info('Error duplicating card.')
+      const message =
+        (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not duplicate card.'
+      notify.error(message)
     } finally {
       setDuplicatingCardId(null)
     }

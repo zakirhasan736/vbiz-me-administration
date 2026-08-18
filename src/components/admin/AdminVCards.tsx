@@ -38,6 +38,7 @@ import {
   useGetAdminProfileFiltersQuery,
   useGetAdminProfilesQuery,
   useLazyGetAdminProfilesQuery,
+  useSendAdminProfileEmailMutation,
 } from '@/redux/features/adminProfiles/adminProfiles.api'
 import {
   appendItems,
@@ -56,6 +57,7 @@ import {
   useCreateTeamNoticeMutation,
   useDeleteProfileMutation,
   useDeleteTeamNoticeMutation,
+  useDuplicateProfileMutation,
   useGetTeamNoticesQuery,
 } from '@/redux/features/profiles/profiles.api'
 import type { AnnouncementType } from '@/types/announcement'
@@ -84,14 +86,10 @@ function personalField(personal: AdminCard['personal'], key: string): string {
   return typeof value === 'string' ? value : ''
 }
 
-function uniqueSlugSuffix(): string {
-  return String(Date.now()).slice(-4)
-}
-
 const PAGE_SIZE = 20
 
 export default function AdminVCards() {
-  const { updateCorporateCardControls, createCorporateCard, setCurrentEditingCardId } = useVCard()
+  const { updateCorporateCardControls, setCurrentEditingCardId } = useVCard()
   const router = useRouter()
   const dispatch = useAppDispatch()
   const token = useAppSelector((s) => s.user.token)
@@ -108,6 +106,7 @@ export default function AdminVCards() {
     total: storedTotal,
   } = useAppSelector((s) => s.adminVCardsList)
   const [deleteProfile] = useDeleteProfileMutation()
+  const [duplicateProfile] = useDuplicateProfileMutation()
 
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
@@ -283,6 +282,7 @@ export default function AdminVCards() {
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
+  const [sendAdminProfileEmail, { isLoading: isSendingEmail }] = useSendAdminProfileEmailMutation()
 
   const [cardNoticeText, setCardNoticeText] = useState('')
   const [cardNoticeType, setCardNoticeType] = useState('info')
@@ -443,21 +443,12 @@ export default function AdminVCards() {
     if (!card.id || duplicatingCardId) return
     setDuplicatingCardId(card.id)
     try {
-      const uniqueSuffix = uniqueSlugSuffix()
       const fullName = personalField(card.personal, 'fullName') || 'Member'
-      const newId = await createCorporateCard({
-        slug: `${card.slug || 'card'}-${uniqueSuffix}`,
-        personal: {
-          ...card.personal,
-          fullName: `${fullName} (Copy)`,
-        },
-        services: card.services,
-        portfolio: card.portfolio,
-        socials: card.socials,
-      })
+      const created = await duplicateProfile(card.id).unwrap()
+      const newId = created?.id
       appendAuditLog({
         action: 'Duplicated Card Profile',
-        details: `Admin duplicated ${fullName} → ${card.slug}-${uniqueSuffix}`,
+        details: `Admin duplicated ${fullName} as ${created.slug || newId}`,
         type: 'create',
       })
       if (lifecycleTab === 'draft') {
@@ -480,7 +471,9 @@ export default function AdminVCards() {
       }
     } catch (e) {
       console.error(e)
-      notify.info('Error duplicating card.')
+      const message =
+        (e as { data?: { message?: string } })?.data?.message || (e as Error)?.message || 'Could not duplicate card.'
+      notify.error(message)
     } finally {
       setDuplicatingCardId(null)
     }
@@ -756,22 +749,38 @@ export default function AdminVCards() {
     }
   }
 
-  // Handle Email Mock Dispatch
-  const handleSendEmail = () => {
-    if (!selectedCard) return
-    setIsEmailSent(true)
-    setTimeout(() => {
-      setIsEmailSent(false)
-      setIsEmailModalOpen(false)
-      setEmailSubject('')
-      setEmailBody('')
-    }, 1500)
+  const handleSendEmail = async () => {
+    if (!selectedCard || isSendingEmail || isEmailSent) return
+    const subject = emailSubject.trim()
+    const message = emailBody.trim()
+    if (!subject || !message) {
+      notify.warning('Add both a subject and message before sending.')
+      return
+    }
 
-    appendAuditLog({
-      action: 'Direct Email Dispatched',
-      details: `Sent direct notification of growth to ${personalField(selectedCard.personal, 'email')}: ${emailSubject}`,
-      type: 'update',
-    })
+    try {
+      const result = await sendAdminProfileEmail({ id: selectedCard.id, subject, message }).unwrap()
+      setIsEmailSent(true)
+      notify.success(`Email delivered to ${result.recipient}.`)
+
+      appendAuditLog({
+        action: 'Direct Email Dispatched',
+        details: `Sent direct notification to ${result.recipient}: ${subject}`,
+        type: 'update',
+      })
+
+      window.setTimeout(() => {
+        setIsEmailSent(false)
+        setIsEmailModalOpen(false)
+        setEmailSubject('')
+        setEmailBody('')
+      }, 1200)
+    } catch (error) {
+      const data = (error as { data?: { message?: string; errorMessages?: Array<{ message?: string }> } })?.data
+      const validationMessage = data?.errorMessages?.find((item) => item.message)?.message
+      const message = data?.message === 'Validation Error' ? validationMessage || data.message : data?.message
+      notify.error(message || 'Email could not be delivered.')
+    }
   }
 
   const noticeInitialText = noticeCard?.id
@@ -1128,7 +1137,7 @@ export default function AdminVCards() {
       {/* MODAL: CALL PAD */}
       {isCallPadOpen && selectedCard && (
         <ModalPortal>
-          <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
             <div
               className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
               onClick={() => setIsCallPadOpen(false)}
@@ -1206,7 +1215,7 @@ export default function AdminVCards() {
       {/* MODAL: EMAIL */}
       {isEmailModalOpen && selectedCard && (
         <ModalPortal>
-          <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
             <div
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
               onClick={() => setIsEmailModalOpen(false)}
@@ -1282,10 +1291,13 @@ export default function AdminVCards() {
                   <button
                     type="button"
                     onClick={handleSendEmail}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95"
+                    disabled={isSendingEmail || isEmailSent || !emailSubject.trim() || !emailBody.trim()}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isEmailSent ? (
-                      <>Email Dispatched ✓</>
+                    {isSendingEmail ? (
+                      <>Sending...</>
+                    ) : isEmailSent ? (
+                      <>Email sent</>
                     ) : (
                       <>
                         <Send className="h-4 w-4" /> Dispatch Email
@@ -1391,7 +1403,7 @@ export default function AdminVCards() {
       {/* MODAL: SCHEDULE GROWTH CONSULTATION */}
       {isScheduleModalOpen && selectedCard && (
         <ModalPortal>
-          <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
             <div
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
               onClick={() => setIsScheduleModalOpen(false)}

@@ -2,7 +2,9 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import {
+  isVideoFile,
   mediaFileTooLargeMessage,
+  mediaNeedsClientOptimize,
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
@@ -66,12 +68,12 @@ export function guessMediaKind(
   return 'image'
 }
 
-function UploadProgressBar({ progress }: { progress: number }) {
+function UploadProgressBar({ progress, label = 'Uploading…' }: { progress: number; label?: string }) {
   const pct = Math.min(100, Math.max(0, progress))
   return (
     <div className="mt-3 space-y-1.5 px-1">
       <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-        <span>Uploading…</span>
+        <span>{label}</span>
         <span>{pct}%</span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
@@ -121,6 +123,7 @@ export function VCardMediaField({
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadStage, setUploadStage] = useState<'preparing' | 'uploading' | null>(null)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [localPreview, setLocalPreview] = useState<string | null>(null)
@@ -163,7 +166,7 @@ export function VCardMediaField({
       if (disabled) return
       setError(null)
 
-      if (maxBytes != null && file.size > maxBytes) {
+      if (maxBytes != null && file.size > maxBytes && !isVideoFile(file)) {
         setError(mediaFileTooLargeMessage(maxBytes))
         return
       }
@@ -177,6 +180,7 @@ export function VCardMediaField({
       setLocalPreview(blobUrl)
       setLocalFileName(file.name)
       setUploading(true)
+      setUploadStage(mediaNeedsClientOptimize(file) ? 'preparing' : 'uploading')
       setProgress(0)
 
       try {
@@ -186,6 +190,7 @@ export function VCardMediaField({
           attachmentType,
           maxBytes,
           signal: controller.signal,
+          onStatus: setUploadStage,
           onProgress: setProgress,
         })
         clearLocalPreview()
@@ -199,6 +204,7 @@ export function VCardMediaField({
       } finally {
         if (abortRef.current === controller) abortRef.current = null
         setUploading(false)
+        setUploadStage(null)
       }
     },
     [attachmentType, clearLocalPreview, disabled, maxBytes, onChange, profileId]
@@ -209,6 +215,7 @@ export function VCardMediaField({
     abortRef.current?.abort()
     abortRef.current = null
     setUploading(false)
+    setUploadStage(null)
     setProgress(0)
     setError(null)
     clearLocalPreview()
@@ -267,7 +274,9 @@ export function VCardMediaField({
           {displayUrl ? mediaLabel(displayUrl, selectPlaceholder, localFileName) : selectPlaceholder}
         </span>
       </div>
-      {uploading ? <UploadProgressBar progress={progress} /> : null}
+      {uploading ? (
+        <UploadProgressBar progress={progress} label={uploadStage === 'preparing' ? 'Optimizing…' : undefined} />
+      ) : null}
       {error ? <p className="mt-2 pl-1 text-[12px] font-medium text-rose-600 dark:text-rose-400">{error}</p> : null}
     </div>
   )

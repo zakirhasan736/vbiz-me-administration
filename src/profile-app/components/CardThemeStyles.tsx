@@ -76,6 +76,8 @@ export function CardThemeStyles({
       config.appearance.layoutStyle,
       config.appearance.cornerStyle,
       config.appearance.buttonStyle,
+      config.appearance.fontFamily,
+      config.appearance.buttonShadow,
       b.primary.style,
       b.secondary.style,
       b.accent.style,

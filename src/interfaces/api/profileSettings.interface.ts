@@ -5,6 +5,8 @@ export type ProfileSettingsAppearance = {
   layoutStyle?: string
   buttonStyle?: string
   cornerStyle?: string
+  fontFamily?: string
+  buttonShadow?: string
 }
 
 export type ProfileSettingsColorSet = {
@@ -66,6 +68,7 @@ export type ProfileSettingsThemeConfig = {
     premadeId?: string
     patternId?: string
   }
+  appearance?: ProfileSettingsAppearance
   /** Legacy flat shape (also accepted) */
   button?: ProfileSettingsComponentAppearance & Record<string, unknown>
   socialIcon?: ProfileSettingsComponentAppearance & Record<string, unknown>

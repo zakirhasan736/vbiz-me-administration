@@ -269,7 +269,22 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
     buttons = applyComponentStyleToButtons(buttons, appearanceStyle)
   }
 
-  const socialIcon = mergeSocialIcon(defaults.components.socialIcon, socialSource, cornerStyle)
+  let socialIcon = mergeSocialIcon(defaults.components.socialIcon, socialSource, cornerStyle)
+  if (appearanceStyle) {
+    socialIcon = { ...socialIcon, style: appearanceStyle }
+  }
+
+  const fontFamily =
+    typeof appearance.fontFamily === 'string' && appearance.fontFamily.trim()
+      ? appearance.fontFamily.trim()
+      : defaults.appearance.fontFamily
+  const buttonShadow =
+    appearance.buttonShadow === 'soft' ||
+    appearance.buttonShadow === 'strong' ||
+    appearance.buttonShadow === 'hard' ||
+    appearance.buttonShadow === 'none'
+      ? appearance.buttonShadow
+      : defaults.appearance.buttonShadow
 
   const wallpaper = normalizeWallpaper((r as { wallpaper?: unknown }).wallpaper)
 
@@ -300,6 +315,8 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
           ? appearance.buttonStyle
           : defaults.appearance.buttonStyle,
       cornerStyle,
+      fontFamily,
+      buttonShadow,
     },
     ...(wallpaper ? { wallpaper } : {}),
   }
@@ -334,13 +351,14 @@ function pickBrandColor(value: unknown): string | null {
  */
 export function applyEditorSettingsToThemeConfig(
   current: CardThemeConfig | null | undefined,
-  theme: { primaryColor?: string; accentColor?: string } | null | undefined,
+  theme: { primaryColor?: string; accentColor?: string; fontFamily?: string } | null | undefined,
   appearance:
     | {
         profileTemplate?: unknown
         layoutStyle?: unknown
         buttonStyle?: unknown
         cornerStyle?: unknown
+        buttonShadow?: unknown
       }
     | null
     | undefined
@@ -367,6 +385,15 @@ export function applyEditorSettingsToThemeConfig(
     appearance?.cornerStyle === 'pill'
       ? appearance.cornerStyle
       : (current?.appearance.cornerStyle ?? 'round')
+  const buttonShadow =
+    appearance?.buttonShadow === 'soft' ||
+    appearance?.buttonShadow === 'strong' ||
+    appearance?.buttonShadow === 'hard' ||
+    appearance?.buttonShadow === 'none'
+      ? appearance.buttonShadow
+      : (current?.appearance.buttonShadow ?? 'none')
+  const fontFamily =
+    (typeof theme?.fontFamily === 'string' && theme.fontFamily.trim()) || current?.appearance.fontFamily || 'inter'
 
   const mergedAppearance = {
     ...(current?.appearance ?? {}),
@@ -374,6 +401,8 @@ export function applyEditorSettingsToThemeConfig(
     layoutStyle,
     buttonStyle,
     cornerStyle,
+    buttonShadow,
+    fontFamily,
   }
 
   const base = resolveCardThemeConfig(
@@ -388,6 +417,9 @@ export function applyEditorSettingsToThemeConfig(
   const buttons = appearanceStyle
     ? applyComponentStyleToButtons(base.components.button, appearanceStyle)
     : base.components.button
+  const socialIcon = appearanceStyle
+    ? { ...base.components.socialIcon, style: appearanceStyle, cornerRadius: cornerStyleToRadius(cornerStyle) }
+    : { ...base.components.socialIcon, cornerRadius: cornerStyleToRadius(cornerStyle) }
 
   const primary = pickBrandColor(theme?.primaryColor)
   const accent = pickBrandColor(theme?.accentColor)
@@ -410,6 +442,7 @@ export function applyEditorSettingsToThemeConfig(
     components: {
       ...base.components,
       button: buttons,
+      socialIcon,
     },
     appearance: {
       ...base.appearance,

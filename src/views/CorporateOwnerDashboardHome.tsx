@@ -43,10 +43,9 @@ import { notify } from '@/lib/toast/toast'
 import {
   dashboardOverviewQueryOptions,
   mapApiProfileToVCardRecord,
-  mapVCardDataToProfilePayload,
-  useCreateProfileMutation,
   useCreateTeamNoticeMutation,
   useDeleteTeamNoticeMutation,
+  useDuplicateProfileMutation,
   useGetContactsQuery,
   useGetDashboardSummaryQuery,
   useGetProfilesQuery,
@@ -87,9 +86,9 @@ export default function CorporateOwnerDashboardHome() {
   const [showContactSavesModal, setShowContactSavesModal] = useState(false)
   const { data: contactsRaw } = useGetContactsQuery(undefined, { skip: !showContactSavesModal })
   const socialClickRows = summary?.socialClicks ?? []
-  const socialClicksByCardRows = summary?.socialClicksByCard ?? []
+  const socialClicksByCardRows = useMemo(() => summary?.socialClicksByCard ?? [], [summary?.socialClicksByCard])
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
-  const [createProfile] = useCreateProfileMutation()
+  const [duplicateProfile] = useDuplicateProfileMutation()
   const [createTeamNotice] = useCreateTeamNoticeMutation()
   const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
 
@@ -225,16 +224,8 @@ export default function CorporateOwnerDashboardHome() {
       }
       if (!card.id || duplicatingCardId) return
       setDuplicatingCardId(card.id)
-      const suffix = Math.floor(1000 + Math.random() * 9000)
-      const payload = mapVCardDataToProfilePayload(card)
       try {
-        const created = await createProfile({
-          ...payload,
-          name: `${payload.name || 'Card'} (Copy)`,
-          slug: `${payload.slug || 'card'}-${suffix}`,
-          isDraft: true,
-          isPublic: false,
-        }).unwrap()
+        const created = await duplicateProfile(card.id).unwrap()
         void refetchProfiles()
         const newId = created?.id
         if (newId) {
@@ -258,7 +249,7 @@ export default function CorporateOwnerDashboardHome() {
         setDuplicatingCardId(null)
       }
     },
-    [canCreate, createDisabledReason, createProfile, duplicatingCardId, refetchProfiles]
+    [canCreate, createDisabledReason, duplicateProfile, duplicatingCardId, refetchProfiles]
   )
 
   const handleActivatedFromDraft = useCallback((cardId: string) => {

@@ -1,5 +1,6 @@
 'use client'
 
+import { TakeTourTrigger } from '@/components/tour/TakeTourBanner'
 import type { DashboardPeriod } from '@/redux/features/profiles/profiles.api'
 import { AlertCircle, Download, Loader2, MessageCircle } from 'lucide-react'
 
@@ -55,6 +56,7 @@ export function DashboardHomeHeader({
           {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {exporting ? 'Exporting…' : 'Export'}
         </button>
+        <TakeTourTrigger tourKey="dashboard" className="px-4 py-2.5 text-[13px]" />
         <button
           type="button"
           onClick={onFeedback}

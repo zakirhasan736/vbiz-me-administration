@@ -34,6 +34,7 @@ export const cardBlueprintSchema = z.object({
   personal: z.object({
     fullName: z.string(),
     email: z.string().optional().default(''),
+    dob: z.string().optional().default(''),
     phone: z.string().optional().default(''),
     whatsapp: z.string().optional().default(''),
     designation: z.string().optional().default(''),
@@ -289,6 +290,7 @@ export function mapBlueprintToVCardData(
       ...(base?.personal || createDefaultVCardData().personal),
       fullName: blueprint.personal.fullName || base?.personal.fullName || '',
       email: blueprint.personal.email || base?.personal.email || '',
+      dob: blueprint.personal.dob || base?.personal.dob || '',
       phone: blueprint.personal.phone || base?.personal.phone || '',
       whatsapp: blueprint.personal.whatsapp || blueprint.personal.phone || base?.personal.whatsapp || '',
       designation: blueprint.personal.designation || base?.personal.designation || '',

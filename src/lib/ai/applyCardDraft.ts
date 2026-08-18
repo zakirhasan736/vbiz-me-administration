@@ -174,6 +174,7 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
       ...next.personal,
       fullName: p.fullName || next.personal.fullName,
       email: p.email || next.personal.email,
+      dob: p.dob || next.personal.dob,
       phone: p.phone || next.personal.phone,
       designation: p.designation || next.personal.designation,
       company: p.company || next.personal.company,

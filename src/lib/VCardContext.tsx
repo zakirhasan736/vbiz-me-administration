@@ -5,12 +5,14 @@ import { hasAboutMeDraftContent } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
 import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
+import { collectVCardActivationProblems, vCardActivationProblemMessage } from '@/lib/cardActivation'
 import { broadcastPublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { notify } from '@/lib/toast/toast'
 import {
-  AUTOSAVE_DEBOUNCE_MS,
+  clearPendingCardSave,
+  createAutosaveScheduler,
   dirtyBucketForPath,
   hasPersistablePostsDelta,
   isEmptyFaq,
@@ -27,7 +29,9 @@ import {
   persistableSectionPosts,
   persistableServices,
   persistableSkills,
+  readPendingCardSave,
   setByPath,
+  writePendingCardSave,
 } from '@/lib/vcardAutosave'
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
 import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
@@ -193,14 +197,21 @@ function toastSaveError(message: string) {
   notify.error(message)
 }
 
-const SETTINGS_SAVED_TOAST_DEDUPE_MS = 2500
-let lastSettingsSavedToastAt = 0
+const SAVE_SUCCESS_TOAST_DEDUPE_MS = 1800
+let lastSaveSuccessToast: { message: string; at: number } | null = null
 
-function toastSettingsSaved() {
+function toastSaveSuccess(buckets: ReadonlySet<DirtyBucket>) {
+  const message = buckets.size === 1 && buckets.has('profile') ? 'Card settings saved.' : 'Card changes saved.'
   const now = Date.now()
-  if (now - lastSettingsSavedToastAt < SETTINGS_SAVED_TOAST_DEDUPE_MS) return
-  lastSettingsSavedToastAt = now
-  notify.success('Settings saved.')
+  if (
+    lastSaveSuccessToast &&
+    lastSaveSuccessToast.message === message &&
+    now - lastSaveSuccessToast.at < SAVE_SUCCESS_TOAST_DEDUPE_MS
+  ) {
+    return
+  }
+  lastSaveSuccessToast = { message, at: now }
+  notify.success(message)
 }
 
 function isAppearanceOrThemePath(path: string): boolean {
@@ -258,7 +269,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const lastSavedProfilePayloadRef = useRef<string>('')
   const editDataRef = useRef<VCardData | null>(null)
   const dirtyBucketsRef = useRef<Set<DirtyBucket>>(new Set())
-  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autosaveSchedulerRef = useRef(createAutosaveScheduler())
   const scheduleAutosaveRef = useRef<() => void>(() => undefined)
   const savingRef = useRef(false)
   const pendingResaveRef = useRef(false)
@@ -337,6 +348,39 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     }
 
     const mappedData = toVCardData(mapped)
+    const pending = readPendingCardSave(profileId)
+    const localData = record?.id === profileId ? toVCardData(record) : null
+
+    if (pending && localData) {
+      editDataRef.current = localData
+      lastSavedDataRef.current = mappedData
+      lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(mappedData))
+      for (const bucket of pending.buckets) dirtyBucketsRef.current.add(bucket)
+      saveGateRef.current.dirty = true
+      dispatch(addVCard({ id: profileId, seed: localData }))
+      dispatch(
+        updateVCard({
+          id: profileId,
+          patch: {
+            views: mapped.views,
+            avatarImageUrl: mapped.avatarImageUrl,
+            backgroundImageUrl: mapped.backgroundImageUrl,
+            createdAt: mapped.createdAt,
+            updatedAt: mapped.updatedAt,
+            isActive: mapped.isActive,
+            isDraft: mapped.isDraft,
+            isPublic: mapped.isPublic,
+          },
+        })
+      )
+      editorHydratedForIdRef.current = profileId
+      window.setTimeout(() => {
+        setSaveStatus('dirty')
+        void flushSaveRef.current()
+      }, 0)
+      return
+    }
+
     const posts = postsSnapshotRef.current
     const generalPosts = posts.generalPosts ?? []
     const faqs = posts.faqs ?? []
@@ -369,7 +413,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       })
     )
     editorHydratedForIdRef.current = profileId
-  }, [remoteProfile, isCreateMode, dispatch])
+  }, [remoteProfile, isCreateMode, dispatch, record])
 
   useEffect(() => {
     if (isCreateMode || !cardId) return
@@ -411,7 +455,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         dirtyBucketsRef.current.add('posts')
         saveGateRef.current.dirty = true
         setSaveStatus('dirty')
-        if (!autosaveTimerRef.current) scheduleAutosaveRef.current()
+        writePendingCardSave(profileId, dirtyBucketsRef.current)
+        scheduleAutosaveRef.current()
       }
     }
 
@@ -536,17 +581,26 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isCreateMode, createDraft, record])
 
-  const markDirty = useCallback((bucket: DirtyBucket) => {
-    dirtyBucketsRef.current.add(bucket)
-    saveGateRef.current.dirty = true
-    setSaveStatus('dirty')
-    setSaveError(null)
-  }, [])
+  const markDirty = useCallback(
+    (bucket: DirtyBucket) => {
+      dirtyBucketsRef.current.add(bucket)
+      saveGateRef.current.dirty = true
+      setSaveStatus('dirty')
+      setSaveError(null)
+      if (cardId) writePendingCardSave(cardId, dirtyBucketsRef.current)
+    },
+    [cardId]
+  )
 
   const persistDirtyBuckets = useCallback(
-    async (profileId: string, data: VCardData, buckets: Set<DirtyBucket>): Promise<{ wroteProfile: boolean }> => {
+    async (
+      profileId: string,
+      data: VCardData,
+      buckets: Set<DirtyBucket>
+    ): Promise<{ wroteProfile: boolean; wroteChanges: boolean }> => {
       const tasks: Promise<unknown>[] = []
       let wroteProfile = false
+      let wroteChanges = false
       data = applyProfileMediaToExplainerTab(data)
       const saved = lastSavedDataRef.current
       const explainerKey = PUBLIC_SECTION_NAMES.explainer
@@ -563,6 +617,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (payloadJson === lastSavedProfilePayloadRef.current) {
           buckets.delete('profile')
         } else {
+          wroteChanges = true
           tasks.push(
             updateProfileCard({ id: profileId, body: payload })
               .unwrap()
@@ -578,6 +633,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (saved && JSON.stringify(persistableEducation(saved.education)) === JSON.stringify(items)) {
           buckets.delete('education')
         } else {
+          wroteChanges = true
           tasks.push(
             replaceEducation({
               id: profileId,
@@ -597,6 +653,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (saved && JSON.stringify(persistableExperience(saved.experience)) === JSON.stringify(items)) {
           buckets.delete('experience')
         } else {
+          wroteChanges = true
           tasks.push(
             replaceExperiences({
               id: profileId,
@@ -617,6 +674,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (saved && JSON.stringify(persistableServices(saved.services)) === JSON.stringify(items)) {
           buckets.delete('services')
         } else {
+          wroteChanges = true
           tasks.push(
             replaceServices({
               id: profileId,
@@ -636,6 +694,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (saved && JSON.stringify(persistablePortfolio(saved.portfolio)) === JSON.stringify(items)) {
           buckets.delete('portfolio')
         } else {
+          wroteChanges = true
           tasks.push(
             replacePortfolios({
               id: profileId,
@@ -657,6 +716,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (saved && JSON.stringify(persistableReviews(saved.reviews)) === JSON.stringify(items)) {
           buckets.delete('reviews')
         } else {
+          wroteChanges = true
           tasks.push(
             replaceReviews({
               id: profileId,
@@ -675,6 +735,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (saved && JSON.stringify(persistableSkills(saved.skills)) === JSON.stringify(items)) {
           buckets.delete('skills')
         } else {
+          wroteChanges = true
           tasks.push(
             replaceSkills({
               id: profileId,
@@ -693,6 +754,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         if (JSON.stringify(items) === JSON.stringify(savedItems)) {
           buckets.delete('socialLinks')
         } else {
+          wroteChanges = true
           tasks.push(
             replaceSocialLinks({
               id: profileId,
@@ -740,6 +802,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
         const wrotePosts = Boolean(synced.blog || synced.faqs || Object.keys(synced.sectionPosts || {}).length)
         if (wrotePosts) {
+          wroteChanges = true
           const generalPosts = synced.blog
             ? mergeLocalEmptyDrafts(data.generalPosts, mapApiPostsToGeneralPosts(synced.blog), isEmptyGeneralPost)
             : data.generalPosts || []
@@ -779,7 +842,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       }
 
       lastSavedDataRef.current = data
-      return { wroteProfile }
+      return { wroteProfile, wroteChanges }
     },
     [
       updateProfileCard,
@@ -814,7 +877,10 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         pendingResaveRef.current = true
         return
       }
-      if (dirtyBucketsRef.current.size === 0) return
+      if (dirtyBucketsRef.current.size === 0) {
+        clearPendingCardSave(cardId)
+        return
+      }
 
       const data = editDataRef.current
       if (!data) return
@@ -828,9 +894,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       setSaveError(null)
 
       try {
-        const { wroteProfile } = await persistDirtyBuckets(cardId, data, buckets)
+        const { wroteProfile, wroteChanges } = await persistDirtyBuckets(cardId, data, buckets)
+        if (wroteChanges) {
+          toastSaveSuccess(buckets)
+        }
         if (wroteProfile) {
-          toastSettingsSaved()
           invalidateSettingsPublicTags()
           broadcastPublicCardSettingsSaved({ profileId: cardId, slug: data.slug })
         }
@@ -840,18 +908,18 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           if (dirtyBucketsRef.current.size > 0) {
             saveGateRef.current.dirty = true
             setSaveStatus('dirty')
-            if (postsHydratedForId.current !== cardId) {
-              scheduleAutosaveRef.current()
-              return
-            }
-            continue
+            writePendingCardSave(cardId, dirtyBucketsRef.current)
+            scheduleAutosaveRef.current()
+            return
           }
         }
+        clearPendingCardSave(cardId)
         setSaveStatus('saved')
         return
       } catch (err) {
         for (const bucket of buckets) dirtyBucketsRef.current.add(bucket)
         saveGateRef.current.dirty = true
+        writePendingCardSave(cardId, dirtyBucketsRef.current)
         const message = errorMessage(err)
         setSaveStatus('error')
         setSaveError(message)
@@ -866,23 +934,18 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
   const scheduleAutosave = useCallback(() => {
     if (isCreateMode) return
-    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
-    autosaveTimerRef.current = setTimeout(() => {
-      autosaveTimerRef.current = null
+    autosaveSchedulerRef.current.schedule(() => {
       void runPersist().catch(() => {
         // Status/error already set in runPersist.
       })
-    }, AUTOSAVE_DEBOUNCE_MS)
+    })
   }, [isCreateMode, runPersist])
 
   scheduleAutosaveRef.current = scheduleAutosave
 
   const flushSave = useCallback(async () => {
     if (isCreateMode) return
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current)
-      autosaveTimerRef.current = null
-    }
+    autosaveSchedulerRef.current.cancel()
     if (cardId && !isLocalTempId(cardId)) {
       await flushAboutMeUpsert(dispatch)
     }
@@ -910,15 +973,19 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       event.returnValue = ''
     }
 
+    const onPageHide = () => {
+      void flushSaveRef.current()
+    }
+
+    const scheduler = autosaveSchedulerRef.current
     document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onPageHide)
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => {
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('beforeunload', onBeforeUnload)
-      if (autosaveTimerRef.current) {
-        clearTimeout(autosaveTimerRef.current)
-        autosaveTimerRef.current = null
-      }
+      scheduler.cancel()
       void flushSaveRef.current()
     }
   }, [isCreateMode])
@@ -1033,6 +1100,10 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
         const assignedOwner = getCreateCardOwner()
         const publish = opts?.publish === true
+        if (publish) {
+          const activationProblems = collectVCardActivationProblems(draft)
+          if (activationProblems.length) throw new Error(vCardActivationProblemMessage(activationProblems))
+        }
         const createPayloadData: VCardData = {
           ...draft,
           isDraft: !publish,

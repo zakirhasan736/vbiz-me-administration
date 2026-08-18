@@ -22,14 +22,9 @@ function pickSocials(row: AdminProfileRow): Record<string, string> {
   return socials
 }
 
-/** True when the card belongs under Draft (flag or legacy status name). */
-export function isAdminProfileDraft(row: Pick<AdminProfileRow, 'isDraft' | 'status'>): boolean {
-  if (row.isDraft === true) return true
-  return (
-    String(row.status?.name || '')
-      .trim()
-      .toLowerCase() === 'draft'
-  )
+/** Lifecycle flags are canonical; status can be stale on legacy rows. */
+export function isAdminProfileDraft(row: Pick<AdminProfileRow, 'isDraft'>): boolean {
+  return row.isDraft === true
 }
 
 /** Map admin list API row → AdminCard shape used by directory UI. */

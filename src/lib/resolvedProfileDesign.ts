@@ -83,6 +83,8 @@ export function resolveProfileDesign(
 
   const fontFamily =
     (typeof cardTheme?.fontFamily === 'string' && cardTheme.fontFamily.trim()) ||
+    (typeof options?.themeConfig?.appearance.fontFamily === 'string' &&
+      options.themeConfig.appearance.fontFamily.trim()) ||
     staticTheme.fontFamily ||
     designSettings.fontFamily ||
     'inter'
@@ -115,11 +117,13 @@ export function resolveProfileDesignFromData(
 }
 
 export function designToCssVars(design: ResolvedProfileDesign): CSSProperties {
+  const fontStack = fontFamilyToStack(design.fontFamily)
   return {
-    ['--vbiz-primary' as string]: design.primaryColor,
-    ['--vbiz-accent' as string]: design.accentColor,
+    ['--vbiz-font' as string]: fontStack,
+    ['--font-sans' as string]: fontStack,
+    ['--font-heading' as string]: fontStack,
     ['--vbiz-radius' as string]: cornerStyleToRadius(design.cornerStyle),
-    fontFamily: fontFamilyToStack(design.fontFamily),
+    fontFamily: fontStack,
   }
 }
 

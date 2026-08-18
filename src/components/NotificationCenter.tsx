@@ -30,7 +30,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useRef, useState, useSyncExternalStore, type ElementType } from 'react'
+import { useMemo, useRef, useState, useSyncExternalStore, type ElementType } from 'react'
 
 const CATEGORY_ICON: Record<NotificationCategory, ElementType> = {
   contact_save: Save,
@@ -114,10 +114,19 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
 
-  const items = useSyncExternalStore(
+  const storedItems = useSyncExternalStore(
     subscribeToNotifications,
     () => getNotificationsSnapshot(audience),
     getServerNotificationsSnapshot
+  )
+  const [readOverrides, setReadOverrides] = useState<Set<string>>(() => new Set())
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set())
+  const items = useMemo(
+    () =>
+      storedItems
+        .filter((item) => !deletedIds.has(item.id))
+        .map((item) => (readOverrides.has(item.id) ? { ...item, read: true } : item)),
+    [deletedIds, readOverrides, storedItems]
   )
   const unread = items.reduce((count, item) => count + (item.read ? 0 : 1), 0)
 
@@ -140,9 +149,26 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
 
   const handleOpenItem = (n: AppNotification) => {
     markNotificationRead(n.id)
+    setReadOverrides((current) => new Set(current).add(n.id))
     setOpen(false)
     if (!n.href) return
     router.push(n.href)
+  }
+
+  const handleMarkAllRead = () => {
+    markAllNotificationsRead(audience)
+    setReadOverrides((current) => {
+      const next = new Set(current)
+      storedItems.forEach((item) => {
+        if (item.audience === audience) next.add(item.id)
+      })
+      return next
+    })
+  }
+
+  const handleDelete = (id: string) => {
+    deleteNotification(id)
+    setDeletedIds((current) => new Set(current).add(id))
   }
 
   return (
@@ -177,7 +203,7 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
               <h4 className="text-sm font-black text-slate-900 dark:text-white">{title}</h4>
               <button
                 type="button"
-                onClick={() => markAllNotificationsRead(audience)}
+                onClick={handleMarkAllRead}
                 className="text-primary-500 inline-flex items-center gap-1 text-[10px] font-black tracking-wider uppercase hover:underline"
               >
                 <CheckCheck className="h-3.5 w-3.5" />
@@ -250,6 +276,7 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
                             onClick={(e) => {
                               e.stopPropagation()
                               markNotificationRead(n.id)
+                              setReadOverrides((current) => new Set(current).add(n.id))
                             }}
                             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/80 hover:text-emerald-600 dark:hover:bg-white/10 dark:hover:text-emerald-400"
                           >
@@ -262,7 +289,7 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
                           aria-label="Delete notification"
                           onClick={(e) => {
                             e.stopPropagation()
-                            deleteNotification(n.id)
+                            handleDelete(n.id)
                           }}
                           className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/80 hover:text-red-500 dark:hover:bg-white/10 dark:hover:text-red-400"
                         >

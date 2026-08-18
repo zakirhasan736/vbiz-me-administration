@@ -11,6 +11,8 @@ import { DEFAULT_LIVE_AGENT_CARD, type LiveAgentCardData } from '@/profile-app/l
 import { openExternalIntent, toMailtoHref, toSmsHref, toTelHref } from '@/profile-app/lib/openExternalIntent'
 
 import { buildLiveAgentToolConfig } from '@/lib/liveAgent/tools'
+import { displayLiveAgentChromeStyle } from '@/lib/vcardDisplaySettings'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { GoogleGenAI, LiveServerMessage, Modality, Session } from '@google/genai'
 import { AlertCircle, Bot, Loader2, Mic, MicOff, Square, Volume2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -82,6 +84,8 @@ export function LiveAgentPanel({
   accentColor = 'var(--vbiz-accent, #ebd675)',
   wrapperClassName,
 }: LiveAgentPanelProps) {
+  const { field } = useProfileDisplay()
+  const crmChrome = displayLiveAgentChromeStyle(field('CRM'))
   const [panelDismissed, setPanelDismissed] = useState(false)
   const [manualOpen, setManualOpen] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
@@ -636,6 +640,7 @@ export function LiveAgentPanel({
                   onClick={toggleConnection}
                   disabled={isConnecting}
                   className="vbiz-live-agent-fab ml-auto flex h-12 w-12 items-center justify-center rounded-full shadow-sm transition-all hover:scale-105 hover:brightness-110 active:scale-95 disabled:opacity-50 md:h-16 md:w-16"
+                  style={crmChrome}
                 >
                   {isConnecting ? (
                     <Loader2 className="h-5 w-5 animate-spin md:h-6 md:w-6" />
@@ -697,6 +702,7 @@ export function LiveAgentPanel({
               ? 'h-10 w-10 border-zinc-800 bg-zinc-900 text-zinc-400 shadow-sm hover:bg-zinc-800 hover:text-zinc-200 md:h-14 md:w-14'
               : 'vbiz-live-agent-fab h-10 w-10 border-white shadow-sm hover:scale-105 active:scale-95 md:h-14 md:w-14'
           }`}
+          style={fabLooksOpen ? undefined : crmChrome}
         >
           <Bot className="h-5 w-5 md:h-6 md:w-6" />
           {!isMobile && isConnected && !fabLooksOpen ? (

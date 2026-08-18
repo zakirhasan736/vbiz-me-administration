@@ -1,5 +1,6 @@
 'use client'
 
+import { CreateAgentUiProvider } from '@/components/vcard/create-agent/CreateAgentUiProvider'
 import { EditorBootSkeleton } from '@/components/vcard/EditorBootSkeleton'
 import { LivePreviewProvider } from '@/components/vcard/LivePreviewProvider'
 import { VCardLivePreview } from '@/components/VCardLivePreview'
@@ -71,11 +72,13 @@ function VCardEditShell({ children }: { children: ReactNode }) {
   return (
     <CardScopeProvider cardId={cardId} mode="edit">
       <VCardProvider>
-        <LivePreviewProvider>
-          <VCardEdit basePath="/vcards/edit" segments={segments} cardId={cardId} />
-          <VCardLivePreview />
-          {children}
-        </LivePreviewProvider>
+        <CreateAgentUiProvider>
+          <LivePreviewProvider>
+            <VCardEdit basePath="/vcards/edit" segments={segments} cardId={cardId} />
+            <VCardLivePreview />
+            {children}
+          </LivePreviewProvider>
+        </CreateAgentUiProvider>
       </VCardProvider>
     </CardScopeProvider>
   )

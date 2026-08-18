@@ -225,6 +225,8 @@ type AiCardAgentWizardProps = {
   /** Called after celebrate — e.g. navigate to the new card editor */
   onCreatedNavigate?: (cardId?: string) => void
   onFinish?: () => void
+  /** Edit opens as a resume of the current card instead of a blank create session. */
+  mode?: 'create' | 'edit'
 }
 
 const SECTION_OPTIONS: Array<{ id: string; label: string }> = [
@@ -699,6 +701,23 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
   })
 }
 
+function existingCardStatusMessage(data: VCardData, navIds: string[]): { overall: number; text: string } {
+  const tabs = buildLaunchTabs(data, navIds)
+  const overall = tabs.length ? Math.round(tabs.reduce((sum, tab) => sum + tab.percent, 0) / tabs.length) : 0
+  const ready = tabs.filter((tab) => tab.percent === 100)
+  const open = tabs.filter((tab) => tab.percent < 100)
+  const readyLine = ready.length
+    ? `Already ready: ${ready.map((tab) => tab.label).join(', ')}.`
+    : 'Most tabs still need content.'
+  const openLine = open.length
+    ? `Still to finish: ${open.map((tab) => `${tab.label} (${tab.percent}%)`).join(', ')}.`
+    : 'All current tabs look complete. You can still add a website or files to enrich the card.'
+  return {
+    overall,
+    text: `This card is ${overall}% ready. I’ll pick up where you left off — not start from scratch.\n\n${readyLine}\n${openLine}\n\nAdd a website, documents, or notes if you have more source material, then tap Continue. Or continue with no new sources and I’ll resume the empty tabs with AI.`,
+  }
+}
+
 export function AiCardAgentWizard({
   open,
   onClose,
@@ -711,7 +730,9 @@ export function AiCardAgentWizard({
   onOpenLivePreview,
   onCreatedNavigate,
   onFinish,
+  mode = 'create',
 }: AiCardAgentWizardProps) {
+  const isEdit = mode === 'edit'
   const [phase, setPhase] = useState<Phase>('intake')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [websiteUrl, setWebsiteUrl] = useState('')
@@ -766,18 +787,22 @@ export function AiCardAgentWizard({
     if (wasOpenRef.current) return
     wasOpenRef.current = true
     setPhase('intake')
+    const existingWebsite = vCardData.personal?.website?.trim() || ''
+    const status = existingCardStatusMessage(vCardData, enabledNavIds)
     setMessages([
       {
         id: uid(),
         role: 'assistant',
-        text: `I’ll build your vBiz Me card with you, step by step:\n\n1. Read your website, files, or notes\n2. Suggest the right card tabs\n3. For each empty tab, ask “fill now?” — yes or skip\n4. Offer optional extras (live AI, Canva, SEO, notifications)\n5. Preview, then create\n\nAdd a website, files, or a short description, then tap Start.`,
+        text: isEdit
+          ? status.text
+          : `I’ll build your vBiz Me card with you, step by step:\n\n1. Read your website, files, or notes\n2. Suggest the right card tabs\n3. For each empty tab, ask “fill now?” — yes or skip\n4. Offer optional extras (live AI, Canva, SEO, notifications)\n5. Preview, then create\n\nAdd a website, files, or a short description, then tap Start.`,
       },
     ])
-    setWebsiteUrl('')
+    setWebsiteUrl(existingWebsite)
     setComposer('')
     setFiles([])
     setError('')
-    setScore(0)
+    setScore(isEdit ? status.overall : 0)
     setGaps([])
     setRecommendations([])
     setSelectedRecs([])
@@ -958,11 +983,53 @@ export function AiCardAgentWizard({
     [pushMsg, startFeaturesPhase]
   )
 
+  const resumeExistingCard = async () => {
+    setError('')
+    setBusy(true)
+    setPhase('working')
+    pushMsg('user', 'Continue from the current card')
+    pushMsg(
+      'assistant',
+      'Reviewing what is already on this card. Next I’ll resume the empty tabs — yes to fill with AI, or skip to leave them for the editor.'
+    )
+    try {
+      const report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
+      setPipelineSteps((prev) =>
+        prev.map((step) => ({
+          ...step,
+          status: step.id === 'website' || step.id === 'documents' ? 'skipped' : 'done',
+          detail:
+            step.id === 'website' || step.id === 'documents' ? 'Using the card already in the editor.' : step.detail,
+        }))
+      )
+      if (!report.gaps.length) {
+        setPhase('preview')
+        pushMsg(
+          'assistant',
+          `This card is about ${report.score}% complete and I don’t see empty content tabs. Confirm to save, or add a website/files to enrich it.`
+        )
+        return
+      }
+      askNextGap(report)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not read this card.'
+      setError(msg)
+      setPhase('intake')
+      pushMsg('assistant', `I hit a problem: ${msg}. Add a website or documents, or try Continue again.`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const runAnalyze = async (opts?: { text?: string; url?: string; files?: File[] }) => {
     const url = (opts?.url ?? websiteUrl).trim()
     const text = (opts?.text ?? composer).trim()
     const uploadFiles = opts?.files ?? files
     if (!url && !text && uploadFiles.length === 0) {
+      if (isEdit) {
+        await resumeExistingCard()
+        return
+      }
       setError('Add a website, business text, or documents first.')
       return
     }
@@ -1620,7 +1687,12 @@ export function AiCardAgentWizard({
         .map((tab) => tab.navId)
     )
     setPhase('preview')
-    pushMsg('assistant', `Preview ready at ${score}%. Confirm to create the card, or keep editing in chat.`)
+    pushMsg(
+      'assistant',
+      isEdit
+        ? `Preview ready at ${score}%. Confirm to save these AI updates on the current card, or keep editing in chat.`
+        : `Preview ready at ${score}%. Confirm to create the card, or keep editing in chat.`
+    )
   }
 
   const finishAndOpenEditor = () => {
@@ -1629,19 +1701,37 @@ export function AiCardAgentWizard({
     onClose()
   }
 
-  const confirmCreateCard = async (mode: LaunchMode = launchMode) => {
+  const confirmCreateCard = async (modeChoice: LaunchMode = launchMode) => {
     if (!onCreateCard) {
-      setError('Create action is not available. Use Create vCard in the editor.')
+      setError(
+        isEdit
+          ? 'Save is not available. Use Save now in the editor.'
+          : 'Create action is not available. Use Create vCard in the editor.'
+      )
       return
     }
-    const publish = mode === 'publish'
+    const publish = isEdit ? undefined : modeChoice === 'publish'
     setError('')
     setBusy(true)
     setPhase('creating')
     setCreateProgress(4)
-    setCreatedLaunchMode(mode)
-    pushMsg('user', publish ? 'Looks good - create and activate my card' : 'Looks good - save my card as a draft')
-    pushMsg('assistant', publish ? 'Creating and activating your vCard...' : 'Saving your vCard draft...')
+    setCreatedLaunchMode(isEdit ? 'draft' : modeChoice)
+    pushMsg(
+      'user',
+      isEdit
+        ? 'Looks good — save these updates on my card'
+        : publish
+          ? 'Looks good - create and activate my card'
+          : 'Looks good - save my card as a draft'
+    )
+    pushMsg(
+      'assistant',
+      isEdit
+        ? 'Saving your card updates...'
+        : publish
+          ? 'Creating and activating your vCard...'
+          : 'Saving your vCard draft...'
+    )
 
     let tick: ReturnType<typeof setInterval> | undefined
     let createdId: string | undefined
@@ -1649,11 +1739,11 @@ export function AiCardAgentWizard({
       tick = setInterval(() => {
         setCreateProgress((p) => (p >= 88 ? p : p + Math.random() * 6 + 2))
       }, 160)
-      if (sessionIdRef.current) {
+      if (!isEdit && sessionIdRef.current) {
         try {
           await cardAgentJobPost(sessionIdRef.current, 'assemble', {})
           const applied = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'apply', {
-            publish,
+            publish: publish === true,
             seo: draftRef.current.seo,
           })
           if (applied.profileId) {
@@ -1664,7 +1754,7 @@ export function AiCardAgentWizard({
         }
       }
       if (!createdId) {
-        createdId = (await onCreateCard({ publish })) || undefined
+        createdId = (await onCreateCard(isEdit ? undefined : { publish: publish === true })) || undefined
       }
       if (tick) clearInterval(tick)
       setCreateProgress(100)
@@ -1672,9 +1762,11 @@ export function AiCardAgentWizard({
       setPhase('celebrate')
       pushMsg(
         'assistant',
-        publish
-          ? 'Done! Your card is created and active. Continue to the editor to polish anything optional.'
-          : 'Done! Your card is saved as a draft. Continue to the editor when you are ready to activate it.'
+        isEdit
+          ? 'Saved. Your current card is updated. Close this or keep polishing in the editor.'
+          : publish
+            ? 'Done! Your card is created and active. Continue to the editor to polish anything optional.'
+            : 'Done! Your card is saved as a draft. Continue to the editor when you are ready to activate it.'
       )
     } catch (e) {
       if (tick) clearInterval(tick)
@@ -1930,7 +2022,7 @@ export function AiCardAgentWizard({
             <div className="min-w-0">
               <h3 className="text-lg font-black tracking-tight text-slate-950 dark:text-white">Card Studio</h3>
               <p className="truncate text-xs font-semibold text-slate-400">
-                {stepLabel} · guided create until your card is ready
+                {stepLabel} · {isEdit ? 'resume remaining work on this card' : 'guided create until your card is ready'}
               </p>
             </div>
           </div>
@@ -2463,7 +2555,9 @@ export function AiCardAgentWizard({
                 {previewSlug ? (
                   <p className="mt-1 truncate text-[11px] font-bold text-slate-400">/{previewSlug}</p>
                 ) : (
-                  <p className="mt-1 text-[11px] font-bold text-amber-600">Set a public URL slug before creating.</p>
+                  <p className="mt-1 text-[11px] font-bold text-amber-600">
+                    Set a public URL slug before {isEdit ? 'saving' : 'creating'}.
+                  </p>
                 )}
               </div>
               <span className="rounded-xl bg-white px-2.5 py-1 text-xs font-black text-emerald-700 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
@@ -2475,60 +2569,62 @@ export function AiCardAgentWizard({
               <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                 {launchOverallPercent}% ready with {launchEmptyFieldCount} empty field
                 {launchEmptyFieldCount === 1 ? '' : 's'} across {incompleteLaunchTabs.length} tab
-                {incompleteLaunchTabs.length === 1 ? '' : 's'}. Tap any tab to review, fill what AI can, skip, or create
-                now and finish inside the editor.
+                {incompleteLaunchTabs.length === 1 ? '' : 's'}. Tap any tab to review, fill what AI can, skip, or{' '}
+                {isEdit ? 'save now' : 'create now'} and finish inside the editor.
               </p>
             ) : (
               <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                All selected content tabs are ready. Media upload fields can still be improved after create.
+                All selected content tabs are ready. Media upload fields can still be improved in the editor.
               </p>
             )}
 
-            <div className="rounded-2xl border border-white/80 bg-white/80 p-2 dark:border-white/10 dark:bg-slate-900/70">
-              <p className="px-1 pb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Launch mode</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[
-                  {
-                    mode: 'publish' as const,
-                    title: 'Create & activate',
-                    note: 'Live immediately and shown in Active cards.',
-                  },
-                  {
-                    mode: 'draft' as const,
-                    title: 'Save draft',
-                    note: 'Shown in Draft cards until the user activates it.',
-                  },
-                ].map((option) => {
-                  const selected = launchMode === option.mode
-                  return (
-                    <button
-                      key={option.mode}
-                      type="button"
-                      onClick={() => setLaunchMode(option.mode)}
-                      className={cn(
-                        'rounded-xl border px-3 py-2 text-left transition-all',
-                        selected
-                          ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5'
-                      )}
-                    >
-                      <span className="flex items-center gap-2 text-[11px] font-black">
-                        <span
-                          className={cn(
-                            'flex h-4 w-4 items-center justify-center rounded-full border',
-                            selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'
-                          )}
-                        >
-                          {selected ? <Check className="h-2.5 w-2.5" /> : null}
+            {!isEdit ? (
+              <div className="rounded-2xl border border-white/80 bg-white/80 p-2 dark:border-white/10 dark:bg-slate-900/70">
+                <p className="px-1 pb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Launch mode</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    {
+                      mode: 'publish' as const,
+                      title: 'Create & activate',
+                      note: 'Live immediately and shown in Active cards.',
+                    },
+                    {
+                      mode: 'draft' as const,
+                      title: 'Save draft',
+                      note: 'Shown in Draft cards until the user activates it.',
+                    },
+                  ].map((option) => {
+                    const selected = launchMode === option.mode
+                    return (
+                      <button
+                        key={option.mode}
+                        type="button"
+                        onClick={() => setLaunchMode(option.mode)}
+                        className={cn(
+                          'rounded-xl border px-3 py-2 text-left transition-all',
+                          selected
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5'
+                        )}
+                      >
+                        <span className="flex items-center gap-2 text-[11px] font-black">
+                          <span
+                            className={cn(
+                              'flex h-4 w-4 items-center justify-center rounded-full border',
+                              selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'
+                            )}
+                          >
+                            {selected ? <Check className="h-2.5 w-2.5" /> : null}
+                          </span>
+                          {option.title}
                         </span>
-                        {option.title}
-                      </span>
-                      <span className="mt-1 block pl-6 text-[10px] font-semibold opacity-75">{option.note}</span>
-                    </button>
-                  )
-                })}
+                        <span className="mt-1 block pl-6 text-[10px] font-semibold opacity-75">{option.note}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            ) : null}
 
             <div className="space-y-2">
               {launchTabs.map((tab) => {
@@ -2642,7 +2738,7 @@ export function AiCardAgentWizard({
                                 setOpenLaunchTabs((prev) => prev.filter((id) => id !== tab.navId))
                                 pushMsg(
                                   'assistant',
-                                  `${tab.label} is skipped for now. It will stay on the card, and you can finish those empty fields inside the editor after create.`
+                                  `${tab.label} is skipped for now. It will stay on the card, and you can finish those empty fields inside the editor.`
                                 )
                               }}
                               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
@@ -2723,7 +2819,8 @@ export function AiCardAgentWizard({
                 onClick={() => void confirmCreateCard()}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[11px] font-black text-white disabled:opacity-50"
               >
-                {launchMode === 'publish' ? 'Create & activate' : 'Save draft'} <ArrowRight className="h-3.5 w-3.5" />
+                {isEdit ? 'Save updates' : launchMode === 'publish' ? 'Create & activate' : 'Save draft'}{' '}
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -2737,7 +2834,7 @@ export function AiCardAgentWizard({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-300">
-                  Preview · your permission to create
+                  Preview · your permission to {isEdit ? 'save' : 'create'}
                 </p>
                 <h4 className="truncate text-base font-black text-slate-950 dark:text-white">{previewName}</h4>
                 {previewCompany ? (
@@ -2747,7 +2844,7 @@ export function AiCardAgentWizard({
                   <p className="mt-1 truncate text-[11px] font-bold text-slate-400">/{previewSlug}</p>
                 ) : (
                   <p className="mt-1 text-[11px] font-bold text-amber-600">
-                    Set a public URL slug in Personal before creating.
+                    Set a public URL slug in Personal before {isEdit ? 'saving' : 'creating'}.
                   </p>
                 )}
               </div>
@@ -2803,7 +2900,11 @@ export function AiCardAgentWizard({
             <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
               <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
               <span className="text-sm font-black">
-                {createdLaunchMode === 'publish' ? 'Creating and activating your card...' : 'Saving your draft...'}
+                {isEdit
+                  ? 'Saving your card updates...'
+                  : createdLaunchMode === 'publish'
+                    ? 'Creating and activating your card...'
+                    : 'Saving your draft...'}
               </span>
               <span className="ml-auto text-sm font-black text-emerald-600">
                 {Math.min(100, Math.round(createProgress))}%
@@ -2816,9 +2917,11 @@ export function AiCardAgentWizard({
               />
             </div>
             <p className="text-[11px] font-semibold text-slate-500">
-              {createdLaunchMode === 'publish'
-                ? 'Saving profile, tabs, and content, then making the public link live.'
-                : 'Saving profile, tabs, and content into the Draft area.'}
+              {isEdit
+                ? 'Writing AI updates onto the card already in the editor.'
+                : createdLaunchMode === 'publish'
+                  ? 'Saving profile, tabs, and content, then making the public link live.'
+                  : 'Saving profile, tabs, and content into the Draft area.'}
             </p>
           </div>
         ) : null}
@@ -2828,13 +2931,15 @@ export function AiCardAgentWizard({
             <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
               <PartyPopper className="h-6 w-6" />
               <span className="text-base font-black">
-                {createdLaunchMode === 'publish' ? 'Card active!' : 'Draft saved!'}
+                {isEdit ? 'Updates saved!' : createdLaunchMode === 'publish' ? 'Card active!' : 'Draft saved!'}
               </span>
             </div>
             <p className="text-xs font-semibold text-emerald-900/80 dark:text-emerald-100/90">
-              {createdLaunchMode === 'publish'
-                ? `${previewName} is live now. Continue to the editor to polish optional uploads and settings.`
-                : `${previewName} is in Draft cards. Continue to the editor, then use Activate card when it is ready.`}
+              {isEdit
+                ? `${previewName} is updated. Keep polishing optional uploads and settings in the editor.`
+                : createdLaunchMode === 'publish'
+                  ? `${previewName} is live now. Continue to the editor to polish optional uploads and settings.`
+                  : `${previewName} is in Draft cards. Continue to the editor, then use Activate card when it is ready.`}
             </p>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -2848,7 +2953,11 @@ export function AiCardAgentWizard({
               onClick={finishAndOpenEditor}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
             >
-              {createdLaunchMode === 'publish' ? 'Open active card editor' : 'Open draft editor'}{' '}
+              {isEdit
+                ? 'Back to editor'
+                : createdLaunchMode === 'publish'
+                  ? 'Open active card editor'
+                  : 'Open draft editor'}{' '}
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -2861,6 +2970,32 @@ export function AiCardAgentWizard({
         <div className="border-t border-slate-100 px-4 py-3 dark:border-white/5">
           {phase === 'intake' ? (
             <div className="mb-2 space-y-2">
+              {isEdit && launchTabs.length ? (
+                <div className="space-y-1.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                  <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
+                    Current card · {launchOverallPercent}% ready
+                  </p>
+                  <div className="max-h-36 space-y-1 overflow-y-auto">
+                    {launchTabs.map((tab) => (
+                      <div
+                        key={tab.navId}
+                        className="flex items-center justify-between gap-2 text-[11px] font-semibold"
+                      >
+                        <span
+                          className={
+                            tab.percent === 100
+                              ? 'text-emerald-800 dark:text-emerald-200'
+                              : 'text-slate-600 dark:text-slate-300'
+                          }
+                        >
+                          {tab.label}
+                        </span>
+                        <span className="text-slate-500 tabular-nums dark:text-slate-400">{tab.percent}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <label className="block text-[10px] font-black tracking-wider text-slate-400 uppercase">Website</label>
               <div className="relative">
                 <Globe className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 text-slate-400" />
@@ -2902,7 +3037,9 @@ export function AiCardAgentWizard({
               rows={2}
               placeholder={
                 phase === 'intake'
-                  ? 'Business notes or instructions (optional)…'
+                  ? isEdit
+                    ? 'Optional notes to resume with AI…'
+                    : 'Business notes or instructions (optional)…'
                   : phase === 'tabs'
                     ? 'Tap Continue when your tabs look right…'
                     : phase === 'section-gate'
@@ -2912,7 +3049,9 @@ export function AiCardAgentWizard({
                         : phase === 'features'
                           ? 'yes / skip'
                           : phase === 'preview'
-                            ? 'Type “yes” to confirm create…'
+                            ? isEdit
+                              ? 'Type “yes” to save updates…'
+                              : 'Type “yes” to confirm create…'
                             : 'Message the assistant…'
               }
               onKeyDown={(e) => {
@@ -2939,7 +3078,15 @@ export function AiCardAgentWizard({
               onClick={() => void runAnalyze()}
               className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
             >
-              Start — read sources, then build my card <ArrowRight className="h-3.5 w-3.5" />
+              {isEdit ? (
+                <>
+                  Continue — resume remaining work <ArrowRight className="h-3.5 w-3.5" />
+                </>
+              ) : (
+                <>
+                  Start — read sources, then build my card <ArrowRight className="h-3.5 w-3.5" />
+                </>
+              )}
             </button>
           ) : null}
           {phase === 'coach' && score >= 90 ? (
@@ -2949,7 +3096,7 @@ export function AiCardAgentWizard({
               onClick={goToPreview}
               className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 py-2.5 text-xs font-black text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
             >
-              Ready — preview & create <ArrowRight className="h-3.5 w-3.5" />
+              {isEdit ? 'Ready — preview & save' : 'Ready — preview & create'} <ArrowRight className="h-3.5 w-3.5" />
             </button>
           ) : null}
         </div>

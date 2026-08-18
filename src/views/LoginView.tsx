@@ -1,11 +1,13 @@
 'use client'
 
 import PasswordSetupRequiredModal from '@/components/auth/PasswordSetupRequiredModal'
+import TurnstileWidget, { isTurnstileConfigured } from '@/components/auth/TurnstileWidget'
 import FormErrorMessage from '@/components/shared/FormErrorMessage'
 import { Button, Input } from '@/components/ui'
 import { useAppDispatch } from '@/hooks/redux'
 import type { TPasswordSetupRequiredData } from '@/interfaces'
 import type { IQueryMutationErrorResponse } from '@/interfaces/queryMutationErrorResponse'
+import { clearSessionExpiredMarker, resolvePostLoginPath } from '@/lib/auth/sessionPolicy'
 import { useLoginMutation } from '@/redux/features/auth/auth.api'
 import { updateAuthState } from '@/redux/features/auth/user.slice'
 import { cn } from '@/utils/cn'
@@ -44,11 +46,18 @@ const getLoginErrorMessage = (error: LoginMutationError | undefined) => {
 
 const LoginView = () => {
   const [passwordSetup, setPasswordSetup] = useState<TPasswordSetupRequiredData | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0)
   const [login, { isLoading }] = useLoginMutation()
   const dispatch = useAppDispatch()
   const router = useRouter()
   const searchParams = useSearchParams()
   const verifiedToastShownRef = useRef(false)
+
+  const resetTurnstile = () => {
+    setTurnstileToken(null)
+    setTurnstileResetSignal((value) => value + 1)
+  }
 
   useEffect(() => {
     if (searchParams.get('verified') !== '1' || verifiedToastShownRef.current) return
@@ -60,10 +69,19 @@ const LoginView = () => {
   }, [searchParams, router])
 
   const handleSubmit = async (values: typeof initialValues) => {
-    const res = await login(values)
+    if (isTurnstileConfigured && !turnstileToken) {
+      toast.error('Please complete the security check')
+      return
+    }
+
+    const res = await login({
+      ...values,
+      ...(turnstileToken ? { turnstileToken } : {}),
+    })
     const error = res.error as LoginMutationError | undefined
 
     if (error) {
+      resetTurnstile()
       if (isPasswordSetupRequired(error)) {
         const data = getPasswordSetupRequiredData(error)
         if (data) {
@@ -92,7 +110,8 @@ const LoginView = () => {
     )
 
     toast.success('Login successful')
-    const redirectTo = Cookies.get('redirect_after_login') || '/'
+    clearSessionExpiredMarker()
+    const redirectTo = resolvePostLoginPath(payload.profile.role, Cookies.get('redirect_after_login'))
     Cookies.remove('redirect_after_login')
     router.push(redirectTo)
   }
@@ -165,6 +184,8 @@ const LoginView = () => {
                   </Link>
                 </div>
               </div>
+
+              <TurnstileWidget resetSignal={turnstileResetSignal} onToken={setTurnstileToken} />
 
               <Button type="submit" size="lg" loading={isLoading} className="mt-2 w-full py-4">
                 {isLoading ? 'Logging in...' : 'Log In'}

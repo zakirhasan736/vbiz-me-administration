@@ -118,7 +118,7 @@ export default function PublicProfileLayout({
 
   return (
     <ProfileThemeShell config={themeConfig} fromApi={fromApi} template={template}>
-      <PublicPwaHead slug={slug} ownerName={ownerName} seo={record.seo} />
+      <PublicPwaHead slug={slug} ownerName={ownerName} seo={record.seo} imageUrl={record.avatarImageUrl} />
       <PublicCardPwaRuntime
         slug={slug}
         profileId={earlyProfileId}

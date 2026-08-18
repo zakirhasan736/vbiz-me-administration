@@ -1,5 +1,6 @@
 import type {
   TChangePasswordPayload,
+  TForgotPasswordPayload,
   TLoginPayload,
   TRegisterPayload,
   TUpdateProfilePayload,
@@ -84,7 +85,7 @@ const authApi = api.injectEndpoints({
       }),
       invalidatesTags: ['auth'],
     }),
-    forgotPassword: builder.mutation<{ data: null }, { email: string }>({
+    forgotPassword: builder.mutation<{ data: null }, TForgotPasswordPayload>({
       query: (payload) => ({
         url: '/auth/forgot-password',
         method: 'POST',
@@ -144,6 +145,17 @@ const authApi = api.injectEndpoints({
       },
       providesTags: ['auth'],
     }),
+    persistTours: builder.mutation<
+      { data: { completedTours: string[] } },
+      { keys: Array<'dashboard' | 'create_card'> }
+    >({
+      query: (payload) => ({
+        url: '/auth/tours',
+        method: 'PATCH',
+        body: payload,
+      }),
+      invalidatesTags: ['auth'],
+    }),
   }),
 })
 
@@ -163,4 +175,5 @@ export const {
   useResetPasswordMutation,
   useChangePasswordMutation,
   useGetAuthorQuery,
+  usePersistToursMutation,
 } = authApi

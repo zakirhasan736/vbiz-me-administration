@@ -176,7 +176,7 @@ export const SaveContactModal = ({
             <button
               type="submit"
               disabled={submitting}
-              className="vbiz-modal-btn-primary w-full rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              className="vbiz-btn vbiz-modal-btn-primary w-full rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? 'Preparing download…' : 'Download Contact File'}
             </button>

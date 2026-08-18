@@ -17,4 +17,5 @@ export interface IUser {
   hasPassword?: boolean
   isActive?: boolean
   accountStatus?: AccountStatus
+  completedTours?: string[]
 }

@@ -5,6 +5,7 @@ export type TRegisterPayload = {
   email: string
   password: string
   role: TUserRole
+  turnstileToken?: string
 }
 
 export type TRegisterFormValues = {
@@ -18,6 +19,12 @@ export type TRegisterFormValues = {
 export type TLoginPayload = {
   email: string
   password: string
+  turnstileToken?: string
+}
+
+export type TForgotPasswordPayload = {
+  email: string
+  turnstileToken?: string
 }
 
 export type TPasswordSetupRequiredData = {

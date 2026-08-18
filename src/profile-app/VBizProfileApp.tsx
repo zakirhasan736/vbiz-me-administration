@@ -3,6 +3,7 @@
 import { resolveNotificationModalTarget } from '@/lib/push/notificationRouting'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { designToCssVars, resolveProfileDesign } from '@/lib/resolvedProfileDesign'
+import { displayGeneralRootStyle, isPagesHeaderVisible } from '@/lib/vcardDisplaySettings'
 import { ProfileHomeModals, type ProfileHomeModalId } from '@/profile-app/components/ProfileHomeModals'
 import { useProfileHomeModalEvents } from '@/profile-app/hooks/useProfileHomeModalEvents'
 import { useProfileTheme } from '@/profile-app/hooks/useProfileTheme'
@@ -48,7 +49,7 @@ export function VBizProfileApp({
   previewTheme,
   onPreviewThemeChange,
 }: VBizProfileAppProps) {
-  const { isVisible, pageColors, field } = useProfileDisplay()
+  const { isVisible, pageColors, field, settings } = useProfileDisplay()
   const slugForPersistence = profileSlug ?? shareSlug
   const cardSlug = slugForPersistence ?? 'preview'
   const { activeSectionId } = useProfileNavigation()
@@ -116,7 +117,7 @@ export function VBizProfileApp({
 
   const rootStyle = {
     ...designToCssVars(design),
-    ...(pageColors.pageBg ? { backgroundColor: pageColors.pageBg } : {}),
+    ...displayGeneralRootStyle(settings),
   }
 
   return (
@@ -124,6 +125,7 @@ export function VBizProfileApp({
       data-profile-template="v2"
       data-embedded={embedded ? '' : undefined}
       data-theme={theme}
+      data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
       className={`vbiz-profile-root w-full font-sans ${embedded ? 'relative isolate flex h-full min-h-0 max-w-full flex-col overflow-x-clip pb-0' : 'flex min-h-screen w-screen justify-center overflow-x-clip pb-24'} ${theme === 'dark' ? 'dark bg-[#09090b] text-zinc-200' : 'bg-zinc-50 text-zinc-900'} relative transition-colors duration-500 ease-in-out selection:bg-yellow-500/30 selection:text-white`}
       style={rootStyle}
     >
@@ -185,7 +187,7 @@ export function VBizProfileApp({
       />
 
       <div
-        className={`vbiz-profile-main relative z-20 mx-auto flex w-full max-w-258 flex-col ${embedded ? 'min-h-0 max-w-full px-3.5 pt-24' : 'min-h-screen px-5 pt-16 sm:px-8 sm:pt-44'}`}
+        className={`vbiz-profile-main relative z-20 mx-auto flex w-full max-w-258 flex-col ${activeSectionId === 'home' ? 'vbiz-home-canvas' : ''} ${embedded ? 'min-h-0 max-w-full px-3.5 pt-24' : 'min-h-screen px-5 pt-16 sm:px-8 sm:pt-44'}`}
       >
         <ProfileHeaderV2
           avatarVideoUrl={avatarVideoUrl}

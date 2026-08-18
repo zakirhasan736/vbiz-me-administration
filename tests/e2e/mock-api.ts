@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
 const PORT = 5101
-const ACCESS_TOKEN = 'e2e-access-token'
+const ACCESS_TOKEN = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDAwMDAwMDB9.e2e-signature'
 
 type Profile = Record<string, unknown> & {
   id: string
@@ -34,6 +34,7 @@ const adminUser = {
   accountStatus: 'ACTIVE',
   isActive: true,
   isVerified: true,
+  completedTours: ['dashboard', 'create_card'],
 }
 
 const baseProfile = (): Profile => ({
@@ -41,6 +42,7 @@ const baseProfile = (): Profile => ({
   slug: 'existing-card',
   name: 'Existing Card',
   email: 'owner@example.com',
+  dob: '1990-07-18T00:00:00.000Z',
   phone: '+15550001111',
   whatsapp: '+15550001111',
   website: 'https://example.com',
@@ -232,6 +234,18 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     return
   }
 
+  if (path === '/api/v1/auth/tours' && method === 'PATCH') {
+    if (!isAuthenticated(req)) {
+      sendJson(res, 403, envelope(null, 'Unauthorized', 403))
+      return
+    }
+    const body = (await readJson(req)) as { keys?: string[] }
+    const keys = Array.isArray(body.keys) ? body.keys : []
+    adminUser.completedTours = [...new Set([...(adminUser.completedTours ?? []), ...keys])]
+    sendJson(res, 200, envelope({ completedTours: adminUser.completedTours }, 'Tours saved'))
+    return
+  }
+
   if (path === '/api/v1/auth/refresh-token' && method === 'POST') {
     sendJson(
       res,
@@ -348,6 +362,28 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     }
     profiles.set(id, profile)
     sendJson(res, 201, envelope(profile, 'Profile created', 201))
+    return
+  }
+
+  const duplicateProfileMatch = path.match(/^\/api\/v1\/profiles\/([^/]+)\/duplicate$/)
+  if (duplicateProfileMatch && method === 'POST') {
+    const source = profiles.get(duplicateProfileMatch[1])
+    if (!source) {
+      sendJson(res, 404, envelope(null, 'Profile not found', 404))
+      return
+    }
+    const id = `created-${profiles.size + 1}`
+    const duplicate = {
+      ...source,
+      id,
+      name: `${source.name} (Copy)`,
+      slug: `${source.slug}-copy-${profiles.size + 1}`,
+      isDraft: true,
+      isPublic: false,
+      status: { id: 'draft', name: 'Draft' },
+    }
+    profiles.set(id, duplicate)
+    sendJson(res, 201, envelope(duplicate, 'Profile duplicated as draft', 201))
     return
   }
 

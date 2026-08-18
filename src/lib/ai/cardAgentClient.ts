@@ -30,7 +30,7 @@ async function parseBackend<T>(res: Response): Promise<T> {
 
 /** Authenticated call to backend card-agent (OpenAI key stays on the API server). */
 export async function cardAgentJson<T>(
-  path: 'analyze' | 'suggest-tabs' | 'fill-section' | 'regenerate-section' | 'extract-sources',
+  path: 'analyze' | 'suggest-tabs' | 'fill-section' | 'regenerate-section' | 'extract-sources' | 'generate-seo',
   body: unknown
 ): Promise<T> {
   const res = await fetch(`${baseUrl}/ai/card-agent/${path}`, {

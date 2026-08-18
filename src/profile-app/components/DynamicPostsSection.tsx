@@ -1,6 +1,7 @@
 'use client'
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
+import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { formatGeneralPostDate } from '@/lib/vcardGeneralPosts'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { V3SectionHeader } from '@/profile-app/sections'
@@ -64,7 +65,9 @@ export function DynamicPostsSection({
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-[#eab308] dark:border-zinc-700 dark:bg-zinc-800/80">
             <FileEdit size={24} />
           </div>
-          <h2 className="mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{sectionTitle}</h2>
+          <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            {sectionTitle}
+          </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
             {emptyMessage}
           </p>
@@ -144,6 +147,7 @@ function FeaturedPostCard({
   const dateLabel = formatGeneralPostDate(post.date)
   const imageUrl = post.featuredImage.trim()
   const isClickable = Boolean(onPostClick)
+  const description = stripHtml(post.description)
 
   const inner = (
     <>
@@ -171,7 +175,7 @@ function FeaturedPostCard({
           {post.title}
         </h2>
         <TruncatedClampText
-          plain={post.description}
+          plain={description}
           className="mb-8 max-w-xl"
           textClassName="text-base leading-normal font-medium text-zinc-600 lg:text-lg dark:text-zinc-400"
           minLength={150}
@@ -223,6 +227,7 @@ function PostCard({
   const dateLabel = formatGeneralPostDate(post.date)
   const imageUrl = post.featuredImage.trim()
   const isClickable = Boolean(onPostClick)
+  const description = stripHtml(post.description)
 
   const content = (
     <motion.div
@@ -248,7 +253,7 @@ function PostCard({
       </div>
       <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">{post.title}</h3>
       <TruncatedClampText
-        plain={post.description}
+        plain={description}
         className="mb-4"
         minLength={150}
         onReadMore={

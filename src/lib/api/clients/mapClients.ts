@@ -34,11 +34,12 @@ function isPublished(status: unknown): boolean {
 
 export function mapClientItemToListItem(item: ClientItem): ClientListItem {
   const linkUrl = item.review_link?.has_link && item.review_link.url?.trim() ? item.review_link.url.trim() : null
+  const logo = resolveLogo(item.featured_image) || resolveLogo(item.attachments)
 
   return {
     id: item.id,
     name: item.title.trim() || 'Client',
-    logo: resolveLogo(item.featured_image),
+    logo,
     since: formatPartnerSince(item.created_at),
     description: item.description?.trim() ?? '',
     linkUrl,

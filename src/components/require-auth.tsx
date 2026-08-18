@@ -1,5 +1,6 @@
 'use client'
 
+import { loginPathForAuthState } from '@/lib/auth/sessionPolicy'
 import { useAuth } from '@/providers/AuthProvider'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -11,7 +12,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace('/login')
+      router.replace(loginPathForAuthState())
     }
   }, [user, loading, router])
 

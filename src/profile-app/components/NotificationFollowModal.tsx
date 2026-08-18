@@ -161,7 +161,7 @@ export function NotificationFollowModal({
                       type="button"
                       onClick={() => void handleSubscribe()}
                       disabled={submitting}
-                      className="vbiz-modal-btn-primary group flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:opacity-60"
+                      className="vbiz-btn vbiz-modal-btn-primary group flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:opacity-60"
                     >
                       {submitting ? 'Enabling…' : 'Enable Notifications'}
                       <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />

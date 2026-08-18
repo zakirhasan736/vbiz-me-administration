@@ -1,5 +1,5 @@
 import { CardScopeProvider, type CardScopeMode } from '@/lib/card-scope'
-import { AUTOSAVE_DEBOUNCE_MS } from '@/lib/vcardAutosave'
+import { AUTOSAVE_DEBOUNCE_MS, AUTOSAVE_MAX_MS } from '@/lib/vcardAutosave'
 import { useVCard, VCardProvider } from '@/lib/VCardContext'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
 import type { ApiProfile } from '@/redux/features/profiles/profiles.api'
@@ -340,6 +340,33 @@ describe('VCardProvider autosave and creation', () => {
     })
   })
 
+  it('does not save each keystroke and checkpoints at the max wait while typing continues', async () => {
+    mocks.state = makeState(makeRecord('card-1', { personal: personal({ fullName: 'A' }) }))
+    rendered = await renderProvider({ mode: 'edit', cardId: 'card-1' })
+
+    await act(async () => {
+      rendered!.api.updateData('personal.fullName', 'Ad')
+      vi.advanceTimersByTime(1000)
+      rendered!.api.updateData('personal.fullName', 'Ada')
+      vi.advanceTimersByTime(1000)
+      await flushMicrotasks()
+    })
+
+    expect(mocks.updateProfileCard).not.toHaveBeenCalled()
+
+    await act(async () => {
+      rendered!.api.updateData('personal.fullName', 'Ada L')
+      vi.advanceTimersByTime(AUTOSAVE_MAX_MS)
+      await flushMicrotasks()
+    })
+
+    expect(mocks.updateProfileCard).toHaveBeenCalledTimes(1)
+    expect(mocks.updateProfileCard).toHaveBeenCalledWith({
+      id: 'card-1',
+      body: expect.objectContaining({ name: 'Ada L' }),
+    })
+  })
+
   it('autosaves card SEO metadata with the profile payload', async () => {
     mocks.state = makeState(makeRecord('card-1', { personal: personal({ fullName: 'Ada Lovelace' }) }))
     rendered = await renderProvider({ mode: 'edit', cardId: 'card-1' })
@@ -417,6 +444,13 @@ describe('VCardProvider autosave and creation', () => {
 
     await act(async () => {
       releaseFirstSave?.()
+      await flushMicrotasks()
+    })
+
+    expect(mocks.updateProfileCard).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
       await flushMicrotasks()
     })
 

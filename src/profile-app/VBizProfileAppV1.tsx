@@ -4,6 +4,7 @@ import { resolveNotificationModalTarget } from '@/lib/push/notificationRouting'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { v3DesignToCssVars } from '@/lib/v3Theme'
+import { displayGeneralRootStyle, isPagesHeaderVisible } from '@/lib/vcardDisplaySettings'
 import { LiveAgent } from '@/profile-app/components/LiveAgent'
 import { ProfileBackgroundAudio } from '@/profile-app/components/ProfileBackgroundAudio'
 import { ProfileFloatingNav } from '@/profile-app/components/ProfileFloatingNav'
@@ -43,7 +44,7 @@ export function VBizProfileAppV1({
   previewTheme,
   onPreviewThemeChange,
 }: VBizProfileAppProps) {
-  const { pageColors, design: contextDesign } = useProfileDisplay()
+  const { settings, design: contextDesign } = useProfileDisplay()
 
   const design: ResolvedProfileDesign =
     designProp ??
@@ -127,7 +128,7 @@ export function VBizProfileAppV1({
 
   const rootStyle = {
     ...v3DesignToCssVars(design),
-    ...(pageColors.pageBg ? { backgroundColor: pageColors.pageBg } : {}),
+    ...displayGeneralRootStyle(settings),
   }
 
   const homeHeroProps = {
@@ -145,6 +146,7 @@ export function VBizProfileAppV1({
       data-embedded={embedded ? '' : undefined}
       data-profile-template="v1"
       data-theme={theme}
+      data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
       className={`${shellClass} selection:bg-yellow-primary/30 font-sans selection:text-gray-900 dark:selection:text-white ${theme === 'dark' ? 'dark bg-[#050505] text-[#e0e0e0]' : 'bg-white text-gray-900'} ${embedded ? 'min-h-0 max-w-full' : ''}`}
       style={rootStyle}
     >

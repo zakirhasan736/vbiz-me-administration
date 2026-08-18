@@ -1,6 +1,7 @@
 'use client'
 
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
+import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -109,8 +110,13 @@ export function ProfileHeaderV2({
   const showViewCounter = isProfileActionButtonEnabled('view_counter', actionButtons, isVisible)
   const showLanguage = isProfileActionButtonEnabled('language', actionButtons, isVisible)
   const viewCounterCount = actionButtons?.view_counter?.count ?? profileViews
+  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
+  const languageChrome = displayIconChromeStyle(field('Language'))
+  const websiteChrome = displayIconChromeStyle(field('Website'))
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'))
 
   const websiteHref = useMemo(() => resolveSocialLinkHref('Website', socialHref).trim(), [socialHref])
+  const showWebsite = Boolean(websiteHref) && isVisible('Website')
 
   const visibleSocials = useMemo(
     () =>
@@ -129,15 +135,7 @@ export function ProfileHeaderV2({
     return <Icon size={14} className="md:h-4 md:w-4" />
   }
 
-  const socialInlineStyle = (label: string) => {
-    const socialStyle = field(label)
-    const iconColor = socialStyle.iconColor ?? socialStyle.textColor
-    if (!iconColor && !socialStyle.backgroundColor) return undefined
-    return {
-      ...(iconColor ? { color: iconColor } : {}),
-      ...(socialStyle.backgroundColor ? { backgroundColor: socialStyle.backgroundColor } : {}),
-    }
-  }
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label))
 
   const nameStyle = headerTextColor
     ? { color: headerTextColor }
@@ -251,44 +249,48 @@ export function ProfileHeaderV2({
           <button
             type="button"
             onClick={() => openVbizmeLogin()}
-            className="group relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            className="vbiz-icon-btn group relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            style={viewsChrome}
             aria-label="View analytics"
           >
-            <Eye size={14} className="text-[#eab308] md:h-4 md:w-4" />
+            <Eye size={14} className="md:h-4 md:w-4" />
             <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[8px] font-bold text-white md:-top-2 md:-right-2 md:px-1 md:text-[9px]">
               {formatProfileViewCount(viewCounterCount)}
             </span>
           </button>
         )}
-        {websiteHref && (
+        {showWebsite && (
           <a
             href={websiteHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            style={websiteChrome}
             aria-label="Visit website"
           >
-            <Globe size={14} className="text-[#eab308] md:h-4 md:w-4" />
+            <Globe size={14} className="md:h-4 md:w-4" />
           </a>
         )}
         {showLanguage && (
           <button
             type="button"
             onClick={onLanguage}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            style={languageChrome}
             aria-label="Language"
           >
-            <Languages size={14} className="text-[#eab308] md:h-4 md:w-4" />
+            <Languages size={14} className="md:h-4 md:w-4" />
           </button>
         )}
         {showShare && (
           <button
             type="button"
             onClick={onShare}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            style={shareChrome}
             aria-label="Share profile"
           >
-            <Share2 size={14} className="text-[#eab308] md:h-4 md:w-4" />
+            <Share2 size={14} className="md:h-4 md:w-4" />
           </button>
         )}
         <button

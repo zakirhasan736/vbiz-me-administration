@@ -137,7 +137,9 @@ export const CalendarSection = () => {
           <div className="text-yellow-primary mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <Calendar size={24} />
           </div>
-          <h2 className="mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{sectionTitle}</h2>
+          <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            {sectionTitle}
+          </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
             No calendar options have been published yet.
           </p>

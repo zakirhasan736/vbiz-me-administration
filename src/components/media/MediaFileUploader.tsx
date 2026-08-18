@@ -1,9 +1,11 @@
 'use client'
 
 import {
+  isVideoFile,
   MAX_MEDIA_UPLOAD_BYTES,
   MAX_MEDIA_UPLOAD_MB,
   mediaFileTooLargeMessage,
+  mediaNeedsClientOptimize,
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
@@ -127,6 +129,7 @@ export function MediaFileUploader({
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadStage, setUploadStage] = useState<'preparing' | 'uploading' | null>(null)
   const [progress, setProgress] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -137,6 +140,7 @@ export function MediaFileUploader({
   const styles = accentMap[accent]
   const displayUrl = localPreview || value || ''
   const displayName = fileName || (value ? value.split('/').pop()?.split('?')[0] : '') || ''
+  const uploadLabel = uploadStage === 'preparing' ? 'Optimizing…' : 'Uploading…'
   const kind = useMemo(
     () => (displayUrl ? guessKind(displayUrl, localMime, displayName) : null),
     [displayUrl, localMime, displayName]
@@ -167,7 +171,7 @@ export function MediaFileUploader({
       if (disabled) return
       setError(null)
 
-      if (file.size > maxBytes) {
+      if (file.size > maxBytes && !isVideoFile(file)) {
         setError(mediaFileTooLargeMessage(maxBytes))
         return
       }
@@ -181,6 +185,7 @@ export function MediaFileUploader({
       setLocalPreview(blobUrl)
       setLocalMime(file.type)
       setUploading(true)
+      setUploadStage(mediaNeedsClientOptimize(file) ? 'preparing' : 'uploading')
       setProgress(0)
 
       try {
@@ -190,6 +195,7 @@ export function MediaFileUploader({
           attachmentType,
           maxBytes,
           signal: controller.signal,
+          onStatus: setUploadStage,
           onProgress: setProgress,
         })
         clearLocalPreview()
@@ -208,6 +214,7 @@ export function MediaFileUploader({
       } finally {
         if (abortRef.current === controller) abortRef.current = null
         setUploading(false)
+        setUploadStage(null)
       }
     },
     [attachmentType, clearLocalPreview, disabled, maxBytes, onChange, profileId]
@@ -224,6 +231,7 @@ export function MediaFileUploader({
     abortRef.current?.abort()
     setError(null)
     setUploading(false)
+    setUploadStage(null)
     setProgress(0)
     clearLocalPreview()
     setUrlDraft('')
@@ -343,7 +351,7 @@ export function MediaFileUploader({
                 ) : null}
                 {uploading ? (
                   <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    Uploading… {Math.min(100, Math.max(0, progress))}%
+                    {uploadLabel} {Math.min(100, Math.max(0, progress))}%
                   </p>
                 ) : null}
               </div>
@@ -384,7 +392,7 @@ export function MediaFileUploader({
             <div className="w-full max-w-xs">
               <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100">
                 {uploading
-                  ? `Uploading… ${Math.min(100, Math.max(0, progress))}%`
+                  ? `${uploadLabel} ${Math.min(100, Math.max(0, progress))}%`
                   : 'Drop a file here or click to browse'}
               </p>
               {uploading ? (

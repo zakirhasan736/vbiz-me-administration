@@ -1,0 +1,37 @@
+import { describe, expect, it } from 'vitest'
+import { homePathForRole, isJwtExpired, resolvePostLoginPath, shouldSilentlyRefreshSession } from './sessionPolicy'
+
+function tokenWithExpiry(exp: number): string {
+  const encode = (value: string) => btoa(value).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+  return `${encode('{}')}.${encode(JSON.stringify({ exp }))}.${encode('{}')}`
+}
+
+describe('session policy', () => {
+  it('silently refreshes card-owner sessions but never staff sessions', () => {
+    expect(shouldSilentlyRefreshSession('vcard-owner')).toBe(true)
+    expect(shouldSilentlyRefreshSession('corporate-owner')).toBe(true)
+    expect(shouldSilentlyRefreshSession('admin')).toBe(false)
+    expect(shouldSilentlyRefreshSession('super-admin')).toBe(false)
+  })
+
+  it('routes each role to its correct signed-in area', () => {
+    expect(homePathForRole('vcard-owner')).toBe('/')
+    expect(homePathForRole('corporate-owner')).toBe('/teamvcard')
+    expect(homePathForRole('admin')).toBe('/admin/dashboard')
+    expect(homePathForRole('super-admin')).toBe('/admin/dashboard')
+  })
+
+  it('rejects stale cross-role redirect destinations after login', () => {
+    expect(resolvePostLoginPath('admin', '/')).toBe('/admin/dashboard')
+    expect(resolvePostLoginPath('vcard-owner', '/admin/users')).toBe('/')
+    expect(resolvePostLoginPath('corporate-owner', '/admin/dashboard')).toBe('/teamvcard')
+    expect(resolvePostLoginPath('admin', '/admin/users')).toBe('/admin/users')
+  })
+
+  it('treats missing, malformed, and expired tokens as expired', () => {
+    expect(isJwtExpired(null)).toBe(true)
+    expect(isJwtExpired('not-a-jwt')).toBe(true)
+    expect(isJwtExpired(tokenWithExpiry(100), 100_000)).toBe(true)
+    expect(isJwtExpired(tokenWithExpiry(200), 100_000)).toBe(false)
+  })
+})

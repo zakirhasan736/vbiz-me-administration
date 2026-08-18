@@ -45,6 +45,7 @@ export function NoticeModal({ open, cardName, initialText, initialType, onClose,
     <Modal
       open={open}
       onClose={onClose}
+      overlayClassName="z-10000"
       className="relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 p-8 shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
       labelledBy="notice-modal-title"
     >

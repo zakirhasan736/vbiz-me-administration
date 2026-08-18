@@ -3,15 +3,32 @@ import { fetchMyCardBySlug } from '@/lib/api/myCard/fetchMyCardBySlug'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { fetchNavBarLinks } from '@/lib/api/navbar/fetchNavBarLinks'
 import { resolveProfileSettingsTheme } from '@/lib/api/profileSettings/fetchProfileSettings'
+import { fetchPublicReviews } from '@/lib/api/reviews/fetchPublicReviews'
 import { fallbackLiveAgentPrompt, resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
+import { buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
-import { parseSeoSettings } from '@/lib/seo/cardSeo'
+import {
+  buildPublicCardJsonLd,
+  buildPublicCardSeoMetadata,
+  resolvePublicOrigin,
+  serializeJsonLd,
+} from '@/lib/seo/publicCardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 
 type Props = {
   params: Promise<{ slug: string }>
+}
+
+async function publicCardOrigin() {
+  const headerStore = await headers()
+  return resolvePublicOrigin(
+    process.env.NEXT_PUBLIC_APP_URL,
+    headerStore.get('x-forwarded-host') || headerStore.get('host'),
+    headerStore.get('x-forwarded-proto')
+  )
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -21,13 +38,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const myCard = await fetchMyCardBySlug(trimmed)
   const name = resolvePwaDisplayName(myCard?.profile?.name, trimmed)
-  const seo = parseSeoSettings(myCard?.settings || {})
-  const title = seo.metaTitle || name
-  const description = seo.metaDescription || `${name}'s digital business card`
+  if (!myCard) {
+    return { title: name, description: `${name}'s digital business card` }
+  }
+
+  const origin = await publicCardOrigin()
+  const seo = buildPublicCardSeoMetadata({
+    slug: trimmed,
+    origin,
+    cardPath: buildProfilePath(trimmed),
+    myCard,
+  })
+  const title = typeof seo.title === 'string' ? seo.title : name
 
   return {
-    title,
-    description,
+    ...seo,
     applicationName: title,
     appleWebApp: {
       capable: true,
@@ -67,23 +92,36 @@ export default async function PublicProfilePage({ params }: Props) {
   const liveAgentEnabled = isAiAssistanceEnabled(
     myCard.settings?.[AI_ASSISTANCE_SETTING_KEY] ?? myCard.features?.aiAssistance
   )
+  const origin = await publicCardOrigin()
+  const cardPath = buildProfilePath(trimmed)
 
-  const [navBarLinks, liveAgent, profileSettings] = await Promise.all([
+  const [navBarLinks, liveAgent, profileSettings, reviews] = await Promise.all([
     fetchNavBarLinks(profileId),
     liveAgentEnabled ? resolveLiveAgentPromptFromProfileId(profileId) : Promise.resolve(null),
     resolveProfileSettingsTheme(profileId, template),
+    fetchPublicReviews(String(profileId)),
   ])
 
   const agent = liveAgentEnabled ? (liveAgent ?? fallbackLiveAgentPrompt()) : null
+  const jsonLd = buildPublicCardJsonLd({
+    slug: trimmed,
+    origin,
+    cardPath,
+    myCard,
+    reviews,
+  })
 
   return (
-    <PublicProfileLayout
-      slug={trimmed}
-      initialMyCard={myCard}
-      initialNavBarLinks={navBarLinks}
-      initialProfileSettings={profileSettings}
-      liveAgentCardData={agent?.cardData}
-      liveAgentSystemPrompt={agent?.systemPrompt}
-    />
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+      <PublicProfileLayout
+        slug={trimmed}
+        initialMyCard={myCard}
+        initialNavBarLinks={navBarLinks}
+        initialProfileSettings={profileSettings}
+        liveAgentCardData={agent?.cardData}
+        liveAgentSystemPrompt={agent?.systemPrompt}
+      />
+    </>
   )
 }

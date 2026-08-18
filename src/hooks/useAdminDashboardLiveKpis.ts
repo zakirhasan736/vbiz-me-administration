@@ -1,8 +1,9 @@
 'use client'
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { redirectToLogin, shouldSilentlyRefreshSession } from '@/lib/auth/sessionPolicy'
 import { baseUrl } from '@/redux/api/api'
-import { updateAuthState } from '@/redux/features/auth/user.slice'
+import { logout, updateAuthState } from '@/redux/features/auth/user.slice'
 import type { DashboardPeriod } from '@/redux/features/profiles/profiles.api'
 import { useEffect, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
@@ -21,6 +22,14 @@ type DashboardKpiPayload = {
 
 function socketOriginFromApiUrl(apiUrl: string): string {
   return apiUrl.replace(/\/api\/v1\/?$/, '')
+}
+
+function clearServerSession(): void {
+  void fetch(`${baseUrl}/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  }).catch(() => undefined)
 }
 
 async function hydrateAccessToken(): Promise<string | null> {
@@ -50,6 +59,7 @@ async function hydrateAccessToken(): Promise<string | null> {
 export function useDashboardLiveKpis(period: DashboardPeriod) {
   const dispatch = useAppDispatch()
   const token = useAppSelector((state) => state.user.token)
+  const role = useAppSelector((state) => state.user.user?.role)
   const [overlay, setOverlay] = useState<LiveKpiOverlay>(EMPTY_OVERLAY)
   const [overlayPeriod, setOverlayPeriod] = useState(period)
   const [connected, setConnected] = useState(false)
@@ -86,11 +96,26 @@ export function useDashboardLiveKpis(period: DashboardPeriod) {
         setOverlay((current) => ({ ...current, saves: current.saves + 1 }))
       }
     }
-    const onConnectError = () => {
+    const onConnectError = (error: Error) => {
       if (cancelled || refreshAttempted) return
       refreshAttempted = true
+
+      if (!shouldSilentlyRefreshSession(role)) {
+        if (!/auth|unauthori[sz]ed|token|jwt|expired/i.test(error?.message || '')) return
+        clearServerSession()
+        dispatch(logout())
+        redirectToLogin()
+        return
+      }
+
       void hydrateAccessToken().then((accessToken) => {
-        if (cancelled || !accessToken) return
+        if (cancelled) return
+        if (!accessToken) {
+          clearServerSession()
+          dispatch(logout())
+          redirectToLogin()
+          return
+        }
         dispatch(updateAuthState({ token: accessToken }))
         socket.auth = { token: accessToken }
         socket.connect()
@@ -110,7 +135,7 @@ export function useDashboardLiveKpis(period: DashboardPeriod) {
       socket.off('connect_error', onConnectError)
       socket.disconnect()
     }
-  }, [dispatch, token])
+  }, [dispatch, role, token])
 
   return { overlay, connected }
 }

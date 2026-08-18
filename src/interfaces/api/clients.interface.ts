@@ -6,13 +6,14 @@ export type ClientReviewLink = {
 }
 
 export type ClientItem = {
-  id: number
+  id: number | string
   title: string
   description: string | null
   post_type_id: number
   created_at: string
   status: number | string
   featured_image: string | { url?: string } | Array<{ url?: string }> | null
+  attachments?: Array<{ url?: string | null }>
   review_link: ClientReviewLink
 }
 
@@ -38,7 +39,7 @@ export type ClientsSectionResponse = ApiResponse<ClientsSectionData> & {
 }
 
 export type ClientListItem = {
-  id: number
+  id: number | string
   name: string
   logo: string
   since: string

@@ -2,6 +2,7 @@
 
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { useAiCardAgentOpen } from '@/hooks/useAiCardAgentOpen'
 import { dismissTourBanner, isTourBannerDismissed, isTourCompleted, type TourKey } from '@/lib/dashboardTour'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
@@ -30,8 +31,9 @@ export function TakeTourTrigger({
   const { startTour, isActive } = useDashboardTour()
   const pathname = usePathname()
   const router = useRouter()
+  const aiOpen = useAiCardAgentOpen()
 
-  if (loading || !user?.uid || isActive) return null
+  if (loading || !user?.uid || isActive || aiOpen) return null
   if (tourKey === 'dashboard' && role !== 'vcard-owner') return null
 
   return (
@@ -68,6 +70,7 @@ export function TakeTourBanner({
   const role = useAppSelector((state) => state.user.user?.role)
   const { startTour, isActive, activeTourKey } = useDashboardTour()
   const [dismissed, setDismissed] = useState(() => (user?.uid ? isTourBannerDismissed(tourKey, user.uid) : false))
+  const aiOpen = useAiCardAgentOpen()
 
   const handleStart = () => {
     startTour(tourKey)
@@ -80,14 +83,13 @@ export function TakeTourBanner({
     setDismissed(true)
   }
 
-  if (loading || !user?.uid || isActive) return null
+  if (loading || !user?.uid || isActive || aiOpen) return null
   if (tourKey === 'dashboard' && role !== 'vcard-owner') return null
-  if (dismissed || isTourBannerDismissed(tourKey, user.uid)) return null
-  if (!alwaysShow && !isTourCompleted(tourKey, user.uid)) return null
-
   if (variant === 'compact') {
     return <TakeTourTrigger className={className} onStart={onStart} tourKey={tourKey} />
   }
+  if (dismissed || isTourBannerDismissed(tourKey, user.uid)) return null
+  if (!alwaysShow && !isTourCompleted(tourKey, user.uid)) return null
 
   return (
     <div

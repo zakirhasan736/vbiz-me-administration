@@ -86,6 +86,8 @@ export type CardThemeConfig = {
     layoutStyle: 'classic' | 'hero'
     buttonStyle: 'solid' | 'soft' | 'outline' | 'glass'
     cornerStyle: CornerStyle
+    fontFamily?: string
+    buttonShadow?: 'none' | 'soft' | 'strong' | 'hard'
   }
   /** Cover wallpaper style; omit to infer image/video from Background Video/Image. */
   wallpaper?: CardWallpaperConfig
@@ -299,6 +301,8 @@ export function getDefaultThemeConfig(template: ProfileTemplateId = 'v3'): CardT
       layoutStyle: 'classic',
       buttonStyle: 'solid',
       cornerStyle: 'round',
+      fontFamily: 'inter',
+      buttonShadow: 'none',
     },
   }
 }

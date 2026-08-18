@@ -1,5 +1,7 @@
 'use client'
 
+import { displayIconChromeStyle } from '@/lib/vcardDisplaySettings'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useOptionalTranslationUi } from '@/profile-app/providers/TranslationProvider'
 import { Languages } from 'lucide-react'
 
@@ -17,6 +19,9 @@ export function ProfileLanguageButton({
   onFallbackClick,
 }: ProfileLanguageButtonProps) {
   const translationUi = useOptionalTranslationUi()
+  const { isVisible, field } = useProfileDisplay()
+
+  if (!isVisible('Language')) return null
 
   const handleClick = () => {
     if (translationUi) {
@@ -32,7 +37,8 @@ export function ProfileLanguageButton({
       onClick={handleClick}
       aria-label={label}
       title={label}
-      className={`inline-flex items-center justify-center gap-1.5 transition-all active:scale-95 ${className}`}
+      className={`vbiz-icon-btn inline-flex items-center justify-center gap-1.5 transition-all active:scale-95 ${className}`}
+      style={displayIconChromeStyle(field('Language'))}
     >
       <Languages size={18} />
     </button>

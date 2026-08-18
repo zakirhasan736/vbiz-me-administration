@@ -84,6 +84,12 @@ const API_FIELD_TO_LABEL: Record<string, string> = {
   about_checkbox: 'About Me',
   save_contact_checkbox: 'Save Contact',
   share_checkbox: 'Share Btn',
+  my_info_checkbox: 'My Info Btn',
+  my_vcard_checkbox: 'My vCard Btn',
+  get_vcard_now_checkbox: 'Get your VCard Now',
+  qr_code_checkbox: 'Your QR Code',
+  home_page_bg_checkbox: 'Home Page BG Color',
+  home_page_banner_checkbox: 'Home Page Banner Color',
   facebook_checkbox: 'FaceBook',
   twitter_checkbox: 'Twitter',
   instagram_checkbox: 'Instagram',
@@ -105,6 +111,8 @@ const API_FIELD_TO_LABEL: Record<string, string> = {
   pageHeader_checkbox: 'Pages Header',
   viewCounter_checkbox: 'Vcard View Counter',
   language_checkbox: 'Language',
+  crm_checkbox: 'CRM',
+  website_link_checkbox: 'Website',
   professionIcon_checkbox: 'Profession Icon',
   company_nameIcon_checkbox: 'Company/Office Icon',
   websiteIcon_checkbox: 'My Info Website Icon',
@@ -243,8 +251,14 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
   }
 
   for (const [apiKey, label] of Object.entries(API_FIELD_TO_LABEL)) {
-    const visible = isEnabled(settings[apiKey]) || isEnabled(features[apiKey.replace('_checkbox', '')])
+    const featureKey = apiKey.replace('_checkbox', '')
+    if (settings[apiKey] === undefined && features[featureKey] === undefined) continue
+    const visible = isEnabled(settings[apiKey]) || isEnabled(features[featureKey])
     fields[label] = { ...fields[label], visible }
+  }
+
+  if (!snapshot?.fields?.Share && fields['Share Btn']) {
+    fields['Share'] = { ...(fields['Share'] || createDefaultFieldConfig()), visible: fields['Share Btn'].visible }
   }
 
   const ACTION_BUTTON_TO_LABEL: Record<string, string> = {
@@ -442,6 +456,18 @@ function resolveTheme(card: MyCardData): VCardTheme {
   }
 }
 
+function resolveAppearance(card: MyCardData): VCardData['appearance'] {
+  const template = resolveTemplate(card)
+  const cfg = hasDynamicTheme(card.theme_config) ? resolveCardThemeConfig(card.theme_config, template) : null
+  return {
+    profileTemplate: template,
+    layoutStyle: cfg?.appearance.layoutStyle ?? 'classic',
+    buttonStyle: cfg?.appearance.buttonStyle ?? 'solid',
+    cornerStyle: cfg?.appearance.cornerStyle ?? 'round',
+    buttonShadow: cfg?.appearance.buttonShadow ?? 'none',
+  }
+}
+
 export function mapMyCardToVCardData(card: MyCardData): VCardData {
   return {
     slug: card.profile.slug,
@@ -449,12 +475,7 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
     isDraft: card.features.is_draft === true,
     personal: mapPersonal(card),
     theme: resolveTheme(card),
-    appearance: {
-      profileTemplate: resolveTemplate(card),
-      layoutStyle: 'classic',
-      buttonStyle: 'solid',
-      cornerStyle: 'round',
-    },
+    appearance: resolveAppearance(card),
     services: [],
     generalPosts: [],
     faqs: [],

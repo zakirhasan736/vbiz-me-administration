@@ -1,50 +1,16 @@
 'use client'
 
 import { useCardScopeId } from '@/lib/card-scope'
-import { useGetPublicProfileAnnouncementQuery } from '@/redux/features/publicAnnouncements/publicAnnouncements.api'
+import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
+import { useProfileNavigation } from '@/profile-app/providers/ProfileNavigationProvider'
+import {
+  useDismissPublicProfileAnnouncementMutation,
+  useGetPublicProfileAnnouncementQuery,
+} from '@/redux/features/publicAnnouncements/publicAnnouncements.api'
 import type { Announcement, AnnouncementType } from '@/types/announcement'
 import { cn } from '@/utils/cn'
-import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
-import { useCallback, useSyncExternalStore } from 'react'
-
-const DISMISS_PREFIX = 'public-announcement:'
-const DISMISS_SUFFIX = ':dismissed'
-const DISMISS_EVENT = 'public-announcement-dismiss'
-
-function dismissKey(id: string) {
-  return `${DISMISS_PREFIX}${id}${DISMISS_SUFFIX}`
-}
-
-function isDismissed(id: string): boolean {
-  try {
-    return localStorage.getItem(dismissKey(id)) === '1'
-  } catch {
-    return false
-  }
-}
-
-function markDismissed(id: string) {
-  try {
-    localStorage.setItem(dismissKey(id), '1')
-    window.dispatchEvent(new Event(DISMISS_EVENT))
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
-
-function subscribeDismissals(onStoreChange: () => void) {
-  window.addEventListener('storage', onStoreChange)
-  window.addEventListener(DISMISS_EVENT, onStoreChange)
-  return () => {
-    window.removeEventListener('storage', onStoreChange)
-    window.removeEventListener(DISMISS_EVENT, onStoreChange)
-  }
-}
-
-function useIsAnnouncementDismissed(id: string | undefined): boolean {
-  const getSnapshot = useCallback(() => (id ? isDismissed(id) : false), [id])
-  return useSyncExternalStore(subscribeDismissals, getSnapshot, () => false)
-}
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Info, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
 const typeStyles: Record<AnnouncementType, { wrap: string; icon: string; button: string; Icon: typeof Info }> = {
   info: {
@@ -86,19 +52,42 @@ type Props = {
 
 export default function PublicAnnouncementBanner({ profileId, placement = 'chrome', className }: Props) {
   const scopeId = useCardScopeId()
+  const { activeSectionId } = useProfileNavigation()
   const trimmed = String(profileId ?? scopeId ?? '').trim()
-  const { data } = useGetPublicProfileAnnouncementQuery(trimmed, {
-    skip: !trimmed,
-    pollingInterval: 60_000,
-    refetchOnMountOrArgChange: true,
-    refetchOnFocus: true,
-    refetchOnReconnect: true,
-  })
+  const visitorId = useMemo(() => getOrCreateGuestId(), [])
+  const [dismissAnnouncement] = useDismissPublicProfileAnnouncementMutation()
+  const [dismissedId, setDismissedId] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const { data, isFetching } = useGetPublicProfileAnnouncementQuery(
+    { profileId: trimmed, visitorId },
+    {
+      skip: !trimmed || activeSectionId !== 'home',
+      pollingInterval: 60_000,
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+    }
+  )
 
   const banner = isShowPublicBanner(data) ? data : null
-  const dismissed = useIsAnnouncementDismissed(banner?.id)
+  const isDismissed = Boolean(banner?.id && dismissedId === banner.id)
+  const isLongBody = (banner?.body?.trim().length ?? 0) > 140
 
-  if (!banner || dismissed) return null
+  if (activeSectionId !== 'home') return null
+  if (!banner || isDismissed) return null
+  if (isFetching && !banner) return null
+
+  const handleDismiss = async () => {
+    if (!banner) return
+    setDismissedId(banner.id)
+    try {
+      await dismissAnnouncement({ profileId: trimmed, announcementId: banner.id, visitorId }).unwrap()
+    } catch {
+      setDismissedId(null)
+    }
+  }
+
+  const bodyClassName = expanded || !isLongBody ? '' : 'line-clamp-2'
 
   const styles = typeStyles[banner.type] ?? typeStyles.info
   const Icon = styles.Icon
@@ -110,19 +99,39 @@ export default function PublicAnnouncementBanner({ profileId, placement = 'chrom
       data-placement={placement}
       role={ariaRole}
       aria-live={banner.type === 'warning' ? 'assertive' : 'polite'}
-      className={cn('pointer-events-auto w-full overflow-hidden rounded-2xl border shadow-sm', styles.wrap, className)}
+      className={cn(
+        'pointer-events-auto w-full overflow-hidden rounded-[22px] border shadow-[0_14px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl',
+        styles.wrap,
+        placement === 'mobileTop' && 'rounded-2xl',
+        className
+      )}
     >
-      <div className="flex items-start gap-3 px-3 py-2.5 sm:items-center sm:px-4">
-        <Icon className={cn('mt-0.5 h-4 w-4 shrink-0 sm:mt-0', styles.icon)} aria-hidden />
+      <div className="flex items-start gap-3 px-4 py-3 sm:px-5">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/70">
+          <Icon className={cn('h-4 w-4', styles.icon)} aria-hidden />
+        </div>
         <div className="min-w-0 flex-1">
           {banner.title?.trim() ? (
-            <p className="text-[10px] font-black tracking-wider uppercase opacity-70">{banner.title}</p>
+            <p className="text-[10px] font-black tracking-[0.18em] uppercase opacity-70">{banner.title}</p>
           ) : null}
-          <p className="mt-0.5 text-sm leading-snug font-semibold">{banner.body}</p>
+          <p className={cn('mt-1 text-sm leading-6 font-semibold whitespace-pre-wrap', bodyClassName)}>{banner.body}</p>
+          {isLongBody ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((value) => !value)}
+              className={cn(
+                'mt-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-black',
+                styles.button
+              )}
+            >
+              {expanded ? 'Read less' : 'Read more'}
+              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          ) : null}
         </div>
         <button
           type="button"
-          onClick={() => markDismissed(banner.id)}
+          onClick={() => void handleDismiss()}
           className={cn('shrink-0 rounded-xl p-1.5 transition-colors', styles.button)}
           aria-label="Dismiss announcement"
         >

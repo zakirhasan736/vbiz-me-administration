@@ -195,9 +195,13 @@ export function VCardTeamCard({
         })
       )
       if (activatingFromDraft) onActivatedFromDraft?.(card.id)
-    } catch {
+    } catch (error) {
       setOptimisticPublic(null)
-      notify.error('Could not update card visibility. Please try again.')
+      const message =
+        (error as { data?: { message?: string } })?.data?.message ||
+        (error as Error)?.message ||
+        'Could not update card visibility. Please try again.'
+      notify.error(message)
     }
   }
 

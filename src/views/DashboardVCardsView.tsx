@@ -131,8 +131,12 @@ const DashboardVCardsView = () => {
           : { status: 'inactive', isDraft: false, isPublic: false },
       }).unwrap()
       void refetch()
-    } catch {
-      setAlertMessage('Could not update card status. Please try again.')
+    } catch (error) {
+      setAlertMessage(
+        (error as { data?: { message?: string } })?.data?.message ||
+          (error as Error)?.message ||
+          'Could not update card status. Please try again.'
+      )
     }
   }
 

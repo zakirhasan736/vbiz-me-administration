@@ -29,6 +29,10 @@ export type DynamicPostItem = {
   year?: string | number | null
   featured_image?: DynamicPostFeaturedImage
   general_info_url?: string | null
+  url?: string | null
+  video_url?: string | null
+  external_url?: string | { url?: string | null } | null
+  review_link?: { url?: string | null } | null
   attachments?: DynamicPostAttachment[]
   metas?: Record<string, string | null | undefined>
   type?: string

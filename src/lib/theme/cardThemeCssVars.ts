@@ -1,3 +1,4 @@
+import { fontFamilyToStack } from '@/lib/fonts'
 import {
   cornerStyleToRadius,
   type CardThemeConfig,
@@ -104,6 +105,19 @@ function componentVars(prefix: string, appearance: ComponentAppearance, set: The
   }
 }
 
+function buttonShadowCss(id: CardThemeConfig['appearance']['buttonShadow']): string {
+  switch (id) {
+    case 'soft':
+      return '0 4px 14px -4px rgba(0,0,0,0.22)'
+    case 'strong':
+      return '0 12px 28px -8px rgba(0,0,0,0.38)'
+    case 'hard':
+      return '5px 5px 0 0 rgba(15,23,42,0.85)'
+    default:
+      return 'none'
+  }
+}
+
 /**
  * Build CSS custom properties for the active light/dark mode.
  * Includes page colors + primary/secondary/accent buttons + social icons.
@@ -114,6 +128,7 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   const social = config.components.socialIcon
   /** Layout surfaces always use rounded-2xl (16px). API cornerStyle drives buttons/icons/pills only. */
   const layoutRadius = '16px'
+  const fontStack = fontFamilyToStack(config.appearance.fontFamily)
 
   const vars: Record<string, string> = {
     '--vbiz-primary': set.primary,
@@ -127,6 +142,10 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
     '--vbiz-overlay': set.overlay,
     '--vbiz-radius': layoutRadius,
     '--vbiz-btn-radius': `${radius}px`,
+    '--vbiz-btn-shadow': buttonShadowCss(config.appearance.buttonShadow),
+    '--vbiz-font': fontStack,
+    '--font-sans': fontStack,
+    '--font-heading': fontStack,
     '--color-gold': set.accent,
     '--color-gold-dark': `color-mix(in srgb, ${set.accent} 72%, black)`,
     '--vbiz-accent-dark': `color-mix(in srgb, ${set.accent} 72%, black)`,
@@ -186,6 +205,8 @@ const THEME_INTERACTIVE_SCOPES = [
   '.vbiz-preloader',
   '.vbiz-theme-scope',
   '.vbiz-loading-screen',
+  '.vbiz-modal-backdrop',
+  '.vbiz-modal-panel',
 ] as const
 
 /** Build `scope descendant` selectors — never comma-bind scopes without a descendant. */
@@ -195,11 +216,31 @@ function themeUi(selector: string): string {
 
 /** Site-wide placement of theme tokens (nav, sections, eyebrows, buttons, icons). */
 export const CARD_THEME_UTILITY_CSS = `
+.vbiz-profile-root,
+.vbiz-preloader,
+.vbiz-modal-backdrop,
+.vbiz-modal-panel,
+.vbiz-theme-scope,
+.vbiz-loading-screen {
+  font-family: var(--vbiz-font, var(--font-sans, inherit));
+}
 .vbiz-profile-root {
   background-color: var(--vbiz-bg) !important;
   color: var(--vbiz-text) !important;
   --color-gold: var(--vbiz-accent);
   --color-gold-dark: var(--vbiz-accent-dark);
+}
+
+/* Home canvas / banner — only apply when Card Settings set --vbiz-home-* on the root */
+.vbiz-profile-root .vbiz-home-canvas {
+  background-color: var(--vbiz-home-bg) !important;
+}
+.vbiz-profile-root .vbiz-home-banner {
+  background-color: var(--vbiz-home-banner) !important;
+}
+.vbiz-profile-root[data-pages-header="off"] .vbiz-section-banner,
+.vbiz-profile-root[data-pages-header="off"] .vbiz-title {
+  display: none !important;
 }
 
 /* ---------- Buttons: primary | secondary | accent (all screens + preloaders) ---------- */
@@ -210,6 +251,8 @@ ${themeUi(".vbiz-btn[data-role='accent']")} {
   color: var(--vbiz-btn-accent-fg, var(--vbiz-btn-fg)) !important;
   border: var(--vbiz-btn-accent-border-width, var(--vbiz-btn-border-width, 0px)) solid var(--vbiz-btn-accent-border-color, var(--vbiz-btn-border-color, transparent)) !important;
   backdrop-filter: blur(var(--vbiz-btn-accent-blur, var(--vbiz-btn-blur, 0px)));
+  box-shadow: var(--vbiz-btn-shadow, none) !important;
+  font-family: var(--vbiz-font, inherit) !important;
 }
 ${themeUi(".vbiz-btn[data-role='primary']")} {
   background: var(--vbiz-btn-primary-fill) !important;
@@ -247,6 +290,7 @@ ${themeUi('.vbiz-social')} {
   color: var(--vbiz-social-fg) !important;
   border: var(--vbiz-social-border-width, 1px) solid var(--vbiz-social-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-social-blur, 0px));
+  font-family: var(--vbiz-font, inherit);
 }
 ${themeUi('.vbiz-social svg')} {
   color: inherit;
@@ -263,6 +307,7 @@ ${themeUi('.vbiz-icon-btn')} {
   background-color: var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle)) !important;
   color: var(--vbiz-btn-secondary-fg, var(--vbiz-accent)) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 8px));
+  font-family: var(--vbiz-font, inherit);
 }
 ${themeUi('.vbiz-icon-btn svg')},
 ${themeUi('.vbiz-icon-btn .text-gold')},
@@ -367,8 +412,8 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 
 /* ---------- Live agent FAB: gold fill + dark-blue icon (not white) ---------- */
 .vbiz-profile-root .vbiz-live-agent-fab {
-  background-color: var(--vbiz-accent) !important;
-  color: var(--vbiz-secondary) !important;
+  background-color: var(--vbiz-live-agent-fill, var(--vbiz-accent)) !important;
+  color: var(--vbiz-live-agent-fg, var(--vbiz-secondary)) !important;
   border-color: #ffffff !important;
   border-radius: var(--vbiz-btn-radius, 9999px) !important;
   box-shadow: 0 10px 30px color-mix(in srgb, var(--vbiz-accent) 35%, transparent) !important;
@@ -402,6 +447,9 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-text) !important;
   border-radius: 1rem !important;
 }
+.vbiz-profile-root .vbiz-section-banner {
+  background-color: var(--vbiz-page-header-fill, color-mix(in srgb, var(--vbiz-surface) 94%, transparent)) !important;
+}
 .vbiz-profile-root .vbiz-hero-banner {
   background-color: unset !important;
 }
@@ -415,9 +463,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 
 /* ---------- Text / surfaces / borders (all screens) ---------- */
 .vbiz-profile-root h1,
-.vbiz-profile-root h2,
 .vbiz-profile-root h3 {
   color: var(--vbiz-text) !important;
+}
+.vbiz-profile-root h2 {
+  color: var(--vbiz-page-header-fg, var(--vbiz-text)) !important;
 }
 
 /* Dark hero banners (About, etc.) — white titles in light + dark theme */
@@ -632,7 +682,7 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 
 /* ========== Semantic typography (title / pin / description) ========== */
 .vbiz-title {
-  color: var(--vbiz-title, var(--vbiz-text)) !important;
+  color: var(--vbiz-page-header-fg, var(--vbiz-title, var(--vbiz-text))) !important;
 }
 .vbiz-pin,
 .vbiz-eyebrow {
@@ -752,6 +802,7 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   background: var(--vbiz-btn-accent-fill, var(--vbiz-accent)) !important;
   color: var(--vbiz-btn-accent-fg, var(--vbiz-secondary)) !important;
   border: var(--vbiz-btn-accent-border-width, 0px) solid var(--vbiz-btn-accent-border-color, transparent) !important;
+  font-family: var(--vbiz-font, inherit) !important;
 }
 .vbiz-modal-btn-primary {
   background: var(--vbiz-btn-primary-fill, var(--vbiz-primary)) !important;
