@@ -209,7 +209,7 @@ export function Tab2PersonalInfo() {
               />
             </FieldGroup>
 
-            <FieldGroup label="Phone" required icon={<Phone className="h-4 w-4" />}>
+            <FieldGroup label="Phone" icon={<Phone className="h-4 w-4" />}>
               <input
                 type="text"
                 value={vCardData.personal.phone}

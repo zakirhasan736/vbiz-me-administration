@@ -41,7 +41,6 @@ export function collectVCardActivationProblems(data: Pick<VCardData, 'slug' | 'p
     ['name', 'Name'],
     ['email', 'Email'],
     ['dob', 'Date of birth'],
-    ['phone', 'Phone'],
   ]
   const problems: CardActivationProblem[] = required
     .filter(([field]) => !values[field])

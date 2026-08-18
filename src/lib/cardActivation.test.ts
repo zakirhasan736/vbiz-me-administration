@@ -29,9 +29,9 @@ function shiftLocalDate(years: number, extraDays = 0): string {
 }
 
 describe('card activation readiness', () => {
-  it('requires the five starred personal fields before activation', () => {
+  it('requires the starred personal fields before activation', () => {
     const problems = collectVCardActivationProblems(createDefaultVCardData())
-    expect(problems.map((problem) => problem.field)).toEqual(['slug', 'name', 'email', 'dob', 'phone'])
+    expect(problems.map((problem) => problem.field)).toEqual(['slug', 'name', 'email', 'dob'])
     expect(vCardActivationProblemMessage(problems)).toContain('Date of birth')
   })
 
@@ -44,6 +44,36 @@ describe('card activation readiness', () => {
 
   it('accepts a complete valid card', () => {
     expect(collectVCardActivationProblems(completeCard('1990-07-18'))).toEqual([])
+  })
+
+  it('accepts a complete card without a phone number', () => {
+    const defaults = createDefaultVCardData()
+    const data = createDefaultVCardData({
+      slug: 'jane-doe',
+      personal: {
+        ...defaults.personal,
+        fullName: 'Jane Doe',
+        email: 'jane@example.com',
+        dob: '1990-07-18',
+        phone: '',
+      },
+    })
+    expect(collectVCardActivationProblems(data)).toEqual([])
+  })
+
+  it('rejects an invalid phone number when one is provided', () => {
+    const defaults = createDefaultVCardData()
+    const data = createDefaultVCardData({
+      slug: 'jane-doe',
+      personal: {
+        ...defaults.personal,
+        fullName: 'Jane Doe',
+        email: 'jane@example.com',
+        dob: '1990-07-18',
+        phone: '123',
+      },
+    })
+    expect(collectVCardActivationProblems(data)).toEqual([{ field: 'phone', label: 'Phone', reason: 'invalid' }])
   })
 
   it('accepts a date of birth of exactly 12 years ago', () => {
@@ -72,14 +102,14 @@ describe('card activation readiness', () => {
       personal: {
         ...defaults.personal,
         fullName: 'Jane Doe',
-        email: 'jane@example.com',
+        email: '',
         dob: shiftLocalDate(-12, 1),
         phone: '',
       },
     })
     const problems = collectVCardActivationProblems(data)
     expect(vCardActivationProblemMessage(problems)).toBe(
-      'Card cannot be activated. Please complete Phone. You must be at least 12 years old.'
+      'Card cannot be activated. Please complete Email. You must be at least 12 years old.'
     )
   })
 })

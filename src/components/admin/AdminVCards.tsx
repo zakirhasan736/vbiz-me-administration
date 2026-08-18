@@ -455,22 +455,19 @@ export default function AdminVCards() {
         void refreshListFromStart()
       }
       if (newId) {
-        notify.success(
-          'Saved as a draft. Enter a unique email, phone, WhatsApp, and date of birth before activating.',
-          {
-            title: 'Card duplicated',
-            action: {
-              label: 'View in Draft',
-              onClick: () => {
-                dispatch(setLifecycleTab('draft'))
-                setHighlightedDuplicatedId(newId)
-                setHighlightedActivatedId(null)
-                setHighlightedPausedId(null)
-                setPanelCard(null)
-              },
+        notify.success('Saved as a draft. Enter a unique email and date of birth before activating.', {
+          title: 'Card duplicated',
+          action: {
+            label: 'View in Draft',
+            onClick: () => {
+              dispatch(setLifecycleTab('draft'))
+              setHighlightedDuplicatedId(newId)
+              setHighlightedActivatedId(null)
+              setHighlightedPausedId(null)
+              setPanelCard(null)
             },
-          }
-        )
+          },
+        })
       }
     } catch (e) {
       console.error(e)
