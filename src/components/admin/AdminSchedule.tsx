@@ -113,8 +113,8 @@ export default function AdminSchedule() {
   }, [data?.items, searchQuery])
 
   return (
-    <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 p-6 duration-500 md:p-10">
-      <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center dark:border-white/5">
+    <div className="animate-in fade-in mx-auto max-w-7xl space-y-6 p-6 duration-500 md:p-10">
+      <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-center dark:border-white/5">
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
             <Calendar className="h-7 w-7 text-indigo-600 dark:text-indigo-400" /> Schedules & Meetings Manager
@@ -131,17 +131,15 @@ export default function AdminSchedule() {
         </button>
       </div>
 
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 md:flex-row dark:border-white/10 dark:bg-[#0b0f19]">
-        <div className="flex w-full items-center gap-2 rounded-xl border border-slate-200/50 bg-slate-50 px-4 py-3 md:flex-1 dark:border-white/5 dark:bg-slate-800/50">
-          <Search className="h-4 w-4 shrink-0 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter scheduled discussions by card owner name or meeting medium..."
-            className="w-full bg-transparent text-sm font-semibold text-slate-700 placeholder-slate-400 outline-none dark:text-white"
-          />
-        </div>
+      <div className="flex w-full items-center gap-2 rounded-xl border border-slate-200/50 bg-slate-50 px-4 py-3 dark:border-white/5 dark:bg-slate-800/50">
+        <Search className="h-4 w-4 shrink-0 text-slate-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Filter scheduled discussions by card owner name or meeting medium..."
+          className="w-full bg-transparent text-sm font-semibold text-slate-700 placeholder-slate-400 outline-none dark:text-white"
+        />
       </div>
 
       <div className="rounded-4xl border border-slate-200/80 bg-white p-6 shadow-sm md:p-8 dark:border-white/10 dark:bg-[#0b0f19]">

@@ -1,8 +1,12 @@
 import { cn } from '@/utils/cn'
 import { forwardRef, type HTMLAttributes, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
 
-export const Table = forwardRef<HTMLTableElement, HTMLAttributes<HTMLTableElement>>(({ className, ...props }, ref) => (
-  <div className="w-full overflow-x-auto">
+type TableProps = HTMLAttributes<HTMLTableElement> & {
+  wrapperClassName?: string
+}
+
+export const Table = forwardRef<HTMLTableElement, TableProps>(({ className, wrapperClassName, ...props }, ref) => (
+  <div className={cn('w-full max-w-full min-w-0 overflow-x-auto', wrapperClassName)}>
     <table
       ref={ref}
       className={cn('w-full caption-bottom border-collapse text-left text-[13px]', className)}

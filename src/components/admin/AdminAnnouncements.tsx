@@ -304,14 +304,14 @@ export default function AdminAnnouncements() {
             type="button"
             onClick={() => setTab(t.id)}
             className={cn(
-              'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-[11px] font-black tracking-wider uppercase transition-all sm:flex-none',
+              'inline-flex flex-1 flex-col items-center justify-center gap-1 rounded-xl px-4 py-2.5 text-[11px] font-black tracking-wider uppercase transition-all sm:flex-none',
               tab === t.id
                 ? 'bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300'
                 : 'text-slate-500'
             )}
           >
-            <t.icon className="h-3.5 w-3.5" />
-            {t.label}
+            <t.icon className="h-4 w-4 shrink-0" />
+            <span className="text-center leading-tight">{t.label}</span>
           </button>
         ))}
       </div>

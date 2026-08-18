@@ -256,8 +256,8 @@ export default function AdminDashboard() {
         {/* Main Chart Box */}
         <div className="group relative flex flex-col overflow-hidden rounded-4xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] lg:col-span-2 dark:border-white/10 dark:bg-[#0b0f19]">
           <div className="relative z-10 flex h-full flex-col justify-between p-8 pb-0">
-            <div className="mb-6 flex flex-col justify-between gap-6 sm:flex-row sm:items-start">
-              <div>
+            <div className="mb-6 flex flex-col items-center justify-between gap-6 sm:flex-row sm:items-start">
+              <div className="items-center">
                 <div className="mb-3 flex items-center gap-2">
                   <span
                     className={cn(
@@ -464,10 +464,10 @@ export default function AdminDashboard() {
       <div className="space-y-6 rounded-4xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]">
         {themeConfig.showSocials !== false && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between px-1">
+            <div className="space-y-3 px-1">
               <div>
                 <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
-                  <Globe className={cn('h-5 w-5', themeClasses.text)} />
+                  <Globe className={cn('h-5 w-5 shrink-0', themeClasses.text)} />
                   Platform Engagement
                 </h2>
                 <p className="mt-0.5 text-xs font-semibold text-slate-400">
@@ -476,7 +476,7 @@ export default function AdminDashboard() {
               </div>
               <span
                 className={cn(
-                  'rounded-full border px-3 py-1.5 text-[11px] font-black tracking-wider uppercase',
+                  'inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] leading-none font-black tracking-wider whitespace-nowrap uppercase',
                   themeClasses.lightBg,
                   themeClasses.lightText,
                   themeClasses.border
