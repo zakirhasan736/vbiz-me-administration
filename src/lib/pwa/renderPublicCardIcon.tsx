@@ -1,14 +1,50 @@
 import { fetchMyCardBySlug } from '@/lib/api/myCard/fetchMyCardBySlug'
-import { resolvePwaAvatarUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
+import { resolvePwaAvatarCandidates, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
 import { createSolidPng } from '@/lib/pwa/solidPng'
 import { ImageResponse } from 'next/og'
 import { NextResponse } from 'next/server'
 
-const ALLOWED_HOST_SUFFIXES = ['app.vbizme.com', 'vbizme.com', 'amazonaws.com', 'cloudinary.com', 'nextcreavo.com']
+const ALLOWED_HOST_SUFFIXES = [
+  'app.vbizme.com',
+  'vbizme.com',
+  'amazonaws.com',
+  'cloudfront.net',
+  'cloudinary.com',
+  'nextcreavo.com',
+  'digitaloceanspaces.com',
+]
+
+function extraAllowedHosts(): string[] {
+  const hosts: string[] = []
+  for (const raw of [process.env.NEXT_PUBLIC_APP_URL, process.env.NEXT_PUBLIC_API_URL, process.env.MEDIA_BASE_URL]) {
+    const value = raw?.trim()
+    if (!value) continue
+    try {
+      hosts.push(new URL(value).hostname.toLowerCase())
+    } catch {
+      /* ignore invalid env URLs */
+    }
+  }
+  return hosts
+}
 
 function isAllowedAvatarHost(hostname: string): boolean {
   const host = hostname.toLowerCase()
+  if (host === 'localhost' || host === '127.0.0.1') return true
+  if (host.includes('s3.') || host.endsWith('.s3.amazonaws.com')) return true
+  if (extraAllowedHosts().some((allowed) => host === allowed || host.endsWith(`.${allowed}`))) return true
   return ALLOWED_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith(`.${suffix}`))
+}
+
+function isBlockedAvatarHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  if (host === '169.254.169.254' || host.endsWith('.169.254.169.254')) return true
+  if (host === 'metadata.google.internal') return true
+  return false
+}
+
+function pathLooksLikeImage(pathname: string): boolean {
+  return /\.(jpe?g|png|webp|gif|svg)(\?|$)/i.test(pathname)
 }
 
 function resolveFetchUrl(avatarUrl: string, origin: string): string | null {
@@ -18,7 +54,11 @@ function resolveFetchUrl(avatarUrl: string, origin: string): string | null {
   try {
     const parsed = new URL(avatarUrl)
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null
-    if (!isAllowedAvatarHost(parsed.hostname)) return null
+    if (isBlockedAvatarHost(parsed.hostname)) return null
+    if (isAllowedAvatarHost(parsed.hostname) || pathLooksLikeImage(parsed.pathname)) {
+      return parsed.toString()
+    }
+    // Allow public hosts so image bytes can still be sniffed after fetch.
     return parsed.toString()
   } catch {
     return null
@@ -32,6 +72,15 @@ function initialsFromName(name: string): string {
   return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
 }
 
+function sniffImageContentType(buffer: Buffer): string | null {
+  if (buffer.length < 12) return null
+  if (buffer[0] === 0xff && buffer[1] === 0xd8) return 'image/jpeg'
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image/png'
+  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) return 'image/gif'
+  if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'image/webp'
+  return null
+}
+
 async function avatarDataUrl(avatarUrl: string, origin: string): Promise<string | null> {
   const fetchUrl = resolveFetchUrl(avatarUrl, origin)
   if (!fetchUrl) return null
@@ -41,13 +90,26 @@ async function avatarDataUrl(avatarUrl: string, origin: string): Promise<string 
       next: { revalidate: 3600 },
     })
     if (!response.ok) return null
-    const contentType = response.headers.get('content-type') || 'image/jpeg'
-    if (!contentType.startsWith('image/')) return null
+    const headerType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
+    if (headerType.startsWith('text/html') || headerType.startsWith('video/') || headerType.startsWith('audio/')) {
+      return null
+    }
     const buffer = Buffer.from(await response.arrayBuffer())
-    return `data:${contentType.split(';')[0]};base64,${buffer.toString('base64')}`
+    const sniffed = sniffImageContentType(buffer)
+    const contentType = sniffed || (headerType.startsWith('image/') ? headerType : null)
+    if (!contentType) return null
+    return `data:${contentType};base64,${buffer.toString('base64')}`
   } catch {
     return null
   }
+}
+
+async function firstRenderableAvatar(urls: string[], origin: string): Promise<string | null> {
+  for (const url of urls) {
+    const photo = await avatarDataUrl(url, origin)
+    if (photo) return photo
+  }
+  return null
 }
 
 function pngResponse(buffer: Buffer): NextResponse {
@@ -66,12 +128,13 @@ function solidFallback(size: number) {
 
 export async function renderPublicCardPwaIcon(slug: string, size: 192 | 512, origin: string): Promise<Response> {
   const card = await fetchMyCardBySlug(slug)
-  const name = card ? resolvePwaDisplayName(card.profile?.name, slug) : slug
-  const avatarUrl = card ? resolvePwaAvatarUrl(card) : null
+  const ownerName = card?.profile?.name?.trim() || card?.profile?.company_name?.trim() || ''
+  const name = resolvePwaDisplayName(ownerName, slug)
+  const candidates = card ? resolvePwaAvatarCandidates(card) : []
+  const photoSrc = await firstRenderableAvatar(candidates, origin)
   const initials = initialsFromName(name)
 
   try {
-    const photoSrc = avatarUrl ? await avatarDataUrl(avatarUrl, origin) : null
     return new ImageResponse(
       <div
         style={{

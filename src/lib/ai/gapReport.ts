@@ -49,6 +49,16 @@ export function buildGapReport(
     explanation: 'Your public card needs a name or brand title so visitors know who they are contacting.',
     howToProvide: 'Reply with the person or business name, or paste a short bio.',
   })
+  add(!empty(data.personal?.dob), 4, {
+    id: 'personal.dob',
+    tab: 'Personal',
+    navId: 'home',
+    field: 'dob',
+    severity: 'required',
+    title: 'Date of birth',
+    explanation: 'Date of birth is required for every new card and must be provided by the owner.',
+    howToProvide: 'Reply with the owner’s date of birth in YYYY-MM-DD format. AI cannot infer or generate it.',
+  })
   add(!empty(data.slug), 3, {
     id: 'slug',
     tab: 'Personal',
@@ -204,6 +214,7 @@ export function buildGapReport(
 export function gapFieldToSection(field: string): string {
   const map: Record<string, string> = {
     fullName: 'personal',
+    dob: 'personal',
     about: 'personal',
     contact: 'personal',
     social: 'personal',

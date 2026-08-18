@@ -1,10 +1,13 @@
 import type { MyCardData } from '@interfaces/api/myCard'
 
-/** First name-ish label for home-screen (OS truncates long names). */
+function ownerDisplayName(card: MyCardData | null | undefined): string {
+  return card?.profile?.name?.trim() || card?.profile?.company_name?.trim() || ''
+}
+
+/** Home-screen label; OS truncates long names. */
 export function resolvePwaShortName(fullName: string | null | undefined, slug: string): string {
   const name = fullName?.trim() || slug.trim() || 'vCard'
-  const first = name.split(/\s+/)[0] || name
-  return first.slice(0, 12)
+  return name.slice(0, 20)
 }
 
 export function resolvePwaDisplayName(fullName: string | null | undefined, slug: string): string {
@@ -13,21 +16,60 @@ export function resolvePwaDisplayName(fullName: string | null | undefined, slug:
   return slug.trim() || 'Digital Card'
 }
 
-/** Prefer still image avatar; skip obvious video URLs for PWA icons. */
-export function resolvePwaAvatarUrl(card: MyCardData): string | null {
-  const settingsProfile =
-    typeof card.settings?.profile_media_url === 'string' ? card.settings.profile_media_url.trim() : ''
-  const candidates = [
-    settingsProfile,
+function myInfoIcon(card: MyCardData, groups: Array<'professional' | 'personal'>, keys: string[]): string {
+  for (const group of groups) {
+    const fields = card.my_info?.[group]
+    if (!fields) continue
+    for (const key of keys) {
+      const icon = fields[key]?.icon?.trim()
+      if (icon) return icon
+    }
+  }
+  return ''
+}
+
+function isPwaVideoUrl(url: string): boolean {
+  return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || url.includes('/backgroundVideos/')
+}
+
+function isUsablePwaImageUrl(url: string): boolean {
+  const value = url.trim()
+  if (!value) return false
+  if (isPwaVideoUrl(value)) return false
+  return /^https?:\/\//i.test(value) || value.startsWith('/')
+}
+
+/** All still-image candidates: profile photo, company logo, featured image. */
+export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
+  const settings = card.settings || {}
+  const setting = (key: string) => (typeof settings[key] === 'string' ? settings[key].trim() : '')
+  const raw = [
+    setting('profile_media_url'),
     card.profile_media?.url?.trim() || '',
     card.profile_media?.fallback_url?.trim() || '',
-  ].filter(Boolean)
+    setting('company_logo'),
+    setting('company_icon_url'),
+    card.profile?.avatar?.trim() || '',
+    setting('featured_image'),
+    setting('featured_image_url'),
+    setting('profile_image'),
+    setting('profile_image_url'),
+    myInfoIcon(card, ['professional', 'personal'], ['company_name', 'company', 'company_office']),
+  ]
 
-  for (const url of candidates) {
-    if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || url.includes('/backgroundVideos/')) continue
-    if (/^https?:\/\//i.test(url) || url.startsWith('/')) return url
+  const seen = new Set<string>()
+  const candidates: string[] = []
+  for (const url of raw) {
+    if (!isUsablePwaImageUrl(url) || seen.has(url)) continue
+    seen.add(url)
+    candidates.push(url)
   }
-  return null
+  return candidates
+}
+
+/** Prefer still image avatar; skip obvious video URLs for PWA icons. */
+export function resolvePwaAvatarUrl(card: MyCardData): string | null {
+  return resolvePwaAvatarCandidates(card)[0] || null
 }
 
 function cardPath(slug: string): string {
@@ -58,11 +100,12 @@ export type PublicCardPwaMeta = {
 }
 
 export function resolvePublicCardPwaMeta(card: MyCardData | null | undefined, slug: string): PublicCardPwaMeta {
-  const name = resolvePwaDisplayName(card?.profile?.name, slug)
+  const ownerName = ownerDisplayName(card)
+  const name = resolvePwaDisplayName(ownerName, slug)
   return {
     slug: slug.trim(),
     name,
-    shortName: resolvePwaShortName(card?.profile?.name, slug),
+    shortName: resolvePwaShortName(ownerName || name, slug),
     avatarUrl: card ? resolvePwaAvatarUrl(card) : null,
     themeColor: '#0b0f19',
     backgroundColor: '#0b0f19',

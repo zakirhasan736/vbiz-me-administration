@@ -41,7 +41,6 @@ export function collectVCardActivationProblems(data: Pick<VCardData, 'slug' | 'p
     ['name', 'Name'],
     ['email', 'Email'],
     ['dob', 'Date of birth'],
-    ['phone', 'Phone'],
   ]
   const problems: CardActivationProblem[] = required
     .filter(([field]) => !values[field])
@@ -62,6 +61,24 @@ export function collectVCardActivationProblems(data: Pick<VCardData, 'slug' | 'p
     }
   }
   return problems
+}
+
+export function collectVCardCreationProblems(data: Pick<VCardData, 'personal'>): CardActivationProblem[] {
+  const dob = data.personal.dob?.trim() || ''
+  if (!dob) return [{ field: 'dob', label: 'Date of birth', reason: 'missing' }]
+  if (!isCalendarDate(dob) || dob > localDateOnly()) {
+    return [{ field: 'dob', label: 'Date of birth', reason: 'invalid' }]
+  }
+  if (dob > minCardAgeCutoffDate()) {
+    return [{ field: 'dob', label: 'Date of birth', reason: 'underage' }]
+  }
+  return []
+}
+
+export function vCardCreationProblemMessage(problem: CardActivationProblem): string {
+  if (problem.reason === 'missing') return 'Please enter a date of birth before creating the vCard.'
+  if (problem.reason === 'underage') return 'You must be at least 12 years old to create a vCard.'
+  return 'Please enter a valid date of birth before creating the vCard.'
 }
 
 export function vCardActivationProblemMessage(problems: CardActivationProblem[]): string {

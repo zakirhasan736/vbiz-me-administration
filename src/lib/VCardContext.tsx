@@ -5,7 +5,12 @@ import { hasAboutMeDraftContent } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
 import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
-import { collectVCardActivationProblems, vCardActivationProblemMessage } from '@/lib/cardActivation'
+import {
+  collectVCardActivationProblems,
+  collectVCardCreationProblems,
+  vCardActivationProblemMessage,
+  vCardCreationProblemMessage,
+} from '@/lib/cardActivation'
 import { broadcastPublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
@@ -1081,6 +1086,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const name = (draft.personal?.fullName || '').trim()
         if (!name) throw new Error('Please enter your name before creating the vCard.')
         if (!slug) throw new Error('Please set a public URL slug before creating the vCard.')
+        const creationProblem = collectVCardCreationProblems(draft)[0]
+        if (creationProblem) throw new Error(vCardCreationProblemMessage(creationProblem))
 
         const assignedOwner = getCreateCardOwner()
         const publish = opts?.publish === true

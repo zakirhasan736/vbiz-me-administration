@@ -1,5 +1,6 @@
 'use client'
 
+import { isVideoUrl } from '@/lib/mediaUrl'
 import { writeContactFlowAsked } from '@/lib/push/config'
 import { DoneModal } from '@/profile-app/components/DoneModal'
 import { InfoModal } from '@/profile-app/components/InfoModal'
@@ -43,6 +44,7 @@ export function ProfileHomeModals({
   avatarUrl,
 }: ProfileHomeModalsProps) {
   const ownerId = cardOwnerId ?? '91'
+  const stillAvatar = avatarUrl && !isVideoUrl(avatarUrl) ? avatarUrl : null
 
   return (
     <>
@@ -64,7 +66,7 @@ export function ProfileHomeModals({
         isOpen={activeModal === 'pwa'}
         onClose={onClose}
         ownerName={ownerName}
-        avatarUrl={avatarUrl}
+        avatarUrl={stillAvatar}
         cardSlug={cardSlug}
       />
       <NotificationFollowModal

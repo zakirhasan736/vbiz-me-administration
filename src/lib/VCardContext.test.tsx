@@ -499,6 +499,7 @@ describe('VCardProvider autosave and creation', () => {
 
     await act(async () => {
       rendered!.api.updateData('personal.fullName', 'New Card Owner')
+      rendered!.api.updateData('personal.dob', '1990-07-18')
       rendered!.api.updateData('slug', 'new-card-owner')
       vi.advanceTimersByTime(3000)
       await flushMicrotasks()
@@ -541,6 +542,14 @@ describe('VCardProvider autosave and creation', () => {
 
     await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow(
       'Please set a public URL slug before creating the vCard.'
+    )
+
+    await act(async () => {
+      rendered!.api.updateData('slug', 'missing-dob')
+    })
+
+    await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow(
+      'Please enter a date of birth before creating the vCard.'
     )
     expect(mocks.createProfile).not.toHaveBeenCalled()
   })

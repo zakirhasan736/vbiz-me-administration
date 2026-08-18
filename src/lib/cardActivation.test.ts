@@ -1,7 +1,9 @@
 import {
   collectVCardActivationProblems,
+  collectVCardCreationProblems,
   minCardAgeCutoffDate,
   vCardActivationProblemMessage,
+  vCardCreationProblemMessage,
 } from '@/lib/cardActivation'
 import { createDefaultVCardData } from '@/types/vcard'
 import { describe, expect, it } from 'vitest'
@@ -29,9 +31,9 @@ function shiftLocalDate(years: number, extraDays = 0): string {
 }
 
 describe('card activation readiness', () => {
-  it('requires the five starred personal fields before activation', () => {
+  it('requires the four starred personal fields before activation', () => {
     const problems = collectVCardActivationProblems(createDefaultVCardData())
-    expect(problems.map((problem) => problem.field)).toEqual(['slug', 'name', 'email', 'dob', 'phone'])
+    expect(problems.map((problem) => problem.field)).toEqual(['slug', 'name', 'email', 'dob'])
     expect(vCardActivationProblemMessage(problems)).toContain('Date of birth')
   })
 
@@ -65,7 +67,7 @@ describe('card activation readiness', () => {
     )
   })
 
-  it('combines other missing fields with the underage date of birth message', () => {
+  it('does not require phone but still reports an underage date of birth', () => {
     const defaults = createDefaultVCardData()
     const data = createDefaultVCardData({
       slug: 'jane-doe',
@@ -78,8 +80,13 @@ describe('card activation readiness', () => {
       },
     })
     const problems = collectVCardActivationProblems(data)
-    expect(vCardActivationProblemMessage(problems)).toBe(
-      'Card cannot be activated. Please complete Phone. You must be at least 12 years old.'
-    )
+    expect(vCardActivationProblemMessage(problems)).toBe('Card cannot be activated. You must be at least 12 years old.')
+  })
+
+  it('requires the same valid date of birth for draft creation', () => {
+    const missing = collectVCardCreationProblems(completeCard(''))
+    expect(missing).toEqual([{ field: 'dob', label: 'Date of birth', reason: 'missing' }])
+    expect(vCardCreationProblemMessage(missing[0])).toBe('Please enter a date of birth before creating the vCard.')
+    expect(collectVCardCreationProblems(completeCard('1990-07-18'))).toEqual([])
   })
 })

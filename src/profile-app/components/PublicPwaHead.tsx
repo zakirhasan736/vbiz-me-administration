@@ -101,6 +101,9 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
 
     if (title) document.title = title
 
+    const appName = ownerName?.trim() || title
+    upsertNamedMeta('application-name', appName)
+    upsertNamedMeta('apple-mobile-web-app-title', appName)
     upsertNamedMeta('description', description)
     upsertNamedMeta('keywords', keywords)
     upsertNamedMeta('twitter:card', image ? 'summary_large_image' : 'summary')

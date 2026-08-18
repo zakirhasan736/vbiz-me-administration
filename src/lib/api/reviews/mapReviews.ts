@@ -20,35 +20,93 @@ function toPlainDescription(description: string | null): { plain: string; html: 
   return { plain: stripHtml(html), html }
 }
 
-function linkCardSortWeight(item: ReviewListItem): number {
-  const title = item.title.toLowerCase()
-  if (title.includes('leave')) return 0
-  if (title.includes('write') || title.includes('read')) return 1
-  return 2
-}
-
 function normalizeRating(raw: unknown): number {
   const n = typeof raw === 'number' ? raw : Number(raw)
   if (!Number.isFinite(n)) return 5
   return Math.min(5, Math.max(1, Math.round(n)))
 }
 
+export function sanitizeReviewUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null
+  try {
+    const url = new URL(raw.trim())
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null
+  } catch {
+    return null
+  }
+}
+
+function rawReviewUrl(item: ReviewItem): string {
+  return (
+    (typeof item.reviewUrl === 'string' ? item.reviewUrl.trim() : '') ||
+    (typeof item.review_link?.url === 'string' ? item.review_link.url.trim() : '') ||
+    (typeof item.general_info_url === 'string' ? item.general_info_url.trim() : '')
+  )
+}
+
+function reviewTitle(item: ReviewItem): string {
+  return (
+    (typeof item.author === 'string' ? item.author.trim() : '') ||
+    (typeof item.title === 'string' ? item.title.trim() : '')
+  )
+}
+
+function reviewDescription(item: ReviewItem): string | null {
+  const text = typeof item.text === 'string' ? item.text : ''
+  if (text.trim()) return text
+  return typeof item.description === 'string' ? item.description : null
+}
+
+function normalizedLabel(value: unknown): string {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().toLowerCase() : ''
+}
+
+function isLeaveReviewItem(item: ReviewItem): boolean {
+  if (normalizedLabel(item.author) === 'leave a review' || normalizedLabel(item.title) === 'leave a review') return true
+
+  const hasContent = Boolean(reviewTitle(item) || reviewDescription(item)?.trim())
+  return !hasContent && Boolean(rawReviewUrl(item))
+}
+
 export function mapReviewItemToListItem(item: ReviewItem): ReviewListItem {
-  const linkUrl =
-    item.review_link?.url?.trim() ||
-    (typeof item.general_info_url === 'string' ? item.general_info_url.trim() : '') ||
-    null
-  const { plain, html } = toPlainDescription(item.description)
-  const isLinkCard = Boolean(linkUrl) && !plain
+  const linkUrl = sanitizeReviewUrl(rawReviewUrl(item))
+  const { plain, html } = toPlainDescription(reviewDescription(item))
+  const isLinkCard = isLeaveReviewItem(item)
   return {
     id: item.id,
-    title: (item.title || '').trim() || (isLinkCard ? 'Leave a Review' : 'Review'),
+    title: reviewTitle(item) || (isLinkCard ? 'Leave a Review' : 'Reviewer'),
     plainDescription: plain,
     htmlDescription: html,
-    image: resolveFeaturedImageUrl(item.featured_image),
-    linkUrl: linkUrl || null,
+    image:
+      (typeof item.imageUrl === 'string' ? item.imageUrl.trim() : '') || resolveFeaturedImageUrl(item.featured_image),
+    linkUrl,
     isLinkCard,
     rating: normalizeRating(item.rating),
+  }
+}
+
+export function buildReviewsQueryResult(reviewItems: ReviewItem[], sectionTitle = 'Reviews'): ReviewsQueryResult {
+  const items = reviewItems
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => isPublishedStatus(item.status))
+    .sort((a, b) => {
+      const aOrder = typeof a.item.sortOrder === 'number' ? a.item.sortOrder : a.index
+      const bOrder = typeof b.item.sortOrder === 'number' ? b.item.sortOrder : b.index
+      return aOrder - bOrder || a.index - b.index
+    })
+    .map(({ item }) => mapReviewItemToListItem(item))
+
+  const linkCards = items.filter((item) => item.isLinkCard)
+  const reviews = items.filter((item) => !item.isLinkCard)
+  const averageRating =
+    reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : 0
+
+  return {
+    sectionTitle,
+    slides: reviews,
+    leaveReviewUrl: linkCards.find((item) => item.linkUrl)?.linkUrl ?? null,
+    reviewCount: reviews.length,
+    averageRating,
   }
 }
 
@@ -58,24 +116,5 @@ export function normalizeReviewsResponse(response: ReviewsSectionResponse): Revi
   }
 
   const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Reviews'
-
-  const items = (response.data.items ?? [])
-    .filter((item) => isPublishedStatus(item.status))
-    .map(mapReviewItemToListItem)
-
-  const linkCards = items
-    .filter((item) => item.isLinkCard)
-    .sort((a, b) => linkCardSortWeight(a) - linkCardSortWeight(b))
-  const reviews = items.filter((item) => !item.isLinkCard)
-  const slides = [...linkCards, ...reviews]
-  const averageRating =
-    reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : 0
-
-  return {
-    sectionTitle,
-    slides,
-    leaveReviewUrl: linkCards[0]?.linkUrl ?? null,
-    reviewCount: reviews.length,
-    averageRating,
-  }
+  return buildReviewsQueryResult(response.data.items ?? [], sectionTitle)
 }

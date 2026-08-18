@@ -1,13 +1,11 @@
 'use client'
 
 import type { ReviewListItem } from '@/interfaces/api/reviews.interface'
+import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { ArrowLeft, ExternalLink, Quote, Star } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
 import Link from 'next/link'
-
-const REVIEW_IMAGE_FALLBACK = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&fit=crop'
 
 function ReviewStars({
   rating,
@@ -38,40 +36,6 @@ type AllReviewsViewProps = {
 
 /** `compact` = editor phone preview: drop the `md:`/`sm:` size bumps that the desktop viewport would pick. */
 function ReviewCardContent({ item, compact }: { item: ReviewListItem; compact: boolean }) {
-  if (item.isLinkCard && item.linkUrl) {
-    return (
-      <Link href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="group/link flex h-full flex-col">
-        <div className="mb-6 flex items-center gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800/80">
-          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 dark:border-zinc-700/50">
-            <Image
-              width={100}
-              height={100}
-              src={item.image || REVIEW_IMAGE_FALLBACK}
-              alt={item.title}
-              className="h-full w-full object-cover object-center"
-            />
-          </div>
-          <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
-        </div>
-        {item.htmlDescription ? (
-          <div
-            className="prose prose-sm dark:prose-invert max-w-none flex-1 text-zinc-700 transition-colors group-hover/link:text-zinc-900 dark:text-zinc-300 dark:group-hover/link:text-zinc-100"
-            dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
-          />
-        ) : (
-          <p
-            className={`font-bold text-emerald-700 italic underline dark:text-emerald-400 ${compact ? 'text-sm' : 'text-lg'}`}
-          >
-            Click here to write or read reviews
-          </p>
-        )}
-        <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-zinc-600 dark:text-zinc-400">
-          Open review page <ExternalLink size={14} />
-        </span>
-      </Link>
-    )
-  }
-
   return (
     <>
       <div className="mb-6 flex items-start justify-between">
@@ -94,16 +58,18 @@ function ReviewCardContent({ item, compact }: { item: ReviewListItem; compact: b
           &ldquo;{item.plainDescription}&rdquo;
         </p>
       ) : null}
+      {item.linkUrl ? (
+        <Link
+          href={item.linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-5 inline-flex items-center gap-2 self-start text-sm font-bold text-zinc-600 underline-offset-4 hover:underline dark:text-zinc-400"
+        >
+          View Original Review <ExternalLink size={14} />
+        </Link>
+      ) : null}
       <div className="mt-auto flex items-center gap-4 border-t border-zinc-200 pt-5 dark:border-zinc-800/80">
-        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 dark:border-zinc-700/50">
-          <Image
-            width={100}
-            height={100}
-            src={item.image || REVIEW_IMAGE_FALLBACK}
-            alt={item.title}
-            className="h-full w-full object-cover"
-          />
-        </div>
+        <ReviewAvatar imageUrl={item.image} alt={item.title || 'Reviewer'} className="h-12 w-12" />
         <div>
           <p className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{item.title}</p>
         </div>
@@ -169,55 +135,6 @@ export function AllReviewsView({ sectionTitle, slides, onBack }: AllReviewsViewP
 }
 
 export function SliderReviewCard({ item, compact = false }: { item: ReviewListItem; compact?: boolean }) {
-  if (item.isLinkCard && item.linkUrl) {
-    return (
-      <Link href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="group/link flex h-full flex-col">
-        <div
-          className={`border-yellow-primary/40 mb-4 flex shrink-0 items-center gap-3 border-b pb-4 ${
-            compact ? '' : 'md:mb-6 md:gap-4'
-          }`}
-        >
-          <div
-            className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 dark:border-zinc-700/50 ${
-              compact ? '' : 'md:h-12 md:w-12'
-            }`}
-          >
-            <Image
-              width={100}
-              height={100}
-              src={item.image || REVIEW_IMAGE_FALLBACK}
-              alt={item.title}
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <h3
-            className={`truncate text-sm font-bold text-zinc-900 dark:text-zinc-100 ${compact ? '' : 'md:text-base'}`}
-          >
-            {item.title}
-          </h3>
-        </div>
-        <div className="min-h-0 flex-1 overflow-hidden">
-          {item.htmlDescription ? (
-            <div
-              className={`prose prose-sm dark:prose-invert line-clamp-6 max-w-none text-sm font-medium text-zinc-700 transition-colors group-hover/link:text-zinc-900 dark:text-zinc-300 ${
-                compact ? '' : 'sm:text-base'
-              }`}
-              dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
-            />
-          ) : (
-            <p
-              className={`font-bold text-emerald-700 italic underline dark:text-emerald-400 ${
-                compact ? 'text-sm' : 'text-base md:text-lg'
-              }`}
-            >
-              Click here to write or read reviews
-            </p>
-          )}
-        </div>
-      </Link>
-    )
-  }
-
   return (
     <>
       <div className={`mb-3 flex shrink-0 items-start justify-between ${compact ? '' : 'md:mb-6'}`}>
@@ -256,20 +173,13 @@ export function SliderReviewCard({ item, compact = false }: { item: ReviewListIt
           compact ? '-mx-4 -mb-4 px-4' : '-mx-6 -mb-6 px-6 md:-mx-8 md:-mb-8 md:gap-4 md:px-8 md:pt-6 md:pb-8'
         }`}
       >
-        <div
-          className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-zinc-200 dark:border-zinc-700/50 ${
-            compact ? '' : 'md:h-12 md:w-12'
-          }`}
-        >
-          <Image
-            width={48}
-            height={48}
-            src={item.image || REVIEW_IMAGE_FALLBACK}
-            alt={item.title}
-            className="h-full w-full object-cover grayscale-30 transition-all duration-300 group-hover/card:grayscale-0"
-          />
-        </div>
-        <div className="min-w-0">
+        <ReviewAvatar
+          imageUrl={item.image}
+          alt={item.title || 'Reviewer'}
+          className={`h-10 w-10 ${compact ? '' : 'md:h-12 md:w-12'}`}
+          imageClassName="grayscale-30 transition-all duration-300 group-hover/card:grayscale-0"
+        />
+        <div className="min-w-0 flex-1">
           <p
             className={`truncate text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100 ${
               compact ? '' : 'md:text-base'
@@ -277,6 +187,16 @@ export function SliderReviewCard({ item, compact = false }: { item: ReviewListIt
           >
             {item.title}
           </p>
+          {item.linkUrl ? (
+            <Link
+              href={item.linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-zinc-500 underline-offset-4 hover:underline dark:text-zinc-400"
+            >
+              View Original Review <ExternalLink size={12} />
+            </Link>
+          ) : null}
         </div>
       </div>
     </>

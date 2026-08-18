@@ -504,13 +504,24 @@ export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
   const now = new Date().toISOString()
   const settingsProfile =
     typeof card.settings?.profile_media_url === 'string' ? card.settings.profile_media_url.trim() : ''
-  const avatar =
-    settingsProfile ||
-    card.profile_media.url ||
-    card.profile_media.fallback_url ||
-    data.displaySettings?.fields?.['Profile Image/Video']?.customValue?.trim() ||
-    ''
-  const avatarImageUrl = avatar && (/^https?:\/\//i.test(avatar) || avatar.startsWith('/')) ? avatar : ''
+  const settingsLogo =
+    typeof card.settings?.company_logo === 'string'
+      ? card.settings.company_logo.trim()
+      : typeof card.settings?.company_icon_url === 'string'
+        ? card.settings.company_icon_url.trim()
+        : ''
+  const stillImage = [
+    settingsProfile,
+    card.profile_media.url,
+    card.profile_media.fallback_url,
+    card.profile.avatar,
+    settingsLogo,
+    data.displaySettings?.fields?.['Profile Image/Video']?.customValue,
+    data.displaySettings?.fields?.['Company/Office Icon']?.customValue,
+  ]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .find((url) => (/^https?:\/\//i.test(url) || url.startsWith('/')) && !/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url))
+  const avatarImageUrl = stillImage || ''
 
   const settingsBackground =
     typeof card.settings?.background_media_url === 'string' ? card.settings.background_media_url.trim() : ''

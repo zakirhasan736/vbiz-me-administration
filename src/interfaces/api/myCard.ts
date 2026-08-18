@@ -4,6 +4,7 @@ export type MyCardProfile = {
   id: string | number
   name: string
   slug: string
+  avatar?: string | null
   email: string | null
   phone: string | null
   address: string | null

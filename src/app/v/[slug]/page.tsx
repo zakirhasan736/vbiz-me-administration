@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!trimmed) return {}
 
   const myCard = await fetchMyCardBySlug(trimmed)
-  const name = resolvePwaDisplayName(myCard?.profile?.name, trimmed)
+  const name = resolvePwaDisplayName(myCard?.profile?.name?.trim() || myCard?.profile?.company_name, trimmed)
   const headerStore = await headers()
   const requestOrigin = resolveRequestOrigin(
     headerStore.get('x-forwarded-host') || headerStore.get('host'),
@@ -78,15 +78,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     cardPath: buildProfilePath(trimmed),
     myCard,
   })
-  const title = typeof seo.title === 'string' ? seo.title : name
 
   return {
     ...seo,
     ...pwaMeta,
-    applicationName: title,
+    applicationName: name,
     appleWebApp: {
       capable: true,
-      title,
+      title: name,
       statusBarStyle: 'black-translucent',
     },
   }

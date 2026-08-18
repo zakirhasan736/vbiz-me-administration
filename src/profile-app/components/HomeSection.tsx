@@ -238,7 +238,6 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
     useProfileDisplay()
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showLanguage = isVisible('Language')
-  const showViews = isVisible('Vcard View Counter')
   const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
   const languageChrome = displayIconChromeStyle(field('Language'))
   const websiteChrome = displayIconChromeStyle(field('Website'))
@@ -331,20 +330,16 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               <div className="absolute top-6 right-6 z-50 hidden shrink-0 flex-col gap-3 sm:flex">
                 {[
                   ...(showShare ? [{ icon: Share2, label: 'Share', action: () => triggerAction('share') }] : []),
-                  ...(showViews
-                    ? [
-                        {
-                          icon: Eye,
-                          label: 'Views',
-                          badge: (
-                            <div className="absolute -top-1.5 -right-3 z-20 rounded-full bg-[#b91c1c] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-md">
-                              {formatProfileViewCount(profileViews)}
-                            </div>
-                          ),
-                          action: () => openVbizmeLogin(),
-                        },
-                      ]
-                    : []),
+                  {
+                    icon: Eye,
+                    label: 'Views',
+                    badge: (
+                      <div className="absolute -top-1.5 -right-3 z-20 rounded-full bg-[#b91c1c] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-md">
+                        {formatProfileViewCount(profileViews)}
+                      </div>
+                    ),
+                    action: () => openVbizmeLogin(),
+                  },
                   ...(showWebsite
                     ? [
                         {
@@ -452,20 +447,16 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               {homeHeroProps ? (
                 <div className="absolute top-0 right-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
                   {[
-                    ...(showViews
-                      ? [
-                          {
-                            icon: Eye,
-                            label: 'Views',
-                            badge: (
-                              <div className="absolute -top-1.5 -right-3 z-20 rounded-full bg-[#b91c1c] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-md">
-                                {formatProfileViewCount(profileViews)}
-                              </div>
-                            ),
-                            action: () => openVbizmeLogin(),
-                          },
-                        ]
-                      : []),
+                    {
+                      icon: Eye,
+                      label: 'Views',
+                      badge: (
+                        <div className="absolute -top-1.5 -right-3 z-20 rounded-full bg-[#b91c1c] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-md">
+                          {formatProfileViewCount(profileViews)}
+                        </div>
+                      ),
+                      action: () => openVbizmeLogin(),
+                    },
                     ...(showWebsite
                       ? [
                           {
