@@ -1,6 +1,7 @@
 'use client'
 
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
+import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
 import {
@@ -32,7 +33,7 @@ const accent = {
 }
 
 export function TabReviews() {
-  const { vCardData, updateData } = useVCard()
+  const { cardId, vCardData, updateData } = useVCard()
   const reviews = normalizeReviewList(vCardData.reviews)
   const reviewsRef = useRef(reviews)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
@@ -158,6 +159,16 @@ export function TabReviews() {
                       placeholder="Reviewer name"
                       className={inputClasses}
                     />
+                    <MediaFileUploader
+                      label="Reviewer photo"
+                      accent="primary"
+                      profileId={cardId}
+                      attachmentType="Featured Image"
+                      value={item.imageUrl || ''}
+                      accept="image/*"
+                      hint="Shown on the public Reviews tab"
+                      onChange={(next) => updateReview(item.id, { imageUrl: next?.url || '' })}
+                    />
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <button
@@ -178,6 +189,12 @@ export function TabReviews() {
                       rows={3}
                       placeholder="What they said…"
                       className={textareaClasses}
+                    />
+                    <input
+                      value={item.url || ''}
+                      onChange={(e) => updateReview(item.id, { url: e.target.value })}
+                      placeholder="Leave a review URL (Google, Yelp, optional)"
+                      className={inputClasses}
                     />
                   </ExpandableEntryBody>
                 </section>

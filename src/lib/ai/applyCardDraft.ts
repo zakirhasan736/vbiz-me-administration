@@ -102,6 +102,8 @@ export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewE
       author: author || 'Client',
       text,
       rating,
+      imageUrl: '',
+      url: '',
     })
   }
   return out

@@ -6,6 +6,8 @@ export function createDefaultReviewEntry(): VCardReviewEntry {
     author: '',
     rating: 5,
     text: '',
+    imageUrl: '',
+    url: '',
   }
 }
 
@@ -19,6 +21,8 @@ export function normalizeReviewList(raw?: VCardReviewEntry[] | null): VCardRevie
       author: entry.author ?? '',
       rating,
       text: entry.text ?? '',
+      imageUrl: entry.imageUrl ?? '',
+      url: entry.url ?? '',
     }
   })
 }

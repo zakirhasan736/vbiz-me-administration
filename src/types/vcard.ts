@@ -199,6 +199,8 @@ export type VCardReviewEntry = {
   author: string
   rating: number
   text: string
+  imageUrl?: string
+  url?: string
 }
 
 /** Back office → Skills tab: category + skill tags (persisted as SkillTag rows). */

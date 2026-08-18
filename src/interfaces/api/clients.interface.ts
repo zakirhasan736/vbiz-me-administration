@@ -15,6 +15,8 @@ export type ClientItem = {
   featured_image: string | { url?: string } | Array<{ url?: string }> | null
   attachments?: Array<{ url?: string | null }>
   review_link: ClientReviewLink
+  general_info_url?: string | null
+  url?: string | null
 }
 
 export type ClientsSectionPostType = {

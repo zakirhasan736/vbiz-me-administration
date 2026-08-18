@@ -419,10 +419,10 @@ export function EmbeddedDraftCacheSync({
         sectionTitle: 'Gallery',
         items: portfolio
           .filter((p) => p.active)
-          .map((p, index) => ({
-            id: index + 1,
+          .map((p) => ({
+            id: p.id,
             title: p.title,
-            imageUrl: p.imageUrl,
+            imageUrl: p.imageUrl || p.attachments?.url || '',
             createdAt: '',
           })),
       }
@@ -438,14 +438,15 @@ export function EmbeddedDraftCacheSync({
         .map((r, index) => {
           const rawRating = typeof r.rating === 'number' ? r.rating : Number(r.rating)
           const rating = Number.isFinite(rawRating) ? Math.min(5, Math.max(1, Math.round(rawRating))) : 5
+          const linkUrl = r.url?.trim() || null
           return {
             id: r.id || index + 1,
-            title: r.author || 'Review',
+            title: r.author || (linkUrl ? 'Leave a Review' : 'Review'),
             plainDescription: r.text || '',
             htmlDescription: r.text || '',
-            image: '',
-            linkUrl: null as string | null,
-            isLinkCard: false,
+            image: r.imageUrl || '',
+            linkUrl,
+            isLinkCard: Boolean(linkUrl) && !(r.author?.trim() || r.text?.trim()),
             rating,
           }
         })

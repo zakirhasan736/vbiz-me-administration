@@ -256,6 +256,8 @@ export function mapBlueprintToVCardData(
     author: r.author,
     text: r.text,
     rating: Math.min(5, Math.max(1, Math.round(r.rating || 5))),
+    imageUrl: '',
+    url: '',
   }))
 
   const generalPosts: VCardGeneralPost[] = (blueprint.blogs || []).map((b) => ({

@@ -683,6 +683,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
                 title: p.title,
                 description: p.description,
                 imageUrl: p.imageUrl,
+                featuredImage: p.imageUrl,
                 attachmentUrl: p.attachments?.url || null,
                 attachmentName: p.attachments?.name || null,
                 url: p.url,
@@ -705,6 +706,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
                 author: r.author,
                 text: r.text,
                 rating: r.rating,
+                imageUrl: r.imageUrl || '',
+                reviewUrl: r.url || '',
                 status: 1,
               })),
             }).unwrap()

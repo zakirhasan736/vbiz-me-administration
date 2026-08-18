@@ -181,7 +181,7 @@ export function isEmptyPortfolio(item: VCardPortfolioEntry): boolean {
 }
 
 export function isEmptyReview(item: VCardReviewEntry): boolean {
-  return blank(item.author) && blank(item.text)
+  return blank(item.author) && blank(item.text) && blank(item.imageUrl) && blank(item.url)
 }
 
 export function isEmptySkillGroup(item: VCardSkillGroup): boolean {

@@ -120,6 +120,8 @@ export type ApiProfile = {
     text?: string | null
     rating?: number | null
     status?: number | null
+    imageUrl?: string | null
+    reviewUrl?: string | null
   }>
   skillTags?: Array<{
     id: string
@@ -688,6 +690,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
         author: r.author || '',
         text: r.text || '',
         rating,
+        imageUrl: r.imageUrl || '',
+        url: r.reviewUrl || '',
       }
     }),
     skills: skillTagsToGroups(profile.skillTags),

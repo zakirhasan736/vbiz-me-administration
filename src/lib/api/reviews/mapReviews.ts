@@ -34,16 +34,19 @@ function normalizeRating(raw: unknown): number {
 }
 
 export function mapReviewItemToListItem(item: ReviewItem): ReviewListItem {
-  const linkUrl = item.review_link?.has_link && item.review_link.url?.trim() ? item.review_link.url.trim() : null
+  const linkUrl =
+    item.review_link?.url?.trim() ||
+    (typeof item.general_info_url === 'string' ? item.general_info_url.trim() : '') ||
+    null
   const { plain, html } = toPlainDescription(item.description)
-  const isLinkCard = Boolean(linkUrl)
+  const isLinkCard = Boolean(linkUrl) && !plain
   return {
     id: item.id,
     title: (item.title || '').trim() || (isLinkCard ? 'Leave a Review' : 'Review'),
     plainDescription: plain,
     htmlDescription: html,
     image: resolveFeaturedImageUrl(item.featured_image),
-    linkUrl,
+    linkUrl: linkUrl || null,
     isLinkCard,
     rating: normalizeRating(item.rating),
   }

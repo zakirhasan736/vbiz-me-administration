@@ -12,9 +12,10 @@ export type ReviewItem = {
   post_type_id?: number
   created_at?: string
   status: number
-  featured_image: string | null
+  featured_image: string | { url?: string } | Array<{ url?: string }> | null
   review_link: ReviewLink
   rating?: number | null
+  general_info_url?: string | null
 }
 
 export type ReviewsSectionPostType = {

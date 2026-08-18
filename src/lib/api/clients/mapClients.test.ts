@@ -35,4 +35,15 @@ describe('mapClientItemToListItem', () => {
 
     expect(mapped.logo).toBe('https://cdn.example.com/partner.png')
   })
+
+  it('uses the client website url when review_link.has_link is false', () => {
+    const mapped = mapClientItemToListItem(
+      client({
+        review_link: { url: 'https://partner.example', has_link: false },
+        general_info_url: 'https://partner.example',
+      })
+    )
+
+    expect(mapped.linkUrl).toBe('https://partner.example')
+  })
 })
