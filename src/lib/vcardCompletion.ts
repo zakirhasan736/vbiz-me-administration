@@ -1103,22 +1103,19 @@ export function getEditorPanelCompletionFields(
     case 'my-info':
       return [
         {
-          id: 'my-info.phone',
-          label: 'Call action',
-          filled: filled(p.phone),
-          edit: { type: 'scalar', path: 'personal.phone', control: 'tel' },
+          id: 'my-info.derived',
+          label: 'Call, text, and email use Personal Info',
+          filled: true,
+          hint: 'Phone, WhatsApp, and email come from Personal Info. This tab is not filled separately.',
         },
+      ]
+    case 'info':
+      return [
         {
-          id: 'my-info.email',
-          label: 'Email action',
-          filled: filled(p.email),
-          edit: { type: 'scalar', path: 'personal.email', control: 'email' },
-        },
-        {
-          id: 'my-info.website',
-          label: 'Website action',
-          filled: filled(p.website),
-          edit: { type: 'scalar', path: 'personal.website', control: 'url' },
+          id: 'public-cards.fixed',
+          label: 'Public Cards directory',
+          filled: true,
+          hint: 'Fixed product tab. No extra content is required.',
         },
       ]
     case 'section-posts':
@@ -1334,10 +1331,10 @@ function panelPercent(panel: EditorNavPanel, data: VCardData, meta?: PersonalCom
     }
     case 'global-connection':
       return 100
-    case 'my-info': {
-      const m = (data as { myInfo?: { headline?: string } }).myInfo
-      return filled(m?.headline) || filled(data.personal?.phone) || filled(data.personal?.email) ? 100 : 50
-    }
+    case 'my-info':
+      return 100
+    case 'info':
+      return 100
     case 'section-posts': {
       const schema = getSectionSchema(panel.schemaKey)
       if (!schema) return 0
@@ -1349,8 +1346,6 @@ function panelPercent(panel: EditorNavPanel, data: VCardData, meta?: PersonalCom
       return listProgress(data.sectionPosts?.[PUBLIC_SECTION_NAMES.certificates])
     case 'link-shortener':
       return filled(data.personal?.website) ? 100 : 0
-    case 'info':
-      return 50
     case 'empty':
     default:
       return 0
@@ -1373,7 +1368,11 @@ export function getOverallCardCompletionPercent(
   data: VCardData,
   meta?: PersonalCompletionMeta
 ): number {
-  if (items.length === 0) return 0
-  const total = items.reduce((sum, item) => sum + getNavItemCompletionPercent(item.editorPanel, data, meta), 0)
-  return Math.round(total / items.length)
+  const counted = items.filter((item) => {
+    const kind = item.editorPanel?.kind
+    return kind !== 'my-info' && kind !== 'info' && kind !== 'global-connection'
+  })
+  if (counted.length === 0) return 0
+  const total = counted.reduce((sum, item) => sum + getNavItemCompletionPercent(item.editorPanel, data, meta), 0)
+  return Math.round(total / counted.length)
 }

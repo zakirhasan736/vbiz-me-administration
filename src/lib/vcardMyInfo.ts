@@ -67,3 +67,21 @@ export function resolveMyInfoContact(personal?: VCardPersonal | null, myInfo?: V
   const email = (personal?.email || myInfo?.email || '').trim()
   return { phone, whatsapp, email, smsNumber: phone || whatsapp }
 }
+
+/** My Info contact buttons always mirror Personal Info. */
+export function syncMyInfoFromPersonal<T extends { personal?: VCardPersonal | null; myInfo?: VCardMyInfo | null }>(
+  data: T
+): T {
+  const personal = data.personal
+  const contact = resolveMyInfoContact(personal, data.myInfo)
+  return {
+    ...data,
+    myInfo: {
+      ...DEFAULT_VCARD_MY_INFO,
+      ...data.myInfo,
+      phone: contact.phone,
+      whatsapp: contact.whatsapp || contact.phone,
+      email: contact.email,
+    },
+  }
+}

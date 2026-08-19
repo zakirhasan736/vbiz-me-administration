@@ -1,5 +1,6 @@
 import { setAboutMeDraft } from '@/lib/aboutMeDraft'
 import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
+import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
 import { normalizeServiceType } from '@/lib/vcardServices'
 import type {
   VCardData,
@@ -317,6 +318,8 @@ export function mapBlueprintToVCardData(
     faqs: faqs.length ? faqs : base?.faqs || [],
   })
 
+  const synced = syncMyInfoFromPersonal(data)
+
   const aboutText = String(blueprint.personal.about || '').trim()
   if (aboutText) {
     setAboutMeDraft({
@@ -326,7 +329,7 @@ export function mapBlueprintToVCardData(
 
   const tabNames = new Set<string>(['Personal'])
   for (const name of blueprint.enabledTabs || []) {
-    if (name && name !== 'Global Connection' && name !== 'My Info') tabNames.add(name)
+    if (name && name !== 'Global Connection' && name !== 'My Info' && name !== 'Public Cards') tabNames.add(name)
   }
   if (education.length) tabNames.add('Education')
   if (experience.length) tabNames.add('Experience')
@@ -347,10 +350,10 @@ export function mapBlueprintToVCardData(
   const uniqueNav = normalizeNavOrderWithPinnedEnds(contentNavIds)
 
   return {
-    data,
+    data: synced,
     enabledNavIds: uniqueNav,
     recommendedTabs: (blueprint.recommendedTabs || []).filter(
-      (r) => r.tab !== 'Global Connection' && r.tab !== 'My Info' && r.tab !== 'Personal'
+      (r) => r.tab !== 'Global Connection' && r.tab !== 'My Info' && r.tab !== 'Public Cards' && r.tab !== 'Personal'
     ),
     optionalFeatures: blueprint.optionalFeatures || {},
     businessSummary: blueprint.businessSummary || '',

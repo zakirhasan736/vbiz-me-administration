@@ -8,13 +8,20 @@ import {
   mergeSectionPayload,
   type AnalyzeResponse,
 } from '@/lib/ai/applyCardDraft'
-import { cardAgentForm, cardAgentJobGet, cardAgentJobPost, cardAgentJson } from '@/lib/ai/cardAgentClient'
+import {
+  cardAgentForm,
+  cardAgentJobGet,
+  cardAgentJobPost,
+  cardAgentJson,
+  formatCardAgentError,
+} from '@/lib/ai/cardAgentClient'
 import { TAB_NAV_MAP } from '@/lib/ai/cardBlueprint'
 import { gapFieldToSection, type GapItem } from '@/lib/ai/gapReport'
 import {
   CREATE_CARD_TAB_BY_NAME,
   CREATE_CARD_TAB_BY_NAV_ID,
   getCreateCardDisplayLabel,
+  isAiContentNavId,
   normalizeNavOrderWithPinnedEnds,
   PINNED_END_NAV_IDS,
   resolveCreateCardTabName,
@@ -23,6 +30,7 @@ import { ensureNotificationPermission, saveNotificationPrefs } from '@/lib/notif
 import { normalizeCardSeo, normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
 import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import type { SettingsTabId } from '@/lib/vcardEditorRoutes'
+import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
 import type { VCardData } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import {
@@ -165,6 +173,17 @@ type LaunchField = {
   filled: boolean
   hint?: string
   upload?: boolean
+  preview?: string
+  addKind?: 'faqs' | 'services' | 'blogs' | 'portfolio' | 'experience' | 'reviews'
+}
+
+function uniqueByKey<T extends { key: string }>(items: T[]): T[] {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    if (seen.has(item.key)) return false
+    seen.add(item.key)
+    return true
+  })
 }
 
 type LaunchTab = {
@@ -334,7 +353,7 @@ function uid() {
 
 function nextEmptyTabGaps(gaps: GapItem[], skippedIds: string[]): GapItem[] {
   const skipped = new Set(skippedIds)
-  const remaining = gaps.filter((gap) => !skipped.has(gap.id))
+  const remaining = gaps.filter((gap) => !skipped.has(gap.id) && isAiContentNavId(gap.navId))
   if (!remaining.length) return []
   const navId = remaining[0].navId
   return remaining.filter((gap) => gap.navId === navId)
@@ -377,6 +396,7 @@ function inferSectionFromText(text: string, fallback: string): string {
 function sectionFromNavId(navId: string): string {
   const map: Record<string, string> = {
     home: 'personal',
+    about: 'personal',
     profile: 'personal',
     services: 'services',
     blog: 'blogs',
@@ -395,12 +415,13 @@ function hasText(value: unknown): boolean {
 }
 
 function countFilled(fields: LaunchField[]): number {
-  return fields.filter((field) => field.filled).length
+  return fields.filter((field) => !field.upload && field.filled).length
 }
 
 function launchPercent(fields: LaunchField[]): number {
-  if (!fields.length) return 100
-  return Math.round((countFilled(fields) / fields.length) * 100)
+  const counted = fields.filter((field) => !field.upload)
+  if (!counted.length) return 100
+  return Math.round((countFilled(fields) / counted.length) * 100)
 }
 
 function displayCustom(data: VCardData, key: string): string {
@@ -569,7 +590,7 @@ function buildSmartSectionPayload(
 }
 
 function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
-  const uniqueIds = Array.from(new Set(navIds.length ? navIds : ['home']))
+  const uniqueIds = Array.from(new Set(navIds.length ? navIds : ['home'])).filter(isAiContentNavId)
   return uniqueIds.map((navId) => {
     const label = getCreateCardDisplayLabel(navId, CREATE_CARD_TAB_BY_NAV_ID[navId]?.name || navId)
     const fields: LaunchField[] = []
@@ -581,14 +602,19 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
 
     if (navId === 'home') {
       fields.push(
-        { label: 'Display name', filled: hasText(personal.fullName), hint: 'Shown at the top of the card.' },
-        { label: 'Public URL slug', filled: hasText(data.slug), hint: 'Needed before create.' },
-        { label: 'Email or phone', filled: hasText(personal.email) || hasText(personal.phone) },
         {
-          label: 'About Me',
-          filled: isAboutMeDescriptionFilled(getAboutMeDraft().descriptionHtml) || hasText(personal.about),
+          label: 'Full name',
+          filled: hasText(personal.fullName),
+          hint: 'Personal Info — shown at the top of the card.',
         },
-        { label: 'Company or title', filled: hasText(personal.company) || hasText(personal.designation) },
+        { label: 'Email', filled: hasText(personal.email), hint: 'Personal Info — also powers My Info Email.' },
+        { label: 'Phone', filled: hasText(personal.phone), hint: 'Personal Info — also powers My Info Call/Text.' },
+        { label: 'Date of birth', filled: hasText(personal.dob), hint: 'Required at create. Owner must enter this.' },
+        { label: 'Company', filled: hasText(personal.company) },
+        { label: 'Headline/title', filled: hasText(personal.designation) || hasText(personal.profession) },
+        { label: 'Website', filled: hasText(personal.website) },
+        { label: 'Address/location', filled: hasText(personal.address) },
+        { label: 'Public URL slug', filled: hasText(data.slug), hint: 'Needed before create.' },
         {
           label: 'Profile image/video',
           filled: hasText(profileMedia) || hasText(personal.explainerVideoUrl),
@@ -603,9 +629,21 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
         },
         { label: 'Social links', filled: socialCount > 0, hint: 'LinkedIn, Instagram, Facebook, or website.' }
       )
+    } else if (navId === 'about') {
+      const aboutText =
+        getAboutMeDraft()
+          .descriptionHtml?.replace(/<[^>]+>/g, ' ')
+          .trim() ||
+        personal.about ||
+        ''
+      fields.push({
+        label: 'About Me',
+        filled: isAboutMeDescriptionFilled(getAboutMeDraft().descriptionHtml) || hasText(personal.about),
+        preview: aboutText.slice(0, 280),
+      })
     } else if (navId === 'services') {
       fields.push(
-        { label: 'Service items', filled: Boolean(data.services?.length) },
+        { label: 'Service items', filled: Boolean(data.services?.length), addKind: 'services' },
         { label: 'Service descriptions', filled: Boolean(data.services?.some((item) => hasText(item.description))) },
         {
           label: 'Service images',
@@ -615,7 +653,7 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       )
     } else if (navId === 'gallery') {
       fields.push(
-        { label: 'Portfolio items', filled: Boolean(data.portfolio?.length) },
+        { label: 'Portfolio items', filled: Boolean(data.portfolio?.length), addKind: 'portfolio' },
         { label: 'Project descriptions', filled: Boolean(data.portfolio?.some((item) => hasText(item.description))) },
         {
           label: 'Portfolio images',
@@ -625,13 +663,13 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       )
     } else if (navId === 'reviews') {
       fields.push(
-        { label: 'Reviews', filled: Boolean(data.reviews?.length) },
+        { label: 'Reviews', filled: Boolean(data.reviews?.length), addKind: 'reviews' },
         { label: 'Reviewer names', filled: Boolean(data.reviews?.some((item) => hasText(item.author))) },
         { label: 'Review text', filled: Boolean(data.reviews?.some((item) => hasText(item.text))) }
       )
     } else if (navId === 'blog') {
       fields.push(
-        { label: 'News/blog posts', filled: Boolean(data.generalPosts?.length) },
+        { label: 'News/blog posts', filled: Boolean(data.generalPosts?.length), addKind: 'blogs' },
         { label: 'Post descriptions', filled: Boolean(data.generalPosts?.some((item) => hasText(item.description))) },
         {
           label: 'Featured images',
@@ -641,7 +679,7 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       )
     } else if (navId === 'faq') {
       fields.push(
-        { label: 'Questions', filled: Boolean(data.faqs?.some((item) => hasText(item.question))) },
+        { label: 'Questions', filled: Boolean(data.faqs?.some((item) => hasText(item.question))), addKind: 'faqs' },
         { label: 'Answers', filled: Boolean(data.faqs?.some((item) => hasText(item.answer))) }
       )
     } else if (navId === 'skills') {
@@ -657,7 +695,7 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       )
     } else if (navId === 'work') {
       fields.push(
-        { label: 'Experience entries', filled: Boolean(data.experience?.length) },
+        { label: 'Experience entries', filled: Boolean(data.experience?.length), addKind: 'experience' },
         { label: 'Company names', filled: Boolean(data.experience?.some((item) => hasText(item.company))) },
         { label: 'Job titles', filled: Boolean(data.experience?.some((item) => hasText(item.jobTitle))) }
       )
@@ -699,12 +737,6 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       )
     } else if (navId === 'global-connection') {
       fields.push({ label: 'Global directory', filled: true, hint: 'Default shared connection area.' })
-    } else if (navId === 'my-info') {
-      fields.push(
-        { label: 'Call action', filled: hasText(personal.phone) },
-        { label: 'Email action', filled: hasText(personal.email) },
-        { label: 'Website action', filled: hasText(personal.website) }
-      )
     } else {
       fields.push({ label: `${label} content`, filled: false, hint: 'Optional custom section content.' })
     }
@@ -876,8 +908,9 @@ export function AiCardAgentWizard({
 
   const applyDraft = useCallback(
     (data: VCardData, navIds: string[]) => {
-      draftRef.current = data
-      for (const write of draftFieldWrites(data)) {
+      const synced = syncMyInfoFromPersonal(data)
+      draftRef.current = synced
+      for (const write of draftFieldWrites(synced)) {
         updateData(write.path, write.value)
       }
       const nextNav = normalizeNavOrderWithPinnedEnds(navIds)
@@ -951,7 +984,7 @@ export function AiCardAgentWizard({
 
   const startFeaturesPhase = useCallback(
     (reportScore: number) => {
-      const queue = [...OPTIONAL_ITEMS]
+      const queue = uniqueByKey([...OPTIONAL_ITEMS])
       setFeatureQueue(queue)
       setFeatureIndex(0)
       setGateGap(null)
@@ -985,13 +1018,22 @@ export function AiCardAgentWizard({
       const remainingTabs = new Set(
         report.gaps.filter((gap) => !skippedGapIdsRef.current.includes(gap.id)).map((gap) => gap.navId)
       ).size
-      pushMsg(
-        'assistant',
-        `Let’s look at “${primary.tab}”. ${
-          group.length > 1 ? `I still see empty fields: ${fieldNames}.` : `${primary.explanation}`
-        }\n\nWant me to fill this now from your website and files? Tap Yes to fill, or Skip to leave it for the editor.`,
-        `${remainingTabs} tab${remainingTabs === 1 ? '' : 's'} still open`
-      )
+      const isFaq = primary.navId === 'faq' || primary.field === 'faqs'
+      const isBlog = primary.navId === 'blog' || primary.field === 'blogs' || primary.field === 'generalPosts'
+      const isReviews = primary.navId === 'reviews'
+      const isExperience = primary.navId === 'work' || primary.field === 'experience'
+      const prompt = isFaq
+        ? `I couldn’t find FAQs in your website or documents. Based on this business, I can create up to 5 helpful customer questions and answers. I will not invent prices, hours, guarantees, or certifications.\n\nCreate FAQs with AI, or skip for later.`
+        : isBlog
+          ? `I didn’t find published articles. I can draft up to 5 useful educational posts from your business and services — not fake news events.\n\nCreate with AI, or skip.`
+          : isReviews
+            ? `I couldn’t find verified customer reviews. I will not invent testimonials.\n\nAdd a real review later, connect a review source after create, or skip.`
+            : isExperience
+              ? `I couldn’t reliably determine your professional experience. I will not invent employers or dates.\n\nAdd experience now, or skip.`
+              : `Let’s look at “${primary.tab}”. ${
+                  group.length > 1 ? `I still see empty fields: ${fieldNames}.` : `${primary.explanation}`
+                }\n\nWant me to fill this now from your website and files? Tap Yes to fill, or Skip to leave it for the editor.`
+      pushMsg('assistant', prompt, `${remainingTabs} tab${remainingTabs === 1 ? '' : 's'} still open`)
     },
     [pushMsg, startFeaturesPhase]
   )
@@ -1336,7 +1378,7 @@ export function AiCardAgentWizard({
       }
       await continueFieldFlow(job)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save that field')
+      setError(formatCardAgentError(e, 'Could not save that field'))
     } finally {
       setBusy(false)
     }
@@ -1356,7 +1398,10 @@ export function AiCardAgentWizard({
     try {
       if (sessionIdRef.current) {
         const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'tabs', { selectedNavIds: nextNav })
-        pushMsg('assistant', `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}.`)
+        pushMsg(
+          'assistant',
+          `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}. I’ll build the selected sections now.`
+        )
         await continueFieldFlow(job)
         return
       }
@@ -1367,7 +1412,7 @@ export function AiCardAgentWizard({
       )
       askNextGap(report)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not refresh gaps')
+      setError(formatCardAgentError(e, 'Could not refresh gaps'))
     } finally {
       setBusy(false)
     }
@@ -1450,7 +1495,18 @@ export function AiCardAgentWizard({
     pushMsg('user', `Yes — fill ${gap.tab} now`)
     setCoachSection(section)
 
-    if (!hasStoredSources()) {
+    if (section === 'reviews' || section === 'experience') {
+      setPhase('coach')
+      pushMsg(
+        'assistant',
+        section === 'reviews'
+          ? 'Paste a real customer review (reviewer name + what they said), or skip. I will not invent testimonials.'
+          : 'Paste a real role (company, title, dates if you have them), or skip. I will not invent work history.'
+      )
+      return
+    }
+
+    if (!hasStoredSources() && !sessionIdRef.current) {
       setPhase('coach')
       pushMsg(
         'assistant',
@@ -1460,8 +1516,30 @@ export function AiCardAgentWizard({
     }
 
     setBusy(true)
-    pushMsg('assistant', `On it — filling “${gap.tab}” from your ${sourceSummaryLine()}…`)
+    pushMsg('assistant', `On it — filling “${gap.tab}” from your ${sourceSummaryLine() || 'saved business profile'}…`)
     try {
+      if (sessionIdRef.current && (section === 'faqs' || section === 'blogs')) {
+        const generated = await cardAgentJobPost<{
+          payload?: Record<string, unknown>
+          generatedCount?: number
+          selectedNavIds?: string[]
+          blueprint?: AnalyzeResponse['blueprint']
+        }>(sessionIdRef.current, 'generate-content', { kind: section === 'faqs' ? 'faq' : 'blog' })
+        const payload = generated.payload || {}
+        if (!payloadHasContent(section, payload)) {
+          throw new Error(`No ${section} were generated. Try again or skip.`)
+        }
+        const merged = mergeSectionPayload(draftRef.current, section, payload)
+        applyDraft(merged, activeNav)
+        const report = await refreshAfterDraftChange(activeNav, merged)
+        pushMsg(
+          'assistant',
+          `Created ${generated.generatedCount || sectionContentCount(merged, section)} ${section === 'faqs' ? 'FAQs' : 'article drafts'}. Card is now ${report.score}% complete.`
+        )
+        setGateGap(null)
+        askNextGap(report)
+        return
+      }
       const form = new FormData()
       form.set('section', section)
       form.set('currentDraft', JSON.stringify(draftRef.current))
@@ -1496,7 +1574,7 @@ export function AiCardAgentWizard({
         askNextGap(report)
         return
       }
-      const msg = e instanceof Error ? e.message : 'Could not auto-fill this section'
+      const msg = formatCardAgentError(e, 'Could not auto-fill this section')
       setError(msg)
       setPhase('coach')
       pushMsg(
@@ -1585,7 +1663,7 @@ export function AiCardAgentWizard({
         askNextGap(report)
         return
       }
-      const msg = e instanceof Error ? e.message : 'Could not fill section'
+      const msg = formatCardAgentError(e, 'Could not fill section')
       setError(msg)
       pushMsg('assistant', `That fill failed: ${msg}. Try again with clearer text or another file.`)
     } finally {
@@ -1874,7 +1952,7 @@ export function AiCardAgentWizard({
         setOpenLaunchTabs((prev) => (prev.includes(tab.navId) ? prev : [tab.navId, ...prev]))
         return
       }
-      const msg = e instanceof Error ? e.message : 'Could not fill tab'
+      const msg = formatCardAgentError(e, 'Could not fill tab')
       setError(msg)
       pushMsg('assistant', `I could not fill ${tab.label}: ${msg}. You can still create now or edit it manually later.`)
     } finally {
@@ -2294,6 +2372,26 @@ export function AiCardAgentWizard({
                   Write with AI
                 </button>
               ) : null}
+              {nextField.special === 'faq' || nextField.fieldKey === 'faqs' ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void applyCurrentField('AI_GENERATE')}
+                  className="rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white"
+                >
+                  Create up to 5 FAQs
+                </button>
+              ) : null}
+              {nextField.special === 'blog' || nextField.fieldKey === 'blogs' ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void applyCurrentField('AI_GENERATE')}
+                  className="rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white"
+                >
+                  Create up to 5 articles
+                </button>
+              ) : null}
               {nextField.status === 'PARTIAL' ? (
                 <button
                   type="button"
@@ -2341,8 +2439,8 @@ export function AiCardAgentWizard({
             <div>
               <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Suggested card tabs</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">
-                These fit this business. Tick what you want on the public card, then continue. I’ll ask about empty tabs
-                next.
+                These fit this business. Tick what you want on the public card, then continue. I’ll build every selected
+                section before preview.
               </p>
             </div>
             {recommendations.map((rec) => {
@@ -2383,14 +2481,6 @@ export function AiCardAgentWizard({
                 </button>
               )
             })}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void acceptTabs()}
-              className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-3.5 text-xs font-black tracking-wide text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-950"
-            >
-              Continue with selected tabs <ArrowRight className="h-3.5 w-3.5" />
-            </button>
           </div>
         ) : null}
 
@@ -2760,11 +2850,15 @@ export function AiCardAgentWizard({
                                   ) : null}
                                 </span>
                                 <span className="min-w-0 flex-1 font-semibold text-slate-600 dark:text-slate-300">
-                                  <span className={field.filled ? 'text-slate-500 line-through' : ''}>
-                                    {field.label}
-                                  </span>
-                                  {field.hint ? (
+                                  <span className={field.filled ? 'text-slate-500' : ''}>{field.label}</span>
+                                  {field.preview ? (
+                                    <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                                      {field.preview}
+                                    </span>
+                                  ) : field.hint ? (
                                     <span className="block text-[10px] text-slate-400">{field.hint}</span>
+                                  ) : !field.filled ? (
+                                    <span className="block text-[10px] text-amber-600">Not completed.</span>
                                   ) : null}
                                 </span>
                               </li>
@@ -2775,6 +2869,28 @@ export function AiCardAgentWizard({
                             No required fields left for this tab.
                           </p>
                         )}
+                        {tab.fields.some((field) => field.addKind) ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void fillLaunchTab(tab)}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                          >
+                            {tab.navId === 'faq'
+                              ? '+ Add FAQ'
+                              : tab.navId === 'services'
+                                ? '+ Add Service'
+                                : tab.navId === 'blog'
+                                  ? '+ Add Blog'
+                                  : tab.navId === 'gallery'
+                                    ? '+ Add Project'
+                                    : tab.navId === 'work'
+                                      ? '+ Add Experience'
+                                      : tab.navId === 'reviews'
+                                        ? '+ Add Review'
+                                        : `+ Add ${tab.label}`}
+                          </button>
+                        ) : null}
                         {tab.percent < 100 ? (
                           <div className="flex flex-wrap gap-2 pt-1">
                             {missingTextFields.length ? (
@@ -2819,14 +2935,16 @@ export function AiCardAgentWizard({
                   Approved extras
                 </p>
                 <ul className="mt-2 space-y-1.5">
-                  {acceptedFeatureDetails.map((feature) => (
-                    <li
-                      key={`${feature.key}-${feature.title}`}
-                      className="text-[11px] font-semibold text-emerald-900/80 dark:text-emerald-100"
-                    >
-                      <span className="font-black">{feature.title}:</span> {feature.note}
-                    </li>
-                  ))}
+                  {acceptedFeatureDetails
+                    .filter((feature, index, all) => all.findIndex((row) => row.key === feature.key) === index)
+                    .map((feature) => (
+                      <li
+                        key={`${feature.key}-${feature.title}`}
+                        className="text-[11px] font-semibold text-emerald-900/80 dark:text-emerald-100"
+                      >
+                        <span className="font-black">{feature.title}:</span> {feature.note}
+                      </li>
+                    ))}
                 </ul>
               </div>
             ) : null}
@@ -2858,20 +2976,6 @@ export function AiCardAgentWizard({
                   <Eye className="h-3.5 w-3.5" /> Open live preview
                 </button>
               ) : null}
-              {acceptedFeatureDetails.map((feature, index) => (
-                <button
-                  key={`${feature.key}-${index}`}
-                  type="button"
-                  onClick={() => void showFeatureGuide(feature)}
-                  className="rounded-xl bg-white/80 px-3 py-2 text-[11px] font-black text-slate-700 dark:bg-slate-900/80 dark:text-slate-200"
-                >
-                  {feature.key === 'pushNotifications'
-                    ? 'Allow Push notifications'
-                    : feature.key === 'canva'
-                      ? 'Canva instructions'
-                      : `Review ${feature.title}`}
-                </button>
-              ))}
               <button
                 type="button"
                 disabled={busy || !previewName.trim() || !previewSlug.trim()}
@@ -3147,6 +3251,41 @@ export function AiCardAgentWizard({
                 </>
               )}
             </button>
+          ) : null}
+          {phase === 'tabs' ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void acceptTabs()}
+              className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
+            >
+              Continue with {selectedRecs.length} section{selectedRecs.length === 1 ? '' : 's'}{' '}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+          {phase === 'preview' ? (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {!isEdit ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void confirmCreateCard('draft')}
+                  className="rounded-xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+                >
+                  Save Draft
+                </button>
+              ) : (
+                <span />
+              )}
+              <button
+                type="button"
+                disabled={busy || !previewName.trim() || !previewSlug.trim()}
+                onClick={() => void confirmCreateCard(isEdit ? launchMode : 'publish')}
+                className="rounded-xl bg-emerald-600 py-3 text-xs font-black text-white disabled:opacity-50"
+              >
+                {isEdit ? 'Save updates' : 'Create & Activate'}
+              </button>
+            </div>
           ) : null}
           {phase === 'coach' && score >= 90 ? (
             <button

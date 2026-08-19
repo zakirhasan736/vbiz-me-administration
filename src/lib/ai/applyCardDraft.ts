@@ -1,6 +1,7 @@
 import { setAboutMeDraft } from '@/lib/aboutMeDraft'
 import { mapBlueprintToVCardData, type CardBlueprint } from '@/lib/ai/cardBlueprint'
 import { normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
+import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
 import { normalizeServiceType } from '@/lib/vcardServices'
 import type {
   VCardData,
@@ -282,7 +283,7 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
     ]
   }
 
-  return next
+  return syncMyInfoFromPersonal(next)
 }
 
 export function applyAnalyzeToDraft(response: AnalyzeResponse, base?: VCardData) {
@@ -313,5 +314,6 @@ export function draftFieldWrites(data: VCardData): Array<{ path: string; value: 
     { path: 'generalPosts', value: data.generalPosts || [] },
     { path: 'faqs', value: data.faqs || [] },
     { path: 'seo', value: data.seo },
+    { path: 'myInfo', value: data.myInfo },
   ]
 }

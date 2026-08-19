@@ -1,4 +1,5 @@
 import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
+import { isAiContentNavId } from '@/lib/createCardTabs'
 import type { VCardData } from '@/types/vcard'
 
 export type GapItem = {
@@ -35,13 +36,14 @@ export function buildGapReport(
   const items: ChecklistItem[] = []
 
   const add = (filled: boolean, weight: number, gap: GapItem) => {
+    if (!isAiContentNavId(gap.navId)) return
     if (!nav.has(gap.navId) && gap.navId !== 'home') return
     items.push({ id: gap.id, weight, filled, gap: filled ? undefined : gap })
   }
 
   add(!empty(data.personal?.fullName), 4, {
     id: 'personal.fullName',
-    tab: 'Personal',
+    tab: 'Personal Info',
     navId: 'home',
     field: 'fullName',
     severity: 'required',
@@ -51,7 +53,7 @@ export function buildGapReport(
   })
   add(!empty(data.personal?.dob), 4, {
     id: 'personal.dob',
-    tab: 'Personal',
+    tab: 'Personal Info',
     navId: 'home',
     field: 'dob',
     severity: 'required',
@@ -61,7 +63,7 @@ export function buildGapReport(
   })
   add(!empty(data.slug), 3, {
     id: 'slug',
-    tab: 'Personal',
+    tab: 'Personal Info',
     navId: 'home',
     field: 'slug',
     severity: 'required',
@@ -79,15 +81,35 @@ export function buildGapReport(
     explanation: 'A short story helps visitors trust you and understand what you do.',
     howToProvide: 'Paste 2–4 sentences about the business in About Me, or upload an about PDF/image.',
   })
-  add(!(empty(data.personal?.email) && empty(data.personal?.phone)), 3, {
-    id: 'personal.contact',
-    tab: 'Personal',
+  add(!empty(data.personal?.email), 4, {
+    id: 'personal.email',
+    tab: 'Personal Info',
     navId: 'home',
-    field: 'contact',
+    field: 'email',
+    severity: 'required',
+    title: 'Email',
+    explanation: 'Personal Info email is required at create and also powers the My Info Email button.',
+    howToProvide: 'Reply with the public email visitors should use.',
+  })
+  add(!empty(data.personal?.phone), 4, {
+    id: 'personal.phone',
+    tab: 'Personal Info',
+    navId: 'home',
+    field: 'phone',
+    severity: 'required',
+    title: 'Phone',
+    explanation: 'Personal Info phone is required at create and also powers My Info Call and Text.',
+    howToProvide: 'Reply with the public phone number visitors should use.',
+  })
+  add(!empty(data.personal?.company) || !empty(data.personal?.designation), 2, {
+    id: 'personal.company',
+    tab: 'Personal Info',
+    navId: 'home',
+    field: 'company',
     severity: 'recommended',
-    title: 'Contact details',
-    explanation: 'Email or phone lets visitors reach you from the card.',
-    howToProvide: 'Reply with email and/or phone (WhatsApp optional).',
+    title: 'Company or title',
+    explanation: 'Company name and headline help visitors understand who you are.',
+    howToProvide: 'Reply with the business name and a short professional title.',
   })
 
   if (nav.has('services')) {
@@ -215,6 +237,9 @@ export function gapFieldToSection(field: string): string {
   const map: Record<string, string> = {
     fullName: 'personal',
     dob: 'personal',
+    email: 'personal',
+    phone: 'personal',
+    company: 'personal',
     about: 'personal',
     contact: 'personal',
     social: 'personal',

@@ -33,6 +33,7 @@ export class CardAgentError extends Error {
 
 async function parseBackend<T>(res: Response): Promise<T> {
   const json = (await res.json().catch(() => ({}))) as BackendEnvelope<T> & {
+    requestId?: string
     data?: { requestId?: string; retryable?: boolean }
   }
   if (!res.ok) {
@@ -45,12 +46,25 @@ async function parseBackend<T>(res: Response): Promise<T> {
       message,
       res.status,
       typeof json.code === 'string' ? json.code : undefined,
-      typeof payload?.requestId === 'string' ? payload.requestId : undefined,
+      typeof payload?.requestId === 'string'
+        ? payload.requestId
+        : typeof json.requestId === 'string'
+          ? json.requestId
+          : res.headers.get('x-request-id') || undefined,
       Boolean(payload?.retryable)
     )
   }
   if (json.data !== undefined) return json.data as T
   return json as T
+}
+
+export function formatCardAgentError(error: unknown, fallback = 'AI request failed. Please try again.'): string {
+  if (error instanceof CardAgentError) {
+    const ref = error.requestId ? ` Reference: ${error.requestId}` : ''
+    return `${error.message}${ref}`
+  }
+  if (error instanceof Error && error.message.trim()) return error.message
+  return fallback
 }
 
 /** Authenticated call to backend card-agent (OpenAI key stays on the API server). */

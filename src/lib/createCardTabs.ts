@@ -34,6 +34,13 @@ export const ALWAYS_ENABLED_NAV_IDS = ['home', 'about', 'public-cards', 'my-info
 /** Default utility tabs shown at the end: Public Cards, then My Info. */
 export const PINNED_END_NAV_IDS = ['public-cards', 'my-info'] as const
 
+/** Fixed product tabs. AI does not recommend, fill, or score these. */
+export const AI_SYSTEM_NAV_IDS = ['public-cards', 'my-info'] as const
+
+export function isAiContentNavId(navId: string): boolean {
+  return !(AI_SYSTEM_NAV_IDS as readonly string[]).includes(navId)
+}
+
 /** Backoffice DEFAULT_ENABLED_TABS order — used for tour activateTab + manual create defaults. */
 export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
   {
@@ -139,7 +146,7 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
     name: 'My Info',
     navId: 'my-info',
     icon: Contact,
-    description: 'Call / text / email actions from personal info',
+    description: 'Call / text / email actions — filled from Personal Info, not a separate AI section',
     pinEnd: true,
   },
 ]
