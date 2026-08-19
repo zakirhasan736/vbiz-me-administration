@@ -7,14 +7,7 @@ import type {
   AboutMeQueryResult,
   AboutMeSectionResponse,
 } from '@/interfaces/api/aboutMe.interface'
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
 
 function isActiveStatus(status: number | string): boolean {
   return String(status).trim() === '1'
@@ -50,12 +43,12 @@ function parsePillar(inner: string): AboutMePillar | null {
   const dashSplit = cleaned.split(/\s*[–—-]\s*/)
   if (dashSplit.length >= 2) {
     return {
-      title: dashSplit[0].trim(),
-      description: dashSplit.slice(1).join(' - ').trim(),
+      title: decodeHtmlText(dashSplit[0].trim()),
+      description: decodeHtmlText(dashSplit.slice(1).join(' - ').trim()),
     }
   }
 
-  return { title: cleaned, description: '' }
+  return { title: decodeHtmlText(cleaned), description: '' }
 }
 
 function parseHighlightBlock(html: string): AboutMeHighlight | null {
@@ -67,9 +60,9 @@ function parseHighlightBlock(html: string): AboutMeHighlight | null {
   const plain = stripHtml(bodyHtml)
 
   return {
-    title: title || stripHtml(trimmed).split(/\s+/).slice(0, 3).join(' '),
+    title: decodeHtmlText(title || stripHtml(trimmed).split(/\s+/).slice(0, 3).join(' ')),
     html: bodyHtml,
-    plain,
+    plain: decodeHtmlText(plain),
   }
 }
 
@@ -77,9 +70,9 @@ function parseFooterBlocks(blocks: string[]): AboutMeFooter | null {
   if (blocks.length === 0) return null
 
   return {
-    headline: stripHtml(blocks[0] ?? ''),
-    subheadline: stripHtml(blocks[1] ?? ''),
-    tagline: stripHtml(blocks[2] ?? ''),
+    headline: decodeHtmlText(stripHtml(blocks[0] ?? '')),
+    subheadline: decodeHtmlText(stripHtml(blocks[1] ?? '')),
+    tagline: decodeHtmlText(stripHtml(blocks[2] ?? '')),
   }
 }
 
@@ -132,8 +125,8 @@ export function mapAboutMeItemToListItem(item: AboutMeItem): AboutMeListItem {
 
   return {
     id: item.id,
-    title: item.title?.trim() || '',
-    plainDescription: plain,
+    title: decodeHtmlText(item.title?.trim() || ''),
+    plainDescription: decodeHtmlText(plain),
     htmlDescription: html,
     introHtml: parsed.introHtml || html,
     featuredImage: resolveFeaturedImage(item),
