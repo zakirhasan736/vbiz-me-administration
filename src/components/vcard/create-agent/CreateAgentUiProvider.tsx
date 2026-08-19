@@ -67,7 +67,7 @@ function CreateAgentWizardHost({ open, onClose }: { open: boolean; onClose: () =
   const router = useRouter()
   const mode = useCardScopeMode()
   const cardId = useCardScopeId()
-  const { vCardData, updateData, saveVCard, flushSave } = useVCard()
+  const { vCardData, updateData, saveVCard, flushSave, loading } = useVCard()
   const isEdit = mode === 'edit'
   const basePath: EditorBasePath = isEdit ? '/vcards/edit' : '/vcards/create'
   const cardKey = cardId || 'draft'
@@ -82,6 +82,8 @@ function CreateAgentWizardHost({ open, onClose }: { open: boolean; onClose: () =
       open={open}
       onClose={onClose}
       mode={isEdit ? 'edit' : 'create'}
+      profileId={isEdit ? cardId || undefined : undefined}
+      cardLoading={Boolean(isEdit && loading)}
       vCardData={vCardData}
       updateData={updateData}
       enabledNavIds={enabledNavIds}

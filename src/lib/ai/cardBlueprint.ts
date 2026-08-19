@@ -97,6 +97,7 @@ export const cardBlueprintSchema = z.object({
         title: z.string(),
         description: z.string().optional().default(''),
         url: z.string().optional().default(''),
+        imageUrl: z.string().optional().default(''),
       })
     )
     .optional()
@@ -117,6 +118,8 @@ export const cardBlueprintSchema = z.object({
         title: z.string(),
         description: z.string().optional().default(''),
         category: z.string().optional().default('News'),
+        url: z.string().optional().default(''),
+        imageUrl: z.string().optional().default(''),
       })
     )
     .optional()
@@ -247,7 +250,7 @@ export function mapBlueprintToVCardData(
     type: 'Image',
     title: p.title,
     description: p.description || '',
-    imageUrl: '',
+    imageUrl: p.imageUrl || '',
     url: p.url || '',
     active: true,
   }))
@@ -266,8 +269,8 @@ export function mapBlueprintToVCardData(
     category: b.category || 'News',
     title: b.title,
     description: b.description || '',
-    customUrl: '',
-    featuredImage: '',
+    customUrl: b.url || '',
+    featuredImage: b.imageUrl || '',
     date: new Date().toISOString().slice(0, 10),
     active: true,
   }))

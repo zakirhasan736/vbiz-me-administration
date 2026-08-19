@@ -81,4 +81,25 @@ describe('secure card assistant integration', () => {
     expect([...form.keys()]).toEqual(['businessText'])
     expect(unwrapAssistantResponse({ data: { items: [] } })).toEqual({ items: [] })
   })
+
+  it('keeps existing-card AI analysis off the live editor until tabs are approved', () => {
+    const wizard = readFileSync(
+      resolve(process.cwd(), 'src/components/vcard/create-agent/AiCardAgentWizard.tsx'),
+      'utf8'
+    )
+    const client = readFileSync(resolve(process.cwd(), 'src/lib/ai/cardAgentClient.ts'), 'utf8')
+    const provider = readFileSync(
+      resolve(process.cwd(), 'src/components/vcard/create-agent/CreateAgentUiProvider.tsx'),
+      'utf8'
+    )
+    expect(wizard).toContain("extractForm.set('builderMode', isEdit ? 'update' : 'create')")
+    expect(wizard).toContain("extractForm.set('profileId', profileId)")
+    expect(wizard).toContain('if (!editorUnlockedRef.current) return')
+    expect(wizard).toContain('formatCardAgentError')
+    expect(wizard).not.toContain('I hit a problem:')
+    expect(client).toContain("'NETWORK_ERROR'")
+    expect(client).toContain('x-vbiz-request-id')
+    expect(provider).toContain('cardLoading={Boolean(isEdit && loading)}')
+    expect(provider).toContain('profileId={isEdit ? cardId || undefined : undefined}')
+  })
 })

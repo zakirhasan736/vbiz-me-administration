@@ -9,6 +9,7 @@ import {
   type AnalyzeResponse,
 } from '@/lib/ai/applyCardDraft'
 import {
+  CardAgentError,
   cardAgentForm,
   cardAgentJobGet,
   cardAgentJobPost,
@@ -133,6 +134,10 @@ type JobSnapshot = AnalyzeResponse & {
   selectedNavIds?: string[]
   addableTabs?: Array<{ navId: string; tab: string }>
   errorMessage?: string | null
+  errorCode?: string | null
+  requestId?: string | null
+  retryable?: boolean
+  warnings?: string[]
   profileId?: string | null
   blueprint?: AnalyzeResponse['blueprint']
 }
@@ -142,16 +147,30 @@ function sleep(ms: number) {
 }
 
 const WORKING_JOB_STATUSES = new Set(['QUEUED', 'EXTRACTING', 'ARCHITECTING', 'MAPPING_FIELDS', 'GENERATING'])
+const JOB_WAIT_MS = 300_000
 
 async function waitForCardAgentJob(
   snapshot: JobSnapshot,
   onProgress: (next: JobSnapshot) => void
 ): Promise<JobSnapshot> {
-  if (!WORKING_JOB_STATUSES.has(snapshot.status)) return snapshot
-  await sleep(1400)
-  const next = await cardAgentJobGet<JobSnapshot>(snapshot.jobId)
-  onProgress(next)
-  return waitForCardAgentJob(next, onProgress)
+  const deadline = Date.now() + JOB_WAIT_MS
+  let current = snapshot
+  while (WORKING_JOB_STATUSES.has(current.status)) {
+    if (Date.now() > deadline) {
+      throw new CardAgentError(
+        'That source took too long to analyze. Your card is unchanged. Try again or use a smaller source.',
+        0,
+        'TIMEOUT',
+        current.requestId || undefined,
+        true,
+        'source_fetch'
+      )
+    }
+    await sleep(current.status === 'EXTRACTING' || current.status === 'ARCHITECTING' ? 2200 : 1400)
+    current = await cardAgentJobGet<JobSnapshot>(current.jobId)
+    onProgress(current)
+  }
+  return current
 }
 
 const CARD_BUILD_PIPELINE: PipelineStep[] = [
@@ -259,6 +278,8 @@ type AiCardAgentWizardProps = {
   onFinish?: () => void
   /** Edit opens as a resume of the current card instead of a blank create session. */
   mode?: 'create' | 'edit'
+  profileId?: string
+  cardLoading?: boolean
 }
 
 const SECTION_OPTIONS: Array<{ id: string; label: string }> = [
@@ -357,6 +378,14 @@ function nextEmptyTabGaps(gaps: GapItem[], skippedIds: string[]): GapItem[] {
   if (!remaining.length) return []
   const navId = remaining[0].navId
   return remaining.filter((gap) => gap.navId === navId)
+}
+
+const BLOCKING_PERSONAL_FIELD_KEYS = new Set(['fullName', 'email', 'phone', 'dob'])
+
+function isBlockingPersonalField(field?: { tabId?: string; fieldKey?: string; required?: boolean } | null) {
+  if (!field?.fieldKey) return false
+  if (field.tabId && field.tabId !== 'home') return false
+  return BLOCKING_PERSONAL_FIELD_KEYS.has(field.fieldKey)
 }
 
 function resolveRecommendedTab(raw: {
@@ -776,6 +805,8 @@ export function AiCardAgentWizard({
   onCreatedNavigate,
   onFinish,
   mode = 'create',
+  profileId,
+  cardLoading = false,
 }: AiCardAgentWizardProps) {
   const isEdit = mode === 'edit'
   const [phase, setPhase] = useState<Phase>('intake')
@@ -811,6 +842,8 @@ export function AiCardAgentWizard({
   const skippedGapIdsRef = useRef<string[]>([])
   const sourceContextRef = useRef<StoredSourceContext>({ websiteUrl: '', businessText: '', files: [] })
   const sessionIdRef = useRef('')
+  const editorUnlockedRef = useRef(!isEdit)
+  const [analysisFailed, setAnalysisFailed] = useState(false)
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>(CARD_BUILD_PIPELINE)
   const [recommendedAdds, setRecommendedAdds] = useState<string[]>([])
   const [cardPlan, setCardPlan] = useState<CardPlanTab[]>([])
@@ -829,8 +862,11 @@ export function AiCardAgentWizard({
       return
     }
     // Bootstrap only when the popup newly opens — never mid-session on parent remounts
+    if (isEdit && cardLoading) return
     if (wasOpenRef.current) return
     wasOpenRef.current = true
+    editorUnlockedRef.current = !isEdit
+    setAnalysisFailed(false)
     setPhase('intake')
     const existingWebsite = vCardData.personal?.website?.trim() || ''
     const status = existingCardStatusMessage(vCardData, enabledNavIds)
@@ -871,7 +907,7 @@ export function AiCardAgentWizard({
     setOpenLaunchTabs([])
     setActiveFeatureGuideKey(null)
     setActiveNav(enabledNavIds)
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when newly opened
+  }, [open, cardLoading, isEdit]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when newly opened
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -910,11 +946,12 @@ export function AiCardAgentWizard({
     (data: VCardData, navIds: string[]) => {
       const synced = syncMyInfoFromPersonal(data)
       draftRef.current = synced
+      const nextNav = normalizeNavOrderWithPinnedEnds(navIds)
+      setActiveNav(nextNav)
+      if (!editorUnlockedRef.current) return
       for (const write of draftFieldWrites(synced)) {
         updateData(write.path, write.value)
       }
-      const nextNav = normalizeNavOrderWithPinnedEnds(navIds)
-      setActiveNav(nextNav)
       onEnableNavIds(nextNav)
     },
     [updateData, onEnableNavIds]
@@ -1067,10 +1104,13 @@ export function AiCardAgentWizard({
       }
       askNextGap(report)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not read this card.'
+      const msg = formatCardAgentError(e, 'Could not read this card.')
       setError(msg)
       setPhase('intake')
-      pushMsg('assistant', `I hit a problem: ${msg}. Add a website or documents, or try Continue again.`)
+      pushMsg(
+        'assistant',
+        `Analysis of the current card couldn’t finish. ${msg} Add a website or documents, or try Continue again.`
+      )
     } finally {
       setBusy(false)
     }
@@ -1089,8 +1129,18 @@ export function AiCardAgentWizard({
       return
     }
 
+    if (isEdit && cardLoading) {
+      setError('I need your current card loaded before I can plan an update.')
+      return
+    }
+    if (isEdit && !profileId) {
+      setError('I need your current card loaded before I can plan an update.')
+      return
+    }
+
     sourceContextRef.current = { websiteUrl: url, businessText: text, files: [...uploadFiles] }
     setError('')
+    setAnalysisFailed(false)
     setBusy(true)
     setPhase('working')
     setPipelineSteps(
@@ -1118,7 +1168,9 @@ export function AiCardAgentWizard({
     }
     pushMsg(
       'assistant',
-      'I’m reading your sources now. After that I’ll suggest the right tabs, then we’ll fill empty ones together — yes or skip, one tab at a time.'
+      isEdit
+        ? 'I’m analyzing your sources and comparing them with your current card. I’ll identify what’s missing, what’s new, and which sections I can improve. Nothing on your existing card will change until you approve the updates.'
+        : 'I’m reading your website (including inner pages, blogs, and portfolio), OCR documents, and pasted notes so I can understand the business more fully. This can take extra time on a large site.'
     )
 
     try {
@@ -1127,6 +1179,12 @@ export function AiCardAgentWizard({
       if (text) extractForm.set('businessText', text)
       for (const file of uploadFiles) extractForm.append('files', file)
       extractForm.set('existingCard', JSON.stringify(draftRef.current || {}))
+      extractForm.set('builderMode', isEdit ? 'update' : 'create')
+      if (profileId) {
+        extractForm.set('profileId', profileId)
+        extractForm.set('cardId', profileId)
+      }
+      if (sessionIdRef.current) extractForm.set('sessionId', sessionIdRef.current)
 
       const initialJob = await cardAgentForm<JobSnapshot>('jobs', extractForm)
       if (initialJob.jobId) {
@@ -1159,7 +1217,14 @@ export function AiCardAgentWizard({
         }
       })
       if (job.status === 'FAILED') {
-        throw new Error(job.errorMessage || 'Could not design your card.')
+        throw new CardAgentError(
+          job.errorMessage || 'Could not design your card.',
+          422,
+          job.errorCode || 'SOURCE_ANALYSIS_FAILED',
+          job.requestId || undefined,
+          job.retryable !== false,
+          'source_fetch'
+        )
       }
 
       const json: AnalyzeResponse = {
@@ -1197,6 +1262,7 @@ export function AiCardAgentWizard({
         mapped.data.faqs?.length ? `${mapped.data.faqs.length} FAQs` : null,
       ].filter(Boolean)
 
+      const websiteWarning = (job.warnings || []).some((warning) => /website could not be read/i.test(warning))
       const enabledLabels = mapped.enabledNavIds.map((id) => getCreateCardDisplayLabel(id, id)).join(' · ')
       const completeLine =
         typeof job.cardPercent === 'number'
@@ -1204,10 +1270,13 @@ export function AiCardAgentWizard({
           : typeof json.completion?.completionScore === 'number'
             ? `Your vBiz Me card is ${json.completion.completionScore}% complete.`
             : 'Your card plan is ready.'
+      const discoveryLine = isEdit
+        ? `I finished analyzing your sources. Useful details found: ${filledBits.join(', ') || 'core personal details'}. Current card completion: ${job.cardPercent || score}%. Nothing was written to the live card yet.`
+        : `${completeLine} ${mapped.businessSummary || job.businessSummary || ''}\n\nI already drafted: ${filledBits.join(', ') || 'core personal details'}${enabledLabels ? `\nSuggested tabs: ${enabledLabels}` : ''}.\n\nNext I’ll show tab suggestions. Pick what belongs on this card — then I’ll ask about each empty tab.`
 
       pushMsg(
         'assistant',
-        `${completeLine} ${mapped.businessSummary || job.businessSummary || ''}\n\nI already drafted: ${filledBits.join(', ') || 'core personal details'}${enabledLabels ? `\nSuggested tabs: ${enabledLabels}` : ''}.\n\nNext I’ll show tab suggestions. Pick what belongs on this card — then I’ll ask about each empty tab.`
+        `${websiteWarning ? 'I couldn’t read the website, but I successfully analyzed your other sources. I’ll continue with that information.\n\n' : ''}${discoveryLine}`
       )
 
       const recs: RecommendedTab[] = []
@@ -1264,11 +1333,15 @@ export function AiCardAgentWizard({
       setFiles([])
       setWebsiteUrl('')
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'AI agent failed'
+      const msg = formatCardAgentError(
+        e,
+        'We couldn’t finish analyzing that source. Your existing card was not overwritten.'
+      )
       setError(msg)
+      setAnalysisFailed(true)
       pushMsg(
         'assistant',
-        `I hit a problem: ${msg}. Your existing card was not overwritten. You can retry with the same website or another document.`
+        `Analysis couldn’t finish. ${msg}\n\nYour existing card was not overwritten. You can try again, use another website, paste text, upload a document, or continue with the current card.`
       )
       setPhase('intake')
     } finally {
@@ -1292,7 +1365,7 @@ export function AiCardAgentWizard({
       if (job.selectedNavIds?.length) {
         const nextNav = normalizeNavOrderWithPinnedEnds(job.selectedNavIds)
         setActiveNav(nextNav)
-        onEnableNavIds(nextNav)
+        if (editorUnlockedRef.current) onEnableNavIds(nextNav)
       }
     },
     [applyDraft, onEnableNavIds]
@@ -1300,34 +1373,27 @@ export function AiCardAgentWizard({
 
   const continueFieldFlow = async (job: JobSnapshot) => {
     ingestJob(job)
-    if (job.nextField) {
-      setFieldDraft(typeof job.nextField.currentValue === 'string' ? job.nextField.currentValue : '')
+    if (isBlockingPersonalField(job.nextField)) {
+      setFieldDraft(typeof job.nextField?.currentValue === 'string' ? job.nextField.currentValue : '')
       setAiPreview('')
       setPhase('field')
       const question =
-        job.nextField.fieldKey === 'fullName'
+        job.nextField?.fieldKey === 'fullName'
           ? 'What name should appear publicly on the card?'
-          : job.nextField.fieldKey === 'email'
+          : job.nextField?.fieldKey === 'email'
             ? 'What email address should visitors use? This is collected at card creation.'
-            : job.nextField.fieldKey === 'phone'
+            : job.nextField?.fieldKey === 'phone'
               ? 'What phone number should visitors use? This is collected at card creation.'
-              : job.nextField.fieldKey === 'dob'
+              : job.nextField?.fieldKey === 'dob'
                 ? "What is the card owner's date of birth? It is required at creation and cannot be generated by AI."
-                : job.nextField.fieldKey === 'company'
-                  ? 'What business or company name should appear on the card?'
-                  : `Let’s fill the ${getCreateCardDisplayLabel(job.nextField.tabId, job.nextField.tabId)} section: ${job.nextField.fieldLabel}.`
+                : `Let’s fill ${job.nextField?.fieldLabel || 'this required field'}.`
       pushMsg('assistant', question)
       return
     }
-    if (job.status === 'WAITING_FOR_USER_INPUT' && sessionIdRef.current) {
+    if (job.status === 'WAITING_FOR_USER_INPUT' && sessionIdRef.current && !job.nextField) {
       const assembled = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'assemble', {})
       ingestJob(assembled)
       const report = await refreshGaps(assembled.selectedNavIds || activeNav, draftRef.current)
-      askNextGap(report)
-      return
-    }
-    if (job.status === 'READY') {
-      const report = await refreshGaps(job.selectedNavIds || activeNav, draftRef.current)
       askNextGap(report)
       return
     }
@@ -1385,6 +1451,7 @@ export function AiCardAgentWizard({
   }
 
   const acceptTabs = async () => {
+    editorUnlockedRef.current = true
     const nextNav = normalizeNavOrderWithPinnedEnds(['home', ...selectedRecs])
     onEnableNavIds(nextNav)
     setActiveNav(nextNav)
@@ -1400,7 +1467,7 @@ export function AiCardAgentWizard({
         const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'tabs', { selectedNavIds: nextNav })
         pushMsg(
           'assistant',
-          `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}. I’ll build the selected sections now.`
+          `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}. I’ll collect any required personal facts, then empty tabs, then optional extras (AI Assistance, Canva, SEO, notifications), then preview so you can save a draft or create & activate.`
         )
         await continueFieldFlow(job)
         return
@@ -1609,6 +1676,15 @@ export function AiCardAgentWizard({
     } finally {
       setBusy(false)
     }
+  }
+
+  const skipRemainingToFeatures = () => {
+    const remainingIds = gaps.map((gap) => gap.id)
+    skippedGapIdsRef.current = [...new Set([...skippedGapIdsRef.current, ...remainingIds])]
+    setSkippedGapIds(skippedGapIdsRef.current)
+    setGateGap(null)
+    pushMsg('user', 'Skip remaining empty tabs for now')
+    startFeaturesPhase(score)
   }
 
   const fillFromComposer = async () => {
@@ -1999,6 +2075,10 @@ export function AiCardAgentWizard({
     if (phase === 'section-gate') {
       const t = composer.trim().toLowerCase()
       setComposer('')
+      if (/\b(skip all|skip remaining|extras|features|preview|create)\b/.test(t) || /^(done|continue)$/.test(t)) {
+        skipRemainingToFeatures()
+        return
+      }
       if (/^(n|no|skip|later|nah)/.test(t)) void skipGateSection()
       else void approveGateSection()
       return
@@ -2012,6 +2092,12 @@ export function AiCardAgentWizard({
       return
     }
     if (phase === 'field') {
+      const t = composer.trim().toLowerCase()
+      if (/\b(skip all|skip remaining|extras|features|preview)\b/.test(t) && !isBlockingPersonalField(nextField)) {
+        setComposer('')
+        skipRemainingToFeatures()
+        return
+      }
       if (fieldDraft.trim()) void applyCurrentField('USER_INPUT')
       return
     }
@@ -2173,9 +2259,68 @@ export function AiCardAgentWizard({
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+        {isEdit && cardLoading ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+            Loading your current card before source analysis…
+          </div>
+        ) : null}
         {error ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-            {error}
+          <div className="space-y-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            <p>{error}</p>
+            {analysisFailed ? (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
+                  onClick={() => void runAnalyze()}
+                >
+                  Try Again
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
+                  onClick={() => {
+                    setWebsiteUrl('')
+                    setError('')
+                  }}
+                >
+                  Use Another Website
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
+                  onClick={() => {
+                    setComposer('')
+                    setError('')
+                  }}
+                >
+                  Paste Text Instead
+                </button>
+                <label className="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800">
+                  Upload Document
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
+                    onChange={(e) => {
+                      const next = Array.from(e.target.files || [])
+                      if (!next.length) return
+                      setFiles(next)
+                      setError('')
+                    }}
+                  />
+                </label>
+                {isEdit ? (
+                  <button
+                    type="button"
+                    className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
+                    onClick={() => void resumeExistingCard()}
+                  >
+                    Continue With Current Card
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -2430,6 +2575,16 @@ export function AiCardAgentWizard({
                   Skip
                 </button>
               ) : null}
+              {!isBlockingPersonalField(nextField) ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={skipRemainingToFeatures}
+                  className="rounded-full border border-indigo-200 px-3 py-2 text-[11px] font-black text-indigo-700 dark:border-indigo-500/30 dark:text-indigo-200"
+                >
+                  Continue to extras
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -2613,6 +2768,14 @@ export function AiCardAgentWizard({
                 <SkipForward className="h-3.5 w-3.5" /> Skip
               </button>
             </div>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={skipRemainingToFeatures}
+              className="mt-2 w-full rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[11px] font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
+            >
+              Skip remaining tabs — extras, preview & create
+            </button>
           </div>
         ) : null}
 
@@ -2643,13 +2806,10 @@ export function AiCardAgentWizard({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => {
-                  pushMsg('user', 'Skip remaining gaps for now')
-                  startFeaturesPhase(score)
-                }}
+                onClick={skipRemainingToFeatures}
                 className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
-                Skip to features
+                Skip remaining tabs — extras, preview & create
               </button>
             </div>
           </div>
@@ -3237,7 +3397,7 @@ export function AiCardAgentWizard({
           {phase === 'intake' ? (
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || (isEdit && cardLoading)}
               onClick={() => void runAnalyze()}
               className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
             >
