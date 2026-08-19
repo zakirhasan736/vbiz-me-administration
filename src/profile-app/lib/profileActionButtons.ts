@@ -69,7 +69,7 @@ export function resolveHomeCtaLayout(options: {
   actionButtons?: MyCardActionButtons | null
   labels?: Partial<Record<HomeCtaKey, string>>
   accentColor?: string
-  /** When true, adds a leading "My Info" button (opens the info popup) and pairs Save My Info with Save To Wallet — used on mobile. */
+  /** When true, adds a leading full-width "My Info" button on mobile, then Save Contact + My VCard. */
   includeMyInfo?: boolean
 }): HomeCtaLayout {
   const { actionButtons, labels = {}, includeMyInfo = false } = options
@@ -113,7 +113,7 @@ export function resolveHomeCtaLayout(options: {
   }
 
   const rows: ResolvedHomeCtaButton[][] = includeMyInfo
-    ? [[myInfo, myVcard], [saveMyInfo, googleWallet], [getVcardNow]]
+    ? [[myInfo], [saveMyInfo, myVcard], [googleWallet], [getVcardNow]]
     : [[saveMyInfo, myVcard], [googleWallet], [getVcardNow]]
 
   return { rows }

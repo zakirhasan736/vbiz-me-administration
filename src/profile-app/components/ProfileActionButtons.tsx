@@ -112,7 +112,7 @@ function CtaButtonGrid({
   return (
     <div className={`flex flex-col ${gap}`}>
       {layout.rows.map((row, rowIdx) =>
-        row.length === 2 && isDesktop ? (
+        row.length === 2 ? (
           <div key={rowIdx} className={`grid grid-cols-2 ${rowGap}`}>
             {row.map((button) => (
               <HomeCtaButton
@@ -144,7 +144,7 @@ function CtaButtonGrid({
   )
 }
 
-/** Shared home CTA grid for v1, v2, and v3 — phone stacks every button; desktop keeps [2,1,1]. */
+/** Shared home CTA grid for v1, v2, and v3 — mobile [My Info] then [2,1,1]; desktop [2,1,1]. */
 export function ProfileActionButtons({
   onAction,
   className,
