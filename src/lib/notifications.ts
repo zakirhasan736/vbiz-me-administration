@@ -170,9 +170,10 @@ export async function ensureNotificationPermission(): Promise<NotificationPermis
   }
 }
 
-export function roleToAudience(role?: string | null): NotificationAudience {
-  if (role === 'corporate-owner') return 'corporate'
+export function roleToAudience(role?: string | null, ownerMode?: 'single' | 'corporate' | null): NotificationAudience {
   if (role === 'admin' || role === 'super-admin') return 'admin'
+  if (ownerMode === 'corporate' || ownerMode === 'single') return ownerMode
+  if (role === 'corporate-owner') return 'corporate'
   return 'single'
 }
 

@@ -2,7 +2,9 @@
 
 import { AlertModal } from '@/components/AlertModal'
 import { Modal } from '@/components/ui/Modal'
+import { ownerModeLabel, resolveOwnerMode } from '@/lib/packageOwnerMode'
 import type { OwnerPackage, OwnerPackageFeature } from '@/redux/features/profiles/profiles.api'
+import { useCreateBillingCheckoutMutation } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import { Check, Package, X } from 'lucide-react'
 import { useState } from 'react'
@@ -68,7 +70,8 @@ type BillingPackagesModalProps = {
 
 export function BillingPackagesModal({ open, onClose, packages, currentPackageId }: BillingPackagesModalProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [supportAlertOpen, setSupportAlertOpen] = useState(false)
+  const [errorAlert, setErrorAlert] = useState<string | null>(null)
+  const [createCheckout, { isLoading }] = useCreateBillingCheckoutMutation()
 
   const selectedPackage = packages.find((p) => p.id === selectedId) ?? null
   const canConfirm = Boolean(selectedId && selectedId !== currentPackageId)
@@ -78,11 +81,21 @@ export function BillingPackagesModal({ open, onClose, packages, currentPackageId
     onClose()
   }
 
-  const handleConfirm = () => {
-    if (!canConfirm) return
-    setSelectedId(null)
-    onClose()
-    setSupportAlertOpen(true)
+  const handleConfirm = async () => {
+    if (!canConfirm || !selectedId) return
+    try {
+      const result = await createCheckout({ packageId: selectedId }).unwrap()
+      if (result.url) {
+        window.location.assign(result.url)
+        return
+      }
+      setSelectedId(null)
+      onClose()
+    } catch (error) {
+      const payload =
+        error && typeof error === 'object' && 'data' in error ? (error as { data?: { message?: string } }).data : null
+      setErrorAlert(payload?.message || 'Could not start checkout. Contact support if this continues.')
+    }
   }
 
   return (
@@ -114,8 +127,8 @@ export function BillingPackagesModal({ open, onClose, packages, currentPackageId
             id="billing-packages-desc"
             className="mt-1 max-w-2xl text-[13px] leading-relaxed font-medium text-slate-500 sm:text-[14px] dark:text-slate-400"
           >
-            Review plan details and choose a package to request an upgrade. Your current plan is marked and cannot be
-            selected again.
+            Review plan details and choose a package. Paid plans open Stripe checkout. The signup fee is charged once on
+            the first invoice only.
           </p>
         </div>
 
@@ -162,6 +175,9 @@ export function BillingPackagesModal({ open, onClose, packages, currentPackageId
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[15px] font-bold text-slate-900 dark:text-white">{pkg.name}</span>
+                        <span className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                          {ownerModeLabel(pkg.ownerMode ?? resolveOwnerMode(pkg))}
+                        </span>
                         {subscribed && (
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-800 uppercase dark:bg-emerald-500/20 dark:text-emerald-300">
                             Already subscribed
@@ -193,6 +209,14 @@ export function BillingPackagesModal({ open, onClose, packages, currentPackageId
                         {pkg.yearlyPrice > 0 ? `${money(pkg.yearlyPrice)}/yr` : '—'}
                       </p>
                     </div>
+                    {(pkg.signupFeeCents ?? 0) > 0 ? (
+                      <div>
+                        <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Signup</p>
+                        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                          {money(pkg.signupFeeCents ?? 0)} one-time
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
 
                   {featureLines.length > 0 ? (
@@ -226,20 +250,24 @@ export function BillingPackagesModal({ open, onClose, packages, currentPackageId
           </button>
           <button
             type="button"
-            disabled={!canConfirm}
-            onClick={handleConfirm}
+            disabled={!canConfirm || isLoading}
+            onClick={() => void handleConfirm()}
             className="flex-1 rounded-2xl bg-slate-900 py-3 text-[14px] font-semibold text-white transition-all enabled:hover:bg-slate-800 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-slate-900 dark:enabled:hover:bg-slate-100"
           >
-            {selectedPackage ? `Request ${selectedPackage.name}` : 'Select a plan'}
+            {isLoading
+              ? 'Starting checkout…'
+              : selectedPackage
+                ? `Continue with ${selectedPackage.name}`
+                : 'Select a plan'}
           </button>
         </div>
       </Modal>
 
       <AlertModal
-        open={supportAlertOpen}
-        title="Request upgrade"
-        description="Contact support to change your plan. We will review your request and apply the package update for your account."
-        onClose={() => setSupportAlertOpen(false)}
+        open={Boolean(errorAlert)}
+        title="Checkout"
+        description={errorAlert || ''}
+        onClose={() => setErrorAlert(null)}
         confirmLabel="Got it"
       />
     </>

@@ -60,6 +60,26 @@ const authApi = api.injectEndpoints({
       }),
       invalidatesTags: ['auth'],
     }),
+    verifyLoginOtp: builder.mutation<{ data: { profile: IUser; accessToken: string } }, { email: string; otp: string }>(
+      {
+        query: (payload) => ({
+          url: '/auth/login-otp/verify',
+          method: 'POST',
+          body: payload,
+        }),
+        invalidatesTags: ['auth'],
+      }
+    ),
+    resendLoginOtp: builder.mutation<
+      { data: { cooldownEnd: number; remainingSecond: number; expiresAt?: number } },
+      { email: string }
+    >({
+      query: (payload) => ({
+        url: '/auth/login-otp/resend',
+        method: 'POST',
+        body: payload,
+      }),
+    }),
     updateProfile: builder.mutation<
       { data: { user: IUser; accessToken?: string; refreshToken?: string } },
       TUpdateProfilePayload
@@ -164,6 +184,8 @@ export const {
   useSendVerificationEmailMutation,
   useVerifyEmailMutation,
   useLoginMutation,
+  useVerifyLoginOtpMutation,
+  useResendLoginOtpMutation,
   useUpdateProfileMutation,
   useGoogleLoginMutation,
   useFacebookLoginMutation,

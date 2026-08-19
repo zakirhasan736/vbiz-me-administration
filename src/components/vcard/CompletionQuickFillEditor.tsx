@@ -8,8 +8,10 @@ import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { useAppDispatch } from '@/hooks/redux'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { getAboutMeDraft, isAboutMeDescriptionFilled, setAboutMeDraft } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert, scheduleAboutMeUpsert } from '@/lib/aboutMePersist'
+import { displayMediaAccess } from '@/lib/packageAccess'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import type { CompletionFieldEdit, CompletionScalarControl, VCardCompletionField } from '@/lib/vcardCompletion'
 import { useVCard } from '@/lib/VCardContext'
@@ -790,6 +792,7 @@ function AboutMeDraftQuickFill({
 export function CompletionQuickFillEditor({ field }: { field: VCardCompletionField }) {
   const { vCardData, updateData, updateMeta, cardId, isCreateMode, avatarImageUrl } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
+  const { can } = usePackageAccess()
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
   const edit = field.edit
 
@@ -827,6 +830,14 @@ export function CompletionQuickFillEditor({ field }: { field: VCardCompletionFie
 
   if (edit.type === 'display-media') {
     const value = getCustomValue(edit.fieldKey) || (edit.alsoUpdateMeta === 'avatar' ? avatarImageUrl || '' : '')
+    const gate = displayMediaAccess(edit.fieldKey, can)
+    const accept = gate.allowVideo
+      ? edit.accept
+      : edit.accept
+          .split(',')
+          .map((part) => part.trim())
+          .filter((part) => part && !part.startsWith('video/'))
+          .join(',') || 'image/*'
     return (
       <VCardMediaField
         value={value}
@@ -836,7 +847,10 @@ export function CompletionQuickFillEditor({ field }: { field: VCardCompletionFie
         }}
         profileId={profileId}
         attachmentType={edit.attachmentType}
-        accept={edit.accept}
+        accept={accept}
+        locked={gate.locked}
+        allowVideo={gate.allowVideo}
+        allowAudio={gate.allowAudio}
         maxBytes={edit.maxBytes}
         title={field.label}
         subtitle={field.hint || 'Upload media'}
@@ -846,7 +860,7 @@ export function CompletionQuickFillEditor({ field }: { field: VCardCompletionFie
         variant="inset"
       >
         <MediaSourceActions
-          mode={edit.accept.includes('image') && !edit.accept.includes('video') ? 'image' : 'both'}
+          mode={gate.sourceMode === 'video' ? 'video' : gate.sourceMode}
           compact
           className="mt-3"
           onSelect={(asset) => {

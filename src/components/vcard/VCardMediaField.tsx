@@ -1,6 +1,7 @@
 'use client'
 
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import {
   isVideoFile,
   mediaFileTooLargeMessage,
@@ -9,6 +10,7 @@ import {
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
 import { isVideoUrl } from '@/lib/mediaUrl'
+import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
 import { cn } from '@/utils/cn'
 import { Film, Loader2, Music, Trash2, Upload, X } from 'lucide-react'
 import Image from 'next/image'
@@ -39,6 +41,10 @@ export type VCardMediaFieldProps = {
   className?: string
   children?: ReactNode
   disabled?: boolean
+  /** Block new uploads (existing preview and remove stay available). */
+  locked?: boolean
+  allowVideo?: boolean
+  allowAudio?: boolean
 }
 
 export function mediaLabel(url: string, fallback: string, fileName?: string | null) {
@@ -118,6 +124,9 @@ export function VCardMediaField({
   className,
   children,
   disabled = false,
+  locked = false,
+  allowVideo = true,
+  allowAudio = true,
 }: VCardMediaFieldProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -161,10 +170,20 @@ export function VCardMediaField({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- revoke only on unmount
   }, [])
 
+  const uploadBlocked = disabled || locked
+
   const applyUpload = useCallback(
     async (file: File) => {
-      if (disabled) return
+      if (uploadBlocked) return
       setError(null)
+      if (isVideoFile(file) && !allowVideo) {
+        setError(PACKAGE_FEATURE_LOCKED_MESSAGE)
+        return
+      }
+      if (file.type.startsWith('audio/') && !allowAudio) {
+        setError(PACKAGE_FEATURE_LOCKED_MESSAGE)
+        return
+      }
 
       if (maxBytes != null && file.size > maxBytes && !isVideoFile(file)) {
         setError(mediaFileTooLargeMessage(maxBytes))
@@ -207,7 +226,7 @@ export function VCardMediaField({
         setUploadStage(null)
       }
     },
-    [attachmentType, clearLocalPreview, disabled, maxBytes, onChange, profileId]
+    [allowAudio, allowVideo, attachmentType, clearLocalPreview, maxBytes, onChange, profileId, uploadBlocked]
   )
 
   const clear = () => {
@@ -254,7 +273,7 @@ export function VCardMediaField({
           type="file"
           className="hidden"
           accept={accept}
-          disabled={disabled || uploading}
+          disabled={uploadBlocked || uploading}
           onChange={(e) => {
             const file = e.target.files?.[0]
             e.target.value = ''
@@ -263,7 +282,7 @@ export function VCardMediaField({
         />
         <button
           type="button"
-          disabled={disabled || uploading}
+          disabled={uploadBlocked || uploading}
           onClick={() => inputRef.current?.click()}
           className="flex shrink-0 cursor-pointer items-center gap-2 border-r border-slate-200/80 bg-slate-50 px-4 py-3.5 text-[13px] font-bold whitespace-nowrap text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-4 dark:border-white/10 dark:bg-slate-800/50 dark:text-white dark:hover:bg-slate-800"
         >
@@ -278,6 +297,7 @@ export function VCardMediaField({
         <UploadProgressBar progress={progress} label={uploadStage === 'preparing' ? 'Optimizing…' : undefined} />
       ) : null}
       {error ? <p className="mt-2 pl-1 text-[12px] font-medium text-rose-600 dark:text-rose-400">{error}</p> : null}
+      {locked ? <PackageFeatureLockNote className="mt-2 pl-1" /> : null}
     </div>
   )
 
@@ -353,7 +373,7 @@ export function VCardMediaField({
         ) : null}
         {browseRow}
         {previewPanel}
-        {children}
+        {locked ? null : children}
       </div>
     )
   }
@@ -389,7 +409,7 @@ export function VCardMediaField({
         {browseRow}
       </div>
       {previewPanel}
-      {children}
+      {locked ? null : children}
     </div>
   )
 }

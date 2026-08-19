@@ -32,10 +32,12 @@ import { Tab2PersonalInfo } from '@/components/VCardTab2'
 import { Tab3SocialGames } from '@/components/VCardTab3'
 import { Tab4HomeMedia } from '@/components/VCardTab4'
 import { Tab5ExtraFields } from '@/components/VCardTab5'
+import { isStaffRole } from '@/constants/userRole'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE, ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { createCardOwnerKindLabel, getCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import {
@@ -46,6 +48,7 @@ import {
 } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
+import { directoryPathForOwnerMode } from '@/lib/packageOwnerMode'
 import { buildProfilePath, DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -125,21 +128,16 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const dispatch = useAppDispatch()
   const role = useAppSelector((state) => state.user.user?.role)
   const currentUserId = useAppSelector((state) => state.user.user?.id)
+  const { ownerMode, isCorporateBackOffice } = useOwnerMode()
   const { canMutateVcards, isPaused, isSuspended } = useAccountStatus()
-  const isDirectoryEditor = role === 'corporate-owner' || role === 'admin' || role === 'super-admin'
-  const isStaff = role === 'admin' || role === 'super-admin'
-  const directoryHref =
-    role === 'corporate-owner'
-      ? '/teamvcard'
-      : role === 'admin' || role === 'super-admin'
-        ? '/admin/mycards'
-        : '/vcards'
-  const directoryLabel =
-    role === 'corporate-owner'
-      ? 'Back to Team vCards'
-      : role === 'admin' || role === 'super-admin'
-        ? 'Back to My Cards'
-        : 'Back to My vCards'
+  const isStaff = isStaffRole(role)
+  const isDirectoryEditor = isCorporateBackOffice || isStaff
+  const directoryHref = directoryPathForOwnerMode(ownerMode, role)
+  const directoryLabel = isCorporateBackOffice
+    ? 'Back to Team vCards'
+    : isStaff
+      ? 'Back to My Cards'
+      : 'Back to My vCards'
 
   useEffect(() => {
     if (isStaff || canMutateVcards) return

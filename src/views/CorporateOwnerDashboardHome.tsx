@@ -38,6 +38,7 @@ import {
 } from '@/lib/cardNotice'
 import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
+import { corporateCardCreateBlockedReason } from '@/lib/corporateCardCapacity'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -100,14 +101,17 @@ export default function CorporateOwnerDashboardHome() {
   const { canMutateVcards } = useAccountStatus()
   const profilesReady = Boolean(profilesResult) && !profilesLoading
   const statsReady = Boolean(stats) && !statsLoading
-  const headerQuotaLimit = profilesReady ? (capacity?.limit ?? 0) : undefined
+  const headerQuotaLimit = profilesReady ? (capacity?.limit ?? null) : undefined
+  const headerQuotaRemaining = profilesReady ? (capacity?.remaining ?? null) : undefined
   const headerCardCount = profilesReady ? (capacity?.used ?? liveCards.length) : undefined
   const headerCanCreate = (capacity?.canCreate ?? false) && canMutateVcards
-  const headerCreateDisabledReason = !canMutateVcards
-    ? ACCOUNT_PAUSED_CREATE_MESSAGE
-    : (headerQuotaLimit ?? 0) <= 0
-      ? 'No active package with card capacity. Upgrade your package to create cards.'
-      : `Maximum of ${headerQuotaLimit} corporate cards reached`
+  const headerCreateDisabledReason = corporateCardCreateBlockedReason({
+    canMutateVcards,
+    pausedMessage: ACCOUNT_PAUSED_CREATE_MESSAGE,
+    limit: headerQuotaLimit,
+    used: headerCardCount ?? 0,
+    remaining: headerQuotaRemaining,
+  })
   const headerActiveCount = profilesReady ? liveCards.filter((c) => c.isActive).length : undefined
   const headerTotalViews = statsReady ? (stats?.totalViews ?? 0) + liveKpis.views : undefined
   const headerUniqueViews = statsReady ? (stats?.uniqueViews ?? 0) + liveKpis.views : undefined
@@ -152,8 +156,8 @@ export default function CorporateOwnerDashboardHome() {
         : ((summary?.contactsPreview || []) as DashboardContact[]),
     [contactsRaw, summary?.contactsPreview]
   )
-  const quotaLimit = headerQuotaLimit ?? 0
-  const metricQuotaLimit = profilesReady ? (capacity?.limit ?? 0) : undefined
+  const quotaLimit = headerQuotaLimit ?? null
+  const metricQuotaLimit = profilesReady ? (capacity?.limit ?? null) : undefined
   const metricTotalCards = profilesReady ? (capacity?.used ?? liveCards.length) : undefined
   const activeCount = headerActiveCount
   const totalViews = headerTotalViews
@@ -293,6 +297,7 @@ export default function CorporateOwnerDashboardHome() {
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-10 duration-500">
       <CorporateDashboardHeader
         quotaLimit={headerQuotaLimit}
+        quotaRemaining={headerQuotaRemaining}
         activeCount={headerActiveCount}
         cardCount={headerCardCount}
         totalViews={headerTotalViews}

@@ -4,12 +4,15 @@ import { AccountDisabledShell } from '@/components/AccountDisabledShell'
 import { AccountStatusBanner } from '@/components/AccountStatusBanner'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import { NotificationCenter } from '@/components/NotificationCenter'
+import { isStaffRole } from '@/constants/userRole'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { roleToAudience } from '@/lib/notifications'
+import { ownerOfficeRedirectPath } from '@/lib/packageOwnerMode'
 import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
 import { Contact, LayoutDashboard, Menu, Moon, Sun, X } from 'lucide-react'
@@ -42,21 +45,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const keepMobileNavOpen = isTourActive && Boolean(currentStep?.openMobileNav)
   const showMobileMenu = isMobileMenuOpen && (!isTourActive || keepMobileNavOpen)
   const role = useAppSelector((state) => state.user.user?.role)
+  const { ownerMode, isCorporateBackOffice, isSingleBackOffice } = useOwnerMode()
   const { isSuspended, isPaused } = useAccountStatus()
-  const audience = roleToAudience(role)
+  const audience = roleToAudience(role, ownerMode)
   const isAdminRoute = pathname.startsWith('/admin')
   const isEditorRoute = pathname.startsWith('/vcards/create') || pathname.startsWith('/vcards/edit')
-  const showOwnerStatusBanner = (role === 'vcard-owner' || role === 'corporate-owner') && (isPaused || isSuspended)
+  const isStaff = isStaffRole(role)
+  const showOwnerStatusBanner = Boolean(ownerMode) && (isPaused || isSuspended)
 
   useEffect(() => {
-    if ((role === 'admin' || role === 'super-admin') && !isAdminRoute && !isEditorRoute) {
-      router.replace('/admin/dashboard')
-      return
-    }
-    if (role === 'corporate-owner' && pathname === '/vcards') {
-      router.replace('/teamvcard')
-    }
-  }, [role, isAdminRoute, isEditorRoute, pathname, router])
+    const next = ownerOfficeRedirectPath({ pathname, role, ownerMode })
+    if (next && next !== pathname) router.replace(next)
+  }, [pathname, router, role, ownerMode])
 
   useEffect(() => {
     registerMobileNavOpener(() => setIsMobileMenuOpen(true))
@@ -89,26 +89,25 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     window.dispatchEvent(new Event('theme-change'))
   }
 
-  const navItems =
-    role === 'admin' || role === 'super-admin'
-      ? [
-          { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
-          { name: 'My Cards', path: '/admin/mycards', icon: Contact, tourId: 'tour-nav-vcards' },
-        ]
-      : [
-          { name: 'Dashboard', path: '/', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
-          ...(role === 'corporate-owner'
-            ? [{ name: 'Team vCards', path: '/teamvcard', icon: Contact, tourId: 'tour-nav-teamvcard' }]
-            : [{ name: 'My vCards', path: '/vcards', icon: Contact, tourId: 'tour-nav-vcards' }]),
-        ]
+  const navItems = isStaff
+    ? [
+        { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
+        { name: 'My Cards', path: '/admin/mycards', icon: Contact, tourId: 'tour-nav-vcards' },
+      ]
+    : [
+        { name: 'Dashboard', path: '/', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
+        ...(isCorporateBackOffice
+          ? [{ name: 'Team vCards', path: '/teamvcard', icon: Contact, tourId: 'tour-nav-teamvcard' }]
+          : [{ name: 'My vCards', path: '/vcards', icon: Contact, tourId: 'tour-nav-vcards' }]),
+      ]
 
   // Admin console provides its own shell; avoid double chrome on /admin/*
   if (isAdminRoute) {
     return <>{children}</>
   }
 
-  const brandHref = role === 'admin' || role === 'super-admin' ? '/admin/dashboard' : '/'
-  const showAnnouncementBanner = role === 'vcard-owner' || role === 'corporate-owner'
+  const brandHref = isStaff ? '/admin/dashboard' : '/'
+  const showAnnouncementBanner = Boolean(ownerMode)
 
   return (
     <div className="selection:bg-primary-500/30 relative flex min-h-screen flex-col overflow-x-clip bg-slate-50 font-sans text-slate-900 dark:bg-[#070a13] dark:text-slate-100">

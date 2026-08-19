@@ -1,9 +1,11 @@
 'use client'
 
 import { ContactModal, type OwnerFeedbackMode } from '@/components/dashboard/home/ContactModal'
+import { isStaffRole } from '@/constants/userRole'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { notify } from '@/lib/toast/toast'
 import { logout, useAuth } from '@/providers/AuthProvider'
@@ -19,10 +21,10 @@ import { SwitchToCrmButton } from './SwitchToCrmButton'
 const menuItemClassName =
   'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white'
 
-function accountTypeLabel(role: string | undefined) {
+function accountTypeLabel(role: string | undefined, ownerMode: 'single' | 'corporate' | null) {
   if (role === 'super-admin') return 'Super Admin Account'
   if (role === 'admin') return 'Admin Account'
-  if (role === 'corporate-owner') return 'Corporate Account'
+  if (ownerMode === 'corporate') return 'Corporate Account'
   return 'Single Account'
 }
 
@@ -35,6 +37,8 @@ export function UserDropdown() {
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
   const { user } = useAuth()
   const role = useAppSelector((state) => state.user.user?.role)
+  const { ownerMode, isCorporateBackOffice, isSingleBackOffice } = useOwnerMode()
+  const isStaff = isStaffRole(role)
   const { isSuspended, canPerformAccountActions } = useAccountStatus()
   const { startTour, isActive: isTourActive } = useDashboardTour()
   const menuRef = useRef<HTMLDivElement>(null)
@@ -103,12 +107,12 @@ export function UserDropdown() {
                   'mt-1 inline-block rounded-md px-2 py-0.5 text-[10px] font-extrabold tracking-widest uppercase',
                   role === 'admin' || role === 'super-admin'
                     ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400'
-                    : role === 'corporate-owner'
+                    : isCorporateBackOffice
                       ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/15 dark:text-primary-400'
                       : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300'
                 )}
               >
-                {accountTypeLabel(role)}
+                {accountTypeLabel(role, ownerMode)}
               </p>
               {isSuspended ? (
                 <p className="mt-2 rounded-md bg-rose-50 px-2 py-1 text-[10px] font-extrabold tracking-wide text-rose-700 uppercase dark:bg-rose-500/15 dark:text-rose-300">
@@ -120,7 +124,7 @@ export function UserDropdown() {
               <div className="px-1 pb-1">
                 <SwitchToCrmButton variant="menu" />
               </div>
-              {role === 'admin' || role === 'super-admin' ? (
+              {isStaff ? (
                 <Link href="/admin/settings" onClick={() => setIsProfileOpen(false)} className={menuItemClassName}>
                   <Settings className="h-4 w-4" /> Admin Settings
                 </Link>
@@ -139,7 +143,7 @@ export function UserDropdown() {
                   <Settings className="h-4 w-4" /> Settings
                 </Link>
               )}
-              {role !== 'admin' && role !== 'super-admin' ? (
+              {!isStaff ? (
                 <>
                   <button
                     type="button"
@@ -171,7 +175,7 @@ export function UserDropdown() {
                   </button>
                 </>
               ) : null}
-              {role === 'vcard-owner' &&
+              {isSingleBackOffice &&
               !isTourActive &&
               !pathname.startsWith('/vcards/create') &&
               !pathname.startsWith('/vcards/edit') ? (
@@ -215,7 +219,7 @@ export function UserDropdown() {
           key={ownerFeedbackMode}
           mode={ownerFeedbackMode}
           onClose={() => setOwnerFeedbackMode(null)}
-          fromRole={role === 'corporate-owner' ? 'corporate' : 'single'}
+          fromRole={isCorporateBackOffice ? 'corporate' : 'single'}
           fromName={user?.displayName || 'Owner'}
           fromEmail={user?.email || undefined}
         />

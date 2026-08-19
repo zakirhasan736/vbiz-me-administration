@@ -323,8 +323,9 @@ export type SocialClicksQuery = {
 }
 
 export type CardCapacity = {
-  limit: number
+  limit: number | null
   used: number
+  remaining: number | null
   canCreate: boolean
 }
 
@@ -341,17 +342,53 @@ export type OwnerPackage = {
   description?: string | null
   monthlyPrice: number
   yearlyPrice: number
+  signupFeeCents?: number
   sortOrder?: number
   features?: OwnerPackageFeature[]
+  ownerMode?: 'single' | 'corporate'
 }
 
 export type OwnerSubscription = {
   id: string
   packageId?: string | null
   endsAt?: string | null
+  provider?: string | null
   stripeStatus?: string | null
   createdAt: string
   package?: OwnerPackage | null
+}
+
+export type PackageAccessMap = {
+  allow_ai_assistance: boolean
+  allow_canva: boolean
+  allow_push_notification: boolean
+  allow_email_notification: boolean
+  allow_support_ticket: boolean
+  allow_auto_card_builder: boolean
+  allow_seo: boolean
+}
+
+export type EffectiveEntitlements = {
+  source: 'staff' | 'subscription' | 'none'
+  ownerMode: 'single' | 'corporate' | null
+  backOffice?: 'single' | 'corporate' | 'admin' | null
+  packageId: string | null
+  packageSlug: string | null
+  packageName: string | null
+  subscriptionId: string | null
+  subscriptionActive: boolean
+  subscriptionStatus?: 'active' | 'pending_payment' | 'inactive'
+  access: PackageAccessMap
+  features?: { featureKey: string; featureValue: string | null; unlimited: boolean }[]
+  limits: {
+    maxCards: number | null
+    packageMaxCards: number | null
+    maxSocialLinks: number | null
+    maxExtraFields: number | null
+    maxFileSizeMb: number | null
+  }
+  overrides: { featureKey: string; featureValue: string | null }[]
+  cardCapacity?: { limit: number | null; used: number | null; remaining: number | null } | null
 }
 
 export type ProfilesListResult = {
@@ -918,8 +955,9 @@ const profilesApi = api.injectEndpoints({
             items: payload,
             total: res.totalDoc ?? payload.length,
             capacity: {
-              limit: Number.MAX_SAFE_INTEGER,
+              limit: null,
               used: payload.length,
+              remaining: null,
               canCreate: true,
             },
           }
@@ -928,8 +966,9 @@ const profilesApi = api.injectEndpoints({
           items: payload?.items || [],
           total: payload?.total ?? res.totalDoc ?? 0,
           capacity: payload?.capacity || {
-            limit: Number.MAX_SAFE_INTEGER,
+            limit: null,
             used: payload?.items?.length || 0,
+            remaining: null,
             canCreate: true,
           },
         }
@@ -1527,6 +1566,21 @@ const profilesApi = api.injectEndpoints({
       query: () => '/profiles/subscriptions',
       transformResponse: (res: Envelope<OwnerSubscription[]>) => res.data || [],
     }),
+    createBillingCheckout: builder.mutation<
+      { url: string | null; assigned: boolean; firstInvoiceCents?: number; recurringCents?: number },
+      { packageId: string }
+    >({
+      query: (body) => ({ url: '/billing/checkout', method: 'POST', body }),
+      transformResponse: (
+        res: Envelope<{ url: string | null; assigned: boolean; firstInvoiceCents?: number; recurringCents?: number }>
+      ) => res.data,
+      invalidatesTags: ['auth'],
+    }),
+    getEntitlements: builder.query<EffectiveEntitlements, void>({
+      query: () => '/profiles/me/entitlements',
+      transformResponse: (res: Envelope<EffectiveEntitlements>) => res.data,
+      providesTags: ['auth'],
+    }),
     getContacts: builder.query<ProfileContact[], string | void>({
       query: (profileId) =>
         profileId ? `/profiles/contacts?profileId=${encodeURIComponent(profileId)}` : '/profiles/contacts',
@@ -1642,6 +1696,8 @@ export const {
   useExportDashboardOverviewMutation,
   useGetPackagesQuery,
   useGetSubscriptionsQuery,
+  useCreateBillingCheckoutMutation,
+  useGetEntitlementsQuery,
   useGetContactsQuery,
   usePatchContactMutation,
   useExportContactsCsvMutation,

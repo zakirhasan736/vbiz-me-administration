@@ -18,4 +18,5 @@ export interface IUser {
   isActive?: boolean
   accountStatus?: AccountStatus
   completedTours?: string[]
+  ownerMode?: 'single' | 'corporate' | null
 }

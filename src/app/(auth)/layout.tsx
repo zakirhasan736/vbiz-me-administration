@@ -40,7 +40,6 @@ const resolveAuthCopy = (pathname: string) => {
 
 const AuthLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
-  const isLogin = pathname === '/login'
   const isSetPassword = pathname === '/set-password'
   const isVerifyEmail = pathname === '/verify-email'
   const isForgotPassword = pathname === '/forgot-password'
@@ -74,18 +73,6 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
             </div>
 
             <SocialLogin />
-
-            <div className="mt-6 border-t border-slate-200 pt-6 dark:border-white/10">
-              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
-                {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
-                <Link
-                  href={isLogin ? '/register' : '/login'}
-                  className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-semibold transition-colors outline-none"
-                >
-                  {isLogin ? 'Register' : 'Log In'}
-                </Link>
-              </p>
-            </div>
           </>
         ) : !isSetPassword ? (
           <div className="mt-6 border-t border-slate-200 pt-6 dark:border-white/10">
@@ -101,17 +88,6 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
               >
                 Log In
               </Link>
-              {isForgotPassword ? (
-                <>
-                  {' · '}
-                  <Link
-                    href="/register"
-                    className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-semibold transition-colors outline-none"
-                  >
-                    Create account
-                  </Link>
-                </>
-              ) : null}
             </p>
           </div>
         ) : null}

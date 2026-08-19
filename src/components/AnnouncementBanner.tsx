@@ -1,6 +1,7 @@
 'use client'
 
-import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { useAppDispatch } from '@/hooks/redux'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { seedActiveAnnouncementNotification } from '@/lib/notifications'
 import {
   clearActiveAnnouncementBannerCache,
@@ -94,7 +95,7 @@ function isRenderableBanner(value: Announcement | null | undefined): value is An
 
 export default function AnnouncementBanner({ enabled = true }: AnnouncementBannerProps) {
   const dispatch = useAppDispatch()
-  const userRole = useAppSelector((state) => state.user.user?.role)
+  const { ownerMode } = useOwnerMode()
   const { data } = useGetActiveAnnouncementQuery(undefined, {
     skip: !enabled,
     pollingInterval: 60_000,
@@ -119,7 +120,7 @@ export default function AnnouncementBanner({ enabled = true }: AnnouncementBanne
 
   useEffect(() => {
     if (!enabled) return
-    const audience = userRole === 'corporate-owner' ? 'corporate' : userRole === 'vcard-owner' ? 'single' : null
+    const audience = ownerMode === 'corporate' || ownerMode === 'single' ? ownerMode : null
     if (!audience) return
 
     const seen = new Set<string>()
@@ -139,7 +140,7 @@ export default function AnnouncementBanner({ enabled = true }: AnnouncementBanne
             : undefined,
       })
     }
-  }, [enabled, data, banner, userRole])
+  }, [enabled, data, banner, ownerMode])
 
   if (!enabled || !banner || dismissed) {
     return null

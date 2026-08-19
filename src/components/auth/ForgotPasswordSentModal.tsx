@@ -27,9 +27,9 @@ const ForgotPasswordSentModal = ({ open, onClose, email }: ForgotPasswordSentMod
           Check your email
         </h3>
         <p id="forgot-password-sent-desc" className="mb-6 text-[13px] font-medium text-slate-500 dark:text-slate-400">
-          We sent a password reset link to{' '}
-          <span className="font-semibold break-all text-slate-800 dark:text-slate-200">{email}</span>. Open the link to
-          choose a new password.
+          We sent the next steps if an account exists for{' '}
+          <span className="font-semibold break-all text-slate-800 dark:text-slate-200">{email}</span>. Check that inbox
+          for a password reset or setup link.
         </p>
 
         <Link

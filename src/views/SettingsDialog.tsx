@@ -42,6 +42,10 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, type MouseEventHandler, type ReactNode } from 'react'
 
 function isActiveSubscription(sub: OwnerSubscription, now = Date.now()) {
+  if (sub.provider === 'stripe') {
+    const status = String(sub.stripeStatus || '').toLowerCase()
+    if (status !== 'active' && status !== 'trialing') return false
+  }
   if (sub.endsAt == null || sub.endsAt === '') return true
   const ends = new Date(sub.endsAt).getTime()
   return Number.isFinite(ends) && ends > now
@@ -51,12 +55,17 @@ function formatPackagePrice(monthlyPrice?: number | null) {
   return `${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(monthlyPrice) || 0) / 100)}/mo`
 }
 
+function formatCardLimit(n: number | null | undefined) {
+  if (n == null || !Number.isFinite(n)) return null
+  return n === 1 ? '1 card' : `${n} cards`
+}
+
 function packageMaxCards(pkg: OwnerPackage | null | undefined) {
   const value = pkg?.features?.find((f) => f.featureKey === 'max_cards')?.featureValue
   if (value == null || value === '') return null
   const n = Number(value)
   if (!Number.isFinite(n)) return null
-  return n === 1 ? '1 card' : `${n} cards`
+  return formatCardLimit(n)
 }
 
 const sectionsGroups = [
@@ -192,6 +201,7 @@ export default function SettingsDialog() {
   const reduxUser = useAppSelector((state) => state.user.user)
   const { isSuspended, canPerformAccountActions } = useAccountStatus()
   const {
+    entitlements,
     allow_canva: canUseCanva,
     allow_push_notification: canUsePush,
     allow_email_notification: canUseEmail,
@@ -213,8 +223,9 @@ export default function SettingsDialog() {
     activeSubscription?.package ??
     (activeSubscription?.packageId ? packages.find((pkg) => pkg.id === activeSubscription.packageId) : undefined) ??
     null
-  const hasActivePlan = Boolean(currentPackage)
-  const currentPlanCards = packageMaxCards(currentPackage)
+  const hasActivePlan = Boolean(entitlements?.subscriptionActive || currentPackage)
+  const currentPlanName = entitlements?.packageName || currentPackage?.name || null
+  const currentPlanCards = formatCardLimit(entitlements?.limits.maxCards) ?? packageMaxCards(currentPackage)
 
   const activeTab = isTourActive && currentStep?.id && settingsAssist.activeTab ? settingsAssist.activeTab : selectedTab
 
@@ -785,12 +796,14 @@ export default function SettingsDialog() {
                 </p>
 
                 <div className="mb-6 rounded-2xl border border-slate-200 px-4 py-4 dark:border-white/10">
-                  {hasActivePlan && currentPackage ? (
+                  {hasActivePlan && (currentPackage || currentPlanName) ? (
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Current plan</p>
-                        <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{currentPackage.name}</p>
-                        {currentPackage.description ? (
+                        <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
+                          {currentPlanName || currentPackage?.name}
+                        </p>
+                        {currentPackage?.description ? (
                           <p className="mt-1 line-clamp-2 text-[13px] font-medium text-slate-500 dark:text-slate-400">
                             {currentPackage.description}
                           </p>
@@ -798,7 +811,7 @@ export default function SettingsDialog() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">
-                          {formatPackagePrice(currentPackage.monthlyPrice)}
+                          {currentPackage ? formatPackagePrice(currentPackage.monthlyPrice) : null}
                         </p>
                         {currentPlanCards ? (
                           <p className="mt-1 text-[12px] font-medium text-slate-400">{currentPlanCards}</p>

@@ -44,8 +44,8 @@ const VerifyEmailView = () => {
 
   useEffect(() => {
     if (email || isLeavingRef.current) return
-    toast.error('Please register first to verify your email.')
-    router.replace('/register')
+    toast.error('Please log in to continue. New accounts are created by an administrator.')
+    router.replace('/login')
   }, [email, router])
 
   useEffect(() => {

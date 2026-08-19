@@ -198,6 +198,7 @@ export default function TeamVCardsView() {
       <TeamVCardsQuotaTracker
         currentCount={directory.currentCount}
         quotaLimit={directory.quotaLimit}
+        quotaRemaining={directory.quotaRemaining}
         quotaPercentage={directory.quotaPercentage}
       />
 

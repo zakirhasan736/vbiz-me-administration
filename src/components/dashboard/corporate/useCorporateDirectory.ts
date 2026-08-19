@@ -4,6 +4,7 @@ import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
+import { corporateCardCreateBlockedReason } from '@/lib/corporateCardCapacity'
 import { notify } from '@/lib/toast/toast'
 import {
   mapApiProfileToVCardRecord,
@@ -67,16 +68,20 @@ export function useCorporateDirectory(filters: {
   const capacity = profilesResult?.capacity
   const cards = useMemo(() => (profilesResult?.items ?? []).map(mapApiProfileToVCardRecord), [profilesResult?.items])
 
-  const quotaLimit = capacity?.limit ?? 0
+  const quotaLimit = capacity?.limit ?? null
+  const quotaRemaining = capacity?.remaining ?? null
   const currentCount = capacity?.used ?? cards.length
-  const quotaPercentage = quotaLimit > 0 ? Math.min((currentCount / quotaLimit) * 100, 100) : currentCount > 0 ? 100 : 0
+  const quotaPercentage =
+    quotaLimit != null && quotaLimit > 0 ? Math.min((currentCount / quotaLimit) * 100, 100) : currentCount > 0 ? 100 : 0
   const capacityAllowsCreate = capacity?.canCreate ?? false
   const canCreate = capacityAllowsCreate && canMutateVcards
-  const createDisabledReason = !canMutateVcards
-    ? ACCOUNT_PAUSED_CREATE_MESSAGE
-    : quotaLimit <= 0
-      ? 'No active package with card capacity. Upgrade your package to create cards.'
-      : `Maximum of ${quotaLimit} corporate cards reached`
+  const createDisabledReason = corporateCardCreateBlockedReason({
+    canMutateVcards,
+    pausedMessage: ACCOUNT_PAUSED_CREATE_MESSAGE,
+    limit: quotaLimit,
+    used: currentCount,
+    remaining: quotaRemaining,
+  })
   const activeCount = cards.filter((c) => !c.isDraft).length
   const draftCount = cards.filter((c) => c.isDraft).length
   const totalViews = cards.reduce((sum, c) => sum + (c.views || 0), 0)
@@ -156,6 +161,7 @@ export function useCorporateDirectory(filters: {
     isError,
     refetch,
     quotaLimit,
+    quotaRemaining,
     currentCount,
     quotaPercentage,
     canCreate,

@@ -1,7 +1,9 @@
 'use client'
 
 import { MediaSourceActions } from '@/components/MediaSourceActions'
+import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { useVCard } from '@/lib/VCardContext'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
@@ -18,6 +20,10 @@ const MAX_EXPLAINER_BYTES = 30 * 1024 * 1024
 export function Tab1MediaProfile() {
   const { cardId, vCardData, updateData, updateMeta, avatarImageUrl } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
+  const { can } = usePackageAccess()
+  const canAvatarVideo = can('allow_video_upload')
+  const canBgVideo = can('allow_background_video_upload')
+  const canExplainer = can('allow_2d_explainer')
 
   const profileMediaUrl = getCustomValue(FIELD_BG)
   const profilePicUrl = getCustomValue(FIELD_AVATAR) || avatarImageUrl || ''
@@ -41,7 +47,8 @@ export function Tab1MediaProfile() {
           onChange={(url) => setCustomValue(FIELD_BG, url || '')}
           profileId={profileId}
           attachmentType={FIELD_BG}
-          accept="image/*,video/*"
+          accept={canBgVideo ? 'image/*,video/*' : 'image/*'}
+          allowVideo={canBgVideo}
           maxBytes={MAX_BG_BYTES}
           title="Profile Background"
           subtitle="Video/Image • Max 15MB"
@@ -51,7 +58,7 @@ export function Tab1MediaProfile() {
           placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
         >
           <MediaSourceActions
-            mode="both"
+            mode={canBgVideo ? 'both' : 'image'}
             compact
             className="mt-3"
             onSelect={(asset) => setCustomValue(FIELD_BG, asset.url)}
@@ -66,7 +73,8 @@ export function Tab1MediaProfile() {
           }}
           profileId={profileId}
           attachmentType={FIELD_AVATAR}
-          accept="image/*,video/*"
+          accept={canAvatarVideo ? 'image/*,video/*' : 'image/*'}
+          allowVideo={canAvatarVideo}
           maxBytes={MAX_AVATAR_BYTES}
           title="Avatar"
           subtitle="Image or video • Max 15MB"
@@ -79,7 +87,7 @@ export function Tab1MediaProfile() {
           placeholderImage="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80"
         >
           <MediaSourceActions
-            mode="image"
+            mode={canAvatarVideo ? 'both' : 'image'}
             compact
             className="mt-3"
             onSelect={(asset) => {
@@ -96,6 +104,8 @@ export function Tab1MediaProfile() {
             profileId={profileId}
             attachmentType={FIELD_INTRO}
             accept="video/*"
+            locked={!canExplainer}
+            allowVideo={canExplainer}
             maxBytes={MAX_EXPLAINER_BYTES}
             title="2D Video Explainer"
             subtitle="Shown as your explainer section. Max 30MB."
@@ -136,9 +146,11 @@ export function Tab1MediaProfile() {
                 value={externalUrl}
                 onChange={(e) => updateData('personal.explainerVideoUrl', e.target.value)}
                 placeholder="https://"
-                className="w-full bg-transparent px-5 py-4 text-[13px] font-medium text-slate-900 transition-colors outline-none placeholder:text-slate-500 dark:text-white"
+                disabled={!canExplainer}
+                className="w-full bg-transparent px-5 py-4 text-[13px] font-medium text-slate-900 transition-colors outline-none placeholder:text-slate-500 disabled:opacity-60 dark:text-white"
               />
             </div>
+            {canExplainer ? null : <PackageFeatureLockNote className="mt-3" />}
           </div>
         </div>
       </div>

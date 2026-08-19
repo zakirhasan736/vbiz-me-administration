@@ -1,4 +1,5 @@
 import { isStaffRole } from '@/constants/userRole'
+import { homePathForOwnerMode, ownerOfficeRedirectPath, type OwnerMode } from '@/lib/packageOwnerMode'
 
 export const SESSION_EXPIRED_LOGIN_PATH = '/login?reason=session-expired'
 export const SESSION_EXPIRED_STORAGE_KEY = 'vbiz.session-expired'
@@ -8,13 +9,30 @@ export const SESSION_RECENT_ACTIVITY_MS = 60_000
 
 export type SessionExpiryReason = 'idle' | 'expired' | 'unauthorized'
 
+export type SessionHomeInput = {
+  role?: string | null
+  ownerMode?: OwnerMode | null
+}
+
 export function shouldSilentlyRefreshSession(role?: string | null): boolean {
   return !isStaffRole(role)
 }
 
+function toSession(session: SessionHomeInput | string | null | undefined): SessionHomeInput {
+  if (typeof session === 'string' || session == null) return { role: session }
+  return session
+}
+
 export function homePathForRole(role?: string | null): string {
-  if (isStaffRole(role)) return '/admin/dashboard'
-  if (role === 'corporate-owner') return '/teamvcard'
+  return homePathForSession({ role })
+}
+
+export function homePathForSession(session: SessionHomeInput): string {
+  if (isStaffRole(session.role)) return '/admin/dashboard'
+  if (session.ownerMode === 'corporate' || session.ownerMode === 'single') {
+    return homePathForOwnerMode(session.ownerMode)
+  }
+  if (session.role === 'corporate-owner') return '/teamvcard'
   return '/'
 }
 
@@ -76,13 +94,17 @@ export function clearSessionExpiredMarker(): void {
   }
 }
 
-export function redirectToRoleHome(role?: string | null): void {
+export function redirectToRoleHome(session?: SessionHomeInput | string | null): void {
   if (typeof window === 'undefined' || !window.location.pathname.startsWith('/login')) return
-  window.location.replace(homePathForRole(role))
+  window.location.replace(homePathForSession(toSession(session)))
 }
 
-export function resolvePostLoginPath(role: string | null | undefined, requestedPath?: string | null): string {
-  const fallback = homePathForRole(role)
+export function resolvePostLoginPath(
+  session: SessionHomeInput | string | null | undefined,
+  requestedPath?: string | null
+): string {
+  const resolved = toSession(session)
+  const fallback = homePathForSession(resolved)
   const requested = requestedPath?.trim()
 
   if (!requested || !requested.startsWith('/') || requested.startsWith('//') || requested.startsWith('/login')) {
@@ -90,9 +112,27 @@ export function resolvePostLoginPath(role: string | null | undefined, requestedP
   }
 
   // A card-owner session must never be sent into the staff console by a stale redirect cookie.
-  if (requested.startsWith('/admin') && !isStaffRole(role)) return fallback
-  if (!shouldSilentlyRefreshSession(role) && !requested.startsWith('/admin') && !requested.startsWith('/vcards/edit')) {
+  if (requested.startsWith('/admin') && !isStaffRole(resolved.role)) return fallback
+  if (
+    !shouldSilentlyRefreshSession(resolved.role) &&
+    !requested.startsWith('/admin') &&
+    !requested.startsWith('/vcards/edit')
+  ) {
     return fallback
+  }
+
+  if (!isStaffRole(resolved.role)) {
+    const bounced = ownerOfficeRedirectPath({
+      pathname: requested,
+      role: resolved.role,
+      ownerMode:
+        resolved.ownerMode === 'corporate' || resolved.ownerMode === 'single'
+          ? resolved.ownerMode
+          : resolved.role === 'corporate-owner'
+            ? 'corporate'
+            : 'single',
+    })
+    if (bounced) return bounced
   }
 
   return requested
