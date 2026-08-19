@@ -39,16 +39,19 @@ export async function requestGeminiLiveToken(profileId: string): Promise<GeminiL
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
-  const body = await response.json().catch(() => null)
+  const body = (await response.json().catch(() => null)) as { message?: unknown } | null
   if (!response.ok) {
+    const serverMessage = typeof body?.message === 'string' ? body.message.trim() : ''
     const fallback =
-      response.status === 403
-        ? 'AI Assistance is disabled for this card.'
-        : response.status === 429
-          ? 'The assistant is busy right now. Please wait a moment and try again.'
-          : response.status === 503
-            ? 'The assistant is temporarily unavailable. Please try again shortly.'
-            : `Could not start the assistant (${response.status}).`
+      response.status === 403 || response.status === 404
+        ? 'AI Assistance is turned off for this card.'
+        : response.status === 409
+          ? serverMessage || 'This card cannot start a live session yet. Try again after the latest API update.'
+          : response.status === 429
+            ? 'The assistant is busy right now. Please wait a moment and try again.'
+            : response.status === 503
+              ? serverMessage || 'The assistant is temporarily unavailable. Please try again shortly.'
+              : serverMessage || `Could not start the assistant (${response.status}).`
     throw new LiveTokenError(fallback, response.status)
   }
   return parseGeminiLiveToken(body)

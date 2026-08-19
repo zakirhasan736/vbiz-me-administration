@@ -25,6 +25,7 @@ describe('secure card assistant integration', () => {
     const nextConfig = readFileSync(resolve(process.cwd(), 'next.config.ts'), 'utf8')
     const geminiClient = readFileSync(resolve(process.cwd(), 'src/lib/gemini.ts'), 'utf8')
     expect(`${nextConfig}\n${geminiClient}`).not.toContain('NEXT_PUBLIC_GEMINI_API_KEY')
+    expect(geminiClient).toContain('response.status === 409')
   })
 
   it('bounds card-specific knowledge and includes all public tab context', () => {
