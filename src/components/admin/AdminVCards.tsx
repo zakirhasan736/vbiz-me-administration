@@ -453,7 +453,7 @@ export default function AdminVCards() {
         void refreshListFromStart()
       }
       if (newId) {
-        notify.success('Saved as a draft. Enter a unique email and date of birth before activating.', {
+        notify.success('Saved as a draft.', {
           title: 'Card duplicated',
           action: {
             label: 'View in Draft',

@@ -64,18 +64,43 @@ export function collectVCardActivationProblems(data: Pick<VCardData, 'slug' | 'p
 }
 
 export function collectVCardCreationProblems(data: Pick<VCardData, 'personal'>): CardActivationProblem[] {
-  const dob = data.personal.dob?.trim() || ''
-  if (!dob) return [{ field: 'dob', label: 'Date of birth', reason: 'missing' }]
-  if (!isCalendarDate(dob) || dob > localDateOnly()) {
-    return [{ field: 'dob', label: 'Date of birth', reason: 'invalid' }]
+  const values = {
+    email: data.personal.email?.trim() || '',
+    phone: data.personal.phone?.trim() || '',
+    dob: data.personal.dob?.trim() || '',
   }
-  if (dob > minCardAgeCutoffDate()) {
-    return [{ field: 'dob', label: 'Date of birth', reason: 'underage' }]
+  const problems: CardActivationProblem[] = []
+
+  if (!values.email) problems.push({ field: 'email', label: 'Email', reason: 'missing' })
+  else if (!EMAIL_PATTERN.test(values.email)) problems.push({ field: 'email', label: 'Email', reason: 'invalid' })
+
+  const phoneDigits = values.phone.replace(/\D/g, '')
+  if (!values.phone) problems.push({ field: 'phone', label: 'Phone', reason: 'missing' })
+  else if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+    problems.push({ field: 'phone', label: 'Phone', reason: 'invalid' })
   }
-  return []
+
+  if (!values.dob) problems.push({ field: 'dob', label: 'Date of birth', reason: 'missing' })
+  else if (!isCalendarDate(values.dob) || values.dob > localDateOnly()) {
+    problems.push({ field: 'dob', label: 'Date of birth', reason: 'invalid' })
+  } else if (values.dob > minCardAgeCutoffDate()) {
+    problems.push({ field: 'dob', label: 'Date of birth', reason: 'underage' })
+  }
+
+  return problems
 }
 
 export function vCardCreationProblemMessage(problem: CardActivationProblem): string {
+  if (problem.field === 'email') {
+    return problem.reason === 'missing'
+      ? 'Please enter an email before creating the vCard.'
+      : 'Please enter a valid email before creating the vCard.'
+  }
+  if (problem.field === 'phone') {
+    return problem.reason === 'missing'
+      ? 'Please enter a phone number before creating the vCard.'
+      : 'Please enter a valid phone number before creating the vCard.'
+  }
   if (problem.reason === 'missing') return 'Please enter a date of birth before creating the vCard.'
   if (problem.reason === 'underage') return 'You must be at least 12 years old to create a vCard.'
   return 'Please enter a valid date of birth before creating the vCard.'

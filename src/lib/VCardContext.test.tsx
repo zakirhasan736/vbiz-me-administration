@@ -500,6 +500,8 @@ describe('VCardProvider autosave and creation', () => {
     await act(async () => {
       rendered!.api.updateData('personal.fullName', 'New Card Owner')
       rendered!.api.updateData('personal.dob', '1990-07-18')
+      rendered!.api.updateData('personal.email', 'owner@example.com')
+      rendered!.api.updateData('personal.phone', '+1 202 555 0101')
       rendered!.api.updateData('slug', 'new-card-owner')
       vi.advanceTimersByTime(3000)
       await flushMicrotasks()
@@ -545,7 +547,23 @@ describe('VCardProvider autosave and creation', () => {
     )
 
     await act(async () => {
-      rendered!.api.updateData('slug', 'missing-dob')
+      rendered!.api.updateData('slug', 'missing-email')
+    })
+
+    await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow(
+      'Please enter an email before creating the vCard.'
+    )
+
+    await act(async () => {
+      rendered!.api.updateData('personal.email', 'owner@example.com')
+    })
+
+    await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow(
+      'Please enter a phone number before creating the vCard.'
+    )
+
+    await act(async () => {
+      rendered!.api.updateData('personal.phone', '+1 202 555 0101')
     })
 
     await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow(

@@ -186,7 +186,7 @@ export default function AdminMyCards() {
       const created = await duplicateProfile(card.id).unwrap()
       const newId = created?.id
       if (newId) {
-        notify.success('Saved as a draft. Enter a unique email and date of birth before activating.', {
+        notify.success('Saved as a draft.', {
           title: 'Card duplicated',
           action: {
             label: 'View in Draft',
