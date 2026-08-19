@@ -24,7 +24,7 @@ interface NavigationProps {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActiveTab, slugForPersistence }) => {
-  const { settings } = useProfileDisplay()
+  const { settings, embedded } = useProfileDisplay()
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [isOverflowing, setIsOverflowing] = useState(false)
 
@@ -112,7 +112,7 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
               data-active={isActive ? 'true' : 'false'}
               onMouseEnter={() => setHoveredTab(tab.id)}
               onMouseLeave={() => setHoveredTab(null)}
-              className="vbiz-nav-tab focus-visible:ring-gold/60 relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] transition-all duration-300 outline-none focus-visible:ring-1 active:scale-95 md:h-12 md:w-12 md:rounded-[14px]"
+              className="vbiz-nav-tab focus-visible:ring-gold/60 relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-300 outline-none focus-visible:ring-1 active:scale-95 md:h-12 md:w-12 md:rounded-[14px]"
               title={tab.label}
               aria-label={tab.label}
               style={tabBg ? { backgroundColor: tabBg } : undefined}
@@ -120,7 +120,7 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
               {isHovered && !isActive && (
                 <motion.div
                   layoutId="hoverIndicator"
-                  className="vbiz-nav-tab-hover-bg absolute inset-0 rounded-[12px] border md:rounded-[14px]"
+                  className="vbiz-nav-tab-hover-bg absolute inset-0 rounded-xl border md:rounded-[14px]"
                   transition={{ type: 'spring', stiffness: 380, damping: 28 }}
                 />
               )}
@@ -128,7 +128,7 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
               {isActive && (
                 <motion.div
                   layoutId="activeIndicator"
-                  className="vbiz-nav-tab-active-bg absolute inset-0 rounded-[12px] border shadow-sm md:rounded-[14px]"
+                  className="vbiz-nav-tab-active-bg absolute inset-0 rounded-xl border shadow-sm md:rounded-[14px]"
                   transition={{ type: 'spring', stiffness: 350, damping: 26 }}
                 />
               )}
@@ -143,14 +143,14 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
                 />
               </div>
 
-              {(isActive || isHovered) && (
+              {!embedded && (isActive || isHovered) && (
                 <span className="pointer-events-none absolute -top-8 left-1/2 z-30 -translate-x-1/2 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[9px] font-black tracking-wide whitespace-nowrap text-zinc-900 shadow-sm md:bottom-auto dark:border-white/15 dark:bg-[#0b0f19] dark:text-white">
                   {tab.label}
                 </span>
               )}
 
               {isActive && (
-                <span className="vbiz-nav-tab-dot absolute bottom-[2px] left-1/2 z-10 h-1.5 w-1.5 -translate-x-1/2 animate-pulse rounded-full md:hidden" />
+                <span className="vbiz-nav-tab-dot absolute bottom-0.5 left-1/2 z-10 h-1.5 w-1.5 -translate-x-1/2 animate-pulse rounded-full md:hidden" />
               )}
             </motion.button>
           )

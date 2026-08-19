@@ -1,39 +1,35 @@
 'use client'
 
 import { useLivePreview } from '@/components/vcard/LivePreviewProvider'
-import { useAppSelector } from '@/hooks/redux'
-import { useGoogleFont } from '@/hooks/useGoogleFont'
-import { useVCard } from '@/lib/VCardContext'
-import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
-import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
-import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
-import { getNavItemById } from '@/lib/vcardNavbar'
-import { ProfileApp } from '@/profile-app/ProfileApp'
-import { ProfileThemeShell } from '@/profile-app/components/ProfileThemeShell'
-import '@/profile-app/profile-app.css'
-import { vCardDataToProfileProps } from '@/profile-app/profilePublicProps'
-import { ProfileThemeProvider } from '@/profile-app/providers/ProfileThemeProvider'
-import { preloadProfileSections, preloadProfileTemplate } from '@/profile-app/sections/preloadProfileSections'
-import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
-import { selectVCardById } from '@/redux/features/vcards/vcards.slice'
+import { usePreviewPhoneScroll } from '@/hooks/usePreviewPhoneScroll'
 import { cn } from '@/utils/cn'
-import { ChevronLeft, Minus, Moon, Sun, X } from 'lucide-react'
-import {
-  startTransition,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { ChevronRight, Moon, Sun, X } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
+import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
-const MOBILE_SHEET_QUERY = '(max-width: 639px)'
+const NARROW_VIEWPORT_QUERY = '(max-width: 767px)'
 const POSITION_STORAGE_KEY = 'vbiz_live_preview_offset'
 const COLLAPSED_STORAGE_KEY = 'vbiz_live_preview_collapsed'
-/** Visible strip left on screen when the phone is minimized to the edge. */
+/** Visible strip left on screen when the phone is docked to the right edge. */
 const COLLAPSED_RAIL = '3rem'
+
+/** `public/iPhoneAir.png` is 920×1920. Insets and island box were measured from the asset. */
+const IPHONE_SCREEN_INSET = { top: '2.15%', right: '4.35%', bottom: '2.15%', left: '4.35%' } as const
+const IPHONE_ISLAND_GRAB = { top: '4.635%', left: '36.522%', width: '26.957%', height: '3.698%' } as const
+
+/** Bezel + Dynamic Island hit targets so the glass stays interactive. */
+const FRAME_GRAB_HITS = [
+  { key: 'top', className: 'inset-x-0 top-0', style: { height: IPHONE_SCREEN_INSET.top } },
+  { key: 'bottom', className: 'inset-x-0 bottom-0', style: { height: IPHONE_SCREEN_INSET.bottom } },
+  { key: 'left', className: 'inset-y-0 left-0', style: { width: IPHONE_SCREEN_INSET.left } },
+  { key: 'right', className: 'inset-y-0 right-0', style: { width: IPHONE_SCREEN_INSET.right } },
+  { key: 'island', className: '', style: IPHONE_ISLAND_GRAB },
+] as const
+
+const PREVIEW_OPEN_TRANSITION = { type: 'spring' as const, stiffness: 380, damping: 32, mass: 0.72 }
+const PREVIEW_CLOSE_TRANSITION = { duration: 0.42, ease: [0.32, 0.08, 0.24, 1] as const }
+const PREVIEW_UNMOUNT_MS = 450
 
 type Offset = { x: number; y: number }
 
@@ -64,136 +60,69 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
-/** Phones get the full-screen sheet layout: no drag offset, no minimize rail. */
-function useIsMobileSheet(): boolean {
+function useIsNarrowViewport(): boolean {
   const subscribe = useCallback((onChange: () => void) => {
-    const mq = window.matchMedia(MOBILE_SHEET_QUERY)
+    const mq = window.matchMedia(NARROW_VIEWPORT_QUERY)
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
   return useSyncExternalStore(
     subscribe,
-    () => window.matchMedia(MOBILE_SHEET_QUERY).matches,
+    () => window.matchMedia(NARROW_VIEWPORT_QUERY).matches,
     () => false
   )
 }
 
+function PreviewBootFallback() {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#020914] text-zinc-400">
+      <div className="h-12 w-12 animate-pulse rounded-full bg-white/10" />
+      <p className="text-[10px] font-semibold tracking-[0.18em] uppercase">Loading preview</p>
+    </div>
+  )
+}
+
+const LivePreviewProfile = dynamic(() => import('@/components/vcard/LivePreviewProfile'), {
+  ssr: false,
+  loading: PreviewBootFallback,
+})
+
 export function VCardLivePreview() {
-  const { isOpen, close, editorSectionId } = useLivePreview()
-  const { vCardData, cardId } = useVCard()
-  /** Keeps typing in the editor at high priority; settings/theme still paint immediately. */
-  const deferred = useDeferredValue(vCardData)
-  const draft = useMemo(() => {
-    if (deferred === vCardData) return vCardData
-    return {
-      ...deferred,
-      theme: vCardData.theme,
-      appearance: vCardData.appearance,
-      themeConfig: vCardData.themeConfig,
-      seo: vCardData.seo,
-      displaySettings: vCardData.displaySettings,
-      aiAssistanceEnabled: vCardData.aiAssistanceEnabled,
-      personal: vCardData.personal,
-      social: vCardData.social,
-      extraFields: vCardData.extraFields,
-      myInfo: vCardData.myInfo,
-      slug: vCardData.slug,
-    }
-  }, [deferred, vCardData])
-  const designSettings = useAppSelector((s) => s.designSettings)
-  const record = useAppSelector((s) => (cardId ? selectVCardById(s, cardId) : null))
+  const isNarrowViewport = useIsNarrowViewport()
+  if (isNarrowViewport) return null
+  return <VCardLivePreviewDesktop />
+}
 
-  const earlyTemplate: ProfileTemplateId =
-    (vCardData.appearance?.profileTemplate as ProfileTemplateId | undefined) ?? designSettings.profileTemplate ?? 'v3'
-  const themeConfig = useMemo(
-    () =>
-      applyEditorSettingsToThemeConfig(
-        vCardData.themeConfig ?? getDefaultThemeConfig(earlyTemplate),
-        vCardData.theme,
-        vCardData.appearance
-      ),
-    [vCardData.themeConfig, vCardData.theme, vCardData.appearance, earlyTemplate]
-  )
-  const fromApi = true
-
-  const profileProps = useMemo(() => {
-    const base = vCardDataToProfileProps(draft, designSettings, {
-      id: cardId ?? 'preview',
-      avatarImageUrl: record?.avatarImageUrl,
-      themeConfig,
-      themeFromApi: fromApi,
-      appearance: draft.appearance,
-    })
-    const design = resolveProfileDesign(designSettings, draft.theme, draft.appearance, {
-      themeConfig,
-    })
-    return {
-      ...base,
-      design,
-      themeConfig,
-      themeFromApi: fromApi,
-      profileViews: record?.views ?? 0,
-      actionButtons: {
-        view_counter: {
-          enabled: true,
-          count: record?.views ?? 0,
-          label: 'Views',
-        },
-      },
-      profileSlug: draft.slug?.trim() || undefined,
-    }
-  }, [draft, designSettings, cardId, record?.avatarImageUrl, record?.views, themeConfig, fromApi])
-
-  useGoogleFont(profileProps.design?.fontFamily)
-
-  const template: ProfileTemplateId = profileProps.design?.profileTemplate ?? earlyTemplate
-
-  const designTheme: 'light' | 'dark' = profileProps.design?.darkMode ? 'dark' : 'light'
-  const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>(designTheme)
-  const [prevDesignTheme, setPrevDesignTheme] = useState(designTheme)
-  const [previewSectionId, setPreviewSectionId] = useState(editorSectionId)
-
-  if (designTheme !== prevDesignTheme) {
-    setPrevDesignTheme(designTheme)
-    setPreviewTheme(designTheme)
-  }
-
-  /** Follow the editor route, but as a transition so the current section stays painted. */
-  const lastEditorSectionRef = useRef(editorSectionId)
-  useEffect(() => {
-    if (lastEditorSectionRef.current === editorSectionId) return
-    lastEditorSectionRef.current = editorSectionId
-    startTransition(() => setPreviewSectionId(editorSectionId))
-  }, [editorSectionId])
-
-  const handleSectionChange = useCallback((sectionId: string) => {
-    startTransition(() => setPreviewSectionId(sectionId))
-  }, [])
-
-  // Warm the template shell and the section the phone will land on, before the first open.
-  useEffect(() => {
-    preloadProfileTemplate(template)
-    const contentKey = getNavItemById(previewSectionId)?.profileContent
-    if (contentKey) preloadProfileSections([contentKey], template)
-  }, [template, previewSectionId])
-
-  const isMobileSheet = useIsMobileSheet()
+function VCardLivePreviewDesktop() {
+  const { isOpen, close } = useLivePreview()
+  const reduceMotion = useReducedMotion()
   const phoneRef = useRef<HTMLDivElement>(null)
-  const [storedOffset, setStoredOffset] = useState<Offset>(() =>
-    typeof window === 'undefined' ? ZERO_OFFSET : readStoredOffset()
-  )
-  const [storedCollapsed, setStoredCollapsed] = useState(() =>
+  const { scrollRef } = usePreviewPhoneScroll<HTMLDivElement>()
+  const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>('dark')
+  const [sessionLive, setSessionLive] = useState(false)
+  const [offset, setOffset] = useState<Offset>(() => (typeof window === 'undefined' ? ZERO_OFFSET : readStoredOffset()))
+  const [isCollapsed, setStoredCollapsed] = useState(() =>
     typeof window === 'undefined' ? false : readStoredCollapsed()
   )
   const [isDragging, setIsDragging] = useState(false)
-  const offset = isMobileSheet ? ZERO_OFFSET : storedOffset
-  const isCollapsed = !isMobileSheet && storedCollapsed
   const offsetRef = useRef(offset)
+
+  if (isOpen && !sessionLive) {
+    setSessionLive(true)
+  }
 
   useEffect(() => {
     offsetRef.current = offset
   }, [offset])
+
+  /** Keep the phone content through the close animation, then drop the profile tree. */
+  useEffect(() => {
+    if (isOpen || !sessionLive) return
+    const ms = reduceMotion ? 180 : PREVIEW_UNMOUNT_MS
+    const timer = window.setTimeout(() => setSessionLive(false), ms)
+    return () => window.clearTimeout(timer)
+  }, [isOpen, reduceMotion, sessionLive])
 
   useEffect(() => {
     if (!isOpen) return
@@ -204,19 +133,9 @@ export function VCardLivePreview() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isOpen, close])
 
-  /** Only the mobile sheet blocks page scroll — on desktop you keep editing behind it. */
-  useEffect(() => {
-    if (!isOpen || !isMobileSheet) return
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previous
-    }
-  }, [isOpen, isMobileSheet])
-
   /** A shrinking viewport must not park the phone off-screen. */
   useEffect(() => {
-    if (isMobileSheet || isCollapsed) return
+    if (isCollapsed) return
     const onResize = () => {
       const el = phoneRef.current
       const current = offsetRef.current
@@ -229,11 +148,11 @@ export function VCardLivePreview() {
         x: clamp(current.x, margin - anchorLeft, window.innerWidth - margin - rect.width - anchorLeft),
         y: clamp(current.y, margin - anchorTop, window.innerHeight - margin - rect.height - anchorTop),
       }
-      if (next.x !== current.x || next.y !== current.y) setStoredOffset(next)
+      if (next.x !== current.x || next.y !== current.y) setOffset(next)
     }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [isMobileSheet, isCollapsed])
+  }, [isCollapsed])
 
   /** Drag bounds are captured on pointer down so moves never depend on a committed render. */
   const dragRef = useRef<{
@@ -249,9 +168,9 @@ export function VCardLivePreview() {
   } | null>(null)
 
   const onHandlePointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event: React.PointerEvent<HTMLElement>) => {
       const el = phoneRef.current
-      if (isMobileSheet || event.button !== 0 || !el) return
+      if (event.button !== 0 || !el || isCollapsed) return
       event.currentTarget.setPointerCapture(event.pointerId)
 
       const origin = offsetRef.current
@@ -273,10 +192,10 @@ export function VCardLivePreview() {
       }
       setIsDragging(true)
     },
-    [isMobileSheet]
+    [isCollapsed]
   )
 
-  const onHandlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const onHandlePointerMove = useCallback((event: React.PointerEvent<HTMLElement>) => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
 
@@ -285,10 +204,10 @@ export function VCardLivePreview() {
       y: clamp(drag.origin.y + (event.clientY - drag.startY), drag.minY, drag.maxY),
     }
     drag.last = next
-    setStoredOffset(next)
+    setOffset(next)
   }, [])
 
-  const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const endDrag = useCallback((event: React.PointerEvent<HTMLElement>) => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
     dragRef.current = null
@@ -309,133 +228,161 @@ export function VCardLivePreview() {
     }
   }, [])
 
-  const collapseShift = isCollapsed ? ` + (100% - ${COLLAPSED_RAIL})` : ''
-  const phoneTransform = `translate3d(calc(${offset.x}px${collapseShift}), ${offset.y}px, 0)`
+  /**
+   * Minimize always returns to the default right-edge dock, not a slide from the
+   * current drag offset. Expand restores the last dragged position.
+   */
+  const visualOffset = isCollapsed ? ZERO_OFFSET : offset
+  const collapseShift = isCollapsed ? ` + (100% - ${COLLAPSED_RAIL} + var(--preview-dock-inset, 1.5rem))` : ''
+  const phoneTransform = `translate3d(calc(${visualOffset.x}px${collapseShift}), ${visualOffset.y}px, 0)`
 
   return (
-    <div
-      className={cn(
-        'pointer-events-none fixed inset-0 z-100 flex items-end justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-0',
-        'transition-[opacity,transform,visibility] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]',
-        isOpen ? 'visible opacity-100' : 'invisible translate-y-6 opacity-0 sm:translate-x-8 sm:translate-y-0'
-      )}
+    <motion.div
+      className="pointer-events-none fixed inset-0 z-100 flex items-center"
+      initial={false}
+      style={{ originX: 0.9, originY: 0.72 }}
+      animate={
+        isOpen
+          ? { opacity: 1, x: 0, y: 0, scale: 1, visibility: 'visible' as const }
+          : {
+              opacity: 0,
+              x: reduceMotion ? 0 : 72,
+              y: 0,
+              scale: reduceMotion ? 1 : 0.96,
+              visibility: 'hidden' as const,
+            }
+      }
+      transition={
+        reduceMotion
+          ? { duration: 0.18, ease: 'easeOut', visibility: { duration: 0, delay: isOpen ? 0 : 0.18 } }
+          : isOpen
+            ? { ...PREVIEW_OPEN_TRANSITION, visibility: { duration: 0 } }
+            : { ...PREVIEW_CLOSE_TRANSITION, visibility: { duration: 0, delay: 0.42 } }
+      }
       inert={!isOpen}
       aria-hidden={!isOpen}
     >
-      {/* Dimmer for the mobile sheet only — never closes the preview on click. */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-slate-900/40 backdrop-blur-md sm:hidden dark:bg-black/60"
-        aria-hidden
-      />
-
       {/* Dock owns the position and drag transform so chrome can sit outside the phone. */}
       <div
         style={{ transform: phoneTransform }}
         className={cn(
           'pointer-events-none relative z-100 flex min-w-0 flex-col',
-          'h-[min(92dvh,820px)] max-h-[92dvh] w-[min(100%,420px)]',
-          'sm:fixed sm:right-6 sm:bottom-20 sm:h-[min(720px,calc(100dvh-6rem))] sm:max-h-[calc(100dvh-6rem)] sm:w-[min(420px,calc(100vw-3rem))] md:right-8 md:bottom-24',
-          isDragging ? 'duration-0' : 'transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]'
+          'fixed right-6 bottom-16 aspect-920/1920 h-[min(800px,calc(100dvh-5.5rem))] max-h-[calc(100dvh-5.5rem)] w-auto [--preview-dock-inset:1.5rem] md:right-8 md:bottom-20 md:[--preview-dock-inset:2rem]',
+          isDragging
+            ? 'duration-0'
+            : 'transform-gpu transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]'
         )}
       >
         {/* Close sits outside the bezel, on the phone's top-left corner. */}
+        <h2 id="vbiz-live-preview-title" className="sr-only">
+          Live profile preview
+        </h2>
         <button
           type="button"
+          id="vbiz-live-preview-close"
           onClick={close}
           aria-label="Close preview"
           title="Close preview (Esc)"
-          className="pointer-events-auto absolute -top-3.5 -left-2 z-110 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/70 bg-white text-slate-700 shadow-[0_8px_20px_-6px_rgba(0,0,0,0.45)] transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 sm:-top-4 sm:-left-4 dark:border-white/15 dark:bg-[#0b0f19] dark:text-zinc-100 dark:hover:border-rose-500/40 dark:hover:bg-rose-500/20 dark:hover:text-rose-300"
+          className={cn(
+            'pointer-events-auto absolute -top-2 -left-4 z-110 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/70 bg-white text-slate-700 shadow-[0_8px_20px_-6px_rgba(0,0,0,0.45)] transition-[color,background-color,border-color,opacity,transform] hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 dark:border-white/15 dark:bg-[#0b0f19] dark:text-zinc-100 dark:hover:border-rose-500/40 dark:hover:bg-rose-500/20 dark:hover:text-rose-300',
+            isCollapsed && 'pointer-events-none scale-90 opacity-0'
+          )}
         >
           <X className="h-4.5 w-4.5" />
         </button>
 
-        <div
-          ref={phoneRef}
+        {/* Minimize/expand handle sits outside the bezel so it is not clipped by the phone. */}
+        <button
+          type="button"
+          onClick={() => setCollapsed(!isCollapsed)}
+          aria-label={isCollapsed ? 'Expand live preview' : 'Minimize preview to the edge'}
+          title={isCollapsed ? 'Expand live preview' : 'Minimize preview'}
           className={cn(
-            'vbiz-preview-phone pointer-events-auto relative flex h-full w-full min-w-0 flex-col overflow-hidden',
-            'rounded-4xl border-6 border-slate-200/80 bg-white shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)]',
-            'min-[400px]:rounded-[40px] min-[400px]:border-8 sm:rounded-[48px] sm:border-10',
-            'dark:border-[#1e2333] dark:bg-[#0b0f19]'
+            'pointer-events-auto absolute top-1/2 z-110 flex h-24 w-12 -translate-y-1/2 items-center justify-center rounded-2xl border border-slate-200 bg-white/95 text-slate-600 shadow-lg backdrop-blur',
+            'transition-[left,border-radius,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
+            'hover:text-slate-900 dark:border-white/10 dark:bg-[#0b0f19]/95 dark:text-slate-300 dark:hover:text-white',
+            isCollapsed ? 'left-0 rounded-r-none border-r-0 shadow-[0_10px_28px_-8px_rgba(15,23,42,0.45)]' : '-left-8'
           )}
-          role="dialog"
-          aria-label="Live profile preview"
         >
-          {/* The dynamic island doubles as the drag handle so the phone can be moved off a field. */}
-          <div className="pointer-events-none absolute inset-x-0 top-2 z-30 hidden h-7 justify-center sm:flex">
+          <ChevronRight
+            className={cn(
+              'h-5 w-5 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
+              isCollapsed && 'rotate-180'
+            )}
+          />
+        </button>
+
+        <div ref={phoneRef} className="pointer-events-auto relative h-full w-full min-w-0 overflow-visible">
+          <div
+            className={cn(
+              'vbiz-preview-phone vbiz-preview-phone--iphone absolute z-10 flex flex-col overflow-hidden rounded-[2.75rem]',
+              previewTheme === 'light' ? 'bg-white' : 'bg-[#020914]'
+            )}
+            style={IPHONE_SCREEN_INSET}
+            role="dialog"
+            aria-modal={false}
+            aria-labelledby="vbiz-live-preview-title"
+            aria-describedby="vbiz-live-preview-close"
+          >
+            <div className="absolute top-1.5 right-3 z-50 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPreviewTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+                aria-label={previewTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/60 bg-white/90 text-slate-700 shadow-md backdrop-blur-md transition-colors hover:bg-white dark:border-white/15 dark:bg-zinc-900/90 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              >
+                {previewTheme === 'dark' ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
+              </button>
+            </div>
+
             <div
+              ref={scrollRef}
+              tabIndex={isCollapsed ? -1 : 0}
+              role="region"
+              aria-label="Mobile profile preview. Scroll to explore the card."
+              className={cn(
+                'vbiz-preview-frame no-scrollbar isolate flex h-full min-h-0 flex-1 transform-[translateZ(0)] flex-col overflow-x-hidden overflow-y-auto overscroll-contain pt-0',
+                isCollapsed && 'pointer-events-none'
+              )}
+            >
+              {sessionLive ? (
+                <LivePreviewProfile
+                  previewTheme={previewTheme}
+                  onPreviewThemeChange={setPreviewTheme}
+                  previewActive={isOpen && !isCollapsed}
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <img
+            src="/iPhoneAir.png"
+            alt=""
+            draggable={false}
+            className="pointer-events-none absolute inset-0 z-40 h-full w-full transform-[translateZ(0)] object-contain select-none"
+          />
+          {FRAME_GRAB_HITS.map((hit) => (
+            <div
+              key={hit.key}
+              role={hit.key === 'island' ? 'button' : 'presentation'}
+              tabIndex={hit.key === 'island' && !isCollapsed ? 0 : undefined}
+              aria-label={hit.key === 'island' ? 'Drag to move the preview' : undefined}
+              title="Drag to move the preview"
               onPointerDown={onHandlePointerDown}
               onPointerMove={onHandlePointerMove}
               onPointerUp={endDrag}
               onPointerCancel={endDrag}
               className={cn(
-                'pointer-events-auto flex h-full w-[min(120px,32%)] max-w-30 touch-none items-center justify-between rounded-full bg-slate-800 px-3 shadow-sm dark:bg-black',
+                'absolute z-50 touch-none bg-transparent',
+                hit.className,
+                isCollapsed ? 'pointer-events-none' : 'pointer-events-auto',
                 isDragging ? 'cursor-grabbing' : 'cursor-grab'
               )}
-              title="Drag to move the preview"
-            >
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 opacity-60" />
-              <div className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-slate-700/50 dark:bg-white/10">
-                <div className="h-1 w-1 rounded-full bg-slate-900 dark:bg-black" />
-              </div>
-            </div>
-          </div>
-
-          <div className="absolute top-3.5 right-3.5 z-50 flex items-center gap-1.5 sm:top-3 sm:right-4">
-            <button
-              type="button"
-              onClick={() => setPreviewTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-              aria-label={previewTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/60 bg-white/90 text-slate-700 shadow-md backdrop-blur-md transition-colors hover:bg-white dark:border-white/15 dark:bg-zinc-900/90 dark:text-zinc-100 dark:hover:bg-zinc-800"
-            >
-              {previewTheme === 'dark' ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCollapsed(true)}
-              aria-label="Minimize preview to the edge"
-              title="Minimize preview"
-              className="hidden h-9 w-9 items-center justify-center rounded-full border border-slate-200/60 bg-white/90 text-slate-700 shadow-md backdrop-blur-md transition-colors hover:bg-white sm:flex dark:border-white/15 dark:bg-zinc-900/90 dark:text-zinc-100 dark:hover:bg-zinc-800"
-            >
-              <Minus className="h-4.5 w-4.5" />
-            </button>
-          </div>
-
-          {isCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setCollapsed(false)}
-              aria-label="Expand live preview"
-              title="Expand live preview"
-              className="absolute top-1/2 left-0 z-50 hidden h-24 w-12 -translate-y-1/2 items-center justify-center rounded-r-2xl border-y border-r border-slate-200 bg-white/95 text-slate-600 shadow-lg backdrop-blur sm:flex dark:border-white/10 dark:bg-[#0b0f19]/95 dark:text-slate-300"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-          ) : null}
-
-          <div
-            className={cn(
-              'vbiz-preview-frame vbiz-preview-scrollbar isolate min-h-0 flex-1 transform-[translateZ(0)] overflow-x-hidden overflow-y-auto overscroll-contain',
-              isCollapsed && 'pointer-events-none'
-            )}
-          >
-            <ProfileThemeShell config={themeConfig} fromApi={fromApi} template={template} forcedMode={previewTheme}>
-              <ProfileThemeProvider themeConfig={themeConfig} fromApi={fromApi}>
-                <ProfileApp
-                  key={template}
-                  {...profileProps}
-                  embedded
-                  previewActive={isOpen && !isCollapsed}
-                  sectionId={previewSectionId}
-                  onSectionChange={handleSectionChange}
-                  previewTheme={previewTheme}
-                  onPreviewThemeChange={setPreviewTheme}
-                />
-              </ProfileThemeProvider>
-            </ProfileThemeShell>
-          </div>
+              style={hit.style}
+            />
+          ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

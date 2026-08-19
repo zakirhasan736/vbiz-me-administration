@@ -4,6 +4,7 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ShieldCheck } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -24,10 +25,10 @@ function formatYear(date: string): string {
 function InsuranceLicenseSkeleton() {
   return (
     <div className="w-full pb-20">
-      <div className="mb-4 min-h-[220px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+      <div className="mb-4 min-h-55 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div className="h-[360px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
-        <div className="h-[360px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+        <div className="h-90 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+        <div className="h-90 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
       </div>
     </div>
   )
@@ -161,9 +162,7 @@ export const InsuranceLicenseSection = ({ sectionName = 'Insurance License' }: I
   if (isError) {
     return (
       <div className="w-full pb-20">
-        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          Unable to load {sectionTitle.toLowerCase()} right now. Please try again later.
-        </div>
+        <V3ErrorState sectionTitle={sectionTitle} />
       </div>
     )
   }
@@ -171,7 +170,7 @@ export const InsuranceLicenseSection = ({ sectionName = 'Insurance License' }: I
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <ShieldCheck size={24} style={{ color: accent }} />
           </div>
@@ -179,7 +178,7 @@ export const InsuranceLicenseSection = ({ sectionName = 'Insurance License' }: I
             {sectionTitle}
           </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-            No insurance licenses have been published yet.
+            <V3PreviewAwareText published="No insurance licenses have been published yet." />
           </p>
         </div>
       </div>

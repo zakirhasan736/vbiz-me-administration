@@ -89,7 +89,8 @@ function AboutHeroBackground({ src, alt }: { src: string; alt: string }) {
 }
 
 export const AboutSection = () => {
-  const { cardOwnerId, personal } = useProfileDisplay()
+  const { cardOwnerId, personal, embedded } = useProfileDisplay()
+  const compact = embedded
   const profileId = cardOwnerId?.trim() ?? ''
 
   const { data, isLoading, isFetching, isError } = useGetAboutMeQuery(profileId, { skip: !profileId })
@@ -138,7 +139,7 @@ export const AboutSection = () => {
           </div>
 
           {ownerInitial ? (
-            <div className="absolute top-4 right-4 z-20 md:top-6 md:right-6">
+            <div className={`absolute z-20 ${compact ? 'top-3 right-3' : 'top-4 right-4 md:top-6 md:right-6'}`}>
               <div className="border-gold/30 flex h-10 w-10 flex-col items-center justify-center rounded-xl border bg-black/40 shadow-2xl backdrop-blur-xl md:h-12 md:w-12">
                 <span className="mb-0.5 font-serif text-lg font-black tracking-tighter text-white drop-shadow-md md:text-2xl">
                   {ownerInitial}
@@ -147,7 +148,11 @@ export const AboutSection = () => {
             </div>
           ) : null}
 
-          <div className="relative z-10 flex h-full w-full grow flex-col justify-end p-5 sm:p-6 md:p-8 lg:p-10">
+          <div
+            className={`relative z-10 flex h-full w-full grow flex-col justify-end ${
+              compact ? 'p-4' : 'p-5 sm:p-6 md:p-8 lg:p-10'
+            }`}
+          >
             <div className="mt-auto flex max-w-3xl flex-col gap-3 pt-14 sm:gap-4 sm:pt-0 md:gap-4">
               <div className="vbiz-hero-eyebrow vbiz-eyebrow self-start shadow-sm backdrop-blur-md md:text-xs">
                 <Sparkles size={14} className="text-gold" /> {sectionTitle}

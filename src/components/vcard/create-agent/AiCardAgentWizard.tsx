@@ -2836,7 +2836,7 @@ export function AiCardAgentWizard({
                 <button
                   type="button"
                   onClick={() => onOpenLivePreview()}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm dark:bg-slate-900 dark:text-white"
+                  className="hidden items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm md:inline-flex dark:bg-slate-900 dark:text-white"
                 >
                   <Eye className="h-3.5 w-3.5" /> Open live preview
                 </button>
@@ -2910,7 +2910,7 @@ export function AiCardAgentWizard({
                 <button
                   type="button"
                   onClick={() => onOpenLivePreview()}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm dark:bg-slate-900 dark:text-white"
+                  className="hidden items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm md:inline-flex dark:bg-slate-900 dark:text-white"
                 >
                   <Eye className="h-3.5 w-3.5" /> Open live preview
                 </button>

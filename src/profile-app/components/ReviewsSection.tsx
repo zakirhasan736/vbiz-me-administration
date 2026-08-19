@@ -3,6 +3,7 @@
 import { AllReviewsView, SliderReviewCard } from '@/profile-app/components/AllReviewsView'
 import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetReviewsQuery } from '@/redux/api'
 import {
   ArrowRight,
@@ -278,15 +279,13 @@ export const ReviewsSection = () => {
         )}
       </div>
 
-      {isError ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          Unable to load reviews right now. Please try again later.
-        </div>
-      ) : null}
+      {isError ? <V3ErrorState sectionTitle="Reviews" /> : null}
 
       {showEmptyState ? (
         <div className="rounded-3xl border border-zinc-200 bg-white/50 px-6 py-12 text-center backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
-          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">No reviews have been published yet.</p>
+          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+            <V3PreviewAwareText published="No reviews have been published yet." />
+          </p>
         </div>
       ) : null}
 

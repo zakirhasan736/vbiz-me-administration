@@ -100,7 +100,7 @@ export default function PublicAnnouncementBanner({ profileId, placement = 'chrom
       role={ariaRole}
       aria-live={banner.type === 'warning' ? 'assertive' : 'polite'}
       className={cn(
-        'pointer-events-auto w-full overflow-hidden rounded-[22px] border shadow-[0_14px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl',
+        'pointer-events-auto w-full overflow-hidden rounded-[22px] border shadow-[0_14px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl',
         styles.wrap,
         placement === 'mobileTop' && 'rounded-2xl',
         className

@@ -295,15 +295,25 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
     <SectionContainer>
       <div
         ref={containerRef}
-        className="vbiz-home-canvas flex h-full w-full flex-1 items-center justify-center px-4 pt-4 pb-12 sm:px-6 md:pt-12"
+        className={`vbiz-home-canvas flex h-full w-full flex-1 items-center justify-center ${
+          embedded ? 'px-1.5 pt-3 pb-4' : 'px-4 pt-4 pb-12 sm:px-6 md:pt-12'
+        }`}
       >
         {/* Bento Grid Container */}
-        <div className="mx-auto grid min-h-max w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+        <div
+          className={`mx-auto grid min-h-max w-full max-w-6xl grid-cols-1 ${
+            embedded ? 'gap-3' : 'gap-6 lg:grid-cols-12 lg:gap-8'
+          }`}
+        >
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-            className="vbiz-home-banner group relative col-span-1 flex min-h-[70vh] flex-col justify-end overflow-hidden rounded-4xl border border-black/5 bg-white p-5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] ring-1 ring-black/5 sm:min-h-125 sm:p-10 lg:col-span-8 lg:min-h-145 lg:rounded-[3rem] dark:border-white/5 dark:bg-gray-900 dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] dark:ring-white/5"
+            className={`vbiz-home-banner group relative col-span-1 flex flex-col justify-end overflow-hidden rounded-4xl border border-black/5 bg-white shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] ring-1 ring-black/5 dark:border-white/5 dark:bg-gray-900 dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] dark:ring-white/5 ${
+              embedded
+                ? 'min-h-[52cqh] p-3'
+                : 'min-h-[70vh] p-5 sm:min-h-125 sm:p-10 lg:col-span-8 lg:min-h-145 lg:rounded-[3rem]'
+            }`}
           >
             {/* Ambient Glow */}
             <div className="from-yellow-primary/15 to-yellow-primary/5 pointer-events-none absolute -inset-1 -z-10 bg-linear-to-br via-transparent opacity-0 blur-3xl transition-opacity duration-1000 group-hover:opacity-100" />

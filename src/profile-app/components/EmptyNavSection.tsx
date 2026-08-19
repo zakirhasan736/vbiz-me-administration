@@ -3,7 +3,7 @@
 import { CustomTabSection } from '@/profile-app/components/CustomTabSection'
 import { DynamicPostsSection } from '@/profile-app/components/DynamicPostsSection'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { V3SectionShell } from '@/profile-app/sections'
+import { V3PreviewAwareText, V3SectionShell } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { FileQuestion } from 'lucide-react'
 
@@ -46,13 +46,13 @@ export function EmptyNavSection({ title, sectionName }: EmptyNavSectionProps) {
 
   return (
     <V3SectionShell>
-      <div className="flex min-h-[280px] w-full flex-col items-center justify-center rounded-4xl border border-dashed border-zinc-200 bg-white/40 px-6 py-16 text-center dark:border-zinc-800/80 dark:bg-[#031327]/40">
+      <div className="flex min-h-70 w-full flex-col items-center justify-center rounded-4xl border border-dashed border-zinc-200 bg-white/40 px-6 py-16 text-center dark:border-zinc-800/80 dark:bg-[#031327]/40">
         <div className="vbiz-pill-icon mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border">
           <FileQuestion size={24} />
         </div>
         <p className="text-lg font-black text-zinc-900 dark:text-zinc-100">{title}</p>
         <p className="mt-2 max-w-sm text-sm leading-relaxed font-medium text-zinc-500 dark:text-zinc-400">
-          Content for this section is not available yet.
+          <V3PreviewAwareText published="Content for this section is not available yet." />
         </p>
       </div>
     </V3SectionShell>

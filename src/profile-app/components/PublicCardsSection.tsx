@@ -8,6 +8,7 @@ import { mapPublicCardProfileUrl, type PublicCardListItem } from '@/lib/api/publ
 import { PUBLIC_CARDS_SEARCH_DEBOUNCE_MS, PUBLIC_CARDS_SEARCH_MIN_CHARS } from '@/lib/publicCards/publicCardsSearch'
 import { usePublicCardsDirectory } from '@/profile-app/hooks/usePublicCardsDirectory'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import type { PublicCardsFilterOption } from '@interfaces/api/publicCards'
 import {
   Briefcase,
@@ -385,7 +386,7 @@ export const PublicCardsSection = () => {
           {/* Content overlay */}
           <div
             className={`relative z-10 flex h-full w-full grow flex-col justify-end ${
-              compact ? 'gap-3 p-4' : 'p-0 sm:p-7 md:p-8 lg:px-12 lg:py-9'
+              compact ? 'gap-2.5 p-2.5' : 'p-0 sm:p-7 md:p-8 lg:px-12 lg:py-9'
             }`}
           >
             {compact ? <div className="flex w-full justify-end">{viewToggle}</div> : null}
@@ -665,16 +666,20 @@ export const PublicCardsSection = () => {
         )}
 
       {error ? (
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 mt-6 flex w-full flex-col items-center justify-center rounded-4xl border border-red-900/40 bg-red-950/20 px-4 py-16 text-center"
-        >
-          <h3 className="text-lg font-bold text-white">Unable to Load Connections</h3>
-          <p className="mt-1.5 max-w-sm text-xs text-red-300/80">
-            Public profiles could not be loaded right now. Please try again in a moment.
-          </p>
-        </motion.div>
+        embedded ? (
+          <V3ErrorState sectionTitle="Public Cards" />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative z-10 mt-6 flex w-full flex-col items-center justify-center rounded-4xl border border-red-900/40 bg-red-950/20 px-4 py-16 text-center"
+          >
+            <h3 className="text-lg font-bold text-white">Unable to Load Connections</h3>
+            <p className="mt-1.5 max-w-sm text-xs text-red-300/80">
+              Public profiles could not be loaded right now. Please try again in a moment.
+            </p>
+          </motion.div>
+        )
       ) : showInitialLoader ? (
         <div className="relative z-20 mt-8 flex justify-center py-20">
           <Loader2 size={32} className="animate-spin text-[#eab308]" />
@@ -690,9 +695,11 @@ export const PublicCardsSection = () => {
           </div>
           <h3 className="text-lg font-bold text-white">No Connections Match Your Filters</h3>
           <p className="mt-1.5 max-w-sm text-xs text-zinc-400">
-            {hasActiveFilters
-              ? 'Try resetting your selected search keyword, city, state, or profession filters to browse other top members.'
-              : 'No public profiles are available right now.'}
+            {hasActiveFilters ? (
+              'Try resetting your selected search keyword, city, state, or profession filters to browse other top members.'
+            ) : (
+              <V3PreviewAwareText published="No public profiles are available right now." />
+            )}
           </p>
           {hasActiveFilters ? (
             <button

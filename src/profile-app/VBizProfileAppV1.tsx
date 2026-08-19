@@ -138,7 +138,7 @@ export function VBizProfileAppV1({
   }
 
   const shellClass = embedded
-    ? 'vbiz-profile-root vbiz-profile-v1 relative isolate flex min-h-0 w-full max-w-full flex-col overflow-x-clip overflow-y-visible'
+    ? 'vbiz-profile-root vbiz-profile-v1 relative isolate flex min-h-full w-full max-w-full grow flex-col overflow-x-clip overflow-y-visible'
     : 'vbiz-profile-root vbiz-profile-v1 no-scrollbar relative flex min-h-dvh w-full flex-col items-center overflow-x-clip transition-colors duration-500'
 
   return (
@@ -147,7 +147,7 @@ export function VBizProfileAppV1({
       data-profile-template="v1"
       data-theme={theme}
       data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
-      className={`${shellClass} selection:bg-yellow-primary/30 font-sans selection:text-gray-900 dark:selection:text-white ${theme === 'dark' ? 'dark bg-[#050505] text-[#e0e0e0]' : 'bg-white text-gray-900'} ${embedded ? 'min-h-0 max-w-full' : ''}`}
+      className={`${shellClass} selection:bg-yellow-primary/30 font-sans selection:text-gray-900 dark:selection:text-white ${theme === 'dark' ? 'dark bg-[#050505] text-[#e0e0e0]' : 'bg-white text-gray-900'} ${embedded ? 'min-h-full max-w-full' : ''}`}
       style={rootStyle}
     >
       <ProfileThemeStyles design={design} />
@@ -184,12 +184,27 @@ export function VBizProfileAppV1({
           aria-labelledby={`tab-${activeSectionId}`}
           style={{ perspective: '1600px', transformStyle: 'preserve-3d' }}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            {(() => {
-              const anim = motionReady
-                ? getV3AnimationProps(activeSectionId, animationPreset, animationDuration, isMobile)
-                : STATIC_ANIMATION_PROPS
-              return (
+          {(() => {
+            const sectionPane =
+              activeSectionId === 'home' ? (
+                <ProfileSectionOutlet sectionId={activeSectionId} template="v1" homeHeroProps={homeHeroProps} />
+              ) : (
+                <div
+                  className={`mx-auto mb-10 min-h-auto w-full max-w-258 ${embedded ? 'mt-2 px-2.5' : 'mt-10 px-4 md:mt-15 md:px-6'}`}
+                >
+                  <ProfileSectionOutlet sectionId={activeSectionId} template="v1" />
+                </div>
+              )
+
+            if (embedded) {
+              return <div className="flex h-full w-full flex-1 flex-col">{sectionPane}</div>
+            }
+
+            const anim = motionReady
+              ? getV3AnimationProps(activeSectionId, animationPreset, animationDuration, isMobile)
+              : STATIC_ANIMATION_PROPS
+            return (
+              <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={activeSectionId}
                   initial={anim.initial}
@@ -205,17 +220,11 @@ export function VBizProfileAppV1({
                   }}
                   className="flex h-full w-full flex-1 flex-col"
                 >
-                  {activeSectionId === 'home' ? (
-                    <ProfileSectionOutlet sectionId={activeSectionId} template="v1" homeHeroProps={homeHeroProps} />
-                  ) : (
-                    <div className="mx-auto mt-10 mb-10 min-h-auto w-full max-w-258 px-6 md:mt-15">
-                      <ProfileSectionOutlet sectionId={activeSectionId} template="v1" />
-                    </div>
-                  )}
+                  {sectionPane}
                 </motion.div>
-              )
-            })()}
-          </AnimatePresence>
+              </AnimatePresence>
+            )
+          })()}
         </main>
       </div>
 

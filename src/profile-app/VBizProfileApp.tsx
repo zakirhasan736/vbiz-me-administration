@@ -126,7 +126,7 @@ export function VBizProfileApp({
       data-embedded={embedded ? '' : undefined}
       data-theme={theme}
       data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
-      className={`vbiz-profile-root w-full font-sans ${embedded ? 'relative isolate flex h-full min-h-0 max-w-full flex-col overflow-x-clip pb-0' : 'flex min-h-screen w-screen justify-center overflow-x-clip pb-24'} ${theme === 'dark' ? 'dark bg-[#09090b] text-zinc-200' : 'bg-zinc-50 text-zinc-900'} relative transition-colors duration-500 ease-in-out selection:bg-yellow-500/30 selection:text-white`}
+      className={`vbiz-profile-root w-full font-sans ${embedded ? 'relative isolate flex min-h-full max-w-full grow flex-col overflow-x-clip pb-0' : 'flex min-h-screen w-screen justify-center overflow-x-clip pb-24'} ${theme === 'dark' ? 'dark bg-[#09090b] text-zinc-200' : 'bg-zinc-50 text-zinc-900'} relative transition-colors duration-500 ease-in-out selection:bg-yellow-500/30 selection:text-white`}
       style={rootStyle}
     >
       <ProfileThemeStyles design={design} />
@@ -187,7 +187,7 @@ export function VBizProfileApp({
       />
 
       <div
-        className={`vbiz-profile-main relative z-20 mx-auto flex w-full max-w-258 flex-col ${activeSectionId === 'home' ? 'vbiz-home-canvas' : ''} ${embedded ? 'min-h-0 max-w-full px-3.5 pt-24' : 'min-h-screen px-5 pt-16 sm:px-8 sm:pt-44'}`}
+        className={`vbiz-profile-main relative z-20 mx-auto flex w-full max-w-258 flex-col ${activeSectionId === 'home' ? 'vbiz-home-canvas' : ''} ${embedded ? 'min-h-full max-w-full px-3.5 pt-24' : 'min-h-screen px-5 pt-16 sm:px-8 sm:pt-44'}`}
       >
         <ProfileHeaderV2
           avatarVideoUrl={avatarVideoUrl}
@@ -215,7 +215,7 @@ export function VBizProfileApp({
           {activeSectionId === 'home' ? (
             <ProfileSectionOutlet sectionId={activeSectionId} template="v2" />
           ) : (
-            <div className="mx-auto w-full max-w-258 lg:px-6">
+            <div className={`mx-auto w-full max-w-258 ${embedded ? '' : 'lg:px-6'}`}>
               <ProfileSectionOutlet sectionId={activeSectionId} template="v2" />
             </div>
           )}

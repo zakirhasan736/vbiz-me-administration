@@ -284,12 +284,88 @@ iframe.goog-te-banner-frame {
   display: none;
 }
 
-/* Live preview phone frame — container queries apply to embedded profile at any viewport */
-.vbiz-preview-frame {
-  container-type: inline-size;
+/* Phone shell is the size container so 100cqh matches the bezel, not the scroll content. */
+.vbiz-preview-phone {
+  container-type: size;
   container-name: vbiz-preview;
+}
+
+.vbiz-preview-frame {
   position: relative;
   transform: translateZ(0);
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.vbiz-preview-phone .vbiz-profile-root {
+  flex: 1 0 auto;
+  min-height: 100%;
+  min-height: 100cqh;
+}
+
+.vbiz-preview-phone .vbiz-home-canvas {
+  min-height: 100%;
+  min-height: 100cqh;
+  flex: 1 1 auto;
+  box-shadow: none;
+}
+
+/*
+ * Tailwind min-h-full (100%) can override 100cqh and leave a gap equal to the
+ * top-nav pull-up. Keep the wallpaper flush with the phone bezel.
+ */
+.vbiz-preview-phone .vbiz-profile-v1[data-embedded] .vbiz-home-canvas,
+.vbiz-preview-phone .vbiz-profile-v3[data-embedded] .vbiz-home-canvas {
+  min-height: 100cqh !important;
+  height: auto;
+}
+
+.vbiz-preview-phone .vbiz-home-banner {
+  inset: 0;
+  min-height: 100%;
+}
+
+.vbiz-preview-phone .vbiz-home-banner img,
+.vbiz-preview-phone .vbiz-home-banner video {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  aspect-ratio: auto;
+}
+
+.vbiz-preview-phone .vbiz-profile-v3 .vbiz-profile-nav-clearance,
+.vbiz-preview-phone .vbiz-profile-v3 main {
+  min-height: 100cqh;
+}
+
+.vbiz-preview-frame::-webkit-scrollbar {
+  display: none;
+}
+
+/* Phone glass — no I-beam or pointer hand; it should feel like a real device. */
+.vbiz-preview-phone,
+.vbiz-preview-phone * {
+  cursor: default !important;
+  caret-color: transparent;
+}
+
+.vbiz-preview-frame[data-dragging='true'],
+.vbiz-preview-frame[data-dragging='true'] * {
+  user-select: none;
+}
+
+.vbiz-preview-frame:focus {
+  outline: none;
+}
+
+.vbiz-preview-frame:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 0.8),
+    inset 0 0 0 4px rgb(15 23 42 / 0.45);
 }
 
 /* Mobile preview scrollbars — alias for thin theme-aware scrollbar */
@@ -326,7 +402,7 @@ iframe.goog-te-banner-frame {
   overflow-y: visible;
   max-width: 100%;
   width: 100%;
-  min-height: 0 !important;
+  min-height: 100%;
   height: auto;
   align-items: stretch;
   padding-bottom: 0 !important;
@@ -334,7 +410,7 @@ iframe.goog-te-banner-frame {
 
 .vbiz-profile-root[data-embedded] .vbiz-profile-main,
 .vbiz-profile-root[data-embedded] main {
-  min-height: 0 !important;
+  min-height: 100%;
   overflow: visible !important;
 }
 
@@ -412,6 +488,10 @@ iframe.goog-te-banner-frame {
   grid-column: auto !important;
 }
 
+.vbiz-profile-root[data-embedded] .vbiz-hero-card.col-span-2 {
+  grid-column: 1 / -1 !important;
+}
+
 .vbiz-profile-root[data-embedded] [class*='md:flex-row'] {
   flex-direction: column !important;
   align-items: stretch !important;
@@ -442,8 +522,8 @@ iframe.goog-te-banner-frame {
 
 @container vbiz-preview (max-width: 480px) {
   .vbiz-profile-root[data-embedded] {
-    min-height: auto;
-    padding-bottom: 5rem;
+    min-height: 100cqh;
+    padding-bottom: 0;
   }
 
   .vbiz-profile-root[data-embedded] .vbiz-cover-video {
@@ -629,7 +709,7 @@ iframe.goog-te-banner-frame {
   overflow-x: clip;
   overflow-y: visible;
   max-width: 100%;
-  min-height: 0;
+  min-height: 100%;
   height: auto;
 }
 
@@ -654,6 +734,44 @@ iframe.goog-te-banner-frame {
 .vbiz-preview-phone .vbiz-profile-v1[data-embedded] .vbiz-v1-nav,
 .vbiz-preview-phone .vbiz-profile-root[data-embedded] .vbiz-floating-nav {
   top: 2rem !important;
+}
+
+.vbiz-preview-phone--iphone .vbiz-profile-v1[data-embedded] .vbiz-v1-nav,
+.vbiz-preview-phone--iphone .vbiz-profile-root[data-embedded] .vbiz-floating-nav {
+  top: 2.75rem !important;
+}
+
+/*
+ * Real phones dock v1/v3 tabs at the bottom, so public pages need no top offset.
+ * The editor phone preview pins that same pill to the TOP — push every page below it.
+ */
+.vbiz-profile-root[data-embedded] .vbiz-profile-nav-clearance {
+  padding-top: 6.25rem;
+}
+
+.vbiz-preview-phone--iphone .vbiz-profile-root[data-embedded] .vbiz-profile-nav-clearance {
+  padding-top: 7.25rem;
+}
+
+.vbiz-preview-phone .vbiz-preview-frame {
+  scroll-padding-top: 6.25rem;
+}
+
+.vbiz-preview-phone--iphone .vbiz-preview-frame {
+  scroll-padding-top: 7.25rem;
+}
+
+/* Home wallpaper still fills the area behind the translucent pill. */
+.vbiz-profile-v1[data-embedded] .vbiz-home-canvas,
+.vbiz-profile-v3[data-embedded] .vbiz-home-canvas {
+  margin-top: -6.25rem;
+  padding-top: 6.25rem;
+}
+
+.vbiz-preview-phone--iphone .vbiz-profile-v1[data-embedded] .vbiz-home-canvas,
+.vbiz-preview-phone--iphone .vbiz-profile-v3[data-embedded] .vbiz-home-canvas {
+  margin-top: -7.25rem;
+  padding-top: 7.25rem;
 }
 
 /* V2 — horizontal gutters in editor mobile preview only */
@@ -702,7 +820,29 @@ iframe.goog-te-banner-frame {
   padding-right: 0 !important;
 }
 
-/* Tighter horizontal rhythm for section content inside preview */
+/* V1/V3 — keep section cards close to the phone glass (parent used to stack px-6 + md:px-5). */
+.vbiz-profile-v1[data-embedded] .vbiz-profile-nav-clearance [class*='max-w-258'],
+.vbiz-profile-v3[data-embedded] .vbiz-profile-nav-clearance [class*='max-w-258'] {
+  padding-left: 0.625rem !important;
+  padding-right: 0.625rem !important;
+}
+
+.vbiz-profile-v1[data-embedded] .max-w-6xl,
+.vbiz-profile-v3[data-embedded] .max-w-6xl {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Tighter horizontal rhythm for home content inside the phone preview */
+.vbiz-profile-v1[data-embedded] .vbiz-home-canvas {
+  padding-left: 0.375rem !important;
+  padding-right: 0.375rem !important;
+}
+
+.vbiz-profile-v1[data-embedded] .vbiz-home-banner {
+  padding: 0.75rem !important;
+}
+
 .vbiz-profile-v1[data-embedded] .vbiz-v1-main-inner .flex.h-full.w-full.flex-1.items-center.justify-center,
 .vbiz-profile-v1[data-embedded] .vbiz-v1-main-inner > div > div > div[class*='px-4'],
 .vbiz-profile-v1[data-embedded] .vbiz-v1-main-inner > div > div > div[class*='px-6'] {
@@ -796,10 +936,6 @@ iframe.goog-te-banner-frame {
   .vbiz-profile-v1[data-embedded] .vbiz-v1-nav > div {
     border-radius: 1.25rem;
     padding: 0.125rem;
-  }
-
-  .vbiz-profile-v1[data-embedded] .vbiz-v1-main {
-    padding-top: 4rem;
   }
 
   .vbiz-profile-root[data-embedded]:not(.vbiz-profile-v1) .vbiz-profile-main {
@@ -1020,17 +1156,20 @@ html[data-pwa-standalone] .vbiz-profile-root[data-profile-template='v2']:not([da
 }
 
 /*
- * Public notice is nested under the fixed nav chrome (v1/v3). Increase content
- * clearance so the hero clears nav + gap + banner. When dismissed, md:mt-18 applies.
+ * Public notice overlays the hero. Do not add extra nav clearance.
+ * v1/v3 mobile: top of viewport (nav is bottom). v1/v3 desktop: under the top pill.
+ * v2: under the sticky top tabs on every width.
  */
-body:has([data-public-announcement]) .vbiz-profile-root:not([data-embedded]) .vbiz-profile-nav-clearance {
-  /* Mobile: fixed top strip (~banner height + top-3) */
-  margin-top: 4.5rem;
+.vbiz-public-announcement-overlay--v2 {
+  top: calc(5.25rem + env(safe-area-inset-top, 0px));
 }
 
-@media (min-width: 768px) {
-  body:has([data-public-announcement]) .vbiz-profile-root:not([data-embedded]) .vbiz-profile-nav-clearance {
-    /* Desktop: top-5 + pill + gap-2 + banner ≈ 9.5rem */
-    margin-top: 9.5rem;
+@media (min-width: 640px) {
+  .vbiz-public-announcement-overlay--v2 {
+    top: calc(6.75rem + env(safe-area-inset-top, 0px));
   }
+}
+
+html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
+  top: calc(5.75rem + env(safe-area-inset-top, 0px));
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import PublicAnnouncementBanner from '@/components/PublicAnnouncementBanner'
+import { PublicAnnouncementOverlay } from '@/components/PublicAnnouncementOverlay'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import type { CSSProperties, ReactNode } from 'react'
 
@@ -21,26 +21,14 @@ export function ProfileFloatingNav({ theme, children, embedded = false }: Profil
 
   return (
     <>
-      {/* Mobile: top strip (nav pill is bottom-docked). Same max-width as desktop chrome. */}
-      {!embedded ? (
-        <div className="pointer-events-none fixed top-3 right-0 left-0 z-100 w-full px-2 md:hidden">
-          <div className="mx-auto w-full max-w-258">
-            <PublicAnnouncementBanner placement="mobileTop" />
-          </div>
-        </div>
-      ) : null}
+      {!embedded ? <PublicAnnouncementOverlay slot="v1v3-mobile" /> : null}
 
       <div className="vbiz-floating-nav pointer-events-none fixed bottom-1 left-0 z-100 w-full px-2 md:top-5 md:bottom-auto md:px-20">
-        <div className="mx-auto flex w-full max-w-258 flex-col gap-2">
+        <div className="relative mx-auto w-full max-w-258">
           <div className={navInnerClass} style={navInnerStyle}>
             <div className="min-w-0 flex-1 overflow-visible">{children}</div>
           </div>
-          {/* Desktop: notice under the pill, matching nav width */}
-          {!embedded ? (
-            <div className="hidden md:block">
-              <PublicAnnouncementBanner placement="chrome" />
-            </div>
-          ) : null}
+          {!embedded ? <PublicAnnouncementOverlay slot="v1v3-under-nav" /> : null}
         </div>
       </div>
     </>

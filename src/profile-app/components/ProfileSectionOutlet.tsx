@@ -1,5 +1,6 @@
 'use client'
 
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import type { HomeHeroProps, ProfileTemplateVariant } from '@/profile-app/sections'
 import { ProfileNavSection } from '@/profile-app/sections'
 import { AnimatePresence, motion } from 'motion/react'
@@ -14,9 +15,10 @@ type Props = {
 
 /** Animated section pane — v2 only; v1/v3 shells already animate section transitions. */
 export function ProfileSectionOutlet({ sectionId, template = 'v3', homeHeroProps }: Props) {
+  const { embedded } = useProfileDisplay()
   const content = <ProfileNavSection tabId={sectionId} template={template} homeHeroProps={homeHeroProps} />
 
-  if (template !== 'v2') {
+  if (template !== 'v2' || embedded) {
     return (
       <div className="relative w-full" data-section-id={sectionId}>
         {content}

@@ -4,7 +4,7 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { resolveCalendarItemUrl, stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { V3SectionHeader } from '@/profile-app/sections'
+import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, Calendar, Clock, Video } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -123,9 +123,7 @@ export const CalendarSection = () => {
     return (
       <div className="w-full pb-20">
         <SectionHeader sectionTitle={sectionTitle} />
-        <div className="rounded-3xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          Unable to load calendar right now. Please try again later.
-        </div>
+        <V3ErrorState sectionTitle="Calendar" />
       </div>
     )
   }
@@ -141,7 +139,7 @@ export const CalendarSection = () => {
             {sectionTitle}
           </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-            No calendar options have been published yet.
+            <V3PreviewAwareText published="No calendar options have been published yet." />
           </p>
         </div>
       </div>
