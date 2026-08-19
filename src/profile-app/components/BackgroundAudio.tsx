@@ -181,15 +181,21 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
         aria-label={isMuted ? 'Unmute background audio' : 'Mute background audio'}
         aria-pressed={!isMuted}
         className={cn(
-          'flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition-all active:scale-95',
-          embedded ? 'absolute bottom-4 left-4 z-50' : 'fixed bottom-6 left-6 z-100',
+          'flex items-center justify-center rounded-full border backdrop-blur-md transition-all active:scale-95',
+          embedded
+            ? 'absolute bottom-[72px] left-3 z-50 h-[31px] w-[31px] md:bottom-4 md:left-4 md:h-11 md:w-11'
+            : 'fixed bottom-[80px] left-4 z-100 h-[31px] w-[31px] md:bottom-6 md:left-6 md:h-11 md:w-11',
           isMuted
             ? 'border-zinc-300/60 bg-white/85 text-zinc-500 shadow-sm dark:border-zinc-700/70 dark:bg-zinc-900/85 dark:text-zinc-400'
             : 'border-zinc-300/80 bg-white/95 text-zinc-800 shadow-md dark:border-zinc-600 dark:bg-zinc-800/95 dark:text-zinc-100'
         )}
         style={!isMuted && accentColor ? { borderColor: `${accentColor}66`, color: accentColor } : undefined}
       >
-        {isMuted ? <VolumeX size={18} strokeWidth={2} /> : <Volume2 size={18} strokeWidth={2} />}
+        {isMuted ? (
+          <VolumeX className="h-3.5 w-3.5 md:h-[18px] md:w-[18px]" strokeWidth={2} />
+        ) : (
+          <Volume2 className="h-3.5 w-3.5 md:h-[18px] md:w-[18px]" strokeWidth={2} />
+        )}
       </button>
     </>
   )

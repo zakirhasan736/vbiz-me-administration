@@ -1,5 +1,6 @@
 'use client'
 
+import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { UsaDigitalCardFace } from '@/profile-app/components/UsaDigitalCardFace'
 import { downloadAppleWalletPass } from '@/profile-app/lib/appleWallet'
@@ -17,14 +18,16 @@ type SaveToWalletModalProps = {
 }
 
 export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: SaveToWalletModalProps) {
-  const { design, personal, homeMedia, isVisible } = useProfileDisplay()
+  const { design, personal, homeMedia, isVisible, pageColors } = useProfileDisplay()
   const primaryColor = design?.primaryColor || design?.accentColor || '#0B1F3A'
   const secondaryColor = design?.accentColor || '#C9A24A'
+  const pageBackground = pageColors.pageBg || undefined
   const [savingGoogle, setSavingGoogle] = useState(false)
   const [savingApple, setSavingApple] = useState(false)
 
   const holder = (personal.fullName || ownerName || 'Cardholder').trim()
-  const logoUrl = homeMedia.profileMedia || ''
+  const rawPhoto = homeMedia.profileMedia?.trim() || ''
+  const logoUrl = rawPhoto && !isVideoUrl(rawPhoto) ? encodeMediaUrl(rawPhoto) : ''
 
   const handleGoogleWallet = async () => {
     setSavingGoogle(true)
@@ -70,6 +73,7 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
             company={personal.company}
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}
+            pageBackground={pageBackground}
             logoUrl={logoUrl}
             cardSlug={cardSlug}
           />

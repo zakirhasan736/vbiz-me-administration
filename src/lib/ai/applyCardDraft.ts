@@ -286,17 +286,42 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
   return syncMyInfoFromPersonal(next)
 }
 
+export function preferExistingPersonal(base: VCardData | undefined, next: VCardData): VCardData {
+  if (!base?.personal) return next
+  const keys: Array<keyof VCardData['personal']> = [
+    'fullName',
+    'email',
+    'phone',
+    'dob',
+    'company',
+    'website',
+    'address',
+    'designation',
+    'about',
+    'whatsapp',
+  ]
+  const personal = { ...next.personal }
+  for (const key of keys) {
+    const existing = String(base.personal[key] || '').trim()
+    if (existing) personal[key] = existing as never
+  }
+  const slug = String(base.slug || '').trim() || next.slug
+  return syncMyInfoFromPersonal({ ...next, slug, personal })
+}
+
 export function applyAnalyzeToDraft(response: AnalyzeResponse, base?: VCardData) {
   if (response.draft && response.enabledNavIds) {
+    const data = base ? { ...response.draft, appearance: base.appearance, theme: base.theme } : response.draft
     return {
-      data: base ? { ...response.draft, appearance: base.appearance, theme: base.theme } : response.draft,
+      data: preferExistingPersonal(base, data),
       enabledNavIds: response.enabledNavIds,
       recommendedTabs: response.recommendedTabs || [],
       optionalFeatures: response.optionalFeatures || {},
       businessSummary: response.businessSummary || '',
     }
   }
-  return mapBlueprintToVCardData(response.blueprint, base)
+  const mapped = mapBlueprintToVCardData(response.blueprint, base)
+  return { ...mapped, data: preferExistingPersonal(base, mapped.data) }
 }
 
 /** Paths to write via updateData for a full draft replace. */

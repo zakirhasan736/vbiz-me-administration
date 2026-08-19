@@ -3,7 +3,9 @@ import { resolvePwaAvatarUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePub
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import type { MyCardData } from '@interfaces/api/myCard'
 
-export const WALLET_TEMPLATE_VERSION = 3
+export const WALLET_TEMPLATE_VERSION = 4
+/** Query token so Apple/Google refetch after art changes. */
+export const WALLET_ART_CACHE_KEY = `face${WALLET_TEMPLATE_VERSION}`
 
 export const DEFAULT_WALLET_THEME = {
   primary: '#0A0A0A',
@@ -12,13 +14,21 @@ export const DEFAULT_WALLET_THEME = {
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
-export type WalletArtFormat = 'card' | 'hero' | 'strip' | 'wide'
+export type WalletArtFormat = 'card' | 'hero' | 'strip' | 'strip2x' | 'strip1x' | 'wide' | 'logo' | 'icon'
 
+/** Native pass slots at 2–3x so wallets downscale instead of upscaling. */
 export const WALLET_ART_SIZE: Record<WalletArtFormat, { width: number; height: number }> = {
-  card: { width: 1012, height: 638 },
-  hero: { width: 1032, height: 812 },
+  /** Same 1.586:1 face as the Save to Wallet popup, at 2x. */
+  card: { width: 2024, height: 1276 },
+  /** Google Wallet hero 1032×336 at 3x. */
+  hero: { width: 3096, height: 1008 },
+  /** Apple Wallet strip @3x (375×144 pt). */
   strip: { width: 1125, height: 432 },
-  wide: { width: 1280, height: 400 },
+  strip2x: { width: 750, height: 288 },
+  strip1x: { width: 375, height: 144 },
+  wide: { width: 1860, height: 1173 },
+  logo: { width: 660, height: 660 },
+  icon: { width: 261, height: 261 },
 }
 
 export type WalletPassTheme = {
@@ -206,6 +216,16 @@ export function resolveWalletPassModel(
 }
 
 export function parseWalletArtFormat(value?: string | null): WalletArtFormat {
-  if (value === 'hero' || value === 'strip' || value === 'wide') return value
+  if (
+    value === 'hero' ||
+    value === 'strip' ||
+    value === 'strip2x' ||
+    value === 'strip1x' ||
+    value === 'wide' ||
+    value === 'logo' ||
+    value === 'icon'
+  ) {
+    return value
+  }
   return 'card'
 }

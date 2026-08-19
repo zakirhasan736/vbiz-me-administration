@@ -39,6 +39,7 @@ type WalletPassFaceProps = {
   company?: string
   primaryColor?: string
   secondaryColor?: string
+  pageBackground?: string | null
   logoUrl?: string | null
   cardSlug?: string
 }
@@ -50,13 +51,14 @@ export function UsaDigitalCardFace({
   company,
   primaryColor = '#C9A24A',
   secondaryColor = '#C9A24A',
+  pageBackground,
   logoUrl,
   cardSlug,
 }: WalletPassFaceProps) {
   const holder = holderName.trim() || 'Cardholder'
   const title = formatWalletTitle(designation, company)
   const stillLogo = logoUrl && !isVideoAvatarSrc(logoUrl) ? logoUrl : ''
-  const face = resolveWalletFaceFromBrand(primaryColor, secondaryColor)
+  const face = resolveWalletFaceFromBrand(primaryColor, secondaryColor, pageBackground)
   const muted = 'rgba(255,255,255,0.88)'
   const [qrSrc, setQrSrc] = useState('')
 
@@ -97,7 +99,7 @@ export function UsaDigitalCardFace({
       >
         <div className="flex items-start justify-between">
           <div
-            className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full sm:h-[4.5rem] sm:w-[4.5rem]"
+            className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full sm:h-24 sm:w-24"
             style={{ border: `2px solid ${face.accent}`, background: face.accent }}
           >
             {stillLogo ? (

@@ -135,7 +135,7 @@ function MobileFilterSelect({ label, value, onChange, options, placeholder, Icon
 const CONNECTION_CARD_SHELL =
   'group/card relative flex flex-col overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900 shadow-xl transition-colors duration-300 md:rounded-3xl'
 
-const CONNECTION_CARD_MEDIA_FIT = 'object-cover object-[center_35%] origin-[center_35%] scale-[1.02]'
+const CONNECTION_CARD_MEDIA_FIT = 'object-cover object-center'
 
 /** Photo area — real card image/video, or initials when the API returns the generic vBiz logo. */
 function PublicCardPhoto({
@@ -190,11 +190,7 @@ function ConnectionCardInner({ card }: { card: PublicCardListItem }) {
     <>
       {/* Photo */}
       <div className="relative min-h-0 flex-1 overflow-hidden bg-zinc-950">
-        <div className="absolute inset-0 z-10 bg-linear-to-t from-zinc-900 via-zinc-900/20 to-transparent" />
-        <PublicCardPhoto
-          card={card}
-          imageClassName="grayscale-15 transition-all duration-700 group-hover/card:scale-105 group-hover/card:grayscale-0"
-        />
+        <PublicCardPhoto card={card} imageClassName="transition-all duration-700 group-hover/card:scale-105" />
       </div>
 
       {/* Details */}
@@ -734,7 +730,7 @@ export const PublicCardsSection = () => {
         /* Cinematic Unified 3D Slider Area with swipe & drag on both mobile and desktop! */
         <div
           className={`relative z-20 mt-6 flex flex-1 flex-col items-center justify-center perspective-[1600px] ${
-            compact ? 'min-h-90' : 'min-h-95 md:min-h-115'
+            compact ? 'min-h-[486px]' : 'min-h-[486px] md:min-h-115'
           }`}
         >
           {/* Navigation arrows (floating desktop layout — hidden on phone widths for a cleaner look) */}
@@ -772,8 +768,8 @@ export const PublicCardsSection = () => {
                 prevCard()
               }
             }}
-            className="transform-style-3d relative flex w-full max-w-250 cursor-grab items-center justify-center select-none active:cursor-grabbing"
-            style={{ height: isNarrow ? '330px' : '430px' }}
+            className="transform-style-3d relative flex w-full max-w-250 cursor-grab items-center justify-center overflow-hidden select-none active:cursor-grabbing"
+            style={{ height: isNarrow ? '450px' : '430px' }}
           >
             <AnimatePresence initial={false}>
               {cards.map((card, idx) => {
@@ -781,26 +777,19 @@ export const PublicCardsSection = () => {
                 const absOffset = Math.abs(offset)
                 const direction = Math.sign(offset)
 
-                // Only show nearest cards to look pristine and fit perfectly
-                if (absOffset > 2) return null
+                // Mobile: one card at a time. Desktop: keep a shallow 3D peek of neighbors.
+                if (isNarrow ? absOffset > 0 : absOffset > 2) return null
 
-                // Calculate scales and translations for phone and desktop widths
-                const cardWidth = isNarrow ? 220 : 300
-                const cardHeight = isNarrow ? 320 : 420
+                const cardWidth = isNarrow ? 297 : 300
+                const cardHeight = isNarrow ? 432 : 420
+                const mediaHeight = isNarrow ? 292 : 278
+                const detailsHeight = isNarrow ? 140 : 160
 
-                // Dynamic lateral spacing (xTranslate)
-                const xTranslate =
-                  offset === 0 ? 0 : direction * (absOffset * (isNarrow ? 55 : 130) + (isNarrow ? 30 : 80))
+                const xTranslate = isNarrow ? 0 : offset === 0 ? 0 : direction * (absOffset * 130 + 80)
 
-                // Dynamic depth layer (zTranslate)
-                const zTranslate = offset === 0 ? (isNarrow ? 40 : 80) : -absOffset * (isNarrow ? 55 : 110)
-
-                // Smooth perspective rotation
-                const yRotate = offset === 0 ? 0 : direction * (isNarrow ? -14 : -22)
-
-                // Scale cards cleanly
-                const scale =
-                  absOffset === 0 ? 1 : Math.max(isNarrow ? 0.8 : 0.75, 1 - absOffset * (isNarrow ? 0.08 : 0.12))
+                const zTranslate = isNarrow ? 0 : offset === 0 ? 80 : -absOffset * 110
+                const yRotate = isNarrow ? 0 : offset === 0 ? 0 : direction * -22
+                const scale = isNarrow ? 1 : absOffset === 0 ? 1 : Math.max(0.75, 1 - absOffset * 0.12)
 
                 const zIndex = 50 - absOffset
                 const opacity = absOffset === 2 ? 0.6 : 1
@@ -866,12 +855,7 @@ export const PublicCardsSection = () => {
                     />
 
                     {/* Connection Photo */}
-                    <div
-                      className="relative w-full overflow-hidden bg-zinc-950"
-                      style={{ height: isNarrow ? '203px' : '278px' }}
-                    >
-                      <div className="absolute inset-0 z-10 bg-linear-to-t from-zinc-900 via-zinc-900/20 to-transparent" />
-
+                    <div className="relative w-full overflow-hidden bg-zinc-950" style={{ height: `${mediaHeight}px` }}>
                       <motion.div
                         className="absolute inset-0 h-full w-full translate-x-(--mouse-x,0px) translate-y-(--mouse-y,0px) overflow-hidden"
                         animate={{ scale: absOffset === 0 ? 1 : 1.05 }}
@@ -879,15 +863,15 @@ export const PublicCardsSection = () => {
                       >
                         <PublicCardPhoto
                           card={card}
-                          imageClassName="grayscale-15 transition-transform duration-300 ease-out group-hover/card:scale-105 group-hover/card:grayscale-0"
+                          imageClassName="transition-transform duration-300 ease-out group-hover/card:scale-105"
                         />
                       </motion.div>
                     </div>
 
                     {/* Connection Text Details */}
                     <div
-                      className={`relative z-20 -mt-2 flex flex-col items-center justify-between border-t border-zinc-800/60 bg-zinc-900 ${compact ? 'p-4' : 'p-4 md:p-6'}`}
-                      style={{ height: isNarrow ? '130px' : '160px' }}
+                      className={`relative z-20 flex flex-col items-center justify-between border-t border-zinc-800/60 bg-zinc-900 ${compact ? 'p-4' : 'p-4 md:p-6'}`}
+                      style={{ height: `${detailsHeight}px` }}
                     >
                       <div className="w-full text-center">
                         <h4

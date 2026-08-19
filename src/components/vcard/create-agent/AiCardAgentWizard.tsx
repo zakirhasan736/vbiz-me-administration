@@ -1,6 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
+import { LaunchTabReviewModal } from '@/components/vcard/create-agent/LaunchTabReviewModal'
 import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
 import {
   applyAnalyzeToDraft,
@@ -18,6 +19,7 @@ import {
 } from '@/lib/ai/cardAgentClient'
 import { TAB_NAV_MAP } from '@/lib/ai/cardBlueprint'
 import { gapFieldToSection, type GapItem } from '@/lib/ai/gapReport'
+import { mergeParsedPersonal, parseOwnerPersonalFromText, patchDraftFromFieldKey } from '@/lib/ai/ownerPersonalParse'
 import {
   CREATE_CARD_TAB_BY_NAME,
   CREATE_CARD_TAB_BY_NAV_ID,
@@ -315,7 +317,7 @@ const OPTIONAL_ITEMS: Array<{
   {
     key: 'seo',
     title: 'SEO',
-    description: 'Set SEO title, description, and share metadata.',
+    description: 'Generate meta title, description, and keywords from this business, then save them on Settings > SEO.',
     settingsSection: 'seo',
   },
   {
@@ -381,6 +383,11 @@ function nextEmptyTabGaps(gaps: GapItem[], skippedIds: string[]): GapItem[] {
 }
 
 const BLOCKING_PERSONAL_FIELD_KEYS = new Set(['fullName', 'email', 'phone', 'dob'])
+const OWNER_ENTRY_GAP_FIELDS = new Set(['fullName', 'email', 'phone', 'dob', 'slug'])
+
+function isOwnerEntryGap(gap: GapItem) {
+  return gap.navId === 'home' && OWNER_ENTRY_GAP_FIELDS.has(gap.field)
+}
 
 function isBlockingPersonalField(field?: { tabId?: string; fieldKey?: string; required?: boolean } | null) {
   if (!field?.fieldKey) return false
@@ -851,6 +858,7 @@ export function AiCardAgentWizard({
   const [fieldDraft, setFieldDraft] = useState('')
   const [aiPreview, setAiPreview] = useState('')
   const [cardPercent, setCardPercent] = useState(0)
+  const [reviewNavId, setReviewNavId] = useState<string | null>(null)
 
   useEffect(() => {
     draftRef.current = vCardData
@@ -1029,7 +1037,7 @@ export function AiCardAgentWizard({
       const first = queue[0]
       pushMsg(
         'assistant',
-        `Nice work — the tab pass is done (about ${reportScore}% complete). Content can still be polished in the editor.\n\nBefore preview, a few optional extras. None of these are required.\n\nFirst: ${first.title}. ${first.description}\n\nWant this on the card? Yes or skip.`
+        `Nice work — the tab pass is done (about ${reportScore}% complete). Content can still be polished in the editor.\n\nBefore preview, a few optional extras. None of these are required.\n\nFirst: ${first.title}. ${first.description}\n\nTap Yes, enable to turn it on for this card, or Skip.`
       )
     },
     [pushMsg]
@@ -1040,6 +1048,25 @@ export function AiCardAgentWizard({
       const group = nextEmptyTabGaps(report.gaps, skippedGapIdsRef.current)
       if (!group.length) {
         startFeaturesPhase(report.score)
+        return
+      }
+
+      if (group.some(isOwnerEntryGap)) {
+        const smart = buildSmartSectionPayload('personal', draftRef.current, sourceContextRef.current)
+        if (smart && payloadHasContent('personal', smart)) {
+          applyDraft(
+            mergeSectionPayload(draftRef.current, 'personal', smart),
+            activeNav.length ? activeNav : enabledNavIds
+          )
+        }
+        const ownerFields = group.filter(isOwnerEntryGap)
+        setGateGap(null)
+        setCoachSection('personal')
+        setPhase('coach')
+        pushMsg(
+          'assistant',
+          `Personal Info still needs values only you can provide: ${ownerFields.map((gap) => gap.title).join(', ')}.\n\nType them below (name, card/business name, email, phone, date of birth as YYYY-MM-DD) and tap Send. I will not invent email, phone, or date of birth.`
+        )
         return
       }
 
@@ -1072,7 +1099,7 @@ export function AiCardAgentWizard({
                 }\n\nWant me to fill this now from your website and files? Tap Yes to fill, or Skip to leave it for the editor.`
       pushMsg('assistant', prompt, `${remainingTabs} tab${remainingTabs === 1 ? '' : 's'} still open`)
     },
-    [pushMsg, startFeaturesPhase]
+    [pushMsg, startFeaturesPhase, applyDraft, activeNav, enabledNavIds]
   )
 
   const resumeExistingCard = async () => {
@@ -1427,13 +1454,26 @@ export function AiCardAgentWizard({
   }
 
   const applyCurrentField = async (action: string, value?: unknown) => {
-    if (!sessionIdRef.current || !nextField) return
+    if (!nextField) return
+    const resolvedValue = value ?? fieldDraft
+    if (action === 'USER_INPUT' || action === 'KEEP_THIS' || action === 'UPLOAD') {
+      const sourceValue = action === 'KEEP_THIS' ? resolvedValue || nextField.currentValue : resolvedValue
+      applyDraft(
+        patchDraftFromFieldKey(draftRef.current, nextField.fieldKey, sourceValue),
+        activeNav.length ? activeNav : enabledNavIds
+      )
+    }
+    if (!sessionIdRef.current) {
+      const report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
+      askNextGap(report)
+      return
+    }
     setBusy(true)
     try {
       const job = await cardAgentJobPost<JobSnapshot>(
         sessionIdRef.current,
         `fields/${encodeURIComponent(nextField.id)}`,
-        { action, value: value ?? fieldDraft, instruction: fieldDraft }
+        { action, value: resolvedValue, instruction: fieldDraft }
       )
       if (action === 'AI_GENERATE' || action === 'IMPROVE_WITH_AI') {
         const generated = job.field?.currentValue
@@ -1561,6 +1601,12 @@ export function AiCardAgentWizard({
     const section = gapFieldToSection(gap.field)
     pushMsg('user', `Yes — fill ${gap.tab} now`)
     setCoachSection(section)
+
+    if (section === 'personal' || gap.navId === 'home') {
+      const report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
+      askNextGap(report)
+      return
+    }
 
     if (section === 'reviews' || section === 'experience') {
       setPhase('coach')
@@ -1704,6 +1750,21 @@ export function AiCardAgentWizard({
     )
 
     try {
+      if (section === 'personal') {
+        const parsed = parseOwnerPersonalFromText(text)
+        if (!Object.values(parsed).some(hasText) && files.length === 0) {
+          throw new Error('Include a name, card name, email, phone, and/or date of birth (YYYY-MM-DD).')
+        }
+        const merged = mergeParsedPersonal(draftRef.current, parsed)
+        applyDraft(merged, activeNav)
+        setComposer('')
+        setFiles([])
+        const report = await refreshAfterDraftChange(activeNav, merged)
+        pushMsg('assistant', `Saved those Personal Info details. Card is now ${report.score}% complete.`)
+        askNextGap(report)
+        return
+      }
+
       const form = new FormData()
       form.set('section', section)
       form.set('text', text)
@@ -1750,62 +1811,65 @@ export function AiCardAgentWizard({
   const answerFeature = async (yes: boolean) => {
     const item = featureQueue[featureIndex]
     if (!item || busy) return
-    pushMsg('user', yes ? `Yes — enable ${item.title}` : `No — skip ${item.title}`)
+    pushMsg('user', yes ? `Yes, enable ${item.title}` : `Skip ${item.title}`)
     const nextAccepted = yes ? [...acceptedFeatures, item.settingsSection] : acceptedFeatures
     if (yes) {
+      setBusy(true)
       let note = ''
-      if (item.key === 'aiAssistance') {
-        updateData('aiAssistanceEnabled', true)
-        note =
-          'AI Assistance is turned on for this draft. After create, open Settings > AI Assistance to train it with business instructions, documents, and payment or lead-handling rules.'
-      } else if (item.key === 'canva') {
-        note =
-          'Canva uses secure authorization from Settings > Canva Integration. Connect Canva there, create profile images, backgrounds, gallery assets, or intro media, then import or upload those assets into the empty media fields.'
-      } else if (item.key === 'seo') {
-        try {
-          const generatedSeo = await generateCardSeo()
-          draftRef.current = { ...draftRef.current, seo: generatedSeo }
-          updateData('seo', generatedSeo)
+      try {
+        if (item.key === 'aiAssistance') {
+          updateData('aiAssistanceEnabled', true)
           note =
-            'AI generated a business-specific meta title, description, and keyword set. You can edit them in Settings > SEO.'
-        } catch {
-          const fallbackSeo = fallbackSeoFromDraft(draftRef.current)
-          draftRef.current = { ...draftRef.current, seo: fallbackSeo }
-          updateData('seo', fallbackSeo)
-          note = 'SEO metadata was prepared from the card details. You can review or edit it in Settings > SEO.'
+            'AI Assistance is turned on for this draft. After create, open Settings > AI Assistance to train it with business instructions, documents, and payment or lead-handling rules.'
+        } else if (item.key === 'canva') {
+          note =
+            'Canva uses secure authorization from Settings > Canva Integration. Connect Canva there, create profile images, backgrounds, gallery assets, or intro media, then import or upload those assets into the empty media fields.'
+        } else if (item.key === 'seo') {
+          try {
+            const generatedSeo = await generateCardSeo()
+            applyDraft({ ...draftRef.current, seo: generatedSeo }, activeNav)
+            note = `SEO is on. Settings > SEO now has meta title “${generatedSeo.metaTitle || 'your business'}”, a business description, and keywords from the site we already read. You can review or edit them in the launch checklist.`
+          } catch {
+            const fallbackSeo = fallbackSeoFromDraft(draftRef.current)
+            applyDraft({ ...draftRef.current, seo: fallbackSeo }, activeNav)
+            note =
+              'SEO metadata was prepared from the card details we already have. Review Settings > SEO for meta title, description, and keywords.'
+          }
+        } else if (item.key === 'pushNotifications') {
+          saveNotificationPrefs({ browserPush: true })
+          const permission = await ensureNotificationPermission()
+          note =
+            permission === 'granted'
+              ? 'Browser push notifications are enabled. You can fine tune categories from Settings > General notifications.'
+              : permission === 'denied'
+                ? 'Browser push is switched on in preferences, but the browser blocked permission. Re-enable it from browser site settings, then check Settings > General notifications.'
+                : 'Browser push is switched on in preferences, but this browser does not support notification permission here. Check Settings > General notifications after create.'
+        } else if (item.key === 'emailNotifications') {
+          saveNotificationPrefs({ emailNotifications: true })
+          note =
+            'Email notifications are enabled in preferences. After create, review Settings > General notifications to choose which alerts should send email.'
         }
-      } else if (item.key === 'pushNotifications') {
-        saveNotificationPrefs({ browserPush: true })
-        const permission = await ensureNotificationPermission()
-        note =
-          permission === 'granted'
-            ? 'Browser push notifications are enabled. You can fine tune categories from Settings > General notifications.'
-            : permission === 'denied'
-              ? 'Browser push is switched on in preferences, but the browser blocked permission. Re-enable it from browser site settings, then check Settings > General notifications.'
-              : 'Browser push is switched on in preferences, but this browser does not support notification permission here. Check Settings > General notifications after create.'
-      } else if (item.key === 'emailNotifications') {
-        saveNotificationPrefs({ emailNotifications: true })
-        note =
-          'Email notifications are enabled in preferences. After create, review Settings > General notifications to choose which alerts should send email.'
-      }
-      setAcceptedFeatures(nextAccepted)
-      pushMsg('assistant', note || `Noted. ${item.title} can be configured after the card is created.`)
-      setAcceptedFeatureDetails((prev) => [
-        ...prev,
-        {
-          key: item.key,
-          title: item.title,
-          settingsSection: item.settingsSection,
-          note,
-        },
-      ])
-      if (!note) {
-        pushMsg(
-          'assistant',
-          item.key === 'canva'
-            ? 'Noted. Canva will open through secure authorization from settings. After connecting, use Canva to create profile images, wallpapers, gallery assets, or intro media, then import/upload them into the empty media fields.'
-            : `Noted. I’ll deep-link you into ${item.title} settings when we finish (or you can open it anytime from card settings).`
-        )
+        setAcceptedFeatures(nextAccepted)
+        pushMsg('assistant', note || `Noted. ${item.title} can be configured after the card is created.`)
+        setAcceptedFeatureDetails((prev) => [
+          ...prev,
+          {
+            key: item.key,
+            title: item.title,
+            settingsSection: item.settingsSection,
+            note,
+          },
+        ])
+        if (!note) {
+          pushMsg(
+            'assistant',
+            item.key === 'canva'
+              ? 'Noted. Canva will open through secure authorization from settings. After connecting, use Canva to create profile images, wallpapers, gallery assets, or intro media, then import/upload them into the empty media fields.'
+              : `Noted. I’ll deep-link you into ${item.title} settings when we finish (or you can open it anytime from card settings).`
+          )
+        }
+      } finally {
+        setBusy(false)
       }
     } else {
       pushMsg('assistant', `Okay, skipping ${item.title}.`)
@@ -1815,7 +1879,7 @@ export function AiCardAgentWizard({
     if (nextIdx < featureQueue.length) {
       setFeatureIndex(nextIdx)
       const next = featureQueue[nextIdx]
-      pushMsg('assistant', `Next: ${next.title}? ${next.description}\n\nYes to enable, or skip.`)
+      pushMsg('assistant', `Next: ${next.title}? ${next.description}\n\nTap Yes, enable or Skip.`)
       return
     }
 
@@ -1970,8 +2034,21 @@ export function AiCardAgentWizard({
     const section = sectionFromNavId(tab.navId)
     const missingTextFields = tab.fields.filter((field) => !field.filled && !field.upload)
     setCoachSection(section)
+    setReviewNavId(tab.navId)
     setError('')
     pushMsg('user', `Fill ${tab.label} before launch`)
+
+    if (section === 'personal') {
+      const smart = buildSmartSectionPayload('personal', draftRef.current, sourceContextRef.current)
+      if (smart && payloadHasContent('personal', smart)) {
+        applyDraft(mergeSectionPayload(draftRef.current, 'personal', smart), activeNav)
+      }
+      pushMsg(
+        'assistant',
+        'Personal Info is open for review. Use Edit on filled fields and Add on empty ones. I will not invent name, email, phone, or date of birth.'
+      )
+      return
+    }
 
     if (!missingTextFields.length) {
       pushMsg(
@@ -2195,1270 +2272,1307 @@ export function AiCardAgentWizard({
                       : 'Creating'
 
   return (
-    <Modal
-      open={open}
-      onClose={() => {
-        if (preventDismiss) return
-        onClose()
-      }}
-      preventClose={preventDismiss}
-      closeOnOverlayClick={!preventDismiss && !busy}
-      closeOnEscape={!preventDismiss}
-      overlayClassName="items-start overflow-y-auto px-3 py-6 sm:items-center sm:p-6"
-      className="relative flex max-h-[calc(100dvh-3rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
-    >
-      {(phase === 'celebrate' || (phase === 'creating' && createProgress > 96)) && <ConfettiBurst />}
-      <div className="relative shrink-0 overflow-hidden border-b border-slate-100 px-5 pt-5 pb-4 dark:border-white/5">
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-emerald-500/10 via-transparent to-indigo-500/10" />
-        <div className="relative flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 sm:h-11 sm:w-11">
-              <Sparkles className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-lg font-black tracking-tight text-slate-950 dark:text-white">Card Studio</h3>
-              <p className="truncate text-xs font-semibold text-slate-400">
-                {stepLabel} · {isEdit ? 'resume remaining work on this card' : 'guided create until your card is ready'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="hidden rounded-xl border border-emerald-200/80 bg-white/80 px-3 py-1.5 backdrop-blur sm:block dark:border-emerald-500/30 dark:bg-emerald-500/10">
-              <span className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
-                Complete
+    <>
+      <Modal
+        open={open}
+        onClose={() => {
+          if (preventDismiss) return
+          onClose()
+        }}
+        preventClose={preventDismiss}
+        closeOnOverlayClick={!preventDismiss && !busy}
+        closeOnEscape={!preventDismiss}
+        overlayClassName="items-start overflow-y-auto px-3 py-6 sm:items-center sm:p-6"
+        className="relative flex max-h-[calc(100dvh-3rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
+      >
+        {(phase === 'celebrate' || (phase === 'creating' && createProgress > 96)) && <ConfettiBurst />}
+        <div className="relative shrink-0 overflow-hidden border-b border-slate-100 px-5 pt-5 pb-4 dark:border-white/5">
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-emerald-500/10 via-transparent to-indigo-500/10" />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 sm:h-11 sm:w-11">
+                <Sparkles className="h-5 w-5" />
               </span>
-              <span className="ml-2 text-sm font-black text-emerald-700 dark:text-emerald-300">{headerPercent}%</span>
+              <div className="min-w-0">
+                <h3 className="text-lg font-black tracking-tight text-slate-950 dark:text-white">Card Studio</h3>
+                <p className="truncate text-xs font-semibold text-slate-400">
+                  {stepLabel} ·{' '}
+                  {isEdit ? 'resume remaining work on this card' : 'guided create until your card is ready'}
+                </p>
+              </div>
             </div>
-            <button
-              type="button"
-              disabled={preventDismiss}
-              onClick={() => {
-                if (preventDismiss) return
-                onClose()
-              }}
-              title={preventDismiss ? 'Please wait while the card is created' : 'Close'}
-              className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="hidden rounded-xl border border-emerald-200/80 bg-white/80 px-3 py-1.5 backdrop-blur sm:block dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                <span className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
+                  Complete
+                </span>
+                <span className="ml-2 text-sm font-black text-emerald-700 dark:text-emerald-300">{headerPercent}%</span>
+              </div>
+              <button
+                type="button"
+                disabled={preventDismiss}
+                onClick={() => {
+                  if (preventDismiss) return
+                  onClose()
+                }}
+                title={preventDismiss ? 'Please wait while the card is created' : 'Close'}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="h-1.5 w-full bg-slate-100 dark:bg-white/5">
-        <div
-          className="h-full bg-emerald-500 transition-all duration-500"
-          style={{
-            width: `${
-              phase === 'creating' || phase === 'celebrate'
-                ? Math.min(100, Math.round(createProgress))
-                : Math.max(phase === 'preview' ? launchOverallPercent : score, phase === 'intake' ? 0 : 4)
-            }%`,
-          }}
-        />
-      </div>
+        <div className="h-1.5 w-full bg-slate-100 dark:bg-white/5">
+          <div
+            className="h-full bg-emerald-500 transition-all duration-500"
+            style={{
+              width: `${
+                phase === 'creating' || phase === 'celebrate'
+                  ? Math.min(100, Math.round(createProgress))
+                  : Math.max(phase === 'preview' ? launchOverallPercent : score, phase === 'intake' ? 0 : 4)
+              }%`,
+            }}
+          />
+        </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
-        {isEdit && cardLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-            Loading your current card before source analysis…
-          </div>
-        ) : null}
-        {error ? (
-          <div className="space-y-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-            <p>{error}</p>
-            {analysisFailed ? (
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button
-                  type="button"
-                  className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
-                  onClick={() => void runAnalyze()}
-                >
-                  Try Again
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
-                  onClick={() => {
-                    setWebsiteUrl('')
-                    setError('')
-                  }}
-                >
-                  Use Another Website
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
-                  onClick={() => {
-                    setComposer('')
-                    setError('')
-                  }}
-                >
-                  Paste Text Instead
-                </button>
-                <label className="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800">
-                  Upload Document
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
-                    onChange={(e) => {
-                      const next = Array.from(e.target.files || [])
-                      if (!next.length) return
-                      setFiles(next)
-                      setError('')
-                    }}
-                  />
-                </label>
-                {isEdit ? (
+        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+          {isEdit && cardLoading ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+              Loading your current card before source analysis…
+            </div>
+          ) : null}
+          {error ? (
+            <div className="space-y-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+              <p>{error}</p>
+              {analysisFailed ? (
+                <div className="flex flex-wrap gap-2 pt-1">
                   <button
                     type="button"
                     className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
-                    onClick={() => void resumeExistingCard()}
+                    onClick={() => void runAnalyze()}
                   >
-                    Continue With Current Card
+                    Try Again
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
+                    onClick={() => {
+                      setWebsiteUrl('')
+                      setError('')
+                    }}
+                  >
+                    Use Another Website
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
+                    onClick={() => {
+                      setComposer('')
+                      setError('')
+                    }}
+                  >
+                    Paste Text Instead
+                  </button>
+                  <label className="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800">
+                    Upload Document
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
+                      onChange={(e) => {
+                        const next = Array.from(e.target.files || [])
+                        if (!next.length) return
+                        setFiles(next)
+                        setError('')
+                      }}
+                    />
+                  </label>
+                  {isEdit ? (
+                    <button
+                      type="button"
+                      className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-rose-800"
+                      onClick={() => void resumeExistingCard()}
+                    >
+                      Continue With Current Card
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {phase === 'working' && busy ? (
+            <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+              <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-200">
+                Building your card
+              </p>
+              <ol className="space-y-1.5">
+                {pipelineSteps.map((step) => (
+                  <li
+                    key={step.id}
+                    className="flex items-start gap-2 text-xs font-semibold text-emerald-900 dark:text-emerald-100"
+                  >
+                    {step.status === 'active' ? (
+                      <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
+                    ) : step.status === 'done' ? (
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                    ) : step.status === 'failed' ? (
+                      <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+                    ) : (
+                      <span className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-emerald-300 dark:border-emerald-700" />
+                    )}
+                    <span>
+                      <span className={step.status === 'skipped' ? 'opacity-50' : ''}>{step.label}</span>
+                      {step.detail ? (
+                        <span className="mt-0.5 block text-[11px] font-medium opacity-70">{step.detail}</span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+
+          {recommendedAdds.length && (phase === 'preview' || phase === 'tabs' || phase === 'coach') ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+              <p className="mb-1 font-black text-slate-800 dark:text-white">Your vBiz Me card is {score}% complete.</p>
+              <ul className="list-disc space-y-1 pl-4">
+                {recommendedAdds.slice(0, 5).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {messages.map((m) => (
+            <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+              <div
+                className={cn(
+                  'max-w-[92%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed font-semibold whitespace-pre-wrap',
+                  m.role === 'user'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
+                    : 'border border-slate-200 bg-slate-50 text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-slate-100'
+                )}
+              >
+                {m.text}
+                {m.meta ? <p className="mt-1 text-[10px] font-bold opacity-60">{m.meta}</p> : null}
+              </div>
+            </div>
+          ))}
+
+          {busy ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Crafting…
+            </div>
+          ) : null}
+
+          {phase === 'plan' ? (
+            <div className="space-y-3 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+              <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Your recommended card</p>
+              <p className="text-sm font-black text-slate-900 dark:text-white">Your card is {cardPercent}% complete</p>
+              <ul className="space-y-2">
+                {cardPlan.map((tab) => (
+                  <li key={tab.tabId} className="flex items-center justify-between gap-3 text-sm">
+                    <label className="flex min-w-0 flex-1 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={tab.tabId === 'home' || selectedRecs.includes(tab.tabId) || tab.selected}
+                        disabled={tab.tabId === 'home'}
+                        onChange={() =>
+                          setSelectedRecs((prev) =>
+                            prev.includes(tab.tabId) ? prev.filter((id) => id !== tab.tabId) : [...prev, tab.tabId]
+                          )
+                        }
+                      />
+                      <span className="font-bold text-slate-800 dark:text-white">{tab.name}</span>
+                    </label>
+                    <span className="text-xs font-bold text-slate-500">
+                      {tab.mark === 'ready' ? '✓ Ready' : tab.mark === 'needs' ? '● Needs information' : '○ Empty'} ·{' '}
+                      {tab.percent}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void runFastModeChoice('review')}
+                  className="rounded-2xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+                >
+                  Review everything
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void runFastModeChoice('ai')}
+                  className="rounded-2xl bg-slate-950 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
+                >
+                  Let AI handle what it can
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void runFastModeChoice('found')}
+                  className="rounded-2xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+                >
+                  Use only what we found
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {phase === 'field' && nextField ? (
+            <div className="space-y-3 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+              <p className="text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase">
+                {getCreateCardDisplayLabel(nextField.tabId, nextField.tabId)}
+              </p>
+              <p className="text-sm font-black text-slate-900 dark:text-white">{nextField.fieldLabel}</p>
+              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{nextField.prompt}</p>
+              {nextField.currentValue ? (
+                <p className="rounded-2xl bg-white/80 p-3 text-xs font-medium text-slate-700 dark:bg-black/20 dark:text-slate-200">
+                  We found:{' '}
+                  {typeof nextField.currentValue === 'string'
+                    ? nextField.currentValue
+                    : JSON.stringify(nextField.currentValue)}
+                </p>
+              ) : (
+                <p className="text-xs font-medium text-slate-500">We didn’t find this in your website or documents.</p>
+              )}
+              {nextField.fieldKey === 'dob' ? (
+                <input
+                  type="date"
+                  value={fieldDraft}
+                  onChange={(event) => setFieldDraft(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
+                />
+              ) : nextField.fieldKey === 'email' ? (
+                <input
+                  type="email"
+                  value={fieldDraft}
+                  onChange={(event) => setFieldDraft(event.target.value)}
+                  placeholder="name@business.com"
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
+                />
+              ) : nextField.fieldKey === 'phone' ? (
+                <input
+                  type="tel"
+                  value={fieldDraft}
+                  onChange={(event) => setFieldDraft(event.target.value)}
+                  placeholder="Phone number"
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
+                />
+              ) : (
+                <textarea
+                  value={fieldDraft}
+                  onChange={(event) => setFieldDraft(event.target.value)}
+                  placeholder="Paste or type here…"
+                  className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
+                />
+              )}
+              {aiPreview ? (
+                <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 text-xs dark:border-white/10">
+                  <p className="font-black">Suggested copy</p>
+                  <p className="whitespace-pre-wrap">{aiPreview}</p>
+                  <button
+                    type="button"
+                    onClick={() => void applyCurrentField('USER_INPUT', aiPreview)}
+                    className="font-black text-emerald-700"
+                  >
+                    Accept
+                  </button>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                {nextField.aiGenerationAllowed ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void applyCurrentField('AI_GENERATE')}
+                    className="rounded-full bg-slate-950 px-3 py-2 text-[11px] font-black text-white"
+                  >
+                    Write with AI
+                  </button>
+                ) : null}
+                {nextField.special === 'faq' || nextField.fieldKey === 'faqs' ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void applyCurrentField('AI_GENERATE')}
+                    className="rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white"
+                  >
+                    Create up to 5 FAQs
+                  </button>
+                ) : null}
+                {nextField.special === 'blog' || nextField.fieldKey === 'blogs' ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void applyCurrentField('AI_GENERATE')}
+                    className="rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white"
+                  >
+                    Create up to 5 articles
+                  </button>
+                ) : null}
+                {nextField.status === 'PARTIAL' ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void applyCurrentField('KEEP_THIS')}
+                    className="rounded-full border px-3 py-2 text-[11px] font-black"
+                  >
+                    Keep this
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={busy || !fieldDraft.trim()}
+                  onClick={() => void applyCurrentField('USER_INPUT')}
+                  className="rounded-full border px-3 py-2 text-[11px] font-black"
+                >
+                  Save
+                </button>
+                {fieldDraft.trim() && nextField.aiGenerationAllowed ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void applyCurrentField('IMPROVE_WITH_AI', fieldDraft)}
+                    className="rounded-full border px-3 py-2 text-[11px] font-black"
+                  >
+                    Improve with AI
+                  </button>
+                ) : null}
+                {!nextField.required ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void applyCurrentField('SKIP')}
+                    className="rounded-full border px-3 py-2 text-[11px] font-black"
+                  >
+                    Skip
+                  </button>
+                ) : null}
+                {!isBlockingPersonalField(nextField) ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={skipRemainingToFeatures}
+                    className="rounded-full border border-indigo-200 px-3 py-2 text-[11px] font-black text-indigo-700 dark:border-indigo-500/30 dark:text-indigo-200"
+                  >
+                    Continue to extras
                   </button>
                 ) : null}
               </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {phase === 'working' && busy ? (
-          <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-            <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-200">
-              Building your card
-            </p>
-            <ol className="space-y-1.5">
-              {pipelineSteps.map((step) => (
-                <li
-                  key={step.id}
-                  className="flex items-start gap-2 text-xs font-semibold text-emerald-900 dark:text-emerald-100"
-                >
-                  {step.status === 'active' ? (
-                    <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
-                  ) : step.status === 'done' ? (
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                  ) : step.status === 'failed' ? (
-                    <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-                  ) : (
-                    <span className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-emerald-300 dark:border-emerald-700" />
-                  )}
-                  <span>
-                    <span className={step.status === 'skipped' ? 'opacity-50' : ''}>{step.label}</span>
-                    {step.detail ? (
-                      <span className="mt-0.5 block text-[11px] font-medium opacity-70">{step.detail}</span>
-                    ) : null}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : null}
-
-        {recommendedAdds.length && (phase === 'preview' || phase === 'tabs' || phase === 'coach') ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-            <p className="mb-1 font-black text-slate-800 dark:text-white">Your vBiz Me card is {score}% complete.</p>
-            <ul className="list-disc space-y-1 pl-4">
-              {recommendedAdds.slice(0, 5).map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {messages.map((m) => (
-          <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            <div
-              className={cn(
-                'max-w-[92%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed font-semibold whitespace-pre-wrap',
-                m.role === 'user'
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
-                  : 'border border-slate-200 bg-slate-50 text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-slate-100'
-              )}
-            >
-              {m.text}
-              {m.meta ? <p className="mt-1 text-[10px] font-bold opacity-60">{m.meta}</p> : null}
             </div>
-          </div>
-        ))}
+          ) : null}
 
-        {busy ? (
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Crafting…
-          </div>
-        ) : null}
-
-        {phase === 'plan' ? (
-          <div className="space-y-3 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/60">
-            <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Your recommended card</p>
-            <p className="text-sm font-black text-slate-900 dark:text-white">Your card is {cardPercent}% complete</p>
-            <ul className="space-y-2">
-              {cardPlan.map((tab) => (
-                <li key={tab.tabId} className="flex items-center justify-between gap-3 text-sm">
-                  <label className="flex min-w-0 flex-1 items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={tab.tabId === 'home' || selectedRecs.includes(tab.tabId) || tab.selected}
-                      disabled={tab.tabId === 'home'}
-                      onChange={() =>
-                        setSelectedRecs((prev) =>
-                          prev.includes(tab.tabId) ? prev.filter((id) => id !== tab.tabId) : [...prev, tab.tabId]
-                        )
-                      }
-                    />
-                    <span className="font-bold text-slate-800 dark:text-white">{tab.name}</span>
-                  </label>
-                  <span className="text-xs font-bold text-slate-500">
-                    {tab.mark === 'ready' ? '✓ Ready' : tab.mark === 'needs' ? '● Needs information' : '○ Empty'} ·{' '}
-                    {tab.percent}%
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void runFastModeChoice('review')}
-                className="rounded-2xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
-              >
-                Review everything
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void runFastModeChoice('ai')}
-                className="rounded-2xl bg-slate-950 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
-              >
-                Let AI handle what it can
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void runFastModeChoice('found')}
-                className="rounded-2xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
-              >
-                Use only what we found
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {phase === 'field' && nextField ? (
-          <div className="space-y-3 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-            <p className="text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase">
-              {getCreateCardDisplayLabel(nextField.tabId, nextField.tabId)}
-            </p>
-            <p className="text-sm font-black text-slate-900 dark:text-white">{nextField.fieldLabel}</p>
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{nextField.prompt}</p>
-            {nextField.currentValue ? (
-              <p className="rounded-2xl bg-white/80 p-3 text-xs font-medium text-slate-700 dark:bg-black/20 dark:text-slate-200">
-                We found:{' '}
-                {typeof nextField.currentValue === 'string'
-                  ? nextField.currentValue
-                  : JSON.stringify(nextField.currentValue)}
-              </p>
-            ) : (
-              <p className="text-xs font-medium text-slate-500">We didn’t find this in your website or documents.</p>
-            )}
-            {nextField.fieldKey === 'dob' ? (
-              <input
-                type="date"
-                value={fieldDraft}
-                onChange={(event) => setFieldDraft(event.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
-              />
-            ) : nextField.fieldKey === 'email' ? (
-              <input
-                type="email"
-                value={fieldDraft}
-                onChange={(event) => setFieldDraft(event.target.value)}
-                placeholder="name@business.com"
-                className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
-              />
-            ) : nextField.fieldKey === 'phone' ? (
-              <input
-                type="tel"
-                value={fieldDraft}
-                onChange={(event) => setFieldDraft(event.target.value)}
-                placeholder="Phone number"
-                className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
-              />
-            ) : (
-              <textarea
-                value={fieldDraft}
-                onChange={(event) => setFieldDraft(event.target.value)}
-                placeholder="Paste or type here…"
-                className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-950"
-              />
-            )}
-            {aiPreview ? (
-              <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 text-xs dark:border-white/10">
-                <p className="font-black">Suggested copy</p>
-                <p className="whitespace-pre-wrap">{aiPreview}</p>
-                <button
-                  type="button"
-                  onClick={() => void applyCurrentField('USER_INPUT', aiPreview)}
-                  className="font-black text-emerald-700"
-                >
-                  Accept
-                </button>
-              </div>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              {nextField.aiGenerationAllowed ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void applyCurrentField('AI_GENERATE')}
-                  className="rounded-full bg-slate-950 px-3 py-2 text-[11px] font-black text-white"
-                >
-                  Write with AI
-                </button>
-              ) : null}
-              {nextField.special === 'faq' || nextField.fieldKey === 'faqs' ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void applyCurrentField('AI_GENERATE')}
-                  className="rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white"
-                >
-                  Create up to 5 FAQs
-                </button>
-              ) : null}
-              {nextField.special === 'blog' || nextField.fieldKey === 'blogs' ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void applyCurrentField('AI_GENERATE')}
-                  className="rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white"
-                >
-                  Create up to 5 articles
-                </button>
-              ) : null}
-              {nextField.status === 'PARTIAL' ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void applyCurrentField('KEEP_THIS')}
-                  className="rounded-full border px-3 py-2 text-[11px] font-black"
-                >
-                  Keep this
-                </button>
-              ) : null}
-              <button
-                type="button"
-                disabled={busy || !fieldDraft.trim()}
-                onClick={() => void applyCurrentField('USER_INPUT')}
-                className="rounded-full border px-3 py-2 text-[11px] font-black"
-              >
-                Save
-              </button>
-              {fieldDraft.trim() && nextField.aiGenerationAllowed ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void applyCurrentField('IMPROVE_WITH_AI', fieldDraft)}
-                  className="rounded-full border px-3 py-2 text-[11px] font-black"
-                >
-                  Improve with AI
-                </button>
-              ) : null}
-              {!nextField.required ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void applyCurrentField('SKIP')}
-                  className="rounded-full border px-3 py-2 text-[11px] font-black"
-                >
-                  Skip
-                </button>
-              ) : null}
-              {!isBlockingPersonalField(nextField) ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={skipRemainingToFeatures}
-                  className="rounded-full border border-indigo-200 px-3 py-2 text-[11px] font-black text-indigo-700 dark:border-indigo-500/30 dark:text-indigo-200"
-                >
-                  Continue to extras
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        {phase === 'tabs' && recommendations.length > 0 ? (
-          <div className="space-y-3 rounded-3xl border border-slate-200/80 bg-linear-to-b from-white to-slate-50 p-4 shadow-sm dark:border-white/10 dark:from-white/5 dark:to-transparent">
-            <div>
-              <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Suggested card tabs</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                These fit this business. Tick what you want on the public card, then continue. I’ll build every selected
-                section before preview.
-              </p>
-            </div>
-            {recommendations.map((rec) => {
-              const checked = selectedRecs.includes(rec.navId)
-              const Icon = CREATE_CARD_TAB_BY_NAV_ID[rec.navId]?.icon
-              return (
-                <button
-                  key={`${rec.navId}-${rec.tab}`}
-                  type="button"
-                  onClick={() =>
-                    setSelectedRecs((prev) => (checked ? prev.filter((id) => id !== rec.navId) : [...prev, rec.navId]))
-                  }
-                  className={cn(
-                    'flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-all',
-                    checked
-                      ? 'border-emerald-400 bg-emerald-50 shadow-sm dark:border-emerald-500/40 dark:bg-emerald-500/10'
-                      : 'border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-slate-900/60'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl',
-                      checked ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 dark:bg-white/10'
-                    )}
-                  >
-                    {Icon ? <Icon className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-black text-slate-900 dark:text-white">{rec.tab}</span>
-                    <span className="text-xs font-semibold text-slate-500">{rec.reason}</span>
-                  </span>
-                  <span
-                    className={cn(
-                      'mt-1 h-5 w-5 rounded-md border-2',
-                      checked ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 dark:border-white/20'
-                    )}
-                  />
-                </button>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {(phase === 'tabs' || phase === 'section-gate' || phase === 'coach' || phase === 'features') &&
-        activeNav.length > 0 ? (
-          <div className="space-y-2 rounded-3xl border border-indigo-100/80 bg-linear-to-br from-indigo-50/90 to-white p-4 dark:border-indigo-500/20 dark:from-indigo-500/10 dark:to-transparent">
-            <div className="flex items-end justify-between gap-2">
+          {phase === 'tabs' && recommendations.length > 0 ? (
+            <div className="space-y-3 rounded-3xl border border-slate-200/80 bg-linear-to-b from-white to-slate-50 p-4 shadow-sm dark:border-white/10 dark:from-white/5 dark:to-transparent">
               <div>
-                <p className="text-[10px] font-black tracking-[0.14em] text-indigo-600 uppercase dark:text-indigo-300">
-                  Section order
-                </p>
-                <p className="text-[11px] font-semibold text-slate-500">
-                  Drag the handle to reorder · Global Connection & My Info stay last
+                <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Suggested card tabs</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  These fit this business. Tick what you want on the public card, then continue. I’ll build every
+                  selected section before preview.
                 </p>
               </div>
-            </div>
-            <ul className="space-y-1.5">
-              {activeNav.map((id, index) => {
-                const pinned = (PINNED_END_NAV_IDS as readonly string[]).includes(id)
-                const locked = pinned || id === 'home'
-                const emptyGap = gaps.find((g) => g.navId === id && !skippedGapIds.includes(g.id))
-                const Icon = CREATE_CARD_TAB_BY_NAV_ID[id]?.icon
-                const isDragging = dragNavId === id
-                const isOver = dragOverNavId === id && dragNavId !== id
+              {recommendations.map((rec) => {
+                const checked = selectedRecs.includes(rec.navId)
+                const Icon = CREATE_CARD_TAB_BY_NAV_ID[rec.navId]?.icon
                 return (
-                  <li
-                    key={id}
-                    draggable={!locked}
-                    onDragStart={(e) => {
-                      if (locked) return
-                      setDragNavId(id)
-                      e.dataTransfer.effectAllowed = 'move'
-                      e.dataTransfer.setData('text/plain', id)
-                    }}
-                    onDragOver={(e) => {
-                      if (locked || !dragNavId) return
-                      e.preventDefault()
-                      setDragOverNavId(id)
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      const from = e.dataTransfer.getData('text/plain') || dragNavId
-                      if (from) reorderNav(from, id)
-                      setDragNavId(null)
-                      setDragOverNavId(null)
-                    }}
-                    onDragEnd={() => {
-                      setDragNavId(null)
-                      setDragOverNavId(null)
-                    }}
+                  <button
+                    key={`${rec.navId}-${rec.tab}`}
+                    type="button"
+                    onClick={() =>
+                      setSelectedRecs((prev) =>
+                        checked ? prev.filter((id) => id !== rec.navId) : [...prev, rec.navId]
+                      )
+                    }
                     className={cn(
-                      'flex items-center gap-2 rounded-2xl border bg-white/95 px-2.5 py-2 transition-all dark:bg-slate-900/80',
-                      isDragging && 'opacity-50',
-                      isOver && 'border-indigo-400 ring-2 ring-indigo-300/50',
-                      !isOver && 'border-white/80 dark:border-white/10'
+                      'flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-all',
+                      checked
+                        ? 'border-emerald-400 bg-emerald-50 shadow-sm dark:border-emerald-500/40 dark:bg-emerald-500/10'
+                        : 'border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-slate-900/60'
                     )}
                   >
-                    {!locked ? (
-                      <span
-                        className="cursor-grab touch-none rounded-lg p-1 text-slate-400 active:cursor-grabbing"
-                        title="Drag to reorder"
-                        aria-label="Drag to reorder"
-                      >
-                        <GripVertical className="h-4 w-4" />
-                      </span>
-                    ) : (
-                      <span className="w-6" />
-                    )}
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-200">
-                      {Icon ? (
-                        <Icon className="h-3.5 w-3.5" />
-                      ) : (
-                        <span className="text-[10px] font-black">{index + 1}</span>
+                    <span
+                      className={cn(
+                        'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl',
+                        checked ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 dark:bg-white/10'
                       )}
+                    >
+                      {Icon ? <Icon className="h-4 w-4" /> : <Check className="h-4 w-4" />}
                     </span>
-                    <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 dark:text-slate-100">
-                      {getCreateCardDisplayLabel(id, CREATE_CARD_TAB_BY_NAV_ID[id]?.name || id)}
-                      {emptyGap ? (
-                        <span className="ml-2 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-                          empty
-                        </span>
-                      ) : (
-                        <span className="ml-2 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-                          ready
-                        </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-black text-slate-900 dark:text-white">{rec.tab}</span>
+                      <span className="text-xs font-semibold text-slate-500">{rec.reason}</span>
+                    </span>
+                    <span
+                      className={cn(
+                        'mt-1 h-5 w-5 rounded-md border-2',
+                        checked ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 dark:border-white/20'
                       )}
-                      {pinned ? <span className="ml-2 text-[10px] font-black text-indigo-500">pinned</span> : null}
-                    </span>
-                    {!locked ? (
-                      <button
-                        type="button"
-                        className="rounded-lg px-2 py-1 text-[10px] font-black text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
-                        onClick={() => removeTab(id)}
-                      >
-                        Remove
-                      </button>
-                    ) : null}
-                  </li>
+                    />
+                  </button>
                 )
               })}
-            </ul>
-          </div>
-        ) : null}
-
-        {phase === 'section-gate' && gateGap ? (
-          <div className="overflow-hidden rounded-3xl border border-amber-200/80 bg-linear-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm dark:border-amber-500/25 dark:from-amber-500/15 dark:via-transparent dark:to-transparent">
-            <p className="text-[10px] font-black tracking-[0.14em] text-amber-700 uppercase dark:text-amber-300">
-              Empty tab · fill now?
-            </p>
-            <h4 className="mt-2 text-base font-black text-slate-950 dark:text-white">{gateGap.tab}</h4>
-            <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">Want me to fill this now?</p>
-            <p className="mt-2 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
-              Empty: {gateGap.title}. {gateGap.explanation}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void approveGateSection()}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-md shadow-emerald-600/20"
-              >
-                <Check className="h-3.5 w-3.5" /> Yes, fill now
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void skipGateSection()}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <SkipForward className="h-3.5 w-3.5" /> Skip
-              </button>
             </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={skipRemainingToFeatures}
-              className="mt-2 w-full rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[11px] font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
-            >
-              Skip remaining tabs — extras, preview & create
-            </button>
-          </div>
-        ) : null}
+          ) : null}
 
-        {phase === 'coach' && gaps.length > 0 ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
-            <p className="mb-2 text-[10px] font-black tracking-wider text-amber-700 uppercase dark:text-amber-300">
-              Still empty ({gaps.length})
-            </p>
-            <ul className="max-h-28 space-y-1 overflow-y-auto">
-              {gaps.slice(0, 6).map((g) => (
-                <li key={g.id} className="text-[11px] font-semibold text-amber-900 dark:text-amber-100">
-                  • {g.title} — {g.howToProvide}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <select
-                value={coachSection}
-                onChange={(e) => setCoachSection(e.target.value)}
-                className="rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[11px] font-bold dark:border-white/15 dark:bg-slate-900 dark:text-white"
-              >
-                {SECTION_OPTIONS.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    Fill: {s.label}
-                  </option>
-                ))}
-              </select>
+          {(phase === 'tabs' || phase === 'section-gate' || phase === 'coach' || phase === 'features') &&
+          activeNav.length > 0 ? (
+            <div className="space-y-2 rounded-3xl border border-indigo-100/80 bg-linear-to-br from-indigo-50/90 to-white p-4 dark:border-indigo-500/20 dark:from-indigo-500/10 dark:to-transparent">
+              <div className="flex items-end justify-between gap-2">
+                <div>
+                  <p className="text-[10px] font-black tracking-[0.14em] text-indigo-600 uppercase dark:text-indigo-300">
+                    Section order
+                  </p>
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    Drag the handle to reorder · Global Connection & My Info stay last
+                  </p>
+                </div>
+              </div>
+              <ul className="space-y-1.5">
+                {activeNav.map((id, index) => {
+                  const pinned = (PINNED_END_NAV_IDS as readonly string[]).includes(id)
+                  const locked = pinned || id === 'home'
+                  const emptyGap = gaps.find((g) => g.navId === id && !skippedGapIds.includes(g.id))
+                  const Icon = CREATE_CARD_TAB_BY_NAV_ID[id]?.icon
+                  const isDragging = dragNavId === id
+                  const isOver = dragOverNavId === id && dragNavId !== id
+                  return (
+                    <li
+                      key={id}
+                      draggable={!locked}
+                      onDragStart={(e) => {
+                        if (locked) return
+                        setDragNavId(id)
+                        e.dataTransfer.effectAllowed = 'move'
+                        e.dataTransfer.setData('text/plain', id)
+                      }}
+                      onDragOver={(e) => {
+                        if (locked || !dragNavId) return
+                        e.preventDefault()
+                        setDragOverNavId(id)
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        const from = e.dataTransfer.getData('text/plain') || dragNavId
+                        if (from) reorderNav(from, id)
+                        setDragNavId(null)
+                        setDragOverNavId(null)
+                      }}
+                      onDragEnd={() => {
+                        setDragNavId(null)
+                        setDragOverNavId(null)
+                      }}
+                      className={cn(
+                        'flex items-center gap-2 rounded-2xl border bg-white/95 px-2.5 py-2 transition-all dark:bg-slate-900/80',
+                        isDragging && 'opacity-50',
+                        isOver && 'border-indigo-400 ring-2 ring-indigo-300/50',
+                        !isOver && 'border-white/80 dark:border-white/10'
+                      )}
+                    >
+                      {!locked ? (
+                        <span
+                          className="cursor-grab touch-none rounded-lg p-1 text-slate-400 active:cursor-grabbing"
+                          title="Drag to reorder"
+                          aria-label="Drag to reorder"
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </span>
+                      ) : (
+                        <span className="w-6" />
+                      )}
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-200">
+                        {Icon ? (
+                          <Icon className="h-3.5 w-3.5" />
+                        ) : (
+                          <span className="text-[10px] font-black">{index + 1}</span>
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 dark:text-slate-100">
+                        {getCreateCardDisplayLabel(id, CREATE_CARD_TAB_BY_NAV_ID[id]?.name || id)}
+                        {emptyGap ? (
+                          <span className="ml-2 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                            empty
+                          </span>
+                        ) : (
+                          <span className="ml-2 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                            ready
+                          </span>
+                        )}
+                        {pinned ? <span className="ml-2 text-[10px] font-black text-indigo-500">pinned</span> : null}
+                      </span>
+                      {!locked ? (
+                        <button
+                          type="button"
+                          className="rounded-lg px-2 py-1 text-[10px] font-black text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                          onClick={() => removeTab(id)}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ) : null}
+
+          {phase === 'section-gate' && gateGap ? (
+            <div className="overflow-hidden rounded-3xl border border-amber-200/80 bg-linear-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm dark:border-amber-500/25 dark:from-amber-500/15 dark:via-transparent dark:to-transparent">
+              <p className="text-[10px] font-black tracking-[0.14em] text-amber-700 uppercase dark:text-amber-300">
+                Empty tab · fill now?
+              </p>
+              <h4 className="mt-2 text-base font-black text-slate-950 dark:text-white">{gateGap.tab}</h4>
+              <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">Want me to fill this now?</p>
+              <p className="mt-2 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
+                Empty: {gateGap.title}. {gateGap.explanation}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void approveGateSection()}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-md shadow-emerald-600/20"
+                >
+                  <Check className="h-3.5 w-3.5" /> Yes, fill now
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void skipGateSection()}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <SkipForward className="h-3.5 w-3.5" /> Skip
+                </button>
+              </div>
               <button
                 type="button"
                 disabled={busy}
                 onClick={skipRemainingToFeatures}
-                className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className="mt-2 w-full rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[11px] font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
               >
                 Skip remaining tabs — extras, preview & create
               </button>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {phase === 'features' && featureQueue[featureIndex] ? (
-          <div className="overflow-hidden rounded-3xl border border-indigo-200/80 bg-linear-to-br from-indigo-50 via-white to-violet-50 p-4 shadow-sm dark:border-indigo-500/25 dark:from-indigo-500/15 dark:via-transparent dark:to-transparent">
-            <p className="text-[10px] font-black tracking-[0.14em] text-indigo-600 uppercase dark:text-indigo-300">
-              Optional extra {featureIndex + 1} of {featureQueue.length}
-            </p>
-            <h4 className="mt-2 text-base font-black text-slate-950 dark:text-white">
-              {featureQueue[featureIndex].title}
-            </h4>
-            <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
-              {featureQueue[featureIndex].description} This is optional — skip if you do not need it yet.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void answerFeature(true)}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
-              >
-                <Check className="h-3.5 w-3.5" /> Yes, enable
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void answerFeature(false)}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
-              >
-                <SkipForward className="h-3.5 w-3.5" /> Skip
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {phase === 'preview' ? (
-          <div className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-500/25 dark:bg-indigo-500/10">
-            <div className="flex items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 text-sm font-black text-white">
-                {(previewName || '?').slice(0, 1).toUpperCase()}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-300">
-                  Launch checklist
-                </p>
-                <h4 className="truncate text-base font-black text-slate-950 dark:text-white">{previewName}</h4>
-                {previewCompany ? (
-                  <p className="truncate text-xs font-semibold text-slate-500">{previewCompany}</p>
-                ) : null}
-                {previewSlug ? (
-                  <p className="mt-1 truncate text-[11px] font-bold text-slate-400">/{previewSlug}</p>
-                ) : (
-                  <p className="mt-1 text-[11px] font-bold text-amber-600">
-                    Set a public URL slug before {isEdit ? 'saving' : 'creating'}.
-                  </p>
-                )}
-              </div>
-              <span className="rounded-xl bg-white px-2.5 py-1 text-xs font-black text-emerald-700 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
-                {launchOverallPercent}%
-              </span>
-            </div>
-
-            {incompleteLaunchTabs.length ? (
-              <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                {launchOverallPercent}% ready with {launchEmptyFieldCount} empty field
-                {launchEmptyFieldCount === 1 ? '' : 's'} across {incompleteLaunchTabs.length} tab
-                {incompleteLaunchTabs.length === 1 ? '' : 's'}. Tap any tab to review, fill what AI can, skip, or{' '}
-                {isEdit ? 'save now' : 'create now'} and finish inside the editor.
+          {phase === 'coach' && gaps.length > 0 ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+              <p className="mb-2 text-[10px] font-black tracking-wider text-amber-700 uppercase dark:text-amber-300">
+                Still empty ({gaps.length})
               </p>
-            ) : (
-              <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                All selected content tabs are ready. Media upload fields can still be improved in the editor.
-              </p>
-            )}
-
-            {!isEdit ? (
-              <div className="rounded-2xl border border-white/80 bg-white/80 p-2 dark:border-white/10 dark:bg-slate-900/70">
-                <p className="px-1 pb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Launch mode</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {[
-                    {
-                      mode: 'publish' as const,
-                      title: 'Create & activate',
-                      note: 'Live immediately and shown in Active cards.',
-                    },
-                    {
-                      mode: 'draft' as const,
-                      title: 'Save draft',
-                      note: 'Shown in Draft cards until the user activates it.',
-                    },
-                  ].map((option) => {
-                    const selected = launchMode === option.mode
-                    return (
-                      <button
-                        key={option.mode}
-                        type="button"
-                        onClick={() => setLaunchMode(option.mode)}
-                        className={cn(
-                          'rounded-xl border px-3 py-2 text-left transition-all',
-                          selected
-                            ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5'
-                        )}
-                      >
-                        <span className="flex items-center gap-2 text-[11px] font-black">
-                          <span
-                            className={cn(
-                              'flex h-4 w-4 items-center justify-center rounded-full border',
-                              selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'
-                            )}
-                          >
-                            {selected ? <Check className="h-2.5 w-2.5" /> : null}
-                          </span>
-                          {option.title}
-                        </span>
-                        <span className="mt-1 block pl-6 text-[10px] font-semibold opacity-75">{option.note}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              {launchTabs.map((tab) => {
-                const isOpen = openLaunchTabs.includes(tab.navId)
-                const missingFields = tab.fields.filter((field) => !field.filled)
-                const completedFields = tab.fields.filter((field) => field.filled)
-                const visibleFields = [...missingFields, ...completedFields]
-                const missingTextFields = missingFields.filter((field) => !field.upload)
-                const missingCount = missingFields.length
-                return (
-                  <div
-                    key={tab.navId}
-                    className="overflow-hidden rounded-2xl border border-white/80 bg-white/90 dark:border-white/10 dark:bg-slate-900/80"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenLaunchTabs((prev) =>
-                          isOpen ? prev.filter((id) => id !== tab.navId) : [...prev, tab.navId]
-                        )
-                      }
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
-                    >
-                      <span
-                        className={cn(
-                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-black tabular-nums',
-                          tab.percent >= 100
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                            : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
-                        )}
-                      >
-                        {tab.percent}%
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-black text-slate-900 dark:text-white">
-                          {tab.label}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-500">
-                          {missingCount ? `${missingCount} empty field${missingCount === 1 ? '' : 's'}` : 'Complete'}
-                        </span>
-                        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                          <span
-                            className={cn(
-                              'block h-full rounded-full transition-all',
-                              tab.percent >= 100 ? 'bg-emerald-500' : 'bg-amber-400'
-                            )}
-                            style={{ width: `${tab.percent}%` }}
-                          />
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        {tab.percent >= 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
-                        <ChevronDown
-                          className={cn('h-4 w-4 text-slate-400 transition-transform', isOpen && 'rotate-180')}
-                        />
-                      </span>
-                    </button>
-                    {isOpen ? (
-                      <div className="space-y-2 border-t border-slate-100 px-3 py-3 dark:border-white/10">
-                        {visibleFields.length ? (
-                          <ul className="space-y-1.5">
-                            {visibleFields.map((field) => (
-                              <li key={`${tab.navId}-${field.label}`} className="flex items-start gap-2 text-[11px]">
-                                <span
-                                  className={cn(
-                                    'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full',
-                                    field.filled ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-700'
-                                  )}
-                                >
-                                  {field.filled ? (
-                                    <Check className="h-2.5 w-2.5" />
-                                  ) : field.upload ? (
-                                    <FileUp className="h-2.5 w-2.5" />
-                                  ) : null}
-                                </span>
-                                <span className="min-w-0 flex-1 font-semibold text-slate-600 dark:text-slate-300">
-                                  <span className={field.filled ? 'text-slate-500' : ''}>{field.label}</span>
-                                  {field.preview ? (
-                                    <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                                      {field.preview}
-                                    </span>
-                                  ) : field.hint ? (
-                                    <span className="block text-[10px] text-slate-400">{field.hint}</span>
-                                  ) : !field.filled ? (
-                                    <span className="block text-[10px] text-amber-600">Not completed.</span>
-                                  ) : null}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-[11px] font-semibold text-slate-500">
-                            No required fields left for this tab.
-                          </p>
-                        )}
-                        {tab.fields.some((field) => field.addKind) ? (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void fillLaunchTab(tab)}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
-                          >
-                            {tab.navId === 'faq'
-                              ? '+ Add FAQ'
-                              : tab.navId === 'services'
-                                ? '+ Add Service'
-                                : tab.navId === 'blog'
-                                  ? '+ Add Blog'
-                                  : tab.navId === 'gallery'
-                                    ? '+ Add Project'
-                                    : tab.navId === 'work'
-                                      ? '+ Add Experience'
-                                      : tab.navId === 'reviews'
-                                        ? '+ Add Review'
-                                        : `+ Add ${tab.label}`}
-                          </button>
-                        ) : null}
-                        {tab.percent < 100 ? (
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            {missingTextFields.length ? (
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => void fillLaunchTab(tab)}
-                                className="rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
-                              >
-                                Fill with AI
-                              </button>
-                            ) : (
-                              <span className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                                Upload or Canva asset can be added later
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenLaunchTabs((prev) => prev.filter((id) => id !== tab.navId))
-                                pushMsg(
-                                  'assistant',
-                                  `${tab.label} is skipped for now. It will stay on the card, and you can finish those empty fields inside the editor.`
-                                )
-                              }}
-                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
-                            >
-                              Skip for editor
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-
-            {acceptedFeatureDetails.length ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
-                <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
-                  Approved extras
-                </p>
-                <ul className="mt-2 space-y-1.5">
-                  {acceptedFeatureDetails
-                    .filter((feature, index, all) => all.findIndex((row) => row.key === feature.key) === index)
-                    .map((feature) => (
-                      <li
-                        key={`${feature.key}-${feature.title}`}
-                        className="text-[11px] font-semibold text-emerald-900/80 dark:text-emerald-100"
-                      >
-                        <span className="font-black">{feature.title}:</span> {feature.note}
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {activeFeatureGuide ? (
-              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-slate-900/80">
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-black text-slate-900 dark:text-white">{activeFeatureGuide.title}</p>
-                    <p className="mt-1 text-[11px] leading-relaxed font-semibold text-slate-500 dark:text-slate-300">
-                      {activeFeatureGuide.note}
-                    </p>
-                    <p className="mt-2 text-[10px] font-black tracking-wide text-slate-400 uppercase">
-                      Find it after create: {featureSettingsLabel(activeFeatureGuide)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              {onOpenLivePreview ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenLivePreview()}
-                  className="hidden items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm md:inline-flex dark:bg-slate-900 dark:text-white"
+              <ul className="max-h-28 space-y-1 overflow-y-auto">
+                {gaps.slice(0, 6).map((g) => (
+                  <li key={g.id} className="text-[11px] font-semibold text-amber-900 dark:text-amber-100">
+                    • {g.title} — {g.howToProvide}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <select
+                  value={coachSection}
+                  onChange={(e) => setCoachSection(e.target.value)}
+                  className="rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[11px] font-bold dark:border-white/15 dark:bg-slate-900 dark:text-white"
                 >
-                  <Eye className="h-3.5 w-3.5" /> Open live preview
-                </button>
-              ) : null}
-              <button
-                type="button"
-                disabled={busy || !previewName.trim() || !previewSlug.trim()}
-                onClick={() => void confirmCreateCard()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[11px] font-black text-white disabled:opacity-50"
-              >
-                {isEdit ? 'Save updates' : launchMode === 'publish' ? 'Create & activate' : 'Save draft'}{' '}
-                <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {openLaunchTabs.length < 0 && phase === 'preview' ? (
-          <div className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-500/25 dark:bg-indigo-500/10">
-            <div className="flex items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 text-sm font-black text-white">
-                {(previewName || '?').slice(0, 1).toUpperCase()}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-300">
-                  Preview · your permission to {isEdit ? 'save' : 'create'}
-                </p>
-                <h4 className="truncate text-base font-black text-slate-950 dark:text-white">{previewName}</h4>
-                {previewCompany ? (
-                  <p className="truncate text-xs font-semibold text-slate-500">{previewCompany}</p>
-                ) : null}
-                {previewSlug ? (
-                  <p className="mt-1 truncate text-[11px] font-bold text-slate-400">/{previewSlug}</p>
-                ) : (
-                  <p className="mt-1 text-[11px] font-bold text-amber-600">
-                    Set a public URL slug in Personal before {isEdit ? 'saving' : 'creating'}.
-                  </p>
-                )}
-              </div>
-              <span className="rounded-xl bg-white px-2.5 py-1 text-xs font-black text-emerald-700 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
-                {score}%
-              </span>
-            </div>
-            <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-              Tabs:{' '}
-              {activeNav
-                .map((id) => getCreateCardDisplayLabel(id, CREATE_CARD_TAB_BY_NAV_ID[id]?.name || id))
-                .join(' · ')}
-            </p>
-            {acceptedFeatures.length ? (
-              <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                Features to configure later: {acceptedFeatures.join(', ')}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {onOpenLivePreview ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenLivePreview()}
-                  className="hidden items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm md:inline-flex dark:bg-slate-900 dark:text-white"
-                >
-                  <Eye className="h-3.5 w-3.5" /> Open live preview
-                </button>
-              ) : null}
-              {acceptedFeatures.map((section) => (
-                <button
-                  key={section}
-                  type="button"
-                  onClick={() => onOpenSettings?.(section)}
-                  className="rounded-xl bg-white/80 px-3 py-2 text-[11px] font-black text-slate-700 dark:bg-slate-900/80 dark:text-slate-200"
-                >
-                  Open {section}
-                </button>
-              ))}
-              <button
-                type="button"
-                disabled={busy || !previewName.trim() || !previewSlug.trim()}
-                onClick={() => void confirmCreateCard()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[11px] font-black text-white disabled:opacity-50"
-              >
-                Confirm & create card <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {phase === 'creating' ? (
-          <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-slate-900/60">
-            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
-              <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-              <span className="text-sm font-black">
-                {isEdit
-                  ? 'Saving your card updates...'
-                  : createdLaunchMode === 'publish'
-                    ? 'Creating and activating your card...'
-                    : 'Saving your draft...'}
-              </span>
-              <span className="ml-auto text-sm font-black text-emerald-600">
-                {Math.min(100, Math.round(createProgress))}%
-              </span>
-            </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-              <div
-                className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-400 transition-all duration-200"
-                style={{ width: `${Math.min(100, createProgress)}%` }}
-              />
-            </div>
-            <p className="text-[11px] font-semibold text-slate-500">
-              {isEdit
-                ? 'Writing AI updates onto the card already in the editor.'
-                : createdLaunchMode === 'publish'
-                  ? 'Saving profile, tabs, and content, then making the public link live.'
-                  : 'Saving profile, tabs, and content into the Draft area.'}
-            </p>
-          </div>
-        ) : null}
-
-        {phase === 'celebrate' ? (
-          <div className="relative space-y-4 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 dark:border-emerald-500/25 dark:bg-emerald-500/15">
-            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
-              <PartyPopper className="h-6 w-6" />
-              <span className="text-base font-black">
-                {isEdit ? 'Updates saved!' : createdLaunchMode === 'publish' ? 'Card active!' : 'Draft saved!'}
-              </span>
-            </div>
-            <p className="text-xs font-semibold text-emerald-900/80 dark:text-emerald-100/90">
-              {isEdit
-                ? `${previewName} is updated. Keep polishing optional uploads and settings in the editor.`
-                : createdLaunchMode === 'publish'
-                  ? `${previewName} is live now. Continue to the editor to polish optional uploads and settings.`
-                  : `${previewName} is in Draft cards. Continue to the editor, then use Activate card when it is ready.`}
-            </p>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span className="text-[11px] font-black tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
-                {createdLaunchMode === 'publish' ? 'Active card' : 'Draft card'} -{' '}
-                {Math.min(100, Math.round(createProgress))}%
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={finishAndOpenEditor}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
-            >
-              {isEdit
-                ? 'Back to editor'
-                : createdLaunchMode === 'publish'
-                  ? 'Open active card editor'
-                  : 'Open draft editor'}{' '}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : null}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {phase !== 'creating' && phase !== 'celebrate' ? (
-        <div className="border-t border-slate-100 px-4 py-3 dark:border-white/5">
-          {phase === 'intake' ? (
-            <div className="mb-2 space-y-2">
-              {isEdit && launchTabs.length ? (
-                <div className="space-y-1.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                  <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
-                    Current card · {launchOverallPercent}% ready
-                  </p>
-                  <div className="max-h-36 space-y-1 overflow-y-auto">
-                    {launchTabs.map((tab) => (
-                      <div
-                        key={tab.navId}
-                        className="flex items-center justify-between gap-2 text-[11px] font-semibold"
-                      >
-                        <span
-                          className={
-                            tab.percent === 100
-                              ? 'text-emerald-800 dark:text-emerald-200'
-                              : 'text-slate-600 dark:text-slate-300'
-                          }
-                        >
-                          {tab.label}
-                        </span>
-                        <span className="text-slate-500 tabular-nums dark:text-slate-400">{tab.percent}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <label className="block text-[10px] font-black tracking-wider text-slate-400 uppercase">Website</label>
-              <div className="relative">
-                <Globe className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 text-slate-400" />
-                <input
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  placeholder="https://yourbusiness.com"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-3 pl-9 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                />
-              </div>
-              <p className="text-[11px] font-medium text-slate-400">
-                We read the live pages (About, Services, Contact). Photos of a website are not needed.
-              </p>
-            </div>
-          ) : null}
-          {fileLabel ? (
-            <p className="mb-1 flex items-center gap-1 text-[11px] font-bold text-slate-500">
-              <Paperclip className="h-3 w-3" /> {fileLabel}
-            </p>
-          ) : phase === 'intake' ? (
-            <p className="mb-1 text-[11px] font-medium text-slate-400">
-              Attach PDFs, Word files, or photos. Text files are read directly; photos are read only when needed.
-            </p>
-          ) : null}
-          <div className="flex items-end gap-2">
-            <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5">
-              <FileUp className="h-4 w-4" />
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
-                className="hidden"
-                onChange={(e) => setFiles(Array.from(e.target.files || []))}
-              />
-            </label>
-            <textarea
-              value={composer}
-              onChange={(e) => setComposer(e.target.value)}
-              rows={2}
-              placeholder={
-                phase === 'intake'
-                  ? isEdit
-                    ? 'Optional notes to resume with AI…'
-                    : 'Business notes or instructions (optional)…'
-                  : phase === 'tabs'
-                    ? 'Tap Continue when your tabs look right…'
-                    : phase === 'section-gate'
-                      ? 'Type yes to fill, or skip…'
-                      : phase === 'coach'
-                        ? 'Paste details or attach a file for this tab…'
-                        : phase === 'features'
-                          ? 'yes / skip'
-                          : phase === 'preview'
-                            ? isEdit
-                              ? 'Type “yes” to save updates…'
-                              : 'Type “yes” to confirm create…'
-                            : 'Message the assistant…'
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
-              className="min-h-11 flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-            />
-            <button
-              type="button"
-              disabled={busy}
-              onClick={handleSend}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </button>
-          </div>
-          {phase === 'intake' ? (
-            <button
-              type="button"
-              disabled={busy || (isEdit && cardLoading)}
-              onClick={() => void runAnalyze()}
-              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
-            >
-              {isEdit ? (
-                <>
-                  Continue — resume remaining work <ArrowRight className="h-3.5 w-3.5" />
-                </>
-              ) : (
-                <>
-                  Start — read sources, then build my card <ArrowRight className="h-3.5 w-3.5" />
-                </>
-              )}
-            </button>
-          ) : null}
-          {phase === 'tabs' ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void acceptTabs()}
-              className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
-            >
-              Continue with {selectedRecs.length} section{selectedRecs.length === 1 ? '' : 's'}{' '}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
-          {phase === 'preview' ? (
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {!isEdit ? (
+                  {SECTION_OPTIONS.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      Fill: {s.label}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void confirmCreateCard('draft')}
-                  className="rounded-xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+                  onClick={skipRemainingToFeatures}
+                  className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
                 >
-                  Save Draft
+                  Skip remaining tabs — extras, preview & create
                 </button>
+              </div>
+            </div>
+          ) : null}
+
+          {phase === 'features' && featureQueue[featureIndex] ? (
+            <div className="overflow-hidden rounded-3xl border border-indigo-200/80 bg-linear-to-br from-indigo-50 via-white to-violet-50 p-4 shadow-sm dark:border-indigo-500/25 dark:from-indigo-500/15 dark:via-transparent dark:to-transparent">
+              <p className="text-[10px] font-black tracking-[0.14em] text-indigo-600 uppercase dark:text-indigo-300">
+                Optional extra {featureIndex + 1} of {featureQueue.length}
+              </p>
+              <h4 className="mt-2 text-base font-black text-slate-950 dark:text-white">
+                {featureQueue[featureIndex].title}
+              </h4>
+              <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
+                {featureQueue[featureIndex].description} This is optional — skip if you do not need it yet.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void answerFeature(true)}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
+                >
+                  <Check className="h-3.5 w-3.5" /> Yes, enable
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void answerFeature(false)}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <SkipForward className="h-3.5 w-3.5" /> Skip
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {phase === 'preview' ? (
+            <div className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-500/25 dark:bg-indigo-500/10">
+              <div className="flex items-start gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 text-sm font-black text-white">
+                  {(previewName || '?').slice(0, 1).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-300">
+                    Launch checklist
+                  </p>
+                  <h4 className="truncate text-base font-black text-slate-950 dark:text-white">{previewName}</h4>
+                  {previewCompany ? (
+                    <p className="truncate text-xs font-semibold text-slate-500">{previewCompany}</p>
+                  ) : null}
+                  {previewSlug ? (
+                    <p className="mt-1 truncate text-[11px] font-bold text-slate-400">/{previewSlug}</p>
+                  ) : (
+                    <p className="mt-1 text-[11px] font-bold text-amber-600">
+                      Set a public URL slug before {isEdit ? 'saving' : 'creating'}.
+                    </p>
+                  )}
+                </div>
+                <span className="rounded-xl bg-white px-2.5 py-1 text-xs font-black text-emerald-700 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
+                  {launchOverallPercent}%
+                </span>
+              </div>
+
+              {incompleteLaunchTabs.length ? (
+                <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  {launchOverallPercent}% ready with {launchEmptyFieldCount} empty field
+                  {launchEmptyFieldCount === 1 ? '' : 's'} across {incompleteLaunchTabs.length} tab
+                  {incompleteLaunchTabs.length === 1 ? '' : 's'}. Tap any tab to review, fill what AI can, skip, or{' '}
+                  {isEdit ? 'save now' : 'create now'} and finish inside the editor.
+                </p>
               ) : (
-                <span />
+                <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                  All selected content tabs are ready. Media upload fields can still be improved in the editor.
+                </p>
               )}
+
+              {!isEdit ? (
+                <div className="rounded-2xl border border-white/80 bg-white/80 p-2 dark:border-white/10 dark:bg-slate-900/70">
+                  <p className="px-1 pb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                    Launch mode
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {[
+                      {
+                        mode: 'publish' as const,
+                        title: 'Create & activate',
+                        note: 'Live immediately and shown in Active cards.',
+                      },
+                      {
+                        mode: 'draft' as const,
+                        title: 'Save draft',
+                        note: 'Shown in Draft cards until the user activates it.',
+                      },
+                    ].map((option) => {
+                      const selected = launchMode === option.mode
+                      return (
+                        <button
+                          key={option.mode}
+                          type="button"
+                          onClick={() => setLaunchMode(option.mode)}
+                          className={cn(
+                            'rounded-xl border px-3 py-2 text-left transition-all',
+                            selected
+                              ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100'
+                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5'
+                          )}
+                        >
+                          <span className="flex items-center gap-2 text-[11px] font-black">
+                            <span
+                              className={cn(
+                                'flex h-4 w-4 items-center justify-center rounded-full border',
+                                selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'
+                              )}
+                            >
+                              {selected ? <Check className="h-2.5 w-2.5" /> : null}
+                            </span>
+                            {option.title}
+                          </span>
+                          <span className="mt-1 block pl-6 text-[10px] font-semibold opacity-75">{option.note}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                {launchTabs.map((tab) => {
+                  const isOpen = openLaunchTabs.includes(tab.navId)
+                  const missingFields = tab.fields.filter((field) => !field.filled)
+                  const completedFields = tab.fields.filter((field) => field.filled)
+                  const visibleFields = [...missingFields, ...completedFields]
+                  const missingTextFields = missingFields.filter((field) => !field.upload)
+                  const missingCount = missingFields.length
+                  return (
+                    <div
+                      key={tab.navId}
+                      className="overflow-hidden rounded-2xl border border-white/80 bg-white/90 dark:border-white/10 dark:bg-slate-900/80"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenLaunchTabs((prev) =>
+                            isOpen ? prev.filter((id) => id !== tab.navId) : [...prev, tab.navId]
+                          )
+                        }
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+                      >
+                        <span
+                          className={cn(
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-black tabular-nums',
+                            tab.percent >= 100
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+                          )}
+                        >
+                          {tab.percent}%
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-black text-slate-900 dark:text-white">
+                            {tab.label}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-500">
+                            {missingCount ? `${missingCount} empty field${missingCount === 1 ? '' : 's'}` : 'Complete'}
+                          </span>
+                          <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+                            <span
+                              className={cn(
+                                'block h-full rounded-full transition-all',
+                                tab.percent >= 100 ? 'bg-emerald-500' : 'bg-amber-400'
+                              )}
+                              style={{ width: `${tab.percent}%` }}
+                            />
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          {tab.percent >= 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
+                          <ChevronDown
+                            className={cn('h-4 w-4 text-slate-400 transition-transform', isOpen && 'rotate-180')}
+                          />
+                        </span>
+                      </button>
+                      {isOpen ? (
+                        <div className="space-y-2 border-t border-slate-100 px-3 py-3 dark:border-white/10">
+                          {visibleFields.length ? (
+                            <ul className="space-y-1.5">
+                              {visibleFields.map((field) => (
+                                <li key={`${tab.navId}-${field.label}`} className="flex items-start gap-2 text-[11px]">
+                                  <span
+                                    className={cn(
+                                      'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full',
+                                      field.filled ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-700'
+                                    )}
+                                  >
+                                    {field.filled ? (
+                                      <Check className="h-2.5 w-2.5" />
+                                    ) : field.upload ? (
+                                      <FileUp className="h-2.5 w-2.5" />
+                                    ) : null}
+                                  </span>
+                                  <span className="min-w-0 flex-1 font-semibold text-slate-600 dark:text-slate-300">
+                                    <span className={field.filled ? 'text-slate-500' : ''}>{field.label}</span>
+                                    {field.preview ? (
+                                      <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                                        {field.preview}
+                                      </span>
+                                    ) : field.hint ? (
+                                      <span className="block text-[10px] text-slate-400">{field.hint}</span>
+                                    ) : !field.filled ? (
+                                      <span className="block text-[10px] text-amber-600">Not completed.</span>
+                                    ) : null}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-[11px] font-semibold text-slate-500">
+                              No required fields left for this tab.
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setReviewNavId(tab.navId)}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                            >
+                              Review & edit
+                            </button>
+                            {tab.fields.some((field) => field.addKind) ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => setReviewNavId(tab.navId)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                              >
+                                {tab.navId === 'faq'
+                                  ? '+ Add FAQ'
+                                  : tab.navId === 'services'
+                                    ? '+ Add Service'
+                                    : tab.navId === 'blog'
+                                      ? '+ Add Blog'
+                                      : tab.navId === 'gallery'
+                                        ? '+ Add Project'
+                                        : tab.navId === 'work'
+                                          ? '+ Add Experience'
+                                          : tab.navId === 'reviews'
+                                            ? '+ Add testimonial'
+                                            : `+ Add ${tab.label}`}
+                              </button>
+                            ) : null}
+                          </div>
+                          {tab.percent < 100 ? (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {missingTextFields.length ? (
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => void fillLaunchTab(tab)}
+                                  className="rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
+                                >
+                                  Fill with AI
+                                </button>
+                              ) : (
+                                <span className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                                  Upload or Canva asset can be added later
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenLaunchTabs((prev) => prev.filter((id) => id !== tab.navId))
+                                  pushMsg(
+                                    'assistant',
+                                    `${tab.label} is skipped for now. It will stay on the card, and you can finish those empty fields inside the editor.`
+                                  )
+                                }}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                              >
+                                Skip for editor
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {acceptedFeatureDetails.length ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+                  <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
+                    Approved extras
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {acceptedFeatureDetails
+                      .filter((feature, index, all) => all.findIndex((row) => row.key === feature.key) === index)
+                      .map((feature) => (
+                        <li
+                          key={`${feature.key}-${feature.title}`}
+                          className="text-[11px] font-semibold text-emerald-900/80 dark:text-emerald-100"
+                        >
+                          <span className="font-black">{feature.title}:</span> {feature.note}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {activeFeatureGuide ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-slate-900/80">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-900 dark:text-white">{activeFeatureGuide.title}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed font-semibold text-slate-500 dark:text-slate-300">
+                        {activeFeatureGuide.note}
+                      </p>
+                      <p className="mt-2 text-[10px] font-black tracking-wide text-slate-400 uppercase">
+                        Find it after create: {featureSettingsLabel(activeFeatureGuide)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                {onOpenLivePreview ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenLivePreview()}
+                    className="hidden items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm md:inline-flex dark:bg-slate-900 dark:text-white"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Open live preview
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={busy || !previewName.trim() || !previewSlug.trim()}
+                  onClick={() => void confirmCreateCard()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[11px] font-black text-white disabled:opacity-50"
+                >
+                  {isEdit ? 'Save updates' : launchMode === 'publish' ? 'Create & activate' : 'Save draft'}{' '}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {openLaunchTabs.length < 0 && phase === 'preview' ? (
+            <div className="space-y-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-500/25 dark:bg-indigo-500/10">
+              <div className="flex items-start gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 text-sm font-black text-white">
+                  {(previewName || '?').slice(0, 1).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-300">
+                    Preview · your permission to {isEdit ? 'save' : 'create'}
+                  </p>
+                  <h4 className="truncate text-base font-black text-slate-950 dark:text-white">{previewName}</h4>
+                  {previewCompany ? (
+                    <p className="truncate text-xs font-semibold text-slate-500">{previewCompany}</p>
+                  ) : null}
+                  {previewSlug ? (
+                    <p className="mt-1 truncate text-[11px] font-bold text-slate-400">/{previewSlug}</p>
+                  ) : (
+                    <p className="mt-1 text-[11px] font-bold text-amber-600">
+                      Set a public URL slug in Personal before {isEdit ? 'saving' : 'creating'}.
+                    </p>
+                  )}
+                </div>
+                <span className="rounded-xl bg-white px-2.5 py-1 text-xs font-black text-emerald-700 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
+                  {score}%
+                </span>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                Tabs:{' '}
+                {activeNav
+                  .map((id) => getCreateCardDisplayLabel(id, CREATE_CARD_TAB_BY_NAV_ID[id]?.name || id))
+                  .join(' · ')}
+              </p>
+              {acceptedFeatures.length ? (
+                <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  Features to configure later: {acceptedFeatures.join(', ')}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {onOpenLivePreview ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenLivePreview()}
+                    className="hidden items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-black text-slate-800 shadow-sm md:inline-flex dark:bg-slate-900 dark:text-white"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Open live preview
+                  </button>
+                ) : null}
+                {acceptedFeatures.map((section) => (
+                  <button
+                    key={section}
+                    type="button"
+                    onClick={() => onOpenSettings?.(section)}
+                    className="rounded-xl bg-white/80 px-3 py-2 text-[11px] font-black text-slate-700 dark:bg-slate-900/80 dark:text-slate-200"
+                  >
+                    Open {section}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={busy || !previewName.trim() || !previewSlug.trim()}
+                  onClick={() => void confirmCreateCard()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[11px] font-black text-white disabled:opacity-50"
+                >
+                  Confirm & create card <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {phase === 'creating' ? (
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-slate-900/60">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+                <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+                <span className="text-sm font-black">
+                  {isEdit
+                    ? 'Saving your card updates...'
+                    : createdLaunchMode === 'publish'
+                      ? 'Creating and activating your card...'
+                      : 'Saving your draft...'}
+                </span>
+                <span className="ml-auto text-sm font-black text-emerald-600">
+                  {Math.min(100, Math.round(createProgress))}%
+                </span>
+              </div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                <div
+                  className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-400 transition-all duration-200"
+                  style={{ width: `${Math.min(100, createProgress)}%` }}
+                />
+              </div>
+              <p className="text-[11px] font-semibold text-slate-500">
+                {isEdit
+                  ? 'Writing AI updates onto the card already in the editor.'
+                  : createdLaunchMode === 'publish'
+                    ? 'Saving profile, tabs, and content, then making the public link live.'
+                    : 'Saving profile, tabs, and content into the Draft area.'}
+              </p>
+            </div>
+          ) : null}
+
+          {phase === 'celebrate' ? (
+            <div className="relative space-y-4 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 dark:border-emerald-500/25 dark:bg-emerald-500/15">
+              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
+                <PartyPopper className="h-6 w-6" />
+                <span className="text-base font-black">
+                  {isEdit ? 'Updates saved!' : createdLaunchMode === 'publish' ? 'Card active!' : 'Draft saved!'}
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-emerald-900/80 dark:text-emerald-100/90">
+                {isEdit
+                  ? `${previewName} is updated. Keep polishing optional uploads and settings in the editor.`
+                  : createdLaunchMode === 'publish'
+                    ? `${previewName} is live now. Continue to the editor to polish optional uploads and settings.`
+                    : `${previewName} is in Draft cards. Continue to the editor, then use Activate card when it is ready.`}
+              </p>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span className="text-[11px] font-black tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
+                  {createdLaunchMode === 'publish' ? 'Active card' : 'Draft card'} -{' '}
+                  {Math.min(100, Math.round(createProgress))}%
+                </span>
+              </div>
               <button
                 type="button"
-                disabled={busy || !previewName.trim() || !previewSlug.trim()}
-                onClick={() => void confirmCreateCard(isEdit ? launchMode : 'publish')}
-                className="rounded-xl bg-emerald-600 py-3 text-xs font-black text-white disabled:opacity-50"
+                onClick={finishAndOpenEditor}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
               >
-                {isEdit ? 'Save updates' : 'Create & Activate'}
+                {isEdit
+                  ? 'Back to editor'
+                  : createdLaunchMode === 'publish'
+                    ? 'Open active card editor'
+                    : 'Open draft editor'}{' '}
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           ) : null}
-          {phase === 'coach' && score >= 90 ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={goToPreview}
-              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 py-2.5 text-xs font-black text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
-            >
-              {isEdit ? 'Ready — preview & save' : 'Ready — preview & create'} <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
+
+          <div ref={bottomRef} />
         </div>
-      ) : null}
-    </Modal>
+
+        {phase !== 'creating' && phase !== 'celebrate' ? (
+          <div className="border-t border-slate-100 px-4 py-3 dark:border-white/5">
+            {phase === 'intake' ? (
+              <div className="mb-2 space-y-2">
+                {isEdit && launchTabs.length ? (
+                  <div className="space-y-1.5 rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                    <p className="text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
+                      Current card · {launchOverallPercent}% ready
+                    </p>
+                    <div className="max-h-36 space-y-1 overflow-y-auto">
+                      {launchTabs.map((tab) => (
+                        <div
+                          key={tab.navId}
+                          className="flex items-center justify-between gap-2 text-[11px] font-semibold"
+                        >
+                          <span
+                            className={
+                              tab.percent === 100
+                                ? 'text-emerald-800 dark:text-emerald-200'
+                                : 'text-slate-600 dark:text-slate-300'
+                            }
+                          >
+                            {tab.label}
+                          </span>
+                          <span className="text-slate-500 tabular-nums dark:text-slate-400">{tab.percent}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <label className="block text-[10px] font-black tracking-wider text-slate-400 uppercase">Website</label>
+                <div className="relative">
+                  <Globe className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    placeholder="https://yourbusiness.com"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-3 pl-9 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+                <p className="text-[11px] font-medium text-slate-400">
+                  We read the live pages (About, Services, Contact). Photos of a website are not needed.
+                </p>
+              </div>
+            ) : null}
+            {fileLabel ? (
+              <p className="mb-1 flex items-center gap-1 text-[11px] font-bold text-slate-500">
+                <Paperclip className="h-3 w-3" /> {fileLabel}
+              </p>
+            ) : phase === 'intake' ? (
+              <p className="mb-1 text-[11px] font-medium text-slate-400">
+                Attach PDFs, Word files, or photos. Text files are read directly; photos are read only when needed.
+              </p>
+            ) : null}
+            <div className="flex items-end gap-2">
+              <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5">
+                <FileUp className="h-4 w-4" />
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
+                  className="hidden"
+                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                />
+              </label>
+              <textarea
+                value={composer}
+                onChange={(e) => setComposer(e.target.value)}
+                rows={2}
+                placeholder={
+                  phase === 'intake'
+                    ? isEdit
+                      ? 'Optional notes to resume with AI…'
+                      : 'Business notes or instructions (optional)…'
+                    : phase === 'tabs'
+                      ? 'Tap Continue when your tabs look right…'
+                      : phase === 'section-gate'
+                        ? 'Type yes to fill, or skip…'
+                        : phase === 'coach'
+                          ? 'Paste details or attach a file for this tab…'
+                          : phase === 'features'
+                            ? 'Yes, enable or skip…'
+                            : phase === 'preview'
+                              ? isEdit
+                                ? 'Type “yes” to save, or review a tab above…'
+                                : 'Type “yes” to create, or review a tab above…'
+                              : 'Message the assistant…'
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                className="min-h-11 flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleSend}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
+            {phase === 'intake' ? (
+              <button
+                type="button"
+                disabled={busy || (isEdit && cardLoading)}
+                onClick={() => void runAnalyze()}
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
+              >
+                {isEdit ? (
+                  <>
+                    Continue — resume remaining work <ArrowRight className="h-3.5 w-3.5" />
+                  </>
+                ) : (
+                  <>
+                    Start — read sources, then build my card <ArrowRight className="h-3.5 w-3.5" />
+                  </>
+                )}
+              </button>
+            ) : null}
+            {phase === 'tabs' ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void acceptTabs()}
+                className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
+              >
+                Continue with {selectedRecs.length} section{selectedRecs.length === 1 ? '' : 's'}{' '}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+            {phase === 'preview' ? (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {!isEdit ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void confirmCreateCard('draft')}
+                    className="rounded-xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+                  >
+                    Save Draft
+                  </button>
+                ) : (
+                  <span />
+                )}
+                <button
+                  type="button"
+                  disabled={busy || !previewName.trim() || !previewSlug.trim()}
+                  onClick={() => void confirmCreateCard(isEdit ? launchMode : 'publish')}
+                  className="rounded-xl bg-emerald-600 py-3 text-xs font-black text-white disabled:opacity-50"
+                >
+                  {isEdit ? 'Save updates' : 'Create & Activate'}
+                </button>
+              </div>
+            ) : null}
+            {phase === 'coach' && score >= 90 ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={goToPreview}
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 py-2.5 text-xs font-black text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+              >
+                {isEdit ? 'Ready — preview & save' : 'Ready — preview & create'} <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </Modal>
+      <LaunchTabReviewModal
+        open={Boolean(reviewNavId)}
+        navId={reviewNavId || 'home'}
+        label={
+          reviewNavId
+            ? getCreateCardDisplayLabel(reviewNavId, CREATE_CARD_TAB_BY_NAV_ID[reviewNavId]?.name || reviewNavId)
+            : 'Personal'
+        }
+        data={vCardData}
+        busy={busy}
+        onClose={() => setReviewNavId(null)}
+        onApply={(next) => applyDraft(next, activeNav.length ? activeNav : enabledNavIds)}
+        onGenerateAi={
+          reviewNavId && reviewNavId !== 'home'
+            ? async () => {
+                const tab = launchTabs.find((item) => item.navId === reviewNavId)
+                if (tab) await fillLaunchTab(tab)
+              }
+            : undefined
+        }
+      />
+    </>
   )
 }

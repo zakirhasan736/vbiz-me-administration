@@ -54,38 +54,112 @@ async function loadSerifFont(): Promise<ArrayBuffer | null> {
   }
 }
 
-/** Master vBiz Wallet template — metal card, owner data + brand colors. */
+async function imageUrlToDataUri(url: string | null): Promise<string | null> {
+  if (!url || url.startsWith('data:')) return url
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8' },
+    })
+    if (!response.ok) return null
+    const buffer = Buffer.from(await response.arrayBuffer())
+    if (buffer.length < 32 || buffer.length > 5_500_000) return null
+    const mime = response.headers.get('content-type')?.split(';')[0]?.trim() || 'image/jpeg'
+    if (!mime.startsWith('image/')) return null
+    return `data:${mime};base64,${buffer.toString('base64')}`
+  } catch {
+    return null
+  }
+}
+
+function isPortraitSlot(format: WalletArtFormat) {
+  return format === 'logo' || format === 'icon'
+}
+
+/** Master vBiz Wallet template — same face as the Save to Wallet popup, rendered at pass DPI. */
 export async function renderWalletCardArt(slug: string, origin?: string, format: WalletArtFormat = 'card') {
   const card = await fetchMyCardBySlug(slug)
   const model = resolveWalletPassModel(card, slug, origin)
   const canvas = WALLET_ART_SIZE[format]
-  const source = WALLET_ART_SIZE.card
-  const fit = Math.min(canvas.width / source.width, canvas.height / source.height)
-  const drawW = Math.round(source.width * fit)
-  const drawH = Math.round(source.height * fit)
-  const scale = drawH / source.height
-  const outerPad = Math.max(10, Math.round(16 * scale))
-  const innerPad = Math.max(18, Math.round(28 * scale))
-  const radius = Math.max(22, Math.round(32 * scale))
-  const innerRadius = Math.max(16, Math.round(22 * scale))
-  const photo = Math.max(72, Math.round(128 * scale))
-  const qr = Math.max(88, Math.round(150 * scale))
-  const nfc = Math.max(28, Math.round(44 * scale))
-  const nameSize = nameFontSize(model.name, Math.max(26, Math.round(42 * scale)))
-  const titleSize = Math.max(13, Math.round(18 * scale))
-  const scanSize = Math.max(10, Math.round(13 * scale))
-  const initialSize = Math.max(18, Math.round(32 * scale))
-  const textColWidth = Math.round(drawW * 0.52)
-  const border = Math.max(2, Math.round(3 * scale))
-  const footerH = Math.max(10, Math.round(16 * scale))
+  const photoSrc = await imageUrlToDataUri(model.photoUrl)
   const serif = await loadSerifFont()
+
+  if (isPortraitSlot(format)) {
+    const photo = Math.round(canvas.width * 0.72)
+    return new ImageResponse(
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: model.theme.primary,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            width: photo,
+            height: photo,
+            borderRadius: photo / 2,
+            overflow: 'hidden',
+            border: `${Math.max(6, Math.round(canvas.width * 0.018))}px solid ${model.theme.secondary}`,
+            background: model.theme.secondary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {photoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoSrc} alt="" width={photo} height={photo} style={{ objectFit: 'cover' }} />
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                fontSize: Math.round(canvas.width * 0.28),
+                fontWeight: 700,
+                color: model.theme.primary,
+              }}
+            >
+              {model.initials}
+            </div>
+          )}
+        </div>
+      </div>,
+      {
+        width: canvas.width,
+        height: canvas.height,
+        headers: {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=120, stale-while-revalidate=86400',
+          'X-Wallet-Template': String(WALLET_TEMPLATE_VERSION),
+        },
+      }
+    )
+  }
+
+  const scale = canvas.height / 638
+  const innerPad = Math.max(16, Math.round(28 * scale))
+  const radius = Math.max(18, Math.round(28 * scale))
+  const innerRadius = Math.max(14, Math.round(20 * scale))
+  const photo = Math.max(96, Math.round(canvas.height * 0.28))
+  const qr = Math.max(96, Math.round(canvas.height * 0.32))
+  const nfc = Math.max(28, Math.round(44 * scale))
+  const nameSize = nameFontSize(model.name, Math.max(28, Math.round(42 * scale)))
+  const titleSize = Math.max(14, Math.round(18 * scale))
+  const scanSize = Math.max(11, Math.round(13 * scale))
+  const initialSize = Math.max(22, Math.round(photo * 0.28))
+  const textColWidth = Math.round(canvas.width * 0.52)
+  const border = Math.max(3, Math.round(4 * scale))
+  const footerH = Math.max(10, Math.round(16 * scale))
 
   let qrSrc = ''
   try {
     qrSrc = await QRCode.toDataURL(model.cardUrl, {
       errorCorrectionLevel: 'M',
       margin: 1,
-      width: qr * 2,
+      width: Math.min(640, qr * 3),
       color: { dark: model.theme.qrDark, light: model.theme.qrLight },
     })
   } catch {
@@ -98,17 +172,15 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
         width: '100%',
         height: '100%',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
         background: model.theme.primary,
       }}
     >
       <div
         style={{
-          width: drawW,
-          height: drawH,
+          width: '100%',
+          height: '100%',
           display: 'flex',
-          padding: outerPad,
+          padding: Math.max(8, Math.round(10 * scale)),
           background: model.theme.primary,
           borderRadius: radius,
           border: `${border}px solid ${model.theme.secondary}`,
@@ -123,7 +195,7 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
             justifyContent: 'space-between',
             padding: `${innerPad}px ${innerPad + 4}px ${Math.round(innerPad * 0.7)}px`,
             borderRadius: innerRadius,
-            border: `${Math.max(1, border - 1)}px solid ${model.theme.secondary}`,
+            border: `${Math.max(2, border - 1)}px solid ${model.theme.secondary}`,
             background: model.theme.primary,
           }}
         >
@@ -135,16 +207,16 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
                 height: photo,
                 borderRadius: photo / 2,
                 overflow: 'hidden',
-                border: `${Math.max(2, Math.round(3 * scale))}px solid ${model.theme.secondary}`,
+                border: `${Math.max(3, Math.round(4 * scale))}px solid ${model.theme.secondary}`,
                 background: model.theme.secondary,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              {model.photoUrl ? (
+              {photoSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={model.photoUrl}
+                  src={photoSrc}
                   alt=""
                   width={photo}
                   height={photo}
@@ -209,7 +281,7 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
               <div
                 style={{
                   display: 'flex',
-                  padding: 6,
+                  padding: Math.max(4, Math.round(6 * scale)),
                   background: model.theme.qrLight,
                   borderRadius: 4,
                 }}
@@ -229,7 +301,7 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
               display: 'flex',
               width: '100%',
               height: footerH,
-              marginTop: Math.max(10, Math.round(14 * scale)),
+              marginTop: Math.max(8, Math.round(12 * scale)),
               borderRadius: 4,
               background: model.theme.footer,
             }}
@@ -243,7 +315,7 @@ export async function renderWalletCardArt(slug: string, origin?: string, format:
       fonts: serif ? [{ name: 'Playfair Display', data: serif, weight: 700, style: 'normal' }] : undefined,
       headers: {
         'Content-Type': 'image/png',
-        'Cache-Control': `public, max-age=300, stale-while-revalidate=86400`,
+        'Cache-Control': 'public, max-age=120, stale-while-revalidate=86400',
         'X-Wallet-Template': String(WALLET_TEMPLATE_VERSION),
       },
     }
