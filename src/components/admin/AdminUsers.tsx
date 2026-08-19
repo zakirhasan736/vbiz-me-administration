@@ -149,12 +149,14 @@ export default function AdminUsers() {
   const [newPackageId, setNewPackageId] = useState('')
   const [newCardLimit, setNewCardLimit] = useState('')
   const [newNegotiatedMonthly, setNewNegotiatedMonthly] = useState('')
+  const [newSignupFee, setNewSignupFee] = useState('')
   const [newFeatureOverrides, setNewFeatureOverrides] = useState<{ featureKey: string; featureValue: string | null }[]>(
     []
   )
   const [isCreateAccessOpen, setIsCreateAccessOpen] = useState(false)
   const [isEditAccessOpen, setIsEditAccessOpen] = useState(false)
   const [editNegotiatedMonthly, setEditNegotiatedMonthly] = useState('')
+  const [editSignupFee, setEditSignupFee] = useState('')
 
   const filterKey = `${debouncedQ}|${roleFilter}|${statusFilter}`
   const prevFilterKeyRef = useRef(filterKey)

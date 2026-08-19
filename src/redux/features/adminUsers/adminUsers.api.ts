@@ -24,6 +24,7 @@ export type AdminUserRow = {
   packageMonthlyCents?: number | null
   signupFeeCents?: number | null
   negotiatedMonthlyCents?: number | null
+  negotiatedSignupFeeCents?: number | null
   monthlyCents?: number | null
   firstInvoiceCents?: number | null
   recurringInvoiceCents?: number | null
@@ -70,6 +71,7 @@ export type CreateAdminUserBody = {
   companyName?: string | null
   cardLimit?: number
   negotiatedMonthlyCents?: number | null
+  negotiatedSignupFeeCents?: number | null
   featureOverrides?: { featureKey: string; featureValue: string | null }[]
 }
 
@@ -81,6 +83,7 @@ export type UpdateAdminUserBody = {
   password?: string
   cardLimit?: number
   negotiatedMonthlyCents?: number | null
+  negotiatedSignupFeeCents?: number | null
   featureOverrides?: { featureKey: string; featureValue: string | null }[]
 }
 
