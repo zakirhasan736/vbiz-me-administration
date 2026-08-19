@@ -33,8 +33,23 @@ function shiftLocalDate(years: number, extraDays = 0): string {
 describe('card activation readiness', () => {
   it('requires the starred personal fields before activation', () => {
     const problems = collectVCardActivationProblems(createDefaultVCardData())
-    expect(problems.map((problem) => problem.field)).toEqual(['slug', 'name', 'email', 'dob'])
+    expect(problems.map((problem) => problem.field)).toEqual(['slug', 'name', 'dob'])
     expect(vCardActivationProblemMessage(problems)).toContain('Date of birth')
+  })
+
+  it('does not require a unique email to activate an existing draft', () => {
+    const defaults = createDefaultVCardData()
+    const data = createDefaultVCardData({
+      slug: 'jane-doe',
+      personal: {
+        ...defaults.personal,
+        fullName: 'Jane Doe',
+        email: '',
+        dob: '1990-07-18',
+        phone: '',
+      },
+    })
+    expect(collectVCardActivationProblems(data)).toEqual([])
   })
 
   it('asks to enter date of birth when that is the only missing field', () => {
@@ -42,10 +57,6 @@ describe('card activation readiness', () => {
     const problems = collectVCardActivationProblems(data)
     expect(problems).toEqual([{ field: 'dob', label: 'Date of birth', reason: 'missing' }])
     expect(vCardActivationProblemMessage(problems)).toBe('Card cannot be activated. Please enter your date of birth.')
-  })
-
-  it('accepts a complete valid card', () => {
-    expect(collectVCardActivationProblems(completeCard('1990-07-18'))).toEqual([])
   })
 
   it('accepts a complete card without a phone number', () => {

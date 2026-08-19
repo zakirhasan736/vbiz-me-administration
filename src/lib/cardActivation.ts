@@ -39,7 +39,6 @@ export function collectVCardActivationProblems(data: Pick<VCardData, 'slug' | 'p
   const required: Array<[CardActivationProblem['field'], string]> = [
     ['slug', 'URL slug'],
     ['name', 'Name'],
-    ['email', 'Email'],
     ['dob', 'Date of birth'],
   ]
   const problems: CardActivationProblem[] = required
