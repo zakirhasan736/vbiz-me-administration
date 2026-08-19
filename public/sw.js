@@ -283,9 +283,42 @@ self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
+const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v2'
+const CARD_DATA_CACHE = 'vbiz-public-card-data-v2'
+const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v2'
+const NEXT_STATIC_CACHE = 'vbiz-next-static-v2'
+const MANAGED_CACHES = [CARD_SHELL_CACHE, CARD_DATA_CACHE, CARD_ASSET_CACHE, NEXT_STATIC_CACHE, CARD_PUSH_MEDIA_CACHE]
+
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(
+    (async () => {
+      const keep = new Set(MANAGED_CACHES)
+      const keys = await caches.keys()
+      await Promise.all(
+        keys.filter((key) => key.startsWith('vbiz-') && !keep.has(key)).map((key) => caches.delete(key))
+      )
+      await self.clients.claim()
+    })()
+  )
 })
+
+async function bustPublicCardDataCache(slug) {
+  const cache = await caches.open(CARD_DATA_CACHE)
+  const requests = await cache.keys()
+  const needle = String(slug || '')
+    .trim()
+    .toLowerCase()
+  await Promise.all(
+    requests.map((request) => {
+      if (!needle) return cache.delete(request)
+      const href = String(request.url || '').toLowerCase()
+      if (href.includes(encodeURIComponent(needle)) || href.includes(needle) || href.includes('/public/')) {
+        return cache.delete(request)
+      }
+      return Promise.resolve(false)
+    })
+  )
+}
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
@@ -297,14 +330,9 @@ self.addEventListener('message', (event) => {
     return
   }
   if (event.data?.type === 'BUST_PUBLIC_CARD_CACHE') {
-    event.waitUntil(Promise.all([caches.delete(CARD_DATA_CACHE), caches.delete(CARD_SHELL_CACHE)]))
+    event.waitUntil(bustPublicCardDataCache(event.data.slug))
   }
 })
-
-const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v1'
-const CARD_DATA_CACHE = 'vbiz-public-card-data-v1'
-const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v1'
-const NEXT_STATIC_CACHE = 'vbiz-next-static-v1'
 
 function isPublicCardPage(pathname) {
   const parts = String(pathname || '')
@@ -324,9 +352,31 @@ function isCacheableResponse(res) {
   return res && (res.ok || res.type === 'opaque')
 }
 
+function isBackofficePath(pathname) {
+  const path = String(pathname || '').toLowerCase()
+  if (path.startsWith('/v/')) return false
+  if (path.startsWith('/_next/')) return false
+  if (path.startsWith('/api/pwa/')) return false
+  if (path.includes('/api/v1/public/')) return false
+  if (path.startsWith('/api/v1/')) return true
+  return (
+    path.startsWith('/login') ||
+    path.startsWith('/register') ||
+    path.startsWith('/forgot-password') ||
+    path.startsWith('/reset-password') ||
+    path.startsWith('/set-password') ||
+    path.startsWith('/dashboard') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/vcards') ||
+    path.startsWith('/settings') ||
+    path.startsWith('/team') ||
+    path.startsWith('/billing')
+  )
+}
+
 function isPublicCardDataRequest(url) {
   const pathname = String(url.pathname || '').toLowerCase()
-  if (url.origin === self.location.origin && pathname.startsWith('/_next/data/')) return true
+  if (url.origin === self.location.origin && pathname.startsWith('/_next/data/')) return pathname.includes('/v/')
   if (url.origin === self.location.origin && pathname.startsWith('/api/pwa/')) return true
   return (
     pathname.includes('/api/v1/public/') ||
@@ -334,18 +384,31 @@ function isPublicCardDataRequest(url) {
     pathname.includes('/public/profile-ai-data/') ||
     pathname.includes('/public/profiles/') ||
     pathname.includes('/public/post-types') ||
-    pathname.includes('/public/v/')
+    pathname.includes('/public/v/') ||
+    pathname.includes('/public/announcement')
   )
 }
 
 function isPublicCardAssetRequest(url) {
   const pathname = String(url.pathname || '').toLowerCase()
-  // Cross-origin S3/CDN media must load as <video>/<img> without CORS.
-  // Intercepting those requests causes opaque CORS failures on app.nextcreavo.com.
   if (url.origin !== self.location.origin) return false
   if (pathname.startsWith('/_next/static/')) return false
   if (pathname.startsWith('/_next/image')) return true
-  return /\.(?:avif|png|jpe?g|webp|gif|svg|ico|bmp|mp4|webm|mov|m4v|mp3|wav|ogg|woff2?|ttf|otf|css)$/i.test(pathname)
+  if (pathname.startsWith('/v/')) return true
+  return false
+}
+
+function shouldHandleFetch(url, request) {
+  const pathname = String(url.pathname || '')
+  if (isBackofficePath(pathname)) return false
+  if (url.origin === self.location.origin && pathname.startsWith('/_next/webpack')) return false
+  if (url.origin === self.location.origin && pathname.includes('hot-update')) return false
+  if (url.origin === self.location.origin && pathname.startsWith('/_next/static/')) return true
+  if (request.mode === 'navigate' && isPublicCardPage(pathname)) return true
+  if (isPublicCardMeta(pathname)) return false
+  if (isPublicCardDataRequest(url)) return true
+  if (isPublicCardAssetRequest(url)) return true
+  return false
 }
 
 function cacheNameForUrl(url) {
@@ -388,7 +451,7 @@ function offlineCardDataResponse(request) {
       offline: true,
       path,
       message:
-        'This card section is not available offline yet. Open the card once while online so vBiz can cache the latest section data.',
+        'This tab is not saved for offline yet. Connect to the internet to continue, then keep the card open so vBiz can cache this section.',
     }),
     {
       status: 503,
@@ -415,7 +478,7 @@ function offlineDocumentResponse(request) {
   }
 
   return new Response(
-    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0f19"><title>${title}</title><style>html,body{height:100%;margin:0;background:#090d18;color:#f8fafc;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{display:flex;align-items:center;justify-content:center;padding:24px}.card{max-width:420px;border:1px solid rgba(255,255,255,.14);border-radius:28px;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.03));box-shadow:0 24px 80px rgba(0,0,0,.35);padding:28px;text-align:center}.icon{width:56px;height:56px;border-radius:18px;margin:0 auto 18px;background:#eab308;color:#111827;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px}.eyebrow{margin:0 0 8px;color:#facc15;font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.title{margin:0;font-size:24px;line-height:1.1}.copy{margin:12px 0 0;color:#cbd5e1;font-size:14px;line-height:1.55}.small{margin-top:18px;color:#94a3b8;font-size:12px}.button{display:inline-flex;margin-top:20px;border-radius:999px;background:#f8fafc;color:#0f172a;text-decoration:none;font-size:13px;font-weight:900;padding:12px 16px}</style></head><body><main class="card"><div class="icon">N</div><p class="eyebrow">Offline card</p><h1 class="title">Preparing saved content</h1><p class="copy">This installed card opened offline, but its app files were not fully cached yet. Open ${path} once while online and wait a few seconds so every section can be saved for offline use.</p><a class="button" href="${path}">Try again</a><p class="small">After one online open, tabs and section content will load from the PWA cache.</p></main></body></html>`,
+    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0f19"><title>${title}</title><style>html,body{height:100%;margin:0;background:#090d18;color:#f8fafc;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{display:flex;align-items:center;justify-content:center;padding:24px}.card{max-width:420px;border:1px solid rgba(255,255,255,.14);border-radius:28px;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.03));box-shadow:0 24px 80px rgba(0,0,0,.35);padding:28px;text-align:center}.icon{width:56px;height:56px;border-radius:18px;margin:0 auto 18px;background:#eab308;color:#111827;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px}.eyebrow{margin:0 0 8px;color:#facc15;font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.title{margin:0;font-size:24px;line-height:1.1}.copy{margin:12px 0 0;color:#cbd5e1;font-size:14px;line-height:1.55}.small{margin-top:18px;color:#94a3b8;font-size:12px}.button{display:inline-flex;margin-top:20px;border-radius:999px;background:#f8fafc;color:#0f172a;text-decoration:none;font-size:13px;font-weight:900;padding:12px 16px}</style></head><body><main class="card"><div class="icon">N</div><p class="eyebrow">Offline card</p><h1 class="title">Connect to continue</h1><p class="copy">This installed card opened offline, but this page was not fully saved yet. Connect to the internet, open ${path} once, and wait a few seconds so home and saved tabs stay available offline.</p><a class="button" href="${path}">Try again</a><p class="small">Saved tabs still work offline. Unsaved tabs need an internet connection.</p></main></body></html>`,
     {
       status: 200,
       headers: {
@@ -435,6 +498,7 @@ async function cachePublicCardUrls(urls) {
         const request = new Request(url.href, {
           credentials: 'same-origin',
           mode: 'same-origin',
+          cache: isPublicCardDataRequest(url) ? 'no-store' : 'default',
         })
         const res = await fetch(request)
         if (!isCacheableResponse(res)) return
@@ -486,8 +550,8 @@ async function cacheFirst(request, cacheName) {
 }
 
 /**
- * Public-card PWA: cache v1/v2/v3 shell + hashed Next assets.
- * Do not intercept HMR. Push behaviour is unchanged.
+ * Public-card PWA only. Backoffice, auth, and private APIs pass through.
+ * Online card data/settings always network-first; cache is offline fallback.
  */
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
@@ -497,8 +561,9 @@ self.addEventListener('fetch', (event) => {
   } catch {
     return
   }
+  if (!shouldHandleFetch(url, event.request)) return
+
   const sameOrigin = url.origin === self.location.origin
-  if (sameOrigin && (url.pathname.startsWith('/_next/webpack') || url.pathname.includes('hot-update'))) return
 
   if (sameOrigin && url.pathname.startsWith('/_next/static/')) {
     event.respondWith(cacheFirst(event.request, NEXT_STATIC_CACHE))
@@ -506,12 +571,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (sameOrigin && event.request.mode === 'navigate' && isPublicCardPage(url.pathname)) {
-    event.respondWith(networkFirst(event.request, CARD_SHELL_CACHE, publicCardNavigationFallback))
+    event.respondWith(
+      networkFirst(event.request, CARD_SHELL_CACHE, publicCardNavigationFallback, { bypassHttpCache: true })
+    )
     return
   }
-
-  // Let Next serve the live manifest + PNG icons so Chrome can show the install icon.
-  if (sameOrigin && isPublicCardMeta(url.pathname)) return
 
   if (isPublicCardDataRequest(url)) {
     event.respondWith(networkFirst(event.request, CARD_DATA_CACHE, offlineCardDataResponse, { bypassHttpCache: true }))
@@ -519,7 +583,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isPublicCardAssetRequest(url)) {
-    event.respondWith(cacheFirst(event.request, CARD_ASSET_CACHE))
+    event.respondWith(networkFirst(event.request, CARD_ASSET_CACHE))
   }
 })
 

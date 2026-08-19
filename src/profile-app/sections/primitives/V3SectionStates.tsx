@@ -105,10 +105,20 @@ export function V3ErrorState({ sectionTitle }: V3ErrorStateProps) {
     return <V3EmptyState icon={Inbox} title={sectionTitle} message={PREVIEW_EMPTY_MESSAGE} />
   }
 
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+
   return (
     <V3SectionShell>
-      <div className="rounded-4xl border border-red-200 bg-red-50/80 px-6 py-8 text-center text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-        Unable to load {sectionTitle.toLowerCase()} right now. Please try again later.
+      <div
+        className={`rounded-4xl border px-6 py-8 text-center text-sm font-medium ${
+          offline
+            ? 'border-amber-200 bg-amber-50/90 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200'
+            : 'border-red-200 bg-red-50/80 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300'
+        }`}
+      >
+        {offline
+          ? `Connect to the internet to continue ${sectionTitle.toLowerCase()}. Other saved tabs still work offline.`
+          : `Unable to load ${sectionTitle.toLowerCase()} right now. Please try again later.`}
       </div>
     </V3SectionShell>
   )

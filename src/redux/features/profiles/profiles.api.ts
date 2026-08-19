@@ -10,6 +10,13 @@ import {
   TAB_LABEL_OVERRIDES_SETTING_KEY,
   THEME_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import {
+  adjustLifecycleTotal,
+  nextDraftFlag,
+  queryLifecycle,
+  shouldInsertIntoLifecycleList,
+  shouldRemoveFromLifecycleList,
+} from '@/lib/cardLifecycleCache'
 import { resolveCardStatus } from '@/lib/cardStatus'
 import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
@@ -17,7 +24,9 @@ import { applyEditorSettingsToThemeConfig, hasDynamicTheme, resolveCardThemeConf
 import { MY_INFO_SETTING_KEY, parseMyInfoJson } from '@/lib/vcardMyInfo'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
 import { api } from '@/redux/api/api'
+import type { AdminProfileRow } from '@/redux/features/adminProfiles/adminProfiles.api'
 import { patchItem as patchAdminVCardsListItem } from '@/redux/features/adminVCardsList/adminVCardsList.slice'
+import { updateVCard } from '@/redux/features/vcards/vcards.slice'
 import type { VCardCustomTab, VCardData, VCardFaqEntry, VCardGeneralPost, VCardRecord } from '@/types/vcard'
 import { createDefaultVCardData } from '@/types/vcard'
 
@@ -856,20 +865,34 @@ function patchGetProfileCache(
   )
 }
 
+type AdminProfilesCacheDraft = {
+  items: Array<VisibilityPatchTarget & { id: string } & Partial<AdminProfileRow>>
+  total?: number
+}
+
 function patchGetAdminProfilesCache(
   dispatch: (action: unknown) => { undo: () => void },
   args: unknown,
-  recipe: (draft: { items: Array<VisibilityPatchTarget & { id: string }> }) => void
+  recipe: (draft: AdminProfilesCacheDraft) => void
 ) {
   return dispatch(
     (
       api.util.updateQueryData as unknown as (
         endpointName: 'getAdminProfiles',
         endpointArgs: unknown,
-        updateRecipe: (draft: { items: Array<VisibilityPatchTarget & { id: string }> }) => void
+        updateRecipe: (draft: AdminProfilesCacheDraft) => void
       ) => unknown
     )('getAdminProfiles', args, recipe)
   )
+}
+
+function cloneAdminProfileRow(
+  row: VisibilityPatchTarget & { id: string } & Partial<AdminProfileRow>
+): VisibilityPatchTarget & { id: string } & Partial<AdminProfileRow> {
+  return {
+    ...row,
+    status: row.status ? { id: row.status.id || '', name: row.status.name || '' } : row.status,
+  }
 }
 
 const profilesApi = api.injectEndpoints({
@@ -995,23 +1018,6 @@ const profilesApi = api.injectEndpoints({
           )
         }
 
-        const adminListEntries = api.util.selectInvalidatedBy(getState(), [{ type: 'adminProfiles', id: 'LIST' }])
-        for (const entry of adminListEntries) {
-          if (entry.endpointName !== 'getAdminProfiles') continue
-          patchResults.push(
-            patchGetAdminProfilesCache(runDispatch, entry.originalArgs, (draft) => {
-              const item = draft.items.find((p) => p.id === id)
-              if (item) applyVisibilityStatusPatch(item, body)
-            })
-          )
-        }
-
-        patchResults.push(
-          patchGetProfileCache(runDispatch, id, (draft) => {
-            applyVisibilityStatusPatch(draft, body)
-          })
-        )
-
         const adminListState = (
           getState() as {
             adminVCardsList?: {
@@ -1022,23 +1028,79 @@ const profilesApi = api.injectEndpoints({
                 status?: { id?: string; name?: string } | null
               }>
             }
+            vcards?: { byId?: Record<string, VCardRecord> }
           }
         ).adminVCardsList
+        const vcardsState = (getState() as { vcards?: { byId?: Record<string, VCardRecord> } }).vcards
         const prevAdminRow = adminListState?.accumulatedItems.find((row) => row.id === id)
+        const prevVCard = vcardsState?.byId?.[id]
+        const wasDraft =
+          prevAdminRow?.isDraft === true ||
+          prevVCard?.isDraft === true ||
+          String(prevAdminRow?.status?.name || prevVCard?.status || '').toLowerCase() === 'draft'
+        const nextIsDraft = nextDraftFlag(body, wasDraft)
+        const nextIsPublic =
+          typeof body.isPublic === 'boolean' ? body.isPublic : Boolean(prevAdminRow?.isPublic ?? prevVCard?.isPublic)
         const nextStatusName =
           typeof body.status === 'string'
             ? body.status.trim().toLowerCase()
-            : typeof body.isPublic === 'boolean'
-              ? body.isPublic
+            : nextIsDraft
+              ? 'draft'
+              : nextIsPublic
                 ? 'active'
                 : 'inactive'
-              : undefined
+        const movedAdminRow = prevAdminRow
+          ? cloneAdminProfileRow(prevAdminRow as VisibilityPatchTarget & { id: string } & Partial<AdminProfileRow>)
+          : null
+        if (movedAdminRow) applyVisibilityStatusPatch(movedAdminRow, body)
+
+        const adminListEntries = api.util.selectInvalidatedBy(getState(), [{ type: 'adminProfiles', id: 'LIST' }])
+        for (const entry of adminListEntries) {
+          if (entry.endpointName !== 'getAdminProfiles') continue
+          patchResults.push(
+            patchGetAdminProfilesCache(runDispatch, entry.originalArgs, (draft) => {
+              const lifecycle = queryLifecycle(entry.originalArgs)
+              const item = draft.items.find((row) => row.id === id)
+              if (item) applyVisibilityStatusPatch(item, body)
+              if (typeof draft.total === 'number') {
+                draft.total = adjustLifecycleTotal(draft.total, lifecycle, wasDraft, nextIsDraft)
+              }
+              if (shouldRemoveFromLifecycleList(lifecycle, wasDraft, nextIsDraft)) {
+                draft.items = draft.items.filter((row) => row.id !== id)
+              } else if (
+                shouldInsertIntoLifecycleList(lifecycle, wasDraft, nextIsDraft) &&
+                movedAdminRow &&
+                !draft.items.some((row) => row.id === id)
+              ) {
+                draft.items = [movedAdminRow, ...draft.items]
+              }
+            })
+          )
+        }
+
+        patchResults.push(
+          patchGetProfileCache(runDispatch, id, (draft) => {
+            applyVisibilityStatusPatch(draft, body)
+          })
+        )
+
         dispatch(
           patchAdminVCardsListItem({
             id,
             ...(typeof body.isPublic === 'boolean' ? { isPublic: body.isPublic } : {}),
             ...(typeof body.isDraft === 'boolean' ? { isDraft: body.isDraft } : {}),
-            ...(nextStatusName ? { statusName: nextStatusName } : {}),
+            statusName: nextStatusName,
+          })
+        )
+        dispatch(
+          updateVCard({
+            id,
+            patch: {
+              isPublic: nextIsPublic,
+              isDraft: nextIsDraft,
+              isActive: !nextIsDraft && nextIsPublic,
+              status: nextStatusName,
+            },
           })
         )
 
@@ -1071,6 +1133,17 @@ const profilesApi = api.injectEndpoints({
               statusName: data.status?.name || nextStatusName,
             })
           )
+          dispatch(
+            updateVCard({
+              id,
+              patch: {
+                isPublic: data.isPublic,
+                isDraft: Boolean(data.isDraft),
+                isActive: !data.isDraft && Boolean(data.isPublic),
+                status: data.status?.name || nextStatusName,
+              },
+            })
+          )
         } catch {
           patchResults.forEach((p) => p.undo())
           if (prevAdminRow) {
@@ -1080,6 +1153,19 @@ const profilesApi = api.injectEndpoints({
                 isPublic: prevAdminRow.isPublic,
                 isDraft: prevAdminRow.isDraft,
                 statusName: prevAdminRow.status?.name,
+              })
+            )
+          }
+          if (prevVCard) {
+            dispatch(
+              updateVCard({
+                id,
+                patch: {
+                  isPublic: prevVCard.isPublic,
+                  isDraft: prevVCard.isDraft,
+                  isActive: prevVCard.isActive,
+                  status: prevVCard.status,
+                },
               })
             )
           }

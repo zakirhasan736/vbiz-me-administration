@@ -44,7 +44,7 @@ export function SaveCardPwaModal({ isOpen, onClose, ownerName, avatarUrl, cardSl
     const checkOfflineReady = async () => {
       setCacheChecking(true)
       try {
-        const cache = await caches.open('vbiz-public-card-shell-v1')
+        const cache = await caches.open('vbiz-public-card-shell-v2')
         const hit = (await cache.match(path)) || (await cache.match(window.location.origin + path))
         if (!cancelled) setOfflineReady(Boolean(hit))
       } catch {

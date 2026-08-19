@@ -37,7 +37,10 @@ export function broadcastPublicCardSettingsSaved(payload: { profileId?: string; 
   }
 
   try {
-    navigator.serviceWorker?.controller?.postMessage({ type: 'BUST_PUBLIC_CARD_CACHE' })
+    navigator.serviceWorker?.controller?.postMessage({
+      type: 'BUST_PUBLIC_CARD_CACHE',
+      slug: payload.slug || '',
+    })
   } catch {
     /* no SW */
   }

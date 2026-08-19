@@ -4,6 +4,7 @@ import { useAppDispatch } from '@/hooks/redux'
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { mapNavBarLinks } from '@/lib/api/navbar/mapNavBarLinks'
 import { subscribePublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
+import { isBackofficePath, isPublicCardDataPath } from '@/lib/pwa/publicCardCachePolicy'
 import type { NavBarNavItem, ProfileNavContentKey } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { publicApi } from '@/redux/api/publicApi'
@@ -13,6 +14,7 @@ import { myCardApi } from '@/redux/features/myCard'
 import { navBarLinksApi } from '@/redux/features/navbar/navbar.api'
 import { profileAiDataApi } from '@/redux/features/profileAiData/profileAiData.api'
 import { profileSettingsApi } from '@/redux/features/profileSettings/profileSettings.api'
+import { publicAnnouncementsApi } from '@/redux/features/publicAnnouncements/publicAnnouncements.api'
 import { aboutMeApi } from '@/redux/features/sections/aboutMe.api'
 import { clientsApi } from '@/redux/features/sections/clients.api'
 import { galleryApi } from '@/redux/features/sections/gallery.api'
@@ -23,10 +25,10 @@ import { videosApi } from '@/redux/features/sections/videos.api'
 import { Cloud, Home, Share2, UserPlus, WifiOff, type LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
-const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v1'
-const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v1'
-const CARD_DATA_CACHE = 'vbiz-public-card-data-v1'
-const NEXT_STATIC_CACHE = 'vbiz-next-static-v1'
+const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v2'
+const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v2'
+const CARD_DATA_CACHE = 'vbiz-public-card-data-v2'
+const NEXT_STATIC_CACHE = 'vbiz-next-static-v2'
 
 function isStandaloneDisplay() {
   if (typeof window === 'undefined') return false
@@ -68,12 +70,14 @@ function dispatchProfileAction(eventName: string) {
 
 function isCacheableRuntimeUrl(url: URL, cardPath: string): boolean {
   const pathname = url.pathname.toLowerCase()
+  if (isBackofficePath(pathname)) return false
   if (url.origin !== window.location.origin) {
-    return pathname.includes('/api/v1/public/')
+    return isPublicCardDataPath(pathname)
   }
   return (
     pathname.startsWith('/_next/static/') ||
     pathname.startsWith('/_next/image') ||
+    isPublicCardDataPath(pathname) ||
     pathname.startsWith(`${cardPath.toLowerCase()}/`) ||
     pathname === cardPath.toLowerCase()
   )
@@ -120,7 +124,7 @@ function cacheNameForRuntimeUrl(url: URL): string {
   const pathname = url.pathname.toLowerCase()
   if (pathname.startsWith('/_next/static/')) return NEXT_STATIC_CACHE
   if (pathname.startsWith('/_next/image')) return CARD_ASSET_CACHE
-  if (pathname.includes('/api/v1/public/') || pathname.includes('/public/')) return CARD_DATA_CACHE
+  if (isPublicCardDataPath(pathname) || pathname.includes('/public/')) return CARD_DATA_CACHE
   if (/\.(?:avif|png|jpe?g|webp|gif|svg|ico|bmp|mp4|webm|mov|m4v|mp3|wav|ogg|woff2?|ttf|otf|css)$/i.test(pathname)) {
     return CARD_ASSET_CACHE
   }
@@ -137,6 +141,7 @@ async function cacheUrlsInPage(urls: string[]): Promise<void> {
         const request = new Request(url.href, {
           credentials: url.origin === window.location.origin ? 'same-origin' : 'omit',
           mode: url.origin === window.location.origin ? 'same-origin' : 'cors',
+          cache: isPublicCardDataPath(url.pathname) ? 'no-store' : 'default',
         })
         const response = await fetch(request)
         if (!response.ok && response.type !== 'opaque') return
@@ -315,6 +320,12 @@ export function PublicCardPwaRuntime({
           { forceRefetch, subscribe: false }
         )
       )
+      void dispatch(
+        publicAnnouncementsApi.endpoints.getPublicProfileAnnouncement.initiate(
+          { profileId: normalizedProfileId },
+          { forceRefetch, subscribe: false }
+        )
+      )
 
       let needsProfileAiData = false
       const dynamicSectionNames = new Set<string>()
@@ -393,7 +404,14 @@ export function PublicCardPwaRuntime({
 
     const syncLatest = (forceRefetch = false) => {
       if (!navigator.onLine) return
-      dispatch(publicApi.util.invalidateTags([{ type: 'MyCard', id: trimmed }, 'ProfileSettings', 'NavBarLinks']))
+      dispatch(
+        publicApi.util.invalidateTags([
+          { type: 'MyCard', id: trimmed },
+          'ProfileSettings',
+          'NavBarLinks',
+          'PublicAnnouncement',
+        ])
+      )
       void dispatch(
         myCardApi.endpoints.getMyCardBySlug.initiate(trimmed, {
           forceRefetch,
@@ -467,8 +485,8 @@ export function PublicCardPwaRuntime({
           </p>
           <p className="mt-0.5 text-xs leading-relaxed font-semibold text-zinc-600 dark:text-zinc-300">
             {isOffline
-              ? 'Showing saved card data. If a tab is missing, open this card once online so vBiz can cache that section.'
-              : 'Refreshing tabs, actions, notifications, media, and offline cache.'}
+              ? 'Showing saved card tabs. Connect to the internet to open a tab that is not saved yet.'
+              : 'Refreshing tabs, settings, announcements, media, and offline cache.'}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <PwaStatusAction icon={UserPlus} label="Contact" eventName="saveContactAction" />
