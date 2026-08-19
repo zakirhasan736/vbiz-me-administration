@@ -9,6 +9,7 @@ import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { cardAgentJson } from '@/lib/ai/cardAgentClient'
 import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import {
@@ -26,6 +27,7 @@ import {
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
+import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
 import {
   MAX_OWNER_SEO_KEYWORDS,
   MAX_SEO_DESCRIPTION_LENGTH,
@@ -171,6 +173,10 @@ function OptionCard({
 
 const COLOR_COMMIT_MS = 500
 
+function PackageLockedNote() {
+  return <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{PACKAGE_FEATURE_LOCKED_MESSAGE}</p>
+}
+
 function ColorPicker({
   label,
   value,
@@ -281,6 +287,7 @@ function Toggle({
 
 function TemplateDesigner() {
   const { user } = useAuth()
+  const { allow_canva: canUseCanva } = usePackageAccess()
   const { vCardData, updateData, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const accountDesign = useAppSelector((s) => s.designSettings)
@@ -479,7 +486,7 @@ function TemplateDesigner() {
       </SettingSection>
 
       <SettingSection title="Canva Integration">
-        <CanvaConnectRow userId={user?.uid} variant="status" />
+        {canUseCanva ? <CanvaConnectRow userId={user?.uid} variant="status" /> : <PackageLockedNote />}
       </SettingSection>
 
       {/* Profile image */}
@@ -934,6 +941,7 @@ function SeoGenerateButton({ busy, disabled, onClick }: { busy: boolean; disable
 
 function CardSeoPanel() {
   const { vCardData, updateData } = useVCard()
+  const { allow_seo: canUseSeo } = usePackageAccess()
   const seo = normalizeCardSeo(vCardData.seo)
   const seoRef = useRef(seo)
   const [keywordInput, setKeywordInput] = useState('')
@@ -943,6 +951,8 @@ function CardSeoPanel() {
   useEffect(() => {
     seoRef.current = seo
   }, [seo])
+
+  if (!canUseSeo) return <PackageLockedNote />
 
   const updateSeo = (patch: Partial<typeof seo>) => {
     const next = normalizeCardSeo({ ...seoRef.current, ...patch })
@@ -1312,6 +1322,7 @@ function AiAgentTrainModal({
 
 function CardAiAssistancePanel() {
   const { cardId, vCardData, updateData } = useVCard()
+  const { allow_ai_assistance: canUseAiAssistance } = usePackageAccess()
   const active = isAiAssistanceEnabled(vCardData.aiAssistanceEnabled)
   const [showTrain, setShowTrain] = useState(false)
   const [lastTrain, setLastTrain] = useState<string | null>(null)
@@ -1337,6 +1348,8 @@ function CardAiAssistancePanel() {
     const timer = window.setTimeout(() => void refreshTraining(), 0)
     return () => window.clearTimeout(timer)
   }, [refreshTraining])
+
+  if (!canUseAiAssistance) return <PackageLockedNote />
 
   const toggleAssistant = async () => {
     const next = !active
@@ -1478,6 +1491,7 @@ type TabSettingProps = {
 
 export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSettingProps) {
   const { vCardData, updateData } = useVCard()
+  const { allow_seo: canUseSeo, allow_ai_assistance: canUseAiAssistance } = usePackageAccess()
   const display = getDisplaySettingsFromVCard(vCardData)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const { isActive: isTourActive, editorAssist, currentStep, startTour } = useDashboardTour()
@@ -1517,6 +1531,12 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         {...options}
       />
     ))
+
+  const visibleSettingTabs = settingTabs.filter((tab) => {
+    if (tab.id === 'seo') return canUseSeo
+    if (tab.id === 'ai-assistance') return canUseAiAssistance
+    return true
+  })
 
   const renderContent = () => {
     switch (activeTab) {
@@ -1608,7 +1628,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
             </button>
           </div>
 
-          {settingTabs.map((tab) => (
+          {visibleSettingTabs.map((tab) => (
             <Link
               key={tab.id}
               href={buildEditorSettingsPath(basePath, tab.id as SettingsTabId, cardId)}

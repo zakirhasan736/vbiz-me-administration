@@ -10,6 +10,7 @@ type CreateCardModeModalProps = {
   onChooseAi: () => void
   onChooseManual: () => void
   title?: string
+  canUseAi?: boolean
 }
 
 export function CreateCardModeModal({
@@ -18,6 +19,7 @@ export function CreateCardModeModal({
   onChooseAi,
   onChooseManual,
   title = 'Create a new card',
+  canUseAi = true,
 }: CreateCardModeModalProps) {
   return (
     <Modal
@@ -44,10 +46,13 @@ export function CreateCardModeModal({
       <div className="grid gap-3">
         <button
           type="button"
-          onClick={onChooseAi}
+          onClick={canUseAi ? onChooseAi : undefined}
+          disabled={!canUseAi}
           className={cn(
-            'flex items-start gap-4 rounded-3xl border border-emerald-200 bg-emerald-50/80 p-5 text-left transition',
-            'hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-500/25 dark:bg-emerald-500/10'
+            'flex items-start gap-4 rounded-3xl border p-5 text-left transition',
+            canUseAi
+              ? 'border-emerald-200 bg-emerald-50/80 hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-500/25 dark:bg-emerald-500/10'
+              : 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-70 dark:border-white/10 dark:bg-white/5'
           )}
         >
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-sm">
@@ -56,8 +61,9 @@ export function CreateCardModeModal({
           <span>
             <span className="block text-sm font-black text-slate-900 dark:text-white">Generate with AI</span>
             <span className="mt-1 block text-xs font-semibold text-slate-500 dark:text-slate-300">
-              Add a website, PDFs or photos, and a short note. We read the site and files first, then the AI builds your
-              card — tabs, about, services, FAQs, and more.
+              {canUseAi
+                ? 'Add a website, PDFs or photos, and a short note. We read the site and files first, then the AI builds your card — tabs, about, services, FAQs, and more.'
+                : 'Auto card builder is not included in your package.'}
             </span>
           </span>
         </button>

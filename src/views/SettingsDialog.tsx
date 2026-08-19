@@ -9,8 +9,10 @@ import { Button, Input, Switch, Textarea } from '@/components/ui'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs } from '@/lib/notifications'
+import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
 import { useTheme } from '@/lib/ThemeProvider'
 import { logout, useAuth } from '@/providers/AuthProvider'
 import {
@@ -189,6 +191,11 @@ export default function SettingsDialog() {
   const { user } = useAuth()
   const reduxUser = useAppSelector((state) => state.user.user)
   const { isSuspended, canPerformAccountActions } = useAccountStatus()
+  const {
+    allow_canva: canUseCanva,
+    allow_push_notification: canUsePush,
+    allow_email_notification: canUseEmail,
+  } = usePackageAccess()
   const router = useRouter()
   const { accentColor, setAccentColor } = useTheme()
   const [selectedTab, setSelectedTab] = useState('profile')
@@ -509,9 +516,16 @@ export default function SettingsDialog() {
               <div className="space-y-4">
                 <ToggleRow
                   title="Browser push alerts"
-                  description="Show OS notifications when this tab is open or in the background."
-                  checked={notifPrefs.browserPush}
-                  onChange={() => patchNotif({ browserPush: !notifPrefs.browserPush })}
+                  description={
+                    canUsePush
+                      ? 'Show OS notifications when this tab is open or in the background.'
+                      : PACKAGE_FEATURE_LOCKED_MESSAGE
+                  }
+                  checked={canUsePush && notifPrefs.browserPush}
+                  onChange={() => {
+                    if (!canUsePush) return
+                    patchNotif({ browserPush: !notifPrefs.browserPush })
+                  }}
                 />
                 <ToggleRow
                   title="Contact saves"
@@ -545,9 +559,16 @@ export default function SettingsDialog() {
                 />
                 <ToggleRow
                   title="Email notifications"
-                  description="Receive email summaries of activity and audience insights."
-                  checked={notifPrefs.emailNotifications}
-                  onChange={() => patchNotif({ emailNotifications: !notifPrefs.emailNotifications })}
+                  description={
+                    canUseEmail
+                      ? 'Receive email summaries of activity and audience insights.'
+                      : PACKAGE_FEATURE_LOCKED_MESSAGE
+                  }
+                  checked={canUseEmail && notifPrefs.emailNotifications}
+                  onChange={() => {
+                    if (!canUseEmail) return
+                    patchNotif({ emailNotifications: !notifPrefs.emailNotifications })
+                  }}
                 />
                 <ToggleRow
                   title="Security alerts"
@@ -665,7 +686,11 @@ export default function SettingsDialog() {
                   <p className="mb-6 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
                     Connect Canva for creatives.
                   </p>
-                  <CanvaConnectRow userId={user?.uid} variant="card" returnTo="/settings" />
+                  {canUseCanva ? (
+                    <CanvaConnectRow userId={user?.uid} variant="card" returnTo="/settings" />
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-500">{PACKAGE_FEATURE_LOCKED_MESSAGE}</p>
+                  )}
                 </div>
               </div>
             </Section>

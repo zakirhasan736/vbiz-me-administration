@@ -1,6 +1,8 @@
 'use client'
 
 import { ModalPortal } from '@/components/ModalPortal'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
+import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
 import { type AiChatMessage, getAiReply, type TicketType } from '@/lib/supportFeedback'
 import { useCreateSupportTicketMutation } from '@/redux/features/adminSupport/adminSupport.api'
 import { cn } from '@/utils/cn'
@@ -85,6 +87,7 @@ export function ContactModal({
   const [aiMessages, setAiMessages] = useState<AiChatMessage[]>(() => loadOwnerAiChat())
   const [aiInput, setAiInput] = useState('')
   const [createSupportTicket] = useCreateSupportTicketMutation()
+  const { allow_support_ticket: canUseSupportTicket } = usePackageAccess()
 
   const isFeedback = lockedMode === 'feedback'
 
@@ -98,6 +101,10 @@ export function ContactModal({
   const handleSubmitFeedbackOrAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!subject.trim() || !details.trim()) return
+    if (!canUseSupportTicket) {
+      setSubmitError(PACKAGE_FEATURE_LOCKED_MESSAGE)
+      return
+    }
     setSending(true)
     setSubmitError(null)
 

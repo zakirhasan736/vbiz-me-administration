@@ -4,6 +4,7 @@ import AssignCardOwnerModal from '@/components/admin/AssignCardOwnerModal'
 import AssignPortfolioOwnerModal from '@/components/admin/AssignPortfolioOwnerModal'
 import { CreateCardModeModal } from '@/components/vcard/create-agent/CreateCardModeModal'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { clearCreateCardOwner, setCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import { notify } from '@/lib/toast/toast'
@@ -41,6 +42,7 @@ export function CreateCardLauncher({
 }: CreateCardLauncherProps) {
   const router = useRouter()
   const { canMutateVcards } = useAccountStatus()
+  const { allow_auto_card_builder: canUseAi } = usePackageAccess()
   const [assignOpen, setAssignOpen] = useState(false)
   const [modeOpen, setModeOpen] = useState(false)
   const needsAssignment = requireOwnerAssignment || portfolioOwnerAssignment
@@ -92,6 +94,7 @@ export function CreateCardLauncher({
           setModeOpen(false)
           router.push(withFreshReset(aiHref))
         }}
+        canUseAi={canUseAi}
       />
     </>
   )

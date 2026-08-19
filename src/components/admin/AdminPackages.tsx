@@ -3,6 +3,14 @@
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
 import { AdminPackagesSkeleton } from '@/components/admin/AdminPackagesSkeleton'
+import {
+  allPackageAccessEnabled,
+  entitlementsFromFeatures,
+  isPackageAccessKey,
+  isRetiredPackage,
+  PACKAGE_ACCESS_FEATURES,
+  type PackageAccessKey,
+} from '@/lib/packageAccess'
 import { notify } from '@/lib/toast/toast'
 import {
   useCreateAdminPackageMutation,
@@ -41,6 +49,7 @@ type FormState = {
   sortOrder: string
   isActive: boolean
   maxCards: string
+  access: Record<PackageAccessKey, boolean>
   features: string[]
 }
 
@@ -53,11 +62,13 @@ const emptyForm = (): FormState => ({
   sortOrder: '0',
   isActive: true,
   maxCards: '',
+  access: allPackageAccessEnabled(),
   features: [...DEFAULT_FEATURE_KEYS],
 })
 
-function isSystemFeatureKey(key: string) {
-  return key.trim().toLowerCase() === MAX_CARDS_FEATURE_KEY
+function isManagedFeatureKey(key: string) {
+  const normalized = key.trim().toLowerCase()
+  return normalized === MAX_CARDS_FEATURE_KEY || isPackageAccessKey(normalized)
 }
 
 /** Turn snake_case / kebab-case keys into readable labels; leave already-plain text alone. */
@@ -105,7 +116,7 @@ function formatFacilityLine(feat: { featureKey: string; featureValue?: string | 
 }
 
 function packageFacilities(pkg: AdminPackageRow) {
-  return pkg.features.filter((f) => !isSystemFeatureKey(f.featureKey))
+  return pkg.features.filter((f) => !isManagedFeatureKey(f.featureKey))
 }
 
 /** Laravel / Stripe store package prices in cents (e.g. 800 → $8.00). */
@@ -119,7 +130,7 @@ function dollarsInputToCents(value: string): number {
 }
 
 function formFromPackage(pkg: AdminPackageRow): FormState {
-  const maxCardsFeat = pkg.features.find((f) => isSystemFeatureKey(f.featureKey))
+  const maxCardsFeat = pkg.features.find((f) => f.featureKey.trim().toLowerCase() === MAX_CARDS_FEATURE_KEY)
   const labels = packageFacilities(pkg).map((f) => {
     const value = (f.featureValue ?? '').trim()
     return value ? `${f.featureKey}=${value}` : f.featureKey
@@ -133,6 +144,7 @@ function formFromPackage(pkg: AdminPackageRow): FormState {
     sortOrder: String(pkg.sortOrder),
     isActive: pkg.isActive,
     maxCards: maxCardsFeat?.featureValue?.trim() || '',
+    access: entitlementsFromFeatures(pkg.features),
     features: labels.length > 0 ? labels : [''],
   }
 }
@@ -141,7 +153,7 @@ function toBody(form: FormState): UpsertAdminPackageBody {
   const marketing = form.features
     .map((text) => text.trim())
     .filter(Boolean)
-    .filter((text) => !isSystemFeatureKey(text.split('=')[0] || text))
+    .filter((text) => !isManagedFeatureKey(text.split('=')[0] || text))
     .map((text) => {
       const eq = text.indexOf('=')
       if (eq === -1) return { featureKey: text, featureValue: null as string | null }
@@ -153,10 +165,17 @@ function toBody(form: FormState): UpsertAdminPackageBody {
     .filter((f) => f.featureKey)
 
   const maxCardsNum = Math.max(0, Math.round(Number(form.maxCards)))
-  const features =
-    form.maxCards.trim() !== '' && Number.isFinite(maxCardsNum)
-      ? [...marketing, { featureKey: MAX_CARDS_FEATURE_KEY, featureValue: String(maxCardsNum) }]
-      : marketing
+  const accessFeatures = PACKAGE_ACCESS_FEATURES.map((item) => ({
+    featureKey: item.key,
+    featureValue: form.access[item.key] ? '1' : '0',
+  }))
+  const features = [
+    ...marketing,
+    ...accessFeatures,
+    ...(form.maxCards.trim() !== '' && Number.isFinite(maxCardsNum)
+      ? [{ featureKey: MAX_CARDS_FEATURE_KEY, featureValue: String(maxCardsNum) }]
+      : []),
+  ]
 
   return {
     name: form.name.trim(),
@@ -185,6 +204,7 @@ export default function AdminPackages() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [subscribersId, setSubscribersId] = useState<string | null>(null)
+  const [showInactive, setShowInactive] = useState(false)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -269,8 +289,12 @@ export default function AdminPackages() {
   }
 
   const sorted = useMemo(
-    () => [...packages].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
-    [packages]
+    () =>
+      [...packages]
+        .filter((pkg) => !isRetiredPackage(pkg))
+        .filter((pkg) => showInactive || pkg.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
+    [packages, showInactive]
   )
 
   useEffect(() => {
@@ -288,19 +312,30 @@ export default function AdminPackages() {
             Packages & Upgrades
           </h1>
           <p className="mt-1 text-xs font-semibold text-slate-400 md:text-sm">
-            Create and manage subscription packages, feature lists, pricing, and subscriber counts. New owner accounts
-            receive the matching free starter slug (corporate-starter or single-starter), with a compatible free-package
-            fallback when available. Set <span className="font-bold text-slate-500 dark:text-slate-300">Max cards</span>{' '}
-            on the package to control their card limit.
+            Create and manage subscription packages, feature access, pricing, and subscriber counts. Corporate Starter
+            and Single Card plans are retired. Set{' '}
+            <span className="font-bold text-slate-500 dark:text-slate-300">Max cards</span> and the feature access list
+            on each package.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-xs font-black tracking-wider text-white uppercase shadow-sm transition hover:bg-indigo-700 active:scale-95"
-        >
-          <Plus className="h-4 w-4" /> Create Package
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-500">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Show inactive
+          </label>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-xs font-black tracking-wider text-white uppercase shadow-sm transition hover:bg-indigo-700 active:scale-95"
+          >
+            <Plus className="h-4 w-4" /> Create Package
+          </button>
+        </div>
       </div>
 
       {isLoading ? <AdminPackagesSkeleton /> : null}
@@ -386,6 +421,30 @@ export default function AdminPackages() {
                 <div className="my-4 h-px bg-slate-100 dark:bg-white/5" />
 
                 <div className="mb-6 space-y-2">
+                  <p className="mb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Feature access</p>
+                  {PACKAGE_ACCESS_FEATURES.map((item) => {
+                    const included = entitlementsFromFeatures(pkg.features)[item.key]
+                    return (
+                      <div
+                        key={item.key}
+                        className="flex items-start gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                      >
+                        <CheckCircle2
+                          className={cn(
+                            'mt-0.5 h-4 w-4 shrink-0',
+                            included ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600'
+                          )}
+                        />
+                        <span className={included ? undefined : 'text-slate-400'}>
+                          {item.label}
+                          {included ? '' : ': Off'}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="mb-6 space-y-2">
                   <p className="mb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Facilities</p>
                   {packageFacilities(pkg).length === 0 && (
                     <p className="text-xs font-semibold text-slate-400">No facilities listed</p>
@@ -436,7 +495,7 @@ export default function AdminPackages() {
                     {modalMode === 'create' ? 'Create Package' : 'Edit Package'}
                   </h2>
                   <p className="mt-1 text-xs font-semibold text-slate-400">
-                    Set pricing, status, max cards, and the features shown for this plan.
+                    Set pricing, status, max cards, and which product features this plan can use.
                   </p>
                 </div>
                 <button
@@ -539,6 +598,34 @@ export default function AdminPackages() {
                   </p>
                 </div>
 
+                <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                  <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Feature access</p>
+                  <p className="text-[10px] font-semibold text-slate-400">
+                    Turn features on or off for everyone on this package. Unchecked means owners cannot use that area.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {PACKAGE_ACCESS_FEATURES.map((item) => (
+                      <label
+                        key={item.key}
+                        className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.access[item.key]}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              access: { ...f.access, [item.key]: e.target.checked },
+                            }))
+                          }
+                          className="rounded border-slate-300"
+                        />
+                        {item.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                   <input
                     type="checkbox"
@@ -552,7 +639,7 @@ export default function AdminPackages() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Facilities (key=value)
+                      Facilities (other, key=value)
                     </label>
                     <button
                       type="button"
