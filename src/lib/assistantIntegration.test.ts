@@ -8,6 +8,7 @@ import {
 import { parseGeminiLiveToken } from '@/lib/gemini'
 import { buildCardPayloadForPrompt } from '@/lib/liveAgent/languagePrompt'
 import { isLiveAgentVisible } from '@/profile-app/components/LiveAgent'
+import { LIVE_AGENT_PUBLIC_PLACEMENT, LIVE_AGENT_V2_PUBLIC_PLACEMENT } from '@/profile-app/lib/liveAgentPlacement'
 import { DEFAULT_LIVE_AGENT_CARD } from '@/profile-app/lib/liveAgentPrompt'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -52,6 +53,15 @@ describe('secure card assistant integration', () => {
   it('gates the shared live-agent shell', () => {
     expect(isLiveAgentVisible(false)).toBe(false)
     expect(isLiveAgentVisible(true)).toBe(true)
+  })
+
+  it('matches template-services public-card AI Assistance placement', () => {
+    expect(LIVE_AGENT_PUBLIC_PLACEMENT).toBe(
+      'top-1/2 right-3 -translate-y-1/2 md:top-auto md:right-6 md:bottom-6 md:translate-y-0 lg:right-10 lg:bottom-10'
+    )
+    expect(LIVE_AGENT_V2_PUBLIC_PLACEMENT).toBe(
+      'right-3 top-1/2 -translate-y-1/2 md:right-6 md:top-auto md:bottom-[60px] md:translate-y-0 lg:right-10 lg:bottom-[60px]'
+    )
   })
 
   it('builds tab-scoped multipart and applies only the requested section', () => {

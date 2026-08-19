@@ -873,29 +873,38 @@ iframe.goog-te-banner-frame {
 }
 
 /* Live agent panel scroll (embedded concierge / live agent modals) */
-.vbiz-preview-live-agent .vbiz-live-agent {
+.vbiz-preview-live-agent .vbiz-live-agent,
+.vbiz-preview-live-agent .live-ai-agent-panel {
   position: relative;
 }
 
-.vbiz-profile-root[data-embedded] .vbiz-live-agent .pointer-events-auto[class*='rounded-3xl'] {
+.vbiz-profile-root[data-embedded] .vbiz-live-agent .pointer-events-auto[class*='rounded-3xl'],
+.vbiz-profile-root[data-embedded] .live-ai-agent-panel .pointer-events-auto[class*='rounded-3xl'] {
   max-height: min(50dvh, 320px);
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--vbiz-scrollbar-thumb) var(--vbiz-scrollbar-track);
 }
 
-.vbiz-profile-root[data-embedded] .vbiz-live-agent .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar {
+.vbiz-profile-root[data-embedded] .vbiz-live-agent .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar,
+.vbiz-profile-root[data-embedded] .live-ai-agent-panel .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar {
   width: var(--vbiz-scrollbar-size);
   height: var(--vbiz-scrollbar-size);
 }
 
-.vbiz-profile-root[data-embedded] .vbiz-live-agent .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar-thumb {
+.vbiz-profile-root[data-embedded] .vbiz-live-agent .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar-thumb,
+.vbiz-profile-root[data-embedded]
+  .live-ai-agent-panel
+  .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar-thumb {
   border-radius: 9999px;
   background: var(--vbiz-scrollbar-thumb);
 }
 
 .vbiz-profile-root[data-embedded]
   .vbiz-live-agent
+  .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar-thumb:hover,
+.vbiz-profile-root[data-embedded]
+  .live-ai-agent-panel
   .pointer-events-auto[class*='rounded-3xl']::-webkit-scrollbar-thumb:hover {
   background: var(--vbiz-scrollbar-thumb-hover);
 }

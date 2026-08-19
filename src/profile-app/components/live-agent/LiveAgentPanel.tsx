@@ -12,6 +12,7 @@ import { openExternalIntent, toMailtoHref, toSmsHref, toTelHref } from '@/profil
 
 import { buildLiveAgentToolConfig } from '@/lib/liveAgent/tools'
 import { displayLiveAgentChromeStyle } from '@/lib/vcardDisplaySettings'
+import { LIVE_AGENT_PUBLIC_PLACEMENT } from '@/profile-app/lib/liveAgentPlacement'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { GoogleGenAI, LiveServerMessage, Modality, Session } from '@google/genai'
 import { AlertCircle, Bot, Loader2, Mic, MicOff, Square, Volume2 } from 'lucide-react'
@@ -565,8 +566,7 @@ export function LiveAgentPanel({
       drag
       dragMomentum={false}
       className={`${embedded ? 'absolute' : 'fixed'} live-ai-agent-panel pointer-events-none z-100 flex flex-col items-end gap-2 md:gap-4 ${
-        wrapperClassName ??
-        'top-1/2 right-3 -translate-y-1/2 md:top-auto md:right-6 md:bottom-6 md:translate-y-0 lg:right-10 lg:bottom-10'
+        wrapperClassName ?? LIVE_AGENT_PUBLIC_PLACEMENT
       }`}
     >
       <AnimatePresence>

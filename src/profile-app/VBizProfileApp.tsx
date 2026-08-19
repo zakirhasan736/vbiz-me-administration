@@ -17,6 +17,7 @@ import { ProfileLanguageButton } from './components/ProfileLanguageButton'
 import { ProfileSectionOutlet } from './components/ProfileSectionOutlet'
 import { useLiveAgentProfileActions } from './hooks/useLiveAgentProfileActions'
 import { useProfileSectionScroll } from './hooks/useProfileSectionScroll'
+import { LIVE_AGENT_V2_PUBLIC_PLACEMENT } from './lib/liveAgentPlacement'
 import { useProfileDisplay } from './lib/profileDisplayContext'
 import { shareProfile } from './lib/shareProfile'
 import type { VBizProfileAppProps } from './profilePublicProps'
@@ -265,7 +266,7 @@ export function VBizProfileApp({
         cardData={liveAgentCardData}
         systemInstruction={liveAgentSystemPrompt}
         readyToConnect={introAllowed}
-        wrapperClassName="right-3 top-1/2 -translate-y-1/2 md:right-6 md:top-auto md:bottom-[60px] md:translate-y-0 lg:right-10 lg:bottom-[60px]"
+        wrapperClassName={LIVE_AGENT_V2_PUBLIC_PLACEMENT}
       />
 
       <ProfileHomeModals

@@ -4,6 +4,7 @@ import { ExternalIntentPrompt } from '@/profile-app/components/ExternalIntentPro
 import { LiveAgentPanel } from '@/profile-app/components/live-agent/LiveAgentPanel'
 import type { UseLiveAgentOptions } from '@/profile-app/components/live-agent/useLiveAgent'
 import { isInIframe } from '@/profile-app/lib/isInIframe'
+import { LIVE_AGENT_EMBEDDED_INNER_CLASS, LIVE_AGENT_PREVIEW_PORTAL_CLASS } from '@/profile-app/lib/liveAgentPlacement'
 import { DEFAULT_LIVE_AGENT_CARD, type LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
 import { useCallback, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
@@ -64,7 +65,7 @@ export function LiveAgent({
         systemInstruction={systemInstruction}
         readyToConnect={readyToConnect}
         embedded={embedded}
-        wrapperClassName={wrapperClassName}
+        wrapperClassName={embedded ? LIVE_AGENT_EMBEDDED_INNER_CLASS : wrapperClassName}
       />
       {!embedded ? <ExternalIntentPrompt /> : null}
     </>
@@ -74,12 +75,7 @@ export function LiveAgent({
 
   if (!phoneShell) return null
 
-  return createPortal(
-    <div className="vbiz-preview-live-agent pointer-events-none absolute right-3 bottom-3 z-110 flex flex-col items-end">
-      {panel}
-    </div>,
-    phoneShell
-  )
+  return createPortal(<div className={LIVE_AGENT_PREVIEW_PORTAL_CLASS}>{panel}</div>, phoneShell)
 }
 
 export type { LiveAgentCardData }

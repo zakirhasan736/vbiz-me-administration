@@ -15,6 +15,7 @@ import { useLiveAgentProfileActions } from '@/profile-app/hooks/useLiveAgentProf
 import { useProfileHomeModalEvents } from '@/profile-app/hooks/useProfileHomeModalEvents'
 import { useProfileMotionReady } from '@/profile-app/hooks/useProfileMotionReady'
 import { useProfileTheme } from '@/profile-app/hooks/useProfileTheme'
+import { LIVE_AGENT_PUBLIC_PLACEMENT } from '@/profile-app/lib/liveAgentPlacement'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import type { VBizProfileAppProps } from '@/profile-app/profilePublicProps'
 import { DEMO_PROFILE_PROPS } from '@/profile-app/profilePublicProps'
@@ -235,6 +236,7 @@ export function VBizProfileAppV1({
         cardData={liveAgentCardData}
         systemInstruction={liveAgentSystemPrompt}
         readyToConnect={introAllowed}
+        wrapperClassName={LIVE_AGENT_PUBLIC_PLACEMENT}
       />
 
       <ProfileHomeModals
