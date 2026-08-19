@@ -3,6 +3,7 @@
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
 import NotificationCenter from '@/components/NotificationCenter'
+import { SwitchToCrmButton } from '@/components/SwitchToCrmButton'
 import { UserDropdown } from '@/components/UserDropdown'
 import { isSuperAdminRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
@@ -312,6 +313,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </button>
 
               <div className="mx-1 hidden h-8 w-px bg-slate-200 sm:block dark:bg-white/10" />
+
+              <SwitchToCrmButton />
 
               <UserDropdown />
             </div>

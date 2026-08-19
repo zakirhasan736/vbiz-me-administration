@@ -31,9 +31,11 @@ import {
 } from '@/lib/createCardTabs'
 import { ensureNotificationPermission, saveNotificationPrefs } from '@/lib/notifications'
 import { normalizeCardSeo, normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
+import { getOverallCardCompletionPercent } from '@/lib/vcardCompletion'
 import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import type { SettingsTabId } from '@/lib/vcardEditorRoutes'
 import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
+import { getNavItemById, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
 import type { VCardData } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import {
@@ -500,6 +502,13 @@ function fieldHasContent(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(fieldHasContent)
   if (value && typeof value === 'object') return Object.values(value).some(fieldHasContent)
   return hasText(value)
+}
+
+function editorCardCompletePercent(navIds: string[], data: VCardData): number {
+  const items = navIds
+    .map((id) => getNavItemById(id, NAV_BAR_NAV_ITEMS))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+  return getOverallCardCompletionPercent(items, data)
 }
 
 function payloadHasContent(section: string, payload: Record<string, unknown>): boolean {
@@ -1940,8 +1949,8 @@ export function AiCardAgentWizard({
     pushMsg(
       'assistant',
       isEdit
-        ? `Preview ready at ${score}%. Confirm to save these AI updates on the current card, or keep editing in chat.`
-        : `Preview ready at ${score}%. Confirm to create the card, or keep editing in chat.`
+        ? `Preview ready. The editor Card complete score is ${editorCardCompletePercent(activeNav, draftRef.current)}%. Confirm to save these AI updates, or keep editing in chat.`
+        : `Preview ready. The editor Card complete score is ${editorCardCompletePercent(activeNav, draftRef.current)}%. Confirm to create, then finish remaining fields in the editor.`
     )
   }
 
@@ -1989,22 +1998,10 @@ export function AiCardAgentWizard({
       tick = setInterval(() => {
         setCreateProgress((p) => (p >= 88 ? p : p + Math.random() * 6 + 2))
       }, 160)
-      if (!isEdit && sessionIdRef.current) {
-        try {
-          await cardAgentJobPost(sessionIdRef.current, 'assemble', {})
-          const applied = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'apply', {
-            publish: publish === true,
-            seo: draftRef.current.seo,
-          })
-          if (applied.profileId) {
-            createdId = applied.profileId
-          }
-        } catch {
-          createdId = undefined
-        }
-      }
-      if (!createdId) {
-        createdId = (await onCreateCard(isEdit ? undefined : { publish: publish === true })) || undefined
+      if (!isEdit) {
+        createdId = (await onCreateCard({ publish: publish === true })) || undefined
+      } else {
+        createdId = (await onCreateCard()) || undefined
       }
       if (tick) clearInterval(tick)
       setCreateProgress(100)
@@ -2015,9 +2012,15 @@ export function AiCardAgentWizard({
         isEdit
           ? 'Saved. Your current card is updated. Close this or keep polishing in the editor.'
           : publish
-            ? 'Done! Your card is created and active. Continue to the editor to polish anything optional.'
-            : 'Done! Your card is saved as a draft. Continue to the editor when you are ready to activate it.'
+            ? 'Done! Your card is created and active. Opening the editor so Card complete matches this draft.'
+            : 'Done! Your card is saved as a draft. Opening the editor so you can keep editing with autosave.'
       )
+      if (!isEdit && createdId) {
+        window.setTimeout(() => {
+          onCreatedNavigate?.(createdId)
+          onClose()
+        }, 700)
+      }
     } catch (e) {
       if (tick) clearInterval(tick)
       const msg = e instanceof Error ? e.message : 'Create failed'
@@ -2235,9 +2238,7 @@ export function AiCardAgentWizard({
     () => launchTabs.reduce((sum, tab) => sum + tab.fields.filter((field) => !field.filled).length, 0),
     [launchTabs]
   )
-  const launchOverallPercent = launchTabs.length
-    ? Math.round(launchTabs.reduce((sum, tab) => sum + tab.percent, 0) / launchTabs.length)
-    : score
+  const launchOverallPercent = editorCardCompletePercent(activeNav, vCardData)
   const activeFeatureGuide = activeFeatureGuideKey
     ? acceptedFeatureDetails.find((feature) => feature.key === activeFeatureGuideKey) || null
     : null
@@ -2957,14 +2958,15 @@ export function AiCardAgentWizard({
 
               {incompleteLaunchTabs.length ? (
                 <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                  {launchOverallPercent}% ready with {launchEmptyFieldCount} empty field
+                  {launchOverallPercent}% complete in the card editor ({launchEmptyFieldCount} empty field
                   {launchEmptyFieldCount === 1 ? '' : 's'} across {incompleteLaunchTabs.length} tab
-                  {incompleteLaunchTabs.length === 1 ? '' : 's'}. Tap any tab to review, fill what AI can, skip, or{' '}
-                  {isEdit ? 'save now' : 'create now'} and finish inside the editor.
+                  {incompleteLaunchTabs.length === 1 ? '' : 's'}). Media, social, and extra fields still count after
+                  create. Tap a tab to review, or create now and finish in the editor.
                 </p>
               ) : (
                 <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                  All selected content tabs are ready. Media upload fields can still be improved in the editor.
+                  Selected tabs match the editor Card complete score ({launchOverallPercent}%). Media can still be added
+                  later.
                 </p>
               )}
 
@@ -3190,11 +3192,14 @@ export function AiCardAgentWizard({
                     {acceptedFeatureDetails
                       .filter((feature, index, all) => all.findIndex((row) => row.key === feature.key) === index)
                       .map((feature) => (
-                        <li
-                          key={`${feature.key}-${feature.title}`}
-                          className="text-[11px] font-semibold text-emerald-900/80 dark:text-emerald-100"
-                        >
-                          <span className="font-black">{feature.title}:</span> {feature.note}
+                        <li key={`${feature.key}-${feature.title}`}>
+                          <button
+                            type="button"
+                            onClick={() => void showFeatureGuide(feature)}
+                            className="w-full rounded-lg px-1 py-1 text-left text-[11px] font-semibold text-emerald-900/80 hover:bg-emerald-100/80 dark:text-emerald-100 dark:hover:bg-emerald-500/10"
+                          >
+                            <span className="font-black">{feature.title}:</span> {feature.note}
+                          </button>
                         </li>
                       ))}
                   </ul>

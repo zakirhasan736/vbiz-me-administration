@@ -11,6 +11,7 @@ import {
   vCardActivationProblemMessage,
   vCardCreationProblemMessage,
 } from '@/lib/cardActivation'
+import { readAiCardAgentOpen } from '@/lib/dashboardTour'
 import { broadcastPublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
@@ -203,7 +204,17 @@ function toastSaveError(message: string) {
 }
 
 const SAVE_SUCCESS_TOAST_DEDUPE_MS = 1800
+const UNSAVED_TOAST_DEDUPE_MS = 8000
 let lastSaveSuccessToast: { message: string; at: number } | null = null
+let lastUnsavedToastAt = 0
+
+function toastUnsavedChanges() {
+  if (readAiCardAgentOpen()) return
+  const now = Date.now()
+  if (now - lastUnsavedToastAt < UNSAVED_TOAST_DEDUPE_MS) return
+  lastUnsavedToastAt = now
+  notify.info('Save your changes to keep this card.', { title: 'Unsaved changes' })
+}
 
 function toastSaveSuccess(buckets: ReadonlySet<DirtyBucket>) {
   const message = buckets.size === 1 && buckets.has('profile') ? 'Card settings saved.' : 'Card changes saved.'
@@ -574,6 +585,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       setSaveStatus('dirty')
       setSaveError(null)
       if (cardId) writePendingCardSave(cardId, dirtyBucketsRef.current)
+      toastUnsavedChanges()
     },
     [cardId]
   )
@@ -982,22 +994,25 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const updateData = useCallback(
     (path: string, value: unknown) => {
       if (isCreateMode) {
-        setCreateDraft((prev) => {
-          let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
-          if (isExplainerMediaPath(path)) {
-            next = applyProfileMediaToExplainerTab(next, {
-              syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
-            })
+        const prev = createDraftRef.current
+        let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+        if (isExplainerMediaPath(path)) {
+          next = applyProfileMediaToExplainerTab(next, {
+            syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
+          })
+        }
+        if (isAppearanceOrThemePath(path)) {
+          next = {
+            ...next,
+            themeConfig: applyEditorSettingsToThemeConfig(next.themeConfig, next.theme, next.appearance),
           }
-          if (isAppearanceOrThemePath(path)) {
-            next = {
-              ...next,
-              themeConfig: applyEditorSettingsToThemeConfig(next.themeConfig, next.theme, next.appearance),
-            }
-          }
-          createDraftRef.current = next
-          return next
-        })
+        }
+        createDraftRef.current = next
+        setCreateDraft(next)
+        const saveWorthy =
+          isSaveWorthyChange(path, prev, next) ||
+          (isExplainerMediaPath(path) && isSaveWorthyChange('sectionPosts', prev, next))
+        if (saveWorthy) markDirty(dirtyBucketForPath(path))
         return
       }
       if (!cardId) return

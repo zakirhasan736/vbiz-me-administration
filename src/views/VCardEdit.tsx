@@ -743,7 +743,9 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 </p>
                 <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {isCreateMode
-                    ? 'Unsaved Profile'
+                    ? saveStatus === 'dirty'
+                      ? 'Unsaved changes — tap Unsaved to save this profile'
+                      : 'New profile — save when you are ready'
                     : `${vCardData.personal?.designation || 'Role'} • ${vCardData.personal?.profession || 'General'}`}
                 </p>
               </div>
@@ -961,14 +963,19 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 Add
               </button>
 
-              {!isCreateMode && saveStatusLabel && SaveStatusIcon && (
+              {saveStatusLabel && SaveStatusIcon && (
                 <button
                   type="button"
                   title={saveStatus === 'error' ? 'Save failed — click to retry' : saveStatusLabel}
                   onClick={() => {
-                    if (saveStatus === 'error' || saveStatus === 'dirty') {
-                      void flushSave().catch(() => undefined)
+                    if (saveStatus !== 'error' && saveStatus !== 'dirty') return
+                    if (isCreateMode) {
+                      void saveVCard()
+                        .then(() => notify.success('Draft saved.'))
+                        .catch(() => undefined)
+                      return
                     }
+                    void flushSave().catch(() => undefined)
                   }}
                   className={cn(
                     'flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-all',

@@ -16,6 +16,7 @@ import { Contact, LayoutDashboard, Menu, Moon, Sun, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { SwitchToCrmButton } from './SwitchToCrmButton'
 import { UserDropdown } from './UserDropdown'
 
 function subscribeToTheme(callback: () => void) {
@@ -194,6 +195,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             </button>
 
             <div className="hidden h-6 w-px bg-slate-200 lg:block dark:bg-white/10"></div>
+
+            <SwitchToCrmButton />
 
             <UserDropdown />
 
