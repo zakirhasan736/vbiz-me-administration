@@ -1,15 +1,37 @@
 const HTML_ENTITIES: Record<string, string> = {
   amp: '&',
   apos: "'",
+  cent: '¢',
+  copy: '©',
+  deg: '°',
+  divide: '÷',
+  emdash: '—',
+  ensp: ' ',
+  euro: '€',
   gt: '>',
+  hellip: '…',
+  laquo: '«',
   lt: '<',
+  mdash: '—',
+  middot: '·',
+  ndash: '–',
   nbsp: ' ',
+  pound: '£',
   quot: '"',
+  raquo: '»',
+  reg: '®',
+  rsquo: '’',
+  shy: '',
+  times: '×',
+  trade: '™',
+  yen: '¥',
+  zwj: '',
+  zwnj: '',
 }
 
 /** Decode named and numeric HTML entities; repeat once for double-encoded payloads. */
 export function decodeHtmlEntities(value: string): string {
-  const decoded = value.replace(/&(#(?:x[\da-f]+|\d+)|amp|apos|gt|lt|nbsp|quot);/gi, (match, entity: string) => {
+  const decoded = value.replace(/&(#(?:x[\da-f]+|\d+)|[a-z][a-z\d]+);/gi, (match, entity: string) => {
     if (entity.startsWith('#')) {
       const isHex = entity[1]?.toLowerCase() === 'x'
       const codePoint = Number.parseInt(entity.slice(isHex ? 2 : 1), isHex ? 16 : 10)

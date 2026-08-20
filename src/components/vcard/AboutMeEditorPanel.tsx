@@ -11,7 +11,7 @@ import {
   subscribeAboutMeDraft,
   type AboutMeDraft,
 } from '@/lib/aboutMeDraft'
-import { flushAboutMeUpsert, scheduleAboutMeUpsert } from '@/lib/aboutMePersist'
+import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { useVCard } from '@/lib/VCardContext'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
@@ -28,7 +28,7 @@ type AboutMeEditorPanelProps = {
 
 export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
   const dispatch = useAppDispatch()
-  const { vCardData } = useVCard()
+  const { vCardData, markAboutMeDirty } = useVCard()
   const draft = useSyncExternalStore(subscribeAboutMeDraft, getAboutMeDraft, getAboutMeDraft)
   const hydratedForId = useRef<string | null>(null)
 
@@ -75,7 +75,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
 
   const update = (partial: Partial<AboutMeDraft>) => {
     setAboutMeDraft(partial)
-    if (profileId) scheduleAboutMeUpsert(dispatch, profileId)
+    markAboutMeDirty()
   }
 
   const tabLabel = TAB_REGISTRY.about_me.label

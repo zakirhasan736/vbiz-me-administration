@@ -141,7 +141,9 @@ export function normalizeAboutMeResponse(response: AboutMeSectionResponse): Abou
     throw new Error(response.error || 'Failed to load about me content')
   }
 
-  const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'About Me'
+  const sectionTitle = decodeHtmlText(
+    response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'About Me'
+  )
 
   const items = (response.data.items ?? []).filter((item) => isActiveStatus(item.status)).map(mapAboutMeItemToListItem)
 

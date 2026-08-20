@@ -8,6 +8,7 @@ import type {
   ProfileAiSkillGroup,
   ProfileAiSocials,
 } from '@/interfaces/api/profileAiData'
+import { decodeHtmlText } from '@/lib/htmlText'
 
 type LooseRecord = Record<string, unknown>
 
@@ -20,6 +21,10 @@ function asString(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
   return fallback
+}
+
+function asText(value: unknown, fallback = ''): string {
+  return decodeHtmlText(asString(value, fallback))
 }
 
 function asNullableString(value: unknown): string | null {
@@ -74,9 +79,9 @@ function normalizeSkills(raw: unknown): ProfileAiSkillGroup[] {
   const order: string[] = []
 
   const pushSkill = (category: string, name: string) => {
-    const skill = name.trim()
+    const skill = decodeHtmlText(name.trim())
     if (!skill) return
-    const key = category.trim()
+    const key = decodeHtmlText(category.trim())
     let list = byCategory.get(key)
     if (!list) {
       list = []
@@ -127,8 +132,8 @@ function normalizeEducation(raw: unknown): ProfileAiEducation[] {
     .map((item) => {
       const e = asRecord(item)
       if (!e) return null
-      const title = asString(e.title || e.degree).trim()
-      const institute = asString(e.institute || e.institution || e.school).trim()
+      const title = asText(e.title || e.degree).trim()
+      const institute = asText(e.institute || e.institution || e.school).trim()
       return {
         title,
         institute,
@@ -146,14 +151,14 @@ function normalizeExperience(raw: unknown): ProfileAiExperience[] {
   for (const item of raw) {
     const e = asRecord(item)
     if (!e) continue
-    const jobTitle = asString(e.job_title ?? e.jobTitle ?? e.title).trim()
-    const company = asString(e.company).trim()
+    const jobTitle = asText(e.job_title ?? e.jobTitle ?? e.title).trim()
+    const company = asText(e.company).trim()
     if (!company && !jobTitle) continue
     result.push({
       title: jobTitle || undefined,
       company: company || undefined,
       job_title: jobTitle || undefined,
-      description: asString(e.description) || undefined,
+      description: asText(e.description) || undefined,
       from_date: formatLooseDate(e.from_date ?? e.fromDate) || undefined,
       to_date: formatLooseDateOrNull(e.to_date ?? e.toDate),
       current_status: asCurrentStatus(e.current_status ?? e.currentStatus, e.tillNow),
@@ -169,8 +174,8 @@ function normalizeServices(raw: unknown): ProfileAiService[] {
       const s = asRecord(item)
       if (!s) return null
       return {
-        title: asString(s.title).trim(),
-        description: asString(s.description),
+        title: asText(s.title).trim(),
+        description: asText(s.description),
       } satisfies ProfileAiService
     })
     .filter((s): s is ProfileAiService => Boolean(s && s.title))
@@ -183,8 +188,8 @@ function normalizePortfolio(raw: unknown): ProfileAiPortfolio[] {
       const p = asRecord(item)
       if (!p) return null
       return {
-        title: asString(p.title).trim(),
-        description: asString(p.description),
+        title: asText(p.title).trim(),
+        description: asText(p.description),
         url: asNullableString(p.url),
         status: typeof p.status === 'number' ? p.status : Number(p.status) || 1,
       } satisfies ProfileAiPortfolio
@@ -199,10 +204,10 @@ function normalizeCustomSections(raw: unknown): ProfileAiCustomSection[] {
       const c = asRecord(item)
       if (!c) return null
       return {
-        section: asString(c.section),
-        title: asString(c.title),
-        summary: asString(c.summary),
-        content: asString(c.content),
+        section: asText(c.section),
+        title: asText(c.title),
+        summary: asText(c.summary),
+        content: asText(c.content),
         date: asString(c.date),
       } satisfies ProfileAiCustomSection
     })
@@ -258,16 +263,16 @@ export function normalizeProfileAiData(raw: unknown): ProfileAiData | null {
   return {
     profileId: asString(data.profileId ?? data.profile_id ?? data.id),
     slug: asString(data.slug),
-    ownerName: asString(data.ownerName || data.owner_name || data.name),
-    title: asString(data.title || data.designation),
-    profession: asNullableString(data.profession),
-    company: asString(data.company || data.companyName || data.company_name),
+    ownerName: asText(data.ownerName || data.owner_name || data.name),
+    title: asText(data.title || data.designation),
+    profession: asNullableString(data.profession == null ? null : asText(data.profession)),
+    company: asText(data.company || data.companyName || data.company_name),
     email: asString(data.email),
     phone: asString(data.phone),
     whatsapp: asString(data.whatsapp),
     website: asString(data.website),
-    location: asString(data.location || data.address),
-    about: asString(data.about),
+    location: asText(data.location || data.address),
+    about: asText(data.about),
     socials: normalizeSocials(data.socials),
     skills: normalizeSkills(data.skills),
     services: normalizeServices(data.services),

@@ -1000,7 +1000,7 @@ const profilesApi = api.injectEndpoints({
     }),
     createProfile: builder.mutation<
       ApiProfile,
-      Partial<ReturnType<typeof mapVCardDataToProfilePayload>> & { ownerUserId?: string }
+      Partial<ReturnType<typeof mapVCardDataToProfilePayload>> & { ownerUserId?: string; creationKey?: string }
     >({
       query: (body) => ({ url: '/profiles', method: 'POST', body }),
       transformResponse: (res: Envelope<ApiProfile>) => res.data,

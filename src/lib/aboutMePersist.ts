@@ -13,12 +13,14 @@ let lastErrorToast: { message: string; at: number } | null = null
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'data' in err) {
-    const data = (err as { data?: { message?: string; errorMessages?: { message?: string }[] } }).data
+    const data = (err as { data?: { message?: string; requestId?: string; errorMessages?: { message?: string }[] } })
+      .data
+    const withReference = (message: string) => (data?.requestId ? `${message} (Reference: ${data.requestId})` : message)
     const details = data?.errorMessages
       ?.map((item) => item.message)
       .filter((message): message is string => Boolean(message))
-    if (details?.length) return details.join('. ')
-    if (data?.message) return data.message
+    if (details?.length) return withReference(details.join('. '))
+    if (data?.message) return withReference(data.message)
   }
   if (err instanceof Error && err.message) return err.message
   return 'Failed to save About Me'
@@ -99,6 +101,7 @@ export async function flushAboutMeUpsert(dispatch: AppDispatch, profileId?: stri
     })
     .catch((err) => {
       toastAboutMeError(errorMessage(err))
+      throw err
     })
     .finally(() => {
       if (inflight === task) inflight = null

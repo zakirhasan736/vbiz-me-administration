@@ -95,6 +95,7 @@ import {
   Eye,
   Loader2,
   Plus,
+  Save,
   Settings,
   Sparkles,
 } from 'lucide-react'
@@ -319,12 +320,22 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     saveStatus === 'saving'
       ? 'Saving…'
       : saveStatus === 'dirty'
-        ? 'Unsaved'
+        ? 'Unsaved changes'
         : saveStatus === 'saved'
           ? 'Saved'
           : saveStatus === 'error'
-            ? 'Save Failed'
+            ? 'Save failed'
             : null
+
+  const handleSaveChanges = useCallback(() => {
+    if (isCreateMode) {
+      void saveVCard()
+        .then(() => notify.success('Draft saved.'))
+        .catch(() => undefined)
+      return
+    }
+    void flushSave().catch(() => undefined)
+  }, [flushSave, isCreateMode, saveVCard])
 
   const publicCardPath = useMemo(() => buildProfilePath(vCardData.slug || ''), [vCardData.slug])
   const openPublicCard = useCallback(() => {
@@ -742,7 +753,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {isCreateMode
                     ? saveStatus === 'dirty'
-                      ? 'Unsaved changes — tap Unsaved to save this profile'
+                      ? 'Unsaved changes — select Save changes to create this profile'
                       : 'New profile — save when you are ready'
                     : `${vCardData.personal?.designation || 'Role'} • ${vCardData.personal?.profession || 'General'}`}
                 </p>
@@ -962,25 +973,15 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               </button>
 
               {saveStatusLabel && SaveStatusIcon && (
-                <button
-                  type="button"
-                  title={saveStatus === 'error' ? 'Save failed — click to retry' : saveStatusLabel}
-                  onClick={() => {
-                    if (saveStatus !== 'error' && saveStatus !== 'dirty') return
-                    if (isCreateMode) {
-                      void saveVCard()
-                        .then(() => notify.success('Draft saved.'))
-                        .catch(() => undefined)
-                      return
-                    }
-                    void flushSave().catch(() => undefined)
-                  }}
+                <span
+                  role="status"
+                  title={saveStatusLabel}
                   className={cn(
-                    'flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-all',
+                    'flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap',
                     saveStatus === 'error'
-                      ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
+                      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
                       : saveStatus === 'dirty'
-                        ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                        ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
                         : saveStatus === 'saving'
                           ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
                           : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
@@ -988,6 +989,18 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 >
                   <SaveStatusIcon className={cn('h-3.5 w-3.5', saveStatus === 'saving' && 'animate-spin')} />
                   {saveStatusLabel}
+                </span>
+              )}
+
+              {(saveStatus === 'dirty' || saveStatus === 'error') && (
+                <button
+                  type="button"
+                  onClick={handleSaveChanges}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-[12px] font-bold whitespace-nowrap text-white transition-colors hover:bg-indigo-700"
+                  title={saveStatus === 'error' ? 'Retry saving changes' : 'Save changes'}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {saveStatus === 'error' ? 'Retry save' : 'Save changes'}
                 </button>
               )}
 

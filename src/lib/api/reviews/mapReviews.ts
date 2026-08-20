@@ -5,14 +5,7 @@ import type {
   ReviewsSectionResponse,
 } from '@/interfaces/api/reviews.interface'
 import { isPublishedStatus, resolveFeaturedImageUrl } from '@/lib/api/resolveFeaturedImageUrl'
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
 
 function toPlainDescription(description: string | null): { plain: string; html: string } {
   const html = description?.trim() ?? ''
@@ -74,7 +67,7 @@ export function mapReviewItemToListItem(item: ReviewItem): ReviewListItem {
   const isLinkCard = isLeaveReviewItem(item)
   return {
     id: item.id,
-    title: reviewTitle(item) || (isLinkCard ? 'Leave a Review' : 'Reviewer'),
+    title: decodeHtmlText(reviewTitle(item) || (isLinkCard ? 'Leave a Review' : 'Reviewer')),
     plainDescription: plain,
     htmlDescription: html,
     image:
@@ -102,7 +95,7 @@ export function buildReviewsQueryResult(reviewItems: ReviewItem[], sectionTitle 
     reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : 0
 
   return {
-    sectionTitle,
+    sectionTitle: decodeHtmlText(sectionTitle),
     slides: reviews,
     leaveReviewUrl: linkCards.find((item) => item.linkUrl)?.linkUrl ?? null,
     reviewCount: reviews.length,
