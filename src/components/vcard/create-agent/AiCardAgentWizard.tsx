@@ -56,6 +56,7 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { completeCreatedCardHandoff } from './createdCardHandoff'
 
 type ChatRole = 'assistant' | 'user' | 'system'
 type Phase =
@@ -1956,8 +1957,12 @@ export function AiCardAgentWizard({
 
   const finishAndOpenEditor = () => {
     onFinish?.()
-    onCreatedNavigate?.(createdCardId || undefined)
-    onClose()
+    completeCreatedCardHandoff({
+      isEdit,
+      cardId: createdCardId,
+      onCreatedNavigate,
+      onClose,
+    })
   }
 
   const confirmCreateCard = async (modeChoice: LaunchMode = launchMode) => {
@@ -2017,8 +2022,12 @@ export function AiCardAgentWizard({
       )
       if (!isEdit && createdId) {
         window.setTimeout(() => {
-          onCreatedNavigate?.(createdId)
-          onClose()
+          completeCreatedCardHandoff({
+            isEdit,
+            cardId: createdId,
+            onCreatedNavigate,
+            onClose,
+          })
         }, 700)
       }
     } catch (e) {
