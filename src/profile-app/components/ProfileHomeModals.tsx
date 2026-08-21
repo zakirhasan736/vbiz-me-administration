@@ -12,6 +12,7 @@ import { SaveContactModal } from '@/profile-app/components/SaveContactModal'
 import { SaveToWalletModal } from '@/profile-app/components/SaveToWalletModal'
 import { ShareModal } from '@/profile-app/components/ShareModal'
 import dynamic from 'next/dynamic'
+import { useState } from 'react'
 
 const NotepadModal = dynamic(
   () => import('@/profile-app/v3/components/NotepadModal').then((m) => ({ default: m.NotepadModal })),
@@ -45,6 +46,12 @@ export function ProfileHomeModals({
 }: ProfileHomeModalsProps) {
   const ownerId = cardOwnerId ?? '91'
   const stillAvatar = avatarUrl && !isVideoUrl(avatarUrl) ? avatarUrl : null
+  const [pwaOpenedAfterContactSave, setPwaOpenedAfterContactSave] = useState(false)
+
+  const closePwaModal = () => {
+    setPwaOpenedAfterContactSave(false)
+    onClose()
+  }
 
   return (
     <>
@@ -57,17 +64,21 @@ export function ProfileHomeModals({
       <SaveContactModal
         isOpen={activeModal === 'contact'}
         onClose={onClose}
-        onSuccess={() => onSetModal('pwa')}
+        onSuccess={() => {
+          setPwaOpenedAfterContactSave(true)
+          onSetModal('pwa')
+        }}
         profileId={cardOwnerId}
         cardSlug={cardSlug}
         ownerName={ownerName}
       />
       <SaveCardPwaModal
         isOpen={activeModal === 'pwa'}
-        onClose={onClose}
+        onClose={closePwaModal}
         ownerName={ownerName}
         avatarUrl={stillAvatar}
         cardSlug={cardSlug}
+        contactJustSaved={pwaOpenedAfterContactSave}
       />
       <NotificationFollowModal
         isOpen={activeModal === 'follow'}

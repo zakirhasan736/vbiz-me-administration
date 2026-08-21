@@ -1,4 +1,5 @@
 import { CardScopeProvider, type CardScopeMode } from '@/lib/card-scope'
+import { setAiCardAgentOpen } from '@/lib/dashboardTour'
 import { AUTOSAVE_DEBOUNCE_MS, AUTOSAVE_MAX_MS } from '@/lib/vcardAutosave'
 import { useVCard, VCardProvider } from '@/lib/VCardContext'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
@@ -249,6 +250,7 @@ describe('VCardProvider autosave and creation', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     localStorage.clear()
+    setAiCardAgentOpen(false)
     document.body.innerHTML = ''
     mocks.state = null
     mocks.dispatch.mockReset()
@@ -493,7 +495,7 @@ describe('VCardProvider autosave and creation', () => {
     expect(rendered!.api.saveStatus).not.toBe('saving')
   })
 
-  it('keeps create-mode edits local until creating the draft', async () => {
+  it('autosaves a complete create-mode card as a private draft and opens its real editor', async () => {
     mocks.state = makeState(null)
     rendered = await renderProvider({ mode: 'create', cardId: null })
 
@@ -503,20 +505,18 @@ describe('VCardProvider autosave and creation', () => {
       rendered!.api.updateData('personal.email', 'owner@example.com')
       rendered!.api.updateData('personal.phone', '+1 202 555 0101')
       rendered!.api.updateData('slug', 'new-card-owner')
-      vi.advanceTimersByTime(3000)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS - 1)
       await flushMicrotasks()
     })
 
     expect(mocks.updateProfileCard).not.toHaveBeenCalled()
     expect(mocks.createProfile).not.toHaveBeenCalled()
 
-    let createdId: string | void = undefined
     await act(async () => {
-      createdId = await rendered!.api.saveVCard({ skipNavigate: true })
+      vi.advanceTimersByTime(1)
       await flushMicrotasks()
     })
 
-    expect(createdId).toBe('created-card')
     expect(mocks.createProfile).toHaveBeenCalledTimes(1)
     expect(mocks.createProfile).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -527,7 +527,34 @@ describe('VCardProvider autosave and creation', () => {
       })
     )
     expect(mocks.clearCreateCardOwner).toHaveBeenCalledTimes(1)
-    expect(mocks.routerPush).not.toHaveBeenCalled()
+    expect(mocks.routerPush).toHaveBeenCalledWith('/vcards/edit/home?cardId=created-card')
+  })
+
+  it('waits until the AI wizard closes before autosaving its complete draft', async () => {
+    mocks.state = makeState(null)
+    rendered = await renderProvider({ mode: 'create', cardId: null })
+    setAiCardAgentOpen(true)
+
+    await act(async () => {
+      rendered!.api.updateData('personal.fullName', 'AI Card Owner')
+      rendered!.api.updateData('personal.dob', '1990-07-18')
+      rendered!.api.updateData('personal.email', 'ai@example.com')
+      rendered!.api.updateData('personal.phone', '+1 202 555 0101')
+      rendered!.api.updateData('slug', 'ai-card-owner')
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      await flushMicrotasks()
+    })
+
+    expect(mocks.createProfile).not.toHaveBeenCalled()
+
+    await act(async () => {
+      setAiCardAgentOpen(false)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      await flushMicrotasks()
+    })
+
+    expect(mocks.createProfile).toHaveBeenCalledTimes(1)
+    expect(mocks.routerPush).toHaveBeenCalledWith('/vcards/edit/home?cardId=created-card')
   })
 
   it('uses one create request when Save is triggered twice concurrently', async () => {

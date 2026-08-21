@@ -11,7 +11,7 @@ import {
   vCardActivationProblemMessage,
   vCardCreationProblemMessage,
 } from '@/lib/cardActivation'
-import { readAiCardAgentOpen } from '@/lib/dashboardTour'
+import { AI_CARD_AGENT_EVENT, readAiCardAgentOpen } from '@/lib/dashboardTour'
 import { broadcastPublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
@@ -238,17 +238,7 @@ function toastSaveError(message: string) {
 }
 
 const SAVE_SUCCESS_TOAST_DEDUPE_MS = 1800
-const UNSAVED_TOAST_DEDUPE_MS = 8000
 let lastSaveSuccessToast: { message: string; at: number } | null = null
-let lastUnsavedToastAt = 0
-
-function toastUnsavedChanges() {
-  if (readAiCardAgentOpen()) return
-  const now = Date.now()
-  if (now - lastUnsavedToastAt < UNSAVED_TOAST_DEDUPE_MS) return
-  lastUnsavedToastAt = now
-  notify.info('Save your changes to keep this card.', { title: 'Unsaved changes' })
-}
 
 function toastSaveSuccess(buckets: ReadonlySet<DirtyBucket>) {
   const message = buckets.size === 1 && buckets.has('profile') ? 'Card settings saved.' : 'Card changes saved.'
@@ -266,6 +256,12 @@ function toastSaveSuccess(buckets: ReadonlySet<DirtyBucket>) {
 
 function isAppearanceOrThemePath(path: string): boolean {
   return path === 'theme' || path.startsWith('theme.') || path === 'appearance' || path.startsWith('appearance.')
+}
+
+function isCreateDraftAutosaveReady(data: VCardData): boolean {
+  return Boolean(
+    data.personal?.fullName?.trim() && data.slug?.trim() && collectVCardCreationProblems(data).length === 0
+  )
 }
 
 export function VCardProvider({ children }: { children: React.ReactNode }) {
@@ -321,7 +317,9 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const lastSavedProfilePayloadRef = useRef<string>('')
   const editDataRef = useRef<VCardData | null>(null)
   const dirtyBucketsRef = useRef<Set<DirtyBucket>>(new Set())
-  const autosaveSchedulerRef = useRef(createAutosaveScheduler())
+  // A brand-new card waits for a genuine typing pause before creating and
+  // navigating. Once it has a real ID, edit mode also uses the max checkpoint.
+  const autosaveSchedulerRef = useRef(createAutosaveScheduler(isCreateMode ? { maxMs: 0 } : undefined))
   const scheduleAutosaveRef = useRef<() => void>(() => undefined)
   const savingRef = useRef(false)
   const pendingResaveRef = useRef(false)
@@ -329,6 +327,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const editorHydratedForIdRef = useRef<string | null>(null)
   const createPromiseRef = useRef<Promise<string> | null>(null)
   const createdProfileIdRef = useRef<string | null>(null)
+  const createAutosaveRef = useRef<() => Promise<string | void>>(async () => undefined)
 
   const [saveStatus, setSaveStatus] = useState<VCardSaveStatus>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -627,7 +626,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       setSaveStatus('dirty')
       setSaveError(null)
       if (cardId) writePendingCardSave(cardId, dirtyBucketsRef.current)
-      toastUnsavedChanges()
     },
     [cardId]
   )
@@ -992,7 +990,16 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   }, [isCreateMode, cardId, persistDirtyBuckets, invalidateSettingsPublicTags])
 
   const scheduleAutosave = useCallback(() => {
-    if (isCreateMode) return
+    if (isCreateMode) {
+      autosaveSchedulerRef.current.schedule(() => {
+        if (readAiCardAgentOpen() || createdProfileIdRef.current) return
+        if (!isCreateDraftAutosaveReady(createDraftRef.current)) return
+        void createAutosaveRef.current().catch(() => {
+          // Status/error already set by saveVCard.
+        })
+      })
+      return
+    }
     autosaveSchedulerRef.current.schedule(() => {
       void runPersist().catch(() => {
         // Status/error already set in runPersist.
@@ -1001,6 +1008,17 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   }, [isCreateMode, runPersist])
 
   scheduleAutosaveRef.current = scheduleAutosave
+
+  useEffect(() => {
+    if (!isCreateMode) return
+    const onAgentState = (event: Event) => {
+      const open = (event as CustomEvent<{ open?: boolean }>).detail?.open
+      if (open !== false || !saveGateRef.current.dirty) return
+      scheduleAutosaveRef.current()
+    }
+    window.addEventListener(AI_CARD_AGENT_EVENT, onAgentState)
+    return () => window.removeEventListener(AI_CARD_AGENT_EVENT, onAgentState)
+  }, [isCreateMode])
 
   const flushSave = useCallback(async () => {
     if (isCreateMode) return
@@ -1015,7 +1033,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   }, [flushSave])
 
   useEffect(() => {
-    if (isCreateMode) return
+    const scheduler = autosaveSchedulerRef.current
+    if (isCreateMode) return () => scheduler.cancel()
 
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
@@ -1033,7 +1052,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       void flushSaveRef.current()
     }
 
-    const scheduler = autosaveSchedulerRef.current
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', onPageHide)
     window.addEventListener('beforeunload', onBeforeUnload)
@@ -1067,7 +1085,10 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const saveWorthy =
           isSaveWorthyChange(path, prev, next) ||
           (isExplainerMediaPath(path) && isSaveWorthyChange('sectionPosts', prev, next))
-        if (saveWorthy) markDirty(dirtyBucketForPath(path))
+        if (saveWorthy) {
+          markDirty(dirtyBucketForPath(path))
+          scheduleAutosave()
+        }
         return
       }
       if (!cardId) return
@@ -1109,8 +1130,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
   const markAboutMeDirty = useCallback(() => {
     markDirty('aboutMe')
-    if (!isCreateMode) scheduleAutosave()
-  }, [isCreateMode, markDirty, scheduleAutosave])
+    scheduleAutosave()
+  }, [markDirty, scheduleAutosave])
 
   const persistCollections = useCallback(
     async (profileId: string, data: VCardData) => {
@@ -1286,6 +1307,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       flushSave,
     ]
   )
+
+  createAutosaveRef.current = () => saveVCard({ publish: false })
 
   const value = useMemo(
     () => ({

@@ -31,6 +31,8 @@ export type AnalyzeResponse = {
 
 export type SectionFillPayload = Record<string, unknown>
 
+export const MAX_AI_SECTION_ITEMS = 5
+
 function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
@@ -84,7 +86,15 @@ export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewE
   if (!Array.isArray(payload.reviews)) return []
   const out: VCardReviewEntry[] = []
   for (const row of payload.reviews) {
-    const r = row as { author?: string; text?: string; rating?: number; isSample?: boolean; label?: string }
+    const r = row as {
+      author?: string
+      text?: string
+      rating?: number
+      imageUrl?: string
+      url?: string
+      isSample?: boolean
+      label?: string
+    }
     if (r.isSample) continue
     if (
       String(r.label || '')
@@ -103,9 +113,10 @@ export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewE
       author: author || 'Client',
       text,
       rating,
-      imageUrl: '',
-      url: '',
+      imageUrl: String(r.imageUrl || '').trim(),
+      url: String(r.url || '').trim(),
     })
+    if (out.length >= MAX_AI_SECTION_ITEMS) break
   }
   return out
 }
@@ -115,7 +126,7 @@ export function mapBlogsFromPayload(payload: SectionFillPayload): VCardGeneralPo
   if (!Array.isArray(payload.blogs)) return []
   const out: VCardGeneralPost[] = []
   for (const row of payload.blogs) {
-    const b = row as { title?: string; description?: string; category?: string }
+    const b = row as { title?: string; description?: string; category?: string; url?: string; imageUrl?: string }
     const title = String(b.title || '').trim()
     const description = String(b.description || '').trim()
     if (!title && !description) continue
@@ -124,11 +135,12 @@ export function mapBlogsFromPayload(payload: SectionFillPayload): VCardGeneralPo
       category: String(b.category || 'News').trim() || 'News',
       title: title || 'Post',
       description,
-      customUrl: '',
-      featuredImage: '',
+      customUrl: String(b.url || '').trim(),
+      featuredImage: String(b.imageUrl || '').trim(),
       date: new Date().toISOString().slice(0, 10),
       active: true,
     })
+    if (out.length >= MAX_AI_SECTION_ITEMS) break
   }
   return out
 }
@@ -207,7 +219,17 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
 
   if (section === 'blogs') {
     const mapped = mapBlogsFromPayload(payload)
-    if (mapped.length) next.generalPosts = [...(next.generalPosts || []), ...mapped]
+    if (mapped.length) {
+      const seen = new Set<string>()
+      next.generalPosts = [...(next.generalPosts || []), ...mapped]
+        .filter((item) => {
+          const key = `${item.title.trim().toLowerCase()}|${item.description.trim().toLowerCase()}`
+          if (!key.replace('|', '') || seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        .slice(0, MAX_AI_SECTION_ITEMS)
+    }
   }
 
   if (section === 'portfolio') {
@@ -217,18 +239,39 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
 
   if (section === 'reviews') {
     const mapped = mapReviewsFromPayload(payload)
-    if (mapped.length) next.reviews = [...(next.reviews || []), ...mapped]
+    if (mapped.length) {
+      const seen = new Set<string>()
+      next.reviews = [...(next.reviews || []), ...mapped]
+        .filter((item) => {
+          const key = `${item.author.trim().toLowerCase()}|${item.text.trim().toLowerCase()}`
+          if (!key.replace('|', '') || seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        .slice(0, MAX_AI_SECTION_ITEMS)
+    }
   }
 
   if (section === 'skills' && Array.isArray(payload.skills)) {
-    next.skills = [
-      ...(next.skills || []),
-      ...payload.skills.map((s: { type?: string; skills?: string[] }) => ({
-        id: uid('skill'),
-        type: s.type || 'General',
-        skills: Array.isArray(s.skills) ? s.skills.filter(Boolean) : [],
-      })),
-    ]
+    const seen = new Set<string>()
+    let remaining = MAX_AI_SECTION_ITEMS
+    next.skills = [...(next.skills || []), ...payload.skills].flatMap((raw) => {
+      if (remaining <= 0) return []
+      const s = raw as { id?: string; type?: string; skills?: string[] }
+      const skills = (Array.isArray(s.skills) ? s.skills : [])
+        .map((skill) => String(skill || '').trim())
+        .filter((skill) => {
+          const key = skill.toLowerCase()
+          if (!key || seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        .slice(0, remaining)
+      remaining -= skills.length
+      return skills.length
+        ? [{ id: s.id || uid('skill'), type: String(s.type || 'General').trim() || 'General', skills }]
+        : []
+    })
   }
 
   if (section === 'education' && Array.isArray(payload.education)) {
@@ -272,15 +315,25 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
   }
 
   if (section === 'faqs' && Array.isArray(payload.faqs)) {
-    next.faqs = [
-      ...(next.faqs || []),
-      ...payload.faqs.map((f: { question?: string; answer?: string }) => ({
+    const generated = payload.faqs.map(
+      (f: { question?: string; answer?: string; imageUrl?: string; url?: string }) => ({
         id: uid('faq'),
-        question: f.question || '',
-        answer: f.answer || '',
+        question: String(f.question || '').trim(),
+        answer: String(f.answer || '').trim(),
+        featuredImage: String(f.imageUrl || '').trim(),
+        url: String(f.url || '').trim(),
         active: true,
-      })),
-    ]
+      })
+    )
+    const seen = new Set<string>()
+    next.faqs = [...(next.faqs || []), ...generated]
+      .filter((item) => {
+        const key = `${item.question.trim().toLowerCase()}|${item.answer.trim().toLowerCase()}`
+        if (!key.replace('|', '') || seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      .slice(0, MAX_AI_SECTION_ITEMS)
   }
 
   return syncMyInfoFromPersonal(next)

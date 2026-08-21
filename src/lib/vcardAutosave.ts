@@ -156,7 +156,7 @@ export function createAutosaveScheduler(options?: { idleMs?: number; maxMs?: num
       pending = run
       if (idleTimer) clearTimeout(idleTimer)
       idleTimer = setTimeout(fire, idleMs)
-      if (!maxTimer) maxTimer = setTimeout(fire, maxMs)
+      if (maxMs > 0 && !maxTimer) maxTimer = setTimeout(fire, maxMs)
     },
     cancel() {
       pending = null

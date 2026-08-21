@@ -1,7 +1,10 @@
 'use client'
 
 import { AdminUserListSkeleton } from '@/components/admin/AdminUserListSkeleton'
-import CorporateManageAccessDialog from '@/components/admin/CorporateManageAccessDialog'
+import CorporateManageAccessDialog, {
+  CorporateManageAccessFields,
+} from '@/components/admin/CorporateManageAccessDialog'
+import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
 import { StatNumber } from '@/components/ui/StatNumber'
@@ -35,13 +38,20 @@ import {
   setTotal,
 } from '@/redux/features/adminUsers/adminUsersList.slice'
 import { cn } from '@/utils/cn'
+import { getPasswordRules, isPasswordSameAsEmail } from '@/utils/passwordValidation'
 import {
   Activity,
   Ban,
   Briefcase,
   Building,
+  CheckCircle2,
+  Copy,
+  Download,
   Edit2,
+  Eye,
+  EyeOff,
   Link2,
+  MailCheck,
   Pause,
   Play,
   Search,
@@ -57,6 +67,99 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 const PAGE_SIZE = 8
 
 type OwnerRole = 'vcard-owner' | 'corporate-owner'
+
+type ProvisionedCredentials = {
+  name: string
+  email: string
+  password: string
+  loginUrl: string
+  accountType: string
+  emailVerificationRequired: boolean
+  paymentLinkUrl: string | null
+  firstInvoiceCents: number | null
+}
+
+function credentialFilename(name: string) {
+  const safe = name
+    .trim()
+    .replace(/[<>:"/\\|?*]+/g, '')
+    .replace(/\s+/g, '-')
+    .slice(0, 48)
+  return `${safe || 'customer'}-vbiz-login.png`
+}
+
+function drawRoundedRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  context.beginPath()
+  context.roundRect(x, y, width, height, radius)
+  context.fill()
+}
+
+function downloadCredentialsImage(credentials: ProvisionedCredentials) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1200
+  canvas.height = 760
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Image creation is unavailable in this browser.')
+
+  const background = context.createLinearGradient(0, 0, canvas.width, canvas.height)
+  background.addColorStop(0, '#0f172a')
+  background.addColorStop(1, '#312e81')
+  context.fillStyle = background
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  context.fillStyle = 'rgba(255,255,255,0.08)'
+  drawRoundedRect(context, 58, 58, 1084, 644, 42)
+  context.fillStyle = '#facc15'
+  context.font = '800 34px Arial, sans-serif'
+  context.fillText('vBiz Me', 105, 125)
+  context.fillStyle = '#ffffff'
+  context.font = '800 48px Arial, sans-serif'
+  context.fillText('Your account is ready', 105, 195)
+  context.fillStyle = '#cbd5e1'
+  context.font = '600 24px Arial, sans-serif'
+  context.fillText(`${credentials.name} · ${credentials.accountType}`, 105, 238)
+
+  const rows = [
+    ['EMAIL', credentials.email],
+    ['PASSWORD', credentials.password],
+    ['LOGIN', credentials.loginUrl],
+  ] as const
+  rows.forEach(([label, value], index) => {
+    const y = 305 + index * 105
+    context.fillStyle = '#94a3b8'
+    context.font = '800 18px Arial, sans-serif'
+    context.fillText(label, 105, y)
+    context.fillStyle = '#ffffff'
+    context.font = '700 28px Arial, sans-serif'
+    context.fillText(value, 105, y + 42, 980)
+  })
+
+  context.fillStyle = '#a7f3d0'
+  context.font = '700 21px Arial, sans-serif'
+  context.fillText(
+    credentials.emailVerificationRequired
+      ? 'Check the verification email before the first completed sign-in.'
+      : 'Email verification is complete. Sign in with the credentials above.',
+    105,
+    650,
+    980
+  )
+  context.fillStyle = '#94a3b8'
+  context.font = '500 17px Arial, sans-serif'
+  context.fillText('Share securely and change the password after the first login.', 105, 680)
+
+  const anchor = document.createElement('a')
+  anchor.href = canvas.toDataURL('image/png')
+  anchor.download = credentialFilename(credentials.name)
+  anchor.click()
+}
 
 function roleLabel(role: string) {
   if (role === 'corporate-owner') return 'Corporate Card Owner'
@@ -109,7 +212,19 @@ function billingStatusLabel(status: AdminUserRow['subscriptionStatus'] | undefin
 
 function rtkErrorMessage(err: unknown, fallback: string) {
   if (err && typeof err === 'object' && 'data' in err) {
-    const data = (err as { data?: { message?: string } }).data
+    const data = (
+      err as {
+        data?: { message?: string; errorMessages?: { path?: string; message?: string }[] }
+      }
+    ).data
+    const validationDetails = data?.errorMessages
+      ?.map((item) => {
+        const message = item.message?.trim()
+        if (!message) return null
+        return item.path?.trim() ? `${item.path}: ${message}` : message
+      })
+      .filter((message): message is string => Boolean(message))
+    if (validationDetails?.length) return validationDetails.join(' · ')
     if (data?.message) return data.message
   }
   if (err instanceof Error && err.message) return err.message
@@ -130,6 +245,7 @@ export default function AdminUsers() {
   const [editPassword, setEditPassword] = useState('')
   const [editPasswordConfirm, setEditPasswordConfirm] = useState('')
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
+  const [provisionedCredentials, setProvisionedCredentials] = useState<ProvisionedCredentials | null>(null)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -145,18 +261,18 @@ export default function AdminUsers() {
 
   const [newName, setNewName] = useState('')
   const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
   const [newCompany, setNewCompany] = useState('')
   const [newPackageId, setNewPackageId] = useState('')
   const [newCardLimit, setNewCardLimit] = useState('')
   const [newNegotiatedMonthly, setNewNegotiatedMonthly] = useState('')
-  const [newSignupFee, setNewSignupFee] = useState('')
   const [newFeatureOverrides, setNewFeatureOverrides] = useState<{ featureKey: string; featureValue: string | null }[]>(
     []
   )
-  const [isCreateAccessOpen, setIsCreateAccessOpen] = useState(false)
   const [isEditAccessOpen, setIsEditAccessOpen] = useState(false)
   const [editNegotiatedMonthly, setEditNegotiatedMonthly] = useState('')
-  const [editSignupFee, setEditSignupFee] = useState('')
 
   const filterKey = `${debouncedQ}|${roleFilter}|${statusFilter}`
   const prevFilterKeyRef = useRef(filterKey)
@@ -280,12 +396,23 @@ export default function AdminUsers() {
   const resetCreateForm = () => {
     setNewName('')
     setNewEmail('')
+    setNewPassword('')
+    setNewPasswordConfirm('')
+    setShowNewPassword(false)
     setNewCompany('')
     setNewPackageId('')
     setNewCardLimit('')
     setNewNegotiatedMonthly('')
     setNewFeatureOverrides([])
-    setIsCreateAccessOpen(false)
+  }
+
+  const copyCredential = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      notify.success(`${label} copied.`)
+    } catch {
+      notify.error(`Could not copy ${label.toLowerCase()}.`)
+    }
   }
 
   const handleAddUserSubmit = async (e: React.FormEvent) => {
@@ -293,6 +420,19 @@ export default function AdminUsers() {
     if (!newName.trim() || !newEmail.trim()) return
     if (!newPackageId) {
       notify.error('Select a package.')
+      return
+    }
+    const unmetPasswordRule = getPasswordRules(newPassword).find((rule) => !rule.met)
+    if (unmetPasswordRule) {
+      notify.error(`Password requires: ${unmetPasswordRule.label}.`)
+      return
+    }
+    if (isPasswordSameAsEmail(newPassword, newEmail)) {
+      notify.error("Password can't be the same as email.")
+      return
+    }
+    if (newPassword !== newPasswordConfirm) {
+      notify.error('Passwords do not match.')
       return
     }
 
@@ -311,6 +451,7 @@ export default function AdminUsers() {
       const created = await createUser({
         name: newName.trim(),
         email: newEmail.trim(),
+        password: newPassword,
         packageId: newPackageId,
         companyName: newCompany.trim() || null,
         ...(selectedOwnerMode === 'corporate'
@@ -323,18 +464,21 @@ export default function AdminUsers() {
           : {}),
       }).unwrap()
       setIsAddUserOpen(false)
+      setProvisionedCredentials({
+        name: created.name || newName.trim(),
+        email: created.email,
+        password: newPassword,
+        loginUrl: `${window.location.origin}/login`,
+        accountType: ownerModeLabel(selectedOwnerMode || 'single'),
+        emailVerificationRequired: !created.isVerified,
+        paymentLinkUrl: created.paymentLinkUrl || null,
+        firstInvoiceCents: created.firstInvoiceCents ?? null,
+      })
       resetCreateForm()
       if (created.paymentLinkUrl) {
-        setPaymentLink({
-          url: created.paymentLinkUrl,
-          email: created.email,
-          firstInvoiceCents: created.firstInvoiceCents ?? null,
-        })
-        notify.success('Account created pending payment. Copy the Stripe payment link for this customer.')
+        notify.success('Account and login password created. Copy the Stripe payment link to complete activation.')
       } else {
-        notify.success(
-          'Account created. They will receive an email to set their own password, then sign in with email OTP.'
-        )
+        notify.success('Account created with its login password. The customer can sign in immediately.')
       }
       resetListToStart()
     } catch (err) {
@@ -796,7 +940,7 @@ export default function AdminUsers() {
           <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeEditModal} />
 
-            <div className="animate-in zoom-in-95 relative max-h-[90vh] w-full max-w-lg overflow-hidden overflow-y-auto rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
+            <div className="animate-in zoom-in-95 relative max-h-[90vh] w-full max-w-3xl overflow-hidden overflow-y-auto rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
@@ -1051,8 +1195,8 @@ export default function AdminUsers() {
                   </select>
                   {selectedOwnerMode && (
                     <p className="text-[11px] font-semibold text-slate-400">
-                      Back office is {ownerModeLabel(selectedOwnerMode)}. They set their own password from email, then
-                      complete email OTP on first login.
+                      Back office is {ownerModeLabel(selectedOwnerMode)}. Set the customer&apos;s login password below
+                      to finish provisioning in this window.
                     </p>
                   )}
                 </div>
@@ -1099,6 +1243,61 @@ export default function AdminUsers() {
                   />
                 </div>
 
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-900/60">
+                  <div className="mb-3">
+                    <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase dark:text-slate-300">
+                      Login credentials
+                    </p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                      Set the initial password now so no separate configuration step is required.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col space-y-1.5">
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Password</label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          required
+                          minLength={8}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          autoComplete="new-password"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pr-11 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword((visible) => !visible)}
+                          className="absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                          aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col space-y-1.5">
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                        Confirm Password
+                      </label>
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        required
+                        minLength={8}
+                        value={newPasswordConfirm}
+                        onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                        autoComplete="new-password"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                  <PasswordRulesTags password={newPassword} email={newEmail} />
+                  {newPasswordConfirm && newPassword !== newPasswordConfirm ? (
+                    <p className="mt-2 text-[11px] font-semibold text-red-500" role="alert">
+                      Passwords do not match.
+                    </p>
+                  ) : null}
+                </div>
+
                 {selectedOwnerMode === 'corporate' && (
                   <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/5">
                     <div>
@@ -1125,17 +1324,21 @@ export default function AdminUsers() {
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                       />
                     </div>
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                        Manage Access
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setIsCreateAccessOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-black tracking-wider text-indigo-700 uppercase ring-1 ring-indigo-100 dark:bg-slate-800 dark:text-indigo-300 dark:ring-white/10"
-                      >
-                        <Settings2 className="h-4 w-4" /> Configure
-                      </button>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Feature Access</p>
+                        <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                          Keep Global Default or set account-specific access here—without opening another popup.
+                        </p>
+                      </div>
+                      <CorporateManageAccessFields
+                        packageFeatures={(selectedPackage?.features || []).map((row) => ({
+                          featureKey: row.featureKey,
+                          featureValue: row.featureValue ?? null,
+                        }))}
+                        overrides={newFeatureOverrides}
+                        onSave={setNewFeatureOverrides}
+                      />
                       <p className="text-[11px] font-semibold text-slate-400">
                         {compactFeatureOverrides(newFeatureOverrides).length} override
                         {compactFeatureOverrides(newFeatureOverrides).length === 1 ? '' : 's'} will be stored.
@@ -1177,7 +1380,7 @@ export default function AdminUsers() {
                     </div>
                     <p className="text-[11px] font-semibold text-slate-400">
                       Paid packages stay pending until this customer pays the Stripe link. The webhook activates this
-                      same account. Password setup still goes out now.
+                      same account. The login password is created with this account.
                     </p>
                   </div>
                 )}
@@ -1207,6 +1410,138 @@ export default function AdminUsers() {
         </ModalPortal>
       )}
 
+      {provisionedCredentials ? (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
+            <div className="animate-in zoom-in-95 relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-4xl border border-emerald-200 bg-white p-7 shadow-2xl duration-200 dark:border-emerald-500/20 dark:bg-[#0b0f19]">
+              <button
+                type="button"
+                onClick={() => setProvisionedCredentials(null)}
+                className="absolute top-4 right-4 rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-white/5"
+                aria-label="Close account credentials"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="pr-10">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                  <CheckCircle2 className="h-7 w-7" />
+                </div>
+                <h2 className="text-2xl font-black text-slate-950 dark:text-white">Account provisioned successfully</h2>
+                <p className="mt-2 text-sm font-semibold text-slate-500">
+                  {provisionedCredentials.name}&apos;s account and login password are ready. Copy or download these
+                  details before closing this window.
+                </p>
+              </div>
+
+              <div className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-900/70">
+                <CredentialRow
+                  label="Email"
+                  value={provisionedCredentials.email}
+                  onCopy={() => void copyCredential('Email', provisionedCredentials.email)}
+                />
+                <CredentialRow
+                  label="Password"
+                  value={provisionedCredentials.password}
+                  onCopy={() => void copyCredential('Password', provisionedCredentials.password)}
+                />
+                <CredentialRow
+                  label="Login page"
+                  value={provisionedCredentials.loginUrl}
+                  onCopy={() => void copyCredential('Login link', provisionedCredentials.loginUrl)}
+                />
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/10">
+                <div className="flex items-start gap-3">
+                  <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-300" />
+                  <div>
+                    <p className="text-sm font-black text-slate-900 dark:text-white">First login and verification</p>
+                    <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-300">
+                      {provisionedCredentials.emailVerificationRequired
+                        ? 'The customer must verify their email before completing sign-in. Ask them to check for the verification code, then use the email and password above. If login OTP is enabled, they will also confirm the login code.'
+                        : 'The email is already verified. The customer can sign in with the email and password above; login OTP may still be requested when enabled.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {provisionedCredentials.paymentLinkUrl ? (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+                  <p className="text-sm font-black text-slate-900 dark:text-white">Payment required for activation</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-300">
+                    Send the Stripe link to the customer
+                    {provisionedCredentials.firstInvoiceCents != null
+                      ? ` for the ${formatMoney(provisionedCredentials.firstInvoiceCents)} first invoice`
+                      : ''}
+                    .
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void copyCredential('Payment link', provisionedCredentials.paymentLinkUrl as string)}
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-black text-amber-800 ring-1 ring-amber-200 dark:bg-slate-900 dark:text-amber-200 dark:ring-amber-500/20"
+                  >
+                    <Copy className="h-4 w-4" /> Copy payment link
+                  </button>
+                </div>
+              ) : null}
+
+              <p className="mt-4 text-center text-[11px] font-semibold text-slate-400">
+                For security, the password is removed from this screen when you close it. Share it through a secure
+                channel and ask the customer to change it after signing in.
+              </p>
+
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const lines = [
+                      'vBiz Me account',
+                      `Name: ${provisionedCredentials.name}`,
+                      `Email: ${provisionedCredentials.email}`,
+                      `Password: ${provisionedCredentials.password}`,
+                      `Login: ${provisionedCredentials.loginUrl}`,
+                      provisionedCredentials.emailVerificationRequired
+                        ? 'Email verification: Check the verification email before completing sign-in.'
+                        : 'Email verification: Complete.',
+                      ...(provisionedCredentials.paymentLinkUrl
+                        ? [`Payment link: ${provisionedCredentials.paymentLinkUrl}`]
+                        : []),
+                    ]
+                    void copyCredential('All login details', lines.join('\n'))
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-xs font-black tracking-wide text-slate-700 uppercase hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                >
+                  <Copy className="h-4 w-4" /> Copy all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      downloadCredentialsImage(provisionedCredentials)
+                      notify.success('Login card image downloaded.')
+                    } catch (error) {
+                      notify.error(error instanceof Error ? error.message : 'Could not create login card image.')
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3.5 text-xs font-black tracking-wide text-white uppercase hover:bg-indigo-700"
+                >
+                  <Download className="h-4 w-4" /> Download image
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProvisionedCredentials(null)}
+                className="mt-3 w-full rounded-2xl bg-slate-100 px-4 py-3 text-xs font-black tracking-wide text-slate-700 uppercase dark:bg-slate-800 dark:text-slate-200"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
+
       {confirmState?.open && (
         <ConfirmModal
           open
@@ -1218,17 +1553,6 @@ export default function AdminUsers() {
           onCancel={() => setConfirmState(null)}
         />
       )}
-
-      <CorporateManageAccessDialog
-        open={isCreateAccessOpen}
-        onClose={() => setIsCreateAccessOpen(false)}
-        packageFeatures={(selectedPackage?.features || []).map((row) => ({
-          featureKey: row.featureKey,
-          featureValue: row.featureValue ?? null,
-        }))}
-        overrides={newFeatureOverrides}
-        onSave={setNewFeatureOverrides}
-      />
 
       {editingUser ? (
         <CorporateManageAccessDialog
@@ -1278,6 +1602,25 @@ export default function AdminUsers() {
           </div>
         </ModalPortal>
       ) : null}
+    </div>
+  )
+}
+
+function CredentialRow({ label, value, onCopy }: { label: string; value: string; onCopy: () => void }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-white p-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-white/10">
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{label}</p>
+        <p className="mt-1 text-sm font-bold break-all text-slate-900 dark:text-white">{value}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onCopy}
+        className="shrink-0 rounded-xl bg-slate-100 p-2.5 text-slate-600 transition hover:bg-indigo-100 hover:text-indigo-700 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-indigo-500/20"
+        aria-label={`Copy ${label.toLowerCase()}`}
+      >
+        <Copy className="h-4 w-4" />
+      </button>
     </div>
   )
 }

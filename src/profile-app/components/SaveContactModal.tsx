@@ -53,14 +53,16 @@ export const SaveContactModal = ({
   }
 
   const finishSuccess = () => {
+    if (onSuccess) {
+      resetTransientState()
+      onSuccess()
+      return
+    }
+
     setShowSuccess(true)
     setTimeout(() => {
       resetTransientState()
-      if (onSuccess) {
-        onSuccess()
-      } else {
-        onClose()
-      }
+      onClose()
     }, 1000)
   }
 

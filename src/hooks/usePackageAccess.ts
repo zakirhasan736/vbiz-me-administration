@@ -1,5 +1,6 @@
 'use client'
 
+import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
 import {
   allPackageAccessEnabled,
@@ -17,12 +18,16 @@ export function usePackageAccess(): PackageAccessMap & {
   entitlements: EffectiveEntitlements | undefined
 } {
   const userId = useAppSelector((state) => state.user.user?.id)
-  const { data, isLoading, isUninitialized } = useGetEntitlementsQuery(undefined, { skip: !userId })
+  const role = useAppSelector((state) => state.user.user?.role)
+  const shouldLoadEntitlements = Boolean(userId) && !isStaffRole(role)
+  const { data, isLoading, isUninitialized } = useGetEntitlementsQuery(undefined, {
+    skip: !shouldLoadEntitlements,
+  })
   const access = data?.access ?? fallbackAccess
 
   return {
     ...access,
-    isLoading: Boolean(userId) && (isLoading || isUninitialized) && !data,
+    isLoading: shouldLoadEntitlements && (isLoading || isUninitialized) && !data,
     can: (key) => (data ? catalogFeatureAllowed(data, key) : access[key as PackageAccessKey] !== false),
     entitlements: data,
   }

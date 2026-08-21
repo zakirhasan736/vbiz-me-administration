@@ -320,7 +320,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     saveStatus === 'saving'
       ? 'Saving…'
       : saveStatus === 'dirty'
-        ? 'Unsaved changes'
+        ? 'Autosave pending'
         : saveStatus === 'saved'
           ? 'Saved'
           : saveStatus === 'error'
@@ -753,7 +753,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {isCreateMode
                     ? saveStatus === 'dirty'
-                      ? 'Unsaved changes — select Save changes to create this profile'
+                      ? 'Autosave pending — the draft saves after required profile details are complete'
                       : 'New profile — save when you are ready'
                     : `${vCardData.personal?.designation || 'Role'} • ${vCardData.personal?.profession || 'General'}`}
                 </p>
