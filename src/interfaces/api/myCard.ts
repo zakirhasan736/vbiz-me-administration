@@ -122,6 +122,8 @@ export type MyCardTeamNotice = {
   recipientCount?: number
   createdAt: string
   status: string
+  /** admin = banner only; owner = visitor popup only. */
+  source?: 'admin' | 'owner'
 }
 
 export type MyCardData = {

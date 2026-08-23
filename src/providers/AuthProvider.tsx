@@ -282,5 +282,10 @@ export async function logout(): Promise<void> {
 
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem('persist:user')
+    try {
+      sessionStorage.removeItem('vbiz_dash_push_prompt_session')
+    } catch {
+      /* ignore */
+    }
   }
 }

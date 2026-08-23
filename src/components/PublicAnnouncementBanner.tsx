@@ -100,7 +100,7 @@ export default function PublicAnnouncementBanner({ profileId, placement = 'chrom
   }
   const { data, isFetching } = useGetPublicProfileAnnouncementQuery({ profileId: trimmed, visitorId }, queryOpts)
   const { data: teamNotice, isFetching: isFetchingNotice } = useGetPublicProfileTeamNoticeQuery(
-    { profileId: trimmed, visitorId },
+    { profileId: trimmed, visitorId, origin: 'admin' },
     queryOpts
   )
 
