@@ -2,7 +2,6 @@ import { noticeForCard, noticeTypeFromTeamNotice } from '@/lib/cardNotice'
 import type { TeamNotice } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { CreateVCardCard } from './CreateVCardCard'
-import { VCardGridCard } from './VCardGridCard'
 import { VCardTeamCard } from './VCardTeamCard'
 
 type VCardsGridProps = {
@@ -32,10 +31,12 @@ export function VCardsGrid({
 }: VCardsGridProps) {
   const cardNodes = cards.map((card) => {
     const serverNotice = noticeForCard(card.id, teamNotices)
-    return isPersonal ? (
+    return (
       <VCardTeamCard
         key={card.id}
         card={card}
+        mode={isPersonal ? 'personal' : 'corporate'}
+        badgeLabel={isPersonal ? 'Single' : 'Corporate'}
         onOpenQr={onOpenQr}
         onPanel={onPanel ?? (() => undefined)}
         onNotice={onNotice ?? (() => undefined)}
@@ -43,11 +44,9 @@ export function VCardsGrid({
         cardNoticeText={serverNotice?.text ?? null}
         cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
         canDuplicate={canCreate}
-        duplicateDisabledReason="Single card owners can create only one vCard"
+        duplicateDisabledReason={isPersonal ? 'Single card owners can create only one vCard' : 'Card limit reached'}
         onTrends={onTrends ? () => onTrends(card) : undefined}
       />
-    ) : (
-      <VCardGridCard key={card.id} card={card} onOpenQr={onOpenQr} isPersonal={isPersonal} />
     )
   })
 

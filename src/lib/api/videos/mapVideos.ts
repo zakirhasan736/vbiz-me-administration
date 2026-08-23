@@ -4,6 +4,7 @@ import type {
   VideoSectionResponse,
   VideosQueryResult,
 } from '@/interfaces/api/videos.interface'
+import { decodeHtmlText } from '@/lib/htmlText'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
 
 function mapGalleryImages(item: VideoSectionItem): string[] {
@@ -19,7 +20,7 @@ function mapVideoItem(item: VideoSectionItem, idx: number): VideoListItem {
 
   return {
     id: `${item.created_at}-${idx}`,
-    title: item.title?.trim() || 'Untitled',
+    title: decodeHtmlText(item.title?.trim() || 'Untitled'),
     type: item.type?.trim().toLowerCase() || 'video',
     createdAt: item.created_at,
     featuredImage,
@@ -33,7 +34,9 @@ export function normalizeVideosResponse(response: VideoSectionResponse): VideosQ
     throw new Error(response.error || 'Failed to load videos')
   }
 
-  const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Video'
+  const sectionTitle = decodeHtmlText(
+    response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Video'
+  )
   const items = (response.data.items ?? []).map(mapVideoItem)
 
   return { sectionTitle, items }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   homePathForRole,
+  homePathForSession,
   isJwtExpired,
   jwtExpiresAt,
   resolvePostLoginPath,
@@ -27,11 +28,22 @@ describe('session policy', () => {
     expect(homePathForRole('super-admin')).toBe('/admin/dashboard')
   })
 
+  it('routes owners by package ownerMode even when the JWT role disagrees', () => {
+    expect(homePathForSession({ role: 'corporate-owner', ownerMode: 'single' })).toBe('/')
+    expect(homePathForSession({ role: 'vcard-owner', ownerMode: 'corporate' })).toBe('/teamvcard')
+    expect(homePathForSession({ role: 'admin', ownerMode: 'corporate' })).toBe('/admin/dashboard')
+  })
+
   it('rejects stale cross-role redirect destinations after login', () => {
     expect(resolvePostLoginPath('admin', '/')).toBe('/admin/dashboard')
     expect(resolvePostLoginPath('vcard-owner', '/admin/users')).toBe('/')
     expect(resolvePostLoginPath('corporate-owner', '/admin/dashboard')).toBe('/teamvcard')
     expect(resolvePostLoginPath('admin', '/admin/users')).toBe('/admin/users')
+    expect(resolvePostLoginPath({ role: 'corporate-owner', ownerMode: 'single' }, '/teamvcard')).toBe('/')
+    expect(resolvePostLoginPath({ role: 'vcard-owner', ownerMode: 'corporate' }, '/vcards')).toBe('/teamvcard')
+    expect(resolvePostLoginPath({ role: 'vcard-owner', ownerMode: 'corporate' }, '/vcards/create/home')).toBe(
+      '/vcards/create/home'
+    )
   })
 
   it('treats missing, malformed, and expired tokens as expired', () => {

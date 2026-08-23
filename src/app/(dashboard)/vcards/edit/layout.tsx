@@ -6,9 +6,11 @@ import { LivePreviewProvider } from '@/components/vcard/LivePreviewProvider'
 import { VCardLivePreview } from '@/components/VCardLivePreview'
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { CardScopeProvider } from '@/lib/card-scope'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { useEditorPathname } from '@/lib/editorShallowRoute'
+import { directoryPathForOwnerMode } from '@/lib/packageOwnerMode'
 import { notify } from '@/lib/toast/toast'
 import { VCardProvider } from '@/lib/VCardContext'
 import {
@@ -23,12 +25,6 @@ import VCardEdit from '@/views/VCardEdit'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, type ReactNode } from 'react'
 
-function directoryPathForRole(role: string | undefined) {
-  if (role === 'admin' || role === 'super-admin') return '/admin/mycards'
-  if (role === 'corporate-owner') return '/teamvcard'
-  return '/vcards'
-}
-
 /**
  * The editor shell lives in the layout so section URLs (`/vcards/edit/services`)
  * never remount the draft, the form state, or the live preview.
@@ -38,6 +34,8 @@ function VCardEditShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = useEditorPathname()
   const role = useAppSelector((state) => state.user.user?.role)
+  const { ownerMode } = useOwnerMode()
+  const directoryPath = directoryPathForOwnerMode(ownerMode, role)
   const cardId = searchParams.get('cardId')
   const segments = useMemo(() => editorSegmentsFromPathname(pathname, '/vcards/edit'), [pathname])
   const parsed = parseEditorSegments(segments)
@@ -45,13 +43,13 @@ function VCardEditShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cardId) {
-      router.replace(directoryPathForRole(role))
+      router.replace(directoryPath)
       return
     }
 
     if (profile && isOwnerCardLocked(profile.status?.name) && !isStaffRole(role)) {
       notify.info(SUSPENDED_CARD_MESSAGE)
-      router.replace(directoryPathForRole(role))
+      router.replace(directoryPath)
       return
     }
 
@@ -63,7 +61,7 @@ function VCardEditShell({ children }: { children: ReactNode }) {
     if (!isValidEditorSection(parsed.sectionId)) {
       router.replace(buildEditorPath('/vcards/edit', { sectionId: DEFAULT_EDITOR_SECTION }, cardId))
     }
-  }, [cardId, parsed.sectionId, profile, role, router, segments])
+  }, [cardId, directoryPath, parsed.sectionId, profile, role, router, segments])
 
   if (!cardId || segments.length === 0 || !isValidEditorSection(parsed.sectionId)) {
     return <EditorBootSkeleton message="Opening editor…" />

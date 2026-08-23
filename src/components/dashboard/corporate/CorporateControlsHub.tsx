@@ -60,7 +60,7 @@ type CorporateControlsHubProps = {
   activeCount?: number
   canCreate: boolean
   createDisabledReason: string
-  quotaLimit: number
+  quotaLimit: number | null
   draggedIndex: number | null
   onDragStart: (index: number) => void
   onDragDrop: (cards: VCardRecord[], targetIndex: number) => void

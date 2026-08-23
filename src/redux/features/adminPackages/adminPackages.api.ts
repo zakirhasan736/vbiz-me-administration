@@ -20,12 +20,14 @@ export type AdminPackageRow = {
   description: string | null
   monthlyPrice: number
   yearlyPrice: number
+  signupFeeCents?: number
   isActive: boolean
   sortOrder: number
   createdAt: string
   updatedAt: string
   features: AdminPackageFeature[]
   subscriberCount: number
+  ownerMode?: 'single' | 'corporate'
 }
 
 export type PackageSubscriber = {
@@ -47,6 +49,7 @@ export type UpsertAdminPackageBody = {
   description?: string | null
   monthlyPrice: number
   yearlyPrice: number
+  signupFeeCents?: number
   isActive?: boolean
   sortOrder?: number
   features?: { featureKey: string; featureValue?: string | null }[]

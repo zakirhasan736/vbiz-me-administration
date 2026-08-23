@@ -2,6 +2,7 @@
 
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
+import { ReorderList } from '@/components/ReorderList'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -110,86 +111,87 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {faqs.map((faq, index) => {
-              const open = isExpanded(faq.id)
-              return (
-                <section
-                  key={faq.id}
-                  ref={(el) => setCardRef(faq.id, el)}
-                  className={expandableCardClassName(open, accent)}
-                >
-                  <ExpandableEntryHeader
-                    indexLabel={index + 1}
-                    title={faq.question || 'New Question'}
-                    subtitle={faq.answer?.slice(0, 64) || null}
-                    isExpanded={open}
-                    onToggle={() => toggleExpanded(faq.id)}
-                    showRemove
-                    onRemove={() => removeFaq(faq.id)}
-                    accent={accent}
-                  />
+          <div>
+            <ReorderList
+              items={faqs}
+              getKey={(faq) => faq.id}
+              onReorder={setFaqs}
+              renderItem={(faq, index) => {
+                const open = isExpanded(faq.id)
+                return (
+                  <section ref={(el) => setCardRef(faq.id, el)} className={expandableCardClassName(open, accent)}>
+                    <ExpandableEntryHeader
+                      indexLabel={index + 1}
+                      title={faq.question || 'New Question'}
+                      subtitle={faq.answer?.slice(0, 64) || null}
+                      isExpanded={open}
+                      onToggle={() => toggleExpanded(faq.id)}
+                      showRemove
+                      onRemove={() => removeFaq(faq.id)}
+                      accent={accent}
+                    />
 
-                  <ExpandableEntryBody isExpanded={open} className="space-y-6 p-4 sm:p-8">
-                    <div>
-                      <label className="mb-2 flex items-center gap-2 text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-                        <HelpCircle className="h-3.5 w-3.5" /> Question
+                    <ExpandableEntryBody isExpanded={open} className="space-y-6 p-4 sm:p-8">
+                      <div>
+                        <label className="mb-2 flex items-center gap-2 text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                          <HelpCircle className="h-3.5 w-3.5" /> Question
+                        </label>
+                        <input
+                          type="text"
+                          value={faq.question}
+                          onChange={(e) => updateFaq(faq.id, 'question', e.target.value)}
+                          placeholder="e.g. What exactly is vBiz Me?"
+                          className={inputClasses}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                          Answer
+                        </label>
+                        <textarea
+                          value={faq.answer}
+                          onChange={(e) => updateFaq(faq.id, 'answer', e.target.value)}
+                          placeholder="Write a clear, helpful answer..."
+                          className={textareaClasses}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <MediaFileUploader
+                          label="Image or attachment"
+                          accent="primary"
+                          profileId={profileId}
+                          attachmentType="Featured Image"
+                          value={faq.featuredImage || ''}
+                          accept="image/*,application/pdf,.pdf,.doc,.docx"
+                          hint="Optional image or file shown with this answer"
+                          onChange={(next) => updateFaq(faq.id, 'featuredImage', next?.url || '')}
+                        />
+                        <MediaSourceActions
+                          mode="both"
+                          compact
+                          profileId={profileId}
+                          onSelect={(asset) => updateFaq(faq.id, 'featuredImage', asset.url)}
+                        />
+                      </div>
+
+                      <label className="flex cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={faq.active}
+                          onChange={(e) => updateFaq(faq.id, 'active', e.target.checked)}
+                          className="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-slate-300 dark:border-white/20 dark:bg-[#0b0f19]"
+                        />
+                        <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
+                          Show on public profile
+                        </span>
                       </label>
-                      <input
-                        type="text"
-                        value={faq.question}
-                        onChange={(e) => updateFaq(faq.id, 'question', e.target.value)}
-                        placeholder="e.g. What exactly is vBiz Me?"
-                        className={inputClasses}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-                        Answer
-                      </label>
-                      <textarea
-                        value={faq.answer}
-                        onChange={(e) => updateFaq(faq.id, 'answer', e.target.value)}
-                        placeholder="Write a clear, helpful answer..."
-                        className={textareaClasses}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <MediaFileUploader
-                        label="Image or attachment"
-                        accent="primary"
-                        profileId={profileId}
-                        attachmentType="Featured Image"
-                        value={faq.featuredImage || ''}
-                        accept="image/*,application/pdf,.pdf,.doc,.docx"
-                        hint="Optional image or file shown with this answer"
-                        onChange={(next) => updateFaq(faq.id, 'featuredImage', next?.url || '')}
-                      />
-                      <MediaSourceActions
-                        mode="both"
-                        compact
-                        profileId={profileId}
-                        onSelect={(asset) => updateFaq(faq.id, 'featuredImage', asset.url)}
-                      />
-                    </div>
-
-                    <label className="flex cursor-pointer items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={faq.active}
-                        onChange={(e) => updateFaq(faq.id, 'active', e.target.checked)}
-                        className="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-slate-300 dark:border-white/20 dark:bg-[#0b0f19]"
-                      />
-                      <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
-                        Show on public profile
-                      </span>
-                    </label>
-                  </ExpandableEntryBody>
-                </section>
-              )
-            })}
+                    </ExpandableEntryBody>
+                  </section>
+                )
+              }}
+            />
 
             <div className="mt-8 flex flex-col items-center gap-4 pt-6">
               <button

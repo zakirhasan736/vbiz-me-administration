@@ -5,6 +5,7 @@ import type {
   GalleryQueryResult,
   GallerySectionResponse,
 } from '@/interfaces/api/gallery.interface'
+import { decodeHtmlText } from '@/lib/htmlText'
 
 function assetFromUnknown(value: unknown): GalleryImageAsset | null {
   if (typeof value === 'string') {
@@ -20,7 +21,7 @@ function assetFromUnknown(value: unknown): GalleryImageAsset | null {
 
   return {
     id: record.id ?? url,
-    doc_name: record.doc_name?.trim() || 'Gallery',
+    doc_name: decodeHtmlText(record.doc_name?.trim() || 'Gallery'),
     url,
   }
 }
@@ -65,7 +66,7 @@ export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryL
 
   return {
     id: item.id ?? featured?.id ?? index + 1,
-    title: rawTitle || featured?.doc_name || 'Gallery',
+    title: decodeHtmlText(rawTitle || featured?.doc_name || 'Gallery'),
     imageUrl: featured?.url ?? '',
     createdAt: item.created_at ?? '',
   }
@@ -76,7 +77,9 @@ export function normalizeGalleryResponse(response: GallerySectionResponse): Gall
     throw new Error(response.error || 'Failed to load gallery')
   }
 
-  const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Gallery'
+  const sectionTitle = decodeHtmlText(
+    response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Gallery'
+  )
 
   const items = (response.data.items ?? [])
     .map((item, index) => mapGalleryItemToListItem(item, index))

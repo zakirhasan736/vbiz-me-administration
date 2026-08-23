@@ -94,7 +94,7 @@ function useAuthBootstrap() {
       }
     }
 
-    const syncOwnerToken = (role?: string | null) => {
+    const syncOwnerToken = (role?: string | null, ownerMode?: 'single' | 'corporate' | null) => {
       if (!shouldSilentlyRefreshSession(role)) return
 
       void refreshSessionAccessToken(store.getState().user.token).then((accessToken) => {
@@ -106,7 +106,7 @@ function useAuthBootstrap() {
         if (store.getState().user.token !== accessToken) {
           store.dispatch(updateAuthState({ token: accessToken }))
         }
-        redirectToRoleHome(role)
+        redirectToRoleHome({ role, ownerMode })
       })
     }
 
@@ -122,14 +122,14 @@ function useAuthBootstrap() {
         }
 
         finishLoading()
-        redirectToRoleHome(persistedUser.role)
+        redirectToRoleHome({ role: persistedUser.role, ownerMode: persistedUser.ownerMode })
         return () => {
           cancelled = true
         }
       }
 
       finishLoading()
-      syncOwnerToken(persistedUser.role)
+      syncOwnerToken(persistedUser.role, persistedUser.ownerMode)
       return () => {
         cancelled = true
       }
@@ -167,8 +167,8 @@ function useAuthBootstrap() {
         if (profile.id && Array.isArray(profile.completedTours)) {
           hydrateCompletedTours(profile.id, profile.completedTours)
         }
-        syncOwnerToken(profile.role)
-        redirectToRoleHome(profile.role)
+        syncOwnerToken(profile.role, profile.ownerMode)
+        redirectToRoleHome({ role: profile.role, ownerMode: profile.ownerMode })
       } catch {
         if (!cancelled) {
           store.dispatch(updateAuthState({ user: null, token: null, isLoading: false }))
@@ -282,5 +282,10 @@ export async function logout(): Promise<void> {
 
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem('persist:user')
+    try {
+      sessionStorage.removeItem('vbiz_dash_push_prompt_session')
+    } catch {
+      /* ignore */
+    }
   }
 }

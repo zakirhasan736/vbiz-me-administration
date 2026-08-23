@@ -1,8 +1,8 @@
 'use client'
 
 import { useDashboardTour } from '@/context/DashboardTourContext'
-import { useAppSelector } from '@/hooks/redux'
 import { useAiCardAgentOpen } from '@/hooks/useAiCardAgentOpen'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { dismissTourBanner, isTourBannerDismissed, isTourCompleted, type TourKey } from '@/lib/dashboardTour'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
@@ -29,14 +29,14 @@ export function TakeTourTrigger({
   triggerLabel = 'Take a tour',
 }: Pick<TakeTourBannerProps, 'className' | 'onStart' | 'tourKey' | 'triggerLabel'>) {
   const { user, loading } = useAuth()
-  const role = useAppSelector((state) => state.user.user?.role)
+  const { isSingleBackOffice } = useOwnerMode()
   const { startTour, isActive } = useDashboardTour()
   const pathname = usePathname()
   const router = useRouter()
   const aiOpen = useAiCardAgentOpen()
 
   if (loading || !user?.uid || isActive || aiOpen) return null
-  if (tourKey === 'dashboard' && role !== 'vcard-owner') return null
+  if (tourKey === 'dashboard' && !isSingleBackOffice) return null
 
   return (
     <button
@@ -70,7 +70,7 @@ export function TakeTourBanner({
   alwaysShow = true,
 }: TakeTourBannerProps) {
   const { user, loading } = useAuth()
-  const role = useAppSelector((state) => state.user.user?.role)
+  const { isSingleBackOffice } = useOwnerMode()
   const { startTour, isActive, activeTourKey } = useDashboardTour()
   const [dismissed, setDismissed] = useState(() => (user?.uid ? isTourBannerDismissed(tourKey, user.uid) : false))
   const aiOpen = useAiCardAgentOpen()
@@ -87,7 +87,7 @@ export function TakeTourBanner({
   }
 
   if (loading || !user?.uid || isActive || aiOpen) return null
-  if (tourKey === 'dashboard' && role !== 'vcard-owner') return null
+  if (tourKey === 'dashboard' && !isSingleBackOffice) return null
   if (variant === 'compact') {
     return <TakeTourTrigger className={className} onStart={onStart} tourKey={tourKey} triggerLabel={triggerLabel} />
   }

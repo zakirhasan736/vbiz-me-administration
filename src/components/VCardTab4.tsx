@@ -2,9 +2,12 @@
 
 import { useCanvaConnection } from '@/components/canva'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
+import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { MAX_MEDIA_UPLOAD_BYTES, MAX_MEDIA_UPLOAD_MB } from '@/lib/media/uploadMediaWithProgress'
+import { musicFileAllowed } from '@/lib/packageAccess'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { useAuth } from '@/providers/AuthProvider'
@@ -47,7 +50,7 @@ function FieldGroup({ label, children, icon }: { label: string; children: ReactN
 }
 
 const inputClasses =
-  'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 shadow-sm'
+  'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 shadow-sm disabled:cursor-not-allowed disabled:opacity-60'
 
 function GalleryModal({
   onClose,
@@ -456,6 +459,12 @@ export function Tab4HomeMedia() {
   const { user } = useAuth()
   const { cardId } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
+  const { can } = usePackageAccess()
+  const canIntro = can('allow_intro_video_upload')
+  const canBgVideo = can('allow_background_video_upload')
+  const canMusicFile = musicFileAllowed(can)
+  const canYtMusic = can('allow_yt_bg_music_upload')
+  const canCanva = can('allow_canva')
 
   const introVideoUrl = getCustomValue(FIELD_INTRO)
   const bgMusicUrl = getCustomValue(FIELD_MUSIC)
@@ -498,6 +507,8 @@ export function Tab4HomeMedia() {
               profileId={profileId}
               attachmentType={FIELD_INTRO}
               accept="video/*"
+              locked={!canIntro}
+              allowVideo={canIntro}
               maxBytes={MAX_MEDIA_UPLOAD_BYTES}
               browseLabel="Upload"
               selectPlaceholder="Select video"
@@ -507,14 +518,16 @@ export function Tab4HomeMedia() {
               emptyIcon={<Video className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
             >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCanvaModal(true)}
-                  className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-[#00C4CC]/30 bg-[#00C4CC]/10 px-3 py-3.5 text-[13px] font-bold whitespace-nowrap text-[#00C4CC] transition-colors hover:border-[#00C4CC] hover:bg-[#00C4CC] hover:text-white sm:px-4 sm:py-4"
-                >
-                  <Palette className="h-4 w-4 shrink-0 group-hover:animate-pulse" />
-                  Connect Canva
-                </button>
+                {canCanva ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCanvaModal(true)}
+                    className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-[#00C4CC]/30 bg-[#00C4CC]/10 px-3 py-3.5 text-[13px] font-bold whitespace-nowrap text-[#00C4CC] transition-colors hover:border-[#00C4CC] hover:bg-[#00C4CC] hover:text-white sm:px-4 sm:py-4"
+                  >
+                    <Palette className="h-4 w-4 shrink-0 group-hover:animate-pulse" />
+                    Connect Canva
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setShowGalleryModal(true)}
@@ -545,9 +558,11 @@ export function Tab4HomeMedia() {
                   value={introYoutubeUrl}
                   onChange={(e) => setCustomValue(FIELD_INTRO_YT, e.target.value)}
                   placeholder="https://youtube.com/..."
+                  disabled={!canIntro}
                   className={inputClasses}
                 />
               </FieldGroup>
+              {canIntro ? null : <PackageFeatureLockNote />}
 
               <div className="grid grid-cols-2 gap-6">
                 <FieldGroup label="Start (seconds)">
@@ -586,6 +601,8 @@ export function Tab4HomeMedia() {
               profileId={profileId}
               attachmentType={FIELD_MUSIC}
               accept="audio/*"
+              locked={!canMusicFile}
+              allowAudio={canMusicFile}
               maxBytes={MAX_MEDIA_UPLOAD_BYTES}
               selectPlaceholder="Select audio file"
               subtitle={`Plays quietly in the background • Max ${MAX_MEDIA_UPLOAD_MB}MB`}
@@ -607,9 +624,11 @@ export function Tab4HomeMedia() {
                   value={musicYoutubeUrl}
                   onChange={(e) => setCustomValue(FIELD_MUSIC_YT, e.target.value)}
                   placeholder="https://youtube.com/..."
+                  disabled={!canYtMusic}
                   className={inputClasses}
                 />
               </FieldGroup>
+              {canYtMusic ? null : <PackageFeatureLockNote />}
 
               <div className="grid grid-cols-2 gap-6">
                 <FieldGroup label="Start (seconds)">
@@ -648,7 +667,8 @@ export function Tab4HomeMedia() {
                 onChange={(url) => setCustomValue(FIELD_BG, url || '')}
                 profileId={profileId}
                 attachmentType={FIELD_BG}
-                accept="image/*,video/*"
+                accept={canBgVideo ? 'image/*,video/*' : 'image/*'}
+                allowVideo={canBgVideo}
                 maxBytes={MAX_MEDIA_UPLOAD_BYTES}
                 selectPlaceholder="Select media file"
                 subtitle={`Displayed as the background of your entire vCard. Image or Video loop. Max ${MAX_MEDIA_UPLOAD_MB}MB`}
@@ -656,7 +676,10 @@ export function Tab4HomeMedia() {
                 previewClassName="aspect-video max-h-56"
                 placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
               >
-                <MediaSourceActions mode="both" onSelect={(asset) => setCustomValue(FIELD_BG, asset.url)} />
+                <MediaSourceActions
+                  mode={canBgVideo ? 'both' : 'image'}
+                  onSelect={(asset) => setCustomValue(FIELD_BG, asset.url)}
+                />
               </VCardMediaField>
             </div>
           </div>

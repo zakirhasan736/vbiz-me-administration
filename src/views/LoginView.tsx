@@ -1,5 +1,6 @@
 'use client'
 
+import LoginOtpStep from '@/components/auth/LoginOtpStep'
 import PasswordSetupRequiredModal from '@/components/auth/PasswordSetupRequiredModal'
 import TurnstileWidget, { isTurnstileConfigured } from '@/components/auth/TurnstileWidget'
 import FormErrorMessage from '@/components/shared/FormErrorMessage'
@@ -7,11 +8,13 @@ import { Button, Input } from '@/components/ui'
 import { useAppDispatch } from '@/hooks/redux'
 import type { TPasswordSetupRequiredData } from '@/interfaces'
 import type { IQueryMutationErrorResponse } from '@/interfaces/queryMutationErrorResponse'
+import type { IUser } from '@/interfaces/user.interface'
 import { clearSessionExpiredMarker, resolvePostLoginPath } from '@/lib/auth/sessionPolicy'
 import { useLoginMutation } from '@/redux/features/auth/auth.api'
 import { updateAuthState } from '@/redux/features/auth/user.slice'
 import { cn } from '@/utils/cn'
 import { handleEmailNotVerified, isEmailNotVerified } from '@/utils/emailVerification'
+import { getLoginOtpChallenge, isLoginOtpRequired, type TLoginOtpChallenge } from '@/utils/loginOtp'
 import { getPasswordSetupRequiredData, isPasswordSetupRequired } from '@/utils/passwordSetup'
 import { Form, Formik } from 'formik'
 import Cookies from 'js-cookie'
@@ -46,6 +49,7 @@ const getLoginErrorMessage = (error: LoginMutationError | undefined) => {
 
 const LoginView = () => {
   const [passwordSetup, setPasswordSetup] = useState<TPasswordSetupRequiredData | null>(null)
+  const [otpChallenge, setOtpChallenge] = useState<TLoginOtpChallenge | null>(null)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [turnstileResetSignal, setTurnstileResetSignal] = useState(0)
   const [login, { isLoading }] = useLoginMutation()
@@ -68,6 +72,25 @@ const LoginView = () => {
     })
     router.replace('/login')
   }, [searchParams, router])
+
+  const completeLogin = (payload: { profile: IUser; accessToken: string }) => {
+    dispatch(
+      updateAuthState({
+        user: payload.profile,
+        token: payload.accessToken,
+        isLoading: false,
+      })
+    )
+
+    toast.success('Login successful')
+    clearSessionExpiredMarker()
+    const redirectTo = resolvePostLoginPath(
+      { role: payload.profile.role, ownerMode: payload.profile.ownerMode },
+      Cookies.get('redirect_after_login')
+    )
+    Cookies.remove('redirect_after_login')
+    router.push(redirectTo)
+  }
 
   const handleSubmit = async (values: typeof initialValues) => {
     if (isTurnstileConfigured && !turnstileToken) {
@@ -96,116 +119,121 @@ const LoginView = () => {
         router.push('/verify-email')
         return
       }
+      if (isLoginOtpRequired(error)) {
+        const challenge = getLoginOtpChallenge(error)
+        if (challenge) {
+          setOtpChallenge(challenge)
+          toast.info(getLoginErrorMessage(error))
+          return
+        }
+      }
       toast.error(getLoginErrorMessage(error))
       return
     }
 
-    const payload = res.data!.data
-
-    dispatch(
-      updateAuthState({
-        user: payload.profile,
-        token: payload.accessToken,
-        isLoading: false,
-      })
-    )
-
-    toast.success('Login successful')
-    clearSessionExpiredMarker()
-    const redirectTo = resolvePostLoginPath(payload.profile.role, Cookies.get('redirect_after_login'))
-    Cookies.remove('redirect_after_login')
-    router.push(redirectTo)
+    completeLogin(res.data!.data)
   }
 
   return (
     <>
-      <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
-        {({ errors, touched, values, handleChange, handleBlur }) => {
-          const emailInvalid = Boolean(errors.email && touched.email)
-          const passwordInvalid = Boolean(errors.password && touched.password)
+      {otpChallenge ? (
+        <LoginOtpStep
+          email={otpChallenge.email}
+          purpose={otpChallenge.purpose}
+          initialCooldownEnd={otpChallenge.cooldownEnd}
+          initialRemainingSecond={otpChallenge.remainingSecond}
+          onBack={() => setOtpChallenge(null)}
+          onVerified={completeLogin}
+        />
+      ) : (
+        <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
+          {({ errors, touched, values, handleChange, handleBlur }) => {
+            const emailInvalid = Boolean(errors.email && touched.email)
+            const passwordInvalid = Boolean(errors.password && touched.password)
 
-          return (
-            <Form className="relative z-10 mb-6 space-y-4" noValidate>
-              {sessionExpired ? (
-                <div
-                  role="status"
-                  className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-left text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100"
-                >
-                  <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
-                  <p className="text-xs leading-5 font-semibold">
-                    Your session expired. Sign in again to continue securely.
-                  </p>
-                </div>
-              ) : null}
-              <div className="group flex flex-col space-y-1.5 text-left">
-                <label
-                  htmlFor="email"
-                  className={cn(
-                    'pl-1 text-[11px] font-bold tracking-wider uppercase transition-colors',
-                    emailInvalid
-                      ? 'text-red-500'
-                      : 'text-slate-500 group-focus-within:text-slate-500 dark:text-slate-400'
-                  )}
-                >
-                  Email Address
-                </label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={values.email}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  placeholder="you@email.com"
-                  invalid={emailInvalid}
-                  leftIcon={Mail}
-                />
-                {emailInvalid ? <FormErrorMessage message={errors.email!} /> : null}
-              </div>
-
-              <div className="group flex flex-col space-y-1.5 text-left">
-                <label
-                  htmlFor="password"
-                  className={cn(
-                    'pl-1 text-[11px] font-bold tracking-wider uppercase transition-colors',
-                    passwordInvalid
-                      ? 'text-red-500'
-                      : 'text-slate-500 group-focus-within:text-slate-500 dark:text-slate-400'
-                  )}
-                >
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={values.password}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  placeholder="••••••••"
-                  invalid={passwordInvalid}
-                  leftIcon={Lock}
-                />
-                {passwordInvalid ? <FormErrorMessage message={errors.password!} /> : null}
-                <div className="flex justify-end pt-0.5">
-                  <Link
-                    href="/forgot-password"
-                    className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 text-[12px] font-semibold transition-colors"
+            return (
+              <Form className="relative z-10 mb-6 space-y-4" noValidate>
+                {sessionExpired ? (
+                  <div
+                    role="status"
+                    className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-left text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100"
                   >
-                    Forgot password?
-                  </Link>
+                    <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p className="text-xs leading-5 font-semibold">
+                      Your session expired. Sign in again to continue securely.
+                    </p>
+                  </div>
+                ) : null}
+                <div className="group flex flex-col space-y-1.5 text-left">
+                  <label
+                    htmlFor="email"
+                    className={cn(
+                      'pl-1 text-[11px] font-bold tracking-wider uppercase transition-colors',
+                      emailInvalid
+                        ? 'text-red-500'
+                        : 'text-slate-500 group-focus-within:text-slate-500 dark:text-slate-400'
+                    )}
+                  >
+                    Email Address
+                  </label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={values.email}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="you@email.com"
+                    invalid={emailInvalid}
+                    leftIcon={Mail}
+                  />
+                  {emailInvalid ? <FormErrorMessage message={errors.email!} /> : null}
                 </div>
-              </div>
 
-              <TurnstileWidget resetSignal={turnstileResetSignal} onToken={setTurnstileToken} />
+                <div className="group flex flex-col space-y-1.5 text-left">
+                  <label
+                    htmlFor="password"
+                    className={cn(
+                      'pl-1 text-[11px] font-bold tracking-wider uppercase transition-colors',
+                      passwordInvalid
+                        ? 'text-red-500'
+                        : 'text-slate-500 group-focus-within:text-slate-500 dark:text-slate-400'
+                    )}
+                  >
+                    Password
+                  </label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={values.password}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    placeholder="••••••••"
+                    invalid={passwordInvalid}
+                    leftIcon={Lock}
+                  />
+                  {passwordInvalid ? <FormErrorMessage message={errors.password!} /> : null}
+                  <div className="flex justify-end pt-0.5">
+                    <Link
+                      href="/forgot-password"
+                      className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 text-[12px] font-semibold transition-colors"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                </div>
 
-              <Button type="submit" size="lg" loading={isLoading} className="mt-2 w-full py-4">
-                {isLoading ? 'Logging in...' : 'Log In'}
-              </Button>
-            </Form>
-          )
-        }}
-      </Formik>
+                <TurnstileWidget resetSignal={turnstileResetSignal} onToken={setTurnstileToken} />
+
+                <Button type="submit" size="lg" loading={isLoading} className="mt-2 w-full py-4">
+                  {isLoading ? 'Logging in...' : 'Log In'}
+                </Button>
+              </Form>
+            )
+          }}
+        </Formik>
+      )}
 
       <PasswordSetupRequiredModal
         open={Boolean(passwordSetup)}

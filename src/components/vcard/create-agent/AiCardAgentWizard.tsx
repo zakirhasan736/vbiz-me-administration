@@ -56,6 +56,7 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { completeCreatedCardHandoff } from './createdCardHandoff'
 
 type ChatRole = 'assistant' | 'user' | 'system'
 type Phase =
@@ -853,6 +854,7 @@ export function AiCardAgentWizard({
   const [openLaunchTabs, setOpenLaunchTabs] = useState<string[]>([])
   const [activeFeatureGuideKey, setActiveFeatureGuideKey] = useState<keyof OptionalFeatures | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
   const draftRef = useRef(vCardData)
   const wasOpenRef = useRef(false)
   const skippedGapIdsRef = useRef<string[]>([])
@@ -929,6 +931,12 @@ export function AiCardAgentWizard({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, phase, busy])
+
+  useEffect(() => {
+    if (phase !== 'coach') return
+    const timer = window.setTimeout(() => composerRef.current?.focus(), 120)
+    return () => window.clearTimeout(timer)
+  }, [phase, coachSection])
 
   useEffect(() => {
     if (phase !== 'working') return
@@ -1095,17 +1103,20 @@ export function AiCardAgentWizard({
       const isBlog = primary.navId === 'blog' || primary.field === 'blogs' || primary.field === 'generalPosts'
       const isReviews = primary.navId === 'reviews'
       const isExperience = primary.navId === 'work' || primary.field === 'experience'
+      const isSkills = primary.navId === 'skills' || primary.field === 'skills'
       const prompt = isFaq
         ? `I couldn’t find FAQs in your website or documents. Based on this business, I can create up to 5 helpful customer questions and answers. I will not invent prices, hours, guarantees, or certifications.\n\nCreate FAQs with AI, or skip for later.`
         : isBlog
           ? `I didn’t find published articles. I can draft up to 5 useful educational posts from your business and services — not fake news events.\n\nCreate with AI, or skip.`
           : isReviews
-            ? `I couldn’t find verified customer reviews. I will not invent testimonials.\n\nAdd a real review later, connect a review source after create, or skip.`
+            ? `I couldn’t find verified customer reviews. AI will not invent testimonials.\n\nPaste or upload up to 5 real reviews for AI to organize, or skip.`
             : isExperience
               ? `I couldn’t reliably determine your professional experience. I will not invent employers or dates.\n\nAdd experience now, or skip.`
-              : `Let’s look at “${primary.tab}”. ${
-                  group.length > 1 ? `I still see empty fields: ${fieldNames}.` : `${primary.explanation}`
-                }\n\nWant me to fill this now from your website and files? Tap Yes to fill, or Skip to leave it for the editor.`
+              : isSkills
+                ? `I can create up to 5 concise skills from the services and expertise found in your business sources.\n\nGenerate skills with AI, or skip.`
+                : `Let’s look at “${primary.tab}”. ${
+                    group.length > 1 ? `I still see empty fields: ${fieldNames}.` : `${primary.explanation}`
+                  }\n\nWant me to fill this now from your website and files? Tap Yes to fill, or Skip to leave it for the editor.`
       pushMsg('assistant', prompt, `${remainingTabs} tab${remainingTabs === 1 ? '' : 's'} still open`)
     },
     [pushMsg, startFeaturesPhase, applyDraft, activeNav, enabledNavIds]
@@ -1571,6 +1582,17 @@ export function AiCardAgentWizard({
     return { payload, usedFallback: false }
   }, [])
 
+  const generateBusinessSection = useCallback(async (section: string) => {
+    if (!sessionIdRef.current || !['faqs', 'blogs', 'skills'].includes(section)) return null
+    const kind = section === 'faqs' ? 'faq' : section === 'blogs' ? 'blog' : 'skills'
+    return cardAgentJobPost<{
+      payload?: Record<string, unknown>
+      generatedCount?: number
+      selectedNavIds?: string[]
+      blueprint?: AnalyzeResponse['blueprint']
+    }>(sessionIdRef.current, 'generate-content', { kind })
+  }, [])
+
   const refreshAfterDraftChange = useCallback(
     async (navIds: string[], draft: VCardData) => {
       try {
@@ -1618,17 +1640,19 @@ export function AiCardAgentWizard({
     }
 
     if (section === 'reviews' || section === 'experience') {
+      setGateGap(null)
       setPhase('coach')
       pushMsg(
         'assistant',
         section === 'reviews'
-          ? 'Paste a real customer review (reviewer name + what they said), or skip. I will not invent testimonials.'
-          : 'Paste a real role (company, title, dates if you have them), or skip. I will not invent work history.'
+          ? 'Paste a real customer review (reviewer name + what they said) in the message box below, then tap Fill. I will not invent testimonials.'
+          : 'Paste a real role (company, title, dates if you have them) in the message box below, then tap Fill. I will not invent work history.'
       )
       return
     }
 
     if (!hasStoredSources() && !sessionIdRef.current) {
+      setGateGap(null)
       setPhase('coach')
       pushMsg(
         'assistant',
@@ -1640,13 +1664,8 @@ export function AiCardAgentWizard({
     setBusy(true)
     pushMsg('assistant', `On it — filling “${gap.tab}” from your ${sourceSummaryLine() || 'saved business profile'}…`)
     try {
-      if (sessionIdRef.current && (section === 'faqs' || section === 'blogs')) {
-        const generated = await cardAgentJobPost<{
-          payload?: Record<string, unknown>
-          generatedCount?: number
-          selectedNavIds?: string[]
-          blueprint?: AnalyzeResponse['blueprint']
-        }>(sessionIdRef.current, 'generate-content', { kind: section === 'faqs' ? 'faq' : 'blog' })
+      const generated = await generateBusinessSection(section)
+      if (generated) {
         const payload = generated.payload || {}
         if (!payloadHasContent(section, payload)) {
           throw new Error(`No ${section} were generated. Try again or skip.`)
@@ -1656,7 +1675,7 @@ export function AiCardAgentWizard({
         const report = await refreshAfterDraftChange(activeNav, merged)
         pushMsg(
           'assistant',
-          `Created ${generated.generatedCount || sectionContentCount(merged, section)} ${section === 'faqs' ? 'FAQs' : 'article drafts'}. Card is now ${report.score}% complete.`
+          `Created ${generated.generatedCount || sectionContentCount(merged, section)} ${section === 'faqs' ? 'FAQs' : section === 'blogs' ? 'article drafts' : 'skills'} from the business context. Card is now ${report.score}% complete.`
         )
         setGateGap(null)
         askNextGap(report)
@@ -1740,6 +1759,43 @@ export function AiCardAgentWizard({
     setGateGap(null)
     pushMsg('user', 'Skip remaining empty tabs for now')
     startFeaturesPhase(score)
+  }
+
+  const skipCoachGap = async () => {
+    const section = coachSection
+    const label = coachSectionOptions.find((option) => option.id === section)?.label || section
+    const matchingIds = gaps.filter((gap) => gapFieldToSection(gap.field) === section).map((gap) => gap.id)
+    if (!matchingIds.length) {
+      skipRemainingToFeatures()
+      return
+    }
+    skippedGapIdsRef.current = [...new Set([...skippedGapIdsRef.current, ...matchingIds])]
+    setSkippedGapIds(skippedGapIdsRef.current)
+    pushMsg('user', `Skip — ${label} for now`)
+    setBusy(true)
+    try {
+      pushMsg('assistant', `Okay — “${label}” stays on the card for the editor. Checking the next empty tab…`)
+      const report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
+      askNextGap(report)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not continue')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const focusCoachSection = (sectionId: string) => {
+    setCoachSection(sectionId)
+    window.setTimeout(() => composerRef.current?.focus(), 0)
+  }
+
+  const requestCoachFill = () => {
+    if (!composer.trim() && files.length === 0) {
+      setError(`Paste ${coachSectionLabel} details in the message box below first, then tap Fill.`)
+      composerRef.current?.focus()
+      return
+    }
+    void fillFromComposer()
   }
 
   const fillFromComposer = async () => {
@@ -1937,27 +1993,14 @@ export function AiCardAgentWizard({
     pushMsg('assistant', `${feature.title}: ${feature.note}`)
   }
 
-  const goToPreview = () => {
-    const nextLaunchTabs = buildLaunchTabs(draftRef.current, activeNav)
-    setOpenLaunchTabs(
-      nextLaunchTabs
-        .filter((tab) => tab.percent < 100)
-        .slice(0, 4)
-        .map((tab) => tab.navId)
-    )
-    setPhase('preview')
-    pushMsg(
-      'assistant',
-      isEdit
-        ? `Preview ready. The editor Card complete score is ${editorCardCompletePercent(activeNav, draftRef.current)}%. Confirm to save these AI updates, or keep editing in chat.`
-        : `Preview ready. The editor Card complete score is ${editorCardCompletePercent(activeNav, draftRef.current)}%. Confirm to create, then finish remaining fields in the editor.`
-    )
-  }
-
   const finishAndOpenEditor = () => {
     onFinish?.()
-    onCreatedNavigate?.(createdCardId || undefined)
-    onClose()
+    completeCreatedCardHandoff({
+      isEdit,
+      cardId: createdCardId,
+      onCreatedNavigate,
+      onClose,
+    })
   }
 
   const confirmCreateCard = async (modeChoice: LaunchMode = launchMode) => {
@@ -2017,8 +2060,12 @@ export function AiCardAgentWizard({
       )
       if (!isEdit && createdId) {
         window.setTimeout(() => {
-          onCreatedNavigate?.(createdId)
-          onClose()
+          completeCreatedCardHandoff({
+            isEdit,
+            cardId: createdId,
+            onCreatedNavigate,
+            onClose,
+          })
         }, 700)
       }
     } catch (e) {
@@ -2062,11 +2109,16 @@ export function AiCardAgentWizard({
       return
     }
 
-    if (!hasStoredSources()) {
+    const canGenerateFromBusinessProfile = Boolean(
+      sessionIdRef.current && ['faqs', 'blogs', 'skills'].includes(section)
+    )
+    if (!hasStoredSources() && !canGenerateFromBusinessProfile) {
       setPhase('coach')
       pushMsg(
         'assistant',
-        `Send text or upload files for ${tab.label}. I will fill that tab, then bring you back to the launch checklist.`
+        section === 'reviews'
+          ? `Paste or upload up to 5 real customer reviews for ${tab.label}. AI can organize the reviewer, quote, rating, link, and image fields, but it will not invent testimonials.`
+          : `Send text or upload files for ${tab.label}. I will fill that tab, then bring you back to the launch checklist.`
       )
       return
     }
@@ -2074,6 +2126,23 @@ export function AiCardAgentWizard({
     setBusy(true)
     pushMsg('assistant', `Re-reading the earlier ${sourceSummaryLine()} for ${tab.label}...`)
     try {
+      const generated = await generateBusinessSection(section)
+      if (generated) {
+        const payload = generated.payload || {}
+        if (!payloadHasContent(section, payload)) throw new Error(`No ${section} were generated.`)
+        const merged = mergeSectionPayload(draftRef.current, section, payload)
+        applyDraft(merged, activeNav)
+        const report = await refreshAfterDraftChange(activeNav, merged)
+        setScore(report.score)
+        setPhase('preview')
+        setOpenLaunchTabs((prev) => (prev.includes(tab.navId) ? prev : [tab.navId, ...prev]))
+        pushMsg(
+          'assistant',
+          `Generated up to 5 ${tab.label} items from the same business profile and mapped them into the editor fields. Review them before launch.`
+        )
+        return
+      }
+
       const form = new FormData()
       form.set('section', section)
       form.set('currentDraft', JSON.stringify(draftRef.current))
@@ -2227,6 +2296,13 @@ export function AiCardAgentWizard({
     if (!files.length) return null
     return `${files.length} file${files.length === 1 ? '' : 's'} attached`
   }, [files])
+  const remainingCoachSections = new Set(gaps.map((gap) => gapFieldToSection(gap.field)))
+  const filteredCoachSectionOptions = SECTION_OPTIONS.filter((option) => remainingCoachSections.has(option.id))
+  const coachSectionOptions = filteredCoachSectionOptions.length ? filteredCoachSectionOptions : SECTION_OPTIONS
+  const coachSectionLabel =
+    coachSectionOptions.find((option) => option.id === coachSection)?.label ||
+    SECTION_OPTIONS.find((option) => option.id === coachSection)?.label ||
+    'selected tab'
 
   const personal = vCardData.personal || ({} as VCardData['personal'])
   const previewName = personal.fullName || 'Untitled card'
@@ -2865,36 +2941,92 @@ export function AiCardAgentWizard({
           ) : null}
 
           {phase === 'coach' && gaps.length > 0 ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
-              <p className="mb-2 text-[10px] font-black tracking-wider text-amber-700 uppercase dark:text-amber-300">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+              <p className="text-[10px] font-black tracking-wider text-amber-700 uppercase dark:text-amber-300">
                 Still empty ({gaps.length})
               </p>
-              <ul className="max-h-28 space-y-1 overflow-y-auto">
-                {gaps.slice(0, 6).map((g) => (
-                  <li key={g.id} className="text-[11px] font-semibold text-amber-900 dark:text-amber-100">
-                    • {g.title} — {g.howToProvide}
-                  </li>
-                ))}
+              <ul className="mt-2 max-h-36 space-y-2 overflow-y-auto">
+                {gaps.slice(0, 6).map((g) => {
+                  const section = gapFieldToSection(g.field)
+                  const label = SECTION_OPTIONS.find((option) => option.id === section)?.label || g.tab
+                  const isActive = coachSection === section
+                  return (
+                    <li
+                      key={g.id}
+                      className={cn(
+                        'rounded-xl border px-3 py-2',
+                        isActive
+                          ? 'border-amber-300 bg-white dark:border-amber-400/40 dark:bg-slate-900/80'
+                          : 'border-transparent bg-white/70 dark:bg-slate-900/50'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-black text-amber-950 dark:text-amber-50">{g.title}</p>
+                          <p className="mt-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-200">
+                            {g.howToProvide}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => focusCoachSection(section)}
+                          className={cn(
+                            'shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase',
+                            isActive
+                              ? 'bg-amber-600 text-white'
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'
+                          )}
+                        >
+                          {isActive ? 'Active' : label}
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <label className="mt-3 block text-[11px] font-black text-amber-950 dark:text-amber-50">
+                Fill selected tab: {coachSectionLabel}
                 <select
                   value={coachSection}
-                  onChange={(e) => setCoachSection(e.target.value)}
-                  className="rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[11px] font-bold dark:border-white/15 dark:bg-slate-900 dark:text-white"
+                  disabled={busy}
+                  onChange={(event) => focusCoachSection(event.target.value)}
+                  className="mt-1.5 block min-h-11 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-500 dark:border-amber-500/30 dark:bg-slate-900 dark:text-white"
                 >
-                  {SECTION_OPTIONS.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      Fill: {s.label}
+                  {coachSectionOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
+              </label>
+              <p className="mt-2 text-[11px] font-semibold text-amber-900 dark:text-amber-100">
+                Paste real details in the message box below, then tap Fill.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={requestCoachFill}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-1"
+                >
+                  <Check className="h-3.5 w-3.5" /> Fill {coachSectionLabel}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void skipCoachGap()}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <SkipForward className="h-3.5 w-3.5" /> Skip {coachSectionLabel}
+                </button>
                 <button
                   type="button"
                   disabled={busy}
                   onClick={skipRemainingToFeatures}
-                  className="rounded-lg bg-white px-3 py-1.5 text-[11px] font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-[11px] font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
                 >
-                  Skip remaining tabs — extras, preview & create
+                  Continue — finish later in editor
                 </button>
               </div>
             </div>
@@ -3157,7 +3289,11 @@ export function AiCardAgentWizard({
                                   onClick={() => void fillLaunchTab(tab)}
                                   className="rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
                                 >
-                                  Fill with AI
+                                  {['faq', 'blog', 'skills'].includes(tab.navId)
+                                    ? 'Generate up to 5 with AI'
+                                    : tab.navId === 'reviews'
+                                      ? 'Import real reviews with AI'
+                                      : 'Fill with AI'}
                                 </button>
                               ) : (
                                 <span className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
@@ -3455,6 +3591,7 @@ export function AiCardAgentWizard({
                 />
               </label>
               <textarea
+                ref={composerRef}
                 value={composer}
                 onChange={(e) => setComposer(e.target.value)}
                 rows={2}
@@ -3468,7 +3605,7 @@ export function AiCardAgentWizard({
                       : phase === 'section-gate'
                         ? 'Type yes to fill, or skip…'
                         : phase === 'coach'
-                          ? 'Paste details or attach a file for this tab…'
+                          ? `Paste ${coachSectionLabel} details here, then tap Fill ${coachSectionLabel}…`
                           : phase === 'features'
                             ? 'Yes, enable or skip…'
                             : phase === 'preview'
@@ -3523,6 +3660,26 @@ export function AiCardAgentWizard({
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             ) : null}
+            {phase === 'coach' ? (
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={requestCoachFill}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Check className="h-3.5 w-3.5" /> Fill {coachSectionLabel}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void skipCoachGap()}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <SkipForward className="h-3.5 w-3.5" /> Skip {coachSectionLabel}
+                </button>
+              </div>
+            ) : null}
             {phase === 'preview' ? (
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {!isEdit ? (
@@ -3546,16 +3703,6 @@ export function AiCardAgentWizard({
                   {isEdit ? 'Save updates' : 'Create & Activate'}
                 </button>
               </div>
-            ) : null}
-            {phase === 'coach' && score >= 90 ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={goToPreview}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 py-2.5 text-xs font-black text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
-              >
-                {isEdit ? 'Ready — preview & save' : 'Ready — preview & create'} <ArrowRight className="h-3.5 w-3.5" />
-              </button>
             ) : null}
           </div>
         ) : null}

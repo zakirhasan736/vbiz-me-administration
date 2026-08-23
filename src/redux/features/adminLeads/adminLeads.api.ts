@@ -35,6 +35,9 @@ export type AdminLeadRow = {
   vCardName: string
   ownerId: string
   ownerName: string
+  vCardDesignation?: string
+  vCardProfession?: string
+  vCardCompany?: string
   kind: 'guest_save' | 'guest_message'
   consent: boolean
   metadata: AdminLeadMetadata

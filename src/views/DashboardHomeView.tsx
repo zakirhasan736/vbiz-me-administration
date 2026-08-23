@@ -18,6 +18,7 @@ import {
 import { useAppSelector } from '@/hooks/redux'
 import { useDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { useOrderTimer } from '@/hooks/useOrderTimer'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import {
   dashboardOverviewQueryOptions,
   type DashboardPeriod,
@@ -301,9 +302,10 @@ function SingleOwnerDashboardHome() {
 }
 
 const DashboardHomeView = () => {
-  const role = useAppSelector((state) => state.user.user?.role)
-  if (role === 'vcard-owner') return <SingleOwnerDashboardHome />
-  if (role === 'corporate-owner') return <CorporateOwnerDashboardHome />
+  const { isCorporateBackOffice, isSingleBackOffice, isLoading } = useOwnerMode()
+  if (isSingleBackOffice) return <SingleOwnerDashboardHome />
+  if (isCorporateBackOffice) return <CorporateOwnerDashboardHome />
+  if (isLoading) return null
   return <LegacyDashboardHome />
 }
 

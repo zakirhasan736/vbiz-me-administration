@@ -6,6 +6,7 @@ import {
   THEME_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
+import { decodeHtmlText } from '@/lib/htmlText'
 import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
@@ -160,13 +161,13 @@ function parseCustomTabs(raw?: string): VCardCustomTab[] {
       .filter((tab): tab is Partial<VCardCustomTab> => Boolean(tab && typeof tab === 'object'))
       .map((tab) => ({
         id: typeof tab.id === 'string' ? tab.id : '',
-        label: typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab',
+        label: decodeHtmlText(typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab'),
         items: Array.isArray(tab.items)
           ? (tab.items as unknown[]).map((raw) => {
               const item = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
               return {
                 id: typeof item.id === 'string' ? item.id : '',
-                title: typeof item.title === 'string' ? item.title : '',
+                title: decodeHtmlText(typeof item.title === 'string' ? item.title : ''),
                 description: typeof item.description === 'string' ? item.description : '',
                 url: typeof item.url === 'string' ? item.url : '',
                 mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
@@ -191,7 +192,7 @@ function parseTabLabelOverrides(raw?: string): Record<string, string> {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
     return Object.fromEntries(
       Object.entries(parsed)
-        .map(([id, label]) => [id, typeof label === 'string' ? label.trim() : ''] as const)
+        .map(([id, label]) => [id, typeof label === 'string' ? decodeHtmlText(label.trim()) : ''] as const)
         .filter(([, label]) => Boolean(label))
     )
   } catch {
@@ -376,19 +377,19 @@ function mapPersonal(card: MyCardData): VCardPersonal {
   const contactWhatsapp = card.my_info.contact?.whatsapp?.value?.trim() || ''
 
   return {
-    fullName: p.name ?? '',
+    fullName: decodeHtmlText(p.name ?? ''),
     email: p.email || contactEmail,
     dob: card.my_info.personal?.dob?.value ?? '',
-    gender: p.gender ?? card.my_info.personal?.gender?.value ?? 'Male',
-    relationship: p.marital_status ?? card.my_info.personal?.marital_status?.value ?? 'Single',
-    profession: p.profession ?? '',
-    designation: p.designation ?? '',
-    company: p.company_name ?? '',
+    gender: decodeHtmlText(p.gender ?? card.my_info.personal?.gender?.value ?? 'Male'),
+    relationship: decodeHtmlText(p.marital_status ?? card.my_info.personal?.marital_status?.value ?? 'Single'),
+    profession: decodeHtmlText(p.profession ?? ''),
+    designation: decodeHtmlText(p.designation ?? ''),
+    company: decodeHtmlText(p.company_name ?? ''),
     phone: p.phone || contactPhone,
     whatsapp: p.whatsapp || contactWhatsapp || p.phone || contactPhone,
-    address: p.address ?? '',
+    address: decodeHtmlText(p.address ?? ''),
     website: p.website ?? '',
-    about: aboutSection,
+    about: decodeHtmlText(aboutSection),
     explainerVideoUrl: (() => {
       const fromSettings = card.settings?.intro_video_url?.trim() || ''
       const file =
@@ -422,7 +423,7 @@ function mapSocial(card: MyCardData): VCardSocial {
   const customLinks =
     card.my_info.additional_fields?.map((field, index) => ({
       id: `extra_${index}_${field.key}`,
-      name: field.key,
+      name: decodeHtmlText(field.key),
       url: field.value,
     })) ?? []
 
@@ -434,8 +435,8 @@ function mapExtraFields(card: MyCardData): VCardExtraField[] {
     card.my_info.additional_fields?.map((field, index) => ({
       id: `api_extra_${index}`,
       icon: field.icon ?? field.css_class ?? 'fa-link',
-      name: field.key,
-      value: field.value,
+      name: decodeHtmlText(field.key),
+      value: decodeHtmlText(field.value),
     })) ?? []
   )
 }

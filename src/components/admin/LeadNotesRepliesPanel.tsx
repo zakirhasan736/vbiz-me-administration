@@ -15,6 +15,7 @@ import {
   updateGuestMessageNotes,
   updateGuestMessageReply,
 } from '@/lib/guestMessages'
+import { MIN_IDENTITY_SEARCH_CHARACTERS, matchesIdentitySearch } from '@/lib/identitySearch'
 import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
 import { AlertTriangle, MessageCircle, Save, Search, StickyNote } from 'lucide-react'
@@ -40,6 +41,10 @@ export type LeadNoteItem = {
   submittedAt?: string
   createdAt?: string
   vCardName?: string
+  vCardSlug?: string
+  vCardDesignation?: string
+  vCardProfession?: string
+  vCardCompany?: string
   kind?: string
 }
 
@@ -125,14 +130,20 @@ export default function LeadNotesRepliesPanel({
   }, [leads, records, guestOnly])
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim()
     return sourceList.filter((r) => {
-      if (!q) return true
-      const name = (r.fullName || r.name || '').toLowerCase()
-      const email = (r.email || '').toLowerCase()
-      const phone = (r.phoneNumber || r.phone || '').toLowerCase()
-      const guest = getGuestNote(r).toLowerCase()
-      return name.includes(q) || email.includes(q) || phone.includes(q) || guest.includes(q)
+      return matchesIdentitySearch(query, [
+        r.fullName,
+        r.name,
+        r.email,
+        r.phoneNumber,
+        r.phone,
+        getGuestNote(r),
+        r.vCardName,
+        r.vCardSlug,
+        r.vCardDesignation,
+        r.vCardProfession,
+        r.vCardCompany,
+      ])
     })
   }, [sourceList, query])
 
@@ -222,9 +233,14 @@ export default function LeadNotesRepliesPanel({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find by name, email, phone, or guest note..."
+            minLength={MIN_IDENTITY_SEARCH_CHARACTERS}
             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-xs font-semibold outline-none focus:ring-1 focus:ring-rose-500/40 dark:border-white/10 dark:bg-slate-900"
           />
         </div>
+        <p className="mt-1.5 px-1 text-[10px] font-semibold text-slate-400">
+          Enter at least {MIN_IDENTITY_SEARCH_CHARACTERS} characters. Search also covers source-card designation and
+          profession.
+        </p>
       </div>
 
       {loading ? (
@@ -232,7 +248,11 @@ export default function LeadNotesRepliesPanel({
       ) : filtered.length === 0 ? (
         <div className="px-6 py-14 text-center">
           <MessageCircle className="mx-auto mb-3 h-10 w-10 text-slate-300 dark:text-white/10" />
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No leads to follow up yet</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+            {query.trim().length > 0 && query.trim().length < MIN_IDENTITY_SEARCH_CHARACTERS
+              ? `Enter at least ${MIN_IDENTITY_SEARCH_CHARACTERS} characters to search`
+              : 'No matching leads to follow up'}
+          </p>
           <p className="mt-1 text-xs text-slate-400">Contact saves and guest-only notes appear here.</p>
         </div>
       ) : (

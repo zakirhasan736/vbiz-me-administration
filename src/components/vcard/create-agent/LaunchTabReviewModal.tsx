@@ -8,6 +8,7 @@ import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
 import { createDefaultPortfolioEntry } from '@/lib/vcardPortfolio'
 import { createDefaultReviewEntry } from '@/lib/vcardReviews'
 import { createDefaultServiceEntry } from '@/lib/vcardServices'
+import { createDefaultSkillGroup } from '@/lib/vcardSkills'
 import type { VCardData, VCardPersonal } from '@/types/vcard'
 import { Pencil, Plus, Sparkles, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -187,7 +188,12 @@ export function LaunchTabReviewModal({ open, navId, label, data, busy, onClose, 
               onClick={() => void onGenerateAi()}
               className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
             >
-              <Sparkles className="h-3.5 w-3.5" /> Fill with AI
+              <Sparkles className="h-3.5 w-3.5" />{' '}
+              {navId === 'reviews'
+                ? 'Import real reviews with AI'
+                : ['faq', 'blog', 'skills'].includes(navId)
+                  ? 'Generate up to 5 with AI'
+                  : 'Fill with AI'}
             </button>
           ) : null}
           <button
@@ -235,16 +241,30 @@ export function LaunchTabReviewModal({ open, navId, label, data, busy, onClose, 
         })}
 
         {addKind === 'faqs' ? (
-          <ListEditor
+          <StructuredListEditor
             addLabel="+ Add FAQ"
-            items={(data.faqs || []).map((item) => ({ id: item.id, title: item.question, body: item.answer }))}
+            items={(data.faqs || []).map((item) => ({
+              id: item.id,
+              values: {
+                question: item.question,
+                answer: item.answer,
+                featuredImage: item.featuredImage || '',
+                url: item.url || '',
+                active: item.active,
+              },
+            }))}
+            fields={[
+              { key: 'question', label: 'Question' },
+              { key: 'answer', label: 'Answer', type: 'textarea' },
+              { key: 'featuredImage', label: 'Image or attachment URL' },
+              { key: 'url', label: 'Related URL' },
+              { key: 'active', label: 'Visible on card', type: 'checkbox' },
+            ]}
             onAdd={() => onApply({ ...data, faqs: [...(data.faqs || []), createDefaultFaqEntry()] })}
-            onChange={(id, title, body) =>
+            onChange={(id, key, value) =>
               onApply({
                 ...data,
-                faqs: (data.faqs || []).map((item) =>
-                  item.id === id ? { ...item, question: title, answer: body } : item
-                ),
+                faqs: (data.faqs || []).map((item) => (item.id === id ? { ...item, [key]: value } : item)),
               })
             }
           />
@@ -280,35 +300,85 @@ export function LaunchTabReviewModal({ open, navId, label, data, busy, onClose, 
           />
         ) : null}
         {addKind === 'reviews' ? (
-          <ListEditor
+          <StructuredListEditor
             addLabel="+ Add testimonial"
-            items={(data.reviews || []).map((item) => ({ id: item.id, title: item.author, body: item.text }))}
+            items={(data.reviews || []).map((item) => ({
+              id: item.id,
+              values: {
+                author: item.author,
+                text: item.text,
+                rating: item.rating,
+                imageUrl: item.imageUrl || '',
+                url: item.url || '',
+              },
+            }))}
+            fields={[
+              { key: 'author', label: 'Reviewer name' },
+              { key: 'text', label: 'Review text', type: 'textarea' },
+              { key: 'rating', label: 'Rating (1–5)', type: 'number' },
+              { key: 'imageUrl', label: 'Reviewer image URL' },
+              { key: 'url', label: 'Review source URL' },
+            ]}
             onAdd={() => onApply({ ...data, reviews: [...(data.reviews || []), createDefaultReviewEntry()] })}
-            onChange={(id, title, body) =>
+            onChange={(id, key, value) =>
               onApply({
                 ...data,
-                reviews: (data.reviews || []).map((item) =>
-                  item.id === id ? { ...item, author: title, text: body } : item
-                ),
+                reviews: (data.reviews || []).map((item) => (item.id === id ? { ...item, [key]: value } : item)),
               })
             }
           />
         ) : null}
         {addKind === 'blogs' ? (
-          <ListEditor
+          <StructuredListEditor
             addLabel="+ Add blog"
             items={(data.generalPosts || []).map((item) => ({
               id: item.id,
-              title: item.title,
-              body: item.description,
+              values: {
+                category: item.category,
+                title: item.title,
+                description: item.description,
+                customUrl: item.customUrl,
+                featuredImage: item.featuredImage,
+                date: item.date,
+                active: item.active,
+              },
             }))}
+            fields={[
+              { key: 'category', label: 'Category' },
+              { key: 'title', label: 'Title' },
+              { key: 'description', label: 'Description', type: 'textarea' },
+              { key: 'customUrl', label: 'Article URL' },
+              { key: 'featuredImage', label: 'Featured image URL' },
+              { key: 'date', label: 'Date', type: 'date' },
+              { key: 'active', label: 'Visible on card', type: 'checkbox' },
+            ]}
             onAdd={() => onApply({ ...data, generalPosts: [...(data.generalPosts || []), createDefaultGeneralPost()] })}
-            onChange={(id, title, body) =>
+            onChange={(id, key, value) =>
               onApply({
                 ...data,
                 generalPosts: (data.generalPosts || []).map((item) =>
-                  item.id === id ? { ...item, title, description: body } : item
+                  item.id === id ? { ...item, [key]: value } : item
                 ),
+              })
+            }
+          />
+        ) : null}
+        {navId === 'skills' ? (
+          <StructuredListEditor
+            addLabel="+ Add skill group"
+            items={(data.skills || []).map((item) => ({
+              id: item.id,
+              values: { type: item.type, skills: item.skills },
+            }))}
+            fields={[
+              { key: 'type', label: 'Skill category' },
+              { key: 'skills', label: 'Skills (comma separated)', type: 'tags' },
+            ]}
+            onAdd={() => onApply({ ...data, skills: [...(data.skills || []), createDefaultSkillGroup()] })}
+            onChange={(id, key, value) =>
+              onApply({
+                ...data,
+                skills: (data.skills || []).map((item) => (item.id === id ? { ...item, [key]: value } : item)),
               })
             }
           />
@@ -340,6 +410,90 @@ export function LaunchTabReviewModal({ open, navId, label, data, busy, onClose, 
         ) : null}
       </div>
     </Modal>
+  )
+}
+
+type StructuredValue = string | number | boolean | string[]
+type StructuredField = {
+  key: string
+  label: string
+  type?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'tags'
+}
+
+function StructuredListEditor({
+  items,
+  fields,
+  addLabel,
+  onAdd,
+  onChange,
+}: {
+  items: Array<{ id: string; values: Record<string, StructuredValue> }>
+  fields: StructuredField[]
+  addLabel: string
+  onAdd: () => void
+  onChange: (id: string, key: string, value: StructuredValue) => void
+}) {
+  return (
+    <div className="space-y-3">
+      {items.map((item, index) => (
+        <div
+          key={item.id}
+          className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-slate-950/50"
+        >
+          <p className="text-[11px] font-black text-slate-700 dark:text-slate-200">Item {index + 1}</p>
+          {fields.map((field) => {
+            const raw = item.values[field.key]
+            const value = Array.isArray(raw) ? raw.join(', ') : raw
+            return (
+              <label key={field.key} className="block space-y-1">
+                <span className="text-[10px] font-black tracking-wide text-slate-500 uppercase">{field.label}</span>
+                {field.type === 'textarea' ? (
+                  <textarea
+                    value={String(value ?? '')}
+                    onChange={(event) => onChange(item.id, field.key, event.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:bg-slate-950"
+                  />
+                ) : field.type === 'checkbox' ? (
+                  <input
+                    type="checkbox"
+                    checked={Boolean(raw)}
+                    onChange={(event) => onChange(item.id, field.key, event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                ) : (
+                  <input
+                    type={field.type === 'number' || field.type === 'date' ? field.type : 'text'}
+                    min={field.type === 'number' ? 1 : undefined}
+                    max={field.type === 'number' ? 5 : undefined}
+                    value={String(value ?? '')}
+                    onChange={(event) =>
+                      onChange(
+                        item.id,
+                        field.key,
+                        field.type === 'number'
+                          ? Math.min(5, Math.max(1, Number(event.target.value) || 1))
+                          : field.type === 'tags'
+                            ? event.target.value.split(',').map((part) => part.trim())
+                            : event.target.value
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:bg-slate-950"
+                  />
+                )}
+              </label>
+            )
+          })}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={onAdd}
+        className="inline-flex items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-[11px] font-black text-slate-600 dark:border-white/15 dark:text-slate-300"
+      >
+        <Plus className="h-3.5 w-3.5" /> {addLabel.replace(/^\+\s*/, '')}
+      </button>
+    </div>
   )
 }
 

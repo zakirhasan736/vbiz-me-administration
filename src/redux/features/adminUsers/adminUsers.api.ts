@@ -18,6 +18,23 @@ export type AdminUserRow = {
   role: AdminUserRole | string
   companyName: string | null
   registeredCards: number
+  ownerMode?: 'single' | 'corporate' | null
+  cardLimit?: number | null
+  packageCardLimit?: number | null
+  packageMonthlyCents?: number | null
+  signupFeeCents?: number | null
+  negotiatedMonthlyCents?: number | null
+  negotiatedSignupFeeCents?: number | null
+  monthlyCents?: number | null
+  firstInvoiceCents?: number | null
+  recurringInvoiceCents?: number | null
+  signupFeeChargedAt?: string | null
+  subscriptionStatus?: 'active' | 'pending_payment' | 'inactive'
+  subscriptionProvider?: string | null
+  stripeStatus?: string | null
+  paymentLinkUrl?: string | null
+  featureOverrides?: { featureKey: string; featureValue: string | null }[]
+  packageFeatures?: { featureKey: string; featureValue: string | null }[]
   accountStatus: AdminUserAccountStatus
   isActive: boolean
   isVerified: boolean
@@ -49,9 +66,13 @@ export type AdminUsersListQuery = {
 export type CreateAdminUserBody = {
   name: string
   email: string
-  password: string
-  role: 'vcard-owner' | 'corporate-owner'
+  password?: string
+  packageId: string
   companyName?: string | null
+  cardLimit?: number
+  negotiatedMonthlyCents?: number | null
+  negotiatedSignupFeeCents?: number | null
+  featureOverrides?: { featureKey: string; featureValue: string | null }[]
 }
 
 export type UpdateAdminUserBody = {
@@ -60,6 +81,10 @@ export type UpdateAdminUserBody = {
   role?: 'vcard-owner' | 'corporate-owner'
   companyName?: string | null
   password?: string
+  cardLimit?: number
+  negotiatedMonthlyCents?: number | null
+  negotiatedSignupFeeCents?: number | null
+  featureOverrides?: { featureKey: string; featureValue: string | null }[]
 }
 
 export type SetAdminUserStatusBody = {
@@ -107,6 +132,17 @@ const adminUsersApi = api.injectEndpoints({
         { type: 'adminUsers', id: 'STATS' },
       ],
     }),
+    createAdminUserPaymentLink: builder.mutation<AdminUserRow, string>({
+      query: (id) => ({
+        url: `/admin/users/${id}/payment-link`,
+        method: 'POST',
+      }),
+      transformResponse: (res: Envelope<AdminUserRow>) => res.data,
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'adminUsers', id },
+        { type: 'adminUsers', id: 'LIST' },
+      ],
+    }),
     updateAdminUser: builder.mutation<AdminUserRow, { id: string; body: UpdateAdminUserBody }>({
       query: ({ id, body }) => ({
         url: `/admin/users/${id}`,
@@ -151,6 +187,7 @@ export const {
   useGetAdminUsersQuery,
   useGetAdminUserStatsQuery,
   useCreateAdminUserMutation,
+  useCreateAdminUserPaymentLinkMutation,
   useUpdateAdminUserMutation,
   useSetAdminUserStatusMutation,
   useDeleteAdminUserMutation,

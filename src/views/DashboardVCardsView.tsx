@@ -13,8 +13,9 @@ import {
   type NoticeType,
   type VCardSortOption,
 } from '@/components/dashboard/vcard'
-import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { useAppDispatch } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { clearLocalCardNotice, noticeForCard, noticeTypeFromTeamNotice, writeLocalCardNotice } from '@/lib/cardNotice'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
@@ -34,8 +35,8 @@ import { useEffect, useMemo, useState } from 'react'
 
 const DashboardVCardsView = () => {
   const dispatch = useAppDispatch()
-  const role = useAppSelector((state) => state.user.user?.role)
-  const isPersonal = role === 'vcard-owner'
+  const { isSingleBackOffice } = useOwnerMode()
+  const isPersonal = isSingleBackOffice
   const { data: profilesResult, isLoading, isError, refetch } = useGetProfilesQuery({ limit: 100 })
   const [updateProfileCard] = useUpdateProfileCardMutation()
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()

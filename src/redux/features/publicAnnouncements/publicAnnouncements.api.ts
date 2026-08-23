@@ -32,14 +32,20 @@ export const publicAnnouncementsApi = api.injectEndpoints({
       transformResponse: (response: PublicEnvelope<{ id: string; dismissed: boolean }>) => response?.data,
       invalidatesTags: (_result, _error, { profileId }) => [{ type: 'PublicAnnouncement', id: profileId }],
     }),
-    getPublicProfileTeamNotice: build.query<MyCardTeamNotice | null, { profileId: string; visitorId?: string }>({
-      query: ({ profileId, visitorId }) =>
-        `/profiles/${encodeURIComponent(profileId.trim())}/team-notices/active${
-          visitorId ? `?visitorId=${encodeURIComponent(visitorId)}` : ''
-        }`,
+    getPublicProfileTeamNotice: build.query<
+      MyCardTeamNotice | null,
+      { profileId: string; visitorId?: string; origin?: 'admin' | 'owner' }
+    >({
+      query: ({ profileId, visitorId, origin }) => {
+        const params = new URLSearchParams()
+        if (visitorId) params.set('visitorId', visitorId)
+        if (origin) params.set('origin', origin)
+        const qs = params.toString()
+        return `/profiles/${encodeURIComponent(profileId.trim())}/team-notices/active${qs ? `?${qs}` : ''}`
+      },
       transformResponse: (response: PublicEnvelope<MyCardTeamNotice | null>) => response?.data ?? null,
-      providesTags: (_result, _error, { profileId }) => [
-        { type: 'PublicAnnouncement', id: `team-notice:${profileId}` },
+      providesTags: (_result, _error, { profileId, origin }) => [
+        { type: 'PublicAnnouncement', id: `team-notice:${origin || 'any'}:${profileId}` },
       ],
       keepUnusedDataFor: 60,
     }),
@@ -55,7 +61,9 @@ export const publicAnnouncementsApi = api.injectEndpoints({
       transformResponse: (response: PublicEnvelope<{ id: string; dismissed: boolean; suppressUntil: string }>) =>
         response?.data,
       invalidatesTags: (_result, _error, { profileId }) => [
-        { type: 'PublicAnnouncement', id: `team-notice:${profileId}` },
+        { type: 'PublicAnnouncement', id: `team-notice:admin:${profileId}` },
+        { type: 'PublicAnnouncement', id: `team-notice:owner:${profileId}` },
+        { type: 'PublicAnnouncement', id: `team-notice:any:${profileId}` },
       ],
     }),
   }),

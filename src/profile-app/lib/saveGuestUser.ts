@@ -1,4 +1,5 @@
 import type { SavedGuestUser } from '@/interfaces/api/saveGuestUser'
+import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
 import { baseUrl } from '@/redux/api/publicApi'
 
 export class SaveGuestUserError extends Error {
@@ -32,6 +33,7 @@ function collectClientMeta(cardSlug?: string): Record<string, string | null> {
 
   const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
   return {
+    guestId: getOrCreateGuestId() || null,
     userAgent: nav.userAgent || null,
     language: nav.language || null,
     platform: nav.userAgentData?.platform || nav.platform || null,

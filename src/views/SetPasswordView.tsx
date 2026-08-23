@@ -78,8 +78,8 @@ const SetPasswordView = () => {
       return
     }
 
-    toast.success('Password set successfully')
-    router.push('/')
+    toast.success('Password set. Sign in with your email and password, then enter the verification code we send.')
+    router.push('/login')
   }
 
   if (isVerifying || !verified) {
@@ -90,23 +90,39 @@ const SetPasswordView = () => {
     )
   }
 
-  const providerLabel = getProviderLabel(verified.providers[0])
+  const provider = verified.providers[0]
+  const isLocalInvite = !provider || provider === 'LOCAL'
+  const providerLabel = getProviderLabel(provider)
   const { email } = verified
 
   return (
     <>
       <p className="relative z-10 mb-6 rounded-[14px] border border-slate-200 bg-slate-50 p-3 text-left text-[12px] font-medium text-slate-600 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300">
-        You previously signed in with{' '}
-        <span className="font-semibold text-slate-900 dark:text-white">{providerLabel}</span>
-        {email ? (
+        {isLocalInvite ? (
           <>
-            {' '}
-            (<span className="break-all">{email}</span>).
+            Choose a password for{' '}
+            {email ? (
+              <span className="font-semibold break-all text-slate-900 dark:text-white">{email}</span>
+            ) : (
+              'your account'
+            )}
+            . After this you will sign in with email, password, and a verification code.
           </>
         ) : (
-          '.'
-        )}{' '}
-        Create a password to use email login too.
+          <>
+            You previously signed in with{' '}
+            <span className="font-semibold text-slate-900 dark:text-white">{providerLabel}</span>
+            {email ? (
+              <>
+                {' '}
+                (<span className="break-all">{email}</span>).
+              </>
+            ) : (
+              '.'
+            )}{' '}
+            Create a password to use email login too.
+          </>
+        )}
       </p>
 
       <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>

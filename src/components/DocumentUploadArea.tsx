@@ -1,9 +1,10 @@
 'use client'
 
 import { MediaSourceActions, type MediaSourceMode } from '@/components/MediaSourceActions'
+import { ReorderList } from '@/components/ReorderList'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { cn } from '@/utils/cn'
-import { File, FileText, Image as ImageIcon, Loader2, Trash2, Upload } from 'lucide-react'
+import { File, FileText, GripVertical, Image as ImageIcon, Loader2, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 export type UploadedDoc = {
@@ -86,6 +87,56 @@ export function DocumentUploadArea({
       : accent === 'violet'
         ? 'text-violet-600 dark:text-violet-400'
         : 'text-indigo-600 dark:text-indigo-400'
+
+  const renderFile = (file: UploadedDoc, reorderable: boolean) => (
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#0b0f19]">
+      {reorderable ? (
+        <span
+          className="flex h-9 w-7 shrink-0 items-center justify-center text-slate-400"
+          title="Drag to reorder"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
+      ) : null}
+      {file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name) ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={file.url}
+          alt=""
+          className="h-10 w-10 rounded-lg border border-slate-100 object-cover dark:border-white/10"
+        />
+      ) : (
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+          <DocIcon type={file.type} name={file.name} />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-100">{file.name}</p>
+        <p className="text-[11px] font-semibold text-slate-400">{formatSize(file.size)}</p>
+      </div>
+      <a
+        href={file.url}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(event) => event.stopPropagation()}
+        className="text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-500/10 rounded-lg px-2 py-1 text-[11px] font-bold"
+      >
+        View
+      </a>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          onChange(files.filter((item) => item.id !== file.id))
+        }}
+        className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
+        title="Remove"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  )
 
   const ingest = async (list: FileList | File[]) => {
     const incoming = Array.from(list)
@@ -205,53 +256,22 @@ export function DocumentUploadArea({
 
       {error && <p className="text-[12px] font-semibold text-rose-500">{error}</p>}
 
-      {files.length > 0 && (
-        <ul className="space-y-2 pt-1">
-          {files.map((f) => (
-            <li
-              key={f.id}
-              className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#0b0f19]"
-            >
-              {f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(f.name) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={f.url}
-                  alt=""
-                  className="h-10 w-10 rounded-lg border border-slate-100 object-cover dark:border-white/10"
-                />
-              ) : (
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-100 bg-slate-50 dark:border-white/10 dark:bg-white/5">
-                  <DocIcon type={f.type} name={f.name} />
-                </span>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-bold text-slate-800 dark:text-slate-100">{f.name}</p>
-                <p className="text-[11px] font-semibold text-slate-400">{formatSize(f.size)}</p>
-              </div>
-              <a
-                href={f.url}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-500/10 rounded-lg px-2 py-1 text-[11px] font-bold"
-              >
-                View
-              </a>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onChange(files.filter((x) => x.id !== f.id))
-                }}
-                className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
-                title="Remove"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {files.length > 0 ? (
+        multiple && files.length > 1 ? (
+          <div className="space-y-2 pt-1">
+            <p className="text-[11px] font-semibold text-slate-400">Drag uploaded items to change their order.</p>
+            <ReorderList
+              items={files}
+              getKey={(file) => file.id}
+              onReorder={onChange}
+              className="space-y-2"
+              renderItem={(file) => renderFile(file, true)}
+            />
+          </div>
+        ) : (
+          <div className="pt-1">{renderFile(files[0]!, false)}</div>
+        )
+      ) : null}
     </div>
   )
 }

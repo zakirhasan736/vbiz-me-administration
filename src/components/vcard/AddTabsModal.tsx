@@ -65,9 +65,8 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
   const [draftIds, setDraftIds] = useState<string[]>(() => normalizeDraft(enabledIds))
   const [customTabs, setCustomTabs] = useState<VCardCustomTab[]>(() => normalizeCustomTabs(vCardData.customTabs))
   const [labelOverrides, setLabelOverrides] = useState<VCardTabLabelOverrides>(() => vCardData.tabLabelOverrides || {})
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [wasOpen, setWasOpen] = useState(open)
-  const dragFromRef = useRef<number | null>(null)
+  const pointerDragId = useRef('')
 
   // Reset draft when the modal opens (adjust during render — avoid setState-in-effect).
   if (open !== wasOpen) {
@@ -76,7 +75,6 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
       setDraftIds(normalizeDraft(enabledIds))
       setCustomTabs(normalizeCustomTabs(vCardData.customTabs))
       setLabelOverrides(vCardData.tabLabelOverrides || {})
-      setEditingId(null)
     }
   }
 
@@ -98,8 +96,32 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
     })
   }
 
-  const moveDraft = (from: number, to: number) => {
-    setDraftIds((prev) => normalizeDraft(reorderByIndex(prev, from, to)))
+  const moveDraft = (fromId: string, toId: string) => {
+    if (LOCKED_NAV_ITEM_IDS.has(fromId) || LOCKED_NAV_ITEM_IDS.has(toId)) return
+    setDraftIds((prev) => {
+      const from = prev.indexOf(fromId)
+      const to = prev.indexOf(toId)
+      return normalizeDraft(reorderByIndex(prev, from, to))
+    })
+  }
+
+  const movePointerDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (!pointerDragId.current) return
+    event.preventDefault()
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-tab-order-id]')
+    const toId = target?.dataset.tabOrderId
+    if (toId && toId !== pointerDragId.current) {
+      moveDraft(pointerDragId.current, toId)
+    }
+  }
+
+  const finishPointerDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (!pointerDragId.current) return
+    event.preventDefault()
+    pointerDragId.current = ''
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
   }
 
   const itemLabel = (item: NavBarNavItem) => {
@@ -204,43 +226,22 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Tab order</p>
-            <p className="text-[10px] font-semibold text-slate-400">Drag anywhere on a tab to reorder</p>
+            <p className="text-[10px] font-semibold text-slate-400">Drag to reorder tabs (use handle)</p>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
             {draftItems.map((item, index) => {
               const orderNum = index + 1
-              const isEditing = editingId === item.id
               return (
                 <div
                   key={item.id}
-                  draggable={!isEditing}
-                  onDragStart={(e) => {
-                    const target = e.target as HTMLElement
-                    if (target.closest('button, input')) {
-                      e.preventDefault()
-                      return
-                    }
-                    dragFromRef.current = index
-                    e.dataTransfer.setData('text/plain', String(index))
-                    e.dataTransfer.effectAllowed = 'move'
-                    const chip = e.currentTarget as HTMLElement
-                    e.dataTransfer.setDragImage(chip, Math.min(40, chip.offsetWidth / 2), chip.offsetHeight / 2)
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault()
-                    e.dataTransfer.dropEffect = 'move'
-                  }}
+                  data-tab-order-id={item.id}
+                  onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault()
-                    const fromRaw = e.dataTransfer.getData('text/plain')
-                    const from = fromRaw ? Number(fromRaw) : dragFromRef.current
-                    dragFromRef.current = null
-                    if (from != null && !Number.isNaN(from)) moveDraft(from, index)
+                    const fromId = e.dataTransfer.getData('text/plain')
+                    if (fromId) moveDraft(fromId, item.id)
                   }}
-                  onDragEnd={() => {
-                    dragFromRef.current = null
-                  }}
-                  className="group flex min-w-0 cursor-grab items-center gap-2 rounded-xl border border-transparent bg-white px-2.5 py-2 transition-colors select-none hover:bg-slate-50 active:cursor-grabbing dark:bg-[#0f1420] dark:hover:bg-white/4"
+                  className="group flex min-w-0 items-center gap-2 rounded-xl border border-transparent bg-white px-2.5 py-2 transition-colors hover:bg-slate-50 dark:bg-[#0f1420] dark:hover:bg-white/4"
                 >
                   <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-600/10 text-[11px] font-black text-indigo-700 tabular-nums dark:bg-indigo-500/20 dark:text-indigo-300">
                     <span className="pointer-events-none select-none">{orderNum}</span>
@@ -258,50 +259,51 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                       <X className="h-3 w-3" />
                     </button>
                   </span>
-                  <item.icon className="pointer-events-none h-3.5 w-3.5 shrink-0 text-slate-500" />
-                  <div className="relative min-w-0 flex-1">
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        autoFocus
-                        draggable={false}
-                        value={draftLabel(item)}
-                        placeholder={getEditorNavLabel(item)}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onChange={(event) => updateLabel(item.id, event.target.value)}
-                        onBlur={() => {
-                          commitLabel(item)
-                          setEditingId(null)
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault()
-                            event.currentTarget.blur()
-                          }
-                        }}
-                        className="w-full min-w-0 cursor-text rounded-lg border border-indigo-200 bg-white py-1 pr-1 pl-2 text-[12px] font-bold text-slate-800 outline-none dark:border-indigo-500/40 dark:bg-white/5 dark:text-slate-100"
-                        aria-label={`Rename ${item.label}`}
-                      />
-                    ) : (
-                      <span className="pointer-events-none block truncate py-1 pl-1 text-[12px] font-bold text-slate-800 dark:text-slate-100">
-                        {itemLabel(item)}
-                      </span>
-                    )}
-                  </div>
+                  <item.icon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                  <label className="relative min-w-0 flex-1">
+                    <Pencil className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={draftLabel(item)}
+                      placeholder={getEditorNavLabel(item)}
+                      onChange={(event) => updateLabel(item.id, event.target.value)}
+                      onBlur={() => commitLabel(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          event.currentTarget.blur()
+                        }
+                      }}
+                      className="w-full min-w-0 rounded-lg border border-transparent bg-transparent py-1 pr-1 pl-6 text-[12px] font-bold text-slate-800 transition outline-none focus:border-indigo-200 focus:bg-white dark:text-slate-100 dark:focus:border-indigo-500/40 dark:focus:bg-white/5"
+                      aria-label={`Rename ${item.label}`}
+                    />
+                  </label>
                   <button
                     type="button"
-                    aria-label={`Rename ${item.label}`}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={() => setEditingId(item.id)}
-                    className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/10"
+                    draggable={!LOCKED_NAV_ITEM_IDS.has(item.id)}
+                    disabled={LOCKED_NAV_ITEM_IDS.has(item.id)}
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData('text/plain', item.id)
+                      event.dataTransfer.effectAllowed = 'move'
+                    }}
+                    onPointerDown={(event) => {
+                      if (LOCKED_NAV_ITEM_IDS.has(item.id)) return
+                      pointerDragId.current = item.id
+                      event.currentTarget.setPointerCapture(event.pointerId)
+                    }}
+                    onPointerMove={movePointerDrag}
+                    onPointerUp={finishPointerDrag}
+                    onPointerCancel={finishPointerDrag}
+                    className="flex shrink-0 touch-none items-center gap-0.5 rounded p-1 opacity-70 enabled:cursor-grab enabled:hover:bg-slate-100 enabled:active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-25 dark:enabled:hover:bg-white/5"
+                    aria-label={
+                      LOCKED_NAV_ITEM_IDS.has(item.id)
+                        ? `${itemLabel(item)} position is fixed`
+                        : `Reorder ${itemLabel(item)}`
+                    }
+                    title={LOCKED_NAV_ITEM_IDS.has(item.id) ? 'This tab position is fixed' : 'Drag to reorder'}
                   >
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                  <div className="pointer-events-none flex shrink-0 items-center gap-0.5 opacity-70">
                     <GripVertical className="h-3.5 w-3.5 text-slate-400" />
-                  </div>
+                  </button>
                 </div>
               )
             })}

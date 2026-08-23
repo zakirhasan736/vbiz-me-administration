@@ -488,6 +488,7 @@ export default function AdminMyCards() {
         cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
+        deliverySummary="Card-only delivery to the public card, its saved contacts, push subscribers, owner email, and owner back office."
         onClose={() => setNoticeCard(null)}
         onSave={(text, type) => {
           if (!noticeCard?.id) return
@@ -500,8 +501,9 @@ export default function AdminMyCards() {
                   type,
                   audience: 'all',
                   targetProfileId: noticeCard.id,
+                  deliver: true,
                 }).unwrap()
-                notify.success('Notice saved for this card. Visitors will see it after the intro.')
+                notify.success('Notice sent to this card’s owner and saved-contact audience.')
               } else {
                 clearLocalCardNotice(noticeCard.id)
                 const existing = noticeForCard(noticeCard.id, teamNotices)

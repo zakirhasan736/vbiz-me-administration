@@ -7,7 +7,8 @@ import { cn } from '@/utils/cn'
 import { AlertCircle, Download, MessageCircle, Plus, type LucideIcon } from 'lucide-react'
 
 type CorporateDashboardHeaderProps = {
-  quotaLimit?: number
+  quotaLimit?: number | null
+  quotaRemaining?: number | null
   activeCount?: number
   cardCount?: number
   totalViews?: number
@@ -26,6 +27,7 @@ const badgeSkeleton = 'h-3 w-8 rounded bg-white/25'
 
 export function CorporateDashboardHeader({
   quotaLimit,
+  quotaRemaining,
   activeCount,
   cardCount,
   totalViews,
@@ -55,14 +57,22 @@ export function CorporateDashboardHeader({
             Consolidated Analytics
           </h1>
           <p className="inline-flex flex-wrap items-center gap-1 text-sm leading-relaxed font-medium text-slate-300 md:text-[14.5px]">
-            Monitor global analytics, track role-based access controls, and manage directory permissions for up to{' '}
-            <StatNumber
-              value={quotaLimit}
-              loading={directoryLoading}
-              className="font-medium text-slate-300"
-              skeletonClassName="h-4 w-8 rounded bg-white/25"
-            />{' '}
-            digital cards.
+            Monitor global analytics, track role-based access controls, and manage directory permissions
+            {quotaLimit == null && !directoryLoading ? (
+              <> for an unlimited number of digital cards.</>
+            ) : (
+              <>
+                {' '}
+                for up to{' '}
+                <StatNumber
+                  value={quotaLimit}
+                  loading={directoryLoading}
+                  className="font-medium text-slate-300"
+                  skeletonClassName="h-4 w-8 rounded bg-white/25"
+                />{' '}
+                digital cards.
+              </>
+            )}
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             <Badge>
@@ -82,13 +92,18 @@ export function CorporateDashboardHeader({
                 skeletonClassName={badgeSkeleton}
               />{' '}
               /{' '}
-              <StatNumber
-                value={quotaLimit}
-                loading={directoryLoading}
-                className="font-black text-white/80"
-                skeletonClassName={badgeSkeleton}
-              />{' '}
+              {quotaLimit == null && !directoryLoading ? (
+                <span className="font-black text-white/80">Unlimited</span>
+              ) : (
+                <StatNumber
+                  value={quotaLimit}
+                  loading={directoryLoading}
+                  className="font-black text-white/80"
+                  skeletonClassName={badgeSkeleton}
+                />
+              )}{' '}
               Seats
+              {quotaRemaining != null && !directoryLoading ? <> · {quotaRemaining} remaining</> : null}
             </Badge>
             <Badge>
               <StatNumber
@@ -234,9 +249,10 @@ export function CorporateQuotaWarning({
   onRequestUpgrade,
 }: {
   cardCount: number
-  quotaLimit: number
+  quotaLimit: number | null
   onRequestUpgrade: () => void
 }) {
+  if (quotaLimit == null || quotaLimit <= 0) return null
   const threshold = Math.max(1, Math.floor(quotaLimit * 0.9))
   if (cardCount < threshold) return null
 

@@ -10,6 +10,7 @@ import {
   updateContactSaveNotes,
   updateContactSaveReply,
 } from '@/lib/contactSaves'
+import { MIN_IDENTITY_SEARCH_CHARACTERS, matchesIdentitySearch } from '@/lib/identitySearch'
 import { cn } from '@/utils/cn'
 import {
   AlertCircle,
@@ -142,18 +143,20 @@ export default function ContactSavesPanel({
   }, [records])
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim()
     return records.filter((r) => {
       const matchesCard = cardFilter === 'all' || r.vCardId === cardFilter
       if (!matchesCard) return false
-      if (!q) return true
-      return (
-        r.fullName.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q) ||
-        r.phoneNumber.toLowerCase().includes(q) ||
-        r.vCardName.toLowerCase().includes(q) ||
-        r.ownerName.toLowerCase().includes(q)
-      )
+      return matchesIdentitySearch(query, [
+        r.fullName,
+        r.email,
+        r.phoneNumber,
+        r.vCardName,
+        r.vCardSlug,
+        r.ownerName,
+        r.vCardDesignation,
+        r.vCardProfession,
+        r.vCardCompany,
+      ])
     })
   }, [records, query, cardFilter])
 
@@ -290,10 +293,15 @@ export default function ContactSavesPanel({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, email, phone…"
+            placeholder="Search name, email, phone, card, designation, or profession…"
+            minLength={MIN_IDENTITY_SEARCH_CHARACTERS}
             className="w-full max-w-full min-w-0 rounded-2xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm font-semibold outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10 dark:border-white/10 dark:bg-[#0b0f19]"
           />
         </div>
+        <p className="px-1 text-[10px] font-semibold text-slate-400">
+          Enter at least {MIN_IDENTITY_SEARCH_CHARACTERS} characters. Every search word must match the lead or
+          source-card identity.
+        </p>
         {(role === 'corporate' || role === 'admin') && !vCardIdFilter && (
           <select
             value={cardFilter}
@@ -318,7 +326,11 @@ export default function ContactSavesPanel({
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50 dark:border-white/10 dark:bg-white/5">
             <Save className="h-6 w-6 text-slate-300 dark:text-white/20" />
           </div>
-          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">No contact saves yet</p>
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+            {query.trim().length > 0 && query.trim().length < MIN_IDENTITY_SEARCH_CHARACTERS
+              ? `Enter at least ${MIN_IDENTITY_SEARCH_CHARACTERS} characters to search`
+              : 'No matching contact saves'}
+          </p>
           <p className="mx-auto mt-1 max-w-sm text-xs text-slate-400">
             When a guest shares their details on a public vCard, they show up here as a clear list.
           </p>

@@ -5,6 +5,7 @@ import type {
   DynamicPostsQueryResult,
   DynamicPostsSectionResponse,
 } from '@/interfaces/api/dynamicPosts.interface'
+import { decodeHtmlText } from '@/lib/htmlText'
 
 /** Treat missing status as published; accept common active flags. */
 function isActiveItem(status: unknown): boolean {
@@ -120,12 +121,12 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
 
   return {
     id,
-    title: item.title?.trim() || featured.docName || 'Update',
+    title: decodeHtmlText(item.title?.trim() || featured.docName || 'Update'),
     description,
     featuredImage: featured.url,
     generalInfoUrl: resolveGeneralInfoUrl(item, metas),
     date: year || item.created_at || item.updated_at || '',
-    issuer,
+    issuer: decodeHtmlText(issuer),
     year,
     attachments,
   }
@@ -157,7 +158,9 @@ export function normalizeDynamicPostsResponse(
     throw new Error(response.error || `Failed to load ${fallbackTitle.toLowerCase()}`)
   }
 
-  const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || fallbackTitle
+  const sectionTitle = decodeHtmlText(
+    response.post_type?.title?.trim() || response.data.postType?.title?.trim() || fallbackTitle
+  )
 
   const posts = readItems(response.data)
     .filter((item) => isActiveItem(item?.status))

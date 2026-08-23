@@ -1,4 +1,5 @@
 import type { NavBarLinksData, PostTypeNavLink, StaticNavLink } from '@/interfaces/navbarLinks.interface'
+import { decodeHtmlText } from '@/lib/htmlText'
 import { CUSTOM_TAB_ID_PREFIX, NAV_ITEM_BY_ID, type NavBarNavItem } from '@/lib/vcardNavbar'
 import { FileText } from 'lucide-react'
 
@@ -12,7 +13,7 @@ const STATIC_LINK_TO_NAV_ID: Record<string, string> = {
 }
 
 function normalizeKey(value: string): string {
-  return value.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')
+  return decodeHtmlText(value).trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')
 }
 
 const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
@@ -115,7 +116,7 @@ function resolveApiSectionName(...candidates: Array<string | null | undefined>):
 }
 
 function withNavMeta(def: NavBarNavItem, options: { title?: string; apiSectionName?: string }): NavBarNavItem {
-  const displayTitle = options.title?.trim()
+  const displayTitle = options.title?.trim() ? decodeHtmlText(options.title.trim()) : undefined
   const apiSectionName = options.apiSectionName?.trim()
   const next: NavBarNavItem = { ...def }
   if (displayTitle && displayTitle !== def.label && !def.displayLabel) next.displayLabel = displayTitle
@@ -124,7 +125,7 @@ function withNavMeta(def: NavBarNavItem, options: { title?: string; apiSectionNa
 }
 
 function createFallbackNavItem(postType: PostTypeNavLink): NavBarNavItem {
-  const title = postType.title?.trim() || postType.name?.trim() || `Section ${postType.id}`
+  const title = decodeHtmlText(postType.title?.trim() || postType.name?.trim() || `Section ${postType.id}`)
   const slug = postType.slug?.trim() || ''
   const name = postType.name?.trim() || ''
   const rawId = String(postType.id || '')

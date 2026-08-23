@@ -2,6 +2,7 @@ import type {
   VideoExplainerQueryResult,
   VideoExplainerSectionResponse,
 } from '@/interfaces/api/videoExplainer.interface'
+import { decodeHtmlText } from '@/lib/htmlText'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
 
 export function normalizeVideoExplainerResponse(response: VideoExplainerSectionResponse): VideoExplainerQueryResult {
@@ -9,7 +10,9 @@ export function normalizeVideoExplainerResponse(response: VideoExplainerSectionR
     throw new Error(response.error || 'Failed to load video explainer')
   }
 
-  const sectionTitle = response.post_type?.title?.trim() || response.data.type?.trim() || '2D Video Explainer'
+  const sectionTitle = decodeHtmlText(
+    response.post_type?.title?.trim() || response.data.type?.trim() || '2D Video Explainer'
+  )
   const fromVideo = encodeMediaUrl(response.data.video?.url ?? '')
   const items = (
     response.data as {
@@ -29,7 +32,7 @@ export function normalizeVideoExplainerResponse(response: VideoExplainerSectionR
       ? encodeMediaUrl(String((first.featured_image as { url?: string }).url || ''))
       : '')
   const videoUrl = fromVideo || fromItem
-  const videoName = response.data.video?.doc_name?.trim() || first?.title?.trim() || ''
+  const videoName = decodeHtmlText(response.data.video?.doc_name?.trim() || first?.title?.trim() || '')
   const externalFromApi =
     response.data.external_url?.has_external_url && response.data.external_url.url?.trim()
       ? encodeMediaUrl(response.data.external_url.url)

@@ -244,7 +244,7 @@ export function VCardTeamCard({
   }
 
   const isCorporate = mode === 'corporate'
-  const label = badgeLabel || (isCorporate ? 'Corporate' : 'My card')
+  const label = badgeLabel || (isCorporate ? 'Corporate' : 'Single')
   const handleRootClick = () => {
     if (ownerLocked) {
       setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
@@ -495,38 +495,27 @@ export function VCardTeamCard({
             ))}
             <ContactSaveChip count={saves} compact />
             <ShareCountChip count={Number(card.shareCount || clicks) || 0} compact />
-            <button
-              type="button"
-              disabled={ownerLocked}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (ownerLocked) {
-                  setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
-                  return
-                }
-                onNotice(card)
-              }}
-              className={cn(
-                'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase transition-colors',
-                ownerLocked
-                  ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400 opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-slate-500'
-                  : noticeText
-                    ? noticeTone === 'success'
-                      ? 'border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-200'
-                      : noticeTone === 'warning'
-                        ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
-                        : 'border-indigo-300/60 bg-indigo-100 text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/25 dark:text-indigo-200'
-                    : 'border-amber-200/80 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25'
-              )}
-              title={ownerLocked ? SUSPENDED_CARD_MESSAGE : noticeText || 'Card announcement'}
-            >
-              <Megaphone className="h-3 w-3" />
-              Notice
-            </button>
+            {noticeText ? (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase',
+                  noticeTone === 'success'
+                    ? 'border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-200'
+                    : noticeTone === 'warning'
+                      ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
+                      : 'border-indigo-300/60 bg-indigo-100 text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/25 dark:text-indigo-200'
+                )}
+                title={noticeText}
+              >
+                <Megaphone className="h-3 w-3" />
+                Notice active
+              </span>
+            ) : null}
           </div>
         </div>
 
         <VCardCardActions
+          onNotice={ownerLocked ? undefined : () => onNotice(card)}
           onEdit={() => {
             if (ownerLocked) {
               setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })

@@ -28,7 +28,7 @@ export function CardNoticeAfterIntro({ embedded, profileSlug, ownerName }: Props
   const [dismissedId, setDismissedId] = useState<string | null>(null)
   const [dismissTeamNotice] = useDismissPublicProfileTeamNoticeMutation()
   const { data: notice } = useGetPublicProfileTeamNoticeQuery(
-    { profileId: profileId || '', visitorId },
+    { profileId: profileId || '', visitorId, origin: 'owner' },
     {
       skip: !profileId || !slug || embedded || !intro?.introAllowed,
       pollingInterval: 60_000,
