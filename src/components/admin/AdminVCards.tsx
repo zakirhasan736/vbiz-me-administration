@@ -5,6 +5,8 @@ import { ModalPortal } from '@/components/ModalPortal'
 import VCardTeamCard from '@/components/admin/AdminDirectoryVCardTeamCard'
 import VCardDetailSidebar, { VCardTrendsPopup } from '@/components/admin/AdminVCardDetailSidebar'
 import VCardQrModal from '@/components/admin/AdminVCardQrModal'
+import type { ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
+import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { CardLifecycleTabs } from '@/components/dashboard/vcard/CardLifecycleTabs'
 import { NoticeModal, type NoticeType } from '@/components/dashboard/vcard/NoticeModal'
 import { VCardDirectoryListSkeleton } from '@/components/dashboard/vcard/VCardDirectoryListSkeleton'
@@ -25,7 +27,7 @@ import {
 } from '@/lib/cardNotice'
 import { MIN_IDENTITY_SEARCH_CHARACTERS, normalizedSearchQuery } from '@/lib/identitySearch'
 import { appendAuditLog } from '@/lib/mockStore'
-import { notifyCardOwner } from '@/lib/notifications'
+import { notifyScheduleCreated } from '@/lib/scheduleMeetingNotifications'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import { api } from '@/redux/api/api'
@@ -62,10 +64,8 @@ import {
   useGetTeamNoticesQuery,
 } from '@/redux/features/profiles/profiles.api'
 import type { AnnouncementType } from '@/types/announcement'
-import { MEETING_TYPES, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
 import {
-  Calendar,
   Contact,
   Delete,
   Download,
@@ -286,6 +286,7 @@ export default function AdminVCards() {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
+  const [scheduleOwner, setScheduleOwner] = useState<ProfileOwnerSelection | null>(null)
   const [isCallPadOpen, setIsCallPadOpen] = useState(false)
   const [callDigits, setCallDigits] = useState('')
 
@@ -298,17 +299,6 @@ export default function AdminVCards() {
   const [cardNoticeType, setCardNoticeType] = useState('info')
   const [isNoticeSaved, setIsNoticeSaved] = useState(false)
 
-  const [meetingType, setMeetingType] = useState<MeetingType>('Growth Meeting')
-  const [meetingDate, setMeetingDate] = useState(() => {
-    const d = new Date()
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-  })
-  const [meetingTime, setMeetingTime] = useState('10:00 AM')
-  const [meetingNotes, setMeetingNotes] = useState('')
-  const [isMeetingSaved, setIsMeetingSaved] = useState(false)
   const [createMeeting, { isLoading: isCreatingMeeting }] = useCreateMeetingMutation()
   const [createAnnouncement, { isLoading: isCreatingNotice }] = useCreateAnnouncementMutation()
   const [updateAnnouncement, { isLoading: isUpdatingNotice }] = useUpdateAnnouncementMutation()
@@ -431,6 +421,20 @@ export default function AdminVCards() {
 
   const openScheduleForCard = (card: AdminCard) => {
     setSelectedCard(card)
+    const hostName = personalField(card.personal, 'fullName') || card.slug || 'vCard Owner'
+    const ownerEmails = [
+      ...new Set(
+        [card.ownerEmail, card.email]
+          .filter((email): email is string => typeof email === 'string' && email.trim().length > 0)
+          .map((email) => email.trim().toLowerCase())
+      ),
+    ]
+    setScheduleOwner({
+      profileId: card.id,
+      hostName,
+      ownerEmails,
+      identity: card.slug ? `/${card.slug}` : hostName,
+    })
     setIsScheduleModalOpen(true)
   }
 
@@ -704,45 +708,6 @@ export default function AdminVCards() {
       })
     } catch {
       notify.info('Could not publish card notice. Check announcements permission.')
-    }
-  }
-
-  const handleSaveMeeting = async () => {
-    if (!selectedCard || isCreatingMeeting) return
-    const hostName = personalField(selectedCard.personal, 'fullName') || 'vCard Owner'
-    try {
-      const created = await createMeeting({
-        host: hostName,
-        type: meetingType,
-        date: meetingDate,
-        time: meetingTime,
-        notes: meetingNotes.trim() || null,
-        status: 'Scheduled',
-        profileId: selectedCard.id || null,
-      }).unwrap()
-
-      setIsMeetingSaved(true)
-      setTimeout(() => {
-        setIsMeetingSaved(false)
-        setIsScheduleModalOpen(false)
-        setMeetingNotes('')
-      }, 1500)
-
-      const ownerAudience =
-        selectedCard.ownerRole === 'corporate-owner' || selectedCard.companyUserRole === 'corporate-owner'
-          ? 'corporate'
-          : 'single'
-      const meetSuffix = created.meetLink ? ` · Meet: ${created.meetLink}` : ''
-      notifyCardOwner({
-        ownerAudience,
-        category: 'event',
-        title: 'Card schedule booked',
-        body: `${meetingType} with ${hostName} on ${meetingDate} at ${meetingTime}${meetSuffix}`,
-        profileId: selectedCard.id,
-        forceBrowser: true,
-      })
-    } catch {
-      /* keep modal open */
     }
   }
 
@@ -1413,121 +1378,55 @@ export default function AdminVCards() {
         </ModalPortal>
       )}
 
-      {/* MODAL: SCHEDULE GROWTH CONSULTATION */}
-      {isScheduleModalOpen && selectedCard && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-              onClick={() => setIsScheduleModalOpen(false)}
-            ></div>
+      {/* MODAL: SCHEDULE — unified with calendar, Zoho Meet, push, and email */}
+      <ScheduleMeetingModal
+        open={isScheduleModalOpen && Boolean(scheduleOwner)}
+        onClose={() => {
+          setIsScheduleModalOpen(false)
+          setScheduleOwner(null)
+        }}
+        isSubmitting={isCreatingMeeting}
+        initialOwner={scheduleOwner}
+        lockOwner
+        title="Schedule growth consultation"
+        subtitle={
+          selectedCard
+            ? `Book a session with ${personalField(selectedCard.personal, 'fullName') || selectedCard.slug || 'this owner'}.`
+            : undefined
+        }
+        onSubmit={async (payload) => {
+          if (!scheduleOwner) return
+          try {
+            const created = await createMeeting({
+              host: payload.owner.hostName,
+              type: payload.type,
+              date: payload.date,
+              time: payload.time,
+              notes: payload.notes,
+              status: 'Scheduled',
+              profileId: payload.owner.profileId,
+            }).unwrap()
 
-            <div className="animate-in zoom-in-95 relative w-full max-w-lg overflow-hidden rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
-                    <Calendar className="h-5 w-5 text-indigo-600" /> Schedule Growth Consultation
-                  </h2>
-                  <p className="mt-1 text-xs font-semibold text-slate-400">
-                    Book a custom growth advisory meeting or call with{' '}
-                    {personalField(selectedCard.personal, 'fullName')} to optimize conversions.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsScheduleModalOpen(false)}
-                  className="shrink-0 rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-white/10"
-                  aria-label="Close"
-                >
-                  <X className="h-4 w-4 text-slate-500" />
-                </button>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Discussion Medium
-                  </label>
-                  <select
-                    value={meetingType}
-                    onChange={(e) => setMeetingType(e.target.value as MeetingType)}
-                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  >
-                    {MEETING_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Meeting Date
-                    </label>
-                    <input
-                      type="date"
-                      value={meetingDate}
-                      onChange={(e) => setMeetingDate(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                    />
-                  </div>
-
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Scheduled Time
-                    </label>
-                    <input
-                      type="text"
-                      value={meetingTime}
-                      onChange={(e) => setMeetingTime(e.target.value)}
-                      placeholder="e.g. 10:30 AM"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Description / Notes
-                  </label>
-                  <textarea
-                    value={meetingNotes}
-                    onChange={(e) => setMeetingNotes(e.target.value)}
-                    placeholder="e.g. Review QR dimensions and conversion goals..."
-                    className="min-h-22.5 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                <div className="mt-6 flex gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
-                  <button
-                    type="button"
-                    onClick={() => setIsScheduleModalOpen(false)}
-                    className="flex-1 rounded-xl bg-slate-100 py-3.5 text-xs font-black tracking-wider text-slate-700 uppercase dark:bg-slate-800 dark:text-slate-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveMeeting()}
-                    disabled={isCreatingMeeting}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95 disabled:opacity-60"
-                  >
-                    {isMeetingSaved ? (
-                      <>Meeting Scheduled ✓</>
-                    ) : isCreatingMeeting ? (
-                      <>Booking…</>
-                    ) : (
-                      <>Book Discussion</>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+            const ownerAudience =
+              selectedCard?.ownerRole === 'corporate-owner' || selectedCard?.companyUserRole === 'corporate-owner'
+                ? 'corporate'
+                : 'single'
+            notifyScheduleCreated({
+              meeting: created,
+              hostName: payload.owner.hostName,
+              meetType: payload.type,
+              meetDate: payload.date,
+              meetTime: payload.time,
+              profileId: payload.owner.profileId,
+              ownerAudience,
+            })
+            setScheduleOwner(null)
+            return created
+          } catch {
+            return undefined
+          }
+        }}
+      />
 
       {confirmState?.open && (
         <ConfirmModal

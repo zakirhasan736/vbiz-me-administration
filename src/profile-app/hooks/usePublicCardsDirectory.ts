@@ -33,19 +33,21 @@ function resetPagination(setters: {
 }
 
 function dedupePublicCards(cards: PublicCardListItem[]): PublicCardListItem[] {
-  const seen = new Set<number>()
+  const seen = new Set<string>()
   return cards.filter((card) => {
-    if (seen.has(card.id)) return false
-    seen.add(card.id)
+    const key = String(card.id)
+    if (seen.has(key)) return false
+    seen.add(key)
     return true
   })
 }
 
 function dedupeRawPublicCards(cards: PublicCard[]): PublicCard[] {
-  const seen = new Set<number>()
+  const seen = new Set<string>()
   return cards.filter((card) => {
-    if (seen.has(card.id)) return false
-    seen.add(card.id)
+    const key = String(card.id)
+    if (seen.has(key)) return false
+    seen.add(key)
     return true
   })
 }

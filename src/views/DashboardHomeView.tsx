@@ -15,10 +15,12 @@ import {
   SocialEngagementSection,
   WebsiteVisitsChart,
 } from '@/components/dashboard/home'
+import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
 import { useAppSelector } from '@/hooks/redux'
 import { useDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { useOrderTimer } from '@/hooks/useOrderTimer'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
+import { useGetOwnerUpcomingMeetingsQuery } from '@/redux/features/meetings/meetings.api'
 import {
   dashboardOverviewQueryOptions,
   type DashboardPeriod,
@@ -213,6 +215,10 @@ function SingleOwnerDashboardHome() {
   const notesCount = statsReady ? (stats?.notesLast30Days ?? 0) : undefined
   const profileName = stats?.profiles?.[0]?.name || 'Your card'
 
+  const { data: upcomingMeetingsPage, isLoading: upcomingMeetingsLoading } = useGetOwnerUpcomingMeetingsQuery({
+    limit: 5,
+  })
+
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
     setContactSavesModalTab(tab)
     setShowContactSavesModal(true)
@@ -261,6 +267,16 @@ function SingleOwnerDashboardHome() {
       </div>
 
       <SocialEngagementSection channels={statsReady ? stats?.socialChannels : undefined} loading={!statsReady} />
+
+      <div className="mb-8">
+        <UpcomingSchedulesPanel
+          meetings={upcomingMeetingsPage?.items ?? []}
+          isLoading={upcomingMeetingsLoading}
+          title="Your upcoming sessions"
+          subtitle="Latest admin-scheduled calls with Zoho Meeting links."
+          emptyMessage="No upcoming sessions — your admin team will notify you here when one is booked."
+        />
+      </div>
 
       <EngagementAnalyticsSection socialChannels={statsReady ? stats?.socialChannels : undefined} />
 

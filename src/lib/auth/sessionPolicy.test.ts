@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   homePathForRole,
   homePathForSession,
+  isAuthenticatedWorkspacePath,
   isJwtExpired,
   jwtExpiresAt,
   resolvePostLoginPath,
@@ -52,5 +53,20 @@ describe('session policy', () => {
     expect(isJwtExpired(tokenWithExpiry(100), 100_000)).toBe(true)
     expect(isJwtExpired(tokenWithExpiry(200), 100_000)).toBe(false)
     expect(jwtExpiresAt(tokenWithExpiry(200))).toBe(200_000)
+  })
+
+  it('marks only private dashboards and backoffice as session-managed paths', () => {
+    expect(isAuthenticatedWorkspacePath('/')).toBe(true)
+    expect(isAuthenticatedWorkspacePath('/admin/dashboard')).toBe(true)
+    expect(isAuthenticatedWorkspacePath('/vcards')).toBe(true)
+    expect(isAuthenticatedWorkspacePath('/vcards/edit/home')).toBe(true)
+    expect(isAuthenticatedWorkspacePath('/teamvcard')).toBe(true)
+    expect(isAuthenticatedWorkspacePath('/settings')).toBe(true)
+
+    expect(isAuthenticatedWorkspacePath('/v/acme')).toBe(false)
+    expect(isAuthenticatedWorkspacePath('/v/acme/icon/192')).toBe(false)
+    expect(isAuthenticatedWorkspacePath('/login')).toBe(false)
+    expect(isAuthenticatedWorkspacePath('/login?reason=session-expired')).toBe(false)
+    expect(isAuthenticatedWorkspacePath('/register')).toBe(false)
   })
 })

@@ -31,7 +31,7 @@ function apiContext(role: string) {
 
 describe('authenticated API session handling', () => {
   beforeEach(() => {
-    window.history.replaceState({}, '', '/login')
+    window.history.replaceState({}, '', '/admin/dashboard')
   })
 
   afterEach(() => {
@@ -46,7 +46,7 @@ describe('authenticated API session handling', () => {
       .mockResolvedValueOnce(response({ success: true, data: { ok: true } }, 200))
     vi.stubGlobal('fetch', fetchMock)
     const { context, dispatched } = apiContext('vcard-owner')
-    window.history.replaceState({}, '', '/dashboard')
+    window.history.replaceState({}, '', '/')
 
     const result = await baseQueryWithRefreshToken({ url: '/protected' }, context, {})
 
@@ -83,6 +83,7 @@ describe('authenticated API session handling', () => {
     const { context, dispatched } = apiContext('vcard-owner')
     const warning = vi.fn()
     window.addEventListener(SESSION_EXPIRING_EVENT, warning)
+    window.history.replaceState({}, '', '/teamvcard')
 
     const result = await baseQueryWithRefreshToken({ url: '/protected' }, context, {})
 
@@ -91,6 +92,22 @@ describe('authenticated API session handling', () => {
     expect(requestUrl(fetchMock.mock.calls[1][0])).toContain('/auth/refresh-token')
     expect(dispatched).toHaveLength(0)
     expect(warning).toHaveBeenCalledTimes(1)
+    window.removeEventListener(SESSION_EXPIRING_EVENT, warning)
+  })
+
+  it('does not open the expiry warning on public card routes', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(response({ message: 'Access token expired' }, 401))
+    vi.stubGlobal('fetch', fetchMock)
+    const { context, dispatched } = apiContext('admin')
+    const warning = vi.fn()
+    window.addEventListener(SESSION_EXPIRING_EVENT, warning)
+    window.history.replaceState({}, '', '/v/acme-card')
+
+    const result = await baseQueryWithRefreshToken({ url: '/protected' }, context, {})
+
+    expect(result).toMatchObject({ error: { status: 401 } })
+    expect(dispatched).toHaveLength(0)
+    expect(warning).not.toHaveBeenCalled()
     window.removeEventListener(SESSION_EXPIRING_EVENT, warning)
   })
 })

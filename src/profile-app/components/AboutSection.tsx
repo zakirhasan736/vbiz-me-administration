@@ -56,12 +56,17 @@ function AboutFeaturedMedia({ src, alt }: { src: string; alt: string }) {
   const encoded = encodeMediaUrl(src)
   if (!encoded) return null
 
+  /** Taller frame + upper-biased focal point so portrait faces stay in view. */
+  const frameClass =
+    'relative aspect-[4/3] min-h-[240px] max-h-[340px] w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg sm:min-h-[280px] sm:max-h-[400px] md:min-h-[300px] md:max-h-[440px]'
+  const mediaClass = 'object-cover object-[center_22%]'
+
   if (isVideoUrl(encoded)) {
     return (
-      <div className="relative aspect-[2.2/1] max-h-52 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg sm:max-h-60 md:max-h-64">
+      <div className={frameClass}>
         <video
           src={encoded}
-          className="h-full w-full object-cover object-center"
+          className={`h-full w-full ${mediaClass}`}
           controls
           muted
           playsInline
@@ -75,15 +80,8 @@ function AboutFeaturedMedia({ src, alt }: { src: string; alt: string }) {
   if (!isUsableImageSrc(encoded)) return null
 
   return (
-    <div className="relative aspect-[2.2/1] max-h-52 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg sm:max-h-60 md:max-h-64">
-      <Image
-        src={encoded}
-        alt={alt}
-        fill
-        className="object-cover object-center"
-        sizes="(max-width: 768px) 100vw, 768px"
-        priority
-      />
+    <div className={frameClass}>
+      <Image src={encoded} alt={alt} fill className={mediaClass} sizes="(max-width: 768px) 100vw, 768px" priority />
     </div>
   )
 }

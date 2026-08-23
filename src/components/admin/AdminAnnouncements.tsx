@@ -11,7 +11,9 @@ import {
   WarningsNoticesListSkeleton,
 } from '@/components/admin/AdminAnnouncementsSkeleton'
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
+import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { notifyOwners } from '@/lib/notifications'
+import { meetLinkLabel, notifyScheduleCreated } from '@/lib/scheduleMeetingNotifications'
 import { notify } from '@/lib/toast/toast'
 import {
   useClearLiveAnnouncementMutation,
@@ -43,7 +45,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState } from 'react'
 
 function defaultTitle(type: AnnouncementType): string {
   if (type === 'warning') return 'Warning notice'
@@ -74,7 +76,7 @@ export default function AdminAnnouncements() {
   const [clearLiveAnnouncement, { isLoading: isClearing }] = useClearLiveAnnouncementMutation()
 
   const { data: meetingsPage, isLoading: meetingsLoading } = useGetMeetingsQuery({ limit: 100 })
-  const [createMeeting] = useCreateMeetingMutation()
+  const [createMeeting, { isLoading: isCreatingMeeting }] = useCreateMeetingMutation()
   const [deleteMeeting] = useDeleteMeetingMutation()
   const meetings = useMemo(() => meetingsPage?.items ?? [], [meetingsPage?.items])
 
@@ -137,12 +139,7 @@ export default function AdminAnnouncements() {
     })
   }
 
-  const [eventTitle, setEventTitle] = useState('')
-  const [eventOwner, setEventOwner] = useState<ProfileOwnerSelection | null>(null)
-  const [eventType, setEventType] = useState('')
-  const [eventDate, setEventDate] = useState('')
-  const [eventTime, setEventTime] = useState('10:00 AM')
-  const [eventNotes, setEventNotes] = useState('')
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -315,38 +312,6 @@ export default function AdminAnnouncements() {
         })()
       },
     })
-  }
-
-  const handleCreateEvent = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!eventOwner || !eventDate || !eventType.trim() || !eventTitle.trim()) return
-
-    try {
-      const created = await createMeeting({
-        host: eventOwner.hostName,
-        type: eventType.trim(),
-        date: eventDate,
-        time: eventTime,
-        notes: eventNotes || eventTitle.trim() || 'Upcoming admin event',
-        status: 'Scheduled',
-        profileId: eventOwner.profileId,
-      }).unwrap()
-
-      const meetSuffix = created.meetLink ? ` · Meet: ${created.meetLink}` : ''
-      notifyOwners({
-        category: 'event',
-        title: eventTitle.trim(),
-        body: `${eventType.trim()} with ${eventOwner.hostName} on ${eventDate} at ${eventTime}${meetSuffix}`,
-        forceBrowser: true,
-      })
-
-      setEventTitle('')
-      setEventOwner(null)
-      setEventType('')
-      setEventNotes('')
-    } catch {
-      /* keep form values */
-    }
   }
 
   const handleCancelMeeting = (id: string) => {
@@ -820,68 +785,24 @@ export default function AdminAnnouncements() {
 
       {tab === 'events' && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <form
-            onSubmit={(e) => void handleCreateEvent(e)}
-            className="space-y-4 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-5 dark:border-white/10 dark:bg-[#0b0f19]"
-          >
+          <div className="space-y-4 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-5 dark:border-white/10 dark:bg-[#0b0f19]">
             <div>
               <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
-                <Plus className="h-4 w-4 text-indigo-500" />
-                Create upcoming event
+                <Plus className="h-4 w-4 text-teal-600" />
+                Schedule upcoming event
               </h2>
               <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                Notifies single and corporate owners when published.
+                Same flow as card list, dashboard, and calendar — Zoho Calendar, meeting link, push, and email.
               </p>
             </div>
-            <input
-              required
-              value={eventTitle}
-              onChange={(e) => setEventTitle(e.target.value)}
-              placeholder="Event title"
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
-            />
-            <ProfileOwnerPicker
-              value={eventOwner}
-              onChange={setEventOwner}
-              label="Host / owner"
-              listClassName="max-h-40"
-            />
-            <input
-              required
-              value={eventType}
-              onChange={(e) => setEventType(e.target.value)}
-              placeholder="Event type"
-              className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                required
-                type="date"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
-              />
-              <input
-                value={eventTime}
-                onChange={(e) => setEventTime(e.target.value)}
-                placeholder="10:00 AM"
-                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
-              />
-            </div>
-            <textarea
-              value={eventNotes}
-              onChange={(e) => setEventNotes(e.target.value)}
-              placeholder="Notes for owners…"
-              className="min-h-20 w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 p-3 text-xs font-semibold outline-none dark:border-white/5 dark:bg-slate-900"
-            />
             <button
-              type="submit"
-              disabled={!eventOwner}
-              className="w-full rounded-xl bg-indigo-600 py-3 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700 disabled:opacity-60"
+              type="button"
+              onClick={() => setShowScheduleModal(true)}
+              className="w-full rounded-xl bg-slate-950 py-3 text-[10px] font-black tracking-wider text-white uppercase hover:bg-slate-800 dark:bg-teal-500 dark:text-slate-950"
             >
-              Publish upcoming event
+              Book session
             </button>
-          </form>
+          </div>
 
           <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-7 dark:border-white/10 dark:bg-[#0b0f19]">
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -925,7 +846,7 @@ export default function AdminAnnouncements() {
                               rel="noreferrer"
                               className="text-indigo-600 hover:underline dark:text-indigo-400"
                             >
-                              Google Meet
+                              {meetLinkLabel(m.meetLink) || 'Meeting'}
                             </a>
                           </>
                         ) : null}
@@ -945,6 +866,37 @@ export default function AdminAnnouncements() {
           </div>
         </div>
       )}
+
+      <ScheduleMeetingModal
+        open={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        isSubmitting={isCreatingMeeting}
+        title="Schedule upcoming event"
+        onSubmit={async (payload) => {
+          try {
+            const created = await createMeeting({
+              host: payload.owner.hostName,
+              type: payload.type,
+              date: payload.date,
+              time: payload.time,
+              notes: payload.notes,
+              status: 'Scheduled',
+              profileId: payload.owner.profileId,
+            }).unwrap()
+            notifyScheduleCreated({
+              meeting: created,
+              hostName: payload.owner.hostName,
+              meetType: payload.type,
+              meetDate: payload.date,
+              meetTime: payload.time,
+              profileId: payload.owner.profileId,
+            })
+            return created
+          } catch {
+            return undefined
+          }
+        }}
+      />
 
       {confirmState?.open && (
         <ConfirmModal

@@ -74,18 +74,18 @@ export function AdminScheduleListSkeleton({ className, cardCount = 2 }: AdminSch
 /** Month grid placeholder for Admin Schedule calendar. */
 export function AdminScheduleCalendarSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn('space-y-3', className)} aria-busy="true" aria-label="Loading schedule calendar">
-      <div className="grid grid-cols-7 gap-1">
+    <div className={cn('space-y-4', className)} aria-busy="true" aria-label="Loading schedule calendar">
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-200/80 dark:border-white/10 dark:bg-white/10">
         {Array.from({ length: 7 }).map((_, i) => (
-          <Skeleton key={`dow-${i}`} className="h-6 rounded-md" />
+          <div key={`dow-${i}`} className="bg-slate-50 px-1 py-2.5 dark:bg-[#101826]">
+            <Skeleton className="mx-auto h-3 w-8 rounded-md" />
+          </div>
         ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
         {Array.from({ length: 42 }).map((_, i) => (
-          <div key={i} className="min-h-22 rounded-xl border border-slate-100 p-1.5 dark:border-white/10">
-            <Skeleton className="h-3 w-5 rounded-md" />
-            <Skeleton className="mt-2 h-4 w-full rounded-md" />
-            {i % 3 === 0 ? <Skeleton className="mt-1 h-4 w-4/5 rounded-md" /> : null}
+          <div key={i} className="min-h-[5.5rem] bg-white p-2 sm:min-h-[7rem] dark:bg-[#0d121c]">
+            <Skeleton className="h-6 w-7 rounded-lg" />
+            <Skeleton className="mt-3 h-5 w-full rounded-lg" />
+            {i % 4 === 0 ? <Skeleton className="mt-1 h-5 w-4/5 rounded-lg" /> : null}
           </div>
         ))}
       </div>

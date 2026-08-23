@@ -1,17 +1,16 @@
 'use client'
 
-import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
+import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { VCardWeeklyEngagement } from '@/components/admin/VCardWeeklyEngagement'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ContactSavesModal, type ContactSavesModalTab, type DashboardContact } from '@/components/dashboard/home'
-import { ModalPortal } from '@/components/ModalPortal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { StatNumber } from '@/components/ui/StatNumber'
 import { useAdminDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { getAdminThemeConfig, getThemeClasses } from '@/lib/admin/adminTheme'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { isWithinPeriod, periodCutoff } from '@/lib/dashboardPeriod'
-import { notifyOwners } from '@/lib/notifications'
+import { meetLinkLabel, notifyScheduleCreated } from '@/lib/scheduleMeetingNotifications'
 import { useAuth } from '@/providers/AuthProvider'
 import { useGetHealthQuery } from '@/redux/features/health/health.api'
 import {
@@ -26,7 +25,6 @@ import {
   useGetContactsQuery,
   useGetDashboardSummaryQuery,
 } from '@/redux/features/profiles/profiles.api'
-import { MEETING_TYPES, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
 import {
   Calendar,
@@ -41,7 +39,6 @@ import {
   type LucideIcon,
   MessageCircle,
   Music2,
-  Phone,
   Pin,
   Plus,
   Radio,
@@ -50,12 +47,11 @@ import {
   TrendingUp,
   Twitter,
   Video,
-  X,
   Youtube,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Link from 'next/link'
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import CardActivities from './CardActivities'
 
@@ -142,43 +138,6 @@ export default function AdminDashboard() {
 
   const [showMtgModal, setShowMtgModal] = useState(false)
   const [cancelMeetingId, setCancelMeetingId] = useState<string | null>(null)
-  const [mtgOwner, setMtgOwner] = useState<ProfileOwnerSelection | null>(null)
-  const [mtgType, setMtgType] = useState<MeetingType>('Growth Meeting')
-  const [mtgDate, setMtgDate] = useState('')
-  const [mtgTime, setMtgTime] = useState('')
-  const [mtgLocation, setMtgLocation] = useState('Google Meet')
-
-  const handleScheduleMeeting = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!mtgOwner || !mtgDate || !mtgTime || isCreatingMeeting) return
-
-    try {
-      const created = await createMeeting({
-        host: mtgOwner.hostName,
-        type: mtgType,
-        date: mtgDate,
-        time: mtgTime,
-        location: mtgLocation.trim() || null,
-        status: 'Scheduled',
-        profileId: mtgOwner.profileId,
-      }).unwrap()
-
-      const meetSuffix = created.meetLink ? ` · Meet: ${created.meetLink}` : ''
-      notifyOwners({
-        category: 'event',
-        title: 'New admin event scheduled',
-        body: `${mtgType} with ${mtgOwner.hostName} on ${mtgDate} at ${mtgTime}${meetSuffix}`,
-        forceBrowser: true,
-      })
-
-      setMtgOwner(null)
-      setMtgDate('')
-      setMtgTime('')
-      setShowMtgModal(false)
-    } catch {
-      /* keep modal open on failure */
-    }
-  }
 
   const handleDeleteMeeting = (id: string) => {
     setCancelMeetingId(id)
@@ -682,7 +641,7 @@ export default function AdminDashboard() {
                                   rel="noreferrer"
                                   className="inline-flex items-center gap-1 text-indigo-600 hover:underline dark:text-indigo-400"
                                 >
-                                  <Video className="h-3 w-3" /> Meet
+                                  <Video className="h-3 w-3" /> {meetLinkLabel(mtg.meetLink) || 'Meet'}
                                 </a>
                               ) : null}
                             </p>
@@ -739,110 +698,37 @@ export default function AdminDashboard() {
         />
       )}
 
-      {/* Modal: Schedule growth call */}
-      {showMtgModal && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" onClick={() => setShowMtgModal(false)} />
-            <form
-              onSubmit={(e) => void handleScheduleMeeting(e)}
-              className="animate-in zoom-in-95 relative w-full max-w-lg space-y-4 rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#0b0f19]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="flex items-center gap-1.5 text-[10px] font-black tracking-wider text-indigo-500 uppercase">
-                    <Phone className="h-3.5 w-3.5" /> New session
-                  </p>
-                  <h3 className="mt-0.5 text-lg font-black text-slate-900 dark:text-white">Schedule a growth call</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowMtgModal(false)}
-                  className="rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-white/10"
-                >
-                  <X className="h-4 w-4 text-slate-500" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <ProfileOwnerPicker
-                    value={mtgOwner}
-                    onChange={setMtgOwner}
-                    label="Owner / host"
-                    listClassName="max-h-40"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Type</label>
-                  <select
-                    value={mtgType}
-                    onChange={(e) => setMtgType(e.target.value as MeetingType)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
-                  >
-                    {MEETING_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Venue</label>
-                  <input
-                    type="text"
-                    value={mtgLocation}
-                    onChange={(e) => setMtgLocation(e.target.value)}
-                    placeholder="Google Meet, Zoom..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={mtgDate}
-                    onChange={(e) => setMtgDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Time</label>
-                  <input
-                    type="text"
-                    required
-                    value={mtgTime}
-                    onChange={(e) => setMtgTime(e.target.value)}
-                    placeholder="e.g. 10:00 AM"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMtgModal(false)}
-                  className="px-4 py-2.5 text-[11px] font-black text-slate-500 uppercase"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreatingMeeting || !mtgOwner}
-                  className={cn(
-                    'rounded-xl px-5 py-2.5 text-[11px] font-black text-white uppercase disabled:opacity-60',
-                    themeClasses.bg
-                  )}
-                >
-                  {isCreatingMeeting ? 'Booking…' : 'Book session'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </ModalPortal>
-      )}
+      <ScheduleMeetingModal
+        open={showMtgModal}
+        onClose={() => setShowMtgModal(false)}
+        isSubmitting={isCreatingMeeting}
+        title="Schedule a growth call"
+        subtitle="Creates a Zoho Calendar event with meeting link, owner push, email, and backoffice notice."
+        onSubmit={async (payload) => {
+          try {
+            const created = await createMeeting({
+              host: payload.owner.hostName,
+              type: payload.type,
+              date: payload.date,
+              time: payload.time,
+              notes: payload.notes,
+              status: 'Scheduled',
+              profileId: payload.owner.profileId,
+            }).unwrap()
+            notifyScheduleCreated({
+              meeting: created,
+              hostName: payload.owner.hostName,
+              meetType: payload.type,
+              meetDate: payload.date,
+              meetTime: payload.time,
+              profileId: payload.owner.profileId,
+            })
+            return created
+          } catch {
+            return undefined
+          }
+        }}
+      />
 
       <ConfirmModal
         open={!!cancelMeetingId}

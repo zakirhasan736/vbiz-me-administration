@@ -1,11 +1,14 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
 
+/** Card id may be a Laravel int or vbiz Express cuid string. */
+export type PublicCardId = string | number
+
 export type PublicCard = {
-  id: number
+  id: PublicCardId
   name: string
   slug: string
   profession: string | null
-  profession_id: number | null
+  profession_id: PublicCardId | null
   image: string
   image_type: string
   is_video: boolean
@@ -22,21 +25,21 @@ export type PublicCardsPaginationLink = {
 export type PublicCardsPaginatedData = {
   current_page: number
   data: PublicCard[]
-  first_page_url: string
-  from: number | null
+  first_page_url?: string
+  from?: number | null
   last_page: number
-  last_page_url: string
-  links: PublicCardsPaginationLink[]
-  next_page_url: string | null
-  path: string
+  last_page_url?: string
+  links?: PublicCardsPaginationLink[]
+  next_page_url?: string | null
+  path?: string
   per_page: number
-  prev_page_url: string | null
-  to: number | null
+  prev_page_url?: string | null
+  to?: number | null
   total: number
 }
 
 export type PublicCardsFilterOption = {
-  id: number
+  id: PublicCardId
   name: string
 }
 
@@ -48,10 +51,10 @@ export type PublicCardsDropdowns = {
 
 /** Active filters echoed when searching (Postman: Public Card Search). */
 export type PublicCardsFiltersApplied = {
-  state_id?: string
-  city_id?: string
-  profession_id?: string
-  service?: string
+  state_id?: string | null
+  city_id?: string | null
+  profession_id?: string | null
+  service?: string | null
 }
 
 export type PublicCardsPaginationMeta = {
@@ -66,9 +69,9 @@ export type PublicCardsPaginationMeta = {
 export type PublicCardsSearchParams = {
   page?: number
   per_page?: number
-  state_id?: number
-  city_id?: number
-  profession_id?: number
+  state_id?: PublicCardId
+  city_id?: PublicCardId
+  profession_id?: PublicCardId
   service?: string
   search?: string
 }
@@ -78,6 +81,7 @@ export type PublicCardsResponse = ApiResponse<PublicCardsPaginatedData> & {
   dropdowns?: PublicCardsDropdowns
   filters_applied?: PublicCardsFiltersApplied
   pagination?: PublicCardsPaginationMeta
+  error?: string
 }
 
 /** Normalized result consumed by UI / RTK Query transforms. */

@@ -7,6 +7,10 @@ import { Provider } from 'react-redux'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionExpiryCoordinator } from './SessionExpiryCoordinator'
 
+vi.mock('next/navigation', () => ({
+  usePathname: () => window.location.pathname,
+}))
+
 function createAuthStore() {
   return configureStore({ reducer: { user: userReducer } })
 }
@@ -23,7 +27,7 @@ describe('SessionExpiryCoordinator', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    window.history.replaceState({}, '', '/login')
+    window.history.replaceState({}, '', '/admin/dashboard')
     window.sessionStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -97,6 +101,23 @@ describe('SessionExpiryCoordinator', () => {
     await act(async () => stayButton?.click())
 
     expect(authStore.getState().user.token).toBe(renewedToken)
+    expect(document.body.textContent).not.toContain('Session expiring')
+    expect(onSignOut).not.toHaveBeenCalled()
+  })
+
+  it('does not show the session popup on public card routes', async () => {
+    window.history.replaceState({}, '', '/v/acme-card')
+    const onSignOut = vi.fn(async () => undefined)
+    await act(async () => {
+      root.render(
+        <Provider store={authStore}>
+          <SessionExpiryCoordinator onSignOut={onSignOut} />
+        </Provider>
+      )
+    })
+
+    await act(async () => requestSessionExpiryWarning('expired'))
+
     expect(document.body.textContent).not.toContain('Session expiring')
     expect(onSignOut).not.toHaveBeenCalled()
   })

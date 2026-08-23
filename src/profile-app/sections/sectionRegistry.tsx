@@ -126,6 +126,7 @@ export function renderProfileSection({
     case 'skills':
       return <SkillsSection key={tabId} sectionName={sectionName} />
     case 'public-cards':
+    case 'global-connection':
       return <PublicCardsSection key={tabId} />
     case 'my-info':
       return <MyInfoSection key={tabId} />

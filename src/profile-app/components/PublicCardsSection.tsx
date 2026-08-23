@@ -9,7 +9,7 @@ import { PUBLIC_CARDS_SEARCH_DEBOUNCE_MS, PUBLIC_CARDS_SEARCH_MIN_CHARS } from '
 import { usePublicCardsDirectory } from '@/profile-app/hooks/usePublicCardsDirectory'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
-import type { PublicCardsFilterOption } from '@interfaces/api/publicCards'
+import type { PublicCardId, PublicCardsFilterOption } from '@interfaces/api/publicCards'
 import {
   Briefcase,
   ChevronDown,
@@ -32,14 +32,14 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-function findOptionName(options: PublicCardsFilterOption[] | undefined, id: number | null): string | null {
-  if (id == null) return null
-  return options?.find((option) => option.id === id)?.name ?? null
+function findOptionName(options: PublicCardsFilterOption[] | undefined, id: PublicCardId | null): string | null {
+  if (id == null || id === '') return null
+  return options?.find((option) => String(option.id) === String(id))?.name ?? null
 }
 
 type DesktopFilterSelectProps = {
-  value: number | null
-  onChange: (val: number | null) => void
+  value: PublicCardId | null
+  onChange: (val: PublicCardId | null) => void
   options: PublicCardsFilterOption[]
   placeholder: string
   Icon: LucideIcon
@@ -47,6 +47,13 @@ type DesktopFilterSelectProps = {
   /** Editor phone preview: the field fills its grid cell instead of sharing a row. */
   compact?: boolean
   className?: string
+}
+
+function parseSelectId(raw: string): PublicCardId | null {
+  if (!raw) return null
+  const asNumber = Number(raw)
+  if (Number.isFinite(asNumber) && String(asNumber) === raw) return asNumber
+  return raw
 }
 
 function DesktopFilterSelect({
@@ -67,12 +74,9 @@ function DesktopFilterSelect({
         <Icon size={compact ? 14 : 16} />
       </div>
       <select
-        value={value ?? ''}
+        value={value == null ? '' : String(value)}
         disabled={disabled}
-        onChange={(e) => {
-          const next = e.target.value
-          onChange(next ? Number(next) : null)
-        }}
+        onChange={(e) => onChange(parseSelectId(e.target.value))}
         className={`h-full w-full min-w-0 cursor-pointer appearance-none truncate rounded-xl border border-zinc-300 bg-white font-semibold text-zinc-900 shadow-sm transition-all hover:border-zinc-400 hover:bg-zinc-50 focus:border-[#eab308] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-900/80 ${
           compact ? 'py-2.5 pr-7 pl-8 text-[11px]' : 'py-3 pr-10 pl-11 text-xs lg:text-sm'
         }`}
@@ -81,7 +85,11 @@ function DesktopFilterSelect({
           {placeholder}
         </option>
         {options.map((opt) => (
-          <option key={opt.id} value={opt.id} className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+          <option
+            key={String(opt.id)}
+            value={String(opt.id)}
+            className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
+          >
             {opt.name}
           </option>
         ))}
@@ -106,19 +114,16 @@ function MobileFilterSelect({ label, value, onChange, options, placeholder, Icon
           <Icon size={15} />
         </div>
         <select
-          value={value ?? ''}
+          value={value == null ? '' : String(value)}
           disabled={disabled}
-          onChange={(e) => {
-            const next = e.target.value
-            onChange(next ? Number(next) : null)
-          }}
+          onChange={(e) => onChange(parseSelectId(e.target.value))}
           className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-800 bg-zinc-900/60 py-3 pr-10 pl-11 text-xs font-semibold text-zinc-100 shadow-sm transition-all focus:border-[#eab308] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
         >
           <option value="" className="bg-zinc-950 text-zinc-400">
             {placeholder}
           </option>
           {options.map((opt) => (
-            <option key={opt.id} value={opt.id} className="bg-zinc-950 text-zinc-100">
+            <option key={String(opt.id)} value={String(opt.id)} className="bg-zinc-950 text-zinc-100">
               {opt.name}
             </option>
           ))}
@@ -135,7 +140,7 @@ function MobileFilterSelect({ label, value, onChange, options, placeholder, Icon
 const CONNECTION_CARD_SHELL =
   'group/card relative flex flex-col overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900 shadow-xl transition-colors duration-300 md:rounded-3xl'
 
-const CONNECTION_CARD_MEDIA_FIT = 'object-cover object-center'
+const CONNECTION_CARD_MEDIA_FIT = 'object-cover object-[center_20%]'
 
 /** Photo area — real card image/video, or initials when the API returns the generic vBiz logo. */
 function PublicCardPhoto({
@@ -188,8 +193,8 @@ function PublicCardPhoto({
 function ConnectionCardInner({ card }: { card: PublicCardListItem }) {
   return (
     <>
-      {/* Photo */}
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-zinc-950">
+      {/* Photo — taller flex share so faces/avatars read clearly */}
+      <div className="relative min-h-[58%] flex-[1.45] overflow-hidden bg-zinc-950">
         <PublicCardPhoto card={card} imageClassName="transition-all duration-700 group-hover/card:scale-105" />
       </div>
 
@@ -296,7 +301,7 @@ export const PublicCardsSection = () => {
   )
 
   const handleDesktopFilterChange = useCallback(
-    <K extends 'stateId' | 'cityId' | 'professionId'>(key: K, value: number | null) => {
+    <K extends 'stateId' | 'cityId' | 'professionId'>(key: K, value: PublicCardId | null) => {
       updateAndApplyFilter(key, value)
       setActiveIndex(0)
     },
@@ -720,7 +725,7 @@ export const PublicCardsSection = () => {
               viewport={{ once: true, margin: '-50px' }}
               transition={{ duration: 0.6, delay: (idx % 8) * 0.08, ease: 'easeOut' }}
               key={card.id}
-              className={`${CONNECTION_CARD_SHELL} h-96.25 cursor-pointer hover:border-zinc-700 sm:h-101.75`}
+              className={`${CONNECTION_CARD_SHELL} h-[27rem] cursor-pointer hover:border-zinc-700 sm:h-[28.75rem]`}
             >
               <ConnectionCardInner card={card} />
             </motion.div>
@@ -730,7 +735,7 @@ export const PublicCardsSection = () => {
         /* Cinematic Unified 3D Slider Area with swipe & drag on both mobile and desktop! */
         <div
           className={`relative z-20 mt-6 flex flex-1 flex-col items-center justify-center perspective-[1600px] ${
-            compact ? 'min-h-[486px]' : 'min-h-[486px] md:min-h-115'
+            compact ? 'min-h-[560px]' : 'min-h-[560px] md:min-h-[35rem]'
           }`}
         >
           {/* Navigation arrows (floating desktop layout — hidden on phone widths for a cleaner look) */}
@@ -769,7 +774,7 @@ export const PublicCardsSection = () => {
               }
             }}
             className="transform-style-3d relative flex w-full max-w-250 cursor-grab items-center justify-center overflow-hidden select-none active:cursor-grabbing"
-            style={{ height: isNarrow ? '450px' : '430px' }}
+            style={{ height: isNarrow ? '520px' : '500px' }}
           >
             <AnimatePresence initial={false}>
               {cards.map((card, idx) => {
@@ -780,10 +785,10 @@ export const PublicCardsSection = () => {
                 // Mobile: one card at a time. Desktop: keep a shallow 3D peek of neighbors.
                 if (isNarrow ? absOffset > 0 : absOffset > 2) return null
 
-                const cardWidth = isNarrow ? 297 : 300
-                const cardHeight = isNarrow ? 432 : 420
-                const mediaHeight = isNarrow ? 292 : 278
-                const detailsHeight = isNarrow ? 140 : 160
+                const cardWidth = isNarrow ? 300 : 304
+                const cardHeight = isNarrow ? 500 : 480
+                const mediaHeight = isNarrow ? 360 : 340
+                const detailsHeight = isNarrow ? 140 : 140
 
                 const xTranslate = isNarrow ? 0 : offset === 0 ? 0 : direction * (absOffset * 130 + 80)
 

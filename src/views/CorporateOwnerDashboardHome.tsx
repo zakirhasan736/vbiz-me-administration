@@ -25,6 +25,7 @@ import {
   VCardDetailSidebar,
   VCardTrendsPopup,
 } from '@/components/dashboard/vcard'
+import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
 import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
@@ -41,6 +42,7 @@ import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { corporateCardCreateBlockedReason } from '@/lib/corporateCardCapacity'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
 import { notify } from '@/lib/toast/toast'
+import { useGetOwnerUpcomingMeetingsQuery } from '@/redux/features/meetings/meetings.api'
 import {
   dashboardOverviewQueryOptions,
   mapApiProfileToVCardRecord,
@@ -135,6 +137,10 @@ export default function CorporateOwnerDashboardHome() {
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
+
+  const { data: upcomingMeetingsPage, isLoading: upcomingMeetingsLoading } = useGetOwnerUpcomingMeetingsQuery({
+    limit: 5,
+  })
 
   useEffect(() => {
     if (!highlightedDuplicatedId) return
@@ -339,6 +345,14 @@ export default function CorporateOwnerDashboardHome() {
             viewsChangeText={viewsTrend.text}
             viewsChangeNegative={viewsTrend.negative}
             onOpenContactSaves={() => openContactSaves('saves')}
+          />
+
+          <UpcomingSchedulesPanel
+            meetings={upcomingMeetingsPage?.items ?? []}
+            isLoading={upcomingMeetingsLoading}
+            title="Upcoming team sessions"
+            subtitle="Latest admin-scheduled calls for your corporate cards."
+            emptyMessage="No upcoming sessions scheduled for your team."
           />
 
           <CorporateSocialBreakdown

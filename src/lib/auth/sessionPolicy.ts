@@ -1,5 +1,6 @@
 import { isStaffRole } from '@/constants/userRole'
 import { homePathForOwnerMode, ownerOfficeRedirectPath, type OwnerMode } from '@/lib/packageOwnerMode'
+import { isPublicCardMetaPath, isPublicCardPagePath } from '@/lib/pwa/publicCardCachePolicy'
 
 export const SESSION_EXPIRED_LOGIN_PATH = '/login?reason=session-expired'
 export const SESSION_EXPIRED_STORAGE_KEY = 'vbiz.session-expired'
@@ -14,8 +15,48 @@ export type SessionHomeInput = {
   ownerMode?: OwnerMode | null
 }
 
+const AUTH_PAGE_PREFIXES = [
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/set-password',
+  '/verify-email',
+] as const
+
+const WORKSPACE_PATH_PREFIXES = [
+  '/admin',
+  '/vcards',
+  '/teamvcard',
+  '/settings',
+  '/billing',
+  '/dashboard',
+  '/team',
+] as const
+
 export function shouldSilentlyRefreshSession(role?: string | null): boolean {
   return !isStaffRole(role)
+}
+
+/**
+ * Session expiry UI + forced login redirect belong only on private backoffice routes
+ * (admin, single-card owner, corporate). Public card routes (`/v/...`) must stay undisturbed.
+ */
+export function isAuthenticatedWorkspacePath(pathname?: string | null): boolean {
+  const path = String(pathname ?? '').split(/[?#]/)[0] || '/'
+  if (path === '/v' || path.startsWith('/v/') || isPublicCardPagePath(path) || isPublicCardMetaPath(path)) {
+    return false
+  }
+  if (AUTH_PAGE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+    return false
+  }
+  if (path === '/') return true
+  return WORKSPACE_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+}
+
+function currentPathname(): string {
+  if (typeof window === 'undefined') return ''
+  return window.location.pathname || '/'
 }
 
 function toSession(session: SessionHomeInput | string | null | undefined): SessionHomeInput {
@@ -60,6 +101,7 @@ export function isJwtExpired(token: string | null | undefined, now = Date.now())
 
 export function requestSessionExpiryWarning(reason: SessionExpiryReason = 'unauthorized'): void {
   if (typeof window === 'undefined') return
+  if (!isAuthenticatedWorkspacePath(currentPathname())) return
   window.dispatchEvent(new CustomEvent<SessionExpiryReason>(SESSION_EXPIRING_EVENT, { detail: reason }))
 }
 
@@ -73,7 +115,11 @@ export function markSessionExpired(): void {
 }
 
 export function redirectToLogin(): void {
-  if (typeof window === 'undefined' || window.location.pathname.startsWith('/login')) return
+  if (typeof window === 'undefined') return
+  const pathname = currentPathname()
+  if (pathname.startsWith('/login')) return
+  // Never yank visitors off a public card when a stale auth cookie/token expires.
+  if (!isAuthenticatedWorkspacePath(pathname)) return
   markSessionExpired()
   window.location.replace(SESSION_EXPIRED_LOGIN_PATH)
 }

@@ -40,6 +40,14 @@ const meetingsApi = api.injectEndpoints({
             ]
           : [{ type: 'meetings', id: 'LIST' }],
     }),
+    getOwnerUpcomingMeetings: builder.query<{ items: Meeting[]; total: number }, { limit?: number } | void>({
+      query: (params) => {
+        const limit = params?.limit ?? 10
+        return `/meetings/owner/upcoming?limit=${limit}`
+      },
+      transformResponse: (res: Envelope<{ items: Meeting[]; total: number }>) => res.data,
+      providesTags: [{ type: 'meetings', id: 'OWNER_UPCOMING' }],
+    }),
     getMeeting: builder.query<Meeting, string>({
       query: (id) => `/meetings/${id}`,
       transformResponse: (res: Envelope<Meeting>) => res.data,
@@ -50,6 +58,7 @@ const meetingsApi = api.injectEndpoints({
       transformResponse: (res: Envelope<Meeting>) => res.data,
       invalidatesTags: [
         { type: 'meetings', id: 'LIST' },
+        { type: 'meetings', id: 'OWNER_UPCOMING' },
         { type: 'activity', id: 'FEED' },
         { type: 'activity', id: 'AUDIT' },
         { type: 'adminAnnouncements', id: 'LIST' },
@@ -80,6 +89,7 @@ const meetingsApi = api.injectEndpoints({
 
 export const {
   useGetMeetingsQuery,
+  useGetOwnerUpcomingMeetingsQuery,
   useGetMeetingQuery,
   useCreateMeetingMutation,
   useUpdateMeetingMutation,

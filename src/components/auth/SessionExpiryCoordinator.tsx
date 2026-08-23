@@ -4,6 +4,7 @@ import { Modal } from '@/components/ui/Modal'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
 import {
+  isAuthenticatedWorkspacePath,
   jwtExpiresAt,
   markSessionExpired,
   redirectToLogin,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/auth/sessionPolicy'
 import { updateAuthState } from '@/redux/features/auth/user.slice'
 import { Clock3, LoaderCircle, LogOut, RefreshCw } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type SessionExpiryCoordinatorProps = {
@@ -30,6 +32,8 @@ const WARNING_DURATION_MS = SESSION_WARNING_SECONDS * 1000
 
 export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinatorProps) {
   const dispatch = useAppDispatch()
+  const pathname = usePathname()
+  const sessionManaged = isAuthenticatedWorkspacePath(pathname)
   const { user, token } = useAppSelector((state) => state.user)
   const userId = user?.id || ''
   const lastActivityRef = useRef(0)
@@ -41,12 +45,12 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [renewalError, setRenewalError] = useState('')
 
-  const currentWarning = warning?.userId === userId ? warning : null
+  const currentWarning = sessionManaged && warning?.userId === userId ? warning : null
   const expiresAt = useMemo(() => jwtExpiresAt(token), [token])
 
   const openWarning = useCallback(
     (reason: SessionExpiryReason) => {
-      if (!userId) return
+      if (!userId || !isAuthenticatedWorkspacePath(pathname)) return
       const now = Date.now()
       setClock(now)
       setRenewalError('')
@@ -60,7 +64,7 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
             }
       )
     },
-    [userId]
+    [pathname, userId]
   )
 
   const renewSession = useCallback(
@@ -135,7 +139,7 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
   }, [openWarning])
 
   useEffect(() => {
-    if (!userId || !token) return
+    if (!sessionManaged || !userId || !token) return
 
     const warningAt = expiresAt === null ? Date.now() : expiresAt - WARNING_DURATION_MS
     const timerId = window.setTimeout(
@@ -151,7 +155,7 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
     )
 
     return () => window.clearTimeout(timerId)
-  }, [expiresAt, openWarning, renewSession, token, userId])
+  }, [expiresAt, openWarning, renewSession, sessionManaged, token, userId])
 
   useEffect(() => {
     if (!currentWarning) return

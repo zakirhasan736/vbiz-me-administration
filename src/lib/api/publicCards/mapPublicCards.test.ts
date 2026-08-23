@@ -48,6 +48,26 @@ describe('public card text mapping', () => {
 
     const result = normalizePublicCardsResponse(response)
     expect(result.dropdowns?.professions?.[0]?.name).toBe('Sales & Marketing')
-    expect(result.pagination.links[0]?.label).toBe('« Previous')
+    expect(result.pagination.links?.[0]?.label).toBe('« Previous')
+  })
+
+  it('tolerates Express payloads without Laravel links', () => {
+    const response = {
+      success: true,
+      data: {
+        current_page: 1,
+        data: [{ ...card, id: 'cuid_abc' }],
+        last_page: 1,
+        per_page: 12,
+        total: 1,
+      },
+      dropdowns: { professions: [{ id: 'prof_1', name: 'Advisor' }] },
+    } as PublicCardsResponse
+
+    const result = normalizePublicCardsResponse(response)
+    expect(result.cards).toHaveLength(1)
+    expect(result.cards[0]?.id).toBe('cuid_abc')
+    expect(result.pagination.links?.length).toBeGreaterThan(0)
+    expect(result.pagination.total).toBe(1)
   })
 })
