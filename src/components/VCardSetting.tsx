@@ -141,21 +141,25 @@ function OptionCard({
   selected,
   onClick,
   children,
+  disabled = false,
 }: {
   label: string
   selected: boolean
   onClick: () => void
   children: React.ReactNode
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         'relative flex flex-col items-center justify-center rounded-2xl border p-3 transition-all duration-200',
         selected
           ? 'border-primary-600 bg-primary-600/5 dark:bg-primary-500/15 dark:text-primary-400 dark:border-primary-500/30 shadow-sm'
-          : 'hover:border-primary-500/50 border-slate-200 bg-slate-50 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
+          : 'hover:border-primary-500/50 border-slate-200 bg-slate-50 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5',
+        disabled && !selected && 'cursor-not-allowed opacity-50 hover:border-slate-200 hover:bg-slate-50'
       )}
     >
       <div className="mb-2 flex h-12 w-full items-center justify-center">{children}</div>
@@ -287,7 +291,8 @@ function Toggle({
 
 function TemplateDesigner() {
   const { user } = useAuth()
-  const { allow_canva: canUseCanva } = usePackageAccess()
+  const { allow_canva: canUseCanva, can } = usePackageAccess()
+  const canBgVideo = can('allow_background_video_upload')
   const { vCardData, updateData, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const accountDesign = useAppSelector((s) => s.designSettings)
@@ -418,7 +423,7 @@ function TemplateDesigner() {
   )
 
   const mediaAccept =
-    wallpaperStyle === 'image' ? 'image/*' : wallpaperStyle === 'video' ? 'video/*' : 'image/*,video/*'
+    wallpaperStyle === 'image' || !canBgVideo ? 'image/*' : wallpaperStyle === 'video' ? 'video/*' : 'image/*,video/*'
 
   return (
     <div className="col-span-1 mx-auto flex w-full max-w-2xl flex-col pb-12 lg:col-span-2">
@@ -663,7 +668,11 @@ function TemplateDesigner() {
               key={opt.id}
               label={opt.label}
               selected={wallpaperStyle === opt.id}
-              onClick={() => patchWallpaper({ style: opt.id })}
+              disabled={opt.id === 'video' && !canBgVideo && wallpaperStyle !== 'video'}
+              onClick={() => {
+                if (opt.id === 'video' && !canBgVideo) return
+                patchWallpaper({ style: opt.id })
+              }}
             >
               {opt.preview}
             </OptionCard>
@@ -794,6 +803,7 @@ function TemplateDesigner() {
             profileId={profileId}
             attachmentType={FIELD_BACKGROUND_MEDIA}
             accept={mediaAccept}
+            allowVideo={canBgVideo}
             maxBytes={MAX_MEDIA_UPLOAD_BYTES}
             selectPlaceholder="Select media file"
             subtitle={
@@ -807,7 +817,10 @@ function TemplateDesigner() {
             previewClassName="aspect-video max-h-56"
             placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
           >
-            <MediaSourceActions mode="both" onSelect={(asset) => setBackgroundMedia(asset.url)} />
+            <MediaSourceActions
+              mode={canBgVideo ? 'both' : 'image'}
+              onSelect={(asset) => setBackgroundMedia(asset.url)}
+            />
           </VCardMediaField>
         )}
       </SettingSection>

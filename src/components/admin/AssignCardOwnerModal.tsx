@@ -2,7 +2,10 @@
 
 import { Modal } from '@/components/ui/Modal'
 import type { CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
+import { isRetiredPackage } from '@/lib/packageAccess'
+import { ownerModeLabel, resolveOwnerMode } from '@/lib/packageOwnerMode'
 import { notify } from '@/lib/toast/toast'
+import { useGetAdminPackagesQuery } from '@/redux/features/adminPackages/adminPackages.api'
 import {
   useCreateAdminUserMutation,
   useGetAdminUsersQuery,
@@ -57,13 +60,16 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
 
   const [newName, setNewName] = useState('')
   const [newEmail, setNewEmail] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
   const [newCompany, setNewCompany] = useState('')
-  const [newRole, setNewRole] = useState<OwnerRole>('vcard-owner')
+  const [newPackageId, setNewPackageId] = useState('')
+  const [newNegotiatedMonthly, setNewNegotiatedMonthly] = useState('')
   const [wasOpen, setWasOpen] = useState(open)
 
   const [createUser, { isLoading: isCreating }] = useCreateAdminUserMutation()
+  const { data: packages = [] } = useGetAdminPackagesQuery(undefined, { skip: !open })
+  const provisionPackages = useMemo(() => packages.filter((pkg) => pkg.isActive && !isRetiredPackage(pkg)), [packages])
+  const selectedPackage = provisionPackages.find((pkg) => pkg.id === newPackageId) || null
+  const selectedOwnerMode = selectedPackage ? resolveOwnerMode(selectedPackage) : null
 
   // Reset form when the modal opens (adjust during render — avoid setState-in-effect).
   if (open !== wasOpen) {
@@ -75,10 +81,9 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
       setSelected(null)
       setNewName('')
       setNewEmail('')
-      setNewPassword('')
-      setNewPasswordConfirm('')
       setNewCompany('')
-      setNewRole('vcard-owner')
+      setNewPackageId('')
+      setNewNegotiatedMonthly('')
     }
   }
 
@@ -107,9 +112,13 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
 
   const handleCreateAndContinue = async (e: FormEvent) => {
     e.preventDefault()
-    if (!newName.trim() || !newEmail.trim() || !newPassword) return
-    if (newPassword !== newPasswordConfirm) {
-      notify.error('Passwords do not match.')
+    if (!newName.trim() || !newEmail.trim()) return
+    if (!newPackageId) {
+      notify.error('Select a package.')
+      return
+    }
+    if (selectedOwnerMode === 'corporate' && !newCompany.trim()) {
+      notify.error('Company / organization is required for Corporate accounts.')
       return
     }
 
@@ -117,11 +126,15 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
       const user = await createUser({
         name: newName.trim(),
         email: newEmail.trim(),
-        password: newPassword,
-        role: newRole,
+        packageId: newPackageId,
         companyName: newCompany.trim() || null,
+        ...(selectedOwnerMode === 'corporate' && newNegotiatedMonthly.trim() !== ''
+          ? { negotiatedMonthlyCents: Math.max(0, Math.round((Number(newNegotiatedMonthly) || 0) * 100)) }
+          : {}),
       }).unwrap()
-      notify.success('User account provisioned.')
+      notify.success(
+        'Account created. They will receive an email to set their own password, then sign in with email OTP.'
+      )
       onConfirm(toSession(user))
     } catch (err) {
       notify.error(rtkErrorMessage(err, 'Failed to create user.'))
@@ -248,17 +261,25 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
         ) : (
           <form id="assign-owner-new-user" onSubmit={handleCreateAndContinue} className="space-y-4">
             <div className="flex flex-col space-y-1.5">
-              <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                Account Role Class
-              </label>
+              <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Package</label>
               <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value as OwnerRole)}
+                required
+                value={newPackageId}
+                onChange={(e) => setNewPackageId(e.target.value)}
                 className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
               >
-                <option value="vcard-owner">Single Card Owner</option>
-                <option value="corporate-owner">Corporate Card Owner</option>
+                <option value="">Select a package</option>
+                {provisionPackages.map((pkg) => (
+                  <option key={pkg.id} value={pkg.id}>
+                    {pkg.name} — {ownerModeLabel(resolveOwnerMode(pkg))}
+                  </option>
+                ))}
               </select>
+              {selectedOwnerMode && (
+                <p className="text-[11px] font-semibold text-slate-400">
+                  Back office is {ownerModeLabel(selectedOwnerMode)}.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col space-y-1.5">
@@ -288,43 +309,35 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
             </div>
 
             <div className="flex flex-col space-y-1.5">
-              <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Password</label>
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Min 8 chars, upper, number, special"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                autoComplete="new-password"
-              />
-            </div>
-
-            <div className="flex flex-col space-y-1.5">
-              <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Confirm Password</label>
-              <input
-                type="password"
-                required
-                value={newPasswordConfirm}
-                onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                placeholder="Re-enter password"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                autoComplete="new-password"
-              />
-            </div>
-
-            <div className="flex flex-col space-y-1.5">
               <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
                 Organization Company
               </label>
               <input
                 type="text"
+                required={selectedOwnerMode === 'corporate'}
                 value={newCompany}
                 onChange={(e) => setNewCompany(e.target.value)}
                 placeholder="e.g. Pied Piper Inc"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
               />
             </div>
+
+            {selectedOwnerMode === 'corporate' && (
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                  Negotiated monthly (USD, optional)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={newNegotiatedMonthly}
+                  onChange={(e) => setNewNegotiatedMonthly(e.target.value)}
+                  placeholder="Leave blank to use the package monthly price"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+            )}
           </form>
         )}
       </div>
@@ -350,7 +363,7 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
           <button
             type="submit"
             form="assign-owner-new-user"
-            disabled={isCreating}
+            disabled={isCreating || !newPackageId}
             className="flex-1 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
           >
             {isCreating ? 'Creating…' : 'Create & Continue'}

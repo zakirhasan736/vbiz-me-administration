@@ -1,28 +1,34 @@
 'use client'
 
+import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
-import { entitlementsForRole, type PackageAccessKey, type PackageAccessMap } from '@/lib/packageAccess'
-import { useGetSubscriptionsQuery, type OwnerSubscription } from '@/redux/features/profiles/profiles.api'
-import { useMemo } from 'react'
+import {
+  allPackageAccessEnabled,
+  catalogFeatureAllowed,
+  type PackageAccessKey,
+  type PackageAccessMap,
+} from '@/lib/packageAccess'
+import { useGetEntitlementsQuery, type EffectiveEntitlements } from '@/redux/features/profiles/profiles.api'
 
-function isActiveSubscription(sub: OwnerSubscription, now = Date.now()) {
-  if (sub.endsAt == null || sub.endsAt === '') return true
-  const ends = new Date(sub.endsAt).getTime()
-  return Number.isFinite(ends) && ends > now
-}
+const fallbackAccess = allPackageAccessEnabled()
 
-export function usePackageAccess(): PackageAccessMap & { isLoading: boolean; can: (key: PackageAccessKey) => boolean } {
+export function usePackageAccess(): PackageAccessMap & {
+  isLoading: boolean
+  can: (key: PackageAccessKey | string) => boolean
+  entitlements: EffectiveEntitlements | undefined
+} {
+  const userId = useAppSelector((state) => state.user.user?.id)
   const role = useAppSelector((state) => state.user.user?.role)
-  const { data: subscriptions = [], isLoading } = useGetSubscriptionsQuery()
-
-  const access = useMemo(() => {
-    const active = subscriptions.find((sub) => isActiveSubscription(sub))
-    return entitlementsForRole(role, active?.package?.features)
-  }, [role, subscriptions])
+  const shouldLoadEntitlements = Boolean(userId) && !isStaffRole(role)
+  const { data, isLoading, isUninitialized } = useGetEntitlementsQuery(undefined, {
+    skip: !shouldLoadEntitlements,
+  })
+  const access = data?.access ?? fallbackAccess
 
   return {
     ...access,
-    isLoading,
-    can: (key) => access[key],
+    isLoading: shouldLoadEntitlements && (isLoading || isUninitialized) && !data,
+    can: (key) => (data ? catalogFeatureAllowed(data, key) : access[key as PackageAccessKey] !== false),
+    entitlements: data,
   }
 }

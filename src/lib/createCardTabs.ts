@@ -173,15 +173,20 @@ export function getCreateCardDisplayLabel(navId: string, fallback: string): stri
   return CREATE_CARD_TAB_BY_NAV_ID[navId]?.name ?? fallback
 }
 
-/**
- * Keep Public Cards then My Info at the end, and Home then About Me at the start.
- */
+/** Keep required tabs enabled while preserving the chosen order; utility tabs stay last. */
 export function normalizeNavOrderWithPinnedEnds(navIds: string[]): string[] {
   const pinned = new Set<string>(PINNED_END_NAV_IDS)
-  const middle = navIds.filter((id) => id && id !== 'home' && id !== 'about' && !pinned.has(id))
-  const uniqueMiddle = Array.from(new Set(middle))
-  const pinnedOrder = Array.from(new Set([...navIds.filter((id) => pinned.has(id)), ...PINNED_END_NAV_IDS]))
-  return ['home', 'about', ...uniqueMiddle, ...pinnedOrder]
+  const unique = Array.from(new Set(navIds.filter((id) => typeof id === 'string' && id.trim())))
+
+  // Missing required editor tabs are restored, but an existing Personal/About position is never reset.
+  if (!unique.includes('home')) unique.unshift('home')
+  if (!unique.includes('about')) {
+    const homeIndex = unique.indexOf('home')
+    unique.splice(homeIndex >= 0 ? homeIndex + 1 : 1, 0, 'about')
+  }
+
+  const ordered = unique.filter((id) => !pinned.has(id))
+  return [...ordered, ...PINNED_END_NAV_IDS]
 }
 
 /** Keep required tabs enabled while preserving the exact user-selected order. */

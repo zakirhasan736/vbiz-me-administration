@@ -27,6 +27,11 @@ function isIosDevice() {
   return iOS || iPadOs
 }
 
+function isAndroidDevice() {
+  if (typeof window === 'undefined') return false
+  return /Android/i.test(window.navigator.userAgent)
+}
+
 function isStandaloneDisplay() {
   if (typeof window === 'undefined') return false
   const media = window.matchMedia('(display-mode: standalone)').matches
@@ -46,12 +51,17 @@ export function usePwaInstall() {
     () => isStandaloneDisplay() || (typeof window !== 'undefined' && window.__vbizPwa?.installed === true)
   )
   const [isIos] = useState(() => isIosDevice())
+  const [isAndroid] = useState(() => isAndroidDevice())
   const [installing, setInstalling] = useState(false)
 
   useEffect(() => {
     const onBeforeInstall = (event: Event) => {
-      // Do not preventDefault — Chrome then hides the address-bar / ⋮ Install controls.
+      event.preventDefault()
       setDeferredPrompt(event as BeforeInstallPromptEvent)
+      if (window.__vbizPwa) {
+        window.__vbizPwa.available = true
+        window.__vbizPwa.prompt = event as BeforeInstallPromptEvent
+      }
     }
 
     const onInstalled = () => {
@@ -95,6 +105,7 @@ export function usePwaInstall() {
     canNativeInstall,
     isInstalled,
     isIos,
+    isAndroid,
     installing,
     promptInstall,
   }

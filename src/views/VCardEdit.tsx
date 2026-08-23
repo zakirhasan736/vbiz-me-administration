@@ -32,10 +32,12 @@ import { Tab2PersonalInfo } from '@/components/VCardTab2'
 import { Tab3SocialGames } from '@/components/VCardTab3'
 import { Tab4HomeMedia } from '@/components/VCardTab4'
 import { Tab5ExtraFields } from '@/components/VCardTab5'
+import { isStaffRole } from '@/constants/userRole'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE, ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { createCardOwnerKindLabel, getCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import {
@@ -46,6 +48,7 @@ import {
 } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
+import { directoryPathForOwnerMode } from '@/lib/packageOwnerMode'
 import { buildProfilePath, DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -92,6 +95,7 @@ import {
   Eye,
   Loader2,
   Plus,
+  Save,
   Settings,
   Sparkles,
 } from 'lucide-react'
@@ -125,21 +129,16 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const dispatch = useAppDispatch()
   const role = useAppSelector((state) => state.user.user?.role)
   const currentUserId = useAppSelector((state) => state.user.user?.id)
+  const { ownerMode, isCorporateBackOffice } = useOwnerMode()
   const { canMutateVcards, isPaused, isSuspended } = useAccountStatus()
-  const isDirectoryEditor = role === 'corporate-owner' || role === 'admin' || role === 'super-admin'
-  const isStaff = role === 'admin' || role === 'super-admin'
-  const directoryHref =
-    role === 'corporate-owner'
-      ? '/teamvcard'
-      : role === 'admin' || role === 'super-admin'
-        ? '/admin/mycards'
-        : '/vcards'
-  const directoryLabel =
-    role === 'corporate-owner'
-      ? 'Back to Team vCards'
-      : role === 'admin' || role === 'super-admin'
-        ? 'Back to My Cards'
-        : 'Back to My vCards'
+  const isStaff = isStaffRole(role)
+  const isDirectoryEditor = isCorporateBackOffice || isStaff
+  const directoryHref = directoryPathForOwnerMode(ownerMode, role)
+  const directoryLabel = isCorporateBackOffice
+    ? 'Back to Team vCards'
+    : isStaff
+      ? 'Back to My Cards'
+      : 'Back to My vCards'
 
   useEffect(() => {
     if (isStaff || canMutateVcards) return
@@ -321,12 +320,22 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     saveStatus === 'saving'
       ? 'Saving…'
       : saveStatus === 'dirty'
-        ? 'Unsaved'
+        ? 'Autosave pending'
         : saveStatus === 'saved'
           ? 'Saved'
           : saveStatus === 'error'
-            ? 'Save Failed'
+            ? 'Save failed'
             : null
+
+  const handleSaveChanges = useCallback(() => {
+    if (isCreateMode) {
+      void saveVCard()
+        .then(() => notify.success('Draft saved.'))
+        .catch(() => undefined)
+      return
+    }
+    void flushSave().catch(() => undefined)
+  }, [flushSave, isCreateMode, saveVCard])
 
   const publicCardPath = useMemo(() => buildProfilePath(vCardData.slug || ''), [vCardData.slug])
   const openPublicCard = useCallback(() => {
@@ -744,7 +753,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {isCreateMode
                     ? saveStatus === 'dirty'
-                      ? 'Unsaved changes — tap Unsaved to save this profile'
+                      ? 'Autosave pending — the draft saves after required profile details are complete'
                       : 'New profile — save when you are ready'
                     : `${vCardData.personal?.designation || 'Role'} • ${vCardData.personal?.profession || 'General'}`}
                 </p>
@@ -964,25 +973,15 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               </button>
 
               {saveStatusLabel && SaveStatusIcon && (
-                <button
-                  type="button"
-                  title={saveStatus === 'error' ? 'Save failed — click to retry' : saveStatusLabel}
-                  onClick={() => {
-                    if (saveStatus !== 'error' && saveStatus !== 'dirty') return
-                    if (isCreateMode) {
-                      void saveVCard()
-                        .then(() => notify.success('Draft saved.'))
-                        .catch(() => undefined)
-                      return
-                    }
-                    void flushSave().catch(() => undefined)
-                  }}
+                <span
+                  role="status"
+                  title={saveStatusLabel}
                   className={cn(
-                    'flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-all',
+                    'flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap',
                     saveStatus === 'error'
-                      ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
+                      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
                       : saveStatus === 'dirty'
-                        ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                        ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
                         : saveStatus === 'saving'
                           ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
                           : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
@@ -990,6 +989,18 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 >
                   <SaveStatusIcon className={cn('h-3.5 w-3.5', saveStatus === 'saving' && 'animate-spin')} />
                   {saveStatusLabel}
+                </span>
+              )}
+
+              {(saveStatus === 'dirty' || saveStatus === 'error') && (
+                <button
+                  type="button"
+                  onClick={handleSaveChanges}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-[12px] font-bold whitespace-nowrap text-white transition-colors hover:bg-indigo-700"
+                  title={saveStatus === 'error' ? 'Retry saving changes' : 'Save changes'}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {saveStatus === 'error' ? 'Retry save' : 'Save changes'}
                 </button>
               )}
 

@@ -3,6 +3,7 @@ export type {
   TChangePasswordFormValues,
   TChangePasswordPayload,
   TForgotPasswordPayload,
+  TLoginOtpPayload,
   TLoginPayload,
   TPasswordSetupRequiredData,
   TRegisterFormValues,

@@ -2,7 +2,7 @@
 import Loader from '@/components/ui/Loader'
 import { useAppSelector } from '@/hooks/redux'
 import { TUserRole } from '@/interfaces'
-import { loginPathForAuthState } from '@/lib/auth/sessionPolicy'
+import { homePathForSession, loginPathForAuthState } from '@/lib/auth/sessionPolicy'
 import Cookies from 'js-cookie'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -25,7 +25,7 @@ const ProtectedRoute = ({ children, role }: IProps) => {
       }
 
       if (user && role !== '*' && role && !role.includes(user.role!)) {
-        router.replace('/')
+        router.replace(homePathForSession({ role: user.role, ownerMode: user.ownerMode }))
       }
 
       // if (user && !user.isVerified) {

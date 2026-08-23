@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/Skeleton'
+import { MIN_IDENTITY_SEARCH_CHARACTERS, normalizedSearchQuery } from '@/lib/identitySearch'
 import { type AdminProfileRow, useGetAdminProfilesQuery } from '@/redux/features/adminProfiles/adminProfiles.api'
 import { cn } from '@/utils/cn'
 import { Search, X } from 'lucide-react'
@@ -9,6 +10,8 @@ import { useEffect, useMemo, useState } from 'react'
 export type ProfileOwnerSelection = {
   profileId: string
   hostName: string
+  ownerEmails: string[]
+  identity: string
 }
 
 type ProfileOwnerPickerProps = {
@@ -18,6 +21,7 @@ type ProfileOwnerPickerProps = {
   className?: string
   listClassName?: string
   required?: boolean
+  includeDrafts?: boolean
 }
 
 function ownerLabel(row: AdminProfileRow): string {
@@ -28,10 +32,30 @@ function ownerLabel(row: AdminProfileRow): string {
 }
 
 function ownerSubline(row: AdminProfileRow): string {
-  const parts = [row.companyName, row.email || row.user?.email, row.slug ? `/${row.slug}` : null].filter(
-    Boolean
-  ) as string[]
-  return parts.join(' · ')
+  const accountName = row.user?.name?.trim() || row.companyUser?.name?.trim()
+  const accountEmail = row.user?.email?.trim() || row.companyUser?.email?.trim() || row.email?.trim()
+  const parts = [
+    row.designation?.trim(),
+    row.profession?.name?.trim(),
+    row.companyName,
+    accountName,
+    accountEmail,
+    row.slug ? `/${row.slug}` : null,
+  ].filter(Boolean) as string[]
+  return [...new Set(parts)].join(' · ')
+}
+
+export function profileOwnerSelectionFromRow(row: AdminProfileRow): ProfileOwnerSelection {
+  const ownerEmails = [
+    ...new Set([row.user?.email, row.companyUser?.email].map((email) => email?.trim().toLowerCase()).filter(Boolean)),
+  ] as string[]
+  if (!ownerEmails.length && row.email?.trim()) ownerEmails.push(row.email.trim().toLowerCase())
+  return {
+    profileId: row.id,
+    hostName: ownerLabel(row),
+    ownerEmails,
+    identity: ownerSubline(row),
+  }
 }
 
 const OWNER_NAME_WIDTHS = ['w-28', 'w-24', 'w-32', 'w-36'] as const
@@ -62,29 +86,34 @@ export default function ProfileOwnerPicker({
   className,
   listClassName,
   required = true,
+  includeDrafts = false,
 }: ProfileOwnerPickerProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
+  const normalizedInput = normalizedSearchQuery(searchQuery)
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQ(searchQuery.trim()), 300)
+    const t = window.setTimeout(() => setDebouncedQ(normalizedInput), 300)
     return () => window.clearTimeout(t)
-  }, [searchQuery])
+  }, [normalizedInput])
+
+  const searchReady = normalizedInput.length >= MIN_IDENTITY_SEARCH_CHARACTERS && debouncedQ === normalizedInput
+  const typedLength = searchQuery.trim().length
 
   const listQuery = useMemo(
     () => ({
       q: debouncedQ || undefined,
-      lifecycle: 'active' as const,
+      ...(!includeDrafts ? { lifecycle: 'active' as const } : {}),
       limit: 20,
       skip: 0,
       sortBy: 'name' as const,
       sortDir: 'asc' as const,
     }),
-    [debouncedQ]
+    [debouncedQ, includeDrafts]
   )
 
-  const { data, isLoading, isFetching, isError } = useGetAdminProfilesQuery(listQuery)
-  const items = data?.items ?? []
+  const { data, isLoading, isFetching, isError } = useGetAdminProfilesQuery(listQuery, { skip: !searchReady })
+  const items = searchReady ? (data?.items ?? []) : []
 
   return (
     <div className={cn('flex flex-col space-y-1.5', className)}>
@@ -97,7 +126,9 @@ export default function ProfileOwnerPicker({
         <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/5 px-3.5 py-2.5 dark:bg-indigo-500/10">
           <div className="min-w-0">
             <p className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{value.hostName}</p>
-            <p className="truncate text-[11px] font-semibold text-slate-400">Selected vCard owner</p>
+            <p className="truncate text-[11px] font-semibold text-slate-400">
+              {value.identity || 'Selected vCard owner'}
+            </p>
           </div>
           <button
             type="button"
@@ -116,11 +147,18 @@ export default function ProfileOwnerPicker({
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, email, or company…"
+              placeholder="Search name, email, company, designation, profession, phone, or slug…"
               className="w-full bg-transparent text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none dark:text-white"
               autoComplete="off"
+              minLength={MIN_IDENTITY_SEARCH_CHARACTERS}
+              aria-describedby="profile-owner-search-help"
             />
           </div>
+
+          <p id="profile-owner-search-help" className="px-1 text-[10px] font-semibold text-slate-400">
+            Enter at least {MIN_IDENTITY_SEARCH_CHARACTERS} characters. Results match every word across the full owner
+            identity.
+          </p>
 
           <div
             className={cn(
@@ -130,7 +168,13 @@ export default function ProfileOwnerPicker({
             role="listbox"
             aria-label="vCard owners"
           >
-            {isLoading || isFetching ? (
+            {!searchReady ? (
+              <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
+                {typedLength > 0
+                  ? `${MIN_IDENTITY_SEARCH_CHARACTERS - typedLength} more character${MIN_IDENTITY_SEARCH_CHARACTERS - typedLength === 1 ? '' : 's'} needed.`
+                  : `Type ${MIN_IDENTITY_SEARCH_CHARACTERS} or more characters to search vCard owners.`}
+              </p>
+            ) : isLoading || isFetching ? (
               Array.from({ length: 4 }).map((_, index) => <OwnerSearchRowSkeleton key={index} index={index} />)
             ) : isError ? (
               <p className="px-3 py-4 text-center text-xs font-semibold text-rose-500">Could not load vCard owners.</p>
@@ -145,7 +189,7 @@ export default function ProfileOwnerPicker({
                     type="button"
                     role="option"
                     aria-selected={false}
-                    onClick={() => onChange({ profileId: row.id, hostName })}
+                    onClick={() => onChange(profileOwnerSelectionFromRow(row))}
                     className="flex w-full items-start gap-2 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5"
                   >
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-[10px] font-black text-indigo-600 uppercase">

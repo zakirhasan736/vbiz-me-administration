@@ -5,15 +5,8 @@ import type {
   ServicesSectionResponse,
 } from '@/interfaces/api/services.interface'
 import { isPublishedStatus } from '@/lib/api/resolveFeaturedImageUrl'
+import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
 import { encodeMediaUrl, isUsableImageSrc } from '@/lib/mediaUrl'
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
 function toPlainDescription(description: string | null): { plain: string; html: string } {
   const html = description?.trim() ?? ''
@@ -47,7 +40,7 @@ export function mapServiceItemToListItem(item: ServiceItem): ServiceListItem {
 
   return {
     id: item.id,
-    title: item.title.trim() || 'Service',
+    title: decodeHtmlText(item.title.trim() || 'Service'),
     description: plain,
     htmlDescription: html,
     featuredImage: resolveFeaturedImageUrl(item.featured_image),
@@ -60,7 +53,9 @@ export function normalizeServicesResponse(response: ServicesSectionResponse): Se
     throw new Error(response.error || 'Failed to load services')
   }
 
-  const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Services'
+  const sectionTitle = decodeHtmlText(
+    response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Services'
+  )
 
   const services = (response.data.items ?? [])
     .filter((item) => isPublishedStatus(item.status))

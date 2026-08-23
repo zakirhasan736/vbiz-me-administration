@@ -1,4 +1,5 @@
 import { CardScopeProvider, type CardScopeMode } from '@/lib/card-scope'
+import { setAiCardAgentOpen } from '@/lib/dashboardTour'
 import { AUTOSAVE_DEBOUNCE_MS, AUTOSAVE_MAX_MS } from '@/lib/vcardAutosave'
 import { useVCard, VCardProvider } from '@/lib/VCardContext'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
@@ -249,6 +250,7 @@ describe('VCardProvider autosave and creation', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     localStorage.clear()
+    setAiCardAgentOpen(false)
     document.body.innerHTML = ''
     mocks.state = null
     mocks.dispatch.mockReset()
@@ -493,7 +495,7 @@ describe('VCardProvider autosave and creation', () => {
     expect(rendered!.api.saveStatus).not.toBe('saving')
   })
 
-  it('keeps create-mode edits local until creating the draft', async () => {
+  it('autosaves a complete create-mode card as a private draft and opens its real editor', async () => {
     mocks.state = makeState(null)
     rendered = await renderProvider({ mode: 'create', cardId: null })
 
@@ -503,20 +505,18 @@ describe('VCardProvider autosave and creation', () => {
       rendered!.api.updateData('personal.email', 'owner@example.com')
       rendered!.api.updateData('personal.phone', '+1 202 555 0101')
       rendered!.api.updateData('slug', 'new-card-owner')
-      vi.advanceTimersByTime(3000)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS - 1)
       await flushMicrotasks()
     })
 
     expect(mocks.updateProfileCard).not.toHaveBeenCalled()
     expect(mocks.createProfile).not.toHaveBeenCalled()
 
-    let createdId: string | void = undefined
     await act(async () => {
-      createdId = await rendered!.api.saveVCard({ skipNavigate: true })
+      vi.advanceTimersByTime(1)
       await flushMicrotasks()
     })
 
-    expect(createdId).toBe('created-card')
     expect(mocks.createProfile).toHaveBeenCalledTimes(1)
     expect(mocks.createProfile).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -527,7 +527,122 @@ describe('VCardProvider autosave and creation', () => {
       })
     )
     expect(mocks.clearCreateCardOwner).toHaveBeenCalledTimes(1)
-    expect(mocks.routerPush).not.toHaveBeenCalled()
+    expect(mocks.routerPush).toHaveBeenCalledWith('/vcards/edit/home?cardId=created-card')
+  })
+
+  it('waits until the AI wizard closes before autosaving its complete draft', async () => {
+    mocks.state = makeState(null)
+    rendered = await renderProvider({ mode: 'create', cardId: null })
+    setAiCardAgentOpen(true)
+
+    await act(async () => {
+      rendered!.api.updateData('personal.fullName', 'AI Card Owner')
+      rendered!.api.updateData('personal.dob', '1990-07-18')
+      rendered!.api.updateData('personal.email', 'ai@example.com')
+      rendered!.api.updateData('personal.phone', '+1 202 555 0101')
+      rendered!.api.updateData('slug', 'ai-card-owner')
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      await flushMicrotasks()
+    })
+
+    expect(mocks.createProfile).not.toHaveBeenCalled()
+
+    await act(async () => {
+      setAiCardAgentOpen(false)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      await flushMicrotasks()
+    })
+
+    expect(mocks.createProfile).toHaveBeenCalledTimes(1)
+    expect(mocks.routerPush).toHaveBeenCalledWith('/vcards/edit/home?cardId=created-card')
+  })
+
+  it('uses one create request when Save is triggered twice concurrently', async () => {
+    let releaseCreate: (() => void) | undefined
+    const createResult = new Promise<ApiProfile>((resolve) => {
+      releaseCreate = () => resolve(makeCreatedProfile({ name: 'One Card', slug: 'one-card', isDraft: true }))
+    })
+    mocks.createProfileUnwrap.mockReturnValueOnce(createResult)
+    mocks.state = makeState(null)
+    rendered = await renderProvider({ mode: 'create', cardId: null })
+
+    await act(async () => {
+      rendered!.api.updateData('personal.fullName', 'One Card')
+      rendered!.api.updateData('personal.dob', '1990-07-18')
+      rendered!.api.updateData('personal.email', 'owner@example.com')
+      rendered!.api.updateData('personal.phone', '+1 202 555 0101')
+      rendered!.api.updateData('slug', 'one-card')
+    })
+
+    let first!: Promise<string | void>
+    let second!: Promise<string | void>
+    await act(async () => {
+      first = rendered!.api.saveVCard({ skipNavigate: true })
+      second = rendered!.api.saveVCard({ skipNavigate: true })
+      await flushMicrotasks()
+    })
+
+    expect(mocks.createProfile).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      releaseCreate?.()
+      await Promise.all([first, second])
+    })
+
+    expect(await first).toBe('created-card')
+    expect(await second).toBe('created-card')
+    expect(mocks.clearCreateCardOwner).toHaveBeenCalledTimes(1)
+  })
+
+  it('reuses the real profile id when a child save fails after creation', async () => {
+    mocks.collectionMutationUnwrap.mockRejectedValueOnce(new Error('services unavailable'))
+    mocks.updateProfileCardUnwrap.mockImplementation(({ body }) => Promise.resolve(makeCreatedProfile(body)))
+    mocks.state = makeState(null)
+    rendered = await renderProvider({ mode: 'create', cardId: null })
+
+    await act(async () => {
+      rendered!.api.updateData('personal.fullName', 'Recoverable Card')
+      rendered!.api.updateData('personal.dob', '1990-07-18')
+      rendered!.api.updateData('personal.email', 'owner@example.com')
+      rendered!.api.updateData('personal.phone', '+1 202 555 0101')
+      rendered!.api.updateData('slug', 'recoverable-card')
+    })
+
+    await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow('services unavailable')
+    expect(mocks.createProfile).toHaveBeenCalledTimes(1)
+    expect(mocks.clearCreateCardOwner).not.toHaveBeenCalled()
+
+    await expect(rendered.api.saveVCard({ skipNavigate: true })).resolves.toBe('created-card')
+    expect(mocks.createProfile).toHaveBeenCalledTimes(1)
+    expect(mocks.updateProfileCard).toHaveBeenCalledWith({
+      id: 'created-card',
+      body: expect.objectContaining({ name: 'Recoverable Card', slug: 'recoverable-card' }),
+    })
+    expect(mocks.clearCreateCardOwner).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps About Me dirty and reports an error when its save fails', async () => {
+    mocks.flushAboutMeUpsert.mockRejectedValueOnce(new Error('about save failed'))
+    mocks.state = makeState(makeRecord('card-1', { personal: personal({ fullName: 'Ada' }) }))
+    rendered = await renderProvider({ mode: 'edit', cardId: 'card-1' })
+
+    await act(async () => {
+      rendered!.api.markAboutMeDirty()
+    })
+
+    let saveError: unknown
+    await act(async () => {
+      try {
+        await rendered!.api.flushSave()
+      } catch (error) {
+        saveError = error
+      }
+    })
+
+    expect(saveError).toBeInstanceOf(Error)
+    expect((saveError as Error).message).toBe('about save failed')
+    expect(rendered.api.saveStatus).toBe('error')
+    expect(rendered.api.saveError).toBe('about save failed')
   })
 
   it('requires a name and public slug before creating a draft', async () => {

@@ -23,6 +23,7 @@ import {
   readLocalCardNotice,
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
+import { MIN_IDENTITY_SEARCH_CHARACTERS, normalizedSearchQuery } from '@/lib/identitySearch'
 import { appendAuditLog } from '@/lib/mockStore'
 import { notifyCardOwner } from '@/lib/notifications'
 import { notify } from '@/lib/toast/toast'
@@ -116,9 +117,16 @@ export default function AdminVCards() {
   const listTopRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const t = window.setTimeout(() => dispatch(setDebouncedQ(searchQuery.trim())), 300)
+    const normalized = normalizedSearchQuery(searchQuery)
+    if (normalized.length < MIN_IDENTITY_SEARCH_CHARACTERS) {
+      dispatch(setDebouncedQ(''))
+      return
+    }
+    const t = window.setTimeout(() => dispatch(setDebouncedQ(normalized)), 300)
     return () => window.clearTimeout(t)
   }, [dispatch, searchQuery])
+
+  const shortSearch = searchQuery.trim().length > 0 && searchQuery.trim().length < MIN_IDENTITY_SEARCH_CHARACTERS
 
   useEffect(() => {
     if (!highlightedDuplicatedId) return
@@ -157,7 +165,7 @@ export default function AdminVCards() {
     isFetching: isListFetching,
     isError: isListError,
     refetch: refetchList,
-  } = useGetAdminProfilesQuery(listQuery)
+  } = useGetAdminProfilesQuery(listQuery, { skip: shortSearch })
 
   const [fetchMoreProfiles] = useLazyGetAdminProfilesQuery()
 
@@ -192,12 +200,13 @@ export default function AdminVCards() {
   }, [dispatch, listData, listSyncKey, showAll, isListFetching, storedListSyncKey, storedTotal])
 
   const cards = useMemo(() => {
+    if (shortSearch) return []
     const mapped = accumulatedItems.map(mapAdminProfileRowToCard)
     // Keep Active / Draft tabs mutually exclusive even if API cache is stale
     return mapped.filter((c) => (lifecycleTab === 'draft' ? Boolean(c.isDraft) : !c.isDraft))
-  }, [accumulatedItems, lifecycleTab])
+  }, [accumulatedItems, lifecycleTab, shortSearch])
 
-  const total = listData?.total ?? storedTotal
+  const total = shortSearch ? 0 : (listData?.total ?? storedTotal)
   const hasMore = !showAll && accumulatedItems.length < total
   const hasCachedList = accumulatedItems.length > 0 && storedListSyncKey === listSyncKey
   const showListSkeleton = isListLoading && !hasCachedList
@@ -319,17 +328,17 @@ export default function AdminVCards() {
     )
 
   const resolveDirectoryCardNotice = (card: AdminCard) => {
-    if (canAdminContactCard(card, ownerId)) {
-      const existing = findCardNotice(card.id)
+    const serverNotice = card.id ? noticeForCard(card.id, teamNotices) : null
+    if (serverNotice) {
       return {
-        text: existing?.body ?? null,
-        type: (existing?.type as NoticeType | undefined) ?? null,
+        text: serverNotice.text,
+        type: noticeTypeFromTeamNotice(serverNotice),
       }
     }
-    const serverNotice = card.id ? noticeForCard(card.id, teamNotices) : null
+    const existing = findCardNotice(card.id)
     return {
-      text: serverNotice?.text ?? null,
-      type: serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null,
+      text: existing?.body ?? null,
+      type: (existing?.type as NoticeType | undefined) ?? null,
     }
   }
 
@@ -425,16 +434,7 @@ export default function AdminVCards() {
 
   const openNoticeForCard = (card: AdminCard) => {
     setPanelCard(null)
-    // Admin portfolio / own cards: public TeamNotice (same as My Cards). Never backoffice Announcement.
-    if (!canAdminContactCard(card, ownerId)) {
-      setNoticeCard(card)
-      return
-    }
-    setSelectedCard(card)
-    const existing = findCardNotice(card.id)
-    setCardNoticeText(existing?.body || '')
-    setCardNoticeType(existing?.type || 'info')
-    setIsNoticeModalOpen(true)
+    setNoticeCard(card)
   }
 
   const handleDuplicateCard = async (card: AdminCard) => {
@@ -686,7 +686,7 @@ export default function AdminVCards() {
         status: 'active',
         targetType: 'specific',
         targetEmails,
-        meta: { profileId: selectedCard.id, source: 'card_notice' },
+        meta: { profileId: selectedCard.id, source: 'card_notice', showPublic: '1' },
       }).unwrap()
 
       setIsNoticeSaved(true)
@@ -847,18 +847,26 @@ export default function AdminVCards() {
 
       {/* Filter and Query bar */}
       <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 md:flex-row dark:border-white/10 dark:bg-[#0b0f19]">
-        <div className="flex w-full items-center gap-2 rounded-xl border border-slate-200/50 bg-slate-50 px-4 py-3 md:flex-1 dark:border-white/5 dark:bg-slate-800/50">
-          <Search className="h-4 w-4 shrink-0 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              dispatch(setSearchQuery(e.target.value))
-              resetListState()
-            }}
-            placeholder="Query cards by name, designation, company, or email..."
-            className="w-full bg-transparent text-sm font-semibold text-slate-700 placeholder-slate-400 outline-none dark:text-white"
-          />
+        <div className="w-full md:flex-1">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200/50 bg-slate-50 px-4 py-3 dark:border-white/5 dark:bg-slate-800/50">
+            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                dispatch(setSearchQuery(e.target.value))
+                resetListState()
+              }}
+              placeholder="Query cards by name, designation, company, or email..."
+              minLength={MIN_IDENTITY_SEARCH_CHARACTERS}
+              aria-describedby="admin-vcard-search-help"
+              className="w-full bg-transparent text-sm font-semibold text-slate-700 placeholder-slate-400 outline-none dark:text-white"
+            />
+          </div>
+          <span id="admin-vcard-search-help" className="mt-1 block px-1 text-[10px] font-bold text-slate-400">
+            Enter at least {MIN_IDENTITY_SEARCH_CHARACTERS} characters. Search includes name, designation, profession,
+            company, email, phone, and slug.
+          </span>
         </div>
 
         <div className="flex w-full items-center rounded-xl border border-slate-200/50 bg-slate-50 px-3 py-3 md:w-48 dark:border-white/5 dark:bg-slate-800/50">
@@ -962,7 +970,7 @@ export default function AdminVCards() {
         </label>
       </div>
 
-      {isListError && (
+      {isListError && !shortSearch && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-800/40 dark:bg-rose-900/20 dark:text-rose-300">
           Could not load platform cards.{' '}
           <button type="button" className="underline" onClick={() => void refreshListFromStart()}>
@@ -1076,12 +1084,18 @@ export default function AdminVCards() {
           {!showListSkeleton && cards.length === 0 && (
             <div className="col-span-full rounded-2xl border border-dashed border-slate-200 px-6 py-16 text-center dark:border-white/10">
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                {lifecycleTab === 'draft' ? 'No draft cards.' : 'No active cards match these filters.'}
+                {shortSearch
+                  ? `Enter at least ${MIN_IDENTITY_SEARCH_CHARACTERS} characters to search.`
+                  : lifecycleTab === 'draft'
+                    ? 'No draft cards.'
+                    : 'No active cards match these filters.'}
               </p>
               <p className="mt-1 text-xs font-semibold text-slate-400">
-                {lifecycleTab === 'draft'
-                  ? 'Incomplete cards appear here until they are published.'
-                  : 'Clear filters, check Draft, or create a new card.'}
+                {shortSearch
+                  ? 'No search request is sent for one- or two-character queries.'
+                  : lifecycleTab === 'draft'
+                    ? 'Incomplete cards appear here until they are published.'
+                    : 'Clear filters, check Draft, or create a new card.'}
               </p>
             </div>
           )}
@@ -1529,6 +1543,7 @@ export default function AdminVCards() {
         cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
+        deliverySummary="Card-only delivery to the public card, its saved contacts, push subscribers, owner email, and owner back office."
         onClose={() => setNoticeCard(null)}
         onSave={(text, type) => {
           if (!noticeCard?.id) return
@@ -1536,17 +1551,53 @@ export default function AdminVCards() {
             try {
               if (text.trim()) {
                 writeLocalCardNotice(noticeCard.id, text, type)
-                await createTeamNotice({
-                  text: text.trim(),
-                  type,
-                  audience: 'all',
-                  targetProfileId: noticeCard.id,
-                }).unwrap()
-                notify.success('Notice saved for this card. Visitors will see it after the intro.')
+                const announcementType = (
+                  ['info', 'warning', 'success'].includes(type) ? type : 'info'
+                ) as AnnouncementType
+                const ownerName = String(
+                  (noticeCard.personal as { fullName?: string })?.fullName || noticeCard.slug || 'vCard'
+                )
+                const targetEmails = collectOwnerEmails(noticeCard)
+                let published = false
+                let lastError: unknown
+                try {
+                  await createTeamNotice({
+                    text: text.trim(),
+                    type,
+                    audience: 'all',
+                    targetProfileId: noticeCard.id,
+                    deliver: true,
+                  }).unwrap()
+                  published = true
+                } catch (error) {
+                  lastError = error
+                }
+                try {
+                  await createAnnouncement({
+                    type: announcementType,
+                    title: `Card notice · ${ownerName}`,
+                    body: text.trim(),
+                    status: 'active',
+                    targetType: 'specific',
+                    targetEmails,
+                    meta: { profileId: noticeCard.id, source: 'card_notice', showPublic: '1' },
+                  }).unwrap()
+                  published = true
+                } catch (error) {
+                  lastError = lastError ?? error
+                }
+                if (!published) {
+                  throw lastError instanceof Error ? lastError : new Error('Could not save notice.')
+                }
+                notify.success('Notice posted on this card’s public view, like a global banner.')
               } else {
                 clearLocalCardNotice(noticeCard.id)
                 const existing = noticeForCard(noticeCard.id, teamNotices)
                 if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
+                const live = findCardNotice(noticeCard.id)
+                if (live?.id) {
+                  await updateAnnouncement({ id: live.id, body: { status: 'archived' } }).unwrap()
+                }
                 notify.success('Notice cleared.')
               }
               setNoticeVersion((n) => n + 1)
@@ -1568,6 +1619,14 @@ export default function AdminVCards() {
             if (existing?.id) {
               try {
                 await deleteTeamNotice(existing.id).unwrap()
+              } catch {
+                /* ignore */
+              }
+            }
+            const live = findCardNotice(noticeCard.id)
+            if (live?.id) {
+              try {
+                await updateAnnouncement({ id: live.id, body: { status: 'archived' } }).unwrap()
               } catch {
                 /* ignore */
               }

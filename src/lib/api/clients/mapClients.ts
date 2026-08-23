@@ -4,6 +4,7 @@ import type {
   ClientsQueryResult,
   ClientsSectionResponse,
 } from '@/interfaces/api/clients.interface'
+import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
 
 function formatPartnerSince(createdAt?: string): string {
   if (!createdAt) return ''
@@ -42,10 +43,10 @@ export function mapClientItemToListItem(item: ClientItem): ClientListItem {
 
   return {
     id: item.id,
-    name: item.title.trim() || 'Client',
+    name: decodeHtmlText(item.title.trim() || 'Client'),
     logo,
     since: formatPartnerSince(item.created_at),
-    description: item.description?.trim() ?? '',
+    description: stripHtml(item.description?.trim() ?? ''),
     linkUrl: linkUrl || null,
   }
 }
@@ -55,7 +56,9 @@ export function normalizeClientsResponse(response: ClientsSectionResponse): Clie
     throw new Error(response.error || 'Failed to load clients')
   }
 
-  const sectionTitle = response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Clients'
+  const sectionTitle = decodeHtmlText(
+    response.post_type?.title?.trim() || response.data.postType?.title?.trim() || 'Clients'
+  )
 
   const clients = (response.data.items ?? []).filter((item) => isPublished(item.status)).map(mapClientItemToListItem)
 

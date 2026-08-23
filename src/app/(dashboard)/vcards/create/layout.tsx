@@ -4,7 +4,7 @@ import { CreateAgentUiProvider } from '@/components/vcard/create-agent/CreateAge
 import { EditorBootSkeleton } from '@/components/vcard/EditorBootSkeleton'
 import { LivePreviewProvider } from '@/components/vcard/LivePreviewProvider'
 import { VCardLivePreview } from '@/components/VCardLivePreview'
-import { useAppSelector } from '@/hooks/redux'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { CardScopeProvider } from '@/lib/card-scope'
 import { useEditorPathname } from '@/lib/editorShallowRoute'
 import { notify } from '@/lib/toast/toast'
@@ -37,14 +37,14 @@ function CreateVCardShell({ children }: { children: ReactNode }) {
   const resetQuery = resetParam ? `reset=${encodeURIComponent(resetParam)}` : ''
   const createQuery = [agentQuery, resetQuery].filter(Boolean).join('&')
   const createQuerySuffix = createQuery ? `?${createQuery}` : ''
-  const role = useAppSelector((state) => state.user.user?.role)
+  const { isSingleBackOffice, isCorporateBackOffice } = useOwnerMode()
   const { data: profilesResult, isLoading } = useGetProfilesQuery({ limit: 100 })
   const segments = useMemo(() => editorSegmentsFromPathname(pathname, '/vcards/create'), [pathname])
   const parsed = parseEditorSegments(segments)
   const profiles = useMemo(() => profilesResult?.items ?? [], [profilesResult?.items])
   const capacity = profilesResult?.capacity
-  const isPersonal = role === 'vcard-owner'
-  const isCorporate = role === 'corporate-owner'
+  const isPersonal = isSingleBackOffice
+  const isCorporate = isCorporateBackOffice
   const blockedByPersonalLimit = isPersonal && !isLoading && (capacity ? !capacity.canCreate : profiles.length >= 1)
   const blockedByCorporateLimit = isCorporate && !isLoading && capacity != null && !capacity.canCreate
   const blockedByLimit = blockedByPersonalLimit || blockedByCorporateLimit
@@ -65,9 +65,9 @@ function CreateVCardShell({ children }: { children: ReactNode }) {
       if (!toastShown.current) {
         toastShown.current = true
         notify.warning(
-          capacity && capacity.limit <= 0
+          capacity && (capacity.limit == null || capacity.limit <= 0)
             ? 'No active package with card capacity. Upgrade your package to create cards.'
-            : `Maximum of ${capacity?.limit ?? 0} corporate cards reached`
+            : `Maximum of ${capacity?.limit ?? 0} corporate cards reached (${capacity?.used ?? 0} used, ${capacity?.remaining ?? 0} remaining). Existing cards were not removed.`
         )
       }
       router.replace('/teamvcard')

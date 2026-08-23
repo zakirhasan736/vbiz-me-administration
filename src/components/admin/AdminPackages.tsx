@@ -11,6 +11,7 @@ import {
   PACKAGE_ACCESS_FEATURES,
   type PackageAccessKey,
 } from '@/lib/packageAccess'
+import { ownerModeLabel, resolveOwnerMode } from '@/lib/packageOwnerMode'
 import { notify } from '@/lib/toast/toast'
 import {
   useCreateAdminPackageMutation,
@@ -46,6 +47,7 @@ type FormState = {
   description: string
   monthlyPrice: string
   yearlyPrice: string
+  signupFee: string
   sortOrder: string
   isActive: boolean
   maxCards: string
@@ -59,6 +61,7 @@ const emptyForm = (): FormState => ({
   description: '',
   monthlyPrice: '0',
   yearlyPrice: '0',
+  signupFee: '0',
   sortOrder: '0',
   isActive: true,
   maxCards: '',
@@ -141,6 +144,7 @@ function formFromPackage(pkg: AdminPackageRow): FormState {
     description: pkg.description || '',
     monthlyPrice: centsToDollarsInput(pkg.monthlyPrice),
     yearlyPrice: centsToDollarsInput(pkg.yearlyPrice),
+    signupFee: centsToDollarsInput(pkg.signupFeeCents ?? 0),
     sortOrder: String(pkg.sortOrder),
     isActive: pkg.isActive,
     maxCards: maxCardsFeat?.featureValue?.trim() || '',
@@ -183,6 +187,7 @@ function toBody(form: FormState): UpsertAdminPackageBody {
     description: form.description.trim() || null,
     monthlyPrice: dollarsInputToCents(form.monthlyPrice),
     yearlyPrice: dollarsInputToCents(form.yearlyPrice),
+    signupFeeCents: dollarsInputToCents(form.signupFee),
     sortOrder: Math.max(0, Math.round(Number(form.sortOrder) || 0)),
     isActive: form.isActive,
     features,
@@ -391,6 +396,9 @@ export default function AdminPackages() {
                 </div>
 
                 <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">{pkg.name}</h3>
+                <p className="mt-2 text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-400">
+                  {ownerModeLabel(pkg.ownerMode ?? resolveOwnerMode(pkg))}
+                </p>
                 {pkg.description && (
                   <p className="mt-2 line-clamp-2 text-xs font-semibold text-slate-400">{pkg.description}</p>
                 )}
@@ -404,6 +412,11 @@ export default function AdminPackages() {
                   </div>
                   {pkg.yearlyPrice > 0 ? (
                     <div className="text-sm font-bold text-slate-400">{formatMoney(pkg.yearlyPrice)} / yr</div>
+                  ) : null}
+                  {(pkg.signupFeeCents ?? 0) > 0 ? (
+                    <div className="text-sm font-bold text-slate-400">
+                      {formatMoney(pkg.signupFeeCents ?? 0)} signup
+                    </div>
                   ) : null}
                 </div>
 
@@ -581,6 +594,23 @@ export default function AdminPackages() {
                       Optional. Laravel plans were monthly-only (leave 0 if unused).
                     </p>
                   </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                    One-time signup fee (USD)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={form.signupFee}
+                    onChange={(e) => setForm((f) => ({ ...f, signupFee: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                  />
+                  <p className="text-[10px] font-semibold text-slate-400">
+                    Added only to the first invoice, together with the first month. Recurring invoices are monthly only.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">

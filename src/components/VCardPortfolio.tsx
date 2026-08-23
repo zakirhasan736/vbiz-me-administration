@@ -3,6 +3,7 @@
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
+import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
 import {
   ExpandableEntryBody,
@@ -142,202 +143,206 @@ export function TabPortfolio() {
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {portfolios.map((portfolio, index) => {
-              const open = isExpanded(portfolio.id)
-              return (
-                <section
-                  key={portfolio.id}
-                  id={`entry-${portfolio.id}`}
-                  ref={(el) => setCardRef(portfolio.id, el)}
-                  className={cn(expandableCardClassName(open, accent), 'scroll-mt-24')}
-                >
-                  <ExpandableEntryHeader
-                    indexLabel={index + 1}
-                    title={portfolio.title || 'New Portfolio Entry'}
-                    subtitle={portfolio.type || portfolio.description?.slice(0, 48) || null}
-                    isExpanded={open}
-                    onToggle={() => toggleExpanded(portfolio.id)}
-                    showRemove
-                    onRemove={() => removePortfolio(portfolio.id)}
-                    accent={accent}
-                  />
+          <div>
+            <ReorderList
+              items={portfolios}
+              getKey={(portfolio) => portfolio.id}
+              onReorder={setPortfolios}
+              renderItem={(portfolio, index) => {
+                const open = isExpanded(portfolio.id)
+                return (
+                  <section
+                    id={`entry-${portfolio.id}`}
+                    ref={(el) => setCardRef(portfolio.id, el)}
+                    className={cn(expandableCardClassName(open, accent), 'scroll-mt-24')}
+                  >
+                    <ExpandableEntryHeader
+                      indexLabel={index + 1}
+                      title={portfolio.title || 'New Portfolio Entry'}
+                      subtitle={portfolio.type || portfolio.description?.slice(0, 48) || null}
+                      isExpanded={open}
+                      onToggle={() => toggleExpanded(portfolio.id)}
+                      showRemove
+                      onRemove={() => removePortfolio(portfolio.id)}
+                      accent={accent}
+                    />
 
-                  <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
-                    <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                          <LayoutGrid className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Portfolio Type
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={portfolio.type}
-                            onChange={(e) => updatePortfolio(portfolio.id, 'type', e.target.value)}
-                            className={selectClasses}
-                          >
-                            <option value="Image">Image</option>
-                            <option value="Video">Video</option>
-                            <option value="Audio">Audio</option>
-                            <option value="Link">Link</option>
-                            <option value="Document">Document</option>
-                          </select>
-                          <div className="pointer-events-none absolute inset-y-0 right-5 flex items-center text-slate-500 dark:text-slate-400">
-                            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                              <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                            </svg>
+                    <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
+                      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                            <LayoutGrid className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Portfolio Type
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={portfolio.type}
+                              onChange={(e) => updatePortfolio(portfolio.id, 'type', e.target.value)}
+                              className={selectClasses}
+                            >
+                              <option value="Image">Image</option>
+                              <option value="Video">Video</option>
+                              <option value="Audio">Audio</option>
+                              <option value="Link">Link</option>
+                              <option value="Document">Document</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-5 flex items-center text-slate-500 dark:text-slate-400">
+                              <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                              </svg>
+                            </div>
                           </div>
                         </div>
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                            <FileText className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Title
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolio.title}
+                            onChange={(e) => updatePortfolio(portfolio.id, 'title', e.target.value)}
+                            placeholder="Enter portfolio title"
+                            className={inputClasses}
+                          />
+                        </div>
                       </div>
-                      <div className="group flex flex-col space-y-1.5">
+
+                      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <div className="space-y-3">
+                          <MediaFileUploader
+                            label="Featured media"
+                            accent="teal"
+                            profileId={cardId}
+                            attachmentType="Portfolio Gallery"
+                            value={portfolio.imageUrl}
+                            fileName={portfolio.imageName}
+                            accept={
+                              portfolio.type === 'Video'
+                                ? 'video/*,image/*'
+                                : portfolio.type === 'Audio'
+                                  ? 'audio/*,image/*'
+                                  : portfolio.type === 'Document'
+                                    ? 'application/pdf,.pdf,.doc,.docx,image/*'
+                                    : 'image/*,video/*,audio/*,application/pdf'
+                            }
+                            hint="Upload image, video, audio, or a document - preview appears below"
+                            onChange={(next) => {
+                              if (!next) {
+                                patchPortfolio(portfolio.id, { imageUrl: '', imageName: '' })
+                                return
+                              }
+                              patchPortfolio(portfolio.id, {
+                                imageUrl: next.url,
+                                imageName: next.fileName,
+                              })
+                            }}
+                          />
+                          <MediaSourceActions
+                            mode="both"
+                            compact
+                            profileId={cardId}
+                            onSelect={(asset) =>
+                              patchPortfolio(portfolio.id, {
+                                imageUrl: asset.url,
+                                imageName: asset.name,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <MediaFileUploader
+                            label="Attachments (Images/Video)"
+                            accent="teal"
+                            profileId={cardId}
+                            attachmentType="Portfolio Attachment"
+                            value={portfolio.attachments?.url || ''}
+                            fileName={portfolio.attachments?.name || ''}
+                            accept="image/*,video/*"
+                            hint="Optional secondary image or video attachment"
+                            onChange={(next) => {
+                              if (!next) {
+                                patchPortfolio(portfolio.id, { attachments: null })
+                                return
+                              }
+                              patchPortfolio(portfolio.id, {
+                                attachments: { url: next.url, name: next.fileName },
+                              })
+                            }}
+                          />
+                          <MediaSourceActions
+                            mode="both"
+                            compact
+                            profileId={cardId}
+                            onSelect={(asset) =>
+                              patchPortfolio(portfolio.id, {
+                                attachments: { url: asset.url, name: asset.name },
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="group mb-8 flex flex-col space-y-1.5">
                         <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                          <FileText className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Title
+                          {portfolio.type === 'Video' ? (
+                            <Youtube className="h-3.5 w-3.5 text-red-500" />
+                          ) : (
+                            <LinkIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                          )}
+                          {portfolio.type === 'Video' ? 'YouTube / Video URL' : 'Project / Link URL'}
                         </label>
                         <input
                           type="text"
-                          value={portfolio.title}
-                          onChange={(e) => updatePortfolio(portfolio.id, 'title', e.target.value)}
-                          placeholder="Enter portfolio title"
+                          value={portfolio.url}
+                          onChange={(e) => updatePortfolio(portfolio.id, 'url', e.target.value)}
+                          placeholder={portfolio.type === 'Video' ? 'Enter YouTube video URL' : 'https://…'}
                           className={inputClasses}
                         />
                       </div>
-                    </div>
 
-                    <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                      <div className="space-y-3">
-                        <MediaFileUploader
-                          label="Featured media"
-                          accent="teal"
-                          profileId={cardId}
-                          attachmentType="Portfolio Gallery"
-                          value={portfolio.imageUrl}
-                          fileName={portfolio.imageName}
-                          accept={
-                            portfolio.type === 'Video'
-                              ? 'video/*,image/*'
-                              : portfolio.type === 'Audio'
-                                ? 'audio/*,image/*'
-                                : portfolio.type === 'Document'
-                                  ? 'application/pdf,.pdf,.doc,.docx,image/*'
-                                  : 'image/*,video/*,audio/*,application/pdf'
-                          }
-                          hint="Upload image, video, audio, or a document - preview appears below"
-                          onChange={(next) => {
-                            if (!next) {
-                              patchPortfolio(portfolio.id, { imageUrl: '', imageName: '' })
-                              return
-                            }
-                            patchPortfolio(portfolio.id, {
-                              imageUrl: next.url,
-                              imageName: next.fileName,
-                            })
-                          }}
-                        />
-                        <MediaSourceActions
-                          mode="both"
-                          compact
-                          profileId={cardId}
-                          onSelect={(asset) =>
-                            patchPortfolio(portfolio.id, {
-                              imageUrl: asset.url,
-                              imageName: asset.name,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <MediaFileUploader
-                          label="Attachments (Images/Video)"
-                          accent="teal"
-                          profileId={cardId}
-                          attachmentType="Portfolio Attachment"
-                          value={portfolio.attachments?.url || ''}
-                          fileName={portfolio.attachments?.name || ''}
-                          accept="image/*,video/*"
-                          hint="Optional secondary image or video attachment"
-                          onChange={(next) => {
-                            if (!next) {
-                              patchPortfolio(portfolio.id, { attachments: null })
-                              return
-                            }
-                            patchPortfolio(portfolio.id, {
-                              attachments: { url: next.url, name: next.fileName },
-                            })
-                          }}
-                        />
-                        <MediaSourceActions
-                          mode="both"
-                          compact
-                          profileId={cardId}
-                          onSelect={(asset) =>
-                            patchPortfolio(portfolio.id, {
-                              attachments: { url: asset.url, name: asset.name },
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="group mb-8 flex flex-col space-y-1.5">
-                      <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                        {portfolio.type === 'Video' ? (
-                          <Youtube className="h-3.5 w-3.5 text-red-500" />
-                        ) : (
-                          <LinkIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                        )}
-                        {portfolio.type === 'Video' ? 'YouTube / Video URL' : 'Project / Link URL'}
-                      </label>
-                      <input
-                        type="text"
-                        value={portfolio.url}
-                        onChange={(e) => updatePortfolio(portfolio.id, 'url', e.target.value)}
-                        placeholder={portfolio.type === 'Video' ? 'Enter YouTube video URL' : 'https://…'}
-                        className={inputClasses}
-                      />
-                    </div>
-
-                    <div className="mb-8 flex items-center gap-4 pt-2">
-                      <label className="group flex cursor-pointer items-center gap-3">
-                        <div className="relative flex items-center justify-center">
-                          <input
-                            type="checkbox"
-                            checked={portfolio.active}
-                            onChange={(e) => updatePortfolio(portfolio.id, 'active', e.target.checked)}
-                            className="sr-only"
-                          />
-                          <div
-                            className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
-                              portfolio.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
-                            }`}
-                          >
-                            <div
-                              className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
-                                portfolio.active ? 'translate-x-4' : 'translate-x-0'
-                              }`}
+                      <div className="mb-8 flex items-center gap-4 pt-2">
+                        <label className="group flex cursor-pointer items-center gap-3">
+                          <div className="relative flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={portfolio.active}
+                              onChange={(e) => updatePortfolio(portfolio.id, 'active', e.target.checked)}
+                              className="sr-only"
                             />
+                            <div
+                              className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
+                                portfolio.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
+                              }`}
+                            >
+                              <div
+                                className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
+                                  portfolio.active ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
                           </div>
-                        </div>
-                        <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
-                          Active Status
-                        </span>
-                      </label>
-                    </div>
+                          <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
+                            Active Status
+                          </span>
+                        </label>
+                      </div>
 
-                    <div className="group flex flex-col space-y-1.5">
-                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                        Description
-                      </label>
-                      <textarea
-                        value={portfolio.description}
-                        onChange={(e) => updatePortfolio(portfolio.id, 'description', e.target.value)}
-                        placeholder="Write a description for your portfolio..."
-                        rows={4}
-                        className={inputClasses.replace('h-min', 'resize-y')}
-                      ></textarea>
-                    </div>
-                  </ExpandableEntryBody>
-                </section>
-              )
-            })}
+                      <div className="group flex flex-col space-y-1.5">
+                        <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                          Description
+                        </label>
+                        <textarea
+                          value={portfolio.description}
+                          onChange={(e) => updatePortfolio(portfolio.id, 'description', e.target.value)}
+                          placeholder="Write a description for your portfolio..."
+                          rows={4}
+                          className={inputClasses.replace('h-min', 'resize-y')}
+                        ></textarea>
+                      </div>
+                    </ExpandableEntryBody>
+                  </section>
+                )
+              }}
+            />
 
             <div className="mt-8 flex flex-col items-center gap-4 pt-6">
               <button

@@ -11,15 +11,17 @@ import {
   vCardActivationProblemMessage,
   vCardCreationProblemMessage,
 } from '@/lib/cardActivation'
-import { readAiCardAgentOpen } from '@/lib/dashboardTour'
+import { AI_CARD_AGENT_EVENT, readAiCardAgentOpen } from '@/lib/dashboardTour'
 import { broadcastPublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { notify } from '@/lib/toast/toast'
 import {
   clearPendingCardSave,
+  clearProfileCreationKey,
   createAutosaveScheduler,
   dirtyBucketForPath,
+  getOrCreateProfileCreationKey,
   hasPersistablePostsDelta,
   isEmptyFaq,
   isEmptyGeneralPost,
@@ -96,7 +98,16 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 export type VCardSaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 
 type DirtyBucket =
-  'profile' | 'education' | 'experience' | 'services' | 'portfolio' | 'reviews' | 'skills' | 'socialLinks' | 'posts'
+  | 'profile'
+  | 'education'
+  | 'experience'
+  | 'services'
+  | 'portfolio'
+  | 'reviews'
+  | 'skills'
+  | 'socialLinks'
+  | 'posts'
+  | 'aboutMe'
 
 const ALL_DIRTY_BUCKETS: DirtyBucket[] = [
   'profile',
@@ -137,6 +148,7 @@ interface VCardContextType {
   avatarImageUrl: string
   updateData: (path: string, value: unknown) => void
   updateMeta: (patch: { avatarImageUrl?: string }) => void
+  markAboutMeDirty: () => void
   saveVCard: (opts?: { skipNavigate?: boolean; publish?: boolean }) => Promise<string | void>
   flushSave: () => Promise<void>
   saveStatus: VCardSaveStatus
@@ -158,6 +170,27 @@ function toVCardData(record: VCardRecord): VCardData {
   return rest as VCardData
 }
 
+/** Merge server-normalized profile fields without dropping separately persisted collections/posts. */
+function mergeServerProfileData(current: VCardData, server: VCardData): VCardData {
+  return {
+    ...current,
+    ...server,
+    education: current.education,
+    experience: current.experience,
+    services: current.services,
+    portfolio: current.portfolio,
+    reviews: current.reviews,
+    skills: current.skills,
+    generalPosts: current.generalPosts,
+    faqs: current.faqs,
+    sectionPosts: current.sectionPosts,
+    social: {
+      ...(server.social ?? current.social ?? createDefaultVCardSocial()),
+      customLinks: current.social?.customLinks ?? [],
+    },
+  }
+}
+
 function buildCreateDraft(design: RootState['designSettings']): VCardData {
   const defaults = designSettingsToVCardDefaults(design)
   return createDefaultVCardData({
@@ -175,13 +208,14 @@ function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'data' in err) {
     const data = (
       err as {
-        data?: { message?: string; errorMessages?: { path?: string; message?: string }[] }
+        data?: { message?: string; requestId?: string; errorMessages?: { path?: string; message?: string }[] }
       }
     ).data
-    if (data?.message && data.message !== 'Validation Error') return data.message
+    const withReference = (message: string) => (data?.requestId ? `${message} (Reference: ${data.requestId})` : message)
+    if (data?.message && data.message !== 'Validation Error') return withReference(data.message)
     const details = data?.errorMessages?.map((item) => item.message).filter((msg): msg is string => Boolean(msg))
-    if (details?.length) return details.join('. ')
-    if (data?.message) return data.message
+    if (details?.length) return withReference(details.join('. '))
+    if (data?.message) return withReference(data.message)
   }
   if (err instanceof Error && err.message) return err.message
   return 'Failed to save changes'
@@ -204,17 +238,7 @@ function toastSaveError(message: string) {
 }
 
 const SAVE_SUCCESS_TOAST_DEDUPE_MS = 1800
-const UNSAVED_TOAST_DEDUPE_MS = 8000
 let lastSaveSuccessToast: { message: string; at: number } | null = null
-let lastUnsavedToastAt = 0
-
-function toastUnsavedChanges() {
-  if (readAiCardAgentOpen()) return
-  const now = Date.now()
-  if (now - lastUnsavedToastAt < UNSAVED_TOAST_DEDUPE_MS) return
-  lastUnsavedToastAt = now
-  notify.info('Save your changes to keep this card.', { title: 'Unsaved changes' })
-}
 
 function toastSaveSuccess(buckets: ReadonlySet<DirtyBucket>) {
   const message = buckets.size === 1 && buckets.has('profile') ? 'Card settings saved.' : 'Card changes saved.'
@@ -232,6 +256,12 @@ function toastSaveSuccess(buckets: ReadonlySet<DirtyBucket>) {
 
 function isAppearanceOrThemePath(path: string): boolean {
   return path === 'theme' || path.startsWith('theme.') || path === 'appearance' || path.startsWith('appearance.')
+}
+
+function isCreateDraftAutosaveReady(data: VCardData): boolean {
+  return Boolean(
+    data.personal?.fullName?.trim() && data.slug?.trim() && collectVCardCreationProblems(data).length === 0
+  )
 }
 
 export function VCardProvider({ children }: { children: React.ReactNode }) {
@@ -287,12 +317,17 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const lastSavedProfilePayloadRef = useRef<string>('')
   const editDataRef = useRef<VCardData | null>(null)
   const dirtyBucketsRef = useRef<Set<DirtyBucket>>(new Set())
-  const autosaveSchedulerRef = useRef(createAutosaveScheduler())
+  // A brand-new card waits for a genuine typing pause before creating and
+  // navigating. Once it has a real ID, edit mode also uses the max checkpoint.
+  const autosaveSchedulerRef = useRef(createAutosaveScheduler(isCreateMode ? { maxMs: 0 } : undefined))
   const scheduleAutosaveRef = useRef<() => void>(() => undefined)
   const savingRef = useRef(false)
   const pendingResaveRef = useRef(false)
   const saveGateRef = useRef({ dirty: false, saving: false })
   const editorHydratedForIdRef = useRef<string | null>(null)
+  const createPromiseRef = useRef<Promise<string> | null>(null)
+  const createdProfileIdRef = useRef<string | null>(null)
+  const createAutosaveRef = useRef<() => Promise<string | void>>(async () => undefined)
 
   const [saveStatus, setSaveStatus] = useState<VCardSaveStatus>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -329,6 +364,12 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     postsHydratedForId.current = null
     editDataRef.current = null
   }, [cardId])
+
+  useEffect(() => {
+    if (isCreateMode) return
+    createPromiseRef.current = null
+    createdProfileIdRef.current = null
+  }, [isCreateMode])
 
   useEffect(() => {
     if (isCreateMode || !record) return
@@ -585,7 +626,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       setSaveStatus('dirty')
       setSaveError(null)
       if (cardId) writePendingCardSave(cardId, dirtyBucketsRef.current)
-      toastUnsavedChanges()
     },
     [cardId]
   )
@@ -619,8 +659,19 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           tasks.push(
             updateProfileCard({ id: profileId, body: payload })
               .unwrap()
-              .then(() => {
-                lastSavedProfilePayloadRef.current = payloadJson
+              .then((updated) => {
+                if (updated) {
+                  const normalized = toVCardData(mapApiProfileToVCardRecord(updated))
+                  lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(normalized))
+                  // Do not let response A overwrite edit B that landed while A was in flight.
+                  if (editDataRef.current === data) {
+                    data = mergeServerProfileData(data, normalized)
+                    editDataRef.current = data
+                    dispatch(replaceVCardData({ id: profileId, data }))
+                  }
+                } else {
+                  lastSavedProfilePayloadRef.current = payloadJson
+                }
                 wroteProfile = true
               })
           )
@@ -766,6 +817,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             }).unwrap()
           )
         }
+      }
+
+      if (buckets.has('aboutMe')) {
+        wroteChanges = true
+        tasks.push(flushAboutMeUpsert(dispatch, profileId))
       }
 
       if (buckets.has('posts') && postsHydratedForId.current !== profileId) {
@@ -934,7 +990,16 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   }, [isCreateMode, cardId, persistDirtyBuckets, invalidateSettingsPublicTags])
 
   const scheduleAutosave = useCallback(() => {
-    if (isCreateMode) return
+    if (isCreateMode) {
+      autosaveSchedulerRef.current.schedule(() => {
+        if (readAiCardAgentOpen() || createdProfileIdRef.current) return
+        if (!isCreateDraftAutosaveReady(createDraftRef.current)) return
+        void createAutosaveRef.current().catch(() => {
+          // Status/error already set by saveVCard.
+        })
+      })
+      return
+    }
     autosaveSchedulerRef.current.schedule(() => {
       void runPersist().catch(() => {
         // Status/error already set in runPersist.
@@ -944,15 +1009,23 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
   scheduleAutosaveRef.current = scheduleAutosave
 
+  useEffect(() => {
+    if (!isCreateMode) return
+    const onAgentState = (event: Event) => {
+      const open = (event as CustomEvent<{ open?: boolean }>).detail?.open
+      if (open !== false || !saveGateRef.current.dirty) return
+      scheduleAutosaveRef.current()
+    }
+    window.addEventListener(AI_CARD_AGENT_EVENT, onAgentState)
+    return () => window.removeEventListener(AI_CARD_AGENT_EVENT, onAgentState)
+  }, [isCreateMode])
+
   const flushSave = useCallback(async () => {
     if (isCreateMode) return
     autosaveSchedulerRef.current.cancel()
-    if (cardId && !isLocalTempId(cardId)) {
-      await flushAboutMeUpsert(dispatch)
-    }
     await runPersist()
     schedulePublicInvalidate(true)
-  }, [isCreateMode, cardId, dispatch, runPersist, schedulePublicInvalidate])
+  }, [isCreateMode, runPersist, schedulePublicInvalidate])
 
   const flushSaveRef = useRef(flushSave)
   useEffect(() => {
@@ -960,7 +1033,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   }, [flushSave])
 
   useEffect(() => {
-    if (isCreateMode) return
+    const scheduler = autosaveSchedulerRef.current
+    if (isCreateMode) return () => scheduler.cancel()
 
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
@@ -978,7 +1052,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       void flushSaveRef.current()
     }
 
-    const scheduler = autosaveSchedulerRef.current
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', onPageHide)
     window.addEventListener('beforeunload', onBeforeUnload)
@@ -1012,7 +1085,10 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const saveWorthy =
           isSaveWorthyChange(path, prev, next) ||
           (isExplainerMediaPath(path) && isSaveWorthyChange('sectionPosts', prev, next))
-        if (saveWorthy) markDirty(dirtyBucketForPath(path))
+        if (saveWorthy) {
+          markDirty(dirtyBucketForPath(path))
+          scheduleAutosave()
+        }
         return
       }
       if (!cardId) return
@@ -1052,6 +1128,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     [isCreateMode, cardId, dispatch]
   )
 
+  const markAboutMeDirty = useCallback(() => {
+    markDirty('aboutMe')
+    scheduleAutosave()
+  }, [markDirty, scheduleAutosave])
+
   const persistCollections = useCallback(
     async (profileId: string, data: VCardData) => {
       // Profile scalars were already written by create/update; only sync collections + posts.
@@ -1076,93 +1157,136 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const saveVCard = useCallback(
     async (opts?: { skipNavigate?: boolean; publish?: boolean }) => {
       if (isCreateMode) {
-        const draftRaw = applyProfileMediaToExplainerTab(createDraftRef.current)
-        let draft = draftRaw
-        try {
-          const rawOrder = localStorage.getItem(storageKeyForEditorNavOrder('draft'))
-          const parsed = rawOrder ? (JSON.parse(rawOrder) as string[]) : null
-          const order =
-            (Array.isArray(draft.displaySettings?.editorNavOrder) && draft.displaySettings.editorNavOrder.length
-              ? draft.displaySettings.editorNavOrder
-              : null) || (Array.isArray(parsed) && parsed.length ? parsed : null)
-          if (order?.length) {
-            draft = {
-              ...draft,
-              displaySettings: applyEnabledNavOrderToDisplaySettings(getDisplaySettingsFromVCard(draft), order),
+        if (createPromiseRef.current) return createPromiseRef.current
+
+        let task: Promise<string> | null = null
+        task = (async (): Promise<string> => {
+          await Promise.resolve()
+          setSaveStatus('saving')
+          setSaveError(null)
+
+          try {
+            const draftRaw = applyProfileMediaToExplainerTab(createDraftRef.current)
+            let draft = draftRaw
+            try {
+              const rawOrder = localStorage.getItem(storageKeyForEditorNavOrder('draft'))
+              const parsed = rawOrder ? (JSON.parse(rawOrder) as string[]) : null
+              const order =
+                (Array.isArray(draft.displaySettings?.editorNavOrder) && draft.displaySettings.editorNavOrder.length
+                  ? draft.displaySettings.editorNavOrder
+                  : null) || (Array.isArray(parsed) && parsed.length ? parsed : null)
+              if (order?.length) {
+                draft = {
+                  ...draft,
+                  displaySettings: applyEnabledNavOrderToDisplaySettings(getDisplaySettingsFromVCard(draft), order),
+                }
+                createDraftRef.current = draft
+                setCreateDraft(draft)
+              }
+            } catch {
+              /* ignore order hydrate */
             }
-            createDraftRef.current = draft
-            setCreateDraft(draft)
-          }
-        } catch {
-          /* ignore order hydrate */
-        }
 
-        const slug = (draft.slug || '').trim()
-        const name = (draft.personal?.fullName || '').trim()
-        if (!name) throw new Error('Please enter your name before creating the vCard.')
-        if (!slug) throw new Error('Please set a public URL slug before creating the vCard.')
-        const creationProblem = collectVCardCreationProblems(draft)[0]
-        if (creationProblem) throw new Error(vCardCreationProblemMessage(creationProblem))
+            const slug = (draft.slug || '').trim()
+            const name = (draft.personal?.fullName || '').trim()
+            if (!name) throw new Error('Please enter your name before creating the vCard.')
+            if (!slug) throw new Error('Please set a public URL slug before creating the vCard.')
+            const creationProblem = collectVCardCreationProblems(draft)[0]
+            if (creationProblem) throw new Error(vCardCreationProblemMessage(creationProblem))
 
-        const assignedOwner = getCreateCardOwner()
-        const publish = opts?.publish === true
-        if (publish) {
-          const activationProblems = collectVCardActivationProblems(draft)
-          if (activationProblems.length) throw new Error(vCardActivationProblemMessage(activationProblems))
-        }
-        const createPayloadData: VCardData = {
-          ...draft,
-          isDraft: !publish,
-          isPublic: publish,
-        }
-        const created = await createProfile({
-          ...mapVCardDataToProfilePayload(createPayloadData),
-          isDraft: !publish,
-          isPublic: publish,
-          ...(assignedOwner?.userId ? { ownerUserId: assignedOwner.userId } : {}),
-        }).unwrap()
-        clearCreateCardOwner()
-        const mapped = mapApiProfileToVCardRecord(created)
-        const seed = {
-          ...toVCardData(mapped),
-          ...draft,
-          slug: mapped.slug || draft.slug,
-          displaySettings: draft.displaySettings || mapped.displaySettings,
-          isDraft: !publish,
-          isPublic: publish,
-        }
-        dispatch(addVCard({ id: mapped.id, seed }))
-        dispatch(
-          updateVCard({
-            id: mapped.id,
-            patch: {
-              isActive: publish,
+            const publish = opts?.publish === true
+            if (publish) {
+              const activationProblems = collectVCardActivationProblems(draft)
+              if (activationProblems.length) throw new Error(vCardActivationProblemMessage(activationProblems))
+            }
+
+            const createPayloadData: VCardData = {
+              ...draft,
               isDraft: !publish,
               isPublic: publish,
-            },
-          })
-        )
-        editDataRef.current = seed
+            }
+            const profilePayload = {
+              ...mapVCardDataToProfilePayload(createPayloadData),
+              isDraft: !publish,
+              isPublic: publish,
+            }
+            const existingProfileId = createdProfileIdRef.current
+            const assignedOwner = getCreateCardOwner()
+            const persisted = existingProfileId
+              ? await updateProfileCard({ id: existingProfileId, body: profilePayload }).unwrap()
+              : await createProfile({
+                  ...profilePayload,
+                  creationKey: getOrCreateProfileCreationKey(),
+                  ...(assignedOwner?.userId ? { ownerUserId: assignedOwner.userId } : {}),
+                }).unwrap()
 
-        await persistCollections(created.id, seed)
-        if (hasAboutMeDraftContent()) {
-          await flushAboutMeUpsert(dispatch, created.id)
-        }
-        invalidatePublicTags()
+            // Capture the durable identity before any secondary request. If a child write
+            // fails, retrying this create screen updates this profile instead of POSTing again.
+            createdProfileIdRef.current = String(persisted.id)
+            const mapped = mapApiProfileToVCardRecord(persisted)
+            const profileId = String(mapped.id)
+            const serverData = toVCardData(mapped)
+            lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(serverData))
+            const seed = {
+              ...serverData,
+              ...draft,
+              slug: mapped.slug || draft.slug,
+              displaySettings: draft.displaySettings || mapped.displaySettings,
+              isDraft: !publish,
+              isPublic: publish,
+            }
+            dispatch(addVCard({ id: profileId, seed }))
+            dispatch(
+              updateVCard({
+                id: profileId,
+                patch: {
+                  isActive: publish,
+                  isDraft: !publish,
+                  isPublic: publish,
+                },
+              })
+            )
+            editDataRef.current = seed
 
-        try {
-          const order = seed.displaySettings?.editorNavOrder
-          if (Array.isArray(order) && order.length) {
-            localStorage.setItem(storageKeyForEditorNavOrder(created.id), JSON.stringify(order))
+            await persistCollections(profileId, seed)
+            if (hasAboutMeDraftContent()) {
+              await flushAboutMeUpsert(dispatch, profileId)
+            }
+
+            // Ownership is needed for recovery until every requested section is durable.
+            clearCreateCardOwner()
+            clearProfileCreationKey()
+            saveGateRef.current.dirty = false
+            setSaveStatus('saved')
+            invalidatePublicTags()
+
+            try {
+              const order = seed.displaySettings?.editorNavOrder
+              if (Array.isArray(order) && order.length) {
+                localStorage.setItem(storageKeyForEditorNavOrder(profileId), JSON.stringify(order))
+              }
+            } catch {
+              /* ignore */
+            }
+
+            if (!opts?.skipNavigate) {
+              router.push(buildEditorPath('/vcards/edit', { sectionId: DEFAULT_EDITOR_SECTION }, profileId))
+            }
+            return profileId
+          } catch (err) {
+            const message = errorMessage(err)
+            saveGateRef.current.dirty = true
+            setSaveStatus('error')
+            setSaveError(message)
+            toastSaveError(message)
+            throw err instanceof Error ? err : new Error(message)
+          } finally {
+            if (task && createPromiseRef.current === task) createPromiseRef.current = null
           }
-        } catch {
-          /* ignore */
-        }
+        })()
 
-        if (!opts?.skipNavigate) {
-          router.push(buildEditorPath('/vcards/edit', { sectionId: DEFAULT_EDITOR_SECTION }, created.id))
-        }
-        return created.id as string
+        createPromiseRef.current = task
+        return task
       }
 
       if (!cardId) throw new Error('No vCard selected')
@@ -1171,8 +1295,20 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       setSaveStatus('dirty')
       await flushSave()
     },
-    [isCreateMode, cardId, createProfile, persistCollections, invalidatePublicTags, dispatch, router, flushSave]
+    [
+      isCreateMode,
+      cardId,
+      createProfile,
+      updateProfileCard,
+      persistCollections,
+      invalidatePublicTags,
+      dispatch,
+      router,
+      flushSave,
+    ]
   )
+
+  createAutosaveRef.current = () => saveVCard({ publish: false })
 
   const value = useMemo(
     () => ({
@@ -1182,6 +1318,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       avatarImageUrl: record?.avatarImageUrl || '',
       updateData,
       updateMeta,
+      markAboutMeDirty,
       saveVCard,
       flushSave,
       saveStatus,
@@ -1194,6 +1331,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       vCardData,
       updateData,
       updateMeta,
+      markAboutMeDirty,
       saveVCard,
       flushSave,
       saveStatus,

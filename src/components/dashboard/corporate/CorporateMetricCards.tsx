@@ -63,7 +63,7 @@ type CorporateMetricCardsProps = {
   totalSaves?: number
   activeCount?: number
   totalCards?: number
-  quotaLimit?: number
+  quotaLimit?: number | null
   loading?: boolean
   profilesLoading?: boolean
   viewsChangeText?: string
@@ -145,14 +145,20 @@ export function CorporateMetricCards({
         icon={Shield}
         subtitle={
           <span className="inline-flex items-center gap-1">
-            Capacity: up to{' '}
-            <StatNumber
-              value={quotaLimit}
-              loading={directoryLoading}
-              className="font-semibold text-slate-400"
-              skeletonClassName="h-3.5 w-8 rounded-md"
-            />{' '}
-            Card creations
+            {quotaLimit == null && !directoryLoading ? (
+              <>Capacity: unlimited card creations</>
+            ) : (
+              <>
+                Capacity: up to{' '}
+                <StatNumber
+                  value={quotaLimit}
+                  loading={directoryLoading}
+                  className="font-semibold text-slate-400"
+                  skeletonClassName="h-3.5 w-8 rounded-md"
+                />{' '}
+                Card creations
+              </>
+            )}
           </span>
         }
         iconBgClassName="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400"

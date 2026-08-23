@@ -29,14 +29,7 @@ export function SwitchToCrmButton({ variant = 'header', className }: SwitchToCrm
       )}
     >
       <ArrowLeftRight className={cn(isMenu ? 'h-3.5 w-3.5' : 'h-3 w-3')} />
-      {isMenu ? (
-        'Switch to CRM'
-      ) : (
-        <>
-          <span className="hidden sm:inline">Switch to CRM</span>
-          <span className="sm:hidden">CRM</span>
-        </>
-      )}
+      <span>CRM</span>
     </button>
   )
 }

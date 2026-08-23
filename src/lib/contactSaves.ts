@@ -24,6 +24,9 @@ export type ContactSaveRecord = {
   vCardName: string
   ownerId: string
   ownerName: string
+  vCardDesignation?: string
+  vCardProfession?: string
+  vCardCompany?: string
   /** Optional note the guest wrote when saving contact */
   guestMessage?: string
   privateNotes?: string

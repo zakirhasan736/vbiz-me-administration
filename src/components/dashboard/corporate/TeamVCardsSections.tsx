@@ -153,11 +153,18 @@ function FilterSelect({
 
 type TeamVCardsQuotaTrackerProps = {
   currentCount: number
-  quotaLimit: number
+  quotaLimit: number | null
+  quotaRemaining: number | null
   quotaPercentage: number
 }
 
-export function TeamVCardsQuotaTracker({ currentCount, quotaLimit, quotaPercentage }: TeamVCardsQuotaTrackerProps) {
+export function TeamVCardsQuotaTracker({
+  currentCount,
+  quotaLimit,
+  quotaRemaining,
+  quotaPercentage,
+}: TeamVCardsQuotaTrackerProps) {
+  const limitLabel = quotaLimit == null ? 'Unlimited' : String(quotaLimit)
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
       <div className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm md:col-span-2 dark:border-white/5 dark:bg-[#0b0f19]">
@@ -167,12 +174,15 @@ export function TeamVCardsQuotaTracker({ currentCount, quotaLimit, quotaPercenta
               Directory Quota Usage
             </span>
             <span className="text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-500/10 rounded-md px-2.5 py-1 text-xs font-bold">
-              {currentCount} of {quotaLimit} Cards Created
+              {currentCount} of {limitLabel} Cards Created
+              {quotaRemaining != null ? ` · ${quotaRemaining} remaining` : ''}
             </span>
           </div>
           <h3 className="mb-2 text-lg font-bold text-slate-900 dark:text-white">Maximum Capacity Limit</h3>
           <p className="mb-6 text-xs font-semibold text-slate-400">
-            Corporate Accounts are provisioned with {quotaLimit} dynamic card slots.
+            {quotaLimit == null
+              ? 'This Corporate account has no card-slot cap.'
+              : `Corporate accounts are provisioned with ${quotaLimit} dynamic card slots. Lowering the cap does not delete existing cards.`}
           </p>
         </div>
         <div className="space-y-2">
@@ -187,7 +197,7 @@ export function TeamVCardsQuotaTracker({ currentCount, quotaLimit, quotaPercenta
           </div>
           <div className="flex justify-between pl-0.5 text-[10px] font-black tracking-widest text-slate-400 uppercase">
             <span>0 Cards</span>
-            <span>{quotaLimit} Max Cap</span>
+            <span>{quotaLimit == null ? 'Unlimited' : `${quotaLimit} Max Cap`}</span>
           </div>
         </div>
       </div>
@@ -217,7 +227,7 @@ export function TeamVCardsCreatePlaceholder({
   onCreate,
 }: {
   canCreate: boolean
-  quotaLimit: number
+  quotaLimit: number | null
   onCreate: () => void
 }) {
   if (canCreate) {
@@ -249,7 +259,8 @@ export function TeamVCardsCreatePlaceholder({
       </div>
       <h3 className="text-[15px] font-bold text-red-500">Quota Limit Exceeded</h3>
       <p className="mt-1 max-w-[200px] text-[12px] leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
-        You&apos;ve hit the maximum capacity of {quotaLimit} business cards. Delete existing profiles to free up slots.
+        You&apos;ve hit the maximum capacity of {quotaLimit ?? 0} business cards. Existing cards were not removed. Ask
+        an admin to raise the limit, or wait for a slot to free up.
       </p>
     </div>
   )

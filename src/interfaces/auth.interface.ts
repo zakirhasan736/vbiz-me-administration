@@ -61,3 +61,8 @@ export type TVerifyEmailPayload = {
   email: string
   otp: number
 }
+
+export type TLoginOtpPayload = {
+  email: string
+  otp: string
+}

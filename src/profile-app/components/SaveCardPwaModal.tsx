@@ -23,10 +23,18 @@ type SaveCardPwaModalProps = {
   ownerName?: string
   avatarUrl?: string | null
   cardSlug?: string
+  contactJustSaved?: boolean
 }
 
-export function SaveCardPwaModal({ isOpen, onClose, ownerName, avatarUrl, cardSlug }: SaveCardPwaModalProps) {
-  const { canNativeInstall, isInstalled, isIos, installing, promptInstall } = usePwaInstall()
+export function SaveCardPwaModal({
+  isOpen,
+  onClose,
+  ownerName,
+  avatarUrl,
+  cardSlug,
+  contactJustSaved = false,
+}: SaveCardPwaModalProps) {
+  const { canNativeInstall, isInstalled, isIos, isAndroid, installing, promptInstall } = usePwaInstall()
   const [installMessage, setInstallMessage] = useState<string | null>(null)
   const [nativeAdded, setNativeAdded] = useState(false)
   const [offlineReady, setOfflineReady] = useState(false)
@@ -119,10 +127,16 @@ export function SaveCardPwaModal({ isOpen, onClose, ownerName, avatarUrl, cardSl
               </span>
             </div>
             <div className="min-w-0">
-              <p className="vbiz-pin mb-1 text-[10px] font-black tracking-wider uppercase">Smart PWA card</p>
-              <h3 className="vbiz-title text-2xl leading-tight font-bold tracking-tight">Install {label}</h3>
+              <p className="vbiz-pin mb-1 text-[10px] font-black tracking-wider uppercase">
+                {contactJustSaved ? 'Contact saved ✓' : 'Smart PWA card'}
+              </p>
+              <h3 className="vbiz-title text-2xl leading-tight font-bold tracking-tight">
+                {contactJustSaved ? 'Add this card to your Home Screen' : `Add ${label} to your Home Screen`}
+              </h3>
               <p className="vbiz-description mt-1 text-sm leading-relaxed">
-                Opens like an app, stays available offline, and syncs the latest card when you are back online.
+                {contactJustSaved
+                  ? 'Contact saved ✓ — Add this card to your Home Screen for one-tap access.'
+                  : 'Open it with one tap, keep it available offline, and receive the latest card updates.'}
               </p>
             </div>
           </div>
@@ -151,7 +165,7 @@ export function SaveCardPwaModal({ isOpen, onClose, ownerName, avatarUrl, cardSl
             data-role="primary"
           >
             {installing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Home className="h-4 w-4" />}
-            {isInstalled || added ? 'Already installed' : 'Install smart card'}
+            {isInstalled || added ? 'Already added' : 'Add to Home Screen'}
           </button>
 
           <div className="vbiz-description space-y-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-[12px] leading-relaxed">
@@ -169,13 +183,21 @@ export function SaveCardPwaModal({ isOpen, onClose, ownerName, avatarUrl, cardSl
                 </li>
                 <li>Confirm with this card&apos;s photo and name</li>
               </ol>
+            ) : isAndroid ? (
+              <ol className="list-decimal space-y-1.5 pl-5">
+                <li>Open your browser menu</li>
+                <li>
+                  Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>
+                </li>
+                <li>Confirm to add this card to your phone</li>
+              </ol>
             ) : (
               <ol className="list-decimal space-y-1.5 pl-5">
                 <li>
-                  Use the install icon in the <strong>address bar</strong>
+                  Use the install icon in your browser&apos;s <strong>address bar</strong>
                 </li>
                 <li>
-                  Or open the browser menu and choose <strong>Install app</strong>
+                  Or open the browser menu and choose <strong>Install app</strong> or <strong>Add to Dock</strong>
                 </li>
                 <li>Open once online so offline mode finishes preparing</li>
               </ol>

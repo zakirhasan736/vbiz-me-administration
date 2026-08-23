@@ -3,6 +3,7 @@
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
 import { useAiCardAgentOpen } from '@/hooks/useAiCardAgentOpen'
+import { useOwnerMode } from '@/hooks/useOwnerMode'
 import {
   attachTourScrollLock,
   CREATE_CARD_TOUR_STEPS,
@@ -90,7 +91,7 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
   const role = useAppSelector((state) => state.user.user?.role)
   const serverTours = useAppSelector((state) => state.user.user?.completedTours)
-  const isVcardOwner = role === 'vcard-owner'
+  const { isSingleBackOffice } = useOwnerMode()
   const pathname = usePathname()
   const router = useRouter()
   const isAiAgentOpen = useAiCardAgentOpen()
@@ -188,7 +189,7 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
 
   const startTour = useCallback(
     (key: TourKey = 'dashboard') => {
-      if (key === 'dashboard' && !isVcardOwner) return
+      if (key === 'dashboard' && !isSingleBackOffice) return
       if (key === 'create_card' && (isAiAgentOpen || readAiCardAgentOpen())) return
 
       setTourKey(key)
@@ -199,13 +200,13 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
         router.push('/')
       }
     },
-    [isVcardOwner, isAiAgentOpen, pathname, router]
+    [isSingleBackOffice, isAiAgentOpen, pathname, router]
   )
 
   // Dashboard auto-start (vcard-owner on home only) — once per registered user
   useEffect(() => {
     if (loading || !user?.uid || !toursReady || started || dashboardAutoStarted.current) return
-    if (!isVcardOwner) return
+    if (!isSingleBackOffice) return
     if (pathname !== '/') return
     if (!shouldAutoStartTour('dashboard', user.uid, serverTours)) return
 
@@ -218,7 +219,7 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
     }, 700)
 
     return () => window.clearTimeout(timer)
-  }, [loading, user?.uid, toursReady, started, isVcardOwner, pathname, serverTours, rememberTourOffered])
+  }, [loading, user?.uid, toursReady, started, isSingleBackOffice, pathname, serverTours, rememberTourOffered])
 
   // Create-card auto-start: wait while AI Card Studio is open, then run once
   useEffect(() => {

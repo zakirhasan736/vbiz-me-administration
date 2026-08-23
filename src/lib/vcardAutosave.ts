@@ -21,7 +21,16 @@ export const AUTOSAVE_MAX_MS = 5000
 export const AUTOSAVE_DEBOUNCE_MS = AUTOSAVE_IDLE_MS
 
 export type AutosaveDirtyBucket =
-  'profile' | 'education' | 'experience' | 'services' | 'portfolio' | 'reviews' | 'skills' | 'socialLinks' | 'posts'
+  | 'profile'
+  | 'education'
+  | 'experience'
+  | 'services'
+  | 'portfolio'
+  | 'reviews'
+  | 'skills'
+  | 'socialLinks'
+  | 'posts'
+  | 'aboutMe'
 
 const AUTOSAVE_BUCKETS = new Set<AutosaveDirtyBucket>([
   'profile',
@@ -33,9 +42,45 @@ const AUTOSAVE_BUCKETS = new Set<AutosaveDirtyBucket>([
   'skills',
   'socialLinks',
   'posts',
+  'aboutMe',
 ])
 
 const PENDING_SAVE_PREFIX = 'vbiz_pending_card_save_'
+const PROFILE_CREATION_KEY = 'vbiz_profile_creation_key'
+let memoryCreationKey = ''
+
+function newCreationKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return `create_${Date.now()}_${Math.random().toString(36).slice(2)}`
+}
+
+/** Stable across reload/retry until the new profile and its child sections are durable. */
+export function getOrCreateProfileCreationKey(): string {
+  if (typeof window === 'undefined') {
+    if (!memoryCreationKey) memoryCreationKey = newCreationKey()
+    return memoryCreationKey
+  }
+  try {
+    const existing = sessionStorage.getItem(PROFILE_CREATION_KEY)?.trim()
+    if (existing) return existing
+    const created = newCreationKey()
+    sessionStorage.setItem(PROFILE_CREATION_KEY, created)
+    return created
+  } catch {
+    if (!memoryCreationKey) memoryCreationKey = newCreationKey()
+    return memoryCreationKey
+  }
+}
+
+export function clearProfileCreationKey(): void {
+  memoryCreationKey = ''
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.removeItem(PROFILE_CREATION_KEY)
+  } catch {
+    /* ignore unavailable storage */
+  }
+}
 
 export function pendingSaveStorageKey(cardId: string) {
   return `${PENDING_SAVE_PREFIX}${cardId}`
@@ -111,7 +156,7 @@ export function createAutosaveScheduler(options?: { idleMs?: number; maxMs?: num
       pending = run
       if (idleTimer) clearTimeout(idleTimer)
       idleTimer = setTimeout(fire, idleMs)
-      if (!maxTimer) maxTimer = setTimeout(fire, maxMs)
+      if (maxMs > 0 && !maxTimer) maxTimer = setTimeout(fire, maxMs)
     },
     cancel() {
       pending = null

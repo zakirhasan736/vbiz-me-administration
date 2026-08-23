@@ -1,4 +1,5 @@
 import type { SaveContactCardData, SaveContactResponse } from '@/interfaces/api/saveContact'
+import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
 import { baseUrl } from '@/redux/api/publicApi'
 
 export class SaveContactError extends Error {
@@ -15,7 +16,9 @@ export async function fetchSaveContactData(profileId: string): Promise<SaveConta
   const trimmedId = profileId.trim()
   if (!trimmedId) throw new SaveContactError('Profile ID is required')
 
-  const response = await fetch(`${baseUrl}/save-contact/${encodeURIComponent(trimmedId)}`, {
+  const guestId = getOrCreateGuestId()
+  const query = guestId ? `?visitor_id=${encodeURIComponent(guestId)}` : ''
+  const response = await fetch(`${baseUrl}/save-contact/${encodeURIComponent(trimmedId)}${query}`, {
     method: 'GET',
     headers: { Accept: 'application/json' },
   })

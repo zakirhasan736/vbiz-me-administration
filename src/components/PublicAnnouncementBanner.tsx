@@ -1,11 +1,14 @@
 'use client'
 
+import type { MyCardTeamNotice } from '@/interfaces/api/myCard'
 import { useCardScopeId } from '@/lib/card-scope'
 import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
 import { useProfileNavigation } from '@/profile-app/providers/ProfileNavigationProvider'
 import {
   useDismissPublicProfileAnnouncementMutation,
+  useDismissPublicProfileTeamNoticeMutation,
   useGetPublicProfileAnnouncementQuery,
+  useGetPublicProfileTeamNoticeQuery,
 } from '@/redux/features/publicAnnouncements/publicAnnouncements.api'
 import type { Announcement, AnnouncementType } from '@/types/announcement'
 import { cn } from '@/utils/cn'
@@ -42,6 +45,34 @@ function isShowPublicBanner(value: Announcement | null | undefined): value is An
   return true
 }
 
+function teamNoticeType(value: MyCardTeamNotice['type']): AnnouncementType {
+  if (value === 'warning' || value === 'system') return 'warning'
+  if (value === 'success') return 'success'
+  return 'info'
+}
+
+function bannerFromTeamNotice(value: MyCardTeamNotice | null | undefined): Announcement | null {
+  if (!value?.id?.trim()) return null
+  const body = value.text?.trim()
+  if (!body) return null
+  const type = teamNoticeType(value.type)
+  return {
+    id: value.id,
+    kind: type === 'warning' ? 'warning' : 'announcement',
+    type,
+    title: '',
+    body,
+    status: 'active',
+    targetType: 'specific',
+    targetEmails: [],
+    startsAt: null,
+    endsAt: null,
+    meta: { showPublic: '1', source: 'card_notice' },
+    createdAt: value.createdAt,
+    updatedAt: value.createdAt,
+  }
+}
+
 type Props = {
   /** Prefer explicit id; falls back to CardScopeProvider. */
   profileId?: string
@@ -56,32 +87,43 @@ export default function PublicAnnouncementBanner({ profileId, placement = 'chrom
   const trimmed = String(profileId ?? scopeId ?? '').trim()
   const visitorId = useMemo(() => getOrCreateGuestId(), [])
   const [dismissAnnouncement] = useDismissPublicProfileAnnouncementMutation()
+  const [dismissTeamNotice] = useDismissPublicProfileTeamNoticeMutation()
   const [dismissedId, setDismissedId] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const { data, isFetching } = useGetPublicProfileAnnouncementQuery(
+  const skip = !trimmed || activeSectionId !== 'home'
+  const queryOpts = {
+    skip,
+    pollingInterval: 60_000,
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  }
+  const { data, isFetching } = useGetPublicProfileAnnouncementQuery({ profileId: trimmed, visitorId }, queryOpts)
+  const { data: teamNotice, isFetching: isFetchingNotice } = useGetPublicProfileTeamNoticeQuery(
     { profileId: trimmed, visitorId },
-    {
-      skip: !trimmed || activeSectionId !== 'home',
-      pollingInterval: 60_000,
-      refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
-      refetchOnReconnect: true,
-    }
+    queryOpts
   )
 
-  const banner = isShowPublicBanner(data) ? data : null
+  const cardNoticeBanner = bannerFromTeamNotice(teamNotice)
+  const globalBanner = isShowPublicBanner(data) ? data : null
+  const banner = cardNoticeBanner ?? globalBanner
+  const bannerSource = cardNoticeBanner ? 'team_notice' : 'announcement'
   const isDismissed = Boolean(banner?.id && dismissedId === banner.id)
   const isLongBody = (banner?.body?.trim().length ?? 0) > 140
 
   if (activeSectionId !== 'home') return null
   if (!banner || isDismissed) return null
-  if (isFetching && !banner) return null
+  if ((isFetching || isFetchingNotice) && !banner) return null
 
   const handleDismiss = async () => {
     if (!banner) return
     setDismissedId(banner.id)
     try {
-      await dismissAnnouncement({ profileId: trimmed, announcementId: banner.id, visitorId }).unwrap()
+      if (bannerSource === 'team_notice') {
+        await dismissTeamNotice({ profileId: trimmed, noticeId: banner.id, visitorId }).unwrap()
+      } else {
+        await dismissAnnouncement({ profileId: trimmed, announcementId: banner.id, visitorId }).unwrap()
+      }
     } catch {
       setDismissedId(null)
     }
