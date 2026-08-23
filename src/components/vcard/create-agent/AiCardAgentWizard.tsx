@@ -308,7 +308,8 @@ const OPTIONAL_ITEMS: Array<{
   {
     key: 'aiAssistance',
     title: 'AI Assistance (Live Agent)',
-    description: 'Train a guest-facing AI helper on this card.',
+    description:
+      'Premium add-on ($10/mo). After create, unlock it on your package, then activate and train it in Settings > AI Assistance.',
     settingsSection: 'ai-assistance',
   },
   {
@@ -1883,9 +1884,8 @@ export function AiCardAgentWizard({
       let note = ''
       try {
         if (item.key === 'aiAssistance') {
-          updateData('aiAssistanceEnabled', true)
           note =
-            'AI Assistance is turned on for this draft. After create, open Settings > AI Assistance to train it with business instructions, documents, and payment or lead-handling rules.'
+            'AI Assistance stays off until you unlock the premium add-on ($10 / month) and activate it in Settings > AI Assistance. I can still share setup tips here — go to Settings after create to turn it on, then train it with business instructions, documents, and payment or lead-handling rules.'
         } else if (item.key === 'canva') {
           note =
             'Canva uses secure authorization from Settings > Canva Integration. Connect Canva there, create profile images, backgrounds, gallery assets, or intro media, then import or upload those assets into the empty media fields.'
@@ -1967,7 +1967,11 @@ export function AiCardAgentWizard({
     setActiveFeatureGuideKey(feature.key)
 
     if (feature.key === 'aiAssistance') {
-      updateData('aiAssistanceEnabled', true)
+      pushMsg(
+        'assistant',
+        'AI Assistance is package-locked as a $10 / month add-on. Unlock it on your plan, then open Settings > AI Assistance to activate and train the guest helper. Saying yes here only saves setup guidance — it does not turn the live agent on.'
+      )
+      return
     }
 
     if (feature.key === 'emailNotifications') {

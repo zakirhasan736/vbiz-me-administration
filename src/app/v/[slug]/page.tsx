@@ -108,7 +108,8 @@ export default async function PublicProfilePage({ params }: Props) {
   const profileId = myCard.profile.id
   const template = resolveProfileTemplateFromMyCard(myCard)
   const liveAgentEnabled = isAiAssistanceEnabled(
-    myCard.settings?.[AI_ASSISTANCE_SETTING_KEY] ?? myCard.features?.aiAssistance
+    myCard.settings?.[AI_ASSISTANCE_SETTING_KEY] ?? myCard.features?.aiAssistance,
+    trimmed
   )
   const origin = await publicCardOrigin()
   const cardPath = buildProfilePath(trimmed)

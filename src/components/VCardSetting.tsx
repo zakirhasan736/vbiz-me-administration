@@ -2,7 +2,7 @@
 
 import { CanvaConnectRow } from '@/components/canva'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
-import { Button, Switch } from '@/components/ui'
+import { Button, Modal, Switch } from '@/components/ui'
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
@@ -11,7 +11,12 @@ import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { cardAgentJson } from '@/lib/ai/cardAgentClient'
-import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import {
+  AI_ASSISTANCE_ADDON_PRICE_USD,
+  AI_ASSISTANCE_LOCKED_TITLE,
+  aiAssistanceLockedMessage,
+  isAiAssistanceEnabled,
+} from '@/lib/aiAssistance'
 import {
   deleteAssistantKnowledge,
   extractAssistantKnowledge,
@@ -78,6 +83,7 @@ import {
   LayoutTemplate,
   Link2,
   Loader2,
+  Lock,
   Menu,
   Search,
   Settings2,
@@ -1336,15 +1342,16 @@ function AiAgentTrainModal({
 function CardAiAssistancePanel() {
   const { cardId, vCardData, updateData } = useVCard()
   const { allow_ai_assistance: canUseAiAssistance } = usePackageAccess()
-  const active = isAiAssistanceEnabled(vCardData.aiAssistanceEnabled)
+  const active = isAiAssistanceEnabled(vCardData.aiAssistanceEnabled, vCardData.slug)
   const [showTrain, setShowTrain] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
   const [lastTrain, setLastTrain] = useState<string | null>(null)
   const [knowledge, setKnowledge] = useState<AssistantKnowledgeItem[]>([])
   const [loadingKnowledge, setLoadingKnowledge] = useState(false)
   const [configBusy, setConfigBusy] = useState(false)
 
   const refreshTraining = useCallback(async () => {
-    if (!cardId || isLocalTempId(cardId)) return
+    if (!cardId || isLocalTempId(cardId) || !canUseAiAssistance) return
     setLoadingKnowledge(true)
     try {
       const [config, items] = await Promise.all([getAssistantConfig(cardId), getAssistantKnowledge(cardId)])
@@ -1355,16 +1362,18 @@ function CardAiAssistancePanel() {
     } finally {
       setLoadingKnowledge(false)
     }
-  }, [cardId])
+  }, [cardId, canUseAiAssistance])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void refreshTraining(), 0)
     return () => window.clearTimeout(timer)
   }, [refreshTraining])
 
-  if (!canUseAiAssistance) return <PackageLockedNote />
-
   const toggleAssistant = async () => {
+    if (!canUseAiAssistance) {
+      setShowUpgrade(true)
+      return
+    }
     const next = !active
     updateData('aiAssistanceEnabled', next)
     if (!cardId || isLocalTempId(cardId)) return
@@ -1386,6 +1395,26 @@ function CardAiAssistancePanel() {
         with documents or a business brief, then guests can chat with your assistant.
       </p>
 
+      {!canUseAiAssistance ? (
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <p className="flex items-center gap-2 text-sm font-black text-amber-900 dark:text-amber-100">
+            <Lock className="h-4 w-4 shrink-0" /> Premium add-on
+          </p>
+          <p className="mt-1 text-[.75rem] font-semibold text-amber-800/90 dark:text-amber-100/80">
+            Unlock AI Assistance for an extra{' '}
+            <span className="font-black text-amber-950 dark:text-white">${AI_ASSISTANCE_ADDON_PRICE_USD} / month</span>,
+            then activate it here for this card.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowUpgrade(true)}
+            className="mt-3 inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2 text-[.6875rem] font-black tracking-wider text-white uppercase hover:bg-amber-700"
+          >
+            Activate AI Assistance
+          </button>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-violet-200/70 bg-linear-to-br from-violet-50/80 via-white to-indigo-50/40 p-5 dark:border-violet-500/25 dark:from-violet-500/10 dark:via-[#0b0f19] dark:to-indigo-500/5">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex min-w-0 items-start gap-3">
@@ -1395,15 +1424,17 @@ function CardAiAssistancePanel() {
             <div className="min-w-0">
               <p className="text-sm font-black text-slate-900 dark:text-white">AI Assistance</p>
               <p className="mt-0.5 text-[.75rem] font-semibold text-slate-500">
-                {active
-                  ? 'Active — guests can talk to your assistant on this card'
-                  : 'Inactive — turn on so guests can chat with your assistant'}
+                {!canUseAiAssistance
+                  ? `Locked — unlock for $${AI_ASSISTANCE_ADDON_PRICE_USD}/mo to activate on this card`
+                  : active
+                    ? 'Active — guests can talk to your assistant on this card'
+                    : 'Inactive — turn on so guests can chat with your assistant'}
               </p>
-              {lastTrain && (
+              {lastTrain && canUseAiAssistance ? (
                 <p className="mt-1 truncate text-[.6875rem] font-semibold text-violet-600 dark:text-violet-300">
                   Last train: {lastTrain}
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
           <button
@@ -1412,27 +1443,36 @@ function CardAiAssistancePanel() {
             onClick={() => void toggleAssistant()}
             className={cn(
               'relative inline-flex h-8 w-14 shrink-0 items-center self-start rounded-full transition-colors sm:self-center',
-              active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+              active && canUseAiAssistance ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
             )}
-            title={active ? 'Deactivate AI Assistance' : 'Activate AI Assistance'}
+            title={
+              !canUseAiAssistance
+                ? AI_ASSISTANCE_LOCKED_TITLE
+                : active
+                  ? 'Deactivate AI Assistance'
+                  : 'Activate AI Assistance'
+            }
           >
             <span
               className={cn(
                 'inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform',
-                active ? 'translate-x-6.5' : 'translate-x-1'
+                active && canUseAiAssistance ? 'translate-x-6.5' : 'translate-x-1'
               )}
             />
+            {!canUseAiAssistance ? (
+              <Lock className="pointer-events-none absolute inset-0 m-auto h-3.5 w-3.5 text-slate-600" />
+            ) : null}
           </button>
         </div>
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            disabled={!active || !cardId || isLocalTempId(cardId)}
+            disabled={!canUseAiAssistance || !active || !cardId || isLocalTempId(cardId)}
             onClick={() => setShowTrain(true)}
             className={cn(
               'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-[.6875rem] font-black tracking-wider uppercase',
-              active && cardId && !isLocalTempId(cardId)
+              canUseAiAssistance && active && cardId && !isLocalTempId(cardId)
                 ? 'bg-violet-600 text-white hover:bg-violet-700'
                 : 'cursor-not-allowed bg-slate-100 text-slate-400 dark:bg-white/5'
             )}
@@ -1443,7 +1483,11 @@ function CardAiAssistancePanel() {
 
         <div className="mt-5 border-t border-violet-200/60 pt-4 dark:border-violet-500/20">
           <p className="text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">Knowledge sources</p>
-          {loadingKnowledge ? (
+          {!canUseAiAssistance ? (
+            <p className="mt-2 text-xs font-semibold text-slate-500">
+              Training unlocks after the AI Assistance add-on is active on your package.
+            </p>
+          ) : loadingKnowledge ? (
             <p className="mt-2 text-xs font-semibold text-slate-500">Loading training history…</p>
           ) : knowledge.length ? (
             <ul className="mt-2 space-y-2">
@@ -1477,6 +1521,10 @@ function CardAiAssistancePanel() {
       <div className="space-y-2 rounded-2xl border border-slate-200/80 p-4 dark:border-white/10">
         <p className="text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">How it works</p>
         <ol className="list-decimal space-y-1.5 pl-4 text-[.75rem] font-semibold text-slate-600 dark:text-slate-300">
+          <li>
+            Unlock the AI Assistance add-on for{' '}
+            <span className="font-black text-slate-900 dark:text-white">${AI_ASSISTANCE_ADDON_PRICE_USD}/month</span>.
+          </li>
           <li>Turn AI Assistance Active for this card.</li>
           <li>Train with document uploads and/or write about your business.</li>
           <li>Guests chat with the assistant on your public vCard using that knowledge.</li>
@@ -1492,6 +1540,49 @@ function CardAiAssistancePanel() {
           void refreshTraining()
         }}
       />
+
+      <Modal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        labelledBy="ai-assistance-upgrade-title"
+        describedBy="ai-assistance-upgrade-description"
+        className="max-w-md p-6"
+      >
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300">
+          <Lock className="h-6 w-6" />
+        </div>
+        <h2 id="ai-assistance-upgrade-title" className="text-center text-xl font-bold text-slate-950 dark:text-white">
+          {AI_ASSISTANCE_LOCKED_TITLE}
+        </h2>
+        <p
+          id="ai-assistance-upgrade-description"
+          className="mt-2 text-center text-sm leading-6 font-medium text-slate-600 dark:text-slate-300"
+        >
+          {aiAssistanceLockedMessage()}
+        </p>
+        <p className="mt-4 text-center text-3xl font-black tracking-tight text-slate-950 dark:text-white">
+          ${AI_ASSISTANCE_ADDON_PRICE_USD}
+          <span className="ml-1 text-sm font-semibold text-slate-500">/ month</span>
+        </p>
+        <p className="mt-2 text-center text-xs font-semibold text-slate-500">
+          Contact support or your administrator to add AI Assistance to your package, then return here to activate it.
+        </p>
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowUpgrade(false)}
+            className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 dark:border-white/10 dark:text-slate-200"
+          >
+            Not now
+          </button>
+          <Link
+            href="/settings"
+            className="flex flex-1 items-center justify-center rounded-xl bg-amber-600 py-3 text-sm font-black text-white hover:bg-amber-700"
+          >
+            Contact / upgrade
+          </Link>
+        </div>
+      </Modal>
     </div>
   )
 }
@@ -1504,7 +1595,7 @@ type TabSettingProps = {
 
 export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSettingProps) {
   const { vCardData, updateData } = useVCard()
-  const { allow_seo: canUseSeo, allow_ai_assistance: canUseAiAssistance } = usePackageAccess()
+  const { allow_seo: canUseSeo } = usePackageAccess()
   const display = getDisplaySettingsFromVCard(vCardData)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const { isActive: isTourActive, editorAssist, currentStep, startTour } = useDashboardTour()
@@ -1547,7 +1638,6 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
 
   const visibleSettingTabs = settingTabs.filter((tab) => {
     if (tab.id === 'seo') return canUseSeo
-    if (tab.id === 'ai-assistance') return canUseAiAssistance
     return true
   })
 

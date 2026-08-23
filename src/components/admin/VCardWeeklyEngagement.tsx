@@ -64,6 +64,8 @@ interface VCardWeeklyEngagementProps {
   scope?: 'created'
   /** Parent list is still loading — keep the visualizer chrome and skeleton numbers */
   listLoading?: boolean
+  /** Platform/My Cards totals for the aggregate badge (do not depend on the loaded page list) */
+  cardsCount?: number
 }
 
 export function VCardWeeklyEngagement({
@@ -74,6 +76,7 @@ export function VCardWeeklyEngagement({
   embedded = false,
   scope,
   listLoading = false,
+  cardsCount,
 }: VCardWeeklyEngagementProps) {
   const [chartType, setChartType] = useState<'area' | 'trend'>('area')
   const [selectedCardId, setSelectedCardId] = useState<string>(() => {
@@ -98,7 +101,6 @@ export function VCardWeeklyEngagement({
   /** Metadata card for scope badge / status / department — chart uses API weekly data. */
   const activeCard = useMemo((): EngagementCard | null => {
     if (aggregateAll) {
-      if (!vCardsList.length && !listLoading) return null
       const anyActive = vCardsList.some((c) => c.status === 'active')
       const departments = [
         ...new Set(
@@ -106,11 +108,13 @@ export function VCardWeeklyEngagement({
         ),
       ]
       const isMyCards = scope === 'created'
+      const countLabel =
+        typeof cardsCount === 'number' ? cardsCount : listLoading && !vCardsList.length ? undefined : vCardsList.length
       return {
         id: '__all__',
         personal: {
           fullName: isMyCards ? 'My cards' : 'All directory cards',
-          designation: listLoading && !vCardsList.length ? undefined : `${vCardsList.length} profiles`,
+          designation: countLabel == null ? undefined : `${countLabel} profiles`,
           department: departments.length === 1 ? departments[0] : departments.length > 1 ? 'Multiple' : undefined,
         },
         theme: asEngagementTheme(vCardsList[0]?.theme),
@@ -124,7 +128,7 @@ export function VCardWeeklyEngagement({
     const card = vCardsList.find((c) => c.id === selectedCardId)
     const resolved = card || vCardsList[0] || null
     return resolved ? toEngagementCard(resolved) : null
-  }, [vCardsList, selectedCardId, hideCardSelector, defaultSelectedId, aggregateAll, scope, listLoading])
+  }, [vCardsList, selectedCardId, hideCardSelector, defaultSelectedId, aggregateAll, scope, listLoading, cardsCount])
 
   const weeklyDays = useMemo(() => weekly?.days ?? [], [weekly?.days])
   const totals = weekly?.totals ?? { views: 0, clicks: 0, avgCtr: 0 }

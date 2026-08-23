@@ -126,11 +126,9 @@ export default function AdminDashboard() {
 
   const themeClasses = getThemeClasses(themeConfig.accent)
 
-  // Prefer live dashboard stats; fall back to loaded profile list.
-  const totalCardsCount = statsReady ? (stats?.cards ?? vCardsList.length) : undefined
-  const activeCardsCount = statsReady
-    ? vCardsList.filter((c) => c.status === 'active' || !c.status).length || (stats?.cards ?? vCardsList.length)
-    : undefined
+  // Platform-wide KPIs come from /dashboard/summary (unscoped). Do not use the shell card list.
+  const totalCardsCount = statsReady ? stats?.cards : undefined
+  const activeCardsCount = statsReady ? (stats?.activeCards ?? stats?.cards) : undefined
 
   const { data: meetingsPage, isLoading: meetingsLoading } = useGetMeetingsQuery({ limit: 100 })
   const [createMeeting, { isLoading: isCreatingMeeting }] = useCreateMeetingMutation()
@@ -477,7 +475,13 @@ export default function AdminDashboard() {
           <div
             className={cn(themeConfig.showSocials !== false && 'border-t border-slate-100 pt-2 dark:border-white/5')}
           >
-            <VCardWeeklyEngagement vCardsList={vCardsList} aggregateAll embedded listLoading={loadingList} />
+            <VCardWeeklyEngagement
+              vCardsList={vCardsList}
+              aggregateAll
+              embedded
+              cardsCount={stats?.cards}
+              listLoading={loadingList && !statsReady}
+            />
           </div>
         )}
       </div>

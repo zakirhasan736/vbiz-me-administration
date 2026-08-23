@@ -229,6 +229,7 @@ export type DashboardPeriod = 'all' | '7' | '30' | '90'
 
 export type DashboardStats = {
   cards: number
+  activeCards?: number
   totalViews: number
   viewsLast30Days: number
   contactsLast30Days: number
@@ -746,7 +747,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     tabLabelOverrides,
     myInfo: parseMyInfoJson(settingsMap[MY_INFO_SETTING_KEY]),
     seo: parseSeoSettings(settingsMap),
-    aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY]),
+    aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY], profile.slug),
   })
 
   const status = resolveCardStatus({

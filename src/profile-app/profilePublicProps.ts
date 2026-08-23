@@ -191,7 +191,7 @@ export function vCardDataToProfileProps(
     shareSlug: slug || undefined,
     themeConfig,
     themeFromApi: meta?.themeFromApi,
-    liveAgentEnabled: isAiAssistanceEnabled(data.aiAssistanceEnabled),
+    liveAgentEnabled: isAiAssistanceEnabled(data.aiAssistanceEnabled, slug),
   }
 }
 

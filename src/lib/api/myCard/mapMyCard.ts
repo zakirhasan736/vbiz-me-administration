@@ -495,7 +495,8 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
       ? resolveCardThemeConfig(card.theme_config, resolveTemplate(card))
       : undefined,
     aiAssistanceEnabled: isAiAssistanceEnabled(
-      card.settings?.[AI_ASSISTANCE_SETTING_KEY] ?? card.features?.aiAssistance
+      card.settings?.[AI_ASSISTANCE_SETTING_KEY] ?? card.features?.aiAssistance,
+      card.profile.slug
     ),
   }
 }
