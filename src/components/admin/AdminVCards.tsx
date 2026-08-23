@@ -686,7 +686,7 @@ export default function AdminVCards() {
         status: 'active',
         targetType: 'specific',
         targetEmails,
-        meta: { profileId: selectedCard.id, source: 'card_notice' },
+        meta: { profileId: selectedCard.id, source: 'card_notice', showPublic: '1' },
       }).unwrap()
 
       setIsNoticeSaved(true)
@@ -1551,18 +1551,53 @@ export default function AdminVCards() {
             try {
               if (text.trim()) {
                 writeLocalCardNotice(noticeCard.id, text, type)
-                await createTeamNotice({
-                  text: text.trim(),
-                  type,
-                  audience: 'all',
-                  targetProfileId: noticeCard.id,
-                  deliver: true,
-                }).unwrap()
-                notify.success('Notice sent to this card’s owner and saved-contact audience.')
+                const announcementType = (
+                  ['info', 'warning', 'success'].includes(type) ? type : 'info'
+                ) as AnnouncementType
+                const ownerName = String(
+                  (noticeCard.personal as { fullName?: string })?.fullName || noticeCard.slug || 'vCard'
+                )
+                const targetEmails = collectOwnerEmails(noticeCard)
+                let published = false
+                let lastError: unknown
+                try {
+                  await createTeamNotice({
+                    text: text.trim(),
+                    type,
+                    audience: 'all',
+                    targetProfileId: noticeCard.id,
+                    deliver: true,
+                  }).unwrap()
+                  published = true
+                } catch (error) {
+                  lastError = error
+                }
+                try {
+                  await createAnnouncement({
+                    type: announcementType,
+                    title: `Card notice · ${ownerName}`,
+                    body: text.trim(),
+                    status: 'active',
+                    targetType: 'specific',
+                    targetEmails,
+                    meta: { profileId: noticeCard.id, source: 'card_notice', showPublic: '1' },
+                  }).unwrap()
+                  published = true
+                } catch (error) {
+                  lastError = lastError ?? error
+                }
+                if (!published) {
+                  throw lastError instanceof Error ? lastError : new Error('Could not save notice.')
+                }
+                notify.success('Notice posted on this card’s public view, like a global banner.')
               } else {
                 clearLocalCardNotice(noticeCard.id)
                 const existing = noticeForCard(noticeCard.id, teamNotices)
                 if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
+                const live = findCardNotice(noticeCard.id)
+                if (live?.id) {
+                  await updateAnnouncement({ id: live.id, body: { status: 'archived' } }).unwrap()
+                }
                 notify.success('Notice cleared.')
               }
               setNoticeVersion((n) => n + 1)
@@ -1584,6 +1619,14 @@ export default function AdminVCards() {
             if (existing?.id) {
               try {
                 await deleteTeamNotice(existing.id).unwrap()
+              } catch {
+                /* ignore */
+              }
+            }
+            const live = findCardNotice(noticeCard.id)
+            if (live?.id) {
+              try {
+                await updateAnnouncement({ id: live.id, body: { status: 'archived' } }).unwrap()
               } catch {
                 /* ignore */
               }

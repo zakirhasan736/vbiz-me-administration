@@ -58,7 +58,7 @@ function AboutFeaturedMedia({ src, alt }: { src: string; alt: string }) {
 
   if (isVideoUrl(encoded)) {
     return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg">
+      <div className="relative aspect-[2.2/1] max-h-52 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg sm:max-h-60 md:max-h-64">
         <video
           src={encoded}
           className="h-full w-full object-cover object-center"
@@ -75,7 +75,7 @@ function AboutFeaturedMedia({ src, alt }: { src: string; alt: string }) {
   if (!isUsableImageSrc(encoded)) return null
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg">
+    <div className="relative aspect-[2.2/1] max-h-52 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg sm:max-h-60 md:max-h-64">
       <Image
         src={encoded}
         alt={alt}
@@ -131,7 +131,7 @@ export const AboutSection = () => {
     <V3SectionShell>
       <div className="flex flex-col gap-4 md:gap-6">
         <div
-          className="vbiz-hero-banner dark:border-gold/20 relative flex min-h-70 w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 shadow-xl sm:min-h-75 md:min-h-85 md:rounded-[2.5rem]"
+          className="vbiz-hero-banner dark:border-gold/20 relative flex min-h-52 w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 shadow-xl sm:min-h-56 md:min-h-64 md:rounded-[2.5rem]"
           style={{ background: sectionBackground }}
         >
           <div
@@ -156,7 +156,7 @@ export const AboutSection = () => {
               compact ? 'p-4' : 'p-5 sm:p-6 md:p-8 lg:p-10'
             }`}
           >
-            <div className="mt-auto flex max-w-3xl flex-col gap-3 pt-14 sm:gap-4 sm:pt-0 md:gap-4">
+            <div className="mt-auto flex max-w-3xl flex-col gap-2 pt-10 sm:gap-3 sm:pt-0 md:gap-3">
               <div className="vbiz-hero-eyebrow vbiz-eyebrow self-start shadow-sm backdrop-blur-md md:text-xs">
                 <Sparkles size={14} className="text-gold" /> {sectionTitle}
               </div>
@@ -177,7 +177,7 @@ export const AboutSection = () => {
               {heroImage ? <AboutFeaturedMedia src={heroImage} alt={headline || sectionTitle} /> : null}
 
               {showHeadline ? (
-                <p className="vbiz-hero-subtitle text-gold/90 max-w-2xl text-base leading-snug font-bold md:text-xl">
+                <p className="vbiz-hero-subtitle text-gold/90 max-w-2xl text-sm leading-tight font-bold md:text-base">
                   {headline}
                 </p>
               ) : null}
