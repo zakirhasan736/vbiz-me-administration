@@ -160,14 +160,61 @@ export function markAllNotificationsRead(audience: NotificationAudience) {
 
 export async function ensureNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
   if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported'
-  if (Notification.permission === 'granted' || Notification.permission === 'denied') {
-    return Notification.permission
-  }
+  if (Notification.permission === 'granted') return 'granted'
   try {
     return await Notification.requestPermission()
   } catch {
-    return 'denied'
+    return Notification.permission
   }
+}
+
+const DASH_PUSH_SESSION_KEY = 'vbiz_dash_push_prompt_session'
+export const DASHBOARD_PUSH_PROMPT_EVENT = 'vbiz_dash_push_prompt'
+
+export function clearDashboardPushPromptSession() {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.removeItem(DASH_PUSH_SESSION_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+export function markDashboardPushPromptSeenThisSession() {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(DASH_PUSH_SESSION_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+
+export function dashboardPushPromptSeenThisSession(): boolean {
+  if (typeof window === 'undefined') return true
+  try {
+    return sessionStorage.getItem(DASH_PUSH_SESSION_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function openDashboardPushPrompt() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(DASHBOARD_PUSH_PROMPT_EVENT))
+}
+
+/** Turn push back on from Settings and ask the browser for permission. */
+export async function activateDashboardPush(): Promise<NotificationPermission | 'unsupported'> {
+  saveNotificationPrefs({ browserPush: true })
+  clearDashboardPushPromptSession()
+  const permission = await ensureNotificationPermission()
+  if (permission !== 'granted') openDashboardPushPrompt()
+  return permission
+}
+
+export async function deactivateDashboardPush(): Promise<void> {
+  saveNotificationPrefs({ browserPush: false })
+  markDashboardPushPromptSeenThisSession()
 }
 
 export function roleToAudience(role?: string | null, ownerMode?: 'single' | 'corporate' | null): NotificationAudience {

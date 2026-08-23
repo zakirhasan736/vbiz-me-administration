@@ -3,6 +3,7 @@
 import { AccountDisabledShell } from '@/components/AccountDisabledShell'
 import { AccountStatusBanner } from '@/components/AccountStatusBanner'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
+import { DashboardPushPrompt } from '@/components/DashboardPushPrompt'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { isStaffRole } from '@/constants/userRole'
 import { useDashboardTour } from '@/context/DashboardTourContext'
@@ -260,6 +261,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
       <AnnouncementBanner enabled={showAnnouncementBanner && !isSuspended} />
       {showOwnerStatusBanner ? <AccountStatusBanner /> : null}
+      <DashboardPushPrompt />
 
       <main id="main-scroll" className="wrapper relative min-h-0 min-w-0 flex-1 overflow-x-clip py-8">
         <AccountDisabledShell locked={isSuspended}>{children}</AccountDisabledShell>

@@ -11,7 +11,13 @@ import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
-import { getNotificationPrefs, saveNotificationPrefs, type NotificationPrefs } from '@/lib/notifications'
+import {
+  activateDashboardPush,
+  deactivateDashboardPush,
+  getNotificationPrefs,
+  saveNotificationPrefs,
+  type NotificationPrefs,
+} from '@/lib/notifications'
 import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
 import { useTheme } from '@/lib/ThemeProvider'
 import { logout, useAuth } from '@/providers/AuthProvider'
@@ -244,6 +250,16 @@ export default function SettingsDialog() {
   const toggle = (key: string) => setToggles((p) => ({ ...p, [key]: !p[key] }))
   const patchNotif = (patch: Partial<NotificationPrefs>) => {
     setNotifPrefs(saveNotificationPrefs(patch))
+  }
+
+  const handleBrowserPushToggle = () => {
+    if (!canUsePush) return
+    if (notifPrefs.browserPush) {
+      void deactivateDashboardPush()
+      setNotifPrefs(getNotificationPrefs())
+      return
+    }
+    void activateDashboardPush().then(() => setNotifPrefs(getNotificationPrefs()))
   }
 
   useEffect(() => {
@@ -533,10 +549,7 @@ export default function SettingsDialog() {
                       : PACKAGE_FEATURE_LOCKED_MESSAGE
                   }
                   checked={canUsePush && notifPrefs.browserPush}
-                  onChange={() => {
-                    if (!canUsePush) return
-                    patchNotif({ browserPush: !notifPrefs.browserPush })
-                  }}
+                  onChange={handleBrowserPushToggle}
                 />
                 <ToggleRow
                   title="Contact saves"
