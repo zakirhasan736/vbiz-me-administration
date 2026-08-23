@@ -70,3 +70,25 @@ export function AdminScheduleListSkeleton({ className, cardCount = 2 }: AdminSch
     </div>
   )
 }
+
+/** Month grid placeholder for Admin Schedule calendar. */
+export function AdminScheduleCalendarSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn('space-y-3', className)} aria-busy="true" aria-label="Loading schedule calendar">
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <Skeleton key={`dow-${i}`} className="h-6 rounded-md" />
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: 42 }).map((_, i) => (
+          <div key={i} className="min-h-22 rounded-xl border border-slate-100 p-1.5 dark:border-white/10">
+            <Skeleton className="h-3 w-5 rounded-md" />
+            <Skeleton className="mt-2 h-4 w-full rounded-md" />
+            {i % 3 === 0 ? <Skeleton className="mt-1 h-4 w-4/5 rounded-md" /> : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

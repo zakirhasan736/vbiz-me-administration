@@ -66,7 +66,7 @@ const EMPTY_BANNER_DRAFT: BannerDraft = {
 export default function AdminAnnouncements() {
   const [tab, setTab] = useState<'banner' | 'warnings' | 'events'>('banner')
   const { data: announcementsPage, isLoading: announcementsLoading } = useGetAnnouncementsQuery({
-    limit: 100,
+    limit: 200,
   })
   const [createAnnouncement, { isLoading: isPublishing }] = useCreateAnnouncementMutation()
   const [updateAnnouncement, { isLoading: isUpdating }] = useUpdateAnnouncementMutation()
@@ -150,16 +150,29 @@ export default function AdminAnnouncements() {
     onConfirm: () => void
   } | null>(null)
 
-  const warnings = useMemo(
+  const isInboxOnly = (notice: Announcement) => notice.meta?.channel === 'inbox'
+
+  const recentPublishes = useMemo(
     () =>
-      history
-        .filter((n) => n.kind === 'warning' || n.type === 'warning')
+      [...history]
+        .filter((notice) => !isInboxOnly(notice))
         .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
     [history]
   )
 
-  const noticeFeed = useMemo(
-    () => [...history].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+  const warningItems = useMemo(
+    () =>
+      history
+        .filter((notice) => notice.kind === 'warning' || notice.type === 'warning')
+        .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+    [history]
+  )
+
+  const noticeItems = useMemo(
+    () =>
+      history
+        .filter((notice) => notice.kind !== 'warning' && notice.type !== 'warning')
+        .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
     [history]
   )
 
@@ -392,11 +405,11 @@ export default function AdminAnnouncements() {
           type="button"
           disabled={busy}
           onClick={() => handleDeleteNotice(notice)}
-          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 disabled:opacity-50 dark:hover:bg-rose-500/10"
+          className="inline-flex items-center gap-1 rounded-lg bg-rose-500/10 px-2.5 py-1.5 text-[9px] font-black tracking-wider text-rose-600 uppercase hover:bg-rose-500/15 disabled:opacity-50 dark:text-rose-300"
           aria-label={`Delete ${notice.title}`}
           title="Delete announcement"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" /> Delete
         </button>
       </div>
     )
@@ -625,14 +638,19 @@ export default function AdminAnnouncements() {
             </div>
 
             <div className="rounded-[28px] border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
-              <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-white">Recent publishes</h3>
-              <div className="max-h-70 space-y-2 overflow-y-auto">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">Recent publishes</h3>
+                <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                  {recentPublishes.length} items
+                </span>
+              </div>
+              <div className="max-h-96 space-y-2 overflow-y-auto">
                 {announcementsLoading ? (
                   <RecentPublishesListSkeleton />
-                ) : noticeFeed.length === 0 ? (
+                ) : recentPublishes.length === 0 ? (
                   <p className="py-6 text-center text-xs font-semibold text-slate-400">No notices published yet</p>
                 ) : (
-                  noticeFeed.map((n) => (
+                  recentPublishes.map((n) => (
                     <div
                       key={n.id}
                       className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/5 dark:bg-white/2"
@@ -678,47 +696,40 @@ export default function AdminAnnouncements() {
       )}
 
       {tab === 'warnings' && (
-        <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
-          <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-white/5">
-            <div className="min-w-0">
-              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
-                Warnings & notice history
-              </h2>
-              <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                Archived and active warning/info publishes from the live banner.
-              </p>
+        <div className="space-y-6">
+          <div className="overflow-hidden rounded-[28px] border border-amber-200/70 bg-white shadow-sm dark:border-amber-500/20 dark:bg-[#0b0f19]">
+            <div className="flex items-start justify-between gap-3 border-b border-amber-100 px-6 py-4 dark:border-amber-500/10">
+              <div className="min-w-0">
+                <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                  Warnings
+                </h2>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                  Every warning notice. Edit, pause, reactivate, or delete.
+                </p>
+              </div>
+              {announcementsLoading ? (
+                <WarningsCountSkeleton />
+              ) : (
+                <span className="inline-flex shrink-0 items-center self-start rounded-lg bg-amber-500/10 px-2.5 py-1 text-[11px] leading-none font-black tracking-wider whitespace-nowrap text-amber-600 uppercase">
+                  {warningItems.length} warnings
+                </span>
+              )}
             </div>
             {announcementsLoading ? (
-              <WarningsCountSkeleton />
+              <WarningsNoticesListSkeleton />
+            ) : warningItems.length === 0 ? (
+              <p className="py-12 text-center text-sm font-semibold text-slate-400">
+                No warnings yet — publish a warning from Live Banner.
+              </p>
             ) : (
-              <span className="inline-flex shrink-0 items-center self-start rounded-lg bg-amber-500/10 px-2.5 py-1 text-[11px] leading-none font-black tracking-wider whitespace-nowrap text-amber-600 uppercase">
-                {warnings.length} warnings
-              </span>
-            )}
-          </div>
-          {announcementsLoading ? (
-            <WarningsNoticesListSkeleton />
-          ) : (
-            <div className="divide-y divide-slate-100 dark:divide-white/5">
-              {noticeFeed.length === 0 ? (
-                <p className="py-16 text-center text-sm font-semibold text-slate-400">
-                  No warnings or notices yet — publish from Live Banner.
-                </p>
-              ) : (
-                noticeFeed.map((n) => (
+              <div className="divide-y divide-slate-100 dark:divide-white/5">
+                {warningItems.map((n) => (
                   <div key={n.id} className="flex flex-col justify-between gap-3 px-6 py-4 sm:flex-row sm:items-start">
                     <div className="min-w-0">
                       <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <span
-                          className={cn(
-                            'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                            n.type === 'warning' && 'bg-amber-500/15 text-amber-600',
-                            n.type === 'info' && 'bg-indigo-500/15 text-indigo-600',
-                            n.type === 'success' && 'bg-emerald-500/15 text-emerald-600'
-                          )}
-                        >
-                          {n.type}
+                        <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-amber-600 uppercase">
+                          Warning
                         </span>
                         <span
                           className={cn(
@@ -739,10 +750,71 @@ export default function AdminAnnouncements() {
                     </div>
                     {announcementActions(n)}
                   </div>
-                ))
-              )}
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="overflow-hidden rounded-[28px] border border-indigo-200/70 bg-white shadow-sm dark:border-indigo-500/20 dark:bg-[#0b0f19]">
+            <div className="flex items-start justify-between gap-3 border-b border-indigo-100 px-6 py-4 dark:border-indigo-500/10">
+              <div className="min-w-0">
+                <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
+                  <Bell className="h-4 w-4 shrink-0 text-indigo-500" />
+                  Notices
+                </h2>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                  Info and success notices. Edit, pause, reactivate, or delete.
+                </p>
+              </div>
+              <span className="inline-flex shrink-0 items-center self-start rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[11px] leading-none font-black tracking-wider whitespace-nowrap text-indigo-600 uppercase">
+                {noticeItems.length} notices
+              </span>
             </div>
-          )}
+            {announcementsLoading ? (
+              <WarningsNoticesListSkeleton />
+            ) : noticeItems.length === 0 ? (
+              <p className="py-12 text-center text-sm font-semibold text-slate-400">
+                No notices yet — publish info or success from Live Banner.
+              </p>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-white/5">
+                {noticeItems.map((n) => (
+                  <div key={n.id} className="flex flex-col justify-between gap-3 px-6 py-4 sm:flex-row sm:items-start">
+                    <div className="min-w-0">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                            n.type === 'success'
+                              ? 'bg-emerald-500/15 text-emerald-600'
+                              : 'bg-indigo-500/15 text-indigo-600'
+                          )}
+                        >
+                          {n.type === 'success' ? 'Success' : 'Notice'}
+                        </span>
+                        <span
+                          className={cn(
+                            'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                            n.status === 'active'
+                              ? 'bg-emerald-500/10 text-emerald-600'
+                              : 'bg-slate-100 text-slate-500 dark:bg-white/10'
+                          )}
+                        >
+                          {n.status === 'active' ? 'Live' : 'Paused'}
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          {new Date(n.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{n.title}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{n.body}</p>
+                    </div>
+                    {announcementActions(n)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

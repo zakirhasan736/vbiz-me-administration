@@ -45,6 +45,36 @@ function isBannerAnnouncement(value: unknown): value is Announcement {
   return isAnnouncementRow(value) && !isInboxOnlyMeta(value.meta)
 }
 
+function normalizeAnnouncementListPage(value: unknown): AnnouncementListPage {
+  if (Array.isArray(value)) {
+    const items = value.filter(isAnnouncementRow)
+    return {
+      items,
+      total: items.length,
+      skip: 0,
+      limit: items.length,
+      activeCount: items.filter((row) => row.status === 'active').length,
+    }
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const candidate = record.items ?? record.rows ?? record.data
+    const rawItems = Array.isArray(candidate) ? candidate : []
+    const items = rawItems.filter(isAnnouncementRow)
+    return {
+      items,
+      total: typeof record.total === 'number' ? record.total : items.length,
+      skip: typeof record.skip === 'number' ? record.skip : 0,
+      limit: typeof record.limit === 'number' ? record.limit : items.length,
+      activeCount:
+        typeof record.activeCount === 'number'
+          ? record.activeCount
+          : items.filter((row) => row.status === 'active').length,
+    }
+  }
+  return { items: [], total: 0, skip: 0, limit: 50, activeCount: 0 }
+}
+
 function normalizeActiveAnnouncementResponse(
   res: Envelope<Announcement | ActiveAnnouncementPayload | null>
 ): ActiveAnnouncementPayload {
@@ -82,7 +112,8 @@ const adminAnnouncementsApi = api.injectEndpoints({
         if (params?.kind) search.set('kind', params.kind)
         return `/admin/announcements?${search.toString()}`
       },
-      transformResponse: (res: Envelope<AnnouncementListPage>) => res.data,
+      transformResponse: (res: Envelope<AnnouncementListPage | Announcement[]>) =>
+        normalizeAnnouncementListPage(res?.data ?? res),
       providesTags: (result) =>
         result
           ? [
