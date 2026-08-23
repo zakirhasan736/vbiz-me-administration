@@ -451,12 +451,12 @@ export default function AdminUsers() {
       const created = await createUser({
         name: newName.trim(),
         email: newEmail.trim(),
-        password: newPassword,
+        ...(newPassword.trim() ? { password: newPassword.trim() } : {}),
         packageId: newPackageId,
         companyName: newCompany.trim() || null,
         ...(selectedOwnerMode === 'corporate'
           ? {
-              cardLimit: Math.max(0, Math.round(Number(newCardLimit))),
+              cardLimit: Math.max(0, Math.round(Number(newCardLimit) || 0)),
               negotiatedMonthlyCents:
                 newNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(newNegotiatedMonthly),
               featureOverrides: compactFeatureOverrides(newFeatureOverrides),

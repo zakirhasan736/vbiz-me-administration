@@ -744,7 +744,7 @@ function AboutMeDraftQuickFill({
           attachmentType="About Me Featured"
           accept="image/*,video/*"
           allowUrlPaste={false}
-          hint="Upload an image or video — type is detected automatically"
+          hint="Upload an image or video shown below the About Me title"
           value={featuredMediaUrl}
           onChange={(next) => commit(next?.url || '')}
         />

@@ -4,6 +4,7 @@ import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import type { MediaAsset } from '@/components/MediaSourceActions'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
+import { ReorderList } from '@/components/ReorderList'
 import type { VCardCustomTab, VCardCustomTabItem } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Image as ImageIcon, Layers, Link2, Plus, Trash2, Type } from 'lucide-react'
@@ -147,12 +148,13 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
           </button>
         </div>
       ) : (
-        <div className="space-y-8">
-          {items.map((item, index) => (
-            <section
-              key={item.id}
-              className="group/card overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2"
-            >
+        <ReorderList
+          items={items}
+          getKey={(item) => item.id}
+          onReorder={setItems}
+          className="space-y-8"
+          renderItem={(item, index) => (
+            <section className="group/card overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2">
               <div className="flex items-center justify-between border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-teal-100 bg-teal-50 font-black text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300">
@@ -265,8 +267,8 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                 </div>
               </div>
             </section>
-          ))}
-        </div>
+          )}
+        />
       )}
     </div>
   )

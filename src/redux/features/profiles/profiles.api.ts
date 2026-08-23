@@ -1577,7 +1577,7 @@ const profilesApi = api.injectEndpoints({
       invalidatesTags: ['auth'],
     }),
     getEntitlements: builder.query<EffectiveEntitlements, void>({
-      query: () => '/profiles/me/entitlements',
+      query: () => '/profiles/entitlements',
       transformResponse: (res: Envelope<EffectiveEntitlements>) => res.data,
       providesTags: ['auth'],
     }),
@@ -1621,6 +1621,7 @@ const profilesApi = api.injectEndpoints({
         type: 'broadcast' | 'system' | 'info' | 'warning' | 'success'
         audience: 'all' | 'savers'
         targetProfileId?: string
+        deliver?: boolean
       }
     >({
       query: (body) => ({ url: '/profiles/team-notices', method: 'POST', body }),

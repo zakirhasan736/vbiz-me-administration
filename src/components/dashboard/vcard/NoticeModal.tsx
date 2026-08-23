@@ -12,12 +12,22 @@ type NoticeModalProps = {
   cardName: string
   initialText: string
   initialType: NoticeType
+  deliverySummary?: string
   onClose: () => void
   onSave: (text: string, type: NoticeType) => void
   onClear?: () => void
 }
 
-export function NoticeModal({ open, cardName, initialText, initialType, onClose, onSave, onClear }: NoticeModalProps) {
+export function NoticeModal({
+  open,
+  cardName,
+  initialText,
+  initialType,
+  deliverySummary,
+  onClose,
+  onSave,
+  onClear,
+}: NoticeModalProps) {
   const [text, setText] = useState(initialText)
   const [type, setType] = useState<NoticeType>(initialType)
   const [saved, setSaved] = useState(false)
@@ -65,7 +75,7 @@ export function NoticeModal({ open, cardName, initialText, initialType, onClose,
         Card notice
       </h2>
       <p className="mt-1 text-xs font-semibold text-slate-400">
-        This notice is shown for {cardName || 'this card'}. Clear the message to remove it.
+        {deliverySummary || `This notice is shown for ${cardName || 'this card'}. Clear the message to remove it.`}
       </p>
 
       <div className="mt-6 space-y-4">

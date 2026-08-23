@@ -148,7 +148,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             attachmentType="About Me Featured"
             accept="image/*,video/*"
             allowUrlPaste={false}
-            hint="Used as the About Me section background — upload an image or video"
+            hint="Shown below the About Me title in a standard image or video frame"
             value={draft.featuredMediaUrl}
             onChange={(next) => update({ featuredMediaUrl: next?.url || '' })}
           />

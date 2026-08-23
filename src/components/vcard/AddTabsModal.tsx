@@ -1,7 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
-import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
+import { normalizeNavOrderWithPinnedEnds, PINNED_END_NAV_IDS } from '@/lib/createCardTabs'
 import { getNavItemCompletionPercent } from '@/lib/vcardCompletion'
 import {
   buildCustomNavItems,
@@ -21,7 +21,7 @@ import type { VCardCustomTab, VCardData, VCardTabLabelOverrides } from '@/types/
 import { cn } from '@/utils/cn'
 import { reorderByIndex } from '@/utils/reorderByIndex'
 import { Check, GripVertical, Pencil, Plus, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 type AddTabsModalProps = {
   open: boolean
@@ -66,6 +66,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
   const [customTabs, setCustomTabs] = useState<VCardCustomTab[]>(() => normalizeCustomTabs(vCardData.customTabs))
   const [labelOverrides, setLabelOverrides] = useState<VCardTabLabelOverrides>(() => vCardData.tabLabelOverrides || {})
   const [wasOpen, setWasOpen] = useState(open)
+  const pointerDragId = useRef('')
 
   // Reset draft when the modal opens (adjust during render — avoid setState-in-effect).
   if (open !== wasOpen) {
@@ -95,8 +96,31 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
     })
   }
 
-  const moveDraft = (from: number, to: number) => {
-    setDraftIds((prev) => normalizeDraft(reorderByIndex(prev, from, to)))
+  const moveDraft = (fromId: string, toId: string) => {
+    setDraftIds((prev) => {
+      const from = prev.indexOf(fromId)
+      const to = prev.indexOf(toId)
+      return normalizeDraft(reorderByIndex(prev, from, to))
+    })
+  }
+
+  const movePointerDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (!pointerDragId.current) return
+    event.preventDefault()
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-tab-order-id]')
+    const toId = target?.dataset.tabOrderId
+    if (toId && toId !== pointerDragId.current) {
+      moveDraft(pointerDragId.current, toId)
+    }
+  }
+
+  const finishPointerDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (!pointerDragId.current) return
+    event.preventDefault()
+    pointerDragId.current = ''
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
   }
 
   const itemLabel = (item: NavBarNavItem) => {
@@ -201,26 +225,25 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Tab order</p>
-            <p className="text-[10px] font-semibold text-slate-400">Drag to reorder tabs (use handle)</p>
+            <p className="text-[10px] font-semibold text-slate-400">
+              Drag to reorder · Public Cards &amp; My Info stay last
+            </p>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
             {draftItems.map((item, index) => {
               const orderNum = index + 1
+              const pinned = (PINNED_END_NAV_IDS as readonly string[]).includes(item.id)
               return (
                 <div
                   key={item.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('text/plain', String(index))
-                    e.dataTransfer.effectAllowed = 'move'
-                  }}
+                  data-tab-order-id={item.id}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault()
-                    const from = Number(e.dataTransfer.getData('text/plain'))
-                    if (!Number.isNaN(from)) moveDraft(from, index)
+                    const fromId = e.dataTransfer.getData('text/plain')
+                    if (fromId) moveDraft(fromId, item.id)
                   }}
-                  className="group flex min-w-0 cursor-grab items-center gap-2 rounded-xl border border-transparent bg-white px-2.5 py-2 transition-colors hover:bg-slate-50 active:cursor-grabbing dark:bg-[#0f1420] dark:hover:bg-white/4"
+                  className="group flex min-w-0 items-center gap-2 rounded-xl border border-transparent bg-white px-2.5 py-2 transition-colors hover:bg-slate-50 dark:bg-[#0f1420] dark:hover:bg-white/4"
                 >
                   <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-600/10 text-[11px] font-black text-indigo-700 tabular-nums dark:bg-indigo-500/20 dark:text-indigo-300">
                     <span className="select-none">{orderNum}</span>
@@ -255,7 +278,39 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                       aria-label={`Rename ${item.label}`}
                     />
                   </label>
-                  <div className="flex shrink-0 items-center gap-0.5 opacity-70">
+                  <div
+                    draggable={!pinned}
+                    onDragStart={(e) => {
+                      if (pinned) return
+                      e.dataTransfer.setData('text/plain', item.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                    }}
+                    onPointerDown={(event) => {
+                      if (pinned || event.pointerType === 'mouse') return
+                      event.preventDefault()
+                      pointerDragId.current = item.id
+                      event.currentTarget.setPointerCapture(event.pointerId)
+                    }}
+                    onPointerMove={movePointerDrag}
+                    onPointerUp={finishPointerDrag}
+                    onPointerCancel={finishPointerDrag}
+                    onKeyDown={(event) => {
+                      if (pinned) return
+                      const delta = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1
+                      if (!['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].includes(event.key)) return
+                      event.preventDefault()
+                      const target = draftItems[index + delta]
+                      if (target) moveDraft(item.id, target.id)
+                    }}
+                    role="button"
+                    tabIndex={pinned ? -1 : 0}
+                    title={pinned ? 'This tab stays at the end' : `Drag ${itemLabel(item)} to reorder`}
+                    aria-label={pinned ? `${itemLabel(item)} stays at the end` : `Drag ${itemLabel(item)} to reorder`}
+                    className={cn(
+                      'flex shrink-0 items-center gap-0.5 opacity-70',
+                      pinned ? 'cursor-not-allowed' : 'cursor-grab touch-none active:cursor-grabbing'
+                    )}
+                  >
                     <GripVertical className="h-3.5 w-3.5 text-slate-400" />
                   </div>
                 </div>

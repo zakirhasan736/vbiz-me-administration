@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn'
-import { Calendar, Copy, Edit2, ExternalLink, Loader2, Mail, PanelRight, Phone, QrCode } from 'lucide-react'
+import { Calendar, Copy, Edit2, ExternalLink, Loader2, Mail, Megaphone, PanelRight, Phone, QrCode } from 'lucide-react'
 import type { MouseEvent } from 'react'
 
 type Props = {
@@ -7,6 +7,7 @@ type Props = {
   onEmail?: () => void
   onCall?: () => void
   onSchedule?: () => void
+  onNotice?: () => void
   onEdit: () => void
   onView: () => void
   onPanel: () => void
@@ -29,6 +30,7 @@ export default function VCardCardActions({
   onEmail,
   onCall,
   onSchedule,
+  onNotice,
   onEdit,
   onView,
   onPanel,
@@ -88,6 +90,17 @@ export default function VCardCardActions({
             <span />
           )}
         </div>
+      ) : null}
+
+      {onNotice ? (
+        <button
+          type="button"
+          onClick={(e) => stop(e, onNotice)}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 py-2 text-[10px] font-black tracking-wider text-amber-800 uppercase transition-colors hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-200 dark:hover:bg-amber-500/25"
+          title="Send a notice to this card only"
+        >
+          <Megaphone className="h-3.5 w-3.5" /> Notice
+        </button>
       ) : null}
 
       <div className="grid grid-cols-3 gap-1.5">

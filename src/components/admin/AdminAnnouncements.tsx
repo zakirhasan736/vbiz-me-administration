@@ -29,17 +29,6 @@ import { cn } from '@/utils/cn'
 import { AlertTriangle, Bell, Calendar, Check, CheckCircle2, Clock, Info, Megaphone, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 
-function parseEmails(raw: string): string[] {
-  return [
-    ...new Set(
-      raw
-        .split(/[,;\s]+/)
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean)
-    ),
-  ]
-}
-
 function defaultTitle(type: AnnouncementType): string {
   if (type === 'warning') return 'Warning notice'
   if (type === 'success') return 'Success notice'
@@ -50,14 +39,12 @@ type BannerDraft = {
   text: string
   type: AnnouncementType
   targetType: 'all' | 'specific'
-  targetEmails: string
 }
 
 const EMPTY_BANNER_DRAFT: BannerDraft = {
   text: '',
   type: 'info',
   targetType: 'all',
-  targetEmails: '',
 }
 
 export default function AdminAnnouncements() {
@@ -82,18 +69,17 @@ export default function AdminAnnouncements() {
   const [isSaved, setIsSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [onlyBackoffice, setOnlyBackoffice] = useState(false)
+  const [bannerOwner, setBannerOwner] = useState<ProfileOwnerSelection | null>(null)
 
   const announcementText = bannerDraft?.text ?? liveAnnouncement?.body ?? ''
   const announcementType = bannerDraft?.type ?? liveAnnouncement?.type ?? 'info'
   const announcementTargetType = bannerDraft?.targetType ?? liveAnnouncement?.targetType ?? 'all'
-  const announcementTargetEmails = bannerDraft?.targetEmails ?? liveAnnouncement?.targetEmails.join(', ') ?? ''
 
   const patchBannerDraft = (patch: Partial<BannerDraft>) => {
     setBannerDraft({
       text: bannerDraft?.text ?? liveAnnouncement?.body ?? '',
       type: bannerDraft?.type ?? liveAnnouncement?.type ?? 'info',
       targetType: bannerDraft?.targetType ?? liveAnnouncement?.targetType ?? 'all',
-      targetEmails: bannerDraft?.targetEmails ?? liveAnnouncement?.targetEmails.join(', ') ?? '',
       ...patch,
     })
   }
@@ -136,6 +122,7 @@ export default function AdminAnnouncements() {
       try {
         await clearLiveAnnouncement().unwrap()
         setBannerDraft(EMPTY_BANNER_DRAFT)
+        setBannerOwner(null)
         setIsSaved(true)
         setTimeout(() => setIsSaved(false), 2000)
       } catch {
@@ -145,9 +132,12 @@ export default function AdminAnnouncements() {
     }
 
     if (announcementTargetType === 'specific') {
-      const emails = parseEmails(announcementTargetEmails)
-      if (emails.length === 0) {
-        setFormError('Add at least one email for specific targeting.')
+      if (!bannerOwner) {
+        setFormError('Select the card owner who should receive this announcement.')
+        return
+      }
+      if (!bannerOwner.ownerEmails.length) {
+        setFormError('This card does not have a linked owner login email.')
         return
       }
     }
@@ -160,8 +150,11 @@ export default function AdminAnnouncements() {
         body,
         status: 'active',
         targetType: announcementTargetType,
-        targetEmails: announcementTargetType === 'specific' ? parseEmails(announcementTargetEmails) : [],
-        meta: onlyBackoffice ? {} : { showPublic: '1', sendPush: '1' },
+        targetEmails: announcementTargetType === 'specific' ? bannerOwner?.ownerEmails || [] : [],
+        meta: {
+          ...(onlyBackoffice ? {} : { showPublic: '1', sendPush: '1' }),
+          ...(announcementTargetType === 'specific' && bannerOwner ? { profileId: bannerOwner.profileId } : {}),
+        },
       }).unwrap()
 
       setIsSaved(true)
@@ -183,6 +176,7 @@ export default function AdminAnnouncements() {
     try {
       await clearLiveAnnouncement().unwrap()
       setBannerDraft(EMPTY_BANNER_DRAFT)
+      setBannerOwner(null)
     } catch {
       setFormError('Failed to clear the live banner.')
     }
@@ -379,16 +373,19 @@ export default function AdminAnnouncements() {
                       : 'border-slate-200/60 bg-slate-50 text-slate-500 dark:border-white/5 dark:bg-slate-900'
                   )}
                 >
-                  Specific emails
+                  Specific card owner
                 </button>
               </div>
               {announcementTargetType === 'specific' && (
-                <input
-                  type="text"
-                  value={announcementTargetEmails}
-                  onChange={(e) => patchBannerDraft({ targetEmails: e.target.value })}
-                  placeholder="user@example.com, other@example.com"
-                  className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-white/5 dark:bg-slate-900"
+                <ProfileOwnerPicker
+                  value={bannerOwner}
+                  onChange={(owner) => {
+                    setBannerOwner(owner)
+                    setFormError(null)
+                  }}
+                  label="Select card owner"
+                  listClassName="max-h-56"
+                  includeDrafts
                 />
               )}
             </div>
