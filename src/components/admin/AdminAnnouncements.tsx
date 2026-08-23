@@ -12,6 +12,7 @@ import {
 } from '@/components/admin/AdminAnnouncementsSkeleton'
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { notifyOwners } from '@/lib/notifications'
+import { notify } from '@/lib/toast/toast'
 import {
   useClearLiveAnnouncementMutation,
   useCreateAnnouncementMutation,
@@ -26,7 +27,22 @@ import {
 } from '@/redux/features/meetings/meetings.api'
 import type { Announcement, AnnouncementType } from '@/types/announcement'
 import { cn } from '@/utils/cn'
-import { AlertTriangle, Bell, Calendar, Check, CheckCircle2, Clock, Info, Megaphone, Plus, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  Bell,
+  Calendar,
+  Check,
+  CheckCircle2,
+  Clock,
+  Info,
+  Megaphone,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 
 function defaultTitle(type: AnnouncementType): string {
@@ -53,7 +69,7 @@ export default function AdminAnnouncements() {
     limit: 100,
   })
   const [createAnnouncement, { isLoading: isPublishing }] = useCreateAnnouncementMutation()
-  const [updateAnnouncement] = useUpdateAnnouncementMutation()
+  const [updateAnnouncement, { isLoading: isUpdating }] = useUpdateAnnouncementMutation()
   const [deleteAnnouncement] = useDeleteAnnouncementMutation()
   const [clearLiveAnnouncement, { isLoading: isClearing }] = useClearLiveAnnouncementMutation()
 
@@ -63,13 +79,21 @@ export default function AdminAnnouncements() {
   const meetings = useMemo(() => meetingsPage?.items ?? [], [meetingsPage?.items])
 
   const history = useMemo(() => announcementsPage?.items ?? [], [announcementsPage?.items])
-  const liveAnnouncement = useMemo(() => history.find((n) => n.status === 'active') ?? null, [history])
+  const liveAnnouncement = useMemo(
+    () =>
+      history.find(
+        (notice) => notice.status === 'active' && notice.targetType === 'all' && notice.meta?.channel !== 'inbox'
+      ) ?? null,
+    [history]
+  )
 
   const [bannerDraft, setBannerDraft] = useState<BannerDraft | null>(null)
   const [isSaved, setIsSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [onlyBackoffice, setOnlyBackoffice] = useState(false)
   const [bannerOwner, setBannerOwner] = useState<ProfileOwnerSelection | null>(null)
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null)
+  const [busyAnnouncementId, setBusyAnnouncementId] = useState<string | null>(null)
 
   const announcementText = bannerDraft?.text ?? liveAnnouncement?.body ?? ''
   const announcementType = bannerDraft?.type ?? liveAnnouncement?.type ?? 'info'
@@ -81,6 +105,35 @@ export default function AdminAnnouncements() {
       type: bannerDraft?.type ?? liveAnnouncement?.type ?? 'info',
       targetType: bannerDraft?.targetType ?? liveAnnouncement?.targetType ?? 'all',
       ...patch,
+    })
+  }
+
+  const resetBannerEditor = () => {
+    setBannerDraft(EMPTY_BANNER_DRAFT)
+    setBannerOwner(null)
+    setOnlyBackoffice(false)
+    setEditingAnnouncementId(null)
+    setFormError(null)
+  }
+
+  const editAnnouncement = (notice: Announcement) => {
+    setBannerDraft({ text: notice.body, type: notice.type, targetType: notice.targetType })
+    setOnlyBackoffice(notice.meta?.showPublic !== '1')
+    setBannerOwner(
+      notice.targetType === 'specific'
+        ? {
+            profileId: notice.meta?.profileId || '',
+            hostName: notice.title || 'Selected card owner',
+            ownerEmails: notice.targetEmails,
+            identity: notice.targetEmails.join(', '),
+          }
+        : null
+    )
+    setEditingAnnouncementId(notice.id)
+    setFormError(null)
+    setTab('banner')
+    window.requestAnimationFrame(() => {
+      document.getElementById('announcement-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
 
@@ -119,6 +172,10 @@ export default function AdminAnnouncements() {
     setFormError(null)
     const body = announcementText.trim()
     if (!body) {
+      if (editingAnnouncementId) {
+        setFormError('Announcement text cannot be empty while editing.')
+        return
+      }
       try {
         await clearLiveAnnouncement().unwrap()
         setBannerDraft(EMPTY_BANNER_DRAFT)
@@ -143,29 +200,48 @@ export default function AdminAnnouncements() {
     }
 
     try {
-      const created = await createAnnouncement({
+      const wasEditing = Boolean(editingAnnouncementId)
+      const existingMeta = editingAnnouncementId
+        ? history.find((notice) => notice.id === editingAnnouncementId)?.meta
+        : undefined
+      const nextMeta = Object.fromEntries(
+        Object.entries(existingMeta || {}).filter(([key]) => !['showPublic', 'sendPush', 'profileId'].includes(key))
+      )
+      if (!onlyBackoffice) {
+        nextMeta.showPublic = '1'
+        nextMeta.sendPush = '1'
+      }
+      if (announcementTargetType === 'specific' && bannerOwner?.profileId) {
+        nextMeta.profileId = bannerOwner.profileId
+      }
+      const payload = {
         type: announcementType,
         kind: announcementType === 'warning' ? 'warning' : 'announcement',
         title: defaultTitle(announcementType),
         body,
-        status: 'active',
         targetType: announcementTargetType,
         targetEmails: announcementTargetType === 'specific' ? bannerOwner?.ownerEmails || [] : [],
-        meta: {
-          ...(onlyBackoffice ? {} : { showPublic: '1', sendPush: '1' }),
-          ...(announcementTargetType === 'specific' && bannerOwner ? { profileId: bannerOwner.profileId } : {}),
-        },
-      }).unwrap()
+        meta: nextMeta,
+      } as const
+      const saved = editingAnnouncementId
+        ? await updateAnnouncement({ id: editingAnnouncementId, body: payload }).unwrap()
+        : await createAnnouncement({ ...payload, status: 'active' }).unwrap()
 
       setIsSaved(true)
       setTimeout(() => setIsSaved(false), 2000)
+      if (editingAnnouncementId) {
+        setEditingAnnouncementId(null)
+        setBannerDraft(null)
+      }
 
-      notifyOwners({
-        category: 'system',
-        title: announcementType === 'warning' ? 'Admin warning notice' : 'Admin announcement',
-        body: `[${announcementType.toUpperCase()}] ${created.body.slice(0, 140)}`,
-        forceBrowser: true,
-      })
+      if (!wasEditing) {
+        notifyOwners({
+          category: 'system',
+          title: announcementType === 'warning' ? 'Admin warning notice' : 'Admin announcement',
+          body: `[${announcementType.toUpperCase()}] ${saved.body.slice(0, 140)}`,
+          forceBrowser: true,
+        })
+      }
     } catch {
       setFormError('Failed to publish announcement. Please try again.')
     }
@@ -175,18 +251,33 @@ export default function AdminAnnouncements() {
     setFormError(null)
     try {
       await clearLiveAnnouncement().unwrap()
-      setBannerDraft(EMPTY_BANNER_DRAFT)
-      setBannerOwner(null)
+      resetBannerEditor()
     } catch {
       setFormError('Failed to clear the live banner.')
     }
   }
 
   const handleArchiveNotice = async (id: string) => {
+    setBusyAnnouncementId(id)
     try {
       await updateAnnouncement({ id, body: { status: 'archived' } }).unwrap()
+      notify.success('Announcement paused.')
     } catch {
-      /* ignore */
+      notify.error('Could not pause this announcement.')
+    } finally {
+      setBusyAnnouncementId(null)
+    }
+  }
+
+  const handleReactivateNotice = async (id: string) => {
+    setBusyAnnouncementId(id)
+    try {
+      await updateAnnouncement({ id, body: { status: 'active' } }).unwrap()
+      notify.success('Announcement is active again.')
+    } catch {
+      notify.error('Could not reactivate this announcement.')
+    } finally {
+      setBusyAnnouncementId(null)
     }
   }
 
@@ -198,8 +289,14 @@ export default function AdminAnnouncements() {
       onConfirm: () => {
         void (async () => {
           try {
+            setBusyAnnouncementId(notice.id)
             await deleteAnnouncement(notice.id).unwrap()
+            if (editingAnnouncementId === notice.id) resetBannerEditor()
+            notify.success('Announcement deleted.')
+          } catch {
+            notify.error('Could not delete this announcement.')
           } finally {
+            setBusyAnnouncementId(null)
             setConfirmState(null)
           }
         })()
@@ -260,6 +357,51 @@ export default function AdminAnnouncements() {
 
   const hasLiveBanner = Boolean(liveAnnouncement)
 
+  const announcementActions = (notice: Announcement, compact = false) => {
+    const busy = busyAnnouncementId === notice.id
+    return (
+      <div className={cn('flex shrink-0 flex-wrap items-center gap-1.5', compact && 'mt-2')}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => editAnnouncement(notice)}
+          className="inline-flex items-center gap-1 rounded-lg bg-indigo-500/10 px-2.5 py-1.5 text-[9px] font-black tracking-wider text-indigo-600 uppercase hover:bg-indigo-500/15 disabled:opacity-50 dark:text-indigo-300"
+        >
+          <Pencil className="h-3 w-3" /> Edit
+        </button>
+        {notice.status === 'active' ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void handleArchiveNotice(notice.id)}
+            className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[9px] font-black tracking-wider text-amber-700 uppercase hover:bg-amber-500/15 disabled:opacity-50 dark:text-amber-300"
+          >
+            <Pause className="h-3 w-3" /> Pause
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void handleReactivateNotice(notice.id)}
+            className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-[9px] font-black tracking-wider text-emerald-700 uppercase hover:bg-emerald-500/15 disabled:opacity-50 dark:text-emerald-300"
+          >
+            <Play className="h-3 w-3" /> Reactivate
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => handleDeleteNotice(notice)}
+          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 disabled:opacity-50 dark:hover:bg-rose-500/10"
+          aria-label={`Delete ${notice.title}`}
+          title="Delete announcement"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-6 p-4 duration-300 sm:p-6 lg:p-8">
       <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-end dark:border-white/5">
@@ -312,12 +454,30 @@ export default function AdminAnnouncements() {
 
       {tab === 'banner' && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="space-y-5 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-7 dark:border-white/10 dark:bg-[#0b0f19]">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Push global banner</h2>
-              <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                Shown on single and corporate owner dashboards. Owners also get an inbox notification.
-              </p>
+          <div
+            id="announcement-editor"
+            className="scroll-mt-6 space-y-5 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-7 dark:border-white/10 dark:bg-[#0b0f19]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  {editingAnnouncementId ? 'Edit announcement' : 'Push global banner'}
+                </h2>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                  {editingAnnouncementId
+                    ? 'Update this publish without changing whether it is active or paused.'
+                    : 'Shown on single and corporate owner dashboards. Owners also get an inbox notification.'}
+                </p>
+              </div>
+              {editingAnnouncementId && (
+                <button
+                  type="button"
+                  onClick={resetBannerEditor}
+                  className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[9px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300"
+                >
+                  <X className="h-3 w-3" /> Cancel edit
+                </button>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -412,7 +572,7 @@ export default function AdminAnnouncements() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={isPublishing || isClearing}
+                disabled={isPublishing || isUpdating || isClearing}
                 onClick={() => void handlePushBanner()}
                 className="flex min-w-40 flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700 disabled:opacity-60"
               >
@@ -420,15 +580,21 @@ export default function AdminAnnouncements() {
                   <>
                     <Check className="h-3.5 w-3.5" /> Published
                   </>
-                ) : isPublishing ? (
-                  'Publishing…'
+                ) : isPublishing || isUpdating ? (
+                  editingAnnouncementId ? (
+                    'Saving…'
+                  ) : (
+                    'Publishing…'
+                  )
+                ) : editingAnnouncementId ? (
+                  'Save changes'
                 ) : (
                   'Save & push live'
                 )}
               </button>
               <button
                 type="button"
-                disabled={isClearing || isPublishing}
+                disabled={isClearing || isPublishing || isUpdating}
                 onClick={() => void handleClearBanner()}
                 className="rounded-xl bg-slate-100 px-4 py-3 text-[10px] font-black tracking-wider text-slate-600 uppercase disabled:opacity-60 dark:bg-white/10 dark:text-slate-300"
               >
@@ -466,22 +632,34 @@ export default function AdminAnnouncements() {
                 ) : noticeFeed.length === 0 ? (
                   <p className="py-6 text-center text-xs font-semibold text-slate-400">No notices published yet</p>
                 ) : (
-                  noticeFeed.slice(0, 8).map((n) => (
+                  noticeFeed.map((n) => (
                     <div
                       key={n.id}
                       className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/5 dark:bg-white/2"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={cn(
-                            'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                            n.type === 'warning' && 'bg-amber-500/15 text-amber-600',
-                            n.type === 'info' && 'bg-indigo-500/15 text-indigo-600',
-                            n.type === 'success' && 'bg-emerald-500/15 text-emerald-600'
-                          )}
-                        >
-                          {n.type}
-                        </span>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={cn(
+                              'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                              n.type === 'warning' && 'bg-amber-500/15 text-amber-600',
+                              n.type === 'info' && 'bg-indigo-500/15 text-indigo-600',
+                              n.type === 'success' && 'bg-emerald-500/15 text-emerald-600'
+                            )}
+                          >
+                            {n.type}
+                          </span>
+                          <span
+                            className={cn(
+                              'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                              n.status === 'active'
+                                ? 'bg-emerald-500/10 text-emerald-600'
+                                : 'bg-slate-200/70 text-slate-500 dark:bg-white/10'
+                            )}
+                          >
+                            {n.status === 'active' ? 'Live' : 'Paused'}
+                          </span>
+                        </div>
                         <span className="text-[10px] font-semibold text-slate-400">
                           {new Date(n.createdAt).toLocaleString()}
                         </span>
@@ -489,6 +667,7 @@ export default function AdminAnnouncements() {
                       <p className="mt-1.5 line-clamp-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
                         {n.body}
                       </p>
+                      {announcementActions(n, true)}
                     </div>
                   ))
                 )}
@@ -541,8 +720,15 @@ export default function AdminAnnouncements() {
                         >
                           {n.type}
                         </span>
-                        <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase">
-                          {n.status}
+                        <span
+                          className={cn(
+                            'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                            n.status === 'active'
+                              ? 'bg-emerald-500/10 text-emerald-600'
+                              : 'bg-slate-100 text-slate-500 dark:bg-white/10'
+                          )}
+                        >
+                          {n.status === 'active' ? 'Live' : 'Paused'}
                         </span>
                         <span className="text-[10px] font-semibold text-slate-400">
                           {new Date(n.createdAt).toLocaleString()}
@@ -551,25 +737,7 @@ export default function AdminAnnouncements() {
                       <p className="text-sm font-bold text-slate-900 dark:text-white">{n.title}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">{n.body}</p>
                     </div>
-                    <div className="flex shrink-0 gap-2">
-                      {n.status !== 'archived' && (
-                        <button
-                          type="button"
-                          onClick={() => void handleArchiveNotice(n.id)}
-                          className="rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300"
-                        >
-                          Archive
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteNotice(n)}
-                        className="rounded-xl p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
-                        aria-label="Delete notice"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    {announcementActions(n)}
                   </div>
                 ))
               )}
