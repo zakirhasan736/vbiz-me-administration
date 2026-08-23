@@ -45,6 +45,7 @@ const DashboardVCardsView = () => {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
   const [qrModalTitle, setQrModalTitle] = useState('vCard QR Code')
+  const [qrCenterImageUrl, setQrCenterImageUrl] = useState('')
   const [panelCardId, setPanelCardId] = useState<string | null>(null)
   const [trendsCard, setTrendsCard] = useState<VCardRecord | null>(null)
   const [noticeCard, setNoticeCard] = useState<VCardRecord | null>(null)
@@ -99,7 +100,7 @@ const DashboardVCardsView = () => {
     return sorted
   }, [cards, query, lifecycleTab, sort])
 
-  const openQrModal = (url: string, name?: string) => {
+  const openQrModal = (url: string, name?: string, centerImageUrl?: string) => {
     const matched = cards.find((c) => {
       const slug = c.slug?.trim()
       return Boolean(slug) && (url.includes(`/v/${slug}`) || url.endsWith(`/${slug}`))
@@ -110,6 +111,7 @@ const DashboardVCardsView = () => {
     }
     setSelectedVCardUrl(url)
     setQrModalTitle(name ? `${name} · QR` : 'vCard QR Code')
+    setQrCenterImageUrl(centerImageUrl?.trim() || matched?.avatarImageUrl?.trim() || '')
     setIsQrModalOpen(true)
   }
 
@@ -206,6 +208,7 @@ const DashboardVCardsView = () => {
         onClose={() => setIsQrModalOpen(false)}
         url={selectedVCardUrl}
         title={qrModalTitle}
+        centerImageUrl={qrCenterImageUrl}
         zIndexClass="z-50"
       />
 

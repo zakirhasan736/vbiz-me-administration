@@ -24,6 +24,14 @@ export type AdminCard = Record<string, unknown> & {
   shareCount?: number
   saveCount?: number
   adminPortfolio?: boolean
+  avatar?: string
+  avatarImageUrl?: string
+}
+
+export function adminCardAvatarUrl(card: Pick<AdminCard, 'avatar' | 'avatarImageUrl'>): string {
+  const avatar = typeof card.avatar === 'string' ? card.avatar.trim() : ''
+  if (avatar) return avatar
+  return typeof card.avatarImageUrl === 'string' ? card.avatarImageUrl.trim() : ''
 }
 
 export function toAdminCardShape(

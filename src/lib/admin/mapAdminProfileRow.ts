@@ -61,7 +61,7 @@ export function mapAdminProfileRowToCard(row: AdminProfileRow): AdminCard {
     },
     socials: pickSocials(row),
     socialClicks: row.socialClicks || [],
-    avatar: row.avatar,
+    avatar: row.avatar || undefined,
     viewCount: views,
     uniqueViewCount: views,
     saveCount: saves,

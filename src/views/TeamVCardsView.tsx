@@ -58,6 +58,7 @@ export default function TeamVCardsView() {
   const [isQrOpen, setIsQrOpen] = useState(false)
   const [qrUrl, setQrUrl] = useState('')
   const [qrTitle, setQrTitle] = useState('vCard QR Code')
+  const [qrCenterImageUrl, setQrCenterImageUrl] = useState('')
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
@@ -99,6 +100,7 @@ export default function TeamVCardsView() {
     const url = getVCardPublicUrl(card.slug?.trim() || 'profile')
     setQrUrl(url)
     setQrTitle(card.personal.fullName ? `${card.personal.fullName} · QR` : 'vCard QR Code')
+    setQrCenterImageUrl(card.avatarImageUrl?.trim() || '')
     setIsQrOpen(true)
   }
 
@@ -291,7 +293,14 @@ export default function TeamVCardsView() {
         onDeleted={() => void directory.refetch()}
       />
 
-      <QrCodeModal open={isQrOpen} onClose={() => setIsQrOpen(false)} url={qrUrl} title={qrTitle} zIndexClass="z-50" />
+      <QrCodeModal
+        open={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        url={qrUrl}
+        title={qrTitle}
+        centerImageUrl={qrCenterImageUrl}
+        zIndexClass="z-50"
+      />
 
       <VCardDetailSidebar
         card={panelCard}

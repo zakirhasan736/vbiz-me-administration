@@ -66,7 +66,7 @@ type CorporateControlsHubProps = {
   onDragDrop: (cards: VCardRecord[], targetIndex: number) => void
   onPanel: (card: VCardRecord) => void
   onNotice: (card: VCardRecord) => void
-  onOpenQr: (url: string, name?: string) => void
+  onOpenQr: (url: string, name?: string, centerImageUrl?: string) => void
   onDuplicate: (card: VCardRecord) => void
   onTrends?: (card: VCardRecord) => void
   noticeVersion?: number

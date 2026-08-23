@@ -152,16 +152,12 @@ function isStaticImageUrl(value?: string): value is string {
   return src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/') || src.startsWith('data:')
 }
 
-/** Company logo first, then static profile image; video URL returned separately for frame capture. */
+/** Owner avatar / profile first, then intro video, then company logo. */
 export function resolveShareQrCenterSources(
   companyIconUrl?: string,
   profileMediaUrl?: string,
   introVideoUrl?: string
 ): ShareQrCenterSources {
-  if (isStaticImageUrl(companyIconUrl)) {
-    return { imageUrl: companyIconUrl.trim(), videoUrl: '' }
-  }
-
   const profile = profileMediaUrl?.trim() ?? ''
   if (isStaticImageUrl(profile)) {
     return { imageUrl: profile, videoUrl: '' }
@@ -173,6 +169,10 @@ export function resolveShareQrCenterSources(
   const intro = introVideoUrl?.trim() ?? ''
   if (intro && isVideoAvatarSrc(intro)) {
     return { imageUrl: '', videoUrl: intro }
+  }
+
+  if (isStaticImageUrl(companyIconUrl)) {
+    return { imageUrl: companyIconUrl.trim(), videoUrl: '' }
   }
 
   return { imageUrl: '', videoUrl: '' }

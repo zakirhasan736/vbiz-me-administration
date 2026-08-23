@@ -2730,7 +2730,7 @@ export function AiCardAgentWizard({
                     Section order
                   </p>
                   <p className="text-[11px] font-semibold text-slate-500">
-                    Drag the handle to reorder · Global Connection & My Info stay last
+                    Drag anywhere on a row to reorder · Global Connection & My Info stay last
                   </p>
                 </div>
               </div>
@@ -2748,6 +2748,11 @@ export function AiCardAgentWizard({
                       draggable={!locked}
                       onDragStart={(e) => {
                         if (locked) return
+                        const target = e.target as HTMLElement
+                        if (target.closest('button')) {
+                          e.preventDefault()
+                          return
+                        }
                         setDragNavId(id)
                         e.dataTransfer.effectAllowed = 'move'
                         e.dataTransfer.setData('text/plain', id)
@@ -2770,17 +2775,14 @@ export function AiCardAgentWizard({
                       }}
                       className={cn(
                         'flex items-center gap-2 rounded-2xl border bg-white/95 px-2.5 py-2 transition-all dark:bg-slate-900/80',
+                        !locked && 'cursor-grab select-none active:cursor-grabbing',
                         isDragging && 'opacity-50',
                         isOver && 'border-indigo-400 ring-2 ring-indigo-300/50',
                         !isOver && 'border-white/80 dark:border-white/10'
                       )}
                     >
                       {!locked ? (
-                        <span
-                          className="cursor-grab touch-none rounded-lg p-1 text-slate-400 active:cursor-grabbing"
-                          title="Drag to reorder"
-                          aria-label="Drag to reorder"
-                        >
+                        <span className="pointer-events-none rounded-lg p-1 text-slate-400" aria-hidden>
                           <GripVertical className="h-4 w-4" />
                         </span>
                       ) : (
@@ -2793,7 +2795,7 @@ export function AiCardAgentWizard({
                           <span className="text-[10px] font-black">{index + 1}</span>
                         )}
                       </span>
-                      <span className="min-w-0 flex-1 text-xs font-bold text-slate-800 dark:text-slate-100">
+                      <span className="pointer-events-none min-w-0 flex-1 text-xs font-bold text-slate-800 dark:text-slate-100">
                         {getCreateCardDisplayLabel(id, CREATE_CARD_TAB_BY_NAV_ID[id]?.name || id)}
                         {emptyGap ? (
                           <span className="ml-2 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
@@ -2810,6 +2812,7 @@ export function AiCardAgentWizard({
                         <button
                           type="button"
                           className="rounded-lg px-2 py-1 text-[10px] font-black text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+                          onMouseDown={(e) => e.stopPropagation()}
                           onClick={() => removeTab(id)}
                         >
                           Remove

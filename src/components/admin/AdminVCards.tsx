@@ -13,7 +13,7 @@ import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLa
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
-import { type AdminCard } from '@/lib/admin/adminCardShape'
+import { adminCardAvatarUrl, type AdminCard } from '@/lib/admin/adminCardShape'
 import { canAdminContactCard } from '@/lib/admin/canAdminContactCard'
 import { mapAdminProfileRowToCard } from '@/lib/admin/mapAdminProfileRow'
 import {
@@ -249,6 +249,7 @@ export default function AdminVCards() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
   const [qrModalTitle, setQrModalTitle] = useState('vCard QR Code')
+  const [qrCenterImageUrl, setQrCenterImageUrl] = useState('')
 
   const handleActivatedFromDraft = (cardId: string) => {
     notify.success('Your card is now active.', {
@@ -266,9 +267,10 @@ export default function AdminVCards() {
     })
   }
 
-  const openQrModal = (url: string, name?: string) => {
+  const openQrModal = (url: string, name?: string, centerImageUrl?: string) => {
     setSelectedVCardUrl(url)
     setQrModalTitle(name ? `${name} · QR` : 'vCard QR Code')
+    setQrCenterImageUrl(centerImageUrl?.trim() || '')
     setIsQrModalOpen(true)
   }
 
@@ -1044,7 +1046,8 @@ export default function AdminVCards() {
                 onQr={() =>
                   openQrModal(
                     `${window.location.origin}/v/${card.slug || 'profile'}`,
-                    personalField(card.personal, 'fullName') || undefined
+                    personalField(card.personal, 'fullName') || undefined,
+                    adminCardAvatarUrl(card)
                   )
                 }
                 onDuplicate={() => void handleDuplicateCard(card)}
@@ -1127,6 +1130,7 @@ export default function AdminVCards() {
         onClose={() => setIsQrModalOpen(false)}
         url={selectedVCardUrl}
         title={qrModalTitle}
+        centerImageUrl={qrCenterImageUrl}
       />
 
       {/* MODAL: CALL PAD */}

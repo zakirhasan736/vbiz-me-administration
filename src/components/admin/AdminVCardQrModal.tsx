@@ -1,6 +1,8 @@
 'use client'
 
 import { ModalPortal } from '@/components/ModalPortal'
+import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
+import { generateShareQrDataUrl } from '@/profile-app/lib/shareQrCode'
 import { cn } from '@/utils/cn'
 import { Check, Copy, Download, ImageIcon, Link2, QrCode, Sparkles, X } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -25,6 +27,8 @@ type Props = {
   allowLogo?: boolean
   zIndexClass?: string
   onCopyLink?: () => void
+  /** Card owner avatar / profile image shown in the QR center. */
+  centerImageUrl?: string
 }
 
 export default function VCardQrModal({
@@ -36,6 +40,7 @@ export default function VCardQrModal({
   allowLogo = true,
   zIndexClass = 'z-200',
   onCopyLink,
+  centerImageUrl,
 }: Props) {
   const qrRef = useRef<HTMLDivElement>(null)
   const [fg, setFg] = useState('#4f46e5')
@@ -43,6 +48,7 @@ export default function VCardQrModal({
   const [logo, setLogo] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [downloaded, setDownloaded] = useState(false)
+  const [generatedQr, setGeneratedQr] = useState<{ key: string; dataUrl: string } | null>(null)
   const [wasOpen, setWasOpen] = useState(open)
 
   // Reset transient UI flags when the modal opens (render-time state adjust).
@@ -51,8 +57,16 @@ export default function VCardQrModal({
     if (open) {
       setCopied(false)
       setDownloaded(false)
+      setLogo(null)
+      setGeneratedQr(null)
     }
   }
+
+  const overlay = (logo || centerImageUrl || '').trim()
+  const overlayIsVideo = Boolean(overlay && !logo && isVideoAvatarSrc(overlay))
+  const staticCenter = overlay && !overlayIsVideo ? overlay : ''
+  const generationKey = open && url && overlayIsVideo ? JSON.stringify([url, fg, overlay]) : ''
+  const visibleGeneratedQr = generatedQr?.key === generationKey ? generatedQr.dataUrl : ''
 
   useEffect(() => {
     if (!open) return
@@ -62,6 +76,21 @@ export default function VCardQrModal({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  useEffect(() => {
+    if (!generationKey) return
+    let cancelled = false
+    void generateShareQrDataUrl({
+      url,
+      foregroundColor: fg,
+      centerVideoUrl: overlay,
+    }).then((data) => {
+      if (!cancelled) setGeneratedQr({ key: generationKey, dataUrl: data })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [generationKey, url, fg, overlay])
 
   if (!open || !url) return null
 
@@ -86,11 +115,11 @@ export default function VCardQrModal({
   }
 
   const handleDownload = () => {
-    const canvas = qrRef.current?.querySelector('canvas')
-    if (!canvas) return
+    const href = visibleGeneratedQr || qrRef.current?.querySelector('canvas')?.toDataURL('image/png')
+    if (!href) return
     const link = document.createElement('a')
     link.download = `vbiz-qr-${Date.now()}.png`
-    link.href = canvas.toDataURL('image/png')
+    link.href = href
     link.click()
     setDownloaded(true)
     setTimeout(() => setDownloaded(false), 1800)
@@ -168,15 +197,27 @@ export default function VCardQrModal({
                   style={{ backgroundColor: bg }}
                 >
                   <div className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5">
-                    <QRCodeCanvas
-                      value={url}
-                      size={220}
-                      fgColor={fg}
-                      bgColor={bg}
-                      level="H"
-                      includeMargin={false}
-                      imageSettings={logo ? { src: logo, height: 44, width: 44, excavate: true } : undefined}
-                    />
+                    {visibleGeneratedQr ? (
+                      <img
+                        src={visibleGeneratedQr}
+                        alt=""
+                        width={220}
+                        height={220}
+                        className="block h-[220px] w-[220px]"
+                      />
+                    ) : (
+                      <QRCodeCanvas
+                        value={url}
+                        size={220}
+                        fgColor={fg}
+                        bgColor={bg}
+                        level="H"
+                        includeMargin={false}
+                        imageSettings={
+                          staticCenter ? { src: staticCenter, height: 48, width: 48, excavate: true } : undefined
+                        }
+                      />
+                    )}
                   </div>
                 </div>
               </div>

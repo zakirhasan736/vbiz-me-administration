@@ -7,7 +7,7 @@ import { VCardTeamCard } from './VCardTeamCard'
 
 type VCardsGridProps = {
   cards: VCardRecord[]
-  onOpenQr: (url: string, name?: string) => void
+  onOpenQr: (url: string, name?: string, centerImageUrl?: string) => void
   onPanel?: (card: VCardRecord) => void
   onNotice?: (card: VCardRecord) => void
   noticeVersion?: number

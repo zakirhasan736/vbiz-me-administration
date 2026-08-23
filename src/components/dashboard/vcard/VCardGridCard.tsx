@@ -19,7 +19,7 @@ import { useState } from 'react'
 
 type VCardGridCardProps = {
   card: VCardRecord
-  onOpenQr: (url: string, name?: string) => void
+  onOpenQr: (url: string, name?: string, centerImageUrl?: string) => void
   isPersonal?: boolean
 }
 
@@ -387,7 +387,7 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
                   setAlertState({ title: 'Card suspended', description: SUSPENDED_CARD_MESSAGE })
                   return
                 }
-                if (fullUrl) onOpenQr(fullUrl, card.personal.fullName || undefined)
+                if (fullUrl) onOpenQr(fullUrl, card.personal.fullName || undefined, card.avatarImageUrl || undefined)
               }}
               className="hover:border-primary-500/50 w-11 rounded-xl border-2"
             >

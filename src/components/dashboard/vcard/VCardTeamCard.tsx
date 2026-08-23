@@ -26,7 +26,7 @@ import { getCardSocialClickStats } from './socialStats'
 
 type VCardTeamCardProps = {
   card: VCardRecord
-  onOpenQr: (url: string, name?: string) => void
+  onOpenQr: (url: string, name?: string, centerImageUrl?: string) => void
   onPanel: (card: VCardRecord) => void
   onNotice: (card: VCardRecord) => void
   /** Bumps when notice modal saves/clears so chip refreshes */
@@ -226,7 +226,7 @@ export function VCardTeamCard({
       setAlertState({ title: 'URL slug required', description: 'Set a URL slug in the editor first.' })
       return
     }
-    onOpenQr(fullUrl, card.personal.fullName || undefined)
+    onOpenQr(fullUrl, card.personal.fullName || undefined, card.avatarImageUrl || undefined)
   }
 
   const handleDeleteConfirm = async () => {

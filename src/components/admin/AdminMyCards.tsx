@@ -12,7 +12,7 @@ import { StatNumber } from '@/components/ui/StatNumber'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppSelector } from '@/hooks/redux'
 import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
-import { toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
+import { adminCardAvatarUrl, toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import {
   clearLocalCardNotice,
@@ -106,6 +106,7 @@ export default function AdminMyCards() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
   const [selectedVCardUrl, setSelectedVCardUrl] = useState('')
   const [qrModalTitle, setQrModalTitle] = useState('vCard QR Code')
+  const [qrCenterImageUrl, setQrCenterImageUrl] = useState('')
   const [noticeCard, setNoticeCard] = useState<AdminCard | null>(null)
   const [noticeVersion, setNoticeVersion] = useState(0)
   const [lifecycleTab, setLifecycleTab] = useState<CardLifecycleTab>('active')
@@ -128,9 +129,10 @@ export default function AdminMyCards() {
   const createdProfiles = useMemo(() => createdProfilesResult?.items ?? [], [createdProfilesResult?.items])
   const showListSkeleton = cardsLoading && createdProfiles.length === 0
 
-  const openQrModal = (url: string, name?: string) => {
+  const openQrModal = (url: string, name?: string, centerImageUrl?: string) => {
     setSelectedVCardUrl(url)
     setQrModalTitle(name ? `${name} · QR` : 'vCard QR Code')
+    setQrCenterImageUrl(centerImageUrl?.trim() || '')
     setIsQrModalOpen(true)
   }
 
@@ -442,7 +444,8 @@ export default function AdminMyCards() {
                     onQr={() =>
                       openQrModal(
                         `${window.location.origin}/v/${card.slug || 'profile'}`,
-                        String((card.personal as { fullName?: string })?.fullName || '')
+                        String((card.personal as { fullName?: string })?.fullName || ''),
+                        adminCardAvatarUrl(card)
                       )
                     }
                     onDuplicate={() => void handleDuplicate(card)}
@@ -477,6 +480,7 @@ export default function AdminMyCards() {
         onClose={() => setIsQrModalOpen(false)}
         url={selectedVCardUrl}
         title={qrModalTitle}
+        centerImageUrl={qrCenterImageUrl}
       />
 
       <NoticeModal

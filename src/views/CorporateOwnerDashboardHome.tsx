@@ -126,6 +126,7 @@ export default function CorporateOwnerDashboardHome() {
   const [isQrOpen, setIsQrOpen] = useState(false)
   const [qrUrl, setQrUrl] = useState('')
   const [qrTitle, setQrTitle] = useState('vCard QR Code')
+  const [qrCenterImageUrl, setQrCenterImageUrl] = useState('')
   const [upgradeAlert, setUpgradeAlert] = useState(false)
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
@@ -186,7 +187,7 @@ export default function CorporateOwnerDashboardHome() {
     setShowContactSavesModal(true)
   }
 
-  const openQr = (url: string, name?: string) => {
+  const openQr = (url: string, name?: string, centerImageUrl?: string) => {
     const matched = cards.find((c) => {
       const slug = c.slug?.trim()
       return Boolean(slug) && (url.includes(`/v/${slug}`) || url.endsWith(`/${slug}`))
@@ -197,6 +198,7 @@ export default function CorporateOwnerDashboardHome() {
     }
     setQrUrl(url)
     setQrTitle(name ? `${name} · QR` : 'vCard QR Code')
+    setQrCenterImageUrl(centerImageUrl?.trim() || matched?.avatarImageUrl?.trim() || '')
     setIsQrOpen(true)
   }
 
@@ -410,7 +412,14 @@ export default function CorporateOwnerDashboardHome() {
         />
       )}
 
-      <QrCodeModal open={isQrOpen} onClose={() => setIsQrOpen(false)} url={qrUrl} title={qrTitle} zIndexClass="z-50" />
+      <QrCodeModal
+        open={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        url={qrUrl}
+        title={qrTitle}
+        centerImageUrl={qrCenterImageUrl}
+        zIndexClass="z-50"
+      />
 
       <VCardDetailSidebar
         card={panelCard}
