@@ -89,7 +89,7 @@ export default function AdminMyCards() {
   const { setCurrentEditingCardId } = useVCard()
   const [duplicateProfile] = useDuplicateProfileMutation()
   const { data: createdProfilesResult, isLoading: cardsLoading } = useGetProfilesQuery(
-    { scope: 'created', limit: 100 },
+    { scope: 'created', limit: 500 },
     dashboardOverviewQueryOptions
   )
   const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery(
