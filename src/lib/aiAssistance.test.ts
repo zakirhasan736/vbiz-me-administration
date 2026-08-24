@@ -18,6 +18,7 @@ describe('AI Assistance premium lock', () => {
   it('locks allow_ai_assistance when the package flag is missing', () => {
     const access = entitlementsFromFeatures([{ featureKey: 'allow_seo', featureValue: '1' }], true)
     expect(access.allow_ai_assistance).toBe(false)
+    expect(access.allow_crm).toBe(false)
     expect(access.allow_seo).toBe(true)
     expect(AI_ASSISTANCE_ADDON_PRICE_USD).toBe(10)
   })

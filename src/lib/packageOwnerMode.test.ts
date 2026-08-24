@@ -52,6 +52,8 @@ describe('package owner-mode resolution', () => {
       '/teamvcard'
     )
     expect(ownerOfficeRedirectPath({ pathname: '/vcards/create/home', ownerMode: 'corporate' })).toBeNull()
+    expect(ownerOfficeRedirectPath({ pathname: '/crm', role: 'admin' })).toBeNull()
+    expect(ownerOfficeRedirectPath({ pathname: '/crm', ownerMode: 'single', role: 'vcard-owner' })).toBeNull()
     expect(ownerOfficeRedirectPath({ pathname: '/teamvcard', role: 'admin' })).toBe('/admin/dashboard')
   })
 })

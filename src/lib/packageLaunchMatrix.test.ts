@@ -21,6 +21,7 @@ const paidAccess = {
   allow_support_ticket: true,
   allow_auto_card_builder: true,
   allow_seo: true,
+  allow_crm: true,
 }
 
 describe('package launch matrix', () => {

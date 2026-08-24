@@ -32,6 +32,7 @@ const WORKSPACE_PATH_PREFIXES = [
   '/billing',
   '/dashboard',
   '/team',
+  '/crm',
 ] as const
 
 export function shouldSilentlyRefreshSession(role?: string | null): boolean {
@@ -162,7 +163,8 @@ export function resolvePostLoginPath(
   if (
     !shouldSilentlyRefreshSession(resolved.role) &&
     !requested.startsWith('/admin') &&
-    !requested.startsWith('/vcards/edit')
+    !requested.startsWith('/vcards/edit') &&
+    !requested.startsWith('/crm')
   ) {
     return fallback
   }

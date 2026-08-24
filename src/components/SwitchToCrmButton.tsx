@@ -1,25 +1,40 @@
 'use client'
 
-import { notify } from '@/lib/toast/toast'
+import { isStaffRole } from '@/constants/userRole'
+import { useAppSelector } from '@/hooks/redux'
+import { canSessionUseCrm } from '@/lib/crmAccess'
 import { cn } from '@/utils/cn'
 import { ArrowLeftRight } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 type SwitchToCrmButtonProps = {
   variant?: 'header' | 'menu'
   className?: string
 }
 
-export function showCrmComingSoon() {
-  notify.info('Coming soon', { title: 'Switch to CRM' })
-}
-
 export function SwitchToCrmButton({ variant = 'header', className }: SwitchToCrmButtonProps) {
+  const pathname = usePathname()
+  const user = useAppSelector((state) => state.user.user)
+  const role = user?.role
+  const onCrm = pathname === '/crm' || pathname.startsWith('/crm/')
+  const staffMayOpenCrm = canSessionUseCrm({
+    role,
+    allowedModules: user?.allowedModules,
+    packageAllowsCrm: false,
+  })
+
+  if (isStaffRole(role) && !staffMayOpenCrm && !onCrm) {
+    return null
+  }
+
+  const href = onCrm ? (isStaffRole(role) ? '/admin/dashboard' : '/') : '/crm'
+  const label = onCrm ? 'Cards' : 'CRM'
   const isMenu = variant === 'menu'
 
   return (
-    <button
-      type="button"
-      onClick={() => showCrmComingSoon()}
+    <Link
+      href={href}
       className={cn(
         'inline-flex items-center justify-center gap-1.5 rounded-full font-bold tracking-wide transition-colors',
         isMenu
@@ -29,7 +44,7 @@ export function SwitchToCrmButton({ variant = 'header', className }: SwitchToCrm
       )}
     >
       <ArrowLeftRight className={cn(isMenu ? 'h-3.5 w-3.5' : 'h-3 w-3')} />
-      <span>CRM</span>
-    </button>
+      <span>{label}</span>
+    </Link>
   )
 }

@@ -32,7 +32,8 @@ export function isBackofficePath(pathname: string): boolean {
     path.startsWith('/vcards') ||
     path.startsWith('/settings') ||
     path.startsWith('/team') ||
-    path.startsWith('/billing')
+    path.startsWith('/billing') ||
+    path.startsWith('/crm')
   ) {
     return true
   }

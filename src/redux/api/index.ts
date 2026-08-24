@@ -8,6 +8,7 @@ import '@/redux/features/adminTeam/adminTeam.api'
 import '@/redux/features/adminTemplates/adminTemplates.api'
 import '@/redux/features/adminUsers/adminUsers.api'
 import '@/redux/features/auth/auth.api'
+import '@/redux/features/crm/crm.api'
 import '@/redux/features/dynamicSection/dynamicSection.api'
 import '@/redux/features/fonts/fonts.api'
 import '@/redux/features/health/health.api'
@@ -91,6 +92,7 @@ export {
   useSetAdminUserStatusMutation,
   useUpdateAdminUserMutation,
 } from '@/redux/features/adminUsers/adminUsers.api'
+export { useGetCrmDashboardQuery } from '@/redux/features/crm/crm.api'
 export {
   useGetDynamicSectionQuery,
   useLazyGetDynamicSectionQuery,

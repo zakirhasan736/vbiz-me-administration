@@ -34,6 +34,7 @@ describe('corporate manage-access overrides', () => {
       allow_support_ticket: true,
       allow_auto_card_builder: true,
       allow_seo: true,
+      allow_crm: true,
     }
     expect(
       catalogFeatureAllowed(
@@ -59,6 +60,7 @@ describe('corporate manage-access overrides', () => {
             allow_support_ticket: true,
             allow_auto_card_builder: true,
             allow_seo: true,
+            allow_crm: true,
           },
           features: [],
           subscriptionActive: true,
@@ -80,6 +82,7 @@ describe('corporate manage-access overrides', () => {
             allow_support_ticket: false,
             allow_auto_card_builder: false,
             allow_seo: false,
+            allow_crm: false,
           },
           features: [{ featureKey: 'allow_2d_explainer', featureValue: '1' }],
           subscriptionActive: false,

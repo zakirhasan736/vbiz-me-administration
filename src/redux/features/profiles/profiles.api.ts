@@ -367,6 +367,7 @@ export type PackageAccessMap = {
   allow_support_ticket: boolean
   allow_auto_card_builder: boolean
   allow_seo: boolean
+  allow_crm: boolean
 }
 
 export type EffectiveEntitlements = {

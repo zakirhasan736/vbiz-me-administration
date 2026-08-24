@@ -73,6 +73,7 @@ export const api = createApi({
     'auth',
     'profiles',
     'dashboard',
+    'crm',
     'meetings',
     'activity',
     'adminProfiles',

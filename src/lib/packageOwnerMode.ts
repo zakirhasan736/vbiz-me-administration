@@ -67,6 +67,10 @@ export function isCardEditorPath(pathname: string): boolean {
   return pathname.startsWith('/vcards/create') || pathname.startsWith('/vcards/edit')
 }
 
+export function isSharedCrmPath(pathname: string): boolean {
+  return pathname === '/crm' || pathname.startsWith('/crm/')
+}
+
 export function isCorporateOfficePath(pathname: string): boolean {
   return pathname === '/teamvcard' || pathname.startsWith('/teamvcard/')
 }
@@ -86,7 +90,7 @@ export function ownerOfficeRedirectPath(input: {
 }): string | null {
   const pathname = input.pathname || '/'
   if (isStaffRole(input.role)) {
-    if (pathname.startsWith('/admin') || isCardEditorPath(pathname)) return null
+    if (pathname.startsWith('/admin') || isCardEditorPath(pathname) || isSharedCrmPath(pathname)) return null
     return '/admin/dashboard'
   }
 

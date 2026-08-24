@@ -40,6 +40,7 @@ describe('session policy', () => {
     expect(resolvePostLoginPath('vcard-owner', '/admin/users')).toBe('/')
     expect(resolvePostLoginPath('corporate-owner', '/admin/dashboard')).toBe('/teamvcard')
     expect(resolvePostLoginPath('admin', '/admin/users')).toBe('/admin/users')
+    expect(resolvePostLoginPath('admin', '/crm')).toBe('/crm')
     expect(resolvePostLoginPath({ role: 'corporate-owner', ownerMode: 'single' }, '/teamvcard')).toBe('/')
     expect(resolvePostLoginPath({ role: 'vcard-owner', ownerMode: 'corporate' }, '/vcards')).toBe('/teamvcard')
     expect(resolvePostLoginPath({ role: 'vcard-owner', ownerMode: 'corporate' }, '/vcards/create/home')).toBe(
@@ -62,6 +63,8 @@ describe('session policy', () => {
     expect(isAuthenticatedWorkspacePath('/vcards/edit/home')).toBe(true)
     expect(isAuthenticatedWorkspacePath('/teamvcard')).toBe(true)
     expect(isAuthenticatedWorkspacePath('/settings')).toBe(true)
+    expect(isAuthenticatedWorkspacePath('/crm')).toBe(true)
+    expect(isAuthenticatedWorkspacePath('/crm/leads')).toBe(true)
 
     expect(isAuthenticatedWorkspacePath('/v/acme')).toBe(false)
     expect(isAuthenticatedWorkspacePath('/v/acme/icon/192')).toBe(false)
