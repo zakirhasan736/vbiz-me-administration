@@ -11,7 +11,7 @@ import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
-import { canSessionUseCrm } from '@/lib/crmAccess'
+import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { roleToAudience } from '@/lib/notifications'
 import { ownerOfficeRedirectPath } from '@/lib/packageOwnerMode'
@@ -48,7 +48,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const showMobileMenu = isMobileMenuOpen && (!isTourActive || keepMobileNavOpen)
   const role = useAppSelector((state) => state.user.user?.role)
   const allowedModules = useAppSelector((state) => state.user.user?.allowedModules)
-  const staffCanUseCrm = canSessionUseCrm({ role, allowedModules, packageAllowsCrm: false })
+  const staffCanUseCrm = !CRM_UI_ENABLED || canSessionUseCrm({ role, allowedModules, packageAllowsCrm: false })
   const { ownerMode, isCorporateBackOffice, isSingleBackOffice } = useOwnerMode()
   const { isSuspended, isPaused } = useAccountStatus()
   const audience = roleToAudience(role, ownerMode)

@@ -2,7 +2,11 @@
 export function isVideoUrl(url: string): boolean {
   const trimmed = url.trim()
   if (!trimmed) return false
-  return /\.(mp4|webm|ogg|mov)(\?|$)/i.test(trimmed) || trimmed.startsWith('blob:')
+  if (trimmed.startsWith('blob:') || /^data:video\//i.test(trimmed)) return true
+  if (/\.(m4v|mov|mp4|ogv|webm|ogg)(\?|#|$)/i.test(trimmed)) return true
+  if (/\/video\/upload\//i.test(trimmed)) return true
+  if (/(?:youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com)/i.test(trimmed)) return true
+  return false
 }
 
 /** next/image requires absolute http(s), root-relative /, blob:, or data: URLs. */

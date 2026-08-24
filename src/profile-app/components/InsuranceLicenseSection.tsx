@@ -67,7 +67,6 @@ function InsuranceLicenseCard({
       className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308] dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
       <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
-        <div className="absolute inset-0 z-10 bg-linear-to-t from-white to-transparent dark:from-zinc-900" />
         {imageUrl ? (
           <Image
             width={500}
@@ -90,7 +89,7 @@ function InsuranceLicenseCard({
         </div>
       </div>
 
-      <div className="relative z-20 -mt-6 flex flex-1 flex-col p-6 md:p-8">
+      <div className="relative z-20 flex flex-1 flex-col p-6 md:p-8">
         <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
           {item.title}
         </h3>

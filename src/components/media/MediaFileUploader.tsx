@@ -96,8 +96,15 @@ const accentMap = {
 function guessKind(url: string, mimeType?: string | null, fileName?: string | null) {
   const mime = (mimeType || '').toLowerCase()
   const name = (fileName || url.split('?')[0] || '').toLowerCase()
+  const haystack = `${url} ${name}`.toLowerCase()
+  if (
+    mime.startsWith('video/') ||
+    /\.(mp4|webm|mov|m4v|ogg|ogv)(\?|#|$)/i.test(haystack) ||
+    /\/video\/upload\//i.test(url)
+  ) {
+    return 'video'
+  }
   if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|svg|bmp)$/i.test(name)) return 'image'
-  if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogg|ogv)$/i.test(name)) return 'video'
   if (mime.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(name)) return 'audio'
   if (mime === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
   return 'file'

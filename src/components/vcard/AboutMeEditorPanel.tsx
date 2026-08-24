@@ -86,7 +86,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
         <h3 className="mb-2 text-lg font-black text-violet-600 dark:text-violet-400">{tabLabel}</h3>
         <p className="text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           The section is always labeled About Me on your public card. Your title is the headline under that, followed by
-          the rich description, with featured media as the section background.
+          the rich description. Featured media can be an image or a video — the public card shows the same file.
         </p>
       </div>
 
@@ -148,14 +148,14 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             attachmentType="About Me Featured"
             accept="image/*,video/*"
             allowUrlPaste={false}
-            hint="Shown below the About Me title in a standard image or video frame"
+            hint="Upload an image or a video. The public About Me section shows this same file."
             value={draft.featuredMediaUrl}
             onChange={(next) => update({ featuredMediaUrl: next?.url || '' })}
           />
           <MediaSourceActions
             mode="both"
             compact
-            showVideoExtras={false}
+            showVideoExtras
             profileId={cardId}
             onSelect={(asset) => update({ featuredMediaUrl: asset.url })}
           />

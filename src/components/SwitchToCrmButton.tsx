@@ -2,7 +2,7 @@
 
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
-import { canSessionUseCrm } from '@/lib/crmAccess'
+import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { cn } from '@/utils/cn'
 import { ArrowLeftRight } from 'lucide-react'
 import Link from 'next/link'
@@ -24,7 +24,7 @@ export function SwitchToCrmButton({ variant = 'header', className }: SwitchToCrm
     packageAllowsCrm: false,
   })
 
-  if (isStaffRole(role) && !staffMayOpenCrm && !onCrm) {
+  if (CRM_UI_ENABLED && isStaffRole(role) && !staffMayOpenCrm && !onCrm) {
     return null
   }
 

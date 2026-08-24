@@ -52,23 +52,43 @@ function AboutIntroSkeleton() {
   )
 }
 
+function youtubeEmbedSrc(url: string): string | null {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{6,})/i)
+  return match ? `https://www.youtube.com/embed/${match[1]}` : null
+}
+
 function AboutFeaturedMedia({ src, alt }: { src: string; alt: string }) {
   const encoded = encodeMediaUrl(src)
-  if (!encoded) return null
+  const youtube = youtubeEmbedSrc(src)
 
   /** Taller frame + upper-biased focal point so portrait faces stay in view. */
   const frameClass =
     'relative aspect-[4/3] min-h-[240px] max-h-[340px] w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg sm:min-h-[280px] sm:max-h-[400px] md:min-h-[300px] md:max-h-[440px]'
   const mediaClass = 'object-cover object-[center_22%]'
 
-  if (isVideoUrl(encoded)) {
+  if (youtube) {
+    return (
+      <div className={frameClass}>
+        <iframe
+          src={youtube}
+          title={alt}
+          className="h-full w-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    )
+  }
+
+  if (!encoded) return null
+
+  if (isVideoUrl(src) || isVideoUrl(encoded)) {
     return (
       <div className={frameClass}>
         <video
           src={encoded}
           className={`h-full w-full ${mediaClass}`}
           controls
-          muted
           playsInline
           preload="metadata"
           aria-label={alt}

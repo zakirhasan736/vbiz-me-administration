@@ -744,14 +744,14 @@ function AboutMeDraftQuickFill({
           attachmentType="About Me Featured"
           accept="image/*,video/*"
           allowUrlPaste={false}
-          hint="Upload an image or video shown below the About Me title"
+          hint="Upload an image or a video. The public About Me section shows this same file."
           value={featuredMediaUrl}
           onChange={(next) => commit(next?.url || '')}
         />
         <MediaSourceActions
           mode="both"
           compact
-          showVideoExtras={false}
+          showVideoExtras
           profileId={profileId}
           onSelect={(asset) => commit(asset.url)}
         />
