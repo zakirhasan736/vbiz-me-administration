@@ -46,6 +46,7 @@ import {
 import {
   appendItems,
   clearFilters,
+  resetList,
   setDebouncedQ,
   setLifecycleTab,
   setListSnapshot,
@@ -80,7 +81,7 @@ import {
   X,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 function personalField(personal: AdminCard['personal'], key: string): string {
   const value = personal?.[key]
@@ -115,6 +116,10 @@ export default function AdminVCards() {
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
   const [highlightedPausedId, setHighlightedPausedId] = useState<string | null>(null)
   const listTopRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    dispatch(resetList())
+  }, [dispatch])
 
   useEffect(() => {
     const normalized = normalizedSearchQuery(searchQuery)

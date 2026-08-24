@@ -20,7 +20,7 @@ export function ProfileSectionOutlet({ sectionId, template = 'v3', homeHeroProps
 
   if (template !== 'v2' || embedded) {
     return (
-      <div className="relative w-full" data-section-id={sectionId}>
+      <div key={sectionId} className="relative w-full" data-section-id={sectionId}>
         {content}
       </div>
     )

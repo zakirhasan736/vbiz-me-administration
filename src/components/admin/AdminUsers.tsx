@@ -62,7 +62,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 const PAGE_SIZE = 8
 
@@ -276,6 +276,11 @@ export default function AdminUsers() {
 
   const filterKey = `${debouncedQ}|${roleFilter}|${statusFilter}`
   const prevFilterKeyRef = useRef(filterKey)
+
+  useLayoutEffect(() => {
+    dispatch(resetFilters())
+    prevFilterKeyRef.current = '|All|All'
+  }, [dispatch])
 
   useEffect(() => {
     const t = window.setTimeout(() => dispatch(setDebouncedQ(searchQuery.trim())), 300)

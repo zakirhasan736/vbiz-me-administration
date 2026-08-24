@@ -98,6 +98,10 @@ const adminVCardsListSlice = createSlice({
       state.debouncedQ = ''
       state.professionFilter = 'All'
       state.statusFilter = 'All'
+      state.showAll = false
+      state.accumulatedItems = []
+      state.listSyncKey = ''
+      state.total = 0
     },
     resetList() {
       return initialState
