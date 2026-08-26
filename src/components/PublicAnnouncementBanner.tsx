@@ -148,7 +148,7 @@ export default function PublicAnnouncementBanner({ profileId, placement = 'chrom
         className
       )}
     >
-      <div className="flex items-start gap-3 px-4 py-3 sm:px-5">
+      <div className="flex items-start gap-2 px-3 py-2 sm:px-3">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/70">
           <Icon className={cn('h-4 w-4', styles.icon)} aria-hidden />
         </div>
@@ -156,7 +156,9 @@ export default function PublicAnnouncementBanner({ profileId, placement = 'chrom
           {banner.title?.trim() ? (
             <p className="text-[10px] font-black tracking-[0.18em] uppercase opacity-70">{banner.title}</p>
           ) : null}
-          <p className={cn('mt-1 text-sm leading-6 font-semibold whitespace-pre-wrap', bodyClassName)}>{banner.body}</p>
+          <p className={cn('mt-1 text-sm leading-[1.2] font-semibold whitespace-pre-wrap', bodyClassName)}>
+            {banner.body}
+          </p>
           {isLongBody ? (
             <button
               type="button"
