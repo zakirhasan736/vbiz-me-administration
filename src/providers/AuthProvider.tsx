@@ -75,6 +75,10 @@ function authorHeaders(): HeadersInit {
   }
 }
 
+function isPublicVisitorPath(pathname: string): boolean {
+  return pathname === '/v' || pathname.startsWith('/v/') || pathname.startsWith('/cards/')
+}
+
 /**
  * One-shot cookie/session restore. Must not use useGetAuthorQuery here:
  * a new `{ skip }` object every render made RTK Query setState in a loop
@@ -92,6 +96,11 @@ function useAuthBootstrap() {
       if (store.getState().user.isLoading) {
         store.dispatch(updateAuthState({ isLoading: false }))
       }
+    }
+
+    if (typeof window !== 'undefined' && isPublicVisitorPath(window.location.pathname)) {
+      finishLoading()
+      return
     }
 
     const syncOwnerToken = (role?: string | null, ownerMode?: 'single' | 'corporate' | null) => {
