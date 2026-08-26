@@ -144,7 +144,7 @@ function CtaButtonGrid({
   )
 }
 
-/** Shared home CTA grid for v1, v2, and v3 — mobile [My Info] then [2,1,1]; desktop [2,1,1]. */
+/** Shared home CTA grid for v1, v2, and v3 — mobile [2,2,1]; desktop [2,1,1]. */
 export function ProfileActionButtons({
   onAction,
   className,

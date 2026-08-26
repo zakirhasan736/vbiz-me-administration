@@ -69,7 +69,7 @@ export function resolveHomeCtaLayout(options: {
   actionButtons?: MyCardActionButtons | null
   labels?: Partial<Record<HomeCtaKey, string>>
   accentColor?: string
-  /** When true, adds a leading full-width "My Info" button on mobile, then Save Contact + My VCard. */
+  /** When true, mobile home CTAs: [My Info | My vCard], [Save Contact | Save to Wallet], [Get your vCard now]. */
   includeMyInfo?: boolean
 }): HomeCtaLayout {
   const { actionButtons, labels = {}, includeMyInfo = false } = options
@@ -113,7 +113,7 @@ export function resolveHomeCtaLayout(options: {
   }
 
   const rows: ResolvedHomeCtaButton[][] = includeMyInfo
-    ? [[myInfo], [saveMyInfo, myVcard], [googleWallet], [getVcardNow]]
+    ? [[myInfo, myVcard], [saveMyInfo, googleWallet], [getVcardNow]]
     : [[saveMyInfo, myVcard], [googleWallet], [getVcardNow]]
 
   return { rows }
