@@ -325,7 +325,7 @@ export const HomeHero: React.FC<{
             />
           </div>
 
-          <div className="relative z-20 mt-5 flex w-full flex-col items-center">
+          <div className="relative z-20 mt-5 flex w-full flex-1 flex-col items-center">
             <div className="flex justify-center gap-2">
               {showShare && (
                 <button
