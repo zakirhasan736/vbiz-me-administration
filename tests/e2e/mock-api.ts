@@ -87,6 +87,9 @@ type MockPublicNote = {
 
 const publicNotes: MockPublicNote[] = []
 
+/** Counts `GET /api/v1/public/v/:slug` so e2e can measure duplicate profile fetches. */
+const publicVHits: Record<string, number> = {}
+
 const publicCard = () => ({
   profile: {
     id: 'public-card-1',
@@ -152,7 +155,7 @@ function envelope<T>(data: T, message = 'OK', statusCode = 200) {
   return { success: statusCode < 400, statusCode, message, data }
 }
 
-function sendJson(res: ServerResponse, statusCode: number, body: unknown) {
+function sendJson(res: ServerResponse, statusCode: number, body: unknown, extraHeaders?: Record<string, string>) {
   const payload = JSON.stringify(body)
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -161,6 +164,7 @@ function sendJson(res: ServerResponse, statusCode: number, body: unknown) {
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
+    ...extraHeaders,
   })
   res.end(payload)
 }
@@ -219,6 +223,17 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     return
   }
 
+  if (path === '/__e2e/public-v-hits' && method === 'GET') {
+    sendJson(res, 200, { hits: { ...publicVHits } })
+    return
+  }
+
+  if (path === '/__e2e/public-v-hits' && (method === 'DELETE' || method === 'POST')) {
+    for (const key of Object.keys(publicVHits)) delete publicVHits[key]
+    sendJson(res, 200, { ok: true })
+    return
+  }
+
   if (path === '/api/v1/auth/login' && method === 'POST') {
     await readJson(req)
     sendJson(res, 200, envelope({ profile: adminUser, accessToken: ACCESS_TOKEN }, 'Login successful'))
@@ -261,8 +276,50 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   }
 
   if (path.startsWith('/api/v1/public/')) {
-    if (path === '/api/v1/public/v/e2e-public-card' && method === 'GET') {
-      sendJson(res, 200, envelope(publicCard()))
+    const publicVMatch = path.match(/^\/api\/v1\/public\/v\/([^/]+)$/)
+    if (publicVMatch && method === 'GET') {
+      const slug = decodeURIComponent(publicVMatch[1])
+      publicVHits[slug] = (publicVHits[slug] || 0) + 1
+      const requestId = `e2e-${slug}`
+      const failHeaders = { 'x-vbiz-request-id': requestId }
+
+      if (slug === 'e2e-public-card') {
+        sendJson(res, 200, envelope(publicCard()))
+        return
+      }
+      if (slug === 'e2e-missing-card') {
+        sendJson(res, 404, envelope(null, 'Profile not found', 404), failHeaders)
+        return
+      }
+      if (slug === 'e2e-fail-500') {
+        sendJson(res, 500, envelope(null, 'Internal error', 500), failHeaders)
+        return
+      }
+      if (slug === 'e2e-fail-503') {
+        sendJson(res, 503, envelope(null, 'Unavailable', 503), failHeaders)
+        return
+      }
+      if (slug === 'e2e-fail-429') {
+        sendJson(res, 429, envelope(null, 'Too many requests', 429), failHeaders)
+        return
+      }
+      if (slug === 'e2e-success-false') {
+        sendJson(res, 200, { success: false, data: null, error: 'unexpected' }, failHeaders)
+        return
+      }
+      if (slug === 'e2e-malformed-json') {
+        const payload = '{not-json'
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Length': Buffer.byteLength(payload),
+          'x-vbiz-request-id': requestId,
+          'Access-Control-Allow-Origin': 'http://127.0.0.1:3101',
+        })
+        res.end(payload)
+        return
+      }
+
+      sendJson(res, 404, envelope(null, 'Profile not found', 404), failHeaders)
       return
     }
     if (path === '/api/v1/public/notes' && method === 'GET') {
