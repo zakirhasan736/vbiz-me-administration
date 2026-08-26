@@ -397,7 +397,7 @@ export const HomeHero: React.FC<{
               </p>
             )}
 
-            <ProfileActionButtons theme={theme} onAction={onAction} visibleOn="mobile" mobileClassName="!mt-0" />
+            <ProfileActionButtons theme={theme} onAction={onAction} visibleOn="mobile" />
           </div>
         </div>
 
