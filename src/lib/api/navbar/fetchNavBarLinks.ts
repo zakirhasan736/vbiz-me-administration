@@ -1,5 +1,5 @@
 import type { NavBarLinksData, NavBarLinksResponse } from '@/interfaces/navbarLinks.interface'
-import { getApiBaseUrl } from '@/lib/api/serverApi'
+import { fetchPublicCardResponse, getApiBaseUrl } from '@/lib/api/serverApi'
 
 /** Fetches profile nav catalog from `GET /post-types?profile_id=` (never ISR-cached). */
 export async function fetchNavBarLinks(profileId: string | number): Promise<NavBarLinksData | null> {
@@ -7,10 +7,7 @@ export async function fetchNavBarLinks(profileId: string | number): Promise<NavB
   if (!id) return null
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/post-types?profile_id=${encodeURIComponent(id)}`, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    })
+    const response = await fetchPublicCardResponse(`${getApiBaseUrl()}/post-types?profile_id=${encodeURIComponent(id)}`)
 
     if (!response.ok) return null
 

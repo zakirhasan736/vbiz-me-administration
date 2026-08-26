@@ -4,6 +4,7 @@ import { PublicCardApiError } from './publicCardApiError'
 vi.mock('@/lib/api/serverApi', () => ({
   getApiBaseUrl: () => 'https://api.vbizme.com/api/v1/public',
   PUBLIC_CARD_FETCH_INIT: { cache: 'no-store' },
+  fetchPublicCardResponseWithOneRetry: (url: string, init?: RequestInit) => fetch(url, init),
 }))
 
 vi.mock('react', async () => {
@@ -46,10 +47,8 @@ describe('fetchMyCardBySlug', () => {
     await fetchMyCardBySlug('michaelangelo-casanova-2')
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const [url] = fetchMock.mock.calls[0] as [string]
     expect(url).toBe('https://api.vbizme.com/api/v1/public/v/michaelangelo-casanova-2')
-    expect(init.cache).toBe('no-store')
-    expect((init.headers as Record<string, string>).Accept).toBe('application/json')
   })
 
   it('returns card data on 200', async () => {

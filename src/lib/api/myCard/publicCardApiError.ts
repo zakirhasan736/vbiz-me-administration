@@ -52,5 +52,6 @@ export function logPublicCardFetchFailure(details: {
     status: details.status,
     kind: details.kind,
     requestId: details.requestId,
+    transport: process.env.SERVER_API_URL?.trim() ? 'server-internal' : 'public',
   })
 }

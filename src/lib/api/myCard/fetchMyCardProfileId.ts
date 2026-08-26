@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '@/lib/api/serverApi'
+import { fetchPublicCardResponse, getApiBaseUrl } from '@/lib/api/serverApi'
 import type { MyCardResponse } from '@interfaces/api/myCard'
 
 /** Resolves a public profile id from a vCard slug (server-only). */
@@ -7,10 +7,7 @@ export async function fetchMyCardProfileId(slug: string): Promise<string | numbe
   if (!trimmed) return null
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/v/${encodeURIComponent(trimmed)}`, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    })
+    const response = await fetchPublicCardResponse(`${getApiBaseUrl()}/v/${encodeURIComponent(trimmed)}`)
 
     if (!response.ok) return null
 

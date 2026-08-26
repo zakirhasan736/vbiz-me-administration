@@ -1,5 +1,5 @@
 import { normalizeProfileAiData } from '@/lib/api/profileAiData/normalizeProfileAiData'
-import { getApiBaseUrl } from '@/lib/api/serverApi'
+import { fetchPublicCardResponse, getApiBaseUrl } from '@/lib/api/serverApi'
 import type { ProfileAiData } from '@interfaces/api/profileAiData'
 
 export async function fetchProfileAiData(profileId: number | string): Promise<ProfileAiData | null> {
@@ -7,10 +7,7 @@ export async function fetchProfileAiData(profileId: number | string): Promise<Pr
   if (!id) return null
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/profile-ai-data/${encodeURIComponent(id)}`, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    })
+    const response = await fetchPublicCardResponse(`${getApiBaseUrl()}/profile-ai-data/${encodeURIComponent(id)}`)
 
     if (!response.ok) return null
 

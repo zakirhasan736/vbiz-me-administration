@@ -4,7 +4,7 @@ import {
   mapProfileSettings,
   type MappedProfileSettings,
 } from '@/lib/api/profileSettings/mapProfileSettings'
-import { getApiBaseUrl } from '@/lib/api/serverApi'
+import { fetchPublicCardResponse, getApiBaseUrl } from '@/lib/api/serverApi'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 
 /** Fetches `GET /profiles/{id}/settings` (theme + appearance). */
@@ -13,10 +13,7 @@ export async function fetchProfileSettings(profileId: string | number): Promise<
   if (!id) return null
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/profiles/${encodeURIComponent(id)}/settings`, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    })
+    const response = await fetchPublicCardResponse(`${getApiBaseUrl()}/profiles/${encodeURIComponent(id)}/settings`)
 
     if (!response.ok) return null
     return (await response.json()) as ProfileSettingsResponse

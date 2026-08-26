@@ -114,12 +114,20 @@ export default async function PublicProfilePage({ params }: Props) {
   const origin = await publicCardOrigin()
   const cardPath = buildProfilePath(trimmed)
 
-  const [navBarLinks, liveAgent, profileSettings, reviews] = await Promise.all([
+  const settled = await Promise.allSettled([
     fetchNavBarLinks(profileId),
     liveAgentEnabled ? resolveLiveAgentPromptFromProfileId(profileId) : Promise.resolve(null),
     resolveProfileSettingsTheme(profileId, template),
     fetchPublicReviews(String(profileId)),
   ])
+  const [navBarLinks, liveAgent, profileSettings, reviews] = settled.map((result) =>
+    result.status === 'fulfilled' ? result.value : null
+  ) as [
+    Awaited<ReturnType<typeof fetchNavBarLinks>>,
+    Awaited<ReturnType<typeof resolveLiveAgentPromptFromProfileId>> | null,
+    Awaited<ReturnType<typeof resolveProfileSettingsTheme>>,
+    Awaited<ReturnType<typeof fetchPublicReviews>>,
+  ]
 
   const agent = liveAgentEnabled ? liveAgent : null
   const jsonLd = buildPublicCardJsonLd({

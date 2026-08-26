@@ -1,4 +1,4 @@
-import { getApiBaseUrl, PUBLIC_CARD_FETCH_INIT } from '@/lib/api/serverApi'
+import { fetchPublicCardResponseWithOneRetry, getApiBaseUrl } from '@/lib/api/serverApi'
 import type { MyCardData, MyCardResponse } from '@interfaces/api/myCard'
 import { cache } from 'react'
 import {
@@ -15,12 +15,7 @@ async function loadMyCardBySlug(slug: string): Promise<MyCardData | null> {
   const url = `${getApiBaseUrl()}/v/${encodeURIComponent(trimmed)}`
   let response: Response
   try {
-    response = await fetch(url, {
-      ...PUBLIC_CARD_FETCH_INIT,
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+    response = await fetchPublicCardResponseWithOneRetry(url)
   } catch (error) {
     if (error instanceof PublicCardApiError) throw error
     const wrapped = new PublicCardApiError('Failed to reach the public card API', 'NETWORK_ERROR', null)
@@ -86,9 +81,5 @@ async function loadMyCardBySlug(slug: string): Promise<MyCardData | null> {
 /**
  * Fetches the full public profile payload for a slug.
  * Wrapped in React `cache` (RSC request scope only — not ISR / not persistent).
- * Next.js also memoizes identical GET `fetch` calls during a Server Component render pass,
- * including `cache: 'no-store'`. That memoization does not apply to Route Handlers
- * (manifest / icons / wallet-art). `generateMetadata` is not listed in Next's fetch
- * memoization docs; React `cache` is what shares metadata + page within one document request.
  */
 export const fetchMyCardBySlug = cache(loadMyCardBySlug)
