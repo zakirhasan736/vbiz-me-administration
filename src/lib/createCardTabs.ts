@@ -1,3 +1,4 @@
+import { applyCanonicalPublicNavOrder } from '@/lib/publicNavOrder'
 import {
   BadgeCheck,
   Briefcase,
@@ -108,7 +109,7 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
     aiPriority: 'content',
   },
   {
-    name: 'FAQ',
+    name: 'FAQs',
     navId: 'faq',
     icon: MessageSquareQuote,
     description: 'Common questions and answers',
@@ -162,6 +163,7 @@ export const CREATE_CARD_TAB_BY_NAV_ID = Object.fromEntries(
 
 export function resolveCreateCardTabName(tab: string): CreateCardTabDef | undefined {
   if (CREATE_CARD_TAB_BY_NAME[tab]) return CREATE_CARD_TAB_BY_NAME[tab]
+  if (tab === 'FAQ' || tab === 'Faqs') return CREATE_CARD_TAB_BY_NAME.FAQs
   return CREATE_CARD_TAB_BY_NAV_ID[tab]
 }
 
@@ -185,7 +187,7 @@ export function normalizeNavOrderWithPinnedEnds(navIds: string[]): string[] {
     unique.splice(homeIndex >= 0 ? homeIndex + 1 : 1, 0, 'about')
   }
 
-  const ordered = unique.filter((id) => !pinned.has(id))
+  const ordered = applyCanonicalPublicNavOrder(unique.filter((id) => !pinned.has(id)))
   return [...ordered, ...PINNED_END_NAV_IDS]
 }
 

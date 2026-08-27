@@ -5,6 +5,7 @@ import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
 import { normalizeServiceType } from '@/lib/vcardServices'
 import type {
   VCardData,
+  VCardFaqEntry,
   VCardGeneralPost,
   VCardPortfolioEntry,
   VCardReviewEntry,
@@ -95,7 +96,6 @@ export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewE
       isSample?: boolean
       label?: string
     }
-    if (r.isSample) continue
     if (
       String(r.label || '')
         .toUpperCase()
@@ -145,6 +145,28 @@ export function mapBlogsFromPayload(payload: SectionFillPayload): VCardGeneralPo
   return out
 }
 
+/** Map fill-section FAQs payload → editor entries (question/answer). */
+export function mapFaqsFromPayload(payload: SectionFillPayload): VCardFaqEntry[] {
+  if (!Array.isArray(payload.faqs)) return []
+  const out: VCardFaqEntry[] = []
+  for (const row of payload.faqs) {
+    const f = row as { question?: string; answer?: string; imageUrl?: string; url?: string }
+    const question = String(f.question || '').trim()
+    const answer = String(f.answer || '').trim()
+    if (!question && !answer) continue
+    out.push({
+      id: uid('faq'),
+      question,
+      answer,
+      featuredImage: String(f.imageUrl || '').trim(),
+      url: String(f.url || '').trim(),
+      active: true,
+    })
+    if (out.length >= MAX_AI_SECTION_ITEMS) break
+  }
+  return out
+}
+
 /** Count list entries in a fill-section payload for a given section. */
 export function countFillPayloadEntries(section: string, payload: SectionFillPayload): number {
   if (section === 'personal') {
@@ -160,6 +182,7 @@ export function countFillPayloadEntries(section: string, payload: SectionFillPay
   if (section === 'portfolio') return mapPortfolioFromPayload(payload).length
   if (section === 'reviews') return mapReviewsFromPayload(payload).length
   if (section === 'blogs') return mapBlogsFromPayload(payload).length
+  if (section === 'faqs') return mapFaqsFromPayload(payload).length
 
   const key =
     section === 'skills'
@@ -168,9 +191,7 @@ export function countFillPayloadEntries(section: string, payload: SectionFillPay
         ? 'education'
         : section === 'experience'
           ? 'experience'
-          : section === 'faqs'
-            ? 'faqs'
-            : null
+          : null
   if (!key) return 0
   return Array.isArray(payload[key]) ? (payload[key] as unknown[]).length : 0
 }
@@ -314,17 +335,8 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
     ]
   }
 
-  if (section === 'faqs' && Array.isArray(payload.faqs)) {
-    const generated = payload.faqs.map(
-      (f: { question?: string; answer?: string; imageUrl?: string; url?: string }) => ({
-        id: uid('faq'),
-        question: String(f.question || '').trim(),
-        answer: String(f.answer || '').trim(),
-        featuredImage: String(f.imageUrl || '').trim(),
-        url: String(f.url || '').trim(),
-        active: true,
-      })
-    )
+  if (section === 'faqs') {
+    const generated = mapFaqsFromPayload(payload)
     const seen = new Set<string>()
     next.faqs = [...(next.faqs || []), ...generated]
       .filter((item) => {
@@ -362,11 +374,44 @@ export function preferExistingPersonal(base: VCardData | undefined, next: VCardD
   return syncMyInfoFromPersonal({ ...next, slug, personal })
 }
 
+function mergeCappedDraftList<T>(
+  existing: T[] | undefined,
+  incoming: T[] | undefined,
+  keyOf: (item: T) => string
+): T[] {
+  const base = Array.isArray(existing) ? existing : []
+  const add = Array.isArray(incoming) ? incoming : []
+  const seen = new Set(base.map(keyOf).filter(Boolean))
+  const out = [...base]
+  for (const item of add) {
+    if (out.length >= MAX_AI_SECTION_ITEMS) break
+    const key = keyOf(item)
+    if (key && seen.has(key)) continue
+    if (key) seen.add(key)
+    out.push(item)
+  }
+  return out.slice(0, MAX_AI_SECTION_ITEMS)
+}
+
+function mergeListSections(base: VCardData | undefined, next: VCardData): VCardData {
+  if (!base) return next
+  return {
+    ...next,
+    faqs: mergeCappedDraftList(base.faqs, next.faqs, (item) => `${item.question}|${item.answer}`.trim().toLowerCase()),
+    generalPosts: mergeCappedDraftList(base.generalPosts, next.generalPosts, (item) =>
+      `${item.title}|${item.description}`.trim().toLowerCase()
+    ),
+    reviews: mergeCappedDraftList(base.reviews, next.reviews, (item) =>
+      `${item.author}|${item.text}`.trim().toLowerCase()
+    ),
+  }
+}
+
 export function applyAnalyzeToDraft(response: AnalyzeResponse, base?: VCardData) {
   if (response.draft && response.enabledNavIds) {
     const data = base ? { ...response.draft, appearance: base.appearance, theme: base.theme } : response.draft
     return {
-      data: preferExistingPersonal(base, data),
+      data: mergeListSections(base, preferExistingPersonal(base, data)),
       enabledNavIds: response.enabledNavIds,
       recommendedTabs: response.recommendedTabs || [],
       optionalFeatures: response.optionalFeatures || {},
@@ -374,7 +419,7 @@ export function applyAnalyzeToDraft(response: AnalyzeResponse, base?: VCardData)
     }
   }
   const mapped = mapBlueprintToVCardData(response.blueprint, base)
-  return { ...mapped, data: preferExistingPersonal(base, mapped.data) }
+  return { ...mapped, data: mergeListSections(base, preferExistingPersonal(base, mapped.data)) }
 }
 
 /** Paths to write via updateData for a full draft replace. */

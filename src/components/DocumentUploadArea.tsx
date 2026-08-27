@@ -2,7 +2,9 @@
 
 import { MediaSourceActions, type MediaSourceMode } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
+import { useMediaUploadLimit } from '@/hooks/usePackageAccess'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
+import { perFileUploadLimitLabel } from '@/lib/packageAccess'
 import { cn } from '@/utils/cn'
 import { File, FileText, GripVertical, Image as ImageIcon, Loader2, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
@@ -18,21 +20,19 @@ export type UploadedDoc = {
 const ACCEPT =
   'image/*,.pdf,.txt,.doc,.docx,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
-const MAX_BYTES = 5 * 1024 * 1024 // 5MB
-
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function isAllowed(file: File) {
+function isAllowed(file: File, maxBytes: number) {
   const name = file.name.toLowerCase()
   const okExt =
     /\.(png|jpe?g|gif|webp|svg|pdf|txt|doc|docx)$/i.test(name) ||
     file.type.startsWith('image/') ||
     ['application/pdf', 'text/plain'].includes(file.type)
-  return okExt && file.size <= MAX_BYTES
+  return okExt && file.size <= maxBytes
 }
 
 function DocIcon({ type, name }: { type: string; name: string }) {
@@ -64,12 +64,15 @@ export function DocumentUploadArea({
   onChange,
   multiple = true,
   label = 'Upload document',
-  hint = 'Image, PDF, TXT, DOC — max 5MB each',
+  hint,
   accent = 'indigo',
   mediaAssist = 'image',
   profileId,
   attachmentType = 'Certificate Document',
 }: Props) {
+  const uploadLimit = useMediaUploadLimit()
+  const limitBytes = uploadLimit.maxBytes
+  const resolvedHint = hint || `Image, PDF, TXT, DOC — ${perFileUploadLimitLabel(uploadLimit)}`
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState('')
@@ -140,11 +143,11 @@ export function DocumentUploadArea({
 
   const ingest = async (list: FileList | File[]) => {
     const incoming = Array.from(list)
-    const rejected = incoming.filter((f) => !isAllowed(f))
-    const accepted = incoming.filter(isAllowed)
+    const rejected = incoming.filter((f) => !isAllowed(f, limitBytes))
+    const accepted = incoming.filter((f) => isAllowed(f, limitBytes))
 
     if (rejected.length) {
-      setError('Some files were skipped. Use image/PDF/TXT/DOC under 5MB.')
+      setError(`Some files were skipped. Use image/PDF/TXT/DOC (${perFileUploadLimitLabel(uploadLimit)}).`)
     } else {
       setError('')
     }
@@ -170,6 +173,7 @@ export function DocumentUploadArea({
           file,
           profileId,
           attachmentType,
+          maxBytes: limitBytes,
         })
         mapped.push({
           id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -233,7 +237,7 @@ export function DocumentUploadArea({
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
           {uploading ? 'Uploading…' : 'Drop files here or click to upload'}
         </p>
-        <p className="mt-1 text-[11px] font-semibold text-slate-400">{hint}</p>
+        <p className="mt-1 text-[11px] font-semibold text-slate-400">{resolvedHint}</p>
       </div>
 
       {mediaAssist !== false && (

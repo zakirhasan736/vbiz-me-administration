@@ -2,6 +2,7 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
+import { useMediaUploadLimit } from '@/hooks/usePackageAccess'
 import {
   isVideoFile,
   mediaFileTooLargeMessage,
@@ -128,6 +129,8 @@ export function VCardMediaField({
   allowVideo = true,
   allowAudio = true,
 }: VCardMediaFieldProps) {
+  const packageLimit = useMediaUploadLimit()
+  const limitBytes = maxBytes ?? packageLimit.maxBytes
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -185,8 +188,8 @@ export function VCardMediaField({
         return
       }
 
-      if (maxBytes != null && file.size > maxBytes && !isVideoFile(file)) {
-        setError(mediaFileTooLargeMessage(maxBytes))
+      if (file.size > limitBytes && !isVideoFile(file)) {
+        setError(mediaFileTooLargeMessage(limitBytes))
         return
       }
 
@@ -207,7 +210,7 @@ export function VCardMediaField({
           file,
           profileId: profileId || undefined,
           attachmentType,
-          maxBytes,
+          maxBytes: limitBytes,
           signal: controller.signal,
           onStatus: setUploadStage,
           onProgress: setProgress,
@@ -226,7 +229,7 @@ export function VCardMediaField({
         setUploadStage(null)
       }
     },
-    [allowAudio, allowVideo, attachmentType, clearLocalPreview, maxBytes, onChange, profileId, uploadBlocked]
+    [allowAudio, allowVideo, attachmentType, clearLocalPreview, limitBytes, onChange, profileId, uploadBlocked]
   )
 
   const clear = () => {

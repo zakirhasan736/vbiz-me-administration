@@ -1,14 +1,14 @@
 'use client'
 
+import { useMediaUploadLimit } from '@/hooks/usePackageAccess'
 import {
   isVideoFile,
-  MAX_MEDIA_UPLOAD_BYTES,
-  MAX_MEDIA_UPLOAD_MB,
   mediaFileTooLargeMessage,
   mediaNeedsClientOptimize,
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
+import { perFileUploadLimitLabel } from '@/lib/packageAccess'
 import { cn } from '@/utils/cn'
 import { FileAudio, FileIcon, FileText, FileVideo, Image as ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -28,7 +28,7 @@ export type MediaFileUploaderProps = {
   attachmentType?: string
   /** MIME / extension accept string. Defaults to images, video, audio, and common docs. */
   accept?: string
-  /** Max file size in bytes. Defaults to the global media upload cap. */
+  /** Max file size in bytes. Defaults to the signed-in package per-file cap. */
   maxBytes?: number
   label?: string
   hint?: string
@@ -124,7 +124,7 @@ export function MediaFileUploader({
   profileId,
   attachmentType,
   accept = DEFAULT_ACCEPT,
-  maxBytes = MAX_MEDIA_UPLOAD_BYTES,
+  maxBytes,
   label = 'Media file',
   hint,
   className,
@@ -132,6 +132,8 @@ export function MediaFileUploader({
   allowUrlPaste = true,
   accent = 'primary',
 }: MediaFileUploaderProps) {
+  const packageLimit = useMediaUploadLimit()
+  const limitBytes = maxBytes ?? packageLimit.maxBytes
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -178,8 +180,8 @@ export function MediaFileUploader({
       if (disabled) return
       setError(null)
 
-      if (file.size > maxBytes && !isVideoFile(file)) {
-        setError(mediaFileTooLargeMessage(maxBytes))
+      if (file.size > limitBytes && !isVideoFile(file)) {
+        setError(mediaFileTooLargeMessage(limitBytes))
         return
       }
 
@@ -200,7 +202,7 @@ export function MediaFileUploader({
           file,
           profileId: profileId || undefined,
           attachmentType,
-          maxBytes,
+          maxBytes: limitBytes,
           signal: controller.signal,
           onStatus: setUploadStage,
           onProgress: setProgress,
@@ -224,7 +226,7 @@ export function MediaFileUploader({
         setUploadStage(null)
       }
     },
-    [attachmentType, clearLocalPreview, disabled, maxBytes, onChange, profileId]
+    [attachmentType, clearLocalPreview, disabled, limitBytes, onChange, profileId]
   )
 
   const handleFiles = (files: FileList | null) => {
@@ -411,7 +413,7 @@ export function MediaFileUploader({
                 </div>
               ) : (
                 <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  {hint || `Images, video, audio, PDF, and documents up to ${MAX_MEDIA_UPLOAD_MB}MB`}
+                  {hint || `Images, video, audio, PDF, and documents • ${perFileUploadLimitLabel(packageLimit)}`}
                 </p>
               )}
             </div>

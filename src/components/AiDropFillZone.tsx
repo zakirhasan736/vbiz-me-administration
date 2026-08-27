@@ -6,7 +6,7 @@ import { fillAssistantSection, scopeAssistantSectionPayload } from '@/lib/assist
 import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
 import { Loader2, Sparkles, Upload } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useRef, useState, type ClipboardEvent } from 'react'
 
 export type ParsedEntry = {
   title: string
@@ -225,7 +225,9 @@ export function AiDropFillZone({
               ? 'portfolio'
               : section === 'services'
                 ? 'services'
-                : null
+                : section === 'faqs'
+                  ? 'faqs'
+                  : null
       if (listKey && Array.isArray(payload[listKey])) {
         onParsed(
           (payload[listKey] as Array<Record<string, unknown>>).map((row) => ({
@@ -337,9 +339,27 @@ export function AiDropFillZone({
     await fillViaAgent('', files)
   }
 
+  const ingestClipboard = (e: ClipboardEvent) => {
+    if (busy) return
+    const dropped = Array.from(e.clipboardData.files || [])
+    if (dropped.length) {
+      e.preventDefault()
+      void readFiles(dropped)
+      return
+    }
+    const text = e.clipboardData.getData('text/plain')
+    if (text.trim()) {
+      e.preventDefault()
+      setPaste(text)
+      void fillViaAgent(text, [])
+    }
+  }
+
   return (
     <div className="mb-5 space-y-2" data-tour="ai-autofill">
       <div
+        tabIndex={0}
+        onPaste={ingestClipboard}
         onDragOver={(e) => {
           e.preventDefault()
           if (!busy) setDragOver(true)
@@ -378,7 +398,8 @@ export function AiDropFillZone({
               </p>
               {!busy ? (
                 <p className="mt-1 text-[10px] font-medium text-slate-400">
-                  Images and scanned PDFs are OCR&apos;d by GPT-4o. PDF, DOCX, TXT, and MD are supported.
+                  Images and scanned PDFs are OCR&apos;d first. AI then fills this section from that text. PDF, DOCX,
+                  TXT, and MD are supported.
                 </p>
               ) : null}
             </div>
@@ -422,6 +443,14 @@ export function AiDropFillZone({
           <textarea
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
+            onPaste={(e) => {
+              if (busy) return
+              const text = e.clipboardData.getData('text/plain')
+              if (!text.trim()) return
+              e.preventDefault()
+              setPaste(text)
+              void fillViaAgent(text, [])
+            }}
             rows={5}
             disabled={busy}
             placeholder={'Title one\nDescription…\n\n---\n\nTitle two\nDescription…'}

@@ -87,6 +87,7 @@ function CreateAgentWizardHost({ open, onClose }: { open: boolean; onClose: () =
       vCardData={vCardData}
       updateData={updateData}
       enabledNavIds={enabledNavIds}
+      onFlushDraft={flushSave}
       onEnableNavIds={(ids) => {
         const next = persistNavIds(cardKey, ids)
         const display = applyEnabledNavOrderToDisplaySettings(getDisplaySettingsFromVCard(vCardData), next)

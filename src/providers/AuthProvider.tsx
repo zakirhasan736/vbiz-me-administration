@@ -4,12 +4,7 @@ import { SessionExpiryCoordinator } from '@/components/auth/SessionExpiryCoordin
 import { useAppSelector } from '@/hooks/redux'
 import type { IUser } from '@/interfaces/user.interface'
 import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
-import {
-  isJwtExpired,
-  redirectToRoleHome,
-  requestSessionExpiryWarning,
-  shouldSilentlyRefreshSession,
-} from '@/lib/auth/sessionPolicy'
+import { redirectToRoleHome, requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
 import { hydrateCompletedTours } from '@/lib/dashboardTour'
 import { api, baseUrl } from '@/redux/api/api'
 import { logout as clearAuth, updateAuthState, updateUser } from '@/redux/features/auth/user.slice'
@@ -103,9 +98,7 @@ function useAuthBootstrap() {
       return
     }
 
-    const syncOwnerToken = (role?: string | null, ownerMode?: 'single' | 'corporate' | null) => {
-      if (!shouldSilentlyRefreshSession(role)) return
-
+    const syncSessionToken = (role?: string | null, ownerMode?: 'single' | 'corporate' | null) => {
       void refreshSessionAccessToken(store.getState().user.token).then((accessToken) => {
         if (cancelled) return
         if (!accessToken) {
@@ -121,24 +114,8 @@ function useAuthBootstrap() {
 
     const persistedUser = store.getState().user.user
     if (persistedUser?.id) {
-      if (!shouldSilentlyRefreshSession(persistedUser.role)) {
-        if (isJwtExpired(store.getState().user.token)) {
-          finishLoading()
-          requestSessionExpiryWarning('expired')
-          return () => {
-            cancelled = true
-          }
-        }
-
-        finishLoading()
-        redirectToRoleHome({ role: persistedUser.role, ownerMode: persistedUser.ownerMode })
-        return () => {
-          cancelled = true
-        }
-      }
-
       finishLoading()
-      syncOwnerToken(persistedUser.role, persistedUser.ownerMode)
+      syncSessionToken(persistedUser.role, persistedUser.ownerMode)
       return () => {
         cancelled = true
       }
@@ -176,7 +153,7 @@ function useAuthBootstrap() {
         if (profile.id && Array.isArray(profile.completedTours)) {
           hydrateCompletedTours(profile.id, profile.completedTours)
         }
-        syncOwnerToken(profile.role, profile.ownerMode)
+        syncSessionToken(profile.role, profile.ownerMode)
         redirectToRoleHome({ role: profile.role, ownerMode: profile.ownerMode })
       } catch {
         if (!cancelled) {
@@ -198,11 +175,6 @@ function AccountStatusSync() {
     const sync = async () => {
       const { user } = store.getState().user
       if (!user?.id) return
-
-      if (!shouldSilentlyRefreshSession(user.role) && isJwtExpired(store.getState().user.token)) {
-        requestSessionExpiryWarning('expired')
-        return
-      }
 
       try {
         const res = await fetch(`${baseUrl}/auth/author`, {

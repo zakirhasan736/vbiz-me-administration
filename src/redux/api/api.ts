@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
-import { requestSessionExpiryWarning, shouldSilentlyRefreshSession } from '@/lib/auth/sessionPolicy'
+import { isAuthenticatedWorkspacePath, requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import { updateAuthState } from '../features/auth/user.slice'
 import { RootState } from '../store'
@@ -33,10 +33,8 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
   if (result?.error?.status === 401) {
     const state = api.getState() as RootState
     const token = state?.user?.token
-    const role = state?.user?.user?.role
 
-    if (!shouldSilentlyRefreshSession(role)) {
-      warnAboutExpiredSession(api)
+    if (!isAuthenticatedWorkspacePath(typeof window === 'undefined' ? '' : window.location.pathname)) {
       return result
     }
 

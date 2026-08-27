@@ -31,6 +31,35 @@ export const FEATURE_LIMIT_REACHED = 'FEATURE_LIMIT_REACHED'
 export const PACKAGE_FEATURE_LOCKED = 'PACKAGE_FEATURE_LOCKED'
 export const PACKAGE_LIMIT_REACHED = 'PACKAGE_LIMIT_REACHED'
 
+/** Professional per-file cap (image, video, document). Not a card-wide total. */
+export const PROFESSIONAL_UPLOAD_MAX_MB = 50
+export const PROFESSIONAL_UPLOAD_MAX_BYTES = PROFESSIONAL_UPLOAD_MAX_MB * 1024 * 1024
+/** Transport ceiling for unlimited packages (corporate / professional concierge). */
+export const UNLIMITED_UPLOAD_TRANSPORT_MAX_MB = 512
+export const UNLIMITED_UPLOAD_TRANSPORT_MAX_BYTES = UNLIMITED_UPLOAD_TRANSPORT_MAX_MB * 1024 * 1024
+
+export type PerFileUploadLimit = {
+  maxBytes: number
+  maxMb: number
+  unlimited: boolean
+}
+
+export function resolvePerFileUploadLimit(maxFileSizeMb?: number | null, isStaff = false): PerFileUploadLimit {
+  if (isStaff || maxFileSizeMb == null) {
+    return {
+      maxBytes: UNLIMITED_UPLOAD_TRANSPORT_MAX_BYTES,
+      maxMb: UNLIMITED_UPLOAD_TRANSPORT_MAX_MB,
+      unlimited: true,
+    }
+  }
+  const maxMb = Math.max(1, Math.round(maxFileSizeMb))
+  return { maxBytes: maxMb * 1024 * 1024, maxMb, unlimited: false }
+}
+
+export function perFileUploadLimitLabel(limit: PerFileUploadLimit): string {
+  return limit.unlimited ? 'No per-file size limit' : `Max ${limit.maxMb}MB per file`
+}
+
 export function isFeatureLockCode(code?: string | null) {
   return code === FEATURE_NOT_INCLUDED || code === PACKAGE_FEATURE_LOCKED
 }

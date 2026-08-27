@@ -217,7 +217,7 @@ export function TabCertificates() {
                       }
                       multiple
                       label="Certificate document"
-                      hint="Upload image, PDF, TXT, or DOC — max 5MB"
+                      hint="Upload image, PDF, TXT, or DOC"
                       accent="indigo"
                       mediaAssist={false}
                       profileId={cardId}

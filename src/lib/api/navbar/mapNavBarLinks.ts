@@ -1,5 +1,6 @@
 import type { NavBarLinksData, PostTypeNavLink, StaticNavLink } from '@/interfaces/navbarLinks.interface'
 import { decodeHtmlText } from '@/lib/htmlText'
+import { applyCanonicalPublicNavOrder } from '@/lib/publicNavOrder'
 import { CUSTOM_TAB_ID_PREFIX, NAV_ITEM_BY_ID, type NavBarNavItem } from '@/lib/vcardNavbar'
 import { FileText } from 'lucide-react'
 
@@ -202,6 +203,26 @@ function dedupeNavItemsById(items: NavBarNavItem[]): NavBarNavItem[] {
   })
 }
 
+function applyCanonicalNavItemOrder(items: NavBarNavItem[]): NavBarNavItem[] {
+  const byId = new Map(items.map((item) => [item.id, item]))
+  const orderedIds = applyCanonicalPublicNavOrder(items.map((item) => item.id))
+  const seen = new Set<string>()
+  const next: NavBarNavItem[] = []
+  for (const id of orderedIds) {
+    if (seen.has(id)) continue
+    const item = byId.get(id)
+    if (!item) continue
+    seen.add(id)
+    next.push(item)
+  }
+  for (const item of items) {
+    if (seen.has(item.id)) continue
+    seen.add(item.id)
+    next.push(item)
+  }
+  return next
+}
+
 /**
  * Maps `GET /post-types?profile_id=` into profile nav items.
  * When `post_types` is present it is the selected Add Tabs list, in that order.
@@ -217,8 +238,10 @@ export function mapNavBarLinks(data: NavBarLinksData | undefined | null): NavBar
     const ids = new Set(postTypeItems.map((item) => item.id))
     const missingStatic = staticItems.filter((item) => !ids.has(item.id))
     const hasHome = ids.has('home')
-    return dedupeNavItemsById(hasHome ? [...postTypeItems, ...missingStatic] : [...missingStatic, ...postTypeItems])
+    return applyCanonicalNavItemOrder(
+      dedupeNavItemsById(hasHome ? [...postTypeItems, ...missingStatic] : [...missingStatic, ...postTypeItems])
+    )
   }
 
-  return dedupeNavItemsById(staticItems)
+  return applyCanonicalNavItemOrder(dedupeNavItemsById(staticItems))
 }

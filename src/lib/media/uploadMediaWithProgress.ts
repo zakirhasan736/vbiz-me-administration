@@ -27,7 +27,7 @@ export type UploadMediaWithProgressOptions = {
   file: File
   profileId?: string | null
   attachmentType?: string
-  /** Override the default 50MB cap (e.g. field-specific 15MB / 30MB limits). */
+  /** Per-file cap. Professional is 50MB; unlimited packages use the transport ceiling. */
   maxBytes?: number
   onProgress?: (percent: number) => void
   onStatus?: (status: 'preparing' | 'uploading') => void

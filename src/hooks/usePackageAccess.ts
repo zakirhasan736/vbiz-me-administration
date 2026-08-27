@@ -5,8 +5,11 @@ import { useAppSelector } from '@/hooks/redux'
 import {
   allPackageAccessEnabled,
   catalogFeatureAllowed,
+  PROFESSIONAL_UPLOAD_MAX_MB,
+  resolvePerFileUploadLimit,
   type PackageAccessKey,
   type PackageAccessMap,
+  type PerFileUploadLimit,
 } from '@/lib/packageAccess'
 import { useGetEntitlementsQuery, type EffectiveEntitlements } from '@/redux/features/profiles/profiles.api'
 
@@ -31,4 +34,13 @@ export function usePackageAccess(): PackageAccessMap & {
     can: (key) => (data ? catalogFeatureAllowed(data, key) : access[key as PackageAccessKey] !== false),
     entitlements: data,
   }
+}
+
+/** Per-file image/video/document cap for the signed-in package. Not a card-wide total. */
+export function useMediaUploadLimit(): PerFileUploadLimit {
+  const role = useAppSelector((state) => state.user.user?.role)
+  const { entitlements } = usePackageAccess()
+  if (isStaffRole(role)) return resolvePerFileUploadLimit(null, true)
+  if (!entitlements) return resolvePerFileUploadLimit(PROFESSIONAL_UPLOAD_MAX_MB)
+  return resolvePerFileUploadLimit(entitlements.limits.maxFileSizeMb)
 }

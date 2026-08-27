@@ -5,8 +5,15 @@ import { isPublicCardMetaPath, isPublicCardPagePath } from '@/lib/pwa/publicCard
 export const SESSION_EXPIRED_LOGIN_PATH = '/login?reason=session-expired'
 export const SESSION_EXPIRED_STORAGE_KEY = 'vbiz.session-expired'
 export const SESSION_EXPIRING_EVENT = 'vbiz:session-expiring'
+export const SESSION_FLUSH_DRAFT_EVENT = 'vbiz:flush-draft'
+/** Countdown after idle warning before automatic sign-out. */
 export const SESSION_WARNING_SECONDS = 45
-export const SESSION_RECENT_ACTIVITY_MS = 60_000
+/** Maximum time with no pointer/keyboard/touch activity before the idle warning. */
+export const SESSION_IDLE_MS = 45 * 60 * 1000
+/** @deprecated Use SESSION_IDLE_MS */
+export const SESSION_RECENT_ACTIVITY_MS = SESSION_IDLE_MS
+/** Refresh the access token this far before JWT expiry while the user is still active. */
+export const SESSION_RENEW_BEFORE_EXPIRY_MS = 2 * 60 * 1000
 
 export type SessionExpiryReason = 'idle' | 'expired' | 'unauthorized'
 
@@ -35,8 +42,9 @@ const WORKSPACE_PATH_PREFIXES = [
   '/crm',
 ] as const
 
-export function shouldSilentlyRefreshSession(role?: string | null): boolean {
-  return !isStaffRole(role)
+/** Access tokens may be rotated for every signed-in workspace role while the user is active. */
+export function shouldSilentlyRefreshSession(_role?: string | null): boolean {
+  return true
 }
 
 /**
@@ -161,7 +169,7 @@ export function resolvePostLoginPath(
   // A card-owner session must never be sent into the staff console by a stale redirect cookie.
   if (requested.startsWith('/admin') && !isStaffRole(resolved.role)) return fallback
   if (
-    !shouldSilentlyRefreshSession(resolved.role) &&
+    isStaffRole(resolved.role) &&
     !requested.startsWith('/admin') &&
     !requested.startsWith('/vcards/edit') &&
     !requested.startsWith('/crm')

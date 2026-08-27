@@ -3,8 +3,9 @@
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
-import { usePackageAccess } from '@/hooks/usePackageAccess'
+import { useMediaUploadLimit, usePackageAccess } from '@/hooks/usePackageAccess'
 import { useVCard } from '@/lib/VCardContext'
+import { perFileUploadLimitLabel } from '@/lib/packageAccess'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import { Film, Image as ImageIcon, Link as LinkIcon, User } from 'lucide-react'
@@ -13,14 +14,12 @@ const FIELD_BG = 'Background Video/Image'
 const FIELD_AVATAR = 'Profile Image/Video'
 const FIELD_INTRO = 'Intro vCard Video'
 
-const MAX_BG_BYTES = 15 * 1024 * 1024
-const MAX_AVATAR_BYTES = 15 * 1024 * 1024
-const MAX_EXPLAINER_BYTES = 30 * 1024 * 1024
-
 export function Tab1MediaProfile() {
   const { cardId, vCardData, updateData, updateMeta, avatarImageUrl } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const { can } = usePackageAccess()
+  const uploadLimit = useMediaUploadLimit()
+  const limitLabel = perFileUploadLimitLabel(uploadLimit)
   const canAvatarVideo = can('allow_video_upload')
   const canBgVideo = can('allow_background_video_upload')
   const canExplainer = can('allow_2d_explainer')
@@ -49,9 +48,9 @@ export function Tab1MediaProfile() {
           attachmentType={FIELD_BG}
           accept={canBgVideo ? 'image/*,video/*' : 'image/*'}
           allowVideo={canBgVideo}
-          maxBytes={MAX_BG_BYTES}
+          maxBytes={uploadLimit.maxBytes}
           title="Profile Background"
-          subtitle="Video/Image • Max 15MB"
+          subtitle={`Video/Image • ${limitLabel}`}
           icon={<ImageIcon className="text-primary-600 dark:text-primary-400 h-5 w-5" />}
           selectPlaceholder="Select file"
           previewKind="auto"
@@ -75,9 +74,9 @@ export function Tab1MediaProfile() {
           attachmentType={FIELD_AVATAR}
           accept={canAvatarVideo ? 'image/*,video/*' : 'image/*'}
           allowVideo={canAvatarVideo}
-          maxBytes={MAX_AVATAR_BYTES}
+          maxBytes={uploadLimit.maxBytes}
           title="Avatar"
-          subtitle="Image or video • Max 15MB"
+          subtitle={`Image or video • ${limitLabel}`}
           icon={<User className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
           iconWrapperClassName="border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
           selectPlaceholder="Select image"
@@ -106,9 +105,9 @@ export function Tab1MediaProfile() {
             accept="video/*"
             locked={!canExplainer}
             allowVideo={canExplainer}
-            maxBytes={MAX_EXPLAINER_BYTES}
+            maxBytes={uploadLimit.maxBytes}
             title="2D Video Explainer"
-            subtitle="Shown as your explainer section. Max 30MB."
+            subtitle={`Shown as your explainer section. ${limitLabel}.`}
             icon={<Film className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
             iconWrapperClassName="border-purple-100 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10"
             selectPlaceholder="Select video"

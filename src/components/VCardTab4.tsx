@@ -5,9 +5,8 @@ import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
-import { usePackageAccess } from '@/hooks/usePackageAccess'
-import { MAX_MEDIA_UPLOAD_BYTES, MAX_MEDIA_UPLOAD_MB } from '@/lib/media/uploadMediaWithProgress'
-import { musicFileAllowed } from '@/lib/packageAccess'
+import { useMediaUploadLimit, usePackageAccess } from '@/hooks/usePackageAccess'
+import { musicFileAllowed, perFileUploadLimitLabel } from '@/lib/packageAccess'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { useAuth } from '@/providers/AuthProvider'
@@ -460,6 +459,8 @@ export function Tab4HomeMedia() {
   const { cardId } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const { can } = usePackageAccess()
+  const uploadLimit = useMediaUploadLimit()
+  const limitLabel = perFileUploadLimitLabel(uploadLimit)
   const canIntro = can('allow_intro_video_upload')
   const canBgVideo = can('allow_background_video_upload')
   const canMusicFile = musicFileAllowed(can)
@@ -509,10 +510,10 @@ export function Tab4HomeMedia() {
               accept="video/*"
               locked={!canIntro}
               allowVideo={canIntro}
-              maxBytes={MAX_MEDIA_UPLOAD_BYTES}
+              maxBytes={uploadLimit.maxBytes}
               browseLabel="Upload"
               selectPlaceholder="Select video"
-              subtitle={`Plays before your vCard loads • Max ${MAX_MEDIA_UPLOAD_MB}MB`}
+              subtitle={`Plays before your vCard loads • ${limitLabel}`}
               previewKind="video"
               previewClassName="aspect-video max-h-56"
               emptyIcon={<Video className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
@@ -603,9 +604,9 @@ export function Tab4HomeMedia() {
               accept="audio/*"
               locked={!canMusicFile}
               allowAudio={canMusicFile}
-              maxBytes={MAX_MEDIA_UPLOAD_BYTES}
+              maxBytes={uploadLimit.maxBytes}
               selectPlaceholder="Select audio file"
-              subtitle={`Plays quietly in the background • Max ${MAX_MEDIA_UPLOAD_MB}MB`}
+              subtitle={`Plays quietly in the background • ${limitLabel}`}
               previewKind="audio"
               previewClassName="min-h-24"
               emptyIcon={<Music className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
@@ -669,9 +670,9 @@ export function Tab4HomeMedia() {
                 attachmentType={FIELD_BG}
                 accept={canBgVideo ? 'image/*,video/*' : 'image/*'}
                 allowVideo={canBgVideo}
-                maxBytes={MAX_MEDIA_UPLOAD_BYTES}
+                maxBytes={uploadLimit.maxBytes}
                 selectPlaceholder="Select media file"
-                subtitle={`Displayed as the background of your entire vCard. Image or Video loop. Max ${MAX_MEDIA_UPLOAD_MB}MB`}
+                subtitle={`Displayed as the background of your entire vCard. Image or Video loop. ${limitLabel}`}
                 previewKind="auto"
                 previewClassName="aspect-video max-h-56"
                 placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"

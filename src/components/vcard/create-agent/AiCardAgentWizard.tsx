@@ -20,6 +20,7 @@ import {
 import { TAB_NAV_MAP } from '@/lib/ai/cardBlueprint'
 import { gapFieldToSection, type GapItem } from '@/lib/ai/gapReport'
 import { mergeParsedPersonal, parseOwnerPersonalFromText, patchDraftFromFieldKey } from '@/lib/ai/ownerPersonalParse'
+import { SESSION_FLUSH_DRAFT_EVENT } from '@/lib/auth/sessionPolicy'
 import {
   CREATE_CARD_TAB_BY_NAME,
   CREATE_CARD_TAB_BY_NAV_ID,
@@ -101,6 +102,7 @@ type PipelineStepStatus = 'pending' | 'active' | 'done' | 'skipped' | 'failed'
 type PipelineStep = { id: string; label: string; status: PipelineStepStatus; detail?: string }
 
 const JOB_STORAGE_KEY = 'vbiz-ai-card-job-id'
+const DRAFT_STORAGE_KEY = 'vbiz-ai-card-wizard-draft'
 
 type CardPlanTab = {
   tabId: string
@@ -145,6 +147,7 @@ type JobSnapshot = AnalyzeResponse & {
   warnings?: string[]
   profileId?: string | null
   blueprint?: AnalyzeResponse['blueprint']
+  assembledDraft?: unknown
 }
 
 function sleep(ms: number) {
@@ -281,6 +284,7 @@ type AiCardAgentWizardProps = {
   /** Called after celebrate — e.g. navigate to the new card editor */
   onCreatedNavigate?: (cardId?: string) => void
   onFinish?: () => void
+  onFlushDraft?: () => Promise<void> | void
   /** Edit opens as a resume of the current card instead of a blank create session. */
   mode?: 'create' | 'edit'
   profileId?: string
@@ -793,20 +797,86 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
   })
 }
 
+function persistStoredJobId(jobId: string) {
+  try {
+    window.localStorage.setItem(JOB_STORAGE_KEY, jobId)
+  } catch {
+    /* ignore */
+  }
+}
+
+function isVCardDraft(value: unknown): value is VCardData {
+  if (!value || typeof value !== 'object') return false
+  const rec = value as Record<string, unknown>
+  return Boolean(
+    rec.personal && typeof rec.personal === 'object' && ('slug' in rec || 'myInfo' in rec || 'appearance' in rec)
+  )
+}
+
+function persistLocalWizardDraft(input: { jobId: string; draft: VCardData; navIds: string[] }) {
+  try {
+    window.localStorage.setItem(
+      DRAFT_STORAGE_KEY,
+      JSON.stringify({ jobId: input.jobId, draft: input.draft, navIds: input.navIds })
+    )
+  } catch {
+    /* ignore */
+  }
+}
+
+function readLocalWizardDraft(): { jobId: string; draft: VCardData; navIds: string[] } | null {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { jobId?: unknown; draft?: unknown; navIds?: unknown }
+    if (!isVCardDraft(parsed.draft)) return null
+    return {
+      jobId: typeof parsed.jobId === 'string' ? parsed.jobId : '',
+      draft: parsed.draft,
+      navIds: Array.isArray(parsed.navIds) ? parsed.navIds.filter((id): id is string => typeof id === 'string') : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+function clearStoredJobId() {
+  try {
+    window.localStorage.removeItem(JOB_STORAGE_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+function readStoredJobId() {
+  try {
+    return window.localStorage.getItem(JOB_STORAGE_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
 function existingCardStatusMessage(data: VCardData, navIds: string[]): { overall: number; text: string } {
   const tabs = buildLaunchTabs(data, navIds)
   const overall = tabs.length ? Math.round(tabs.reduce((sum, tab) => sum + tab.percent, 0) / tabs.length) : 0
-  const ready = tabs.filter((tab) => tab.percent === 100)
-  const open = tabs.filter((tab) => tab.percent < 100)
-  const readyLine = ready.length
-    ? `Already ready: ${ready.map((tab) => tab.label).join(', ')}.`
-    : 'Most tabs still need content.'
-  const openLine = open.length
-    ? `Still to finish: ${open.map((tab) => `${tab.label} (${tab.percent}%)`).join(', ')}.`
-    : 'All current tabs look complete. You can still add a website or files to enrich the card.'
+  const filledTabs = tabs.filter((tab) => tab.percent === 100)
+  const missingTabs = tabs.filter((tab) => tab.percent < 100)
+  const emptyTabs = tabs.filter((tab) => tab.percent === 0)
+  const emptySections = tabs.flatMap((tab) =>
+    tab.fields.filter((field) => !field.filled).map((field) => `${tab.label}: ${field.label}`)
+  )
+  const filledLine = filledTabs.length
+    ? `Already on this card: ${filledTabs.map((tab) => tab.label).join(', ')}.`
+    : 'Already on this card: no tabs are fully filled yet.'
+  const missingLine = missingTabs.length
+    ? `Still missing: ${missingTabs.map((tab) => `${tab.label} (${tab.percent}%)`).join(', ')}.`
+    : 'Nothing required is missing on the current tabs.'
+  const emptyLine = emptyTabs.length
+    ? `Empty tab sections: ${emptySections.slice(0, 12).join('; ')}${emptySections.length > 12 ? '…' : ''}.`
+    : 'No fully empty tab sections.'
   return {
     overall,
-    text: `This card is ${overall}% ready. I’ll pick up where you left off — not start from scratch.\n\n${readyLine}\n${openLine}\n\nAdd a website, documents, or notes if you have more source material, then tap Continue. Or continue with no new sources and I’ll resume the empty tabs with AI.`,
+    text: `This card is ${overall}% ready. I’ll pick up where you left off — not start from scratch.\n\n${filledLine}\n${missingLine}\n${emptyLine}\n\nAI will refill ONLY empty sections unless you ask to overwrite filled content.\n\nAdd a website, documents, or notes if you have more source material, then tap Continue. Or continue with no new sources and I’ll resume the empty tabs with AI.`,
   }
 }
 
@@ -822,6 +892,7 @@ export function AiCardAgentWizard({
   onOpenLivePreview,
   onCreatedNavigate,
   onFinish,
+  onFlushDraft,
   mode = 'create',
   profileId,
   cardLoading = false,
@@ -858,6 +929,7 @@ export function AiCardAgentWizard({
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const draftRef = useRef(vCardData)
   const wasOpenRef = useRef(false)
+  const resumeAttemptedRef = useRef(false)
   const skippedGapIdsRef = useRef<string[]>([])
   const sourceContextRef = useRef<StoredSourceContext>({ websiteUrl: '', businessText: '', files: [] })
   const sessionIdRef = useRef('')
@@ -879,6 +951,7 @@ export function AiCardAgentWizard({
   useEffect(() => {
     if (!open) {
       wasOpenRef.current = false
+      resumeAttemptedRef.current = false
       return
     }
     // Bootstrap only when the popup newly opens — never mid-session on parent remounts
@@ -1110,7 +1183,7 @@ export function AiCardAgentWizard({
         : isBlog
           ? `I didn’t find published articles. I can draft up to 5 useful educational posts from your business and services — not fake news events.\n\nCreate with AI, or skip.`
           : isReviews
-            ? `I couldn’t find verified customer reviews. AI will not invent testimonials.\n\nPaste or upload up to 5 real reviews for AI to organize, or skip.`
+            ? `I couldn’t find customer reviews. I can create up to 5 realistic example testimonials from this business. I will not invent licenses, prices, or awards, and I will not overwrite reviews already on the card.\n\nCreate example reviews with AI, or skip.`
             : isExperience
               ? `I couldn’t reliably determine your professional experience. I will not invent employers or dates.\n\nAdd experience now, or skip.`
               : isSkills
@@ -1130,10 +1203,70 @@ export function AiCardAgentWizard({
     pushMsg('user', 'Continue from the current card')
     pushMsg(
       'assistant',
-      'Reviewing what is already on this card. Next I’ll resume the empty tabs — yes to fill with AI, or skip to leave them for the editor.'
+      'Reviewing what is already on this card. Next I’ll resume empty tabs only — filled FAQs, blogs, and reviews stay as they are unless you ask to overwrite.'
     )
     try {
-      const report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
+      let report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
+      const sessionId = sessionIdRef.current
+      if (sessionId) {
+        const beforeLists = draftRef.current
+        const neededLists =
+          (beforeLists.faqs?.length || 0) < 5 ||
+          (beforeLists.generalPosts?.length || 0) < 5 ||
+          (beforeLists.reviews?.length || 0) < 5
+        if ((draftRef.current.faqs?.length || 0) < 5) {
+          try {
+            const generated = await cardAgentJobPost<{ payload?: Record<string, unknown> }>(
+              sessionId,
+              'generate-content',
+              {
+                kind: 'faq',
+              }
+            )
+            const payload = generated?.payload
+            if (payload) applyDraft(mergeSectionPayload(draftRef.current, 'faqs', payload), activeNav)
+          } catch {
+            /* keep existing FAQs */
+          }
+        }
+        if ((draftRef.current.generalPosts?.length || 0) < 5) {
+          try {
+            const generated = await cardAgentJobPost<{ payload?: Record<string, unknown> }>(
+              sessionId,
+              'generate-content',
+              {
+                kind: 'blog',
+              }
+            )
+            const payload = generated?.payload
+            if (payload) applyDraft(mergeSectionPayload(draftRef.current, 'blogs', payload), activeNav)
+          } catch {
+            /* keep existing blogs */
+          }
+        }
+        if ((draftRef.current.reviews?.length || 0) < 5) {
+          try {
+            const generated = await cardAgentJobPost<{ payload?: Record<string, unknown> }>(
+              sessionId,
+              'generate-content',
+              {
+                kind: 'reviews',
+              }
+            )
+            const payload = generated?.payload
+            if (payload) applyDraft(mergeSectionPayload(draftRef.current, 'reviews', payload), activeNav)
+          } catch {
+            /* keep existing reviews */
+          }
+        }
+        if (neededLists) {
+          pushMsg(
+            'assistant',
+            'I drafted up to 5 FAQs, 5 blogs/news, and 5 example reviews from the business because the site/docs did not have enough.'
+          )
+          report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
+        }
+      }
       setPipelineSteps((prev) =>
         prev.map((step) => ({
           ...step,
@@ -1238,11 +1371,7 @@ export function AiCardAgentWizard({
       if (initialJob.jobId) {
         sessionIdRef.current = initialJob.jobId
         sourceContextRef.current.sessionId = initialJob.jobId
-        try {
-          window.localStorage.setItem(JOB_STORAGE_KEY, initialJob.jobId)
-        } catch {
-          /* ignore */
-        }
+        persistStoredJobId(initialJob.jobId)
       }
       if (initialJob.userProgress?.length) {
         setPipelineSteps((prev) => {
@@ -1289,6 +1418,66 @@ export function AiCardAgentWizard({
       )
       const mapped = applyAnalyzeToDraft(json, draftRef.current)
       applyDraft(mapped.data, job.selectedNavIds || mapped.enabledNavIds)
+      const navForFill = job.selectedNavIds || mapped.enabledNavIds
+      const sessionId = sessionIdRef.current
+      if (sessionId) {
+        const beforeLists = draftRef.current
+        const neededLists =
+          (beforeLists.faqs?.length || 0) < 5 ||
+          (beforeLists.generalPosts?.length || 0) < 5 ||
+          (beforeLists.reviews?.length || 0) < 5
+        if ((draftRef.current.faqs?.length || 0) < 5) {
+          try {
+            const generated = await cardAgentJobPost<{ payload?: Record<string, unknown> }>(
+              sessionId,
+              'generate-content',
+              {
+                kind: 'faq',
+              }
+            )
+            const payload = generated?.payload
+            if (payload) applyDraft(mergeSectionPayload(draftRef.current, 'faqs', payload), navForFill)
+          } catch {
+            /* keep existing FAQs */
+          }
+        }
+        if ((draftRef.current.generalPosts?.length || 0) < 5) {
+          try {
+            const generated = await cardAgentJobPost<{ payload?: Record<string, unknown> }>(
+              sessionId,
+              'generate-content',
+              {
+                kind: 'blog',
+              }
+            )
+            const payload = generated?.payload
+            if (payload) applyDraft(mergeSectionPayload(draftRef.current, 'blogs', payload), navForFill)
+          } catch {
+            /* keep existing blogs */
+          }
+        }
+        if ((draftRef.current.reviews?.length || 0) < 5) {
+          try {
+            const generated = await cardAgentJobPost<{ payload?: Record<string, unknown> }>(
+              sessionId,
+              'generate-content',
+              {
+                kind: 'reviews',
+              }
+            )
+            const payload = generated?.payload
+            if (payload) applyDraft(mergeSectionPayload(draftRef.current, 'reviews', payload), navForFill)
+          } catch {
+            /* keep existing reviews */
+          }
+        }
+        if (neededLists) {
+          pushMsg(
+            'assistant',
+            'I drafted up to 5 FAQs, 5 blogs/news, and 5 example reviews from the business because the site/docs did not have enough.'
+          )
+        }
+      }
       setCardPlan(job.cardPlan || [])
       setCardPercent(job.cardPercent || 0)
       setNextField(job.nextField || null)
@@ -1399,13 +1588,25 @@ export function AiCardAgentWizard({
 
   const ingestJob = useCallback(
     (job: JobSnapshot) => {
+      if (job.jobId) {
+        sessionIdRef.current = job.jobId
+        sourceContextRef.current.sessionId = job.jobId
+        persistStoredJobId(job.jobId)
+      }
       setCardPlan(job.cardPlan || [])
       setCardPercent(job.cardPercent || 0)
       setNextField(job.nextField || null)
       if (typeof job.cardPercent === 'number') setScore(job.cardPercent)
-      if (job.blueprint) {
+      const draftSource = job.assembledDraft || job.blueprint
+      if (isVCardDraft(draftSource)) {
+        applyDraft(draftSource, job.selectedNavIds || activeNav)
+      } else if (draftSource) {
         const mapped = applyAnalyzeToDraft(
-          { blueprint: job.blueprint, sessionId: job.jobId, enabledNavIds: job.selectedNavIds } as AnalyzeResponse,
+          {
+            blueprint: draftSource as AnalyzeResponse['blueprint'],
+            sessionId: job.jobId,
+            enabledNavIds: job.selectedNavIds,
+          } as AnalyzeResponse,
           draftRef.current
         )
         applyDraft(mapped.data, job.selectedNavIds || mapped.enabledNavIds)
@@ -1416,7 +1617,7 @@ export function AiCardAgentWizard({
         if (editorUnlockedRef.current) onEnableNavIds(nextNav)
       }
     },
-    [applyDraft, onEnableNavIds]
+    [applyDraft, onEnableNavIds, activeNav]
   )
 
   const continueFieldFlow = async (job: JobSnapshot) => {
@@ -1448,6 +1649,140 @@ export function AiCardAgentWizard({
     const report = await refreshGaps(job.selectedNavIds || activeNav, draftRef.current)
     askNextGap(report)
   }
+
+  const checkpointWizardDraft = useCallback(async () => {
+    persistLocalWizardDraft({
+      jobId: sessionIdRef.current || readStoredJobId(),
+      draft: draftRef.current,
+      navIds: activeNav,
+    })
+    const jobId = sessionIdRef.current
+    if (jobId) {
+      try {
+        await cardAgentJobPost(jobId, 'checkpoint', {
+          assembledDraft: draftRef.current,
+          selectedNavIds: activeNav,
+        })
+      } catch {
+        /* keep editing even if the checkpoint request fails */
+      }
+    }
+    if (onFlushDraft) {
+      try {
+        await onFlushDraft()
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [activeNav, onFlushDraft])
+
+  const resumeStoredJob = useCallback(async () => {
+    const stored = readStoredJobId()
+    if (!stored) return
+    try {
+      const job = await cardAgentJobGet<JobSnapshot>(stored)
+      if (!job?.jobId) {
+        clearStoredJobId()
+        return
+      }
+      sessionIdRef.current = job.jobId
+      sourceContextRef.current.sessionId = job.jobId
+      persistStoredJobId(job.jobId)
+      const working = new Set(['QUEUED', 'EXTRACTING', 'ARCHITECTING', 'MAPPING_FIELDS'])
+      const readyish = new Set(['WAITING_FOR_USER_INPUT', 'READY', 'GENERATING', 'ASSEMBLING'])
+      if (working.has(job.status)) {
+        setBusy(true)
+        setPhase('working')
+        pushMsg('assistant', 'Resuming your saved card-builder job…')
+        if (job.userProgress?.length) {
+          setPipelineSteps((prev) => {
+            let next = prev
+            for (const step of job.userProgress || []) {
+              next = setStep(next, step.id, step.status, step.detail)
+            }
+            return next
+          })
+        }
+        const done = await waitForCardAgentJob(job, (nextJob) => {
+          if (nextJob.userProgress?.length) {
+            setPipelineSteps((prev) => {
+              let next = prev
+              for (const step of nextJob.userProgress || []) {
+                next = setStep(next, step.id, step.status, step.detail)
+              }
+              return next
+            })
+          }
+        })
+        if (done.status === 'FAILED') {
+          throw new CardAgentError(
+            done.errorMessage || 'Could not design your card.',
+            422,
+            done.errorCode || 'SOURCE_ANALYSIS_FAILED',
+            done.requestId || undefined,
+            done.retryable !== false,
+            'source_fetch'
+          )
+        }
+        ingestJob(done)
+        await continueFieldFlow(done)
+        return
+      }
+      if (readyish.has(job.status)) {
+        ingestJob(job)
+        await continueFieldFlow(job)
+      }
+    } catch (error) {
+      if (error instanceof CardAgentError && error.status === 404) {
+        clearStoredJobId()
+      }
+      const local = readLocalWizardDraft()
+      if (local) {
+        applyDraft(local.draft, local.navIds.length ? local.navIds : activeNav)
+        if (local.jobId) {
+          sessionIdRef.current = local.jobId
+          sourceContextRef.current.sessionId = local.jobId
+        }
+      }
+      /* stay on intake if resume fails */
+    } finally {
+      setBusy(false)
+    }
+  }, [activeNav, applyDraft, ingestJob, pushMsg])
+
+  useEffect(() => {
+    if (!open) return
+    if (isEdit && cardLoading) return
+    if (resumeAttemptedRef.current) return
+    resumeAttemptedRef.current = true
+    void resumeStoredJob()
+  }, [open, cardLoading, isEdit, resumeStoredJob])
+
+  useEffect(() => {
+    if (!open) return
+    const timer = window.setInterval(() => {
+      void checkpointWizardDraft()
+    }, 25000)
+    return () => window.clearInterval(timer)
+  }, [open, checkpointWizardDraft])
+
+  useEffect(() => {
+    if (!open) return
+    const flush = () => {
+      void checkpointWizardDraft()
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('beforeunload', flush)
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener(SESSION_FLUSH_DRAFT_EVENT, flush)
+    return () => {
+      window.removeEventListener('beforeunload', flush)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener(SESSION_FLUSH_DRAFT_EVENT, flush)
+    }
+  }, [open, checkpointWizardDraft])
 
   const runFastModeChoice = async (mode: 'ai' | 'found' | 'review') => {
     if (!sessionIdRef.current) return
@@ -1584,8 +1919,9 @@ export function AiCardAgentWizard({
   }, [])
 
   const generateBusinessSection = useCallback(async (section: string) => {
-    if (!sessionIdRef.current || !['faqs', 'blogs', 'skills'].includes(section)) return null
-    const kind = section === 'faqs' ? 'faq' : section === 'blogs' ? 'blog' : 'skills'
+    if (!sessionIdRef.current || !['faqs', 'blogs', 'skills', 'reviews'].includes(section)) return null
+    const kind =
+      section === 'faqs' ? 'faq' : section === 'blogs' ? 'blog' : section === 'reviews' ? 'reviews' : 'skills'
     return cardAgentJobPost<{
       payload?: Record<string, unknown>
       generatedCount?: number
@@ -1640,14 +1976,12 @@ export function AiCardAgentWizard({
       return
     }
 
-    if (section === 'reviews' || section === 'experience') {
+    if (section === 'experience') {
       setGateGap(null)
       setPhase('coach')
       pushMsg(
         'assistant',
-        section === 'reviews'
-          ? 'Paste a real customer review (reviewer name + what they said) in the message box below, then tap Fill. I will not invent testimonials.'
-          : 'Paste a real role (company, title, dates if you have them) in the message box below, then tap Fill. I will not invent work history.'
+        'Paste a real role (company, title, dates if you have them) in the message box below, then tap Fill. I will not invent work history.'
       )
       return
     }
@@ -1676,7 +2010,7 @@ export function AiCardAgentWizard({
         const report = await refreshAfterDraftChange(activeNav, merged)
         pushMsg(
           'assistant',
-          `Created ${generated.generatedCount || sectionContentCount(merged, section)} ${section === 'faqs' ? 'FAQs' : section === 'blogs' ? 'article drafts' : 'skills'} from the business context. Card is now ${report.score}% complete.`
+          `Created ${generated.generatedCount || sectionContentCount(merged, section)} ${section === 'faqs' ? 'FAQs' : section === 'blogs' ? 'article drafts' : section === 'reviews' ? 'reviews' : 'skills'} from the business context. Card is now ${report.score}% complete.`
         )
         setGateGap(null)
         askNextGap(report)
@@ -2114,14 +2448,14 @@ export function AiCardAgentWizard({
     }
 
     const canGenerateFromBusinessProfile = Boolean(
-      sessionIdRef.current && ['faqs', 'blogs', 'skills'].includes(section)
+      sessionIdRef.current && ['faqs', 'blogs', 'skills', 'reviews'].includes(section)
     )
     if (!hasStoredSources() && !canGenerateFromBusinessProfile) {
       setPhase('coach')
       pushMsg(
         'assistant',
         section === 'reviews'
-          ? `Paste or upload up to 5 real customer reviews for ${tab.label}. AI can organize the reviewer, quote, rating, link, and image fields, but it will not invent testimonials.`
+          ? `I can create up to 5 example reviews for ${tab.label} from this business, or you can paste real ones. Existing reviews will not be overwritten.`
           : `Send text or upload files for ${tab.label}. I will fill that tab, then bring you back to the launch checklist.`
       )
       return

@@ -183,11 +183,28 @@ export const TAB_NAV_MAP: Record<string, string> = {
   'Global Connection': 'global-connection',
   'My Info': 'my-info',
   FAQ: 'faq',
+  FAQs: 'faq',
   Faqs: 'faq',
 }
 
 function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+const MAX_LIST_ITEMS = 5
+
+function mergeCappedList<T>(existing: T[] | undefined, incoming: T[], keyOf: (item: T) => string): T[] {
+  const base = Array.isArray(existing) ? existing : []
+  const seen = new Set(base.map(keyOf).filter(Boolean))
+  const out = [...base]
+  for (const item of incoming) {
+    if (out.length >= MAX_LIST_ITEMS) break
+    const key = keyOf(item)
+    if (key && seen.has(key)) continue
+    if (key) seen.add(key)
+    out.push(item)
+  }
+  return out.slice(0, MAX_LIST_ITEMS)
 }
 
 function slugify(input: string): string {
@@ -316,9 +333,11 @@ export function mapBlueprintToVCardData(
     skills: skills.length ? skills : base?.skills || [],
     services: services.length ? services : base?.services || [],
     portfolio: portfolio.length ? portfolio : base?.portfolio || [],
-    reviews: reviews.length ? reviews : base?.reviews || [],
-    generalPosts: generalPosts.length ? generalPosts : base?.generalPosts || [],
-    faqs: faqs.length ? faqs : base?.faqs || [],
+    reviews: mergeCappedList(base?.reviews, reviews, (r) => `${r.author}|${r.text}`.trim().toLowerCase()),
+    generalPosts: mergeCappedList(base?.generalPosts, generalPosts, (p) =>
+      `${p.title}|${p.description}`.trim().toLowerCase()
+    ),
+    faqs: mergeCappedList(base?.faqs, faqs, (f) => `${f.question}|${f.answer}`.trim().toLowerCase()),
   })
 
   const synced = syncMyInfoFromPersonal(data)
@@ -341,7 +360,7 @@ export function mapBlueprintToVCardData(
   if (portfolio.length) tabNames.add('Portfolio')
   if (reviews.length) tabNames.add('Reviews')
   if (generalPosts.length) tabNames.add('News/Blogs')
-  if (faqs.length) tabNames.add('FAQ')
+  if (faqs.length) tabNames.add('FAQs')
   // Profile mirrors personal — enable when we have a solid personal draft
   if (blueprint.personal.fullName && blueprint.personal.about) tabNames.add('Profile')
 

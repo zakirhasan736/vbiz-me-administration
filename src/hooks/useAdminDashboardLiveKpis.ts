@@ -2,7 +2,7 @@
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
-import { requestSessionExpiryWarning, shouldSilentlyRefreshSession } from '@/lib/auth/sessionPolicy'
+import { requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
 import { baseUrl } from '@/redux/api/api'
 import { updateAuthState } from '@/redux/features/auth/user.slice'
 import type { DashboardPeriod } from '@/redux/features/profiles/profiles.api'
@@ -33,7 +33,6 @@ function socketOriginFromApiUrl(apiUrl: string): string {
 export function useDashboardLiveKpis(period: DashboardPeriod) {
   const dispatch = useAppDispatch()
   const token = useAppSelector((state) => state.user.token)
-  const role = useAppSelector((state) => state.user.user?.role)
   const [overlay, setOverlay] = useState<LiveKpiOverlay>(EMPTY_OVERLAY)
   const [overlayPeriod, setOverlayPeriod] = useState(period)
   const [connected, setConnected] = useState(false)
@@ -75,11 +74,6 @@ export function useDashboardLiveKpis(period: DashboardPeriod) {
       if (!/auth|unauthori[sz]ed|token|jwt|expired/i.test(error?.message || '')) return
       refreshAttempted = true
 
-      if (!shouldSilentlyRefreshSession(role)) {
-        requestSessionExpiryWarning('unauthorized')
-        return
-      }
-
       void refreshSessionAccessToken(token).then((accessToken) => {
         if (cancelled) return
         if (!accessToken) {
@@ -105,7 +99,7 @@ export function useDashboardLiveKpis(period: DashboardPeriod) {
       socket.off('connect_error', onConnectError)
       socket.disconnect()
     }
-  }, [dispatch, role, token])
+  }, [dispatch, token])
 
   return { overlay, connected }
 }

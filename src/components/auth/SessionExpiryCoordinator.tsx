@@ -9,7 +9,9 @@ import {
   markSessionExpired,
   redirectToLogin,
   SESSION_EXPIRING_EVENT,
-  SESSION_RECENT_ACTIVITY_MS,
+  SESSION_FLUSH_DRAFT_EVENT,
+  SESSION_IDLE_MS,
+  SESSION_RENEW_BEFORE_EXPIRY_MS,
   SESSION_WARNING_SECONDS,
   type SessionExpiryReason,
 } from '@/lib/auth/sessionPolicy'
@@ -22,6 +24,11 @@ type SessionExpiryCoordinatorProps = {
   onSignOut: () => Promise<void>
 }
 
+function dispatchFlushDraft() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(SESSION_FLUSH_DRAFT_EVENT))
+}
+
 type SessionWarning = {
   deadline: number
   reason: SessionExpiryReason
@@ -29,6 +36,16 @@ type SessionWarning = {
 }
 
 const WARNING_DURATION_MS = SESSION_WARNING_SECONDS * 1000
+const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
+  'pointerdown',
+  'pointermove',
+  'mousemove',
+  'keydown',
+  'scroll',
+  'wheel',
+  'touchstart',
+  'touchmove',
+]
 
 export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinatorProps) {
   const dispatch = useAppDispatch()
@@ -37,8 +54,10 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
   const { user, token } = useAppSelector((state) => state.user)
   const userId = user?.id || ''
   const lastActivityRef = useRef(0)
+  const warningOpenRef = useRef(false)
   const renewalPendingRef = useRef(false)
   const signOutPendingRef = useRef(false)
+  const tokenRef = useRef(token)
   const [warning, setWarning] = useState<SessionWarning | null>(null)
   const [clock, setClock] = useState(0)
   const [isRenewing, setIsRenewing] = useState(false)
@@ -51,6 +70,8 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
   const openWarning = useCallback(
     (reason: SessionExpiryReason) => {
       if (!userId || !isAuthenticatedWorkspacePath(pathname)) return
+      if (renewalPendingRef.current) return
+      dispatchFlushDraft()
       const now = Date.now()
       setClock(now)
       setRenewalError('')
@@ -69,7 +90,8 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
 
   const renewSession = useCallback(
     async (interactive: boolean) => {
-      if (!userId || renewalPendingRef.current) return
+      if (!userId) return
+      if (renewalPendingRef.current && !interactive) return
       renewalPendingRef.current = true
       if (interactive) {
         setIsRenewing(true)
@@ -77,7 +99,7 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
       }
 
       try {
-        const accessToken = await refreshSessionAccessToken(token)
+        const accessToken = await refreshSessionAccessToken(tokenRef.current)
         if (!accessToken) {
           if (interactive) {
             setRenewalError('We could not renew your session. Sign in again or wait for automatic sign out.')
@@ -96,14 +118,15 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
         if (interactive) setIsRenewing(false)
       }
     },
-    [dispatch, openWarning, token, userId]
+    [dispatch, openWarning, userId]
   )
 
   const finishSignOut = useCallback(async () => {
-    if (signOutPendingRef.current) return
+    if (signOutPendingRef.current || renewalPendingRef.current) return
     signOutPendingRef.current = true
     setIsSigningOut(true)
     markSessionExpired()
+    dispatchFlushDraft()
     try {
       await onSignOut()
     } finally {
@@ -112,18 +135,30 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
   }, [onSignOut])
 
   useEffect(() => {
+    tokenRef.current = token
+  }, [token])
+
+  useEffect(() => {
+    warningOpenRef.current = Boolean(currentWarning)
+  }, [currentWarning])
+
+  useEffect(() => {
+    lastActivityRef.current = Date.now()
+  }, [userId])
+
+  useEffect(() => {
     const noteActivity = () => {
+      if (warningOpenRef.current) return
       lastActivityRef.current = Date.now()
     }
     const noteVisibleActivity = () => {
       if (document.visibilityState === 'visible') noteActivity()
     }
-    const events: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'scroll', 'touchstart']
 
-    events.forEach((eventName) => window.addEventListener(eventName, noteActivity, { passive: true }))
+    ACTIVITY_EVENTS.forEach((eventName) => window.addEventListener(eventName, noteActivity, { passive: true }))
     document.addEventListener('visibilitychange', noteVisibleActivity)
     return () => {
-      events.forEach((eventName) => window.removeEventListener(eventName, noteActivity))
+      ACTIVITY_EVENTS.forEach((eventName) => window.removeEventListener(eventName, noteActivity))
       document.removeEventListener('visibilitychange', noteVisibleActivity)
     }
   }, [])
@@ -131,31 +166,39 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
   useEffect(() => {
     const onSessionExpiring = (event: Event) => {
       const reason = (event as CustomEvent<SessionExpiryReason>).detail
+      const recentlyActive = Date.now() - lastActivityRef.current <= SESSION_IDLE_MS
+      if (recentlyActive && (reason === 'unauthorized' || reason === 'expired')) {
+        void renewSession(false)
+        return
+      }
       openWarning(reason || 'unauthorized')
     }
 
     window.addEventListener(SESSION_EXPIRING_EVENT, onSessionExpiring)
     return () => window.removeEventListener(SESSION_EXPIRING_EVENT, onSessionExpiring)
-  }, [openWarning])
+  }, [openWarning, renewSession])
 
   useEffect(() => {
-    if (!sessionManaged || !userId || !token) return
+    if (!sessionManaged || !userId || !token || currentWarning) return
 
-    const warningAt = expiresAt === null ? Date.now() : expiresAt - WARNING_DURATION_MS
-    const timerId = window.setTimeout(
-      () => {
-        const recentlyActive = Date.now() - lastActivityRef.current <= SESSION_RECENT_ACTIVITY_MS
-        if (recentlyActive) {
-          void renewSession(false)
-          return
-        }
-        openWarning(expiresAt !== null && expiresAt <= Date.now() ? 'expired' : 'idle')
-      },
-      Math.max(0, warningAt - Date.now())
-    )
+    const evaluate = () => {
+      if (renewalPendingRef.current || signOutPendingRef.current || warningOpenRef.current) return
+      if (!lastActivityRef.current) return
+      const now = Date.now()
+      const idleFor = now - lastActivityRef.current
+      if (idleFor >= SESSION_IDLE_MS) {
+        openWarning('idle')
+        return
+      }
+      if (expiresAt !== null && expiresAt - now <= SESSION_RENEW_BEFORE_EXPIRY_MS) {
+        void renewSession(false)
+      }
+    }
 
-    return () => window.clearTimeout(timerId)
-  }, [expiresAt, openWarning, renewSession, sessionManaged, token, userId])
+    evaluate()
+    const intervalId = window.setInterval(evaluate, 1000)
+    return () => window.clearInterval(intervalId)
+  }, [currentWarning, expiresAt, openWarning, renewSession, sessionManaged, token, userId])
 
   useEffect(() => {
     if (!currentWarning) return
@@ -164,10 +207,10 @@ export function SessionExpiryCoordinator({ onSignOut }: SessionExpiryCoordinator
   }, [currentWarning])
 
   useEffect(() => {
-    if (!currentWarning) return
+    if (!currentWarning || isRenewing) return
     const timeoutId = window.setTimeout(() => void finishSignOut(), Math.max(0, currentWarning.deadline - Date.now()))
     return () => window.clearTimeout(timeoutId)
-  }, [currentWarning, finishSignOut])
+  }, [currentWarning, finishSignOut, isRenewing])
 
   if (!currentWarning) return null
 

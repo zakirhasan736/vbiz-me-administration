@@ -199,7 +199,7 @@ export function buildGapReport(
   if (nav.has('faq')) {
     add(!empty(data.faqs), 2, {
       id: 'faqs',
-      tab: 'FAQ',
+      tab: 'FAQs',
       navId: 'faq',
       field: 'faqs',
       severity: 'optional',

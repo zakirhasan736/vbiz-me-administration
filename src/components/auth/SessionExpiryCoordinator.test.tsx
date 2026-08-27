@@ -1,4 +1,4 @@
-import { requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
+import { requestSessionExpiryWarning, SESSION_IDLE_MS } from '@/lib/auth/sessionPolicy'
 import userReducer, { updateAuthState } from '@/redux/features/auth/user.slice'
 import { configureStore } from '@reduxjs/toolkit'
 import { act } from 'react'
@@ -91,7 +91,7 @@ describe('SessionExpiryCoordinator', () => {
         </Provider>
       )
     })
-    await act(async () => requestSessionExpiryWarning('expired'))
+    await act(async () => requestSessionExpiryWarning('idle'))
 
     const stayButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Stay logged in')
@@ -102,6 +102,24 @@ describe('SessionExpiryCoordinator', () => {
 
     expect(authStore.getState().user.token).toBe(renewedToken)
     expect(document.body.textContent).not.toContain('Session expiring')
+    expect(onSignOut).not.toHaveBeenCalled()
+  })
+
+  it('shows the idle warning after 45 minutes with no activity', async () => {
+    const onSignOut = vi.fn(async () => undefined)
+    await act(async () => {
+      root.render(
+        <Provider store={authStore}>
+          <SessionExpiryCoordinator onSignOut={onSignOut} />
+        </Provider>
+      )
+    })
+
+    expect(document.body.textContent).not.toContain('Session expiring')
+
+    await act(async () => vi.advanceTimersByTime(SESSION_IDLE_MS))
+
+    expect(document.body.textContent).toContain('Session expiring')
     expect(onSignOut).not.toHaveBeenCalled()
   })
 

@@ -128,7 +128,7 @@ export const TAB_REGISTRY: Record<string, TabRegistryEntry> = {
     12,
     'insurance_license'
   ),
-  faqs: list('faqs', 'FAQ', 'faqs', 'Faq', 13, 'faq', 'faq'),
+  faqs: list('faqs', 'FAQs', 'faqs', 'Faq', 13, 'faq', 'faq'),
   calendar: list('calendar', 'Calendar', 'calendar', 'calender', 14, 'calendar_section'),
   property_listings: list(
     'property_listings',

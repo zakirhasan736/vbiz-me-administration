@@ -138,7 +138,7 @@ export function TabResume() {
           onChange={(documents) => persist({ ...state, documents })}
           multiple
           label="Resume document upload"
-          hint="Image, PDF, TXT, DOC / DOCX — max 5MB each"
+          hint="Image, PDF, TXT, DOC / DOCX"
           accent="teal"
           mediaAssist="image"
         />

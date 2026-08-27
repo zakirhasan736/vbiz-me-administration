@@ -69,21 +69,22 @@ export const MERGED_PROFILE_NAV_LABELS = [
   'Home',
   'About Me',
   'Company Mission Statement',
-  'Education',
-  'Skills',
   'Services',
   'Gallery',
   'Videos',
+  'Reviews',
+  'BBB',
+  'Faq',
+  'Education',
+  'Skills',
   'Blog',
   'Additional Services',
   '2D Explainer',
-  'Reviews',
   'Certifications/Licenses',
   'Public Cards',
   'Clients',
   'Meet Our Team',
   'Calender',
-  'Faq',
   'Work Experience',
   'Video Links',
   'Profile',
@@ -219,7 +220,8 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
   {
     id: 'gallery',
     label: 'Gallery',
-    displayLabel: 'Portfolio',
+    displayLabel: 'Photos',
+    editorLabel: 'Portfolio',
     icon: Camera,
     profileContent: 'gallery',
     editorPanel: { kind: 'portfolio' },
@@ -345,7 +347,15 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     profileContent: 'calendar',
     editorPanel: { kind: 'section-posts', schemaKey: 'calendar' },
   },
-  { id: 'faq', label: 'Faq', icon: Lightbulb, profileContent: 'faq', editorPanel: { kind: 'faq' } },
+  {
+    id: 'faq',
+    label: 'Faq',
+    displayLabel: 'FAQs',
+    editorLabel: 'FAQs',
+    icon: Lightbulb,
+    profileContent: 'faq',
+    editorPanel: { kind: 'faq' },
+  },
   {
     id: 'work',
     label: 'Work Experience',
@@ -548,13 +558,21 @@ export const NAV_LABEL_TO_TAB_ID: Record<string, string> = Object.fromEntries(
   NAV_BAR_NAV_ITEMS.map((item) => [item.label, item.id])
 )
 
+function navFieldLookupKeys(label: string): string[] {
+  if (label === 'FAQs') return ['FAQs', 'Faq']
+  if (label === 'Faq') return ['Faq', 'FAQs']
+  return [label]
+}
+
 export function isNavItemVisible(settings: VCardDisplaySettings, label: string): boolean {
   if (!settings.globalEnabled) return false
-  const raw = settings.fields[label]
-  const config = raw
-    ? normalizeFieldConfig({ ...createDefaultNavFieldConfig(label), ...raw })
-    : createDefaultNavFieldConfig(label)
-  return config.visible
+  for (const key of navFieldLookupKeys(label)) {
+    const raw = settings.fields[key]
+    if (raw) {
+      return normalizeFieldConfig({ ...createDefaultNavFieldConfig(key), ...raw }).visible
+    }
+  }
+  return createDefaultNavFieldConfig(label).visible
 }
 
 export function filterNavItemsByVisibility(items: NavBarNavItem[], settings: VCardDisplaySettings): NavBarNavItem[] {
@@ -599,8 +617,11 @@ export function isPersonalEditorNavId(id: string): boolean {
 }
 
 export function getNavItemBackgroundColor(settings: VCardDisplaySettings, label: string): string | undefined {
-  const bg = settings.fields[label]?.backgroundColor?.trim()
-  return bg || undefined
+  for (const key of navFieldLookupKeys(label)) {
+    const bg = settings.fields[key]?.backgroundColor?.trim()
+    if (bg) return bg
+  }
+  return undefined
 }
 
 export function getNavItemById(id: string, items: NavBarNavItem[] = NAV_BAR_NAV_ITEMS): NavBarNavItem | undefined {

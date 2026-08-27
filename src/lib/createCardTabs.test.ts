@@ -6,8 +6,8 @@ describe('create-card tab ordering', () => {
     expect(normalizeNavOrderWithPinnedEnds(['skills', 'home', 'faq', 'about', 'my-info', 'public-cards'])).toEqual([
       'skills',
       'home',
-      'faq',
       'about',
+      'faq',
       'public-cards',
       'my-info',
     ])

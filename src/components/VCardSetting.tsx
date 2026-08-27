@@ -9,7 +9,7 @@ import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
-import { usePackageAccess } from '@/hooks/usePackageAccess'
+import { useMediaUploadLimit, usePackageAccess } from '@/hooks/usePackageAccess'
 import { cardAgentJson } from '@/lib/ai/cardAgentClient'
 import {
   AI_ASSISTANCE_ADDON_PRICE_USD,
@@ -27,12 +27,11 @@ import {
 } from '@/lib/assistantApi'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
 import {
-  MAX_MEDIA_UPLOAD_BYTES,
-  MAX_MEDIA_UPLOAD_MB,
+  mediaFileTooLargeMessage,
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
-import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
+import { PACKAGE_FEATURE_LOCKED_MESSAGE, perFileUploadLimitLabel } from '@/lib/packageAccess'
 import {
   MAX_OWNER_SEO_KEYWORDS,
   MAX_SEO_DESCRIPTION_LENGTH,
@@ -99,7 +98,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 const FIELD_PROFILE_IMAGE = 'Profile Image/Video'
 const FIELD_BACKGROUND_MEDIA = 'Background Video/Image'
-const MAX_PROFILE_IMAGE_BYTES = 15 * 1024 * 1024
 
 const settingTabs = [
   { id: 'general', label: 'General Settings', icon: Settings2 },
@@ -298,6 +296,8 @@ function Toggle({
 function TemplateDesigner() {
   const { user } = useAuth()
   const { allow_canva: canUseCanva, can } = usePackageAccess()
+  const uploadLimit = useMediaUploadLimit()
+  const limitLabel = perFileUploadLimitLabel(uploadLimit)
   const canBgVideo = can('allow_background_video_upload')
   const { vCardData, updateData, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
@@ -350,8 +350,8 @@ function TemplateDesigner() {
     async (file: File) => {
       setProfileUploadError(null)
 
-      if (file.size > MAX_PROFILE_IMAGE_BYTES) {
-        setProfileUploadError('File size exceeds 15MB')
+      if (file.size > uploadLimit.maxBytes) {
+        setProfileUploadError(mediaFileTooLargeMessage(uploadLimit.maxBytes))
         return
       }
 
@@ -370,7 +370,7 @@ function TemplateDesigner() {
           file,
           profileId: profileId || undefined,
           attachmentType: FIELD_PROFILE_IMAGE,
-          maxBytes: MAX_PROFILE_IMAGE_BYTES,
+          maxBytes: uploadLimit.maxBytes,
           signal: controller.signal,
           onProgress: setProfileUploadProgress,
         })
@@ -386,7 +386,7 @@ function TemplateDesigner() {
         setProfileUploading(false)
       }
     },
-    [applyProfileImage, clearProfileLocalPreview, profileId]
+    [applyProfileImage, clearProfileLocalPreview, profileId, uploadLimit.maxBytes]
   )
 
   const handleRemoveProfileImage = () => {
@@ -550,7 +550,7 @@ function TemplateDesigner() {
               Profile photo
             </h4>
             <p className="mb-4 text-[13px] font-medium text-slate-500 sm:text-[14px] dark:text-slate-400">
-              Image only • Max 15MB
+              Image only • {limitLabel}
             </p>
             <div className="flex flex-wrap gap-2 sm:gap-3">
               <Button
@@ -810,14 +810,14 @@ function TemplateDesigner() {
             attachmentType={FIELD_BACKGROUND_MEDIA}
             accept={mediaAccept}
             allowVideo={canBgVideo}
-            maxBytes={MAX_MEDIA_UPLOAD_BYTES}
+            maxBytes={uploadLimit.maxBytes}
             selectPlaceholder="Select media file"
             subtitle={
               wallpaperStyle === 'blur'
-                ? `Blurred cover media • Max ${MAX_MEDIA_UPLOAD_MB}MB`
+                ? `Blurred cover media • ${limitLabel}`
                 : wallpaperStyle === 'video'
-                  ? `Video loop • Max ${MAX_MEDIA_UPLOAD_MB}MB`
-                  : `Cover image • Max ${MAX_MEDIA_UPLOAD_MB}MB`
+                  ? `Video loop • ${limitLabel}`
+                  : `Cover image • ${limitLabel}`
             }
             previewKind="auto"
             previewClassName="aspect-video max-h-56"

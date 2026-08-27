@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { catalogFeatureAllowed, displayMediaAccess } from './packageAccess'
+import { catalogFeatureAllowed, displayMediaAccess, resolvePerFileUploadLimit } from './packageAccess'
 import {
   compactFeatureOverrides,
   formatGlobalFeatureDefault,
@@ -100,5 +100,15 @@ describe('corporate manage-access overrides', () => {
       allowAudio: false,
       sourceMode: 'image',
     })
+  })
+
+  it('treats professional file size as a per-file cap, not a card total', () => {
+    expect(resolvePerFileUploadLimit(50)).toEqual({
+      maxBytes: 50 * 1024 * 1024,
+      maxMb: 50,
+      unlimited: false,
+    })
+    expect(resolvePerFileUploadLimit(null).unlimited).toBe(true)
+    expect(resolvePerFileUploadLimit(50, true).unlimited).toBe(true)
   })
 })

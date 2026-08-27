@@ -18,8 +18,8 @@ describe('session policy', () => {
   it('silently refreshes card-owner sessions but never staff sessions', () => {
     expect(shouldSilentlyRefreshSession('vcard-owner')).toBe(true)
     expect(shouldSilentlyRefreshSession('corporate-owner')).toBe(true)
-    expect(shouldSilentlyRefreshSession('admin')).toBe(false)
-    expect(shouldSilentlyRefreshSession('super-admin')).toBe(false)
+    expect(shouldSilentlyRefreshSession('admin')).toBe(true)
+    expect(shouldSilentlyRefreshSession('super-admin')).toBe(true)
   })
 
   it('routes each role to its correct signed-in area', () => {

@@ -1,8 +1,10 @@
 'use client'
 
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
+import { SectionJumpPills } from '@/components/SectionJumpPills'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -10,10 +12,12 @@ import {
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { mapFaqsFromPayload } from '@/lib/ai/applyCardDraft'
 import { createDefaultFaqEntry, normalizeFaqList } from '@/lib/vcardFaq'
 import type { VCardFaqEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { FileBox, HelpCircle, Lightbulb, Plus } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-sm'
@@ -36,7 +40,13 @@ type FaqEditorPanelProps = {
 
 export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEditorPanelProps) {
   const faqs = normalizeFaqList(rawFaqs)
-  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef } = useExpandableEntryList(faqs)
+  const faqsRef = useRef(faqs)
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(faqs)
+
+  useEffect(() => {
+    faqsRef.current = faqs
+  }, [faqs])
 
   const setFaqs = (next: VCardFaqEntry[]) => {
     onFaqsChange(next)
@@ -44,18 +54,25 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
 
   const addFaq = () => {
     const next = createDefaultFaqEntry()
-    setFaqs([...faqs, next])
+    setFaqs([...faqsRef.current, next])
     expandNew(next.id)
   }
 
   const removeFaq = (id: string) => {
-    const next = faqs.filter((f) => f.id !== id)
+    const next = faqsRef.current.filter((f) => f.id !== id)
     setFaqs(next)
     recoverExpandedAfterRemove(id, next)
   }
 
   const updateFaq = (id: string, field: keyof VCardFaqEntry, value: VCardFaqEntry[keyof VCardFaqEntry]) => {
-    setFaqs(faqs.map((f) => (f.id === id ? { ...f, [field]: value } : f)))
+    setFaqs(faqsRef.current.map((f) => (f.id === id ? { ...f, [field]: value } : f)))
+  }
+
+  const applyFilled = (result: AiFilledResult) => {
+    const mapped = mapFaqsFromPayload(result.payload)
+    if (!mapped.length) return
+    setFaqs([...mapped, ...faqsRef.current.filter((f) => f.question || f.answer)])
+    expandNew(mapped[0]!.id)
   }
 
   return (
@@ -69,7 +86,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10">
               <Lightbulb className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <h3 className="text-lg font-black text-amber-600 dark:text-amber-400">FAQ</h3>
+            <h3 className="text-lg font-black text-amber-600 dark:text-amber-400">FAQs</h3>
           </div>
           <button
             type="button"
@@ -81,7 +98,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
         </div>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           Questions and answers for the FAQ tab on your public profile (v1 and v2). Toggle visibility under Card
-          Settings → Faq. Changes appear instantly in live preview.
+          Settings → FAQs. Changes appear instantly in live preview.
         </p>
         <button
           type="button"
@@ -92,15 +109,37 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
         </button>
       </div>
 
+      <AiDropFillZone
+        section="faqs"
+        profileId={profileId}
+        currentDraft={{ faqs }}
+        accent="amber"
+        hint="Paste or upload FAQs — AI maps questions and answers from that text (OCR for images)"
+        onFilled={applyFilled}
+      />
+
+      {faqs.length > 0 ? (
+        <SectionJumpPills
+          accent="amber"
+          label="Quick find"
+          onJump={setExpandedId}
+          items={faqs.map((f) => ({
+            id: f.id,
+            title: f.question || 'Question',
+            detail: f.answer?.slice(0, 40),
+          }))}
+        />
+      ) : null}
+
       <div className="flex flex-1 flex-col">
         {faqs.length === 0 ? (
           <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
               <FileBox className="h-8 w-8 text-slate-400" />
             </div>
-            <h4 className="mb-2 text-[16px] font-black text-slate-900 dark:text-white">No FAQ entries yet</h4>
-            <p className="mx-auto mb-6 max-w-md text-[13px] text-slate-500 dark:text-slate-400">
-              Click &quot;Add Question&quot; to publish your first FAQ on the profile FAQ section.
+            <h4 className="mb-2 text-[16px] font-black text-slate-900 dark:text-white">No FAQs yet</h4>
+            <p className="mx-auto mb-6 max-w-md text-[13px] font-medium text-slate-500 dark:text-slate-400">
+              Click &quot;Add Question&quot; or paste a document — AI fills FAQs from that text.
             </p>
             <button
               type="button"
@@ -119,7 +158,11 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
               renderItem={(faq, index) => {
                 const open = isExpanded(faq.id)
                 return (
-                  <section ref={(el) => setCardRef(faq.id, el)} className={expandableCardClassName(open, accent)}>
+                  <section
+                    id={`entry-${faq.id}`}
+                    ref={(el) => setCardRef(faq.id, el)}
+                    className={cn(expandableCardClassName(open, accent), 'scroll-mt-24')}
+                  >
                     <ExpandableEntryHeader
                       indexLabel={index + 1}
                       title={faq.question || 'New Question'}
