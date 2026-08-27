@@ -116,7 +116,6 @@ export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewE
       imageUrl: String(r.imageUrl || '').trim(),
       url: String(r.url || '').trim(),
     })
-    if (out.length >= MAX_AI_SECTION_ITEMS) break
   }
   return out
 }
@@ -140,7 +139,6 @@ export function mapBlogsFromPayload(payload: SectionFillPayload): VCardGeneralPo
       date: new Date().toISOString().slice(0, 10),
       active: true,
     })
-    if (out.length >= MAX_AI_SECTION_ITEMS) break
   }
   return out
 }
@@ -162,7 +160,6 @@ export function mapFaqsFromPayload(payload: SectionFillPayload): VCardFaqEntry[]
       url: String(f.url || '').trim(),
       active: true,
     })
-    if (out.length >= MAX_AI_SECTION_ITEMS) break
   }
   return out
 }
@@ -242,14 +239,12 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
     const mapped = mapBlogsFromPayload(payload)
     if (mapped.length) {
       const seen = new Set<string>()
-      next.generalPosts = [...(next.generalPosts || []), ...mapped]
-        .filter((item) => {
-          const key = `${item.title.trim().toLowerCase()}|${item.description.trim().toLowerCase()}`
-          if (!key.replace('|', '') || seen.has(key)) return false
-          seen.add(key)
-          return true
-        })
-        .slice(0, MAX_AI_SECTION_ITEMS)
+      next.generalPosts = [...(next.generalPosts || []), ...mapped].filter((item) => {
+        const key = `${item.title.trim().toLowerCase()}|${item.description.trim().toLowerCase()}`
+        if (!key.replace('|', '') || seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
     }
   }
 
@@ -262,14 +257,12 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
     const mapped = mapReviewsFromPayload(payload)
     if (mapped.length) {
       const seen = new Set<string>()
-      next.reviews = [...(next.reviews || []), ...mapped]
-        .filter((item) => {
-          const key = `${item.author.trim().toLowerCase()}|${item.text.trim().toLowerCase()}`
-          if (!key.replace('|', '') || seen.has(key)) return false
-          seen.add(key)
-          return true
-        })
-        .slice(0, MAX_AI_SECTION_ITEMS)
+      next.reviews = [...(next.reviews || []), ...mapped].filter((item) => {
+        const key = `${item.author.trim().toLowerCase()}|${item.text.trim().toLowerCase()}`
+        if (!key.replace('|', '') || seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
     }
   }
 
@@ -338,14 +331,12 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
   if (section === 'faqs') {
     const generated = mapFaqsFromPayload(payload)
     const seen = new Set<string>()
-    next.faqs = [...(next.faqs || []), ...generated]
-      .filter((item) => {
-        const key = `${item.question.trim().toLowerCase()}|${item.answer.trim().toLowerCase()}`
-        if (!key.replace('|', '') || seen.has(key)) return false
-        seen.add(key)
-        return true
-      })
-      .slice(0, MAX_AI_SECTION_ITEMS)
+    next.faqs = [...(next.faqs || []), ...generated].filter((item) => {
+      const key = `${item.question.trim().toLowerCase()}|${item.answer.trim().toLowerCase()}`
+      if (!key.replace('|', '') || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
   }
 
   return syncMyInfoFromPersonal(next)
@@ -374,7 +365,7 @@ export function preferExistingPersonal(base: VCardData | undefined, next: VCardD
   return syncMyInfoFromPersonal({ ...next, slug, personal })
 }
 
-function mergeCappedDraftList<T>(
+function mergeSourcedDraftList<T>(
   existing: T[] | undefined,
   incoming: T[] | undefined,
   keyOf: (item: T) => string
@@ -384,24 +375,23 @@ function mergeCappedDraftList<T>(
   const seen = new Set(base.map(keyOf).filter(Boolean))
   const out = [...base]
   for (const item of add) {
-    if (out.length >= MAX_AI_SECTION_ITEMS) break
     const key = keyOf(item)
     if (key && seen.has(key)) continue
     if (key) seen.add(key)
     out.push(item)
   }
-  return out.slice(0, MAX_AI_SECTION_ITEMS)
+  return out
 }
 
 function mergeListSections(base: VCardData | undefined, next: VCardData): VCardData {
   if (!base) return next
   return {
     ...next,
-    faqs: mergeCappedDraftList(base.faqs, next.faqs, (item) => `${item.question}|${item.answer}`.trim().toLowerCase()),
-    generalPosts: mergeCappedDraftList(base.generalPosts, next.generalPosts, (item) =>
+    faqs: mergeSourcedDraftList(base.faqs, next.faqs, (item) => `${item.question}|${item.answer}`.trim().toLowerCase()),
+    generalPosts: mergeSourcedDraftList(base.generalPosts, next.generalPosts, (item) =>
       `${item.title}|${item.description}`.trim().toLowerCase()
     ),
-    reviews: mergeCappedDraftList(base.reviews, next.reviews, (item) =>
+    reviews: mergeSourcedDraftList(base.reviews, next.reviews, (item) =>
       `${item.author}|${item.text}`.trim().toLowerCase()
     ),
   }

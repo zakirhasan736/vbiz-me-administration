@@ -1,15 +1,9 @@
 import { createDefaultVCardData } from '@/types/vcard'
 import { describe, expect, it } from 'vitest'
-import {
-  MAX_AI_SECTION_ITEMS,
-  mapBlogsFromPayload,
-  mapFaqsFromPayload,
-  mapReviewsFromPayload,
-  mergeSectionPayload,
-} from './applyCardDraft'
+import { mapBlogsFromPayload, mapFaqsFromPayload, mapReviewsFromPayload, mergeSectionPayload } from './applyCardDraft'
 
 describe('AI section payloads match editor fields', () => {
-  it('caps blogs at five and preserves editor URL and image fields', () => {
+  it('keeps every sourced blog instead of capping at five', () => {
     const payload = {
       blogs: Array.from({ length: 7 }, (_, index) => ({
         title: `Post ${index}`,
@@ -20,7 +14,7 @@ describe('AI section payloads match editor fields', () => {
       })),
     }
     const mapped = mapBlogsFromPayload(payload)
-    expect(mapped).toHaveLength(MAX_AI_SECTION_ITEMS)
+    expect(mapped).toHaveLength(7)
     expect(mapped[0]).toMatchObject({
       category: 'Guide',
       customUrl: 'https://example.com/0',
@@ -52,7 +46,7 @@ describe('AI section payloads match editor fields', () => {
     })
   })
 
-  it('maps FAQs into the exact FAQ editor fields and caps at five', () => {
+  it('maps every sourced FAQ into the exact FAQ editor fields', () => {
     const mapped = mapFaqsFromPayload({
       faqs: Array.from({ length: 7 }, (_, index) => ({
         question: `Question ${index}`,
@@ -61,7 +55,7 @@ describe('AI section payloads match editor fields', () => {
         url: `/faq-${index}`,
       })),
     })
-    expect(mapped).toHaveLength(MAX_AI_SECTION_ITEMS)
+    expect(mapped).toHaveLength(7)
     expect(mapped[0]).toMatchObject({
       question: 'Question 0',
       answer: 'Answer 0',
@@ -71,7 +65,7 @@ describe('AI section payloads match editor fields', () => {
     })
   })
 
-  it('caps FAQs and skills at five while preserving their editor shapes', () => {
+  it('keeps sourced FAQs uncapped while still capping generated skills at five', () => {
     const draft = createDefaultVCardData()
     const withFaqs = mergeSectionPayload(draft, 'faqs', {
       faqs: Array.from({ length: 7 }, (_, index) => ({
@@ -81,7 +75,7 @@ describe('AI section payloads match editor fields', () => {
         url: `/faq-${index}`,
       })),
     })
-    expect(withFaqs.faqs).toHaveLength(5)
+    expect(withFaqs.faqs).toHaveLength(7)
     expect(withFaqs.faqs?.[0]).toMatchObject({ featuredImage: '/faq-0.jpg', url: '/faq-0', active: true })
 
     const withSkills = mergeSectionPayload(withFaqs, 'skills', {
@@ -92,7 +86,7 @@ describe('AI section payloads match editor fields', () => {
     ])
   })
 
-  it('appends FAQs, blogs, and reviews up to five without replacing existing items', () => {
+  it('appends FAQs, blogs, and reviews without replacing existing items', () => {
     const draft = createDefaultVCardData()
     draft.faqs = [{ id: 'faq_1', question: 'Existing Q', answer: 'Existing A', active: true }]
     draft.reviews = [{ id: 'rev_1', author: 'Pat', text: 'Kept review', rating: 5 }]

@@ -191,20 +191,17 @@ function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-const MAX_LIST_ITEMS = 5
-
-function mergeCappedList<T>(existing: T[] | undefined, incoming: T[], keyOf: (item: T) => string): T[] {
+function mergeSourcedList<T>(existing: T[] | undefined, incoming: T[], keyOf: (item: T) => string): T[] {
   const base = Array.isArray(existing) ? existing : []
   const seen = new Set(base.map(keyOf).filter(Boolean))
   const out = [...base]
   for (const item of incoming) {
-    if (out.length >= MAX_LIST_ITEMS) break
     const key = keyOf(item)
     if (key && seen.has(key)) continue
     if (key) seen.add(key)
     out.push(item)
   }
-  return out.slice(0, MAX_LIST_ITEMS)
+  return out
 }
 
 function slugify(input: string): string {
@@ -333,11 +330,11 @@ export function mapBlueprintToVCardData(
     skills: skills.length ? skills : base?.skills || [],
     services: services.length ? services : base?.services || [],
     portfolio: portfolio.length ? portfolio : base?.portfolio || [],
-    reviews: mergeCappedList(base?.reviews, reviews, (r) => `${r.author}|${r.text}`.trim().toLowerCase()),
-    generalPosts: mergeCappedList(base?.generalPosts, generalPosts, (p) =>
+    reviews: mergeSourcedList(base?.reviews, reviews, (r) => `${r.author}|${r.text}`.trim().toLowerCase()),
+    generalPosts: mergeSourcedList(base?.generalPosts, generalPosts, (p) =>
       `${p.title}|${p.description}`.trim().toLowerCase()
     ),
-    faqs: mergeCappedList(base?.faqs, faqs, (f) => `${f.question}|${f.answer}`.trim().toLowerCase()),
+    faqs: mergeSourcedList(base?.faqs, faqs, (f) => `${f.question}|${f.answer}`.trim().toLowerCase()),
   })
 
   const synced = syncMyInfoFromPersonal(data)
