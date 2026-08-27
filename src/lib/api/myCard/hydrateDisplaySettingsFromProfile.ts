@@ -1,4 +1,5 @@
 import { DISPLAY_SETTINGS_SETTING_KEY, LABEL_TO_NAV_CHECKBOX } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import { shouldPreserveCustomNavOrder } from '@/lib/publicNavOrder'
 import {
   ALL_DISPLAY_FIELD_KEYS,
   applyEnabledNavOrderToDisplaySettings,
@@ -116,6 +117,7 @@ export type HydrateDisplaySettingsInput = {
   attachments?: ProfileAttachmentRow[] | null
   /** Profile.avatar column — used for Profile Image/Video fallback. */
   avatar?: string | null
+  slug?: string | null
 }
 
 export type HydrateDisplaySettingsResult = {
@@ -209,6 +211,7 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
     globalEnabled: snapshot?.globalEnabled ?? true,
     fields,
     ...(editorNavOrder.length ? { editorNavOrder } : {}),
+    ...(snapshot?.navOrderCustomized ? { navOrderCustomized: true } : {}),
   }
 
   if (!editorNavOrder.length) {
@@ -238,7 +241,9 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
 
   return {
     displaySettings: editorNavOrder.length
-      ? applyEnabledNavOrderToDisplaySettings(displaySettings, editorNavOrder)
+      ? applyEnabledNavOrderToDisplaySettings(displaySettings, editorNavOrder, {
+          preserveCustom: shouldPreserveCustomNavOrder(input.slug, snapshot?.navOrderCustomized),
+        })
       : displaySettings,
     settingsMap,
     avatarImageUrl,

@@ -1,9 +1,10 @@
-import { applyCanonicalPublicNavOrder } from '@/lib/publicNavOrder'
+import { assemblePublicNavOrder, PINNED_END_NAV_IDS as PINNED_ENDS } from '@/lib/publicNavOrder'
 import {
   BadgeCheck,
   Briefcase,
   Contact,
   FileText,
+  Film,
   Globe2,
   GraduationCap,
   IdCard,
@@ -12,6 +13,8 @@ import {
   Layers,
   MessageSquareQuote,
   Newspaper,
+  ScrollText,
+  Shield,
   Star,
   User,
   type LucideIcon,
@@ -33,7 +36,7 @@ export type CreateCardTabDef = {
 export const ALWAYS_ENABLED_NAV_IDS = ['home', 'about', 'public-cards', 'my-info'] as const
 
 /** Default utility tabs shown at the end: Public Cards, then My Info. */
-export const PINNED_END_NAV_IDS = ['public-cards', 'my-info'] as const
+export const PINNED_END_NAV_IDS = PINNED_ENDS
 
 /** Fixed product tabs. AI does not recommend, fill, or score these. */
 export const AI_SYSTEM_NAV_IDS = ['public-cards', 'my-info'] as const
@@ -59,6 +62,55 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
     aiPriority: 'core',
   },
   {
+    name: 'Mission Statement',
+    navId: 'mission',
+    icon: ScrollText,
+    description: 'Company mission and positioning',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Services',
+    navId: 'services',
+    icon: Layers,
+    description: 'Offerings, pricing, and delivery',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Photos',
+    navId: 'gallery',
+    icon: ImageIcon,
+    description: 'Projects, photos, and case studies',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Videos',
+    navId: 'videos',
+    icon: Film,
+    description: 'Intro and gallery videos',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Reviews',
+    navId: 'reviews',
+    icon: MessageSquareQuote,
+    description: 'Guest & client reviews',
+    aiPriority: 'content',
+  },
+  {
+    name: 'Better Business Bureau (BBB)',
+    navId: 'bbb',
+    icon: Shield,
+    description: 'BBB accreditation and trust marks',
+    aiPriority: 'content',
+  },
+  {
+    name: 'FAQs',
+    navId: 'faq',
+    icon: MessageSquareQuote,
+    description: 'Common questions and answers',
+    aiPriority: 'content',
+  },
+  {
     name: 'Education',
     navId: 'education',
     icon: GraduationCap,
@@ -74,20 +126,6 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
   },
   { name: 'Skill', navId: 'skills', icon: Star, description: 'Skill groups and proficiency', aiPriority: 'content' },
   {
-    name: 'Services',
-    navId: 'services',
-    icon: Layers,
-    description: 'Offerings, pricing, and delivery',
-    aiPriority: 'content',
-  },
-  {
-    name: 'Reviews',
-    navId: 'reviews',
-    icon: MessageSquareQuote,
-    description: 'Guest & client reviews',
-    aiPriority: 'content',
-  },
-  {
     name: 'News/Blogs',
     navId: 'blog',
     icon: Newspaper,
@@ -99,20 +137,6 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
     navId: 'profile',
     icon: IdCard,
     description: 'Public profile headline, bio & photo',
-    aiPriority: 'content',
-  },
-  {
-    name: 'Portfolio',
-    navId: 'gallery',
-    icon: ImageIcon,
-    description: 'Projects and case studies',
-    aiPriority: 'content',
-  },
-  {
-    name: 'FAQs',
-    navId: 'faq',
-    icon: MessageSquareQuote,
-    description: 'Common questions and answers',
     aiPriority: 'content',
   },
   {
@@ -164,6 +188,8 @@ export const CREATE_CARD_TAB_BY_NAV_ID = Object.fromEntries(
 export function resolveCreateCardTabName(tab: string): CreateCardTabDef | undefined {
   if (CREATE_CARD_TAB_BY_NAME[tab]) return CREATE_CARD_TAB_BY_NAME[tab]
   if (tab === 'FAQ' || tab === 'Faqs') return CREATE_CARD_TAB_BY_NAME.FAQs
+  if (tab === 'Portfolio' || tab === 'Gallery') return CREATE_CARD_TAB_BY_NAV_ID.gallery
+  if (tab === 'BBB' || tab === 'Better Business Bureau (BBB)') return CREATE_CARD_TAB_BY_NAV_ID.bbb
   return CREATE_CARD_TAB_BY_NAV_ID[tab]
 }
 
@@ -175,36 +201,14 @@ export function getCreateCardDisplayLabel(navId: string, fallback: string): stri
   return CREATE_CARD_TAB_BY_NAV_ID[navId]?.name ?? fallback
 }
 
-/** Keep required tabs enabled while preserving the chosen order; utility tabs stay last. */
+/** Default public/builder order: Home → FAQ, extras, then Public Cards and My Info. */
 export function normalizeNavOrderWithPinnedEnds(navIds: string[]): string[] {
-  const pinned = new Set<string>(PINNED_END_NAV_IDS)
-  const unique = Array.from(new Set(navIds.filter((id) => typeof id === 'string' && id.trim())))
-
-  // Missing required editor tabs are restored, but an existing Personal/About position is never reset.
-  if (!unique.includes('home')) unique.unshift('home')
-  if (!unique.includes('about')) {
-    const homeIndex = unique.indexOf('home')
-    unique.splice(homeIndex >= 0 ? homeIndex + 1 : 1, 0, 'about')
-  }
-
-  const ordered = applyCanonicalPublicNavOrder(unique.filter((id) => !pinned.has(id)))
-  return [...ordered, ...PINNED_END_NAV_IDS]
+  return assemblePublicNavOrder(navIds)
 }
 
-/** Keep required tabs enabled while preserving the exact user-selected order. */
+/** Keep the user's chosen middle order; Public Cards and My Info stay last. */
 export function normalizeNavOrderWithRequiredTabs(navIds: string[]): string[] {
-  const required = new Set<string>(ALWAYS_ENABLED_NAV_IDS)
-  const unique = Array.from(new Set(navIds.filter((id) => typeof id === 'string' && id.trim())))
-  const next = [...unique]
-  if (!next.includes('home')) next.unshift('home')
-  if (!next.includes('about')) {
-    const homeIndex = next.indexOf('home')
-    next.splice(homeIndex >= 0 ? homeIndex + 1 : 1, 0, 'about')
-  }
-  for (const id of PINNED_END_NAV_IDS) {
-    if (!next.includes(id)) next.push(id)
-  }
-  return next.filter((id) => id && (required.has(id) || unique.includes(id)))
+  return assemblePublicNavOrder(navIds, { preserveCustom: true })
 }
 
 /** Full default set for manual create. */

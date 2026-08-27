@@ -17,6 +17,8 @@ export type VCardDisplaySettings = {
    * so AI / Add Tabs selections survive create → edit.
    */
   editorNavOrder?: string[]
+  /** When true, keep the owner's dragged tab order instead of the default Home → FAQ list. */
+  navOrderCustomized?: boolean
 }
 
 /** Legacy placeholders from the first settings UI — treated as "use app theme". */

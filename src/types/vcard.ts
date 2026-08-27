@@ -263,6 +263,8 @@ export type VCardListMeta = {
   isDraft: boolean
   /** Canonical lifecycle: active | inactive | paused | suspended | draft */
   status?: string
+  /** Source profile id when this card was duplicated. */
+  duplicatedFrom?: string | null
 }
 
 export type VCardRecord = VCardData &

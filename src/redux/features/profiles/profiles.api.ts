@@ -589,6 +589,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     settings: profile.settings,
     attachments: profile.attachments,
     avatar: profile.avatar,
+    slug: profile.slug,
   })
   const settingsMap = settingsRowsToMap(profile.settings)
   const profileTemplate = templateToAppearance(profile.profileSettings?.profileTemplate || profile.template)
@@ -762,6 +763,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     id: profile.id,
     createdAt: profile.createdAt || new Date().toISOString(),
     updatedAt: profile.updatedAt || new Date().toISOString(),
+    duplicatedFrom: settingsMap.duplicated_from || '',
     views: profile.viewCount || 0,
     saves: Number(profile.saveCount) || 0,
     clickCount: Number(profile.clickCount) || 0,

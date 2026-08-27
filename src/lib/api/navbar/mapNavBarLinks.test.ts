@@ -32,6 +32,6 @@ describe('mapNavBarLinks', () => {
       ],
     })
 
-    expect(items.map((item) => item.id)).toEqual(['home', 'services', 'videos', 'reviews', 'faq'])
+    expect(items.map((item) => item.id)).toEqual(['faq', 'videos', 'home', 'reviews', 'services'])
   })
 })

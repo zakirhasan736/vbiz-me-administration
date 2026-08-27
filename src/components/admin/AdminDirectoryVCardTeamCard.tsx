@@ -70,7 +70,7 @@ export type VCardTeamCardProps = {
   /** Primary border + chip to mark a card that was just duplicated or activated. */
   isNewlyDuplicated?: boolean
   /** Chip text when highlighted — defaults to duplicated. */
-  highlightLabel?: 'duplicated' | 'activated' | 'paused'
+  highlightLabel?: 'duplicated' | 'activated' | 'paused' | 'new'
   /** Fired after a draft card is successfully published via Visibility ON. */
   onActivatedFromDraft?: (cardId: string) => void
   /** After a successful delete — mock cleanup, refetch, clear selection/panel */
@@ -278,7 +278,9 @@ export default function VCardTeamCard({
             ? 'Just activated'
             : highlightLabel === 'paused'
               ? 'Just paused'
-              : 'Just duplicated'}
+              : highlightLabel === 'new'
+                ? 'New card'
+                : 'Just duplicated'}
         </span>
       ) : null}
       <ConfirmModal

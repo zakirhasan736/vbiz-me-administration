@@ -45,11 +45,13 @@ import {
   getAiSeedCreateCardNavIds,
   getDefaultCreateCardNavIds,
   normalizeNavOrderWithPinnedEnds,
+  normalizeNavOrderWithRequiredTabs,
 } from '@/lib/createCardTabs'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
 import { directoryPathForOwnerMode } from '@/lib/packageOwnerMode'
 import { buildProfilePath, DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
+import { shouldPreserveCustomNavOrder } from '@/lib/publicNavOrder'
 import { notify } from '@/lib/toast/toast'
 import {
   getEditorPanelCompletionStats,
@@ -240,8 +242,11 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   const displayNavOrder = useMemo(() => {
     if (!Array.isArray(display.editorNavOrder) || !display.editorNavOrder.length) return null
-    return normalizeNavOrderWithPinnedEnds(display.editorNavOrder)
-  }, [display.editorNavOrder])
+    const preserve = shouldPreserveCustomNavOrder(vCardData.slug, display.navOrderCustomized)
+    return preserve
+      ? normalizeNavOrderWithRequiredTabs(display.editorNavOrder)
+      : normalizeNavOrderWithPinnedEnds(display.editorNavOrder)
+  }, [display.editorNavOrder, display.navOrderCustomized, vCardData.slug])
 
   const effectiveNavOrderIds = useMemo(
     () => displayNavOrder ?? (isCreateMode ? navOrderIds : []),
@@ -627,13 +632,17 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     nextIds,
     customTabs,
     labelOverrides,
+    navOrderCustomized,
   }: {
     nextIds: string[]
     customTabs: NonNullable<typeof vCardData.customTabs>
     labelOverrides: NonNullable<typeof vCardData.tabLabelOverrides>
+    navOrderCustomized?: boolean
   }) => {
     const normalized = nextIds
-    const next = applyEnabledNavOrderToDisplaySettings(display, normalized)
+    const next = applyEnabledNavOrderToDisplaySettings(display, normalized, {
+      preserveCustom: Boolean(navOrderCustomized),
+    })
     updateData('displaySettings', next)
     updateData('customTabs', customTabs)
     updateData('tabLabelOverrides', labelOverrides)

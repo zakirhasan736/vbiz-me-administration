@@ -20,6 +20,7 @@ import {
   type NoticeType,
 } from '@/components/dashboard/vcard'
 import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
+import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
 import {
   clearLocalCardNotice,
   noticeForCard,
@@ -36,7 +37,7 @@ import {
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { getVCardPublicUrl } from '@/utils/vcard'
-import { useEffect, useMemo, useState, type DragEvent } from 'react'
+import { useMemo, useState, type DragEvent } from 'react'
 
 export default function TeamVCardsView() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -62,18 +63,6 @@ export default function TeamVCardsView() {
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!highlightedDuplicatedId) return
-    const timer = window.setTimeout(() => setHighlightedDuplicatedId(null), 12000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedDuplicatedId])
-
-  useEffect(() => {
-    if (!highlightedActivatedId) return
-    const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedActivatedId])
 
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
   const [createTeamNotice] = useCreateTeamNoticeMutation()
@@ -266,8 +255,18 @@ export default function TeamVCardsView() {
                 duplicateDisabledReason={directory.createDisabledReason}
                 onDuplicate={() => void handleDuplicate(card)}
                 isDuplicating={duplicatingCardId === card.id}
-                isNewlyDuplicated={highlightedDuplicatedId === card.id || highlightedActivatedId === card.id}
-                highlightLabel={highlightedActivatedId === card.id ? 'activated' : 'duplicated'}
+                isNewlyDuplicated={
+                  isNewCardHighlight(card.createdAt) ||
+                  highlightedDuplicatedId === card.id ||
+                  highlightedActivatedId === card.id
+                }
+                highlightLabel={
+                  highlightedActivatedId === card.id
+                    ? 'activated'
+                    : newCardHighlightLabel(card.duplicatedFrom) === 'duplicated' || highlightedDuplicatedId === card.id
+                      ? 'duplicated'
+                      : 'new'
+                }
                 onActivatedFromDraft={handleActivatedFromDraft}
                 onTrends={() => setTrendsCard(card)}
               />

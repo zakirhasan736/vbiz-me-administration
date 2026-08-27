@@ -9,6 +9,7 @@ import {
 import { CorporateLeadNotesRepliesPanel } from '@/components/dashboard/corporate/CorporateLeadNotesRepliesPanel'
 import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
 import { noticeForCard, noticeTypeFromTeamNotice } from '@/lib/cardNotice'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import type { DashboardSocialChannel, TeamNotice } from '@/redux/features/profiles/profiles.api'
@@ -363,8 +364,19 @@ export function CorporateControlsHub({
                     duplicateDisabledReason={createDisabledReason}
                     onDuplicate={() => onDuplicate(card)}
                     isDuplicating={duplicatingCardId === card.id}
-                    isNewlyDuplicated={highlightedDuplicatedId === card.id || highlightedActivatedId === card.id}
-                    highlightLabel={highlightedActivatedId === card.id ? 'activated' : 'duplicated'}
+                    isNewlyDuplicated={
+                      isNewCardHighlight(card.createdAt) ||
+                      highlightedDuplicatedId === card.id ||
+                      highlightedActivatedId === card.id
+                    }
+                    highlightLabel={
+                      highlightedActivatedId === card.id
+                        ? 'activated'
+                        : newCardHighlightLabel(card.duplicatedFrom) === 'duplicated' ||
+                            highlightedDuplicatedId === card.id
+                          ? 'duplicated'
+                          : 'new'
+                    }
                     onActivatedFromDraft={onActivatedFromDraft}
                   />
                 )

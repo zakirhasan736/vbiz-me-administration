@@ -18,6 +18,7 @@ import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { adminCardAvatarUrl, type AdminCard } from '@/lib/admin/adminCardShape'
 import { canAdminContactCard } from '@/lib/admin/canAdminContactCard'
 import { mapAdminProfileRowToCard } from '@/lib/admin/mapAdminProfileRow'
+import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
 import {
   clearLocalCardNotice,
   noticeForCard,
@@ -132,18 +133,6 @@ export default function AdminVCards() {
   }, [dispatch, searchQuery])
 
   const shortSearch = searchQuery.trim().length > 0 && searchQuery.trim().length < MIN_IDENTITY_SEARCH_CHARACTERS
-
-  useEffect(() => {
-    if (!highlightedDuplicatedId) return
-    const timer = window.setTimeout(() => setHighlightedDuplicatedId(null), 12000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedDuplicatedId])
-
-  useEffect(() => {
-    if (!highlightedActivatedId) return
-    const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedActivatedId])
 
   useEffect(() => {
     if (!highlightedPausedId) return
@@ -1031,6 +1020,7 @@ export default function AdminVCards() {
                 onDuplicate={() => void handleDuplicateCard(card)}
                 isDuplicating={duplicatingCardId === card.id}
                 isNewlyDuplicated={
+                  isNewCardHighlight(typeof card.createdAt === 'string' ? card.createdAt : undefined) ||
                   highlightedDuplicatedId === card.id ||
                   highlightedActivatedId === card.id ||
                   highlightedPausedId === card.id
@@ -1040,7 +1030,11 @@ export default function AdminVCards() {
                     ? 'activated'
                     : highlightedPausedId === card.id
                       ? 'paused'
-                      : 'duplicated'
+                      : newCardHighlightLabel(
+                            typeof card.duplicatedFrom === 'string' ? card.duplicatedFrom : undefined
+                          ) === 'duplicated' || highlightedDuplicatedId === card.id
+                        ? 'duplicated'
+                        : 'new'
                 }
                 onActivatedFromDraft={handleActivatedFromDraft}
                 onDeleted={async (id) => {

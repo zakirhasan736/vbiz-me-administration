@@ -2,6 +2,7 @@ import {
   ALWAYS_ENABLED_NAV_IDS,
   getDefaultCreateCardNavIds,
   normalizeNavOrderWithPinnedEnds,
+  normalizeNavOrderWithRequiredTabs,
 } from '@/lib/createCardTabs'
 import type { VCardCustomTab, VCardTabLabelOverrides } from '@/types/vcard'
 import {
@@ -81,7 +82,6 @@ export const MERGED_PROFILE_NAV_LABELS = [
   'Additional Services',
   '2D Explainer',
   'Certifications/Licenses',
-  'Public Cards',
   'Clients',
   'Meet Our Team',
   'Calender',
@@ -91,6 +91,7 @@ export const MERGED_PROFILE_NAV_LABELS = [
   'Resume',
   'Content & media',
   'Global Connection',
+  'Public Cards',
   'My Info',
 ] as const
 
@@ -585,17 +586,19 @@ export function filterNavItemsByVisibility(items: NavBarNavItem[], settings: VCa
  */
 export function selectEnabledNavItems(catalog: NavBarNavItem[], settings: VCardDisplaySettings): NavBarNavItem[] {
   const byId = new Map(catalog.map((item) => [item.id, item]))
+  const normalize = settings.navOrderCustomized ? normalizeNavOrderWithRequiredTabs : normalizeNavOrderWithPinnedEnds
   const savedOrder =
     Array.isArray(settings.editorNavOrder) && settings.editorNavOrder.length > 0
-      ? normalizeNavOrderWithPinnedEnds(settings.editorNavOrder)
+      ? normalize(settings.editorNavOrder)
       : null
 
   if (savedOrder) {
-    return savedOrder.map((id) => byId.get(id)).filter((item): item is NavBarNavItem => Boolean(item))
+    const fromSaved = savedOrder.map((id) => byId.get(id)).filter((item): item is NavBarNavItem => Boolean(item))
+    if (fromSaved.length) return fromSaved
   }
 
   const visible = filterNavItemsByVisibility(catalog, settings)
-  return sortNavItemsByOrder(visible, normalizeNavOrderWithPinnedEnds(visible.map((item) => item.id)))
+  return sortNavItemsByOrder(visible, normalize(visible.map((item) => item.id)))
 }
 
 /**

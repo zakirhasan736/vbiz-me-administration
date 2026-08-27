@@ -27,6 +27,7 @@ import {
   getCreateCardDisplayLabel,
   isAiContentNavId,
   normalizeNavOrderWithPinnedEnds,
+  normalizeNavOrderWithRequiredTabs,
   PINNED_END_NAV_IDS,
   resolveCreateCardTabName,
 } from '@/lib/createCardTabs'
@@ -1893,7 +1894,7 @@ export function AiCardAgentWizard({
     const nextMiddle = [...middle]
     const [item] = nextMiddle.splice(from, 1)
     nextMiddle.splice(to, 0, item)
-    const next = normalizeNavOrderWithPinnedEnds(nextMiddle)
+    const next = normalizeNavOrderWithRequiredTabs(nextMiddle)
     setActiveNav(next)
     onEnableNavIds(next)
   }

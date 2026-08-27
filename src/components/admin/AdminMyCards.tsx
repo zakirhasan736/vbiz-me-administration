@@ -14,6 +14,7 @@ import { useAppSelector } from '@/hooks/redux'
 import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { adminCardAvatarUrl, toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
+import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
 import {
   clearLocalCardNotice,
   noticeForCard,
@@ -55,7 +56,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 const CHANNEL_UI: Record<DashboardSocialChannel, { icon: LucideIcon; tone: string }> = {
   facebook: { icon: Facebook, tone: 'text-[#1877F2]' },
@@ -113,18 +114,6 @@ export default function AdminMyCards() {
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!highlightedDuplicatedId) return
-    const timer = window.setTimeout(() => setHighlightedDuplicatedId(null), 12000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedDuplicatedId])
-
-  useEffect(() => {
-    if (!highlightedActivatedId) return
-    const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedActivatedId])
 
   const createdProfiles = useMemo(() => createdProfilesResult?.items ?? [], [createdProfilesResult?.items])
   const showListSkeleton = cardsLoading && createdProfiles.length === 0
@@ -450,8 +439,20 @@ export default function AdminMyCards() {
                     }
                     onDuplicate={() => void handleDuplicate(card)}
                     isDuplicating={duplicatingCardId === card.id}
-                    isNewlyDuplicated={highlightedDuplicatedId === card.id || highlightedActivatedId === card.id}
-                    highlightLabel={highlightedActivatedId === card.id ? 'activated' : 'duplicated'}
+                    isNewlyDuplicated={
+                      isNewCardHighlight(typeof card.createdAt === 'string' ? card.createdAt : undefined) ||
+                      highlightedDuplicatedId === card.id ||
+                      highlightedActivatedId === card.id
+                    }
+                    highlightLabel={
+                      highlightedActivatedId === card.id
+                        ? 'activated'
+                        : newCardHighlightLabel(
+                              typeof card.duplicatedFrom === 'string' ? card.duplicatedFrom : undefined
+                            ) === 'duplicated' || highlightedDuplicatedId === card.id
+                          ? 'duplicated'
+                          : 'new'
+                    }
                     onActivatedFromDraft={handleActivatedFromDraft}
                     onDeleted={async (id) => {
                       if (panelCard?.id === id) setPanelCard(null)

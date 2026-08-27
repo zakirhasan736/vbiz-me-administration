@@ -1,4 +1,4 @@
-import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
+import { normalizeNavOrderWithPinnedEnds, normalizeNavOrderWithRequiredTabs } from '@/lib/createCardTabs'
 import {
   LOCKED_NAV_ITEM_IDS,
   NAV_BAR_FIELDS,
@@ -170,6 +170,7 @@ export function resolveDisplaySettings(raw?: VCardDisplaySettings | null): VCard
     globalEnabled: raw.globalEnabled ?? true,
     fields,
     ...(editorNavOrder?.length ? { editorNavOrder } : {}),
+    ...(raw.navOrderCustomized ? { navOrderCustomized: true } : {}),
   }
 }
 
@@ -223,6 +224,7 @@ export function patchDisplayField(
       [key]: { ...current, ...patch },
     },
     ...(settings.editorNavOrder?.length ? { editorNavOrder: settings.editorNavOrder } : {}),
+    ...(settings.navOrderCustomized ? { navOrderCustomized: true } : {}),
   }
 }
 
@@ -232,20 +234,27 @@ export function patchDisplayField(
  */
 export function applyEnabledNavOrderToDisplaySettings(
   settings: VCardDisplaySettings,
-  navIds: string[]
+  navIds: string[],
+  options?: { preserveCustom?: boolean }
 ): VCardDisplaySettings {
-  const normalized = normalizeNavOrderWithPinnedEnds(navIds)
+  const preserveCustom = options?.preserveCustom ?? Boolean(settings.navOrderCustomized)
+  const normalized = preserveCustom
+    ? normalizeNavOrderWithRequiredTabs(navIds)
+    : normalizeNavOrderWithPinnedEnds(navIds)
   const idSet = new Set(normalized)
   let next: VCardDisplaySettings = {
     ...settings,
     fields: { ...settings.fields },
     editorNavOrder: normalized,
+    ...(preserveCustom ? { navOrderCustomized: true } : { navOrderCustomized: undefined }),
   }
   for (const item of NAV_BAR_NAV_ITEMS) {
     const visible = LOCKED_NAV_ITEM_IDS.has(item.id) || idSet.has(item.id)
     next = patchDisplayField(next, item.label, { visible })
   }
   next.editorNavOrder = normalized
+  if (preserveCustom) next.navOrderCustomized = true
+  else delete next.navOrderCustomized
   return next
 }
 

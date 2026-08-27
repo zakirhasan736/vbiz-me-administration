@@ -55,7 +55,7 @@ type VCardTeamCardProps = {
   /** Primary border + chip to mark a card that was just duplicated or activated. */
   isNewlyDuplicated?: boolean
   /** Chip text when highlighted — defaults to duplicated. */
-  highlightLabel?: 'duplicated' | 'activated'
+  highlightLabel?: 'duplicated' | 'activated' | 'new'
   /** Fired after a draft card is successfully published via Visibility ON. */
   onActivatedFromDraft?: (cardId: string) => void
 }
@@ -278,7 +278,11 @@ export function VCardTeamCard({
     >
       {isNewlyDuplicated ? (
         <span className="bg-primary-600 absolute -top-2.5 left-1/2 z-20 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-[9px] font-black tracking-wider text-white uppercase shadow-sm">
-          {highlightLabel === 'activated' ? 'Just activated' : 'Just duplicated'}
+          {highlightLabel === 'activated'
+            ? 'Just activated'
+            : highlightLabel === 'new'
+              ? 'New card'
+              : 'Just duplicated'}
         </span>
       ) : null}
       <ConfirmModal

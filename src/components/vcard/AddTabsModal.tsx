@@ -2,6 +2,7 @@
 
 import { Modal } from '@/components/ui/Modal'
 import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
+import { assemblePublicNavOrder } from '@/lib/publicNavOrder'
 import { getNavItemCompletionPercent } from '@/lib/vcardCompletion'
 import {
   buildCustomNavItems,
@@ -32,11 +33,12 @@ type AddTabsModalProps = {
     nextIds: string[]
     customTabs: VCardCustomTab[]
     labelOverrides: VCardTabLabelOverrides
+    navOrderCustomized?: boolean
   }) => void
 }
 
-function normalizeDraft(ids: string[]): string[] {
-  return normalizeNavOrderWithPinnedEnds(ids)
+function normalizeDraft(ids: string[], preserveCustom = false): string[] {
+  return assemblePublicNavOrder(ids, { preserveCustom })
 }
 
 function customId() {
@@ -62,19 +64,23 @@ function normalizeCustomTabs(tabs?: VCardCustomTab[] | null): VCardCustomTab[] {
 }
 
 export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: AddTabsModalProps) {
-  const [draftIds, setDraftIds] = useState<string[]>(() => normalizeDraft(enabledIds))
+  const preserveSaved = Boolean(vCardData.displaySettings?.navOrderCustomized)
+  const [draftIds, setDraftIds] = useState<string[]>(() => normalizeDraft(enabledIds, preserveSaved))
   const [customTabs, setCustomTabs] = useState<VCardCustomTab[]>(() => normalizeCustomTabs(vCardData.customTabs))
   const [labelOverrides, setLabelOverrides] = useState<VCardTabLabelOverrides>(() => vCardData.tabLabelOverrides || {})
   const [wasOpen, setWasOpen] = useState(open)
+  const [reordered, setReordered] = useState(preserveSaved)
   const pointerDragId = useRef('')
 
   // Reset draft when the modal opens (adjust during render — avoid setState-in-effect).
   if (open !== wasOpen) {
     setWasOpen(open)
     if (open) {
-      setDraftIds(normalizeDraft(enabledIds))
+      const preserve = Boolean(vCardData.displaySettings?.navOrderCustomized)
+      setDraftIds(normalizeDraft(enabledIds, preserve))
       setCustomTabs(normalizeCustomTabs(vCardData.customTabs))
       setLabelOverrides(vCardData.tabLabelOverrides || {})
+      setReordered(preserve)
     }
   }
 
@@ -92,7 +98,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
     if (LOCKED_NAV_ITEM_IDS.has(id)) return
     setDraftIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id)
-      return normalizeDraft([...prev, id])
+      return normalizeDraft([...prev, id], reordered)
     })
   }
 
@@ -101,7 +107,8 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
     setDraftIds((prev) => {
       const from = prev.indexOf(fromId)
       const to = prev.indexOf(toId)
-      return normalizeDraft(reorderByIndex(prev, from, to))
+      setReordered(true)
+      return normalizeDraft(reorderByIndex(prev, from, to), true)
     })
   }
 
@@ -160,13 +167,14 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
     const tab = createDraftCustomTab(`Custom tab ${customTabs.length + 1}`)
     setCustomTabs((prev) => [...prev, tab])
     setLabelOverrides((prev) => ({ ...prev, [tab.id]: tab.label }))
-    setDraftIds((prev) => normalizeDraft([...prev, tab.id]))
+    setDraftIds((prev) => normalizeDraft([...prev, tab.id], reordered))
   }
 
   const resetDefaults = () => {
     setDraftIds(normalizeNavOrderWithPinnedEnds(getDefaultEnabledNavIds()))
     setCustomTabs(normalizeCustomTabs(vCardData.customTabs))
     setLabelOverrides({})
+    setReordered(false)
   }
 
   const enableCustomTab = (id: string) => {
@@ -185,7 +193,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
   }
 
   const apply = () => {
-    const normalizedIds = normalizeDraft(draftIds)
+    const normalizedIds = normalizeDraft(draftIds, reordered)
     const nextCustomTabs = customTabs.map((tab) => ({
       ...tab,
       label: getNavLabelOverride(tab.id, labelOverrides) || tab.label?.trim() || 'Custom tab',
@@ -196,7 +204,12 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
         .map(([id, label]) => [id, label.trim()] as const)
         .filter(([, label]) => label.length >= MIN_NAV_LABEL_LENGTH)
     )
-    onApply({ nextIds: normalizedIds, customTabs: nextCustomTabs, labelOverrides: cleanedOverrides })
+    onApply({
+      nextIds: normalizedIds,
+      customTabs: nextCustomTabs,
+      labelOverrides: cleanedOverrides,
+      navOrderCustomized: reordered,
+    })
   }
 
   return (

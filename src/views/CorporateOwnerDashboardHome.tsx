@@ -55,7 +55,7 @@ import {
   useGetTeamNoticesQuery,
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 function formatTrendPercent(value?: number | null): { text?: string; negative?: boolean } {
   if (value == null || value === 0) return {}
@@ -141,18 +141,6 @@ export default function CorporateOwnerDashboardHome() {
   const { data: upcomingMeetingsPage, isLoading: upcomingMeetingsLoading } = useGetOwnerUpcomingMeetingsQuery({
     limit: 5,
   })
-
-  useEffect(() => {
-    if (!highlightedDuplicatedId) return
-    const timer = window.setTimeout(() => setHighlightedDuplicatedId(null), 12000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedDuplicatedId])
-
-  useEffect(() => {
-    if (!highlightedActivatedId) return
-    const timer = window.setTimeout(() => setHighlightedActivatedId(null), 12000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedActivatedId])
 
   const cards = useMemo(() => applyCardOrder(liveCards, cardOrder), [liveCards, cardOrder])
 

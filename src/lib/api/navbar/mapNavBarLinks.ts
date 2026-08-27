@@ -1,6 +1,6 @@
 import type { NavBarLinksData, PostTypeNavLink, StaticNavLink } from '@/interfaces/navbarLinks.interface'
 import { decodeHtmlText } from '@/lib/htmlText'
-import { applyCanonicalPublicNavOrder } from '@/lib/publicNavOrder'
+import { assemblePublicNavOrder } from '@/lib/publicNavOrder'
 import { CUSTOM_TAB_ID_PREFIX, NAV_ITEM_BY_ID, type NavBarNavItem } from '@/lib/vcardNavbar'
 import { FileText } from 'lucide-react'
 
@@ -205,7 +205,10 @@ function dedupeNavItemsById(items: NavBarNavItem[]): NavBarNavItem[] {
 
 function applyCanonicalNavItemOrder(items: NavBarNavItem[]): NavBarNavItem[] {
   const byId = new Map(items.map((item) => [item.id, item]))
-  const orderedIds = applyCanonicalPublicNavOrder(items.map((item) => item.id))
+  const orderedIds = assemblePublicNavOrder(
+    items.map((item) => item.id),
+    { preserveCustom: true }
+  )
   const seen = new Set<string>()
   const next: NavBarNavItem[] = []
   for (const id of orderedIds) {

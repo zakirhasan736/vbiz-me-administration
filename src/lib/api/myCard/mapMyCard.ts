@@ -365,8 +365,13 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
     globalEnabled: snapshot?.globalEnabled ?? true,
     fields,
     ...(editorNavOrder.length ? { editorNavOrder } : {}),
+    ...(snapshot?.navOrderCustomized ? { navOrderCustomized: true } : {}),
   }
-  return editorNavOrder.length ? applyEnabledNavOrderToDisplaySettings(next, editorNavOrder) : next
+  return editorNavOrder.length
+    ? applyEnabledNavOrderToDisplaySettings(next, editorNavOrder, {
+        preserveCustom: Boolean(snapshot?.navOrderCustomized),
+      })
+    : next
 }
 
 function mapPersonal(card: MyCardData): VCardPersonal {
