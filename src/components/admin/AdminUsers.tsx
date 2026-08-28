@@ -1,9 +1,7 @@
 'use client'
 
 import { AdminUserListSkeleton } from '@/components/admin/AdminUserListSkeleton'
-import CorporateManageAccessDialog, {
-  CorporateManageAccessFields,
-} from '@/components/admin/CorporateManageAccessDialog'
+import CorporateManageAccessDialog from '@/components/admin/CorporateManageAccessDialog'
 import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
@@ -268,11 +266,20 @@ export default function AdminUsers() {
   const [newPackageId, setNewPackageId] = useState('')
   const [newCardLimit, setNewCardLimit] = useState('')
   const [newNegotiatedMonthly, setNewNegotiatedMonthly] = useState('')
+  const [newNegotiatedSignup, setNewNegotiatedSignup] = useState('')
+  const [newFreePeriodAmount, setNewFreePeriodAmount] = useState('')
+  const [newFreePeriodUnit, setNewFreePeriodUnit] = useState<'days' | 'months' | 'years'>('days')
+  const [newFreePeriodLifetime, setNewFreePeriodLifetime] = useState(false)
   const [newFeatureOverrides, setNewFeatureOverrides] = useState<{ featureKey: string; featureValue: string | null }[]>(
     []
   )
   const [isEditAccessOpen, setIsEditAccessOpen] = useState(false)
   const [editNegotiatedMonthly, setEditNegotiatedMonthly] = useState('')
+  const [editNegotiatedSignup, setEditNegotiatedSignup] = useState('')
+  const [editPackageId, setEditPackageId] = useState('')
+  const [editFreePeriodAmount, setEditFreePeriodAmount] = useState('')
+  const [editFreePeriodUnit, setEditFreePeriodUnit] = useState<'days' | 'months' | 'years'>('days')
+  const [editFreePeriodLifetime, setEditFreePeriodLifetime] = useState(false)
 
   const filterKey = `${debouncedQ}|${roleFilter}|${statusFilter}`
   const prevFilterKeyRef = useRef(filterKey)
@@ -320,10 +327,13 @@ export default function AdminUsers() {
   const selectedPackage = provisionPackages.find((pkg) => pkg.id === newPackageId) || null
   const selectedOwnerMode = selectedPackage ? resolveOwnerMode(selectedPackage) : null
   const createMonthlyCents =
-    selectedOwnerMode === 'corporate' && newNegotiatedMonthly.trim() !== ''
+    newNegotiatedMonthly.trim() !== ''
       ? dollarsInputToCents(newNegotiatedMonthly)
       : (selectedPackage?.monthlyPrice ?? 0)
-  const createSignupFeeCents = selectedPackage?.signupFeeCents ?? 0
+  const createSignupFeeCents =
+    newNegotiatedSignup.trim() !== ''
+      ? dollarsInputToCents(newNegotiatedSignup)
+      : (selectedPackage?.signupFeeCents ?? 0)
   const createFirstInvoiceCents = createMonthlyCents + createSignupFeeCents
   const packageCardDefault = selectedPackage ? parsePackageMaxCards(selectedPackage.features) : null
 
@@ -408,6 +418,10 @@ export default function AdminUsers() {
     setNewPackageId('')
     setNewCardLimit('')
     setNewNegotiatedMonthly('')
+    setNewNegotiatedSignup('')
+    setNewFreePeriodAmount('')
+    setNewFreePeriodUnit('days')
+    setNewFreePeriodLifetime(false)
     setNewFeatureOverrides([])
   }
 
@@ -459,12 +473,20 @@ export default function AdminUsers() {
         ...(newPassword.trim() ? { password: newPassword.trim() } : {}),
         packageId: newPackageId,
         companyName: newCompany.trim() || null,
+        negotiatedMonthlyCents: newNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(newNegotiatedMonthly),
+        negotiatedSignupFeeCents: newNegotiatedSignup.trim() === '' ? null : dollarsInputToCents(newNegotiatedSignup),
+        ...(newFreePeriodLifetime || (newFreePeriodAmount.trim() && Number(newFreePeriodAmount) > 0)
+          ? {
+              freePeriodAmount: newFreePeriodLifetime
+                ? undefined
+                : Math.max(0, Math.round(Number(newFreePeriodAmount) || 0)),
+              freePeriodUnit: newFreePeriodLifetime ? undefined : newFreePeriodUnit,
+              freePeriodLifetime: newFreePeriodLifetime,
+            }
+          : {}),
         ...(selectedOwnerMode === 'corporate'
           ? {
               cardLimit: Math.max(0, Math.round(Number(newCardLimit) || 0)),
-              negotiatedMonthlyCents:
-                newNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(newNegotiatedMonthly),
-              featureOverrides: compactFeatureOverrides(newFeatureOverrides),
             }
           : {}),
       }).unwrap()
@@ -481,9 +503,11 @@ export default function AdminUsers() {
       })
       resetCreateForm()
       if (created.paymentLinkUrl) {
-        notify.success('Account and login password created. Copy the Stripe payment link to complete activation.')
+        notify.success('Account created. Payment link emailed to the customer.')
       } else {
-        notify.success('Account created with its login password. The customer can sign in immediately.')
+        notify.success(
+          'Account created. Welcome email sent — billing starts when you send a payment link or the free period ends.'
+        )
       }
       resetListToStart()
     } catch (err) {
@@ -498,6 +522,7 @@ export default function AdminUsers() {
         notify.error('Stripe did not return a payment link.')
         return
       }
+      notify.success('Payment link generated and emailed to the customer.')
       setPaymentLink({
         url: result.paymentLinkUrl,
         email: result.email,
@@ -523,6 +548,11 @@ export default function AdminUsers() {
     setEditPassword('')
     setEditPasswordConfirm('')
     setEditNegotiatedMonthly('')
+    setEditNegotiatedSignup('')
+    setEditPackageId('')
+    setEditFreePeriodAmount('')
+    setEditFreePeriodUnit('days')
+    setEditFreePeriodLifetime(false)
     setIsEditAccessOpen(false)
   }
 
@@ -530,7 +560,12 @@ export default function AdminUsers() {
     setEditingUser({ ...user })
     setEditPassword('')
     setEditPasswordConfirm('')
-    setEditNegotiatedMonthly(centsToDollarsInput(user.negotiatedMonthlyCents))
+    setEditNegotiatedMonthly(centsToDollarsInput(user.negotiatedMonthlyCents ?? user.packageMonthlyCents))
+    setEditNegotiatedSignup(centsToDollarsInput(user.negotiatedSignupFeeCents ?? user.signupFeeCents))
+    setEditPackageId(user.packageId || '')
+    setEditFreePeriodAmount('')
+    setEditFreePeriodUnit('days')
+    setEditFreePeriodLifetime(false)
   }
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -564,11 +599,23 @@ export default function AdminUsers() {
           name: editingUser.name?.trim() || undefined,
           email: editingUser.email.trim(),
           companyName: editingUser.companyName?.trim() || null,
+          ...(editPackageId && editPackageId !== editingUser.packageId ? { packageId: editPackageId } : {}),
+          negotiatedMonthlyCents:
+            editNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(editNegotiatedMonthly),
+          negotiatedSignupFeeCents:
+            editNegotiatedSignup.trim() === '' ? null : dollarsInputToCents(editNegotiatedSignup),
+          ...(editFreePeriodLifetime || editFreePeriodAmount.trim()
+            ? {
+                freePeriodAmount: editFreePeriodLifetime
+                  ? undefined
+                  : Math.max(0, Math.round(Number(editFreePeriodAmount) || 0)),
+                freePeriodUnit: editFreePeriodLifetime ? undefined : editFreePeriodUnit,
+                freePeriodLifetime: editFreePeriodLifetime,
+              }
+            : {}),
           ...(editingUser.ownerMode === 'corporate'
             ? {
                 cardLimit: Math.max(0, Math.round(Number(editingUser.cardLimit ?? editingUser.packageCardLimit ?? 0))),
-                negotiatedMonthlyCents:
-                  editNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(editNegotiatedMonthly),
                 featureOverrides: compactFeatureOverrides(editingUser.featureOverrides || []),
               }
             : {}),
@@ -967,14 +1014,31 @@ export default function AdminUsers() {
 
               <form onSubmit={handleEditSubmit} className="mt-6 space-y-4">
                 <div className="flex flex-col space-y-1.5">
+                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Package</label>
+                  <select
+                    value={editPackageId || editingUser.packageId || ''}
+                    onChange={(e) => setEditPackageId(e.target.value)}
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                  >
+                    <option value="">{editingUser.packageName || 'Current package'}</option>
+                    {provisionPackages.map((pkg) => (
+                      <option key={pkg.id} value={pkg.id}>
+                        {pkg.name} — {ownerModeLabel(resolveOwnerMode(pkg))}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] font-semibold text-slate-400">
+                    Current: {editingUser.packageName || 'Unassigned'}. Choose another package to move between Single
+                    and Corporate back offices.
+                  </p>
+                </div>
+
+                <div className="flex flex-col space-y-1.5">
                   <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Back office</label>
                   <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 dark:border-white/15 dark:bg-slate-800 dark:text-white">
                     {ownerModeLabel(
                       editingUser.ownerMode ?? (editingUser.role === 'corporate-owner' ? 'corporate' : 'single')
                     )}
-                  </p>
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    Account type follows the assigned package. Change the package to move between Single and Corporate.
                   </p>
                 </div>
 
@@ -1043,10 +1107,24 @@ export default function AdminUsers() {
                   </div>
                 )}
 
-                {editingUser.ownerMode === 'corporate' && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Negotiated monthly (USD)
+                      One-time card creation fee (USD)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={editNegotiatedSignup}
+                      onChange={(e) => setEditNegotiatedSignup(e.target.value)}
+                      placeholder={`Package default ${formatMoney(editingUser.signupFeeCents)}`}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      Monthly subscription (USD)
                     </label>
                     <input
                       type="number"
@@ -1054,15 +1132,73 @@ export default function AdminUsers() {
                       step="0.01"
                       value={editNegotiatedMonthly}
                       onChange={(e) => setEditNegotiatedMonthly(e.target.value)}
-                      placeholder={`Package catalog is ${formatMoney(editingUser.packageMonthlyCents)}`}
+                      placeholder={`Package default ${formatMoney(editingUser.packageMonthlyCents)}`}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                     />
-                    <p className="text-[11px] font-semibold text-slate-400">
-                      Leave blank to use the package monthly price. First invoice is{' '}
-                      {formatMoney(editingUser.firstInvoiceCents)} (signup fee + first month) until Stripe charges it.
-                    </p>
                   </div>
-                )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      Extend complimentary period
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      disabled={editFreePeriodLifetime}
+                      value={editFreePeriodAmount}
+                      onChange={(e) => setEditFreePeriodAmount(e.target.value)}
+                      placeholder={editingUser.trialEndsAt ? 'New period' : 'Optional'}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Unit</label>
+                    <select
+                      disabled={editFreePeriodLifetime}
+                      value={editFreePeriodUnit}
+                      onChange={(e) => setEditFreePeriodUnit(e.target.value as 'days' | 'months' | 'years')}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="days">Days</option>
+                      <option value="months">Months</option>
+                      <option value="years">Years</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={editFreePeriodLifetime}
+                        onChange={(e) => setEditFreePeriodLifetime(e.target.checked)}
+                      />
+                      Lifetime free
+                    </label>
+                  </div>
+                </div>
+                {editingUser.trialEndsAt ? (
+                  <p className="text-[11px] font-semibold text-slate-400">
+                    Complimentary access until{' '}
+                    {new Date(editingUser.trialEndsAt).toLocaleDateString(undefined, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </p>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={isCreatingPaymentLink}
+                    onClick={() => editingUser && void handleGeneratePaymentLink(editingUser)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-black tracking-wider text-indigo-700 uppercase transition hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300"
+                  >
+                    <Link2 className="h-4 w-4" /> Generate payment link & email
+                  </button>
+                </div>
 
                 {editingUser.ownerMode === 'corporate' && (
                   <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-900/60">
@@ -1186,7 +1322,13 @@ export default function AdminUsers() {
                         setNewCardLimit(cap != null ? String(cap) : '')
                       } else {
                         setNewCardLimit('')
+                      }
+                      if (pkg) {
+                        setNewNegotiatedMonthly(centsToDollarsInput(pkg.monthlyPrice))
+                        setNewNegotiatedSignup(centsToDollarsInput(pkg.signupFeeCents))
+                      } else {
                         setNewNegotiatedMonthly('')
+                        setNewNegotiatedSignup('')
                       }
                     }}
                     className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
@@ -1303,90 +1445,116 @@ export default function AdminUsers() {
                   ) : null}
                 </div>
 
-                {selectedOwnerMode === 'corporate' && (
+                {selectedPackage && (
                   <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/5">
                     <div>
                       <p className="text-[10px] font-black tracking-wider text-indigo-700 uppercase dark:text-indigo-300">
-                        Corporate account setup
+                        Billing setup
                       </p>
                       <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                        Card limit is per customer. Feature access inherits the Corporate package unless you override
-                        it.
+                        Set pricing now. Payment is deferred until you generate a payment link or the complimentary
+                        period ends.
                       </p>
                     </div>
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                        Card / person creation limit
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        required
-                        value={newCardLimit}
-                        onChange={(e) => setNewCardLimit(e.target.value)}
-                        placeholder={packageCardDefault != null ? String(packageCardDefault) : 'e.g. 25'}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Feature Access</p>
-                        <p className="mt-1 text-[11px] font-semibold text-slate-400">
-                          Keep Global Default or set account-specific access here—without opening another popup.
-                        </p>
+
+                    {selectedOwnerMode === 'corporate' && (
+                      <div className="flex flex-col space-y-1.5">
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                          Card / person creation limit
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          required
+                          value={newCardLimit}
+                          onChange={(e) => setNewCardLimit(e.target.value)}
+                          placeholder={packageCardDefault != null ? String(packageCardDefault) : 'e.g. 25'}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        />
                       </div>
-                      <CorporateManageAccessFields
-                        packageFeatures={(selectedPackage?.features || []).map((row) => ({
-                          featureKey: row.featureKey,
-                          featureValue: row.featureValue ?? null,
-                        }))}
-                        overrides={newFeatureOverrides}
-                        onSave={setNewFeatureOverrides}
-                      />
-                      <p className="text-[11px] font-semibold text-slate-400">
-                        {compactFeatureOverrides(newFeatureOverrides).length} override
-                        {compactFeatureOverrides(newFeatureOverrides).length === 1 ? '' : 's'} will be stored.
-                      </p>
-                    </div>
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                        Monthly subscription (USD)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={newNegotiatedMonthly}
-                        onChange={(e) => setNewNegotiatedMonthly(e.target.value)}
-                        placeholder={`Catalog ${formatMoney(selectedPackage?.monthlyPrice)}`}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      />
-                    </div>
+                    )}
+
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                          One-time signup fee
-                        </p>
-                        <p className="mt-1 text-sm font-bold text-slate-800 dark:text-white">
-                          {formatMoney(createSignupFeeCents)}
-                        </p>
-                        <p className="text-[11px] font-semibold text-slate-400">From Corporate package settings</p>
+                      <div className="flex flex-col space-y-1.5">
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                          One-time card creation fee (USD)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={newNegotiatedSignup}
+                          onChange={(e) => setNewNegotiatedSignup(e.target.value)}
+                          placeholder={`Default ${formatMoney(selectedPackage.signupFeeCents)}`}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        />
                       </div>
-                      <div>
-                        <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Initial amount</p>
-                        <p className="mt-1 text-sm font-bold text-slate-800 dark:text-white">
-                          {formatMoney(createFirstInvoiceCents)}
-                        </p>
-                        <p className="text-[11px] font-semibold text-slate-400">
-                          Future billing {formatMoney(createMonthlyCents)}/month
-                        </p>
+                      <div className="flex flex-col space-y-1.5">
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                          Monthly subscription (USD)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={newNegotiatedMonthly}
+                          onChange={(e) => setNewNegotiatedMonthly(e.target.value)}
+                          placeholder={`Default ${formatMoney(selectedPackage.monthlyPrice)}`}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        />
                       </div>
                     </div>
-                    <p className="text-[11px] font-semibold text-slate-400">
-                      Paid packages stay pending until this customer pays the Stripe link. The webhook activates this
-                      same account. The login password is created with this account.
-                    </p>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="flex flex-col space-y-1.5 sm:col-span-1">
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                          Complimentary period
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          disabled={newFreePeriodLifetime}
+                          value={newFreePeriodAmount}
+                          onChange={(e) => setNewFreePeriodAmount(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        />
+                      </div>
+                      <div className="flex flex-col space-y-1.5">
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Unit</label>
+                        <select
+                          disabled={newFreePeriodLifetime}
+                          value={newFreePeriodUnit}
+                          onChange={(e) => setNewFreePeriodUnit(e.target.value as 'days' | 'months' | 'years')}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        >
+                          <option value="days">Days</option>
+                          <option value="months">Months</option>
+                          <option value="years">Years</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={newFreePeriodLifetime}
+                            onChange={(e) => setNewFreePeriodLifetime(e.target.checked)}
+                          />
+                          Lifetime free
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-white/10 dark:bg-slate-900/40">
+                      <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                        First invoice preview
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-slate-800 dark:text-white">
+                        {formatMoney(createFirstInvoiceCents)} first payment, then {formatMoney(createMonthlyCents)}
+                        /month
+                      </p>
+                    </div>
                   </div>
                 )}
 

@@ -19,6 +19,8 @@ export type AdminUserRow = {
   companyName: string | null
   registeredCards: number
   ownerMode?: 'single' | 'corporate' | null
+  packageId?: string | null
+  packageName?: string | null
   cardLimit?: number | null
   packageCardLimit?: number | null
   packageMonthlyCents?: number | null
@@ -29,6 +31,7 @@ export type AdminUserRow = {
   firstInvoiceCents?: number | null
   recurringInvoiceCents?: number | null
   signupFeeChargedAt?: string | null
+  trialEndsAt?: string | null
   subscriptionStatus?: 'active' | 'pending_payment' | 'inactive'
   subscriptionProvider?: string | null
   stripeStatus?: string | null
@@ -72,6 +75,10 @@ export type CreateAdminUserBody = {
   cardLimit?: number
   negotiatedMonthlyCents?: number | null
   negotiatedSignupFeeCents?: number | null
+  freePeriodAmount?: number
+  freePeriodUnit?: 'days' | 'months' | 'years'
+  freePeriodLifetime?: boolean
+  sendPaymentLinkNow?: boolean
   featureOverrides?: { featureKey: string; featureValue: string | null }[]
 }
 
@@ -79,11 +86,16 @@ export type UpdateAdminUserBody = {
   name?: string
   email?: string
   role?: 'vcard-owner' | 'corporate-owner'
+  packageId?: string
   companyName?: string | null
   password?: string
   cardLimit?: number
   negotiatedMonthlyCents?: number | null
   negotiatedSignupFeeCents?: number | null
+  freePeriodAmount?: number
+  freePeriodUnit?: 'days' | 'months' | 'years'
+  freePeriodLifetime?: boolean
+  clearFreePeriod?: boolean
   featureOverrides?: { featureKey: string; featureValue: string | null }[]
 }
 
