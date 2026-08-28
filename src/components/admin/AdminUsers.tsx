@@ -326,6 +326,11 @@ export default function AdminUsers() {
   const provisionPackages = useMemo(() => packages.filter((pkg) => pkg.isActive && !isRetiredPackage(pkg)), [packages])
   const selectedPackage = provisionPackages.find((pkg) => pkg.id === newPackageId) || null
   const selectedOwnerMode = selectedPackage ? resolveOwnerMode(selectedPackage) : null
+  const editSelectedPackage =
+    provisionPackages.find((pkg) => pkg.id === (editPackageId || editingUser?.packageId || '')) || null
+  const editTargetOwnerMode = editSelectedPackage
+    ? resolveOwnerMode(editSelectedPackage)
+    : (editingUser?.ownerMode ?? (editingUser?.role === 'corporate-owner' ? 'corporate' : 'single'))
   const createMonthlyCents =
     newNegotiatedMonthly.trim() !== ''
       ? dollarsInputToCents(newNegotiatedMonthly)
@@ -473,8 +478,15 @@ export default function AdminUsers() {
         ...(newPassword.trim() ? { password: newPassword.trim() } : {}),
         packageId: newPackageId,
         companyName: newCompany.trim() || null,
-        negotiatedMonthlyCents: newNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(newNegotiatedMonthly),
-        negotiatedSignupFeeCents: newNegotiatedSignup.trim() === '' ? null : dollarsInputToCents(newNegotiatedSignup),
+        ...(selectedOwnerMode === 'corporate'
+          ? {
+              negotiatedMonthlyCents:
+                newNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(newNegotiatedMonthly),
+              negotiatedSignupFeeCents:
+                newNegotiatedSignup.trim() === '' ? null : dollarsInputToCents(newNegotiatedSignup),
+              cardLimit: Math.max(0, Math.round(Number(newCardLimit) || 0)),
+            }
+          : {}),
         ...(newFreePeriodLifetime || (newFreePeriodAmount.trim() && Number(newFreePeriodAmount) > 0)
           ? {
               freePeriodAmount: newFreePeriodLifetime
@@ -482,11 +494,6 @@ export default function AdminUsers() {
                 : Math.max(0, Math.round(Number(newFreePeriodAmount) || 0)),
               freePeriodUnit: newFreePeriodLifetime ? undefined : newFreePeriodUnit,
               freePeriodLifetime: newFreePeriodLifetime,
-            }
-          : {}),
-        ...(selectedOwnerMode === 'corporate'
-          ? {
-              cardLimit: Math.max(0, Math.round(Number(newCardLimit) || 0)),
             }
           : {}),
       }).unwrap()
@@ -576,7 +583,7 @@ export default function AdminUsers() {
       return
     }
 
-    if (editingUser.ownerMode === 'corporate' && !editingUser.companyName?.trim()) {
+    if (editTargetOwnerMode === 'corporate' && !editingUser.companyName?.trim()) {
       notify.error('Company / organization is required for Corporate accounts.')
       return
     }
@@ -593,17 +600,24 @@ export default function AdminUsers() {
     }
 
     try {
+      const packageChanging = Boolean(editPackageId && editPackageId !== editingUser.packageId)
       await updateUser({
         id: editingUser.id,
         body: {
           name: editingUser.name?.trim() || undefined,
           email: editingUser.email.trim(),
           companyName: editingUser.companyName?.trim() || null,
-          ...(editPackageId && editPackageId !== editingUser.packageId ? { packageId: editPackageId } : {}),
-          negotiatedMonthlyCents:
-            editNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(editNegotiatedMonthly),
-          negotiatedSignupFeeCents:
-            editNegotiatedSignup.trim() === '' ? null : dollarsInputToCents(editNegotiatedSignup),
+          ...(packageChanging ? { packageId: editPackageId } : {}),
+          ...(editTargetOwnerMode === 'corporate'
+            ? {
+                negotiatedMonthlyCents:
+                  editNegotiatedMonthly.trim() === '' ? null : dollarsInputToCents(editNegotiatedMonthly),
+                negotiatedSignupFeeCents:
+                  editNegotiatedSignup.trim() === '' ? null : dollarsInputToCents(editNegotiatedSignup),
+                cardLimit: Math.max(0, Math.round(Number(editingUser.cardLimit ?? editingUser.packageCardLimit ?? 0))),
+                featureOverrides: compactFeatureOverrides(editingUser.featureOverrides || []),
+              }
+            : {}),
           ...(editFreePeriodLifetime || editFreePeriodAmount.trim()
             ? {
                 freePeriodAmount: editFreePeriodLifetime
@@ -611,12 +625,6 @@ export default function AdminUsers() {
                   : Math.max(0, Math.round(Number(editFreePeriodAmount) || 0)),
                 freePeriodUnit: editFreePeriodLifetime ? undefined : editFreePeriodUnit,
                 freePeriodLifetime: editFreePeriodLifetime,
-              }
-            : {}),
-          ...(editingUser.ownerMode === 'corporate'
-            ? {
-                cardLimit: Math.max(0, Math.round(Number(editingUser.cardLimit ?? editingUser.packageCardLimit ?? 0))),
-                featureOverrides: compactFeatureOverrides(editingUser.featureOverrides || []),
               }
             : {}),
           ...(editPassword ? { password: editPassword } : {}),
@@ -1017,7 +1025,15 @@ export default function AdminUsers() {
                   <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Package</label>
                   <select
                     value={editPackageId || editingUser.packageId || ''}
-                    onChange={(e) => setEditPackageId(e.target.value)}
+                    onChange={(e) => {
+                      const nextPackageId = e.target.value
+                      setEditPackageId(nextPackageId)
+                      const pkg = provisionPackages.find((item) => item.id === nextPackageId)
+                      if (pkg && resolveOwnerMode(pkg) === 'corporate') {
+                        setEditNegotiatedMonthly(centsToDollarsInput(pkg.monthlyPrice))
+                        setEditNegotiatedSignup(centsToDollarsInput(pkg.signupFeeCents))
+                      }
+                    }}
                     className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                   >
                     <option value="">{editingUser.packageName || 'Current package'}</option>
@@ -1036,9 +1052,10 @@ export default function AdminUsers() {
                 <div className="flex flex-col space-y-1.5">
                   <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Back office</label>
                   <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 dark:border-white/15 dark:bg-slate-800 dark:text-white">
-                    {ownerModeLabel(
-                      editingUser.ownerMode ?? (editingUser.role === 'corporate-owner' ? 'corporate' : 'single')
-                    )}
+                    {ownerModeLabel(editTargetOwnerMode)}
+                    {editSelectedPackage && editPackageId && editPackageId !== editingUser.packageId ? (
+                      <span className="ml-2 text-xs font-semibold text-indigo-600">(after save)</span>
+                    ) : null}
                   </p>
                 </div>
 
@@ -1081,7 +1098,7 @@ export default function AdminUsers() {
                   />
                 </div>
 
-                {editingUser.ownerMode === 'corporate' && (
+                {editTargetOwnerMode === 'corporate' && (
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
                       Account card limit
@@ -1107,36 +1124,44 @@ export default function AdminUsers() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      One-time card creation fee (USD)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={editNegotiatedSignup}
-                      onChange={(e) => setEditNegotiatedSignup(e.target.value)}
-                      placeholder={`Package default ${formatMoney(editingUser.signupFeeCents)}`}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                    />
+                {editTargetOwnerMode === 'corporate' ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col space-y-1.5">
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                        One-time card creation fee (USD)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={editNegotiatedSignup}
+                        onChange={(e) => setEditNegotiatedSignup(e.target.value)}
+                        placeholder={`Package default ${formatMoney(editSelectedPackage?.signupFeeCents ?? editingUser.signupFeeCents)}`}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      />
+                    </div>
+                    <div className="flex flex-col space-y-1.5">
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                        Monthly subscription (USD)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={editNegotiatedMonthly}
+                        onChange={(e) => setEditNegotiatedMonthly(e.target.value)}
+                        placeholder={`Package default ${formatMoney(editSelectedPackage?.monthlyPrice ?? editingUser.packageMonthlyCents)}`}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Monthly subscription (USD)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={editNegotiatedMonthly}
-                      onChange={(e) => setEditNegotiatedMonthly(e.target.value)}
-                      placeholder={`Package default ${formatMoney(editingUser.packageMonthlyCents)}`}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                    />
+                ) : (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-700 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200">
+                    Billing uses package catalog pricing:{' '}
+                    {formatMoney(editSelectedPackage?.signupFeeCents ?? editingUser.signupFeeCents)} signup,{' '}
+                    {formatMoney(editSelectedPackage?.monthlyPrice ?? editingUser.packageMonthlyCents)} / month.
                   </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="flex flex-col space-y-1.5">
