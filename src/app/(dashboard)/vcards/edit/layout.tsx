@@ -7,6 +7,11 @@ import { VCardLivePreview } from '@/components/VCardLivePreview'
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
+import {
+  getAdminEditorReturnPathServerSnapshot,
+  getAdminEditorReturnPathSnapshot,
+  subscribeAdminEditorReturnPath,
+} from '@/lib/admin/adminEditorReturnPath'
 import { CardScopeProvider } from '@/lib/card-scope'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { useEditorPathname } from '@/lib/editorShallowRoute'
@@ -23,7 +28,7 @@ import {
 import { useGetProfileQuery } from '@/redux/features/profiles/profiles.api'
 import VCardEdit from '@/views/VCardEdit'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useMemo, type ReactNode } from 'react'
+import { Suspense, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react'
 
 /**
  * The editor shell lives in the layout so section URLs (`/vcards/edit/services`)
@@ -35,7 +40,12 @@ function VCardEditShell({ children }: { children: ReactNode }) {
   const pathname = useEditorPathname()
   const role = useAppSelector((state) => state.user.user?.role)
   const { ownerMode } = useOwnerMode()
-  const directoryPath = directoryPathForOwnerMode(ownerMode, role)
+  const staffDirectoryPath = useSyncExternalStore(
+    subscribeAdminEditorReturnPath,
+    getAdminEditorReturnPathSnapshot,
+    getAdminEditorReturnPathServerSnapshot
+  )
+  const directoryPath = isStaffRole(role) ? staffDirectoryPath : directoryPathForOwnerMode(ownerMode, role)
   const cardId = searchParams.get('cardId')
   const segments = useMemo(() => editorSegmentsFromPathname(pathname, '/vcards/edit'), [pathname])
   const parsed = parseEditorSegments(segments)

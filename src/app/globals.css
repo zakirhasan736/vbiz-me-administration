@@ -27,7 +27,7 @@
   --skeleton-content: #f1f5f9; /* slate-100 */
 }
 
-@custom-variant dark (&:is(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *):not(.vbiz-theme-light, .vbiz-theme-light *));
 
 @theme {
   --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;

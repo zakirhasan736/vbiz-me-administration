@@ -15,6 +15,11 @@ type UseProfileThemeOptions = {
   syncSystemPreference?: boolean
 }
 
+/** Isolate nested preview from the admin `<html class="dark">` while keeping public `dark:` utilities. */
+export function profileRootThemeClass(theme: 'light' | 'dark'): string {
+  return theme === 'dark' ? 'dark vbiz-theme-dark' : 'vbiz-theme-light'
+}
+
 export function useProfileTheme({
   design,
   embedded = false,

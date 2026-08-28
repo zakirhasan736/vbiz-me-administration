@@ -593,7 +593,13 @@ export function selectEnabledNavItems(catalog: NavBarNavItem[], settings: VCardD
       : null
 
   if (savedOrder) {
-    const fromSaved = savedOrder.map((id) => byId.get(id)).filter((item): item is NavBarNavItem => Boolean(item))
+    const fromSaved = savedOrder
+      .map((id) => byId.get(id))
+      .filter((item): item is NavBarNavItem => Boolean(item))
+      .filter(
+        (item) =>
+          LOCKED_NAV_ITEM_IDS.has(item.id) || isCustomNavItemId(item.id) || isNavItemVisible(settings, item.label)
+      )
     if (fromSaved.length) return fromSaved
   }
 
@@ -629,6 +635,16 @@ export function getNavItemBackgroundColor(settings: VCardDisplaySettings, label:
 
 export function getNavItemById(id: string, items: NavBarNavItem[] = NAV_BAR_NAV_ITEMS): NavBarNavItem | undefined {
   return items.find((item) => item.id === id)
+}
+
+/** Map an editor panel onto a public nav tab the live card actually shows. */
+export function resolvePublicPreviewSectionId(editorSectionId: string, visibleIds: string[]): string {
+  const ids = visibleIds.filter((id) => typeof id === 'string' && id.trim())
+  const visible = new Set(ids)
+  if (visible.has(editorSectionId)) return editorSectionId
+  if (editorSectionId === 'global-connection' && visible.has('public-cards')) return 'public-cards'
+  if (editorSectionId === 'public-cards' && visible.has('global-connection')) return 'global-connection'
+  return ids[0] || 'home'
 }
 
 export const CUSTOM_TAB_ID_PREFIX = 'custom-tab-'

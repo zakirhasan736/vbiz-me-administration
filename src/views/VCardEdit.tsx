@@ -39,6 +39,12 @@ import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE, ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
+import {
+  ADMIN_VCARDS_PATH,
+  getAdminEditorReturnPathServerSnapshot,
+  getAdminEditorReturnPathSnapshot,
+  subscribeAdminEditorReturnPath,
+} from '@/lib/admin/adminEditorReturnPath'
 import { createCardOwnerKindLabel, getCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import {
   createCardTabNameToNavId,
@@ -103,7 +109,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 type VCardEditProps = {
   basePath: EditorBasePath
@@ -135,11 +141,18 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const { canMutateVcards, isPaused, isSuspended } = useAccountStatus()
   const isStaff = isStaffRole(role)
   const isDirectoryEditor = isCorporateBackOffice || isStaff
-  const directoryHref = directoryPathForOwnerMode(ownerMode, role)
+  const staffDirectoryPath = useSyncExternalStore(
+    subscribeAdminEditorReturnPath,
+    getAdminEditorReturnPathSnapshot,
+    getAdminEditorReturnPathServerSnapshot
+  )
+  const directoryHref = isStaff ? staffDirectoryPath : directoryPathForOwnerMode(ownerMode, role)
   const directoryLabel = isCorporateBackOffice
     ? 'Back to Team vCards'
     : isStaff
-      ? 'Back to My Cards'
+      ? staffDirectoryPath === ADMIN_VCARDS_PATH
+        ? 'Back to vCards'
+        : 'Back to My Cards'
       : 'Back to My vCards'
 
   useEffect(() => {

@@ -16,6 +16,7 @@ import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { adminCardAvatarUrl, type AdminCard } from '@/lib/admin/adminCardShape'
+import { ADMIN_VCARDS_PATH, setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
 import { canAdminContactCard } from '@/lib/admin/canAdminContactCard'
 import { mapAdminProfileRowToCard } from '@/lib/admin/mapAdminProfileRow'
 import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
@@ -1001,10 +1002,12 @@ export default function AdminVCards() {
                 onCall={canContact ? () => openCallForCard(card) : undefined}
                 onSchedule={canContact ? () => openScheduleForCard(card) : undefined}
                 onEdit={() => {
+                  setAdminEditorReturnPath(ADMIN_VCARDS_PATH)
                   setCurrentEditingCardId(card.id || null)
                   router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
                 }}
                 onSettings={() => {
+                  setAdminEditorReturnPath(ADMIN_VCARDS_PATH)
                   setCurrentEditingCardId(card.id || null)
                   router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
                 }}
@@ -1090,6 +1093,7 @@ export default function AdminVCards() {
       <VCardDetailSidebar
         card={panelCard}
         mode="admin"
+        editorReturnPath={ADMIN_VCARDS_PATH}
         onClose={() => setPanelCard(null)}
         onEmail={panelCard && canAdminContactCard(panelCard, ownerId) ? openEmailForCard : undefined}
         onCall={panelCard && canAdminContactCard(panelCard, ownerId) ? openCallForCard : undefined}

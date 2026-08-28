@@ -369,14 +369,14 @@ export const PublicCardsSection = () => {
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
         {/* Header Card / Banner — theme-aware solid background (no video) */}
         <div
-          className={`group dark:bg-ocean-deep relative flex w-full flex-col overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-50 shadow-xl md:rounded-[2.5rem] lg:col-span-4 dark:border-[#eab308]/20 ${
+          className={`vbiz-public-cards-banner group relative flex w-full flex-col overflow-hidden rounded-4xl border shadow-xl md:rounded-[2.5rem] lg:col-span-4 ${
             compact ? '' : 'min-h-[26vh] sm:min-h-[28vh] md:min-h-[24vh] lg:min-h-[24vh]'
           }`}
         >
-          {/* Accessible background — subtle accent wash, adapts to light/dark theme */}
+          {/* Accessible background — follows card light/dark, not the admin dashboard */}
           <div className="absolute inset-0 z-0 h-full w-full">
-            <div className="dark:from-ocean-deep dark:via-ocean-deep/85 dark:to-ocean-deep/30 absolute inset-0 bg-linear-to-t from-white via-white/85 to-white/40" />
-            <div className="dark:from-ocean-deep dark:via-ocean-deep/60 absolute inset-0 hidden bg-linear-to-r from-[#eab308]/10 to-transparent md:block md:w-2/3" />
+            <div className="vbiz-public-cards-banner-wash absolute inset-0" />
+            <div className="vbiz-public-cards-banner-accent absolute inset-0 hidden md:block md:w-2/3" />
           </div>
 
           {/* View Toggle — floats over the banner when there is room, in-flow inside the phone preview */}

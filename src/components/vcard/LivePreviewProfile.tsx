@@ -7,7 +7,13 @@ import { useVCard } from '@/lib/VCardContext'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
 import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
-import { getNavItemById } from '@/lib/vcardNavbar'
+import {
+  getNavItemById,
+  mergeCustomNavItems,
+  NAV_BAR_NAV_ITEMS,
+  resolvePublicPreviewSectionId,
+  selectEnabledNavItems,
+} from '@/lib/vcardNavbar'
 import { ProfileApp } from '@/profile-app/ProfileApp'
 import { ProfileThemeShell } from '@/profile-app/components/ProfileThemeShell'
 import '@/profile-app/profile-app.css'
@@ -98,11 +104,27 @@ function LivePreviewProfileInner({ previewTheme, onPreviewThemeChange, previewAc
     onPreviewThemeChange(designTheme)
   }, [designTheme, onPreviewThemeChange])
 
-  const [previewSectionId, setPreviewSectionId] = useState(editorSectionId)
+  const publicTabIds = useMemo(() => {
+    const settings = previewData.displaySettings
+    if (!settings) return ['home', 'about', 'public-cards', 'my-info']
+    return selectEnabledNavItems(mergeCustomNavItems(NAV_BAR_NAV_ITEMS, previewData.customTabs), settings).map(
+      (item) => item.id
+    )
+  }, [previewData.customTabs, previewData.displaySettings])
+
+  const [previewSectionId, setPreviewSectionId] = useState(() =>
+    resolvePublicPreviewSectionId(editorSectionId, publicTabIds)
+  )
   const [prevEditorSectionId, setPrevEditorSectionId] = useState(editorSectionId)
+  const nextPreviewSection = resolvePublicPreviewSectionId(
+    editorSectionId !== prevEditorSectionId ? editorSectionId : previewSectionId,
+    publicTabIds
+  )
   if (editorSectionId !== prevEditorSectionId) {
     setPrevEditorSectionId(editorSectionId)
-    setPreviewSectionId(editorSectionId)
+  }
+  if (nextPreviewSection !== previewSectionId) {
+    setPreviewSectionId(nextPreviewSection)
   }
 
   const handleSectionChange = useCallback((sectionId: string) => {

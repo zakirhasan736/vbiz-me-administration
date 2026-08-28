@@ -1,4 +1,5 @@
 import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
+import { slugFromDisplayName } from '@/lib/vcardSlug'
 import type { VCardData, VCardPersonal } from '@/types/vcard'
 
 const PERSONAL_KEYS = [
@@ -22,14 +23,6 @@ function labeledValue(text: string, labels: string[]): string | undefined {
     if (match?.[1]) return match[1].replace(/[.,;]+$/, '').trim()
   }
   return undefined
-}
-
-function slugFromName(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
 }
 
 /** Parse owner-entered personal facts from free text (field popup, coach, or paste). */
@@ -71,7 +64,7 @@ export function parseOwnerPersonalFromText(text: string): Partial<VCardPersonal>
   if (designation) personal.designation = designation
 
   const slug = labeledValue(raw, ['slug', 'public url', 'card url'])
-  if (slug) personal.slug = slugFromName(slug)
+  if (slug) personal.slug = slugFromDisplayName(slug)
 
   const leftover = raw
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '')
@@ -117,7 +110,7 @@ export function patchDraftFromFieldKey(draft: VCardData, fieldKey: string, value
   else if (fieldKey === 'designation') assign('designation', text)
   else if (fieldKey === 'about') assign('about', text)
   else if (fieldKey === 'slug') {
-    return syncMyInfoFromPersonal({ ...draft, slug: slugFromName(text) || draft.slug, personal })
+    return syncMyInfoFromPersonal({ ...draft, slug: slugFromDisplayName(text) || draft.slug, personal })
   } else {
     for (const key of PERSONAL_KEYS) {
       const next = parsed[key]
@@ -125,7 +118,7 @@ export function patchDraftFromFieldKey(draft: VCardData, fieldKey: string, value
     }
   }
 
-  const slug = draft.slug || slugFromName(personal.fullName || personal.company || '')
+  const slug = draft.slug || slugFromDisplayName(personal.fullName || personal.company || '')
   return syncMyInfoFromPersonal({ ...draft, slug, personal })
 }
 
@@ -136,6 +129,6 @@ export function mergeParsedPersonal(draft: VCardData, parsed: Partial<VCardPerso
     if (typeof next === 'string' && next.trim()) personal[key] = next as never
   }
   if (!personal.whatsapp && personal.phone) personal.whatsapp = personal.phone
-  const slug = parsed.slug || draft.slug || slugFromName(personal.fullName || personal.company || '')
+  const slug = parsed.slug || draft.slug || slugFromDisplayName(personal.fullName || personal.company || '')
   return syncMyInfoFromPersonal({ ...draft, slug, personal })
 }

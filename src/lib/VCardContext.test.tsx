@@ -657,8 +657,10 @@ describe('VCardProvider autosave and creation', () => {
       rendered!.api.updateData('personal.fullName', 'Missing Slug')
     })
 
+    expect(rendered.api.vCardData.slug).toBe('missing-slug')
+
     await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow(
-      'Please set a public URL slug before creating the vCard.'
+      'Please enter an email before creating the vCard.'
     )
 
     await act(async () => {
@@ -685,5 +687,22 @@ describe('VCardProvider autosave and creation', () => {
       'Please enter a date of birth before creating the vCard.'
     )
     expect(mocks.createProfile).not.toHaveBeenCalled()
+  })
+
+  it('autofills an empty slug from the personal name and does not overwrite a filled slug', async () => {
+    mocks.state = makeState(null)
+    rendered = await renderProvider({ mode: 'create', cardId: null })
+
+    await act(async () => {
+      rendered!.api.updateData('personal.fullName', 'Ada Lovelace')
+    })
+    expect(rendered.api.vCardData.slug).toBe('ada-lovelace')
+
+    await act(async () => {
+      rendered!.api.updateData('slug', 'custom-url')
+      rendered!.api.updateData('personal.fullName', 'Ada Byron')
+    })
+    expect(rendered.api.vCardData.slug).toBe('custom-url')
+    expect(rendered.api.vCardData.personal.fullName).toBe('Ada Byron')
   })
 })

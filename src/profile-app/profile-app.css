@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 @import 'tailwindcss';
 
-@custom-variant dark (&:is(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *):not(.vbiz-theme-light, .vbiz-theme-light *));
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
@@ -193,10 +193,46 @@ iframe.goog-te-banner-frame {
 }
 
 .vbiz-profile-root.dark,
-.dark .vbiz-profile-root,
 .vbiz-profile-root[data-theme='dark'] {
   --vbiz-scrollbar-thumb: rgba(255, 255, 255, 0.22);
   --vbiz-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+}
+
+/* Public Cards / Global Connection banner — follows the card theme, including editor preview */
+.vbiz-profile-root[data-theme='light'] .vbiz-public-cards-banner,
+.vbiz-profile-root.vbiz-theme-light .vbiz-public-cards-banner {
+  background-color: var(--vbiz-page-header-fill, #fafafa);
+  border-color: #e4e4e7;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-public-cards-banner,
+.vbiz-profile-root.dark .vbiz-public-cards-banner {
+  background-color: var(--vbiz-page-header-fill, var(--color-ocean-deep, #020914));
+  border-color: color-mix(in srgb, #eab308 20%, transparent);
+}
+.vbiz-profile-root[data-theme='light'] .vbiz-public-cards-banner-wash,
+.vbiz-profile-root.vbiz-theme-light .vbiz-public-cards-banner-wash {
+  background-image: linear-gradient(to top, #ffffff, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.4));
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-public-cards-banner-wash,
+.vbiz-profile-root.dark .vbiz-public-cards-banner-wash {
+  background-image: linear-gradient(
+    to top,
+    var(--color-ocean-deep, #020914),
+    color-mix(in srgb, var(--color-ocean-deep, #020914) 85%, transparent),
+    color-mix(in srgb, var(--color-ocean-deep, #020914) 30%, transparent)
+  );
+}
+.vbiz-profile-root[data-theme='light'] .vbiz-public-cards-banner-accent,
+.vbiz-profile-root.vbiz-theme-light .vbiz-public-cards-banner-accent {
+  background-image: linear-gradient(to right, color-mix(in srgb, #eab308 10%, transparent), transparent);
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-public-cards-banner-accent,
+.vbiz-profile-root.dark .vbiz-public-cards-banner-accent {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--color-ocean-deep, #020914) 60%, transparent),
+    transparent
+  );
 }
 
 /* Auto thin scrollbar on scrollable profile content — use .no-scrollbar to hide */

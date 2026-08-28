@@ -3,6 +3,7 @@
 import { SocialClickChip } from '@/components/admin/AdminSocialClickChip'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
+import { setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
 import { getCardSocialClickStats } from '@/lib/adminSocialStats'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
 import {
@@ -53,6 +54,7 @@ type Props = {
   isDuplicating?: boolean
   onToggleStatus?: (card: AdminCard, status: string) => void
   mode?: 'admin' | 'corporate'
+  editorReturnPath?: '/admin/vcards' | '/admin/mycards'
 }
 
 function personalField(personal: AdminCard['personal'], key: string): string {
@@ -103,6 +105,7 @@ export default function VCardDetailSidebar({
   isDuplicating = false,
   onToggleStatus,
   mode = 'corporate',
+  editorReturnPath,
 }: Props) {
   const router = useRouter()
   const { setCurrentEditingCardId, updateCorporateCardControls } = useVCard()
@@ -172,6 +175,7 @@ export default function VCardDetailSidebar({
       .toUpperCase() || 'VC'
 
   const handleEdit = () => {
+    if (editorReturnPath) setAdminEditorReturnPath(editorReturnPath)
     setCurrentEditingCardId(card.id || null)
     onClose()
     router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))

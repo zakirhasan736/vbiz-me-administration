@@ -112,6 +112,7 @@ export function ProfileNavigationProvider({
 
   const visibleTabs = useMemo(() => {
     if (!displaySettings.globalEnabled) return []
+    if (embedded) return selectEnabledNavItems(navItems, displaySettings)
     if (Array.isArray(displaySettings.editorNavOrder) && displaySettings.editorNavOrder.length) {
       return selectEnabledNavItems(navItems, displaySettings)
     }
@@ -119,7 +120,6 @@ export function ProfileNavigationProvider({
       const byId = new Map(navItems.map((item) => [item.id, item]))
       return apiNavItems.map((item) => byId.get(item.id) ?? item)
     }
-    if (embedded) return selectEnabledNavItems(navItems, displaySettings)
     return selectEnabledNavItems(navItems, displaySettings).filter((item) => LOCKED_NAV_ITEM_IDS.has(item.id))
   }, [apiNavItems, displaySettings, embedded, navItems])
 

@@ -13,6 +13,7 @@ import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLa
 import { useAppSelector } from '@/hooks/redux'
 import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { adminCardAvatarUrl, toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
+import { ADMIN_MY_CARDS_PATH, setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
 import {
@@ -421,10 +422,12 @@ export default function AdminMyCards() {
                     onCardClick={() => setPanelCard(card)}
                     onTrends={() => setTrendsCard(card)}
                     onEdit={() => {
+                      setAdminEditorReturnPath(ADMIN_MY_CARDS_PATH)
                       setCurrentEditingCardId(card.id || null)
                       router.push(buildEditorSectionPath('/vcards/edit', 'home', card.id))
                     }}
                     onSettings={() => {
+                      setAdminEditorReturnPath(ADMIN_MY_CARDS_PATH)
                       setCurrentEditingCardId(card.id || null)
                       router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
                     }}
@@ -470,6 +473,7 @@ export default function AdminMyCards() {
       <VCardDetailSidebar
         card={panelCard}
         mode="admin"
+        editorReturnPath={ADMIN_MY_CARDS_PATH}
         onClose={() => setPanelCard(null)}
         onDuplicate={handleDuplicate}
         isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}

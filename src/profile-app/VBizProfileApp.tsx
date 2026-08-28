@@ -6,7 +6,7 @@ import { designToCssVars, resolveProfileDesign } from '@/lib/resolvedProfileDesi
 import { displayGeneralRootStyle, isPagesHeaderVisible } from '@/lib/vcardDisplaySettings'
 import { ProfileHomeModals, type ProfileHomeModalId } from '@/profile-app/components/ProfileHomeModals'
 import { useProfileHomeModalEvents } from '@/profile-app/hooks/useProfileHomeModalEvents'
-import { useProfileTheme } from '@/profile-app/hooks/useProfileTheme'
+import { profileRootThemeClass, useProfileTheme } from '@/profile-app/hooks/useProfileTheme'
 import { ArrowDown, Moon, Sun } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useState } from 'react'
@@ -127,7 +127,7 @@ export function VBizProfileApp({
       data-embedded={embedded ? '' : undefined}
       data-theme={theme}
       data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
-      className={`vbiz-profile-root w-full font-sans ${embedded ? 'relative isolate flex min-h-full max-w-full grow flex-col overflow-x-clip pb-0' : 'flex min-h-screen w-screen justify-center overflow-x-clip pb-24'} ${theme === 'dark' ? 'dark bg-[#09090b] text-zinc-200' : 'bg-zinc-50 text-zinc-900'} relative transition-colors duration-500 ease-in-out selection:bg-yellow-500/30 selection:text-white`}
+      className={`vbiz-profile-root w-full font-sans ${embedded ? 'relative isolate flex min-h-full max-w-full grow flex-col overflow-x-clip pb-0' : 'flex min-h-screen w-screen justify-center overflow-x-clip pb-24'} ${profileRootThemeClass(theme)} ${theme === 'dark' ? 'bg-[#09090b] text-zinc-200' : 'bg-zinc-50 text-zinc-900'} relative transition-colors duration-500 ease-in-out selection:bg-yellow-500/30 selection:text-white`}
       style={rootStyle}
     >
       <ProfileThemeStyles design={design} />

@@ -14,7 +14,7 @@ import { SiteGeometricGrid } from '@/profile-app/components/SiteGeometricGrid'
 import { useLiveAgentProfileActions } from '@/profile-app/hooks/useLiveAgentProfileActions'
 import { useProfileHomeModalEvents } from '@/profile-app/hooks/useProfileHomeModalEvents'
 import { useProfileMotionReady } from '@/profile-app/hooks/useProfileMotionReady'
-import { useProfileTheme } from '@/profile-app/hooks/useProfileTheme'
+import { profileRootThemeClass, useProfileTheme } from '@/profile-app/hooks/useProfileTheme'
 import { LIVE_AGENT_PUBLIC_PLACEMENT } from '@/profile-app/lib/liveAgentPlacement'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import type { VBizProfileAppProps } from '@/profile-app/profilePublicProps'
@@ -148,7 +148,7 @@ export function VBizProfileAppV1({
       data-profile-template="v1"
       data-theme={theme}
       data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
-      className={`${shellClass} selection:bg-yellow-primary/30 font-sans selection:text-gray-900 dark:selection:text-white ${theme === 'dark' ? 'dark bg-[#050505] text-[#e0e0e0]' : 'bg-white text-gray-900'} ${embedded ? 'min-h-full max-w-full' : ''}`}
+      className={`${shellClass} selection:bg-yellow-primary/30 font-sans selection:text-gray-900 dark:selection:text-white ${profileRootThemeClass(theme)} ${theme === 'dark' ? 'bg-[#050505] text-[#e0e0e0]' : 'bg-white text-gray-900'} ${embedded ? 'min-h-full max-w-full' : ''}`}
       style={rootStyle}
     >
       <ProfileThemeStyles design={design} />

@@ -54,6 +54,7 @@ import { loadAndSyncSectionPosts, mapApiPostsToSectionPosts } from '@/lib/vcardP
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { VCARD_SECTION_SCHEMAS } from '@/lib/vcardSectionSchemas'
 import { skillGroupsToApiItems } from '@/lib/vcardSkills'
+import { shouldAutofillSlugFromName, slugFromDisplayName } from '@/lib/vcardSlug'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import { publicApi } from '@/redux/api/publicApi'
 import {
@@ -157,6 +158,14 @@ interface VCardContextType {
 }
 
 const VCardContext = createContext<VCardContextType | undefined>(undefined)
+
+function applyNameSlugAutofill(prev: VCardData, next: VCardData, path: string): VCardData {
+  if (path !== 'personal.fullName') return next
+  if (!shouldAutofillSlugFromName(prev.slug)) return next
+  const generated = slugFromDisplayName(String(next.personal?.fullName || ''))
+  if (!generated) return next
+  return { ...next, slug: generated }
+}
 
 function toVCardData(record: VCardRecord): VCardData {
   const rest = { ...record } as Record<string, unknown>
@@ -1069,6 +1078,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (isCreateMode) {
         const prev = createDraftRef.current
         let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+        next = applyNameSlugAutofill(prev, next, path)
         if (isExplainerMediaPath(path)) {
           next = applyProfileMediaToExplainerTab(next, {
             syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
@@ -1095,6 +1105,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       const base = editDataRef.current ?? (record ? toVCardData(record) : null)
       if (!base) return
       let next = setByPath(base as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+      next = applyNameSlugAutofill(base, next, path)
       if (isExplainerMediaPath(path)) {
         next = applyProfileMediaToExplainerTab(next, {
           syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
