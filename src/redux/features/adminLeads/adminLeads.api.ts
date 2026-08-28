@@ -122,6 +122,7 @@ const adminLeadsApi = api.injectEndpoints({
         { type: 'adminLeads', id: 'SAVES' },
         { type: 'adminLeads', id: 'NOTES' },
         { type: 'adminLeads', id: 'STATS' },
+        'dashboard',
       ],
     }),
     patchAdminLeadNote: builder.mutation<AdminLeadRow, { id: string; body: PatchAdminLeadBody }>({

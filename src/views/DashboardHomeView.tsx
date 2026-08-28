@@ -20,6 +20,7 @@ import { useAppSelector } from '@/hooks/redux'
 import { useDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { useOrderTimer } from '@/hooks/useOrderTimer'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
+import { resolveDashboardContactSaves } from '@/lib/dashboardContactSaves'
 import { useGetOwnerUpcomingMeetingsQuery } from '@/redux/features/meetings/meetings.api'
 import {
   dashboardOverviewQueryOptions,
@@ -138,9 +139,7 @@ function LegacyDashboardHome() {
           trendPercent={overviewStats?.visitsChart?.trendPercent ?? 0}
         />
         <div className="flex h-full flex-col gap-6">
-          <ContactsSavedCard
-            count={(overviewStats?.contactsLast30Days || 0) + (overviewStats?.guestsLast30Days || 0)}
-          />
+          <ContactsSavedCard count={resolveDashboardContactSaves(overviewStats)} />
         </div>
       </div>
 
@@ -203,9 +202,7 @@ function SingleOwnerDashboardHome() {
     [contactsRaw, summary?.contactsPreview]
   )
   const statsReady = Boolean(stats) && !statsLoading
-  const savesCount = statsReady
-    ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) + liveKpis.saves
-    : undefined
+  const savesCount = statsReady ? resolveDashboardContactSaves(stats) + liveKpis.saves : undefined
   const uniqueViews = statsReady ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) + liveKpis.views : undefined
   const shares = statsReady ? (stats?.shares ?? 0) : undefined
   const visitsTotal = statsReady

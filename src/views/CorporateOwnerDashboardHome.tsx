@@ -41,6 +41,7 @@ import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { corporateCardCreateBlockedReason } from '@/lib/corporateCardCapacity'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
+import { resolveDashboardContactSaves } from '@/lib/dashboardContactSaves'
 import { notify } from '@/lib/toast/toast'
 import { useGetOwnerUpcomingMeetingsQuery } from '@/redux/features/meetings/meetings.api'
 import {
@@ -156,9 +157,7 @@ export default function CorporateOwnerDashboardHome() {
   const metricTotalCards = profilesReady ? (capacity?.used ?? liveCards.length) : undefined
   const activeCount = headerActiveCount
   const totalViews = headerTotalViews
-  const savesCount = statsReady
-    ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) + liveKpis.saves
-    : undefined
+  const savesCount = statsReady ? resolveDashboardContactSaves(stats) + liveKpis.saves : undefined
   const viewsTrend = statsReady ? formatTrendPercent(stats?.visitsChart?.trendPercent) : {}
   const canCreate = headerCanCreate
   const createDisabledReason = headerCreateDisabledReason

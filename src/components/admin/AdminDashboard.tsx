@@ -9,6 +9,7 @@ import { StatNumber } from '@/components/ui/StatNumber'
 import { useAdminDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
 import { getAdminThemeConfig, getThemeClasses } from '@/lib/admin/adminTheme'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
+import { resolveDashboardContactSaves } from '@/lib/dashboardContactSaves'
 import { isWithinPeriod, periodCutoff } from '@/lib/dashboardPeriod'
 import { meetLinkLabel, notifyScheduleCreated } from '@/lib/scheduleMeetingNotifications'
 import { useAuth } from '@/providers/AuthProvider'
@@ -102,8 +103,8 @@ export default function AdminDashboard() {
     [contactsRaw, summary?.contactsPreview]
   )
   const statsReady = Boolean(stats) && !statsLoading
-  const savedContactsBase = statsReady ? (stats?.contactsLast30Days || 0) + (stats?.guestsLast30Days || 0) : undefined
-  const totalSavedContacts = statsReady ? (savedContactsBase || 0) + liveKpis.saves : undefined
+  const contactSavesCount = statsReady ? resolveDashboardContactSaves(stats) : undefined
+  const totalSavedContacts = statsReady ? (contactSavesCount || 0) + liveKpis.saves : undefined
   const platformUniqueViews = statsReady
     ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) + liveKpis.views
     : undefined
@@ -447,7 +448,7 @@ export default function AdminDashboard() {
               <button type="button" onClick={() => openContactSaves('saves')} className="w-full text-left">
                 <SocialMetricsCard
                   title="Saved Contacts"
-                  value={savedContactsBase}
+                  value={contactSavesCount}
                   loading={!statsReady}
                   icon={Save}
                   bg={cn(themeClasses.lightBg, themeClasses.lightText)}

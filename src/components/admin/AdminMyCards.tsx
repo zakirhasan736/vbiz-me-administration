@@ -23,6 +23,7 @@ import {
   readLocalCardNotice,
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
+import { resolveDashboardContactSaves } from '@/lib/dashboardContactSaves'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
@@ -267,7 +268,7 @@ export default function AdminMyCards() {
             <Save className="h-3.5 w-3.5" /> Contact saves
           </p>
           <StatNumber
-            value={stats?.contactsLast30Days}
+            value={resolveDashboardContactSaves(stats)}
             loading={!statsReady}
             className="mt-2 block text-3xl font-black text-slate-900 dark:text-white"
             skeletonClassName="mt-2 h-9 w-20"

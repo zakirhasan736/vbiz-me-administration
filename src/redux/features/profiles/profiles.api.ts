@@ -235,6 +235,8 @@ export type DashboardStats = {
   contactsLast30Days: number
   notesLast30Days: number
   guestsLast30Days: number
+  /** Guest contact saves (GuestUserData) for the selected period — matches admin leads totals when period=all. */
+  contactSaves: number
   uniqueViews?: number
   shares?: number
   period?: DashboardPeriod
