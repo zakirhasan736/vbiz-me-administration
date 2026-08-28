@@ -984,8 +984,8 @@ export default function AdminVCards() {
               <VCardTeamCard
                 key={card.id || i}
                 card={card}
-                badgeLabel={badge.label}
-                badgeTone={badge.tone}
+                badgeLabel={badge?.label}
+                badgeTone={badge?.tone}
                 contactSaves={contactSaves}
                 showCheckbox
                 selected={selectedCardIds.includes(card.id)}

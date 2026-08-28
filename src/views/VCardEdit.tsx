@@ -152,7 +152,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     : isStaff
       ? staffDirectoryPath === ADMIN_VCARDS_PATH
         ? 'Back to vCards'
-        : 'Back to My Cards'
+        : 'Back to VBizMe Team Cards'
       : 'Back to My vCards'
 
   useEffect(() => {

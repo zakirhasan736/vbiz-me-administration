@@ -17,7 +17,7 @@ export type AdminStaffRoleName = 'Co-Administrator' | 'Moderator' | 'Compliance 
 
 export const ALL_PERMISSIONS: { key: AdminPermissionKey; label: string }[] = [
   { key: 'dashboard', label: 'Dashboard' },
-  { key: 'mycards', label: 'My Cards' },
+  { key: 'mycards', label: 'VBizMe Team Cards' },
   { key: 'vcards', label: 'All vCards' },
   { key: 'users', label: 'Users' },
   { key: 'leads', label: 'Leads' },

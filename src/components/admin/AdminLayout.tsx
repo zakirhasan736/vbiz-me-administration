@@ -46,7 +46,7 @@ type NavItem = {
 
 const adminNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard' },
-  { id: 'mycards', label: 'My Cards', icon: CreditCard, permission: 'mycards' },
+  { id: 'mycards', label: 'VBizMe Team Cards', icon: CreditCard, permission: 'mycards' },
   { id: 'vcards', label: 'vCards', icon: Contact, permission: 'vcards' },
   { id: 'users', label: 'Users', icon: Users, permission: 'users' },
   { id: 'leads', label: 'Leads Management', icon: Users, permission: 'leads' },
@@ -80,6 +80,7 @@ function segmentFromPath(pathname: string) {
 
 function titleFromSegment(segment: string) {
   if (segment === 'dashboard') return 'Overview'
+  if (segment === 'mycards') return 'VBizMe Team Cards'
   return segment.replace(/-/g, ' ')
 }
 

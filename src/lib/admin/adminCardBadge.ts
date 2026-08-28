@@ -86,12 +86,12 @@ export function resolveMyCardsBadge(card: AdminCard): AdminCardBadge | null {
 }
 
 /** Badge for Admin → vCards directory. */
-export function resolveDirectoryBadge(card: AdminCard): AdminCardBadge {
+export function resolveDirectoryBadge(card: AdminCard): AdminCardBadge | null {
   if (isAdminNamedCard(card)) {
     return { label: 'Admin', tone: 'indigo' }
   }
   if (isAdminPortfolioCard(card)) {
-    return { label: 'Team member', tone: 'violet' }
+    return null
   }
   if (isCorporateCard(card)) {
     return { label: 'Corporate member', tone: 'neutral' }

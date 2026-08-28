@@ -96,7 +96,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const navItems = isStaff
     ? [
         { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
-        { name: 'My Cards', path: '/admin/mycards', icon: Contact, tourId: 'tour-nav-vcards' },
+        { name: 'VBizMe Team Cards', path: '/admin/mycards', icon: Contact, tourId: 'tour-nav-vcards' },
         ...(staffCanUseCrm ? [{ name: 'CRM', path: '/crm', icon: Kanban, tourId: 'tour-nav-crm' }] : []),
       ]
     : [

@@ -113,7 +113,7 @@ export function VCardWeeklyEngagement({
       return {
         id: '__all__',
         personal: {
-          fullName: isMyCards ? 'My cards' : 'All directory cards',
+          fullName: isMyCards ? 'VBizMe Team Cards' : 'All directory cards',
           designation: countLabel == null ? undefined : `${countLabel} profiles`,
           department: departments.length === 1 ? departments[0] : departments.length > 1 ? 'Multiple' : undefined,
         },
@@ -141,7 +141,7 @@ export function VCardWeeklyEngagement({
 
   const insightName = aggregateAll
     ? scope === 'created'
-      ? 'My cards'
+      ? 'VBizMe Team Cards'
       : 'Directory'
     : activeCard?.personal?.fullName || weekly?.profileName || 'Member'
 

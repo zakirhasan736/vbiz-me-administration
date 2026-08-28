@@ -214,17 +214,17 @@ export default function AdminMyCards() {
       <div className="border-b border-slate-100 pb-6 dark:border-white/5">
         <h1 className="flex items-center gap-2 text-2xl font-black text-slate-900 dark:text-white">
           <CreditCard className="h-7 w-7 text-indigo-500" />
-          My Cards
+          VBizMe Team Cards
         </h1>
         <p className="mt-1 text-sm font-semibold text-slate-500">
-          Analytics and details for your admin portfolio cards only. Full network totals stay on the Dashboard; the full
-          directory lives under vCards.
+          Analytics and details for admin-assigned team portfolio cards. Every card on the platform — including team
+          cards — is listed under vCards.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
-          <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">My cards</p>
+          <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Team cards</p>
           <StatNumber
             value={statsReady ? (stats?.cards ?? myCards.length) : undefined}
             loading={!statsReady}
@@ -290,7 +290,7 @@ export default function AdminMyCards() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
             <Share2 className="h-4 w-4 text-indigo-500" />
-            Social analytics (my cards)
+            Social analytics (team cards)
           </h2>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
