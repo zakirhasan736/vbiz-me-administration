@@ -176,6 +176,7 @@ export function renderProfileSection({
       return <LicensingSection key={tabId} sectionName={sectionName} />
     case 'insurance-license':
       return <InsuranceLicenseSection key={tabId} sectionName={sectionName} />
+    case 'contact-us':
     case 'empty':
     default:
       return <EmptyNavSection key={tabId} title={title} sectionName={sectionName} />

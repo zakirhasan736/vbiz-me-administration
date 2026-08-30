@@ -5,7 +5,6 @@ import { useAppSelector } from '@/hooks/redux'
 import {
   allPackageAccessEnabled,
   catalogFeatureAllowed,
-  PROFESSIONAL_UPLOAD_MAX_MB,
   resolvePerFileUploadLimit,
   type PackageAccessKey,
   type PackageAccessMap,
@@ -38,9 +37,6 @@ export function usePackageAccess(): PackageAccessMap & {
 
 /** Per-file image/video/document cap for the signed-in package. Not a card-wide total. */
 export function useMediaUploadLimit(): PerFileUploadLimit {
-  const role = useAppSelector((state) => state.user.user?.role)
-  const { entitlements } = usePackageAccess()
-  if (isStaffRole(role)) return resolvePerFileUploadLimit(null, true)
-  if (!entitlements) return resolvePerFileUploadLimit(PROFESSIONAL_UPLOAD_MAX_MB)
-  return resolvePerFileUploadLimit(entitlements.limits.maxFileSizeMb)
+  // Builder media: no package size gate — transport ceiling only. Videos are still client-optimized when feasible.
+  return resolvePerFileUploadLimit(null, true)
 }

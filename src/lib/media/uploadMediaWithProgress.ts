@@ -1,10 +1,5 @@
 import { isOptimizableImageFile, optimizeImageFile } from '@/lib/media/optimizeImageFile'
-import {
-  isVideoFile,
-  MAX_VIDEO_SOURCE_BYTES,
-  MAX_VIDEO_SOURCE_MB,
-  optimizeVideoFile,
-} from '@/lib/media/optimizeVideoFile'
+import { MAX_VIDEO_SOURCE_BYTES, isVideoFile, optimizeVideoFile } from '@/lib/media/optimizeVideoFile'
 import { baseUrl } from '@/redux/api/api'
 import { store } from '@/redux/store'
 
@@ -27,7 +22,7 @@ export type UploadMediaWithProgressOptions = {
   file: File
   profileId?: string | null
   attachmentType?: string
-  /** Per-file cap. Professional is 50MB; unlimited packages use the transport ceiling. */
+  /** Per-file transport ceiling. Builder uploads are not package-capped; videos are still optimized when feasible. */
   maxBytes?: number
   onProgress?: (percent: number) => void
   onStatus?: (status: 'preparing' | 'uploading') => void
@@ -50,7 +45,7 @@ export function mediaFileTooLargeMessage(maxBytes: number) {
 }
 
 export function videoSourceTooLargeMessage() {
-  return `Video is too large to process. Maximum source size is ${MAX_VIDEO_SOURCE_MB}MB.`
+  return 'Video could not be optimized in the browser; uploading the original file.'
 }
 
 export function assertMediaFileSize(file: File, maxBytes = MAX_MEDIA_UPLOAD_BYTES) {
@@ -86,15 +81,17 @@ export async function uploadMediaWithProgress(
   if (signal?.aborted) throw new MediaUploadError('Upload cancelled')
 
   if (isVideoFile(uploadFile)) {
-    if (uploadFile.size > MAX_VIDEO_SOURCE_BYTES) throw new MediaUploadError(videoSourceTooLargeMessage())
+    // Optimize when the browser can handle the source; never reject large videos — upload original instead.
     onStatus?.('preparing')
-    try {
-      uploadFile = await optimizeVideoFile(uploadFile, signal)
-    } catch (error) {
-      if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
-        throw new MediaUploadError('Upload cancelled')
+    if (uploadFile.size <= MAX_VIDEO_SOURCE_BYTES) {
+      try {
+        uploadFile = await optimizeVideoFile(uploadFile, signal)
+      } catch (error) {
+        if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+          throw new MediaUploadError('Upload cancelled')
+        }
+        // Fall through with the original file when optimization fails.
       }
-      throw error
     }
   } else if (isOptimizableImageFile(uploadFile)) {
     onStatus?.('preparing')
@@ -104,13 +101,16 @@ export async function uploadMediaWithProgress(
       if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         throw new MediaUploadError('Upload cancelled')
       }
-      throw error
+      // Fall through with the original file when optimization fails.
     }
   }
 
   if (signal?.aborted) throw new MediaUploadError('Upload cancelled')
 
-  assertMediaFileSize(uploadFile, maxBytes)
+  // Soft transport ceiling only (multer / reverse-proxy). No package marketing size gate.
+  if (uploadFile.size > maxBytes) {
+    throw new MediaUploadError(mediaFileTooLargeMessage(maxBytes))
+  }
   onStatus?.('uploading')
 
   return new Promise((resolve, reject) => {

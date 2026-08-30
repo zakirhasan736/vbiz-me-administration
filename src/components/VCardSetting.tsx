@@ -65,7 +65,6 @@ import {
   SOCIAL_LINK_FIELDS,
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
-import { DEFAULT_COVER } from '@/profile-app/profilePublicProps'
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import type { VCardAppearance } from '@/types/vcard'
@@ -405,7 +404,7 @@ function TemplateDesigner() {
   }
 
   const bgMediaUrl = getCustomValue(FIELD_BACKGROUND_MEDIA)
-  const wallpaper = resolveWallpaperConfig(vCardData.themeConfig, bgMediaUrl, DEFAULT_COVER)
+  const wallpaper = resolveWallpaperConfig(vCardData.themeConfig, bgMediaUrl)
   const wallpaperStyle = wallpaper.style
   const templateId = cardAppearance.profileTemplate ?? 'v3'
 
@@ -421,7 +420,7 @@ function TemplateDesigner() {
       setCustomValue(FIELD_BACKGROUND_MEDIA, url || '')
       const storedStyle = vCardData.themeConfig?.wallpaper?.style
       if (storedStyle && storedStyle !== 'image' && storedStyle !== 'video') return
-      const next = inferMediaWallpaperStyle(url, DEFAULT_COVER)
+      const next = inferMediaWallpaperStyle(url)
       if (storedStyle === next) return
       updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
     },
@@ -821,7 +820,6 @@ function TemplateDesigner() {
             }
             previewKind="auto"
             previewClassName="aspect-video max-h-56"
-            placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
           >
             <MediaSourceActions
               mode={canBgVideo ? 'both' : 'image'}
@@ -942,6 +940,7 @@ function buildSeoGenerateBody(
     profession: vCardData.personal?.profession?.trim() || '',
     about: vCardData.personal?.about?.trim() || '',
     address: vCardData.personal?.address?.trim() || '',
+    zipCode: vCardData.personal?.zipCode?.trim() || '',
     website: vCardData.personal?.website?.trim() || '',
     services,
     metaTitle: seo.metaTitle,

@@ -393,6 +393,7 @@ function mapPersonal(card: MyCardData): VCardPersonal {
     phone: p.phone || contactPhone,
     whatsapp: p.whatsapp || contactWhatsapp || p.phone || contactPhone,
     address: decodeHtmlText(p.address ?? ''),
+    zipCode: decodeHtmlText(p.zip_code ?? p.zipCode ?? ''),
     website: p.website ?? '',
     about: decodeHtmlText(aboutSection),
     explainerVideoUrl: (() => {

@@ -20,7 +20,7 @@ import {
   onTrackedSocialClick,
   resolveSocialLinkHref,
 } from '@/profile-app/lib/profileSocialLinks'
-import { DEFAULT_COVER, DEFAULT_INTRO_VIDEO, resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
+import { resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
   Bell,
@@ -76,6 +76,9 @@ const V3_SOCIAL_ITEMS: V3SocialItem[] = [
 
 function ProfileMedia({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const encoded = encodeMediaUrl(src)
+  if (!encoded) {
+    return <div className={`bg-zinc-200 dark:bg-zinc-800 ${className || ''}`} aria-label={alt || 'No profile media'} />
+  }
   if (isVideoUrl(encoded)) {
     return (
       <CustomVideoPlayer src={encoded} imageAlt={alt} controlsMode="owner" showSeekBar={false} className={className} />
@@ -111,15 +114,15 @@ export const HomeHero: React.FC<{
 
   const introSrc = homeMedia.introVideo || personal.explainerVideoUrl || undefined
   const profileSrc = useMemo(
-    () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc, DEFAULT_INTRO_VIDEO),
+    () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc),
     [homeMedia.profileMedia, introSrc]
   )
   const profileTheme = useProfileTheme()
-  const wallpaper = resolveWallpaperConfig(profileTheme?.themeConfig, homeMedia.bgMedia, DEFAULT_COVER)
+  const wallpaper = resolveWallpaperConfig(profileTheme?.themeConfig, homeMedia.bgMedia)
   const coverMediaUrl = wallpaperNeedsMedia(wallpaper.style)
-    ? encodeMediaUrl(homeMedia.bgMedia || DEFAULT_COVER)
+    ? encodeMediaUrl(homeMedia.bgMedia || '')
     : encodeMediaUrl(homeMedia.bgMedia || '')
-  const profileIsVideo = isVideoUrl(profileSrc)
+  const profileIsVideo = Boolean(profileSrc) && isVideoUrl(profileSrc)
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showLanguage = isVisible('Language')

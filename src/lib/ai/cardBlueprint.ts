@@ -42,6 +42,7 @@ export const cardBlueprintSchema = z.object({
     company: z.string().optional().default(''),
     profession: z.string().optional().default(''),
     address: z.string().optional().default(''),
+    zipCode: z.string().optional().default(''),
     website: z.string().optional().default(''),
     about: z.string().optional().default(''),
   }),
@@ -317,6 +318,7 @@ export function mapBlueprintToVCardData(
       company: blueprint.personal.company || base?.personal.company || '',
       profession: blueprint.personal.profession || base?.personal.profession || '',
       address: blueprint.personal.address || base?.personal.address || '',
+      zipCode: blueprint.personal.zipCode || base?.personal.zipCode || '',
       website: blueprint.personal.website || base?.personal.website || '',
       about: blueprint.personal.about || base?.personal.about || '',
     },
@@ -365,7 +367,8 @@ export function mapBlueprintToVCardData(
     .map((name) => TAB_NAV_MAP[name] || TAB_NAV_MAP[name.replace(/s$/, '')])
     .filter(Boolean)
 
-  // AI cards: only suggested/content tabs + pinned Global Connection → My Info (never full manual default set)
+  // AI cards: only suggested/content tabs + pinned Public Cards → My Info (never full manual default set).
+  // Order follows the default catalog sequence; missing catalog tabs are skipped.
   const uniqueNav = normalizeNavOrderWithPinnedEnds(contentNavIds)
 
   return {
@@ -386,7 +389,7 @@ export const BLUEPRINT_JSON_INSTRUCTION = `Return a single JSON object matching 
   "personal": {
     "fullName": "", "email": "", "phone": "", "whatsapp": "",
     "designation": "", "company": "", "profession": "",
-    "address": "", "website": "", "about": ""
+    "address": "", "zipCode": "", "website": "", "about": ""
   },
   "socialHandles": { "facebook": "", "instagram": "", "twitter": "", "linkedin": "", "youtube": "", "tiktok": "", "website": "" },
   "education": [{ "institute": "", "degree": "", "fromDate": "YYYY-MM-DD", "toDate": "", "tillNow": false }],

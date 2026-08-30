@@ -201,7 +201,10 @@ export function getCreateCardDisplayLabel(navId: string, fallback: string): stri
   return CREATE_CARD_TAB_BY_NAV_ID[navId]?.name ?? fallback
 }
 
-/** Default public/builder order: Home → FAQ, extras, then Public Cards and My Info. */
+/**
+ * Sort selected nav ids by the default create-card catalog order (skip missing),
+ * then pin Public Cards and My Info last. Does not add unselected catalog tabs.
+ */
 export function normalizeNavOrderWithPinnedEnds(navIds: string[]): string[] {
   return assemblePublicNavOrder(navIds)
 }

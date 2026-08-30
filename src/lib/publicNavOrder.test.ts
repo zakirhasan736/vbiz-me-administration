@@ -13,9 +13,9 @@ describe('canonical public nav order', () => {
     ).toEqual(['home', 'about', 'mission', 'services', 'gallery', 'videos', 'bbb', 'faq', 'public-cards', 'my-info'])
   })
 
-  it('puts extras after FAQ and pins Public Cards then My Info', () => {
+  it('orders selected tabs by the default catalog and skips missing ones', () => {
     expect(
-      applyCanonicalPublicNavOrder(['home', 'education', 'faq', 'services', 'gallery', 'reviews', 'videos'])
+      applyCanonicalPublicNavOrder(['home', 'education', 'faq', 'services', 'gallery', 'reviews', 'videos', 'blog'])
     ).toEqual([
       'home',
       'about',
@@ -25,6 +25,19 @@ describe('canonical public nav order', () => {
       'reviews',
       'faq',
       'education',
+      'blog',
+      'public-cards',
+      'my-info',
+    ])
+  })
+
+  it('puts unknown extras after catalog tabs and pins Public Cards then My Info', () => {
+    expect(applyCanonicalPublicNavOrder(['home', 'contact-us', 'services', 'skills'])).toEqual([
+      'home',
+      'about',
+      'services',
+      'skills',
+      'contact-us',
       'public-cards',
       'my-info',
     ])

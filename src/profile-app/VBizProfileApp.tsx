@@ -38,7 +38,7 @@ export function VBizProfileApp({
   cardOwnerId = DEMO_PROFILE_PROPS.cardOwnerId,
   ownerName = DEMO_PROFILE_PROPS.ownerName,
   tagline = DEMO_PROFILE_PROPS.tagline,
-  coverVideoUrl = DEMO_PROFILE_PROPS.coverVideoUrl,
+  coverVideoUrl = '',
   avatarVideoUrl,
   liveAgentCardData = DEMO_PROFILE_PROPS.liveAgentCardData,
   liveAgentSystemPrompt,

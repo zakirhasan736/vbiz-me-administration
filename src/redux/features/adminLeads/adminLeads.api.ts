@@ -6,6 +6,13 @@ type Envelope<T> = {
   message: string
   data: T
   totalDoc?: number
+  meta?: {
+    skip: number
+    limit: number
+    page: number
+    total: number
+    hasMore: boolean
+  }
 }
 
 export type AdminLeadMetadata = {
@@ -53,6 +60,16 @@ export type AdminLeadsStats = {
 export type AdminLeadsListQuery = {
   q?: string
   profileId?: string
+  skip?: number
+  limit?: number
+}
+
+export type AdminLeadsPage = {
+  items: AdminLeadRow[]
+  total: number
+  skip: number
+  limit: number
+  hasMore: boolean
 }
 
 export type PatchAdminLeadBody = {
@@ -64,8 +81,19 @@ function buildListSearch(params?: AdminLeadsListQuery) {
   const search = new URLSearchParams()
   if (params?.q?.trim()) search.set('q', params.q.trim())
   if (params?.profileId?.trim()) search.set('profileId', params.profileId.trim())
+  if (params?.skip != null) search.set('skip', String(params.skip))
+  if (params?.limit != null) search.set('limit', String(params.limit))
   const qs = search.toString()
   return qs ? `?${qs}` : ''
+}
+
+function toPage(res: Envelope<AdminLeadRow[]>, fallbackSkip = 0, fallbackLimit = 50): AdminLeadsPage {
+  const items = res.data ?? []
+  const total = res.meta?.total ?? res.totalDoc ?? items.length
+  const skip = res.meta?.skip ?? fallbackSkip
+  const limit = res.meta?.limit ?? fallbackLimit
+  const hasMore = res.meta?.hasMore ?? skip + items.length < total
+  return { items, total, skip, limit, hasMore }
 }
 
 const adminLeadsApi = api.injectEndpoints({
@@ -76,24 +104,24 @@ const adminLeadsApi = api.injectEndpoints({
       transformResponse: (res: Envelope<AdminLeadsStats>) => res.data,
       providesTags: [{ type: 'adminLeads', id: 'STATS' }],
     }),
-    getAdminLeadsSaves: builder.query<AdminLeadRow[], AdminLeadsListQuery | void>({
+    getAdminLeadsSaves: builder.query<AdminLeadsPage, AdminLeadsListQuery | void>({
       query: (params) => `/admin/leads/saves${buildListSearch(params || undefined)}`,
-      transformResponse: (res: Envelope<AdminLeadRow[]>) => res.data ?? [],
+      transformResponse: (res: Envelope<AdminLeadRow[]>, _meta, arg) => toPage(res, arg?.skip ?? 0, arg?.limit ?? 50),
       providesTags: (result) =>
         result
           ? [
-              ...result.map((row) => ({ type: 'adminLeads' as const, id: `save-${row.id}` })),
+              ...result.items.map((row) => ({ type: 'adminLeads' as const, id: `save-${row.id}` })),
               { type: 'adminLeads', id: 'SAVES' },
             ]
           : [{ type: 'adminLeads', id: 'SAVES' }],
     }),
-    getAdminLeadsNotes: builder.query<AdminLeadRow[], AdminLeadsListQuery | void>({
+    getAdminLeadsNotes: builder.query<AdminLeadsPage, AdminLeadsListQuery | void>({
       query: (params) => `/admin/leads/notes${buildListSearch(params || undefined)}`,
-      transformResponse: (res: Envelope<AdminLeadRow[]>) => res.data ?? [],
+      transformResponse: (res: Envelope<AdminLeadRow[]>, _meta, arg) => toPage(res, arg?.skip ?? 0, arg?.limit ?? 50),
       providesTags: (result) =>
         result
           ? [
-              ...result.map((row) => ({ type: 'adminLeads' as const, id: `note-${row.id}` })),
+              ...result.items.map((row) => ({ type: 'adminLeads' as const, id: `note-${row.id}` })),
               { type: 'adminLeads', id: 'NOTES' },
             ]
           : [{ type: 'adminLeads', id: 'NOTES' }],
@@ -110,6 +138,7 @@ const adminLeadsApi = api.injectEndpoints({
         { type: 'adminLeads', id: 'NOTES' },
         { type: 'adminLeads', id: 'STATS' },
         { type: 'adminLeads', id: `save-${arg.id}` },
+        'dashboard',
       ],
     }),
     deleteAdminLeadSave: builder.mutation<{ id: string; deleted: boolean }, string>({
@@ -137,6 +166,7 @@ const adminLeadsApi = api.injectEndpoints({
         { type: 'adminLeads', id: 'SAVES' },
         { type: 'adminLeads', id: 'STATS' },
         { type: 'adminLeads', id: `note-${arg.id}` },
+        'dashboard',
       ],
     }),
     deleteAdminLeadNote: builder.mutation<{ id: string; deleted: boolean }, string>({
@@ -149,6 +179,7 @@ const adminLeadsApi = api.injectEndpoints({
         { type: 'adminLeads', id: 'NOTES' },
         { type: 'adminLeads', id: 'SAVES' },
         { type: 'adminLeads', id: 'STATS' },
+        'dashboard',
       ],
     }),
   }),

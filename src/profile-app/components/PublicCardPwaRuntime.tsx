@@ -228,6 +228,7 @@ const STATIC_DYNAMIC_SECTION_BY_CONTENT: Partial<Record<ProfileNavContentKey, st
   dinner: PUBLIC_SECTION_NAMES.dinner,
   lunch: PUBLIC_SECTION_NAMES.lunch,
   inventory: PUBLIC_SECTION_NAMES.inventory,
+  'contact-us': PUBLIC_SECTION_NAMES.contactUs,
 }
 
 function dynamicSectionNameForNavItem(item: NavBarNavItem): string | null {

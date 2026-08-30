@@ -570,6 +570,12 @@ export function getEditorPanelCompletionFields(
         filled: filled(p.address),
         edit: { type: 'scalar', path: 'personal.address', control: 'text' },
       },
+      {
+        id: 'personal.zipCode',
+        label: 'ZIP / Postal code',
+        filled: filled(p.zipCode),
+        edit: { type: 'scalar', path: 'personal.zipCode', control: 'text' },
+      },
     ],
     3: [
       {

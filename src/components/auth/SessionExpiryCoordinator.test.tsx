@@ -137,6 +137,35 @@ describe('SessionExpiryCoordinator', () => {
     await act(async () => requestSessionExpiryWarning('expired'))
 
     expect(document.body.textContent).not.toContain('Session expiring')
+    expect(document.body.textContent).not.toContain('Session expired')
+    expect(onSignOut).not.toHaveBeenCalled()
+  })
+
+  it('shows Session expired with Sign in again when refresh fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'Refresh token is invalid or expired' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    )
+    const onSignOut = vi.fn(async () => undefined)
+    await act(async () => {
+      root.render(
+        <Provider store={authStore}>
+          <SessionExpiryCoordinator onSignOut={onSignOut} />
+        </Provider>
+      )
+    })
+
+    await act(async () => requestSessionExpiryWarning('expired'))
+    await act(async () => vi.advanceTimersByTime(50))
+
+    expect(document.body.textContent).toContain('Session expired')
+    expect(document.body.textContent).toContain('Sign in again')
+    expect(document.body.textContent).toContain('Sign out')
     expect(onSignOut).not.toHaveBeenCalled()
   })
 })

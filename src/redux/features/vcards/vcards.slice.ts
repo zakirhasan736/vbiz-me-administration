@@ -91,7 +91,7 @@ const vcardsSlice = createSlice({
         updatedAt: now,
         views: 0,
         saves: 0,
-        avatarImageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
+        avatarImageUrl: '',
         backgroundImageUrl: '',
         isActive: true,
       }

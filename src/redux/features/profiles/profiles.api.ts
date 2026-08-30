@@ -42,10 +42,12 @@ export type ApiProfile = {
   designation?: string | null
   about?: string | null
   address?: string | null
+  zipCode?: string | null
   avatar?: string | null
   addresses?: Array<{
     id?: string
     line1?: string | null
+    zipCode?: string | null
     isPrimary?: boolean
   }>
   prof?: string | null
@@ -302,6 +304,21 @@ export type ProfileContact = {
   privateNotes?: string
   lastReply?: string
   lastReplyAt?: string
+}
+
+export type ContactsListQuery = {
+  profileId?: string
+  skip?: number
+  limit?: number
+  source?: 'guest_save' | 'note' | 'all'
+}
+
+export type ContactsPage = {
+  items: ProfileContact[]
+  total: number
+  skip: number
+  limit: number
+  hasMore: boolean
 }
 
 export type TeamNotice = {
@@ -628,6 +645,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       phone: profile.phone || '',
       whatsapp: profile.whatsapp || '',
       address: profile.address || '',
+      zipCode: profile.zipCode || '',
       website: profile.website || '',
       about: profile.about || '',
       explainerVideoUrl,
@@ -798,6 +816,7 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     whatsapp: data.personal.whatsapp,
     website: data.personal.website,
     address: data.personal.address,
+    zipCode: data.personal.zipCode || '',
     prof: data.personal.profession,
     dob: dob || null,
     isPublic: data.isDraft ? false : data.isPublic,
@@ -1587,10 +1606,33 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<EffectiveEntitlements>) => res.data,
       providesTags: ['auth'],
     }),
-    getContacts: builder.query<ProfileContact[], string | void>({
-      query: (profileId) =>
-        profileId ? `/profiles/contacts?profileId=${encodeURIComponent(profileId)}` : '/profiles/contacts',
-      transformResponse: (res: Envelope<ProfileContact[]>) => res.data || [],
+    getContacts: builder.query<ContactsPage, ContactsListQuery | string | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (typeof params === 'string' && params) {
+          search.set('profileId', params)
+        } else if (params && typeof params === 'object') {
+          if (params.profileId) search.set('profileId', params.profileId)
+          if (params.skip != null) search.set('skip', String(params.skip))
+          if (params.limit != null) search.set('limit', String(params.limit))
+          if (params.source) search.set('source', params.source)
+        }
+        const qs = search.toString()
+        return qs ? `/profiles/contacts?${qs}` : '/profiles/contacts'
+      },
+      transformResponse: (res: Envelope<ProfileContact[]>, _meta, arg) => {
+        const items = res.data || []
+        const skip = typeof arg === 'object' && arg ? (arg.skip ?? 0) : 0
+        const limit = typeof arg === 'object' && arg ? (arg.limit ?? 50) : 50
+        const total = res.totalDoc ?? items.length
+        return {
+          items,
+          total,
+          skip,
+          limit,
+          hasMore: skip + items.length < total,
+        }
+      },
       providesTags: ['dashboard'],
       keepUnusedDataFor: 60,
     }),

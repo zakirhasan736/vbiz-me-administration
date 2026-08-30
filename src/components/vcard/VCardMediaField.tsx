@@ -188,7 +188,7 @@ export function VCardMediaField({
         return
       }
 
-      if (file.size > limitBytes && !isVideoFile(file)) {
+      if (file.size > limitBytes) {
         setError(mediaFileTooLargeMessage(limitBytes))
         return
       }
@@ -290,11 +290,23 @@ export function VCardMediaField({
           className="flex shrink-0 cursor-pointer items-center gap-2 border-r border-slate-200/80 bg-slate-50 px-4 py-3.5 text-[13px] font-bold whitespace-nowrap text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-4 dark:border-white/10 dark:bg-slate-800/50 dark:text-white dark:hover:bg-slate-800"
         >
           {uploading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Upload className="h-4 w-4 shrink-0" />}{' '}
-          {browseLabel}
+          {displayUrl ? 'Replace' : browseLabel}
         </button>
         <span className="flex min-w-0 flex-1 items-center truncate px-4 py-3.5 text-[13px] font-medium text-slate-500 sm:px-5 sm:py-4 dark:text-slate-400">
           {displayUrl ? mediaLabel(displayUrl, selectPlaceholder, localFileName) : selectPlaceholder}
         </span>
+        {displayUrl ? (
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            disabled={disabled || uploading}
+            className="flex shrink-0 items-center gap-1.5 border-l border-slate-200/80 bg-rose-50 px-3 py-3.5 text-[12px] font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50 sm:px-4 dark:border-white/10 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+            aria-label="Remove media"
+          >
+            <X className="h-4 w-4" />
+            <span className="hidden sm:inline">Remove</span>
+          </button>
+        ) : null}
       </div>
       {uploading ? (
         <UploadProgressBar progress={progress} label={uploadStage === 'preparing' ? 'Optimizing…' : undefined} />

@@ -117,7 +117,10 @@ export default function VCardDetailSidebar({
   const { data: socialClickRows = [] } = useGetSocialClicksQuery(card?.id ? { profileId: card.id } : undefined, {
     skip: !card?.id,
   })
-  const { data: contactRows = [] } = useGetContactsQuery(card?.id, { skip: !card?.id })
+  const { data: contactsPage } = useGetContactsQuery(card?.id ? { profileId: card.id, limit: 100 } : undefined, {
+    skip: !card?.id,
+  })
+  const contactRows = contactsPage?.items ?? []
 
   const socials = useMemo(
     () =>
@@ -143,7 +146,7 @@ export default function VCardDetailSidebar({
     ? card.socialClicks.reduce((sum, row) => sum + (Number(row.clickCount) || 0), 0)
     : 0
   const clicks = Number(analytics.clicks ?? liveClickTotal ?? cardSocialTotal ?? card.shareCount ?? 0)
-  const saves = contactRows.length || Number(card.saveCount) || 0
+  const saves = contactsPage?.total ?? Number(card.saveCount) ?? 0
   const shares = Number(card.shareCount ?? clicks) || 0
   const ctr = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0.0'
   // 7-day block only.

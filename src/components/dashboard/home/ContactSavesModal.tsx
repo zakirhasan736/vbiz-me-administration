@@ -15,6 +15,9 @@ type ContactSavesModalProps = {
   tab: ContactSavesModalTab
   onTabChange: (tab: ContactSavesModalTab) => void
   onClose: () => void
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
 }
 
 export function ContactSavesModal({
@@ -24,6 +27,9 @@ export function ContactSavesModal({
   tab,
   onTabChange,
   onClose,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }: ContactSavesModalProps) {
   return (
     <ModalPortal>
@@ -39,7 +45,7 @@ export function ContactSavesModal({
             <div className="min-w-0">
               <p className="text-base font-black text-slate-900 dark:text-white">Contact Saves</p>
               <p className="text-[11px] font-semibold wrap-break-word text-slate-400">
-                {count} guest{count === 1 ? '' : 's'} — Saves & Notes
+                {count.toLocaleString()} guest{count === 1 ? '' : 's'} — Saves & Notes
               </p>
             </div>
             <button
@@ -65,7 +71,7 @@ export function ContactSavesModal({
                 )}
               >
                 <Save className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">Contact Saves</span>
+                <span className="truncate">Contact Saves ({count.toLocaleString()})</span>
               </button>
               <button
                 type="button"
@@ -78,14 +84,20 @@ export function ContactSavesModal({
                 )}
               >
                 <MessageCircle className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">Lead Notes</span>
+                <span className="truncate">Lead Notes ({notesCount.toLocaleString()})</span>
               </button>
             </div>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-3">
             {tab === 'saves' ? (
-              <ContactSavesPanel contacts={contacts} />
+              <ContactSavesPanel
+                contacts={contacts}
+                totalCount={count}
+                hasMore={hasMore}
+                loadingMore={loadingMore}
+                onLoadMore={onLoadMore}
+              />
             ) : (
               <LeadNotesPanel contacts={contacts} notesCount={notesCount} />
             )}

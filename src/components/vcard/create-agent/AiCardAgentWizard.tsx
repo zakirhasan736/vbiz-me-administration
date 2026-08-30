@@ -666,6 +666,7 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
         { label: 'Headline/title', filled: hasText(personal.designation) || hasText(personal.profession) },
         { label: 'Website', filled: hasText(personal.website) },
         { label: 'Address/location', filled: hasText(personal.address) },
+        { label: 'ZIP / Postal code', filled: hasText(personal.zipCode) },
         { label: 'Public URL slug', filled: hasText(data.slug), hint: 'Needed before create.' },
         {
           label: 'Profile image/video',
@@ -1792,14 +1793,14 @@ export function AiCardAgentWizard({
       if (mode === 'review') {
         pushMsg('user', 'Review everything')
         const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'tabs', {
-          selectedNavIds: ['home', ...selectedRecs],
+          selectedNavIds: normalizeNavOrderWithPinnedEnds(['home', 'about', ...selectedRecs]),
         })
         await continueFieldFlow(job)
         return
       }
       pushMsg('user', mode === 'ai' ? 'Let AI handle what it can' : 'Use only what we found')
       await cardAgentJobPost(sessionIdRef.current, 'tabs', {
-        selectedNavIds: ['home', ...selectedRecs],
+        selectedNavIds: normalizeNavOrderWithPinnedEnds(['home', 'about', ...selectedRecs]),
       })
       const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'fast-mode', { mode })
       await continueFieldFlow(job)
@@ -1849,7 +1850,7 @@ export function AiCardAgentWizard({
 
   const acceptTabs = async () => {
     editorUnlockedRef.current = true
-    const nextNav = normalizeNavOrderWithPinnedEnds(['home', ...selectedRecs])
+    const nextNav = normalizeNavOrderWithPinnedEnds(['home', 'about', ...selectedRecs])
     onEnableNavIds(nextNav)
     setActiveNav(nextNav)
     pushMsg(

@@ -86,6 +86,8 @@ export default function AdminDashboard() {
   const [period, setPeriod] = useState<DashboardPeriod>('all')
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
   const [showContactSavesModal, setShowContactSavesModal] = useState(false)
+  const [contactsSkip, setContactsSkip] = useState(0)
+  const [contactsAccum, setContactsAccum] = useState<DashboardContact[]>([])
 
   const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery(
     { period },
@@ -93,18 +95,30 @@ export default function AdminDashboard() {
   )
   const stats = summary?.stats
   const { overlay: liveKpis, connected: liveConnected } = useAdminDashboardLiveKpis(period)
-  const { data: contactsRaw } = useGetContactsQuery(undefined, { skip: !showContactSavesModal })
+  const { data: contactsPage, isFetching: contactsFetching } = useGetContactsQuery(
+    { skip: contactsSkip, limit: 50, source: 'guest_save' },
+    { skip: !showContactSavesModal }
+  )
+
+  const modalContacts = useMemo(() => {
+    if (!showContactSavesModal) return [] as DashboardContact[]
+    const pageItems = (contactsPage?.items ?? []) as DashboardContact[]
+    if (contactsSkip === 0) return pageItems
+    const seen = new Set(contactsAccum.map((row) => row.id))
+    return [...contactsAccum, ...pageItems.filter((row) => !seen.has(row.id))]
+  }, [showContactSavesModal, contactsPage, contactsSkip, contactsAccum])
 
   const contacts = useMemo(
-    () =>
-      Array.isArray(contactsRaw)
-        ? (contactsRaw as DashboardContact[])
-        : ((summary?.contactsPreview || []) as DashboardContact[]),
-    [contactsRaw, summary?.contactsPreview]
+    () => (modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])),
+    [modalContacts, summary?.contactsPreview]
   )
   const statsReady = Boolean(stats) && !statsLoading
   const contactSavesCount = statsReady ? resolveDashboardContactSaves(stats) : undefined
   const totalSavedContacts = statsReady ? (contactSavesCount || 0) + liveKpis.saves : undefined
+  const contactsListTotal = contactsPage?.total ?? totalSavedContacts ?? contacts.length
+  const contactsHasMore = Boolean(
+    contactsPage?.hasMore ?? (contactsPage?.total != null && modalContacts.length < contactsPage.total)
+  )
   const platformUniqueViews = statsReady
     ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) + liveKpis.views
     : undefined
@@ -160,8 +174,28 @@ export default function AdminDashboard() {
   )
 
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
+    setContactsSkip(0)
+    setContactsAccum([])
     setContactSavesModalTab(tab)
     setShowContactSavesModal(true)
+  }
+
+  const closeContactSaves = () => {
+    setShowContactSavesModal(false)
+    setContactsSkip(0)
+    setContactsAccum([])
+  }
+
+  const loadMoreContacts = () => {
+    if (contactsPage?.items?.length) {
+      const pageItems = contactsPage.items as DashboardContact[]
+      setContactsAccum((prev) => {
+        if (contactsSkip === 0) return pageItems
+        const seen = new Set(prev.map((row) => row.id))
+        return [...prev, ...pageItems.filter((row) => !seen.has(row.id))]
+      })
+    }
+    setContactsSkip((prev) => prev + 50)
   }
 
   return (
@@ -694,12 +728,15 @@ export default function AdminDashboard() {
       {/* Popup: Total saved contacts detail */}
       {showContactSavesModal && (
         <ContactSavesModal
-          count={totalSavedContacts ?? 0}
+          count={totalSavedContacts ?? contactsListTotal ?? 0}
           contacts={contacts}
           notesCount={stats?.notesLast30Days ?? 0}
           tab={contactSavesModalTab}
           onTabChange={setContactSavesModalTab}
-          onClose={() => setShowContactSavesModal(false)}
+          onClose={closeContactSaves}
+          hasMore={contactsHasMore}
+          loadingMore={contactsFetching && contactsSkip > 0}
+          onLoadMore={loadMoreContacts}
         />
       )}
 

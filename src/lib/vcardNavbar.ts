@@ -132,6 +132,7 @@ export type ProfileNavContentKey =
   | 'media-press'
   | 'announcement'
   | 'breakfast'
+  | 'contact-us'
   | 'dinner'
   | 'lunch'
   | 'inventory'
@@ -404,8 +405,9 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     id: 'contact-us',
     label: 'Contact Us',
     icon: Phone,
-    profileContent: 'about',
-    editorPanel: { kind: 'personal', subTab: 2 },
+    profileContent: 'contact-us',
+    apiSectionName: 'Contact Us',
+    editorPanel: { kind: 'section-posts', schemaKey: 'contact-us' },
   },
   {
     id: 'dcp',

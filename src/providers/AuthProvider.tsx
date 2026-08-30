@@ -3,8 +3,14 @@
 import { SessionExpiryCoordinator } from '@/components/auth/SessionExpiryCoordinator'
 import { useAppSelector } from '@/hooks/redux'
 import type { IUser } from '@/interfaces/user.interface'
-import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
-import { redirectToRoleHome, requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
+import { refreshSession, resetRefreshSessionLock } from '@/lib/auth/sessionClient'
+import {
+  isJwtExpired,
+  jwtExpiresAt,
+  redirectToRoleHome,
+  requestSessionExpiryWarning,
+  SESSION_RENEW_BEFORE_EXPIRY_MS,
+} from '@/lib/auth/sessionPolicy'
 import { hydrateCompletedTours } from '@/lib/dashboardTour'
 import { api, baseUrl } from '@/redux/api/api'
 import { logout as clearAuth, updateAuthState, updateUser } from '@/redux/features/auth/user.slice'
@@ -99,14 +105,30 @@ function useAuthBootstrap() {
     }
 
     const syncSessionToken = (role?: string | null, ownerMode?: 'single' | 'corporate' | null) => {
-      void refreshSessionAccessToken(store.getState().user.token).then((accessToken) => {
+      const currentToken = store.getState().user.token
+      const expiresAt = jwtExpiresAt(currentToken)
+      const now = Date.now()
+      const needsRefresh =
+        !currentToken ||
+        isJwtExpired(currentToken, now) ||
+        (expiresAt !== null && expiresAt - now <= SESSION_RENEW_BEFORE_EXPIRY_MS)
+
+      if (!needsRefresh) {
+        redirectToRoleHome({ role, ownerMode })
+        return
+      }
+
+      void refreshSession(currentToken).then((result) => {
         if (cancelled) return
-        if (!accessToken) {
-          requestSessionExpiryWarning('expired')
+        if (!result.accessToken) {
+          // Only interrupt workspace routes when the refresh cookie is actually dead.
+          if (result.hardExpired) {
+            requestSessionExpiryWarning('expired')
+          }
           return
         }
-        if (store.getState().user.token !== accessToken) {
-          store.dispatch(updateAuthState({ token: accessToken }))
+        if (store.getState().user.token !== result.accessToken) {
+          store.dispatch(updateAuthState({ token: result.accessToken }))
         }
         redirectToRoleHome({ role, ownerMode })
       })
@@ -243,6 +265,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
 export async function logout(): Promise<void> {
   const token = store.getState().user.token
+  resetRefreshSessionLock()
 
   try {
     await fetch(`${baseUrl}/auth/logout`, {

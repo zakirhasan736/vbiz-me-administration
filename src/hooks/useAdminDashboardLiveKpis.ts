@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
-import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
+import { refreshSession } from '@/lib/auth/sessionClient'
 import { requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
 import { baseUrl } from '@/redux/api/api'
 import { updateAuthState } from '@/redux/features/auth/user.slice'
@@ -74,14 +74,14 @@ export function useDashboardLiveKpis(period: DashboardPeriod) {
       if (!/auth|unauthori[sz]ed|token|jwt|expired/i.test(error?.message || '')) return
       refreshAttempted = true
 
-      void refreshSessionAccessToken(token).then((accessToken) => {
+      void refreshSession(token).then((result) => {
         if (cancelled) return
-        if (!accessToken) {
+        if (!result.accessToken) {
           requestSessionExpiryWarning('expired')
           return
         }
-        dispatch(updateAuthState({ token: accessToken }))
-        socket.auth = { token: accessToken }
+        dispatch(updateAuthState({ token: result.accessToken }))
+        socket.auth = { token: result.accessToken }
         socket.connect()
       })
     }

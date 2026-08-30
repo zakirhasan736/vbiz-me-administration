@@ -194,11 +194,12 @@ export function buildProfileContactItems(
       style: pickStyle(field('MyInfo Website'), iconFor('Website')),
     })
   }
-  if (isVisible('MyInfo Address') && personal.address) {
+  if (isVisible('MyInfo Address') && (personal.address || personal.zipCode)) {
+    const addressValue = [personal.address, personal.zipCode].filter((part) => Boolean(part?.trim())).join(', ')
     items.push({
       icon: MapPin,
       label: 'Address',
-      value: personal.address,
+      value: addressValue,
       detail: 'HQ',
       style: pickStyle(field('MyInfo Address'), iconFor('Address')),
     })

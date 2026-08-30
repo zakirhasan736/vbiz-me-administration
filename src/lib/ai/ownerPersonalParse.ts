@@ -10,6 +10,7 @@ const PERSONAL_KEYS = [
   'company',
   'website',
   'address',
+  'zipCode',
   'designation',
   'about',
   'whatsapp',
@@ -60,6 +61,9 @@ export function parseOwnerPersonalFromText(text: string): Partial<VCardPersonal>
   const address = labeledValue(raw, ['address', 'location', 'service area'])
   if (address) personal.address = address
 
+  const zipCode = labeledValue(raw, ['zip code', 'zipcode', 'postal code', 'postcode', 'zip'])
+  if (zipCode) personal.zipCode = zipCode
+
   const designation = labeledValue(raw, ['title', 'headline', 'designation', 'role'])
   if (designation) personal.designation = designation
 
@@ -71,7 +75,7 @@ export function parseOwnerPersonalFromText(text: string): Partial<VCardPersonal>
     .replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, '')
     .replace(/\b(19|20)\d{2}-\d{2}-\d{2}\b/g, '')
     .replace(
-      /(?:full name|card name|business name|company|email|phone|dob|date of birth|website|address)\s*[:\-].*/gi,
+      /(?:full name|card name|business name|company|email|phone|dob|date of birth|website|address|zip(?:\s*code)?|postal\s*code)\s*[:\-].*/gi,
       ''
     )
     .replace(/(?:(?:my )?name\s*(?:is|:)|i am|i'm)\s+[A-Za-z][A-Za-z .'-]{1,70}/gi, '')
@@ -107,6 +111,7 @@ export function patchDraftFromFieldKey(draft: VCardData, fieldKey: string, value
     if (!personal.fullName) personal.fullName = text
   } else if (fieldKey === 'website') assign('website', text)
   else if (fieldKey === 'address') assign('address', text)
+  else if (fieldKey === 'zipCode') assign('zipCode', text)
   else if (fieldKey === 'designation') assign('designation', text)
   else if (fieldKey === 'about') assign('about', text)
   else if (fieldKey === 'slug') {

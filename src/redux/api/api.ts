@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { refreshSessionAccessToken } from '@/lib/auth/sessionClient'
+import { refreshSession } from '@/lib/auth/sessionClient'
 import { isAuthenticatedWorkspacePath, requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import { updateAuthState } from '../features/auth/user.slice'
@@ -22,6 +22,7 @@ const baseQuery = fetchBaseQuery({
     return headers
   },
 })
+
 export const baseQueryWithRefreshToken = async (args: any, api: any, extraOptions: any) => {
   let result = await baseQuery(args, api, extraOptions)
 
@@ -38,13 +39,13 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
       return result
     }
 
-    const accessToken = await refreshSessionAccessToken(token)
-    if (!accessToken) {
+    const refreshed = await refreshSession(token)
+    if (!refreshed.accessToken) {
       warnAboutExpiredSession(api)
       return result
     }
 
-    api?.dispatch(updateAuthState({ token: accessToken }))
+    api?.dispatch(updateAuthState({ token: refreshed.accessToken }))
     result = await baseQuery(args, api, extraOptions)
     if (result?.error?.status === 401 || result?.error?.status === 419) {
       warnAboutExpiredSession(api)
@@ -64,6 +65,7 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
 
   return result
 }
+
 export const api = createApi({
   reducerPath: 'baseApi',
   baseQuery: baseQueryWithRefreshToken,

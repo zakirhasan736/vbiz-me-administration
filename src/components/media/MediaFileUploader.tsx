@@ -2,7 +2,6 @@
 
 import { useMediaUploadLimit } from '@/hooks/usePackageAccess'
 import {
-  isVideoFile,
   mediaFileTooLargeMessage,
   mediaNeedsClientOptimize,
   MediaUploadError,
@@ -180,7 +179,7 @@ export function MediaFileUploader({
       if (disabled) return
       setError(null)
 
-      if (file.size > limitBytes && !isVideoFile(file)) {
+      if (file.size > limitBytes) {
         setError(mediaFileTooLargeMessage(limitBytes))
         return
       }

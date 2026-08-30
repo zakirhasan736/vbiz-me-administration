@@ -14,7 +14,7 @@ import { forwardRef, type CSSProperties } from 'react'
 
 type Props = {
   wallpaper: CardWallpaperConfig
-  /** Background Video/Image URL (or DEFAULT_COVER when media styles need a fallback). */
+  /** Background Video/Image URL. Empty when the owner has not uploaded cover media. */
   mediaUrl?: string | null
   className?: string
   /** Applied to img/video elements (template opacity / blend). */

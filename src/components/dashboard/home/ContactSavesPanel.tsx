@@ -20,6 +20,10 @@ export type DashboardContact = {
 type ContactSavesPanelProps = {
   contacts?: DashboardContact[]
   className?: string
+  totalCount?: number
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
 }
 
 function formatWhen(iso?: string) {
@@ -48,7 +52,14 @@ function initials(name?: string | null) {
   )
 }
 
-export function ContactSavesPanel({ contacts = [], className }: ContactSavesPanelProps) {
+export function ContactSavesPanel({
+  contacts = [],
+  className,
+  totalCount,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+}: ContactSavesPanelProps) {
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -64,9 +75,18 @@ export function ContactSavesPanel({ contacts = [], className }: ContactSavesPane
     })
   }, [contacts, query])
 
+  const displayTotal = totalCount ?? contacts.length
+
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
       <div className="shrink-0 px-4 pb-3 sm:px-5">
+        {totalCount != null ? (
+          <p className="mb-2 text-[11px] font-black tracking-wider text-emerald-700 uppercase tabular-nums dark:text-emerald-300">
+            {totalCount > contacts.length
+              ? `Showing ${contacts.length.toLocaleString()} of ${displayTotal.toLocaleString()} people`
+              : `${displayTotal.toLocaleString()} ${displayTotal === 1 ? 'person' : 'people'}`}
+          </p>
+        ) : null}
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -147,6 +167,20 @@ export function ContactSavesPanel({ contacts = [], className }: ContactSavesPane
             })}
           </ul>
         )}
+        {hasMore && onLoadMore ? (
+          <div className="flex justify-center pt-3">
+            <button
+              type="button"
+              onClick={onLoadMore}
+              disabled={loadingMore}
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] font-black tracking-wider text-emerald-700 uppercase hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+            >
+              {loadingMore
+                ? 'Loading…'
+                : `Show more (${Math.max(0, displayTotal - contacts.length).toLocaleString()} remaining)`}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   )

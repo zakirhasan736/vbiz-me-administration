@@ -9,6 +9,7 @@ import { useAppDispatch } from '@/hooks/redux'
 import type { TPasswordSetupRequiredData } from '@/interfaces'
 import type { IQueryMutationErrorResponse } from '@/interfaces/queryMutationErrorResponse'
 import type { IUser } from '@/interfaces/user.interface'
+import { resetRefreshSessionLock } from '@/lib/auth/sessionClient'
 import { clearSessionExpiredMarker, resolvePostLoginPath } from '@/lib/auth/sessionPolicy'
 import { useLoginMutation } from '@/redux/features/auth/auth.api'
 import { updateAuthState } from '@/redux/features/auth/user.slice'
@@ -74,6 +75,7 @@ const LoginView = () => {
   }, [searchParams, router])
 
   const completeLogin = (payload: { profile: IUser; accessToken: string }) => {
+    resetRefreshSessionLock()
     dispatch(
       updateAuthState({
         user: payload.profile,
@@ -156,12 +158,16 @@ const LoginView = () => {
                 {sessionExpired ? (
                   <div
                     role="status"
-                    className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-left text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100"
+                    className="flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-left text-rose-950 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-100"
                   >
                     <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
-                    <p className="text-xs leading-5 font-semibold">
-                      Your session expired. Sign in again to continue securely.
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs leading-5 font-bold">Your session expired</p>
+                      <p className="text-xs leading-5 font-semibold opacity-90">
+                        Sign in again to continue in Admin, Corporate, or your back office. A fresh login resets your
+                        secure session tokens.
+                      </p>
+                    </div>
                   </div>
                 ) : null}
                 <div className="group flex flex-col space-y-1.5 text-left">

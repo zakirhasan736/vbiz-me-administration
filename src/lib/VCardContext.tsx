@@ -868,7 +868,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
         const wrotePosts = Boolean(synced.blog || synced.faqs || Object.keys(synced.sectionPosts || {}).length)
         if (wrotePosts) {
-          wroteChanges = true
           const generalPosts = synced.blog
             ? mergeLocalEmptyDrafts(data.generalPosts, mapApiPostsToGeneralPosts(synced.blog), isEmptyGeneralPost)
             : data.generalPosts || []
@@ -891,6 +890,10 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             faqs,
             sectionPosts,
           })
+          // Only toast when persistable content actually changed (skip empty draft open/close no-ops).
+          if (hasPersistablePostsDelta(next, postsSnapshotRef.current)) {
+            wroteChanges = true
+          }
           editDataRef.current = next
           data = next
           dispatch(

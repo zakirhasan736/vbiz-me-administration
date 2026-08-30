@@ -23,6 +23,7 @@ export const PUBLIC_SECTION_NAMES = {
   bbb: 'Better Business Bureau (BBB) Accreditation',
   booking: 'Booking',
   breakfast: 'Breakfast',
+  contactUs: 'Contact Us',
   dinner: 'Dinner',
   lunch: 'Lunch',
   dcp: 'Department of Consumer Protection (DCP)',

@@ -53,6 +53,7 @@ const SECTION_EXPORT_NAMES: Record<ProfileNavContentKey, string> = {
   'content-media': 'EmptyNavSection',
   'global-connection': 'PublicCardsSection',
   'my-info': 'MyInfoSection',
+  'contact-us': 'EmptyNavSection',
   empty: 'EmptyNavSection',
 }
 

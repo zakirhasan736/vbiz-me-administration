@@ -3,7 +3,7 @@
 import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
-import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
+import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
@@ -41,8 +41,6 @@ import { CustomVideoPlayer } from './CustomVideoPlayer'
 import { LeaveMessageModal } from './LeaveMessageModal'
 import { ProfileActionButtons } from './ProfileActionButtons'
 import { SectionContainer } from './SectionContainer'
-
-const DEFAULT_COVER = 'https://app.vbizme.com/storage/ecard/backgroundVideos/91/Untitled%20design-36.mp4'
 
 const V1_SOCIAL_GRID = [
   { label: 'Twitter', icon: Twitter },
@@ -246,10 +244,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const accent = design?.accentColor ?? '#dcc969'
 
   const theme = useProfileTheme()
-  const wallpaper = resolveWallpaperConfig(theme?.themeConfig, homeMedia.bgMedia, DEFAULT_COVER)
-  const coverMediaUrl = wallpaperNeedsMedia(wallpaper.style)
-    ? encodeMediaUrl(homeMedia.bgMedia || DEFAULT_COVER)
-    : encodeMediaUrl(homeMedia.bgMedia || '')
+  const wallpaper = resolveWallpaperConfig(theme?.themeConfig, homeMedia.bgMedia)
+  const coverMediaUrl = encodeMediaUrl(homeMedia.bgMedia || '')
   const introSrc = homeMedia.introVideo || personal.explainerVideoUrl || undefined
   const profileSrc = useMemo(
     () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc),
@@ -529,13 +525,20 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                   className="group/profile relative mx-auto w-fit sm:mx-0"
                 >
-                  <CustomVideoPlayer
-                    src={profileSrc}
-                    imageAlt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
-                    controlsMode="owner"
-                    showSeekBar={false}
-                    className="mb-4 h-48 w-32 rounded-2xl border border-black/5 bg-white object-cover shadow-2xl backdrop-blur-md sm:mb-6 sm:h-48 sm:w-32 lg:h-56 lg:w-40 dark:border-white/20 dark:bg-gray-500"
-                  />
+                  {profileSrc ? (
+                    <CustomVideoPlayer
+                      src={profileSrc}
+                      imageAlt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
+                      controlsMode="owner"
+                      showSeekBar={false}
+                      className="mb-4 h-48 w-32 rounded-2xl border border-black/5 bg-white object-cover shadow-2xl backdrop-blur-md sm:mb-6 sm:h-48 sm:w-32 lg:h-56 lg:w-40 dark:border-white/20 dark:bg-gray-500"
+                    />
+                  ) : (
+                    <div
+                      className="mb-4 h-48 w-32 rounded-2xl border border-black/5 bg-zinc-200 shadow-2xl sm:mb-6 sm:h-48 sm:w-32 lg:h-56 lg:w-40 dark:border-white/20 dark:bg-zinc-800"
+                      aria-label="No profile media"
+                    />
+                  )}
                   {/* Verified Badge */}
                   <div className="bg-yellow-primary absolute -top-2 -right-2 z-20 rounded-full border-2 border-white p-1.5 text-black shadow-lg dark:border-gray-950">
                     <Star size={14} fill="currentColor" />

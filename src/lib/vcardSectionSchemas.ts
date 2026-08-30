@@ -253,6 +253,16 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     addLabel: 'Add Reason',
     accentClass: 'teal',
   }),
+  'contact-us': schema({
+    key: 'contact-us',
+    postTypeName: PUBLIC_SECTION_NAMES.contactUs,
+    title: 'Contact Us',
+    description: 'Manage Contact Us entries shown on your public profile.',
+    addLabel: 'Add Contact Block',
+    emptyTitle: 'No Contact Us content yet',
+    emptyHint: 'Add a contact block visitors can read on the Contact Us tab.',
+    accentClass: 'sky',
+  }),
 }
 
 export function getSectionSchema(key: string): VCardSectionSchema | undefined {

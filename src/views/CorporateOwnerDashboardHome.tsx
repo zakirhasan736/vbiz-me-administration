@@ -88,7 +88,12 @@ export default function CorporateOwnerDashboardHome() {
   const stats = summary?.stats
   const { overlay: liveKpis } = useDashboardLiveKpis('all')
   const [showContactSavesModal, setShowContactSavesModal] = useState(false)
-  const { data: contactsRaw } = useGetContactsQuery(undefined, { skip: !showContactSavesModal })
+  const [contactsSkip, setContactsSkip] = useState(0)
+  const [contactsAccum, setContactsAccum] = useState<DashboardContact[]>([])
+  const { data: contactsPage, isFetching: contactsFetching } = useGetContactsQuery(
+    { skip: contactsSkip, limit: 50, source: 'guest_save' },
+    { skip: !showContactSavesModal }
+  )
   const socialClickRows = summary?.socialClicks ?? []
   const socialClicksByCardRows = useMemo(() => summary?.socialClicksByCard ?? [], [summary?.socialClicksByCard])
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
@@ -145,13 +150,22 @@ export default function CorporateOwnerDashboardHome() {
 
   const cards = useMemo(() => applyCardOrder(liveCards, cardOrder), [liveCards, cardOrder])
 
+  const modalContacts = useMemo(() => {
+    if (!showContactSavesModal) return [] as DashboardContact[]
+    const pageItems = (contactsPage?.items ?? []) as DashboardContact[]
+    if (contactsSkip === 0) return pageItems
+    const seen = new Set(contactsAccum.map((row) => row.id))
+    return [...contactsAccum, ...pageItems.filter((row) => !seen.has(row.id))]
+  }, [showContactSavesModal, contactsPage, contactsSkip, contactsAccum])
+
   const contacts = useMemo(
-    () =>
-      Array.isArray(contactsRaw)
-        ? (contactsRaw as DashboardContact[])
-        : ((summary?.contactsPreview || []) as DashboardContact[]),
-    [contactsRaw, summary?.contactsPreview]
+    () => (modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])),
+    [modalContacts, summary?.contactsPreview]
   )
+  const contactsHasMore = Boolean(
+    contactsPage?.hasMore ?? (contactsPage?.total != null && modalContacts.length < contactsPage.total)
+  )
+
   const quotaLimit = headerQuotaLimit ?? null
   const metricQuotaLimit = profilesReady ? (capacity?.limit ?? null) : undefined
   const metricTotalCards = profilesReady ? (capacity?.used ?? liveCards.length) : undefined
@@ -180,8 +194,28 @@ export default function CorporateOwnerDashboardHome() {
   )
 
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
+    setContactsSkip(0)
+    setContactsAccum([])
     setContactSavesModalTab(tab)
     setShowContactSavesModal(true)
+  }
+
+  const closeContactSaves = () => {
+    setShowContactSavesModal(false)
+    setContactsSkip(0)
+    setContactsAccum([])
+  }
+
+  const loadMoreContacts = () => {
+    if (contactsPage?.items?.length) {
+      const pageItems = contactsPage.items as DashboardContact[]
+      setContactsAccum((prev) => {
+        if (contactsSkip === 0) return pageItems
+        const seen = new Set(prev.map((row) => row.id))
+        return [...prev, ...pageItems.filter((row) => !seen.has(row.id))]
+      })
+    }
+    setContactsSkip((prev) => prev + 50)
   }
 
   const openQr = (url: string, name?: string, centerImageUrl?: string) => {
@@ -409,12 +443,15 @@ export default function CorporateOwnerDashboardHome() {
 
       {showContactSavesModal && (
         <ContactSavesModal
-          count={savesCount ?? 0}
+          count={savesCount ?? contactsPage?.total ?? 0}
           contacts={contacts}
-          notesCount={contacts.filter((c) => c.message || (c as { source?: string }).source === 'note').length}
+          notesCount={stats?.notesLast30Days ?? 0}
           tab={contactSavesModalTab}
           onTabChange={setContactSavesModalTab}
-          onClose={() => setShowContactSavesModal(false)}
+          onClose={closeContactSaves}
+          hasMore={contactsHasMore}
+          loadingMore={contactsFetching && contactsSkip > 0}
+          onLoadMore={loadMoreContacts}
         />
       )}
 

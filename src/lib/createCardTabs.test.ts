@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { normalizeNavOrderWithPinnedEnds } from './createCardTabs'
 
 describe('create-card tab ordering', () => {
-  it('preserves reordered Personal and About positions while keeping utility tabs last', () => {
+  it('sorts selected tabs by default catalog order without enabling missing ones', () => {
     expect(normalizeNavOrderWithPinnedEnds(['skills', 'home', 'faq', 'about', 'my-info', 'public-cards'])).toEqual([
-      'skills',
       'home',
       'about',
       'faq',
+      'skills',
       'public-cards',
       'my-info',
     ])

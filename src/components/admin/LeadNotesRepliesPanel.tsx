@@ -60,6 +60,12 @@ type LeadNotesRepliesPanelProps = {
   loading?: boolean
   onSaveNote?: (leadId: string, text: string, lead?: LeadNoteItem) => void | Promise<void>
   onSendReply?: (lead: LeadNoteItem, text: string) => void | Promise<void>
+  totalCount?: number
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
+  searchValue?: string
+  onSearchChange?: (value: string) => void
 }
 
 function getGuestNote(lead: LeadNoteItem): string {
@@ -84,10 +90,19 @@ export default function LeadNotesRepliesPanel({
   loading = false,
   onSaveNote,
   onSendReply,
+  totalCount,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+  searchValue,
+  onSearchChange,
 }: LeadNotesRepliesPanelProps) {
   const apiMode = leads !== undefined || guestOnlyProp !== undefined || Boolean(onSaveNote || onSendReply)
+  const serverSearch = typeof onSearchChange === 'function'
   const [storageVersion, setStorageVersion] = useState(0)
-  const [query, setQuery] = useState('')
+  const [localQuery, setLocalQuery] = useState('')
+  const query = serverSearch ? (searchValue ?? '') : localQuery
+  const setQuery = serverSearch ? onSearchChange! : setLocalQuery
   const [activeId, setActiveId] = useState<string | null>(null)
   const [noteMap, setNoteMap] = useState<Record<string, string>>({})
   const [replyMap, setReplyMap] = useState<Record<string, string>>({})
@@ -131,6 +146,7 @@ export default function LeadNotesRepliesPanel({
 
   const filtered = useMemo(() => {
     return sourceList.filter((r) => {
+      if (serverSearch) return true
       return matchesIdentitySearch(query, [
         r.fullName,
         r.name,
@@ -145,9 +161,10 @@ export default function LeadNotesRepliesPanel({
         r.vCardCompany,
       ])
     })
-  }, [sourceList, query])
+  }, [sourceList, query, serverSearch])
 
   const pendingReplyCount = filtered.filter((r) => !r.lastReply).length
+  const displayTotal = totalCount ?? filtered.length
 
   const bumpLocal = () => setStorageVersion((v) => v + 1)
 
@@ -221,9 +238,16 @@ export default function LeadNotesRepliesPanel({
             Guest notes, private manager notes, and urgent replies — including message-only guests.
           </p>
         </div>
-        <span className="shrink-0 self-start rounded-xl bg-rose-500/10 px-3 py-1.5 text-[11px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-300">
-          {pendingReplyCount} awaiting reply
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="shrink-0 self-start rounded-xl bg-rose-500/10 px-3 py-1.5 text-[11px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-300">
+            {pendingReplyCount} awaiting reply
+          </span>
+          <span className="shrink-0 self-start rounded-xl bg-slate-100 px-3 py-1.5 text-[11px] font-black tracking-wider text-slate-600 uppercase tabular-nums dark:bg-white/10 dark:text-slate-300">
+            {totalCount != null && totalCount > filtered.length
+              ? `Showing ${filtered.length.toLocaleString()} of ${displayTotal.toLocaleString()}`
+              : `${displayTotal.toLocaleString()} total`}
+          </span>
+        </div>
       </div>
 
       <div className="border-b border-rose-100/60 p-4 sm:p-5 dark:border-white/5">
@@ -406,6 +430,20 @@ export default function LeadNotesRepliesPanel({
               </div>
             )
           })}
+          {hasMore && onLoadMore ? (
+            <div className="flex justify-center px-4 py-4">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-5 py-2.5 text-xs font-black tracking-wider text-rose-700 uppercase hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+              >
+                {loadingMore
+                  ? 'Loading…'
+                  : `Show more (${Math.max(0, displayTotal - filtered.length).toLocaleString()} remaining)`}
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

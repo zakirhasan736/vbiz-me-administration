@@ -554,14 +554,26 @@ export function Tab4HomeMedia() {
 
             <div className="space-y-6">
               <FieldGroup label="YouTube Video Link">
-                <input
-                  type="text"
-                  value={introYoutubeUrl}
-                  onChange={(e) => setCustomValue(FIELD_INTRO_YT, e.target.value)}
-                  placeholder="https://youtube.com/..."
-                  disabled={!canIntro}
-                  className={inputClasses}
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={introYoutubeUrl}
+                    onChange={(e) => setCustomValue(FIELD_INTRO_YT, e.target.value)}
+                    placeholder="https://youtube.com/..."
+                    disabled={!canIntro}
+                    className={inputClasses}
+                  />
+                  {introYoutubeUrl.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => setCustomValue(FIELD_INTRO_YT, '')}
+                      disabled={!canIntro}
+                      className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
               </FieldGroup>
               {canIntro ? null : <PackageFeatureLockNote />}
 
@@ -620,14 +632,26 @@ export function Tab4HomeMedia() {
 
             <div className="space-y-6">
               <FieldGroup label="YouTube Music Link">
-                <input
-                  type="text"
-                  value={musicYoutubeUrl}
-                  onChange={(e) => setCustomValue(FIELD_MUSIC_YT, e.target.value)}
-                  placeholder="https://youtube.com/..."
-                  disabled={!canYtMusic}
-                  className={inputClasses}
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={musicYoutubeUrl}
+                    onChange={(e) => setCustomValue(FIELD_MUSIC_YT, e.target.value)}
+                    placeholder="https://youtube.com/..."
+                    disabled={!canYtMusic}
+                    className={inputClasses}
+                  />
+                  {musicYoutubeUrl.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => setCustomValue(FIELD_MUSIC_YT, '')}
+                      disabled={!canYtMusic}
+                      className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
               </FieldGroup>
               {canYtMusic ? null : <PackageFeatureLockNote />}
 
@@ -675,7 +699,6 @@ export function Tab4HomeMedia() {
                 subtitle={`Displayed as the background of your entire vCard. Image or Video loop. ${limitLabel}`}
                 previewKind="auto"
                 previewClassName="aspect-video max-h-56"
-                placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
               >
                 <MediaSourceActions
                   mode={canBgVideo ? 'both' : 'image'}

@@ -37,6 +37,7 @@ const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
   bbb: 'bbb',
   booking: 'booking',
   breakfast: 'breakfast',
+  'contact us': 'contact-us',
   calender: 'calendar',
   calendar: 'calendar',
   'certifications/licensing': 'certificates',

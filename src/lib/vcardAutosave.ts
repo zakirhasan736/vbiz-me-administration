@@ -179,6 +179,24 @@ function blank(value: unknown): boolean {
   return false
 }
 
+/** Metas often store JSON strings like `"[]"` for empty document lists — treat those as blank. */
+function blankMetaValue(value: unknown): boolean {
+  if (blank(value)) return true
+  if (typeof value === 'object') {
+    if (Array.isArray(value)) return value.length === 0 || value.every(blankMetaValue)
+    return Object.values(value as Record<string, unknown>).every(blankMetaValue)
+  }
+  if (typeof value !== 'string') return false
+  const trimmed = value.trim()
+  if (trimmed === '[]' || trimmed === '{}' || trimmed === 'null') return true
+  if (!(trimmed.startsWith('[') || trimmed.startsWith('{'))) return false
+  try {
+    return blankMetaValue(JSON.parse(trimmed) as unknown)
+  } catch {
+    return false
+  }
+}
+
 function stableJson(value: unknown): string {
   return JSON.stringify(value ?? null)
 }
@@ -193,7 +211,7 @@ export function isEmptySectionPost(item: VCardSectionPostItem): boolean {
     blank(item.date) &&
     blank(item.location) &&
     blank(item.rating) &&
-    Object.values(metas).every((value) => blank(value))
+    Object.values(metas).every((value) => blankMetaValue(value))
   )
 }
 
@@ -252,7 +270,9 @@ export function persistableSectionPosts(
 ): Record<string, VCardSectionPostItem[]> {
   const next: Record<string, VCardSectionPostItem[]> = {}
   for (const [key, items] of Object.entries(posts || {})) {
-    next[key] = keepPersistable(items, isEmptySectionPost)
+    const kept = keepPersistable(items, isEmptySectionPost)
+    // Omit empty keys so opening an empty "+" draft does not look like a persistable delta.
+    if (kept.length) next[key] = kept
   }
   return next
 }

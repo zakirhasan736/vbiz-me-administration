@@ -51,6 +51,14 @@ interface ContactSavesPanelProps {
   records?: ContactSaveRecord[]
   loading?: boolean
   onDelete?: (id: string) => void | Promise<void>
+  /** Full matching total from the API (not just the loaded page). */
+  totalCount?: number
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
+  /** Controlled search — when set, parent owns server-side filtering. */
+  searchValue?: string
+  onSearchChange?: (value: string) => void
 }
 
 function formatWhen(iso: string) {
@@ -90,14 +98,23 @@ export default function ContactSavesPanel({
   records: recordsProp,
   loading = false,
   onDelete,
+  totalCount,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+  searchValue,
+  onSearchChange,
 }: ContactSavesPanelProps) {
   const apiMode = recordsProp !== undefined
+  const serverSearch = typeof onSearchChange === 'function'
   const scopeKey = `${ownerId ?? ''}:${role}:${vCardIdFilter ?? ''}`
   const [localRecords, setLocalRecords] = useState<ContactSaveRecord[]>(() =>
     getContactSavesForOwner(ownerId, role, vCardIdFilter)
   )
   const [localScopeKey, setLocalScopeKey] = useState(scopeKey)
-  const [query, setQuery] = useState('')
+  const [localQuery, setLocalQuery] = useState('')
+  const query = serverSearch ? (searchValue ?? '') : localQuery
+  const setQuery = serverSearch ? onSearchChange! : setLocalQuery
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [replyOpenId, setReplyOpenId] = useState<string | null>(null)
   const [cardFilter, setCardFilter] = useState('all')
@@ -146,6 +163,8 @@ export default function ContactSavesPanel({
     return records.filter((r) => {
       const matchesCard = cardFilter === 'all' || r.vCardId === cardFilter
       if (!matchesCard) return false
+      // Server-side search already filtered the page; only apply local search offline.
+      if (serverSearch) return true
       return matchesIdentitySearch(query, [
         r.fullName,
         r.email,
@@ -158,7 +177,10 @@ export default function ContactSavesPanel({
         r.vCardCompany,
       ])
     })
-  }, [records, query, cardFilter])
+  }, [records, query, cardFilter, serverSearch])
+
+  const displayTotal = totalCount ?? filtered.length
+  const peopleLabel = displayTotal === 1 ? 'person' : 'people'
 
   const handleExport = () => {
     const headers = [
@@ -271,9 +293,11 @@ export default function ContactSavesPanel({
             {subtitle || defaultSubtitle}
           </p>
         </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 tabular-nums dark:bg-emerald-500/10 dark:text-emerald-300">
-            {filtered.length} {filtered.length === 1 ? 'person' : 'people'}
+            {totalCount != null && totalCount > filtered.length
+              ? `Showing ${filtered.length.toLocaleString()} of ${displayTotal.toLocaleString()} ${peopleLabel}`
+              : `${displayTotal.toLocaleString()} ${peopleLabel}`}
           </span>
           <button
             type="button"
@@ -567,6 +591,20 @@ export default function ContactSavesPanel({
               </article>
             )
           })}
+          {hasMore && onLoadMore ? (
+            <div className="flex justify-center pt-2 pb-1">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-xs font-black tracking-wider text-emerald-700 uppercase hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+              >
+                {loadingMore
+                  ? 'Loading…'
+                  : `Show more (${Math.max(0, displayTotal - filtered.length).toLocaleString()} remaining)`}
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 

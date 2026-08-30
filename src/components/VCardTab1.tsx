@@ -54,7 +54,6 @@ export function Tab1MediaProfile() {
           icon={<ImageIcon className="text-primary-600 dark:text-primary-400 h-5 w-5" />}
           selectPlaceholder="Select file"
           previewKind="auto"
-          placeholderImage="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80"
         >
           <MediaSourceActions
             mode={canBgVideo ? 'both' : 'image'}
@@ -83,7 +82,6 @@ export function Tab1MediaProfile() {
           previewKind="auto"
           videoAutoPlay
           previewClassName="h-75"
-          placeholderImage="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80"
         >
           <MediaSourceActions
             mode={canAvatarVideo ? 'both' : 'image'}
@@ -148,6 +146,17 @@ export function Tab1MediaProfile() {
                 disabled={!canExplainer}
                 className="w-full bg-transparent px-5 py-4 text-[13px] font-medium text-slate-900 transition-colors outline-none placeholder:text-slate-500 disabled:opacity-60 dark:text-white"
               />
+              {externalUrl.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => updateData('personal.explainerVideoUrl', '')}
+                  disabled={!canExplainer}
+                  className="flex shrink-0 items-center gap-1.5 border-l border-slate-200/80 bg-rose-50 px-3 py-4 text-[12px] font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50 dark:border-white/10 dark:bg-rose-500/10 dark:text-rose-300"
+                  aria-label="Remove external video URL"
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
             {canExplainer ? null : <PackageFeatureLockNote className="mt-3" />}
           </div>

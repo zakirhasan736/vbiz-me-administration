@@ -173,6 +173,8 @@ function SingleOwnerDashboardHome() {
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
   const [showContactSavesModal, setShowContactSavesModal] = useState(false)
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
+  const [contactsSkip, setContactsSkip] = useState(0)
+  const [contactsAccum, setContactsAccum] = useState<DashboardContact[]>([])
   const [engagementPage, setEngagementPage] = useState(1)
   const { hasOrder, timeLeft } = useOrderTimer()
 
@@ -182,7 +184,10 @@ function SingleOwnerDashboardHome() {
   )
   const stats = summary?.stats
   const { overlay: liveKpis } = useDashboardLiveKpis(period)
-  const { data: contactsRaw } = useGetContactsQuery(undefined, { skip: !showContactSavesModal })
+  const { data: contactsPage, isFetching: contactsFetching } = useGetContactsQuery(
+    { skip: contactsSkip, limit: 50, source: 'guest_save' },
+    { skip: !showContactSavesModal }
+  )
   const engagementSkip = (engagementPage - 1) * ENGAGEMENT_PAGE_SIZE
   const { data: pagedEngagement } = useGetRecentEngagementQuery(
     {
@@ -194,15 +199,23 @@ function SingleOwnerDashboardHome() {
   const engagement = engagementPage === 1 ? summary?.recentEngagement : pagedEngagement
   const [exportOverview, { isLoading: exporting }] = useExportDashboardOverviewMutation()
 
+  const modalContacts = useMemo(() => {
+    if (!showContactSavesModal) return [] as DashboardContact[]
+    const pageItems = (contactsPage?.items ?? []) as DashboardContact[]
+    if (contactsSkip === 0) return pageItems
+    const seen = new Set(contactsAccum.map((row) => row.id))
+    return [...contactsAccum, ...pageItems.filter((row) => !seen.has(row.id))]
+  }, [showContactSavesModal, contactsPage, contactsSkip, contactsAccum])
+
   const contacts = useMemo(
-    () =>
-      Array.isArray(contactsRaw)
-        ? (contactsRaw as DashboardContact[])
-        : ((summary?.contactsPreview || []) as DashboardContact[]),
-    [contactsRaw, summary?.contactsPreview]
+    () => (modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])),
+    [modalContacts, summary?.contactsPreview]
   )
   const statsReady = Boolean(stats) && !statsLoading
   const savesCount = statsReady ? resolveDashboardContactSaves(stats) + liveKpis.saves : undefined
+  const contactsHasMore = Boolean(
+    contactsPage?.hasMore ?? (contactsPage?.total != null && modalContacts.length < contactsPage.total)
+  )
   const uniqueViews = statsReady ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) + liveKpis.views : undefined
   const shares = statsReady ? (stats?.shares ?? 0) : undefined
   const visitsTotal = statsReady
@@ -217,8 +230,28 @@ function SingleOwnerDashboardHome() {
   })
 
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
+    setContactsSkip(0)
+    setContactsAccum([])
     setContactSavesModalTab(tab)
     setShowContactSavesModal(true)
+  }
+
+  const closeContactSaves = () => {
+    setShowContactSavesModal(false)
+    setContactsSkip(0)
+    setContactsAccum([])
+  }
+
+  const loadMoreContacts = () => {
+    if (contactsPage?.items?.length) {
+      const pageItems = contactsPage.items as DashboardContact[]
+      setContactsAccum((prev) => {
+        if (contactsSkip === 0) return pageItems
+        const seen = new Set(prev.map((row) => row.id))
+        return [...prev, ...pageItems.filter((row) => !seen.has(row.id))]
+      })
+    }
+    setContactsSkip((prev) => prev + 50)
   }
 
   const handleExport = async () => {
@@ -302,12 +335,15 @@ function SingleOwnerDashboardHome() {
 
       {showContactSavesModal && (
         <ContactSavesModal
-          count={savesCount ?? 0}
+          count={savesCount ?? contactsPage?.total ?? 0}
           contacts={contacts}
           notesCount={notesCount ?? 0}
           tab={contactSavesModalTab}
           onTabChange={setContactSavesModalTab}
-          onClose={() => setShowContactSavesModal(false)}
+          onClose={closeContactSaves}
+          hasMore={contactsHasMore}
+          loadingMore={contactsFetching && contactsSkip > 0}
+          onLoadMore={loadMoreContacts}
         />
       )}
     </div>

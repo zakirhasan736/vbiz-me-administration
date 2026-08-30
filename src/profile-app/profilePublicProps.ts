@@ -35,18 +35,14 @@ import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import type { MyCardActionButtons, MyCardTeamNotice } from '@interfaces/api/myCard'
 
 export const DEFAULT_COVER = 'https://app.vbizme.com/storage/ecard/backgroundVideos/91/Untitled%20design-36.mp4'
-/** Demo / fallback intro played in the avatar circle when no profile image is set. */
+/** Demo-only sample intro — not used as an automatic blank-card fallback. */
 export const DEFAULT_INTRO_VIDEO = 'https://app.vbizme.com/storage/ecard/profileimages/91/mc%20vbizme.mp4'
 
-/** Avatar circle: profile image/video first, otherwise intro video. */
-export function resolveProfileAvatarSrc(
-  avatarUrl?: string,
-  introUrl?: string | null,
-  fallbackIntro = DEFAULT_INTRO_VIDEO
-): string {
+/** Avatar circle: profile image/video first, otherwise intro video. Empty when neither is set. */
+export function resolveProfileAvatarSrc(avatarUrl?: string, introUrl?: string | null, fallbackIntro = ''): string {
   const avatar = avatarUrl?.trim()
   if (avatar) return avatar
-  return introUrl?.trim() || fallbackIntro
+  return introUrl?.trim() || fallbackIntro.trim() || ''
 }
 
 export type VBizProfileAppProps = {
@@ -133,7 +129,7 @@ export function vCardDataToProfileProps(
     homeMedia.introVideo ||
     (personalExplainer && !/youtu\.?be/i.test(personalExplainer) ? personalExplainer : '') ||
     undefined
-  const coverUrl = homeMedia.bgMedia || DEFAULT_COVER
+  const coverUrl = homeMedia.bgMedia || undefined
   const avatarOnly = homeMedia.profileMedia || meta?.avatarImageUrl?.trim() || undefined
 
   const showName = isFieldVisible(display, 'MyInfo section Name')
@@ -214,7 +210,7 @@ export const DEMO_PROFILE_PROPS: VBizProfileAppProps = {
   cardOwnerId: '91',
   ownerName: 'Michaelangelo C.',
   tagline: 'Visionary founder and growth strategist scaling vBiz ecosystem globally.',
-  explainerVideoUrl: DEFAULT_INTRO_VIDEO,
-  coverVideoUrl: DEFAULT_COVER,
+  explainerVideoUrl: '',
+  coverVideoUrl: '',
   liveAgentCardData: DEFAULT_LIVE_AGENT_CARD,
 }

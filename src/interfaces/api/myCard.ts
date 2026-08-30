@@ -8,6 +8,8 @@ export type MyCardProfile = {
   email: string | null
   phone: string | null
   address: string | null
+  zip_code?: string | null
+  zipCode?: string | null
   country: string | null
   website: string | null
   company_name: string | null

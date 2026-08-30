@@ -3,7 +3,6 @@
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { restoreCoverPlayback, saveCoverPlayback } from '@/profile-app/lib/profileCoverPlayback'
-import { DEFAULT_COVER } from '@/profile-app/profilePublicProps'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import { memo, useEffect, useRef, useState } from 'react'
 
@@ -22,7 +21,7 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
   isHeroLayout,
 }: Props) {
   const theme = useProfileTheme()
-  const wallpaper = resolveWallpaperConfig(theme?.themeConfig, coverVideoUrl, DEFAULT_COVER)
+  const wallpaper = resolveWallpaperConfig(theme?.themeConfig, coverVideoUrl)
   const needsMedia = wallpaperNeedsMedia(wallpaper.style)
   const src = coverVideoUrl?.trim() ?? ''
   const isVideoStyle = wallpaper.style === 'video' || (wallpaper.style === 'blur' && Boolean(src))

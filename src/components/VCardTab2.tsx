@@ -238,14 +238,27 @@ export function Tab2PersonalInfo() {
             <h4 className="text-[16px] font-black text-slate-900 dark:text-white">Address Details</h4>
           </div>
           <div className="p-4 sm:p-8">
-            <FieldGroup label="Address" icon={<MapPin className="h-4 w-4" />}>
-              <input
-                type="text"
-                value={vCardData.personal.address}
-                onChange={(e) => updateData('personal.address', e.target.value)}
-                className={`${inputClasses} pl-11`}
-              />
-            </FieldGroup>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <FieldGroup label="Address" icon={<MapPin className="h-4 w-4" />}>
+                <input
+                  type="text"
+                  value={vCardData.personal.address}
+                  onChange={(e) => updateData('personal.address', e.target.value)}
+                  placeholder="Street, city, state"
+                  className={`${inputClasses} pl-11`}
+                />
+              </FieldGroup>
+              <FieldGroup label="ZIP / Postal code" icon={<MapPin className="h-4 w-4" />}>
+                <input
+                  type="text"
+                  value={vCardData.personal.zipCode || ''}
+                  onChange={(e) => updateData('personal.zipCode', e.target.value)}
+                  placeholder="e.g. 10001"
+                  autoComplete="postal-code"
+                  className={`${inputClasses} pl-11`}
+                />
+              </FieldGroup>
+            </div>
           </div>
         </section>
       </div>

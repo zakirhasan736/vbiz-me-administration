@@ -80,20 +80,14 @@ export function sectionPostsToCertItems(posts: VCardSectionPostItem[] | undefine
 }
 
 export function certItemsToSectionPosts(items: CertItem[]): VCardSectionPostItem[] {
-  return items.map((item) => ({
-    id: item.id,
-    title: item.name,
-    description: item.description,
-    url: '',
-    featuredImage: item.documents[0]?.url || '',
-    date: '',
-    rating: '',
-    location: '',
-    active: true,
-    metas: {
-      issuer: item.issuer,
-      year: item.year,
-      documents: JSON.stringify(
+  return items.map((item) => {
+    const metas: Record<string, string> = {}
+    const issuer = item.issuer.trim()
+    const year = item.year.trim()
+    if (issuer) metas.issuer = issuer
+    if (year) metas.year = year
+    if (item.documents.length) {
+      metas.documents = JSON.stringify(
         item.documents.map((d) => ({
           id: d.id,
           name: d.name,
@@ -101,7 +95,19 @@ export function certItemsToSectionPosts(items: CertItem[]): VCardSectionPostItem
           type: d.type,
           size: d.size,
         }))
-      ),
-    },
-  }))
+      )
+    }
+    return {
+      id: item.id,
+      title: item.name,
+      description: item.description,
+      url: '',
+      featuredImage: item.documents[0]?.url || '',
+      date: '',
+      rating: '',
+      location: '',
+      active: true,
+      ...(Object.keys(metas).length ? { metas } : {}),
+    }
+  })
 }
