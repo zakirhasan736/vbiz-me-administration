@@ -5,8 +5,9 @@ import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
-import { useMediaUploadLimit, usePackageAccess } from '@/hooks/usePackageAccess'
-import { musicFileAllowed, perFileUploadLimitLabel } from '@/lib/packageAccess'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
+import { musicFileAllowed } from '@/lib/packageAccess'
+import { inferMediaWallpaperStyle, patchThemeConfigWallpaper } from '@/lib/theme/wallpaper'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { useAuth } from '@/providers/AuthProvider'
@@ -456,16 +457,13 @@ const FIELD_BG = 'Background Video/Image'
 
 export function Tab4HomeMedia() {
   const { user } = useAuth()
-  const { cardId } = useVCard()
+  const { cardId, vCardData, updateData } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const { can } = usePackageAccess()
-  const uploadLimit = useMediaUploadLimit()
-  const limitLabel = perFileUploadLimitLabel(uploadLimit)
-  const canIntro = can('allow_intro_video_upload')
-  const canBgVideo = can('allow_background_video_upload')
   const canMusicFile = musicFileAllowed(can)
   const canYtMusic = can('allow_yt_bg_music_upload')
   const canCanva = can('allow_canva')
+  const templateId = vCardData.appearance?.profileTemplate ?? 'v3'
 
   const introVideoUrl = getCustomValue(FIELD_INTRO)
   const bgMusicUrl = getCustomValue(FIELD_MUSIC)
@@ -473,6 +471,14 @@ export function Tab4HomeMedia() {
   const introYoutubeUrl = getCustomValue(FIELD_INTRO_YT)
   const musicYoutubeUrl = getCustomValue(FIELD_MUSIC_YT)
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
+
+  const setBackgroundMedia = (url: string) => {
+    setCustomValue(FIELD_BG, url || '')
+    const trimmed = url.trim()
+    if (!trimmed) return
+    const next = inferMediaWallpaperStyle(trimmed)
+    updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
+  }
 
   const [introStart, setIntroStart] = useState('0')
   const [introEnd, setIntroEnd] = useState('0')
@@ -508,12 +514,10 @@ export function Tab4HomeMedia() {
               profileId={profileId}
               attachmentType={FIELD_INTRO}
               accept="video/*"
-              locked={!canIntro}
-              allowVideo={canIntro}
-              maxBytes={uploadLimit.maxBytes}
+              allowVideo
               browseLabel="Upload"
               selectPlaceholder="Select video"
-              subtitle={`Plays before your vCard loads • ${limitLabel}`}
+              subtitle="Plays before your vCard loads • no size limit"
               previewKind="video"
               previewClassName="aspect-video max-h-56"
               emptyIcon={<Video className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
@@ -560,22 +564,19 @@ export function Tab4HomeMedia() {
                     value={introYoutubeUrl}
                     onChange={(e) => setCustomValue(FIELD_INTRO_YT, e.target.value)}
                     placeholder="https://youtube.com/..."
-                    disabled={!canIntro}
                     className={inputClasses}
                   />
                   {introYoutubeUrl.trim() ? (
                     <button
                       type="button"
                       onClick={() => setCustomValue(FIELD_INTRO_YT, '')}
-                      disabled={!canIntro}
-                      className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                      className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
                     >
                       Remove
                     </button>
                   ) : null}
                 </div>
               </FieldGroup>
-              {canIntro ? null : <PackageFeatureLockNote />}
 
               <div className="grid grid-cols-2 gap-6">
                 <FieldGroup label="Start (seconds)">
@@ -616,9 +617,8 @@ export function Tab4HomeMedia() {
               accept="audio/*"
               locked={!canMusicFile}
               allowAudio={canMusicFile}
-              maxBytes={uploadLimit.maxBytes}
               selectPlaceholder="Select audio file"
-              subtitle={`Plays quietly in the background • ${limitLabel}`}
+              subtitle="Plays quietly in the background • no size limit"
               previewKind="audio"
               previewClassName="min-h-24"
               emptyIcon={<Music className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
@@ -689,21 +689,17 @@ export function Tab4HomeMedia() {
               <VCardMediaField
                 variant="inset"
                 value={bgMediaUrl}
-                onChange={(url) => setCustomValue(FIELD_BG, url || '')}
+                onChange={(url) => setBackgroundMedia(url || '')}
                 profileId={profileId}
                 attachmentType={FIELD_BG}
-                accept={canBgVideo ? 'image/*,video/*' : 'image/*'}
-                allowVideo={canBgVideo}
-                maxBytes={uploadLimit.maxBytes}
+                accept="image/*,video/*"
+                allowVideo
                 selectPlaceholder="Select media file"
-                subtitle={`Displayed as the background of your entire vCard. Image or Video loop. ${limitLabel}`}
+                subtitle="Displayed as the background of your entire vCard. Image or Video loop • no size limit"
                 previewKind="auto"
                 previewClassName="aspect-video max-h-56"
               >
-                <MediaSourceActions
-                  mode={canBgVideo ? 'both' : 'image'}
-                  onSelect={(asset) => setCustomValue(FIELD_BG, asset.url)}
-                />
+                <MediaSourceActions mode="both" onSelect={(asset) => setBackgroundMedia(asset.url)} />
               </VCardMediaField>
             </div>
           </div>

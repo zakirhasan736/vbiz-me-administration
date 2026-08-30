@@ -86,27 +86,26 @@ export function musicFileAllowed(can: (key: string) => boolean) {
 
 export function displayMediaAccess(fieldKey: string, can: (key: string) => boolean) {
   const key = fieldKey.trim()
+  // Builder media is never package-locked — owners can upload any image/video for these fields.
+  void can
   if (key === 'Profile Image/Video') {
-    const allowVideo = can('allow_video_upload')
     return {
       locked: false,
-      allowVideo,
+      allowVideo: true,
       allowAudio: false,
-      sourceMode: allowVideo ? ('both' as const) : ('image' as const),
+      sourceMode: 'both' as const,
     }
   }
   if (key === 'Background Video/Image') {
-    const allowVideo = can('allow_background_video_upload')
     return {
       locked: false,
-      allowVideo,
+      allowVideo: true,
       allowAudio: false,
-      sourceMode: allowVideo ? ('both' as const) : ('image' as const),
+      sourceMode: 'both' as const,
     }
   }
   if (key === 'Intro vCard Video') {
-    const allow = can('allow_intro_video_upload')
-    return { locked: !allow, allowVideo: allow, allowAudio: false, sourceMode: 'video' as const }
+    return { locked: false, allowVideo: true, allowAudio: false, sourceMode: 'video' as const }
   }
   if (key === 'Background Music') {
     const allow = musicFileAllowed(can)

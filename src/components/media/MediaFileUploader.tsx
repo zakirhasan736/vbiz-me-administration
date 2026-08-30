@@ -1,13 +1,10 @@
 'use client'
 
-import { useMediaUploadLimit } from '@/hooks/usePackageAccess'
 import {
-  mediaFileTooLargeMessage,
   mediaNeedsClientOptimize,
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
-import { perFileUploadLimitLabel } from '@/lib/packageAccess'
 import { cn } from '@/utils/cn'
 import { FileAudio, FileIcon, FileText, FileVideo, Image as ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -131,8 +128,7 @@ export function MediaFileUploader({
   allowUrlPaste = true,
   accent = 'primary',
 }: MediaFileUploaderProps) {
-  const packageLimit = useMediaUploadLimit()
-  const limitBytes = maxBytes ?? packageLimit.maxBytes
+  void maxBytes
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -179,11 +175,6 @@ export function MediaFileUploader({
       if (disabled) return
       setError(null)
 
-      if (file.size > limitBytes) {
-        setError(mediaFileTooLargeMessage(limitBytes))
-        return
-      }
-
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -201,7 +192,6 @@ export function MediaFileUploader({
           file,
           profileId: profileId || undefined,
           attachmentType,
-          maxBytes: limitBytes,
           signal: controller.signal,
           onStatus: setUploadStage,
           onProgress: setProgress,
@@ -225,7 +215,7 @@ export function MediaFileUploader({
         setUploadStage(null)
       }
     },
-    [attachmentType, clearLocalPreview, disabled, limitBytes, onChange, profileId]
+    [attachmentType, clearLocalPreview, disabled, onChange, profileId]
   )
 
   const handleFiles = (files: FileList | null) => {
@@ -412,7 +402,7 @@ export function MediaFileUploader({
                 </div>
               ) : (
                 <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  {hint || `Images, video, audio, PDF, and documents • ${perFileUploadLimitLabel(packageLimit)}`}
+                  {hint || 'Images, video, audio, PDF, and documents • no size limit'}
                 </p>
               )}
             </div>

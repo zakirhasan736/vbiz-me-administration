@@ -105,7 +105,7 @@ function VideoLinksCard({ item, idx, accent }: { item: DynamicPostListItem; idx:
             className="mt-5 inline-flex items-center gap-2 text-sm font-bold transition-opacity hover:opacity-80"
             style={{ color: accent }}
           >
-            Watch video <ArrowUpRight size={15} />
+            {imageUrl ? 'Watch video' : 'Open video link'} <ArrowUpRight size={15} />
           </a>
         ) : null}
       </div>

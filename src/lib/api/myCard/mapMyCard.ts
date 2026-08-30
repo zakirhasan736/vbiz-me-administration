@@ -287,43 +287,72 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
     fields['Vcard View Counter'] = { ...fields['Vcard View Counter'], visible: false }
   }
 
-  const introYoutube = settings.intro_youtube_url?.trim() || card.intro_video.youtube?.link?.trim() || ''
-  const introFileCandidate =
-    settings.intro_video_url?.trim() ||
-    card.intro_video.regular_video?.url?.trim() ||
-    card.intro_video.url?.trim() ||
-    ''
+  const introCleared = Object.prototype.hasOwnProperty.call(settings, 'intro_video_url')
+  const introYtCleared = Object.prototype.hasOwnProperty.call(settings, 'intro_youtube_url')
+  const introYoutube =
+    settings.intro_youtube_url?.trim() || (!introYtCleared ? card.intro_video.youtube?.link?.trim() || '' : '')
+  const introFileCandidate = introCleared
+    ? settings.intro_video_url?.trim() || ''
+    : settings.intro_video_url?.trim() ||
+      card.intro_video.regular_video?.url?.trim() ||
+      card.intro_video.url?.trim() ||
+      ''
   const introFile = introFileCandidate && !isYoutubeMediaUrl(introFileCandidate) ? introFileCandidate : ''
   const introYoutubeFallback =
     introYoutube ||
     (introFileCandidate && isYoutubeMediaUrl(introFileCandidate) ? introFileCandidate : '') ||
-    card.intro_video.youtube?.embed_url?.trim() ||
+    (!introYtCleared ? card.intro_video.youtube?.embed_url?.trim() || '' : '') ||
     ''
 
-  if (introFile) {
+  if (introCleared && !introFile) {
+    fields['Intro vCard Video'] = {
+      ...fields['Intro vCard Video'],
+      customValue: '',
+    }
+  } else if (introFile) {
     fields['Intro vCard Video'] = {
       ...fields['Intro vCard Video'],
       customValue: introFile,
     }
   }
-  if (introYoutubeFallback) {
+  if (introYtCleared && !introYoutubeFallback) {
+    fields['Intro YouTube vCard Video Link'] = {
+      ...fields['Intro YouTube vCard Video Link'],
+      customValue: '',
+    }
+  } else if (introYoutubeFallback) {
     fields['Intro YouTube vCard Video Link'] = {
       ...fields['Intro YouTube vCard Video Link'],
       customValue: introYoutube || introYoutubeFallback,
     }
   }
 
-  const bgUrl = settings.background_media_url || card.background_media.video_url || card.background_media.url || ''
-  if (bgUrl && isDurableHttpUrl(bgUrl)) {
+  const bgCleared = Object.prototype.hasOwnProperty.call(settings, 'background_media_url')
+  const bgUrl = bgCleared
+    ? settings.background_media_url?.trim() || ''
+    : settings.background_media_url || card.background_media.video_url || card.background_media.url || ''
+  if (bgCleared && !bgUrl) {
+    fields['Background Video/Image'] = {
+      ...fields['Background Video/Image'],
+      customValue: '',
+    }
+  } else if (bgUrl && isDurableHttpUrl(bgUrl)) {
     fields['Background Video/Image'] = {
       ...fields['Background Video/Image'],
       customValue: bgUrl,
     }
   }
 
-  const profileUrl =
-    settings.profile_media_url?.trim() || card.profile_media.url || card.profile_media.fallback_url || ''
-  if (profileUrl && isDurableHttpUrl(profileUrl)) {
+  const profileCleared = Object.prototype.hasOwnProperty.call(settings, 'profile_media_url')
+  const profileUrl = profileCleared
+    ? settings.profile_media_url?.trim() || ''
+    : settings.profile_media_url?.trim() || card.profile_media.url || card.profile_media.fallback_url || ''
+  if (profileCleared && !profileUrl) {
+    fields['Profile Image/Video'] = {
+      ...fields['Profile Image/Video'],
+      customValue: '',
+    }
+  } else if (profileUrl && isDurableHttpUrl(profileUrl)) {
     fields['Profile Image/Video'] = {
       ...fields['Profile Image/Video'],
       customValue: profileUrl,
@@ -331,20 +360,34 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
   }
 
   const audio = card.background_audio
-  const musicFileUrl =
-    settings.background_music_file_url?.trim() || (!audio?.use_youtube_link && audio?.url?.trim()) || ''
-  if (musicFileUrl && isDurableHttpUrl(musicFileUrl) && !isYoutubeMediaUrl(musicFileUrl)) {
+  const musicFileCleared = Object.prototype.hasOwnProperty.call(settings, 'background_music_file_url')
+  const musicFileUrl = musicFileCleared
+    ? settings.background_music_file_url?.trim() || ''
+    : settings.background_music_file_url?.trim() || (!audio?.use_youtube_link && audio?.url?.trim()) || ''
+  if (musicFileCleared && !musicFileUrl) {
+    fields['Background Music'] = {
+      ...fields['Background Music'],
+      customValue: '',
+    }
+  } else if (musicFileUrl && isDurableHttpUrl(musicFileUrl) && !isYoutubeMediaUrl(musicFileUrl)) {
     fields['Background Music'] = {
       ...fields['Background Music'],
       customValue: musicFileUrl,
     }
   }
 
-  const musicYoutubeUrl =
-    settings.background_music_url?.trim() ||
-    (audio?.use_youtube_link ? audio.youtube?.link || audio.youtube?.embed_url || '' : '') ||
-    ''
-  if (musicYoutubeUrl && isYoutubeMediaUrl(musicYoutubeUrl)) {
+  const musicYtCleared = Object.prototype.hasOwnProperty.call(settings, 'background_music_url')
+  const musicYoutubeUrl = musicYtCleared
+    ? settings.background_music_url?.trim() || ''
+    : settings.background_music_url?.trim() ||
+      (audio?.use_youtube_link ? audio.youtube?.link || audio.youtube?.embed_url || '' : '') ||
+      ''
+  if (musicYtCleared && !musicYoutubeUrl) {
+    fields['YouTube Background Music Link'] = {
+      ...fields['YouTube Background Music Link'],
+      customValue: '',
+    }
+  } else if (musicYoutubeUrl && isYoutubeMediaUrl(musicYoutubeUrl)) {
     fields['YouTube Background Music Link'] = {
       ...fields['YouTube Background Music Link'],
       customValue: musicYoutubeUrl,

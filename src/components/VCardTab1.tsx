@@ -1,14 +1,13 @@
 'use client'
 
 import { MediaSourceActions } from '@/components/MediaSourceActions'
-import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
-import { useMediaUploadLimit, usePackageAccess } from '@/hooks/usePackageAccess'
 import { useVCard } from '@/lib/VCardContext'
-import { perFileUploadLimitLabel } from '@/lib/packageAccess'
+import { inferMediaWallpaperStyle, patchThemeConfigWallpaper } from '@/lib/theme/wallpaper'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import { Film, Image as ImageIcon, Link as LinkIcon, User } from 'lucide-react'
+import { useCallback } from 'react'
 
 const FIELD_BG = 'Background Video/Image'
 const FIELD_AVATAR = 'Profile Image/Video'
@@ -17,18 +16,24 @@ const FIELD_INTRO = 'Intro vCard Video'
 export function Tab1MediaProfile() {
   const { cardId, vCardData, updateData, updateMeta, avatarImageUrl } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
-  const { can } = usePackageAccess()
-  const uploadLimit = useMediaUploadLimit()
-  const limitLabel = perFileUploadLimitLabel(uploadLimit)
-  const canAvatarVideo = can('allow_video_upload')
-  const canBgVideo = can('allow_background_video_upload')
-  const canExplainer = can('allow_2d_explainer')
+  const templateId = vCardData.appearance?.profileTemplate ?? 'v3'
 
   const profileMediaUrl = getCustomValue(FIELD_BG)
   const profilePicUrl = getCustomValue(FIELD_AVATAR) || avatarImageUrl || ''
   const explainerUrl = getCustomValue(FIELD_INTRO)
   const externalUrl = vCardData.personal.explainerVideoUrl || ''
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
+
+  const setBackgroundMedia = useCallback(
+    (url: string) => {
+      setCustomValue(FIELD_BG, url || '')
+      const trimmed = url.trim()
+      if (!trimmed) return
+      const next = inferMediaWallpaperStyle(trimmed)
+      updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
+    },
+    [setCustomValue, templateId, updateData, vCardData.themeConfig]
+  )
 
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl pb-12 duration-500">
@@ -43,23 +48,22 @@ export function Tab1MediaProfile() {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
         <VCardMediaField
           value={profileMediaUrl}
-          onChange={(url) => setCustomValue(FIELD_BG, url || '')}
+          onChange={(url) => setBackgroundMedia(url || '')}
           profileId={profileId}
           attachmentType={FIELD_BG}
-          accept={canBgVideo ? 'image/*,video/*' : 'image/*'}
-          allowVideo={canBgVideo}
-          maxBytes={uploadLimit.maxBytes}
+          accept="image/*,video/*"
+          allowVideo
           title="Profile Background"
-          subtitle={`Video/Image • ${limitLabel}`}
+          subtitle="Video or image • no size limit"
           icon={<ImageIcon className="text-primary-600 dark:text-primary-400 h-5 w-5" />}
           selectPlaceholder="Select file"
           previewKind="auto"
         >
           <MediaSourceActions
-            mode={canBgVideo ? 'both' : 'image'}
+            mode="both"
             compact
             className="mt-3"
-            onSelect={(asset) => setCustomValue(FIELD_BG, asset.url)}
+            onSelect={(asset) => setBackgroundMedia(asset.url)}
           />
         </VCardMediaField>
 
@@ -71,11 +75,10 @@ export function Tab1MediaProfile() {
           }}
           profileId={profileId}
           attachmentType={FIELD_AVATAR}
-          accept={canAvatarVideo ? 'image/*,video/*' : 'image/*'}
-          allowVideo={canAvatarVideo}
-          maxBytes={uploadLimit.maxBytes}
+          accept="image/*,video/*"
+          allowVideo
           title="Avatar"
-          subtitle={`Image or video • ${limitLabel}`}
+          subtitle="Image or video • no size limit"
           icon={<User className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
           iconWrapperClassName="border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
           selectPlaceholder="Select image"
@@ -84,7 +87,7 @@ export function Tab1MediaProfile() {
           previewClassName="h-75"
         >
           <MediaSourceActions
-            mode={canAvatarVideo ? 'both' : 'image'}
+            mode="both"
             compact
             className="mt-3"
             onSelect={(asset) => {
@@ -101,15 +104,14 @@ export function Tab1MediaProfile() {
             profileId={profileId}
             attachmentType={FIELD_INTRO}
             accept="video/*"
-            locked={!canExplainer}
-            allowVideo={canExplainer}
-            maxBytes={uploadLimit.maxBytes}
-            title="2D Video Explainer"
-            subtitle={`Shown as your explainer section. ${limitLabel}.`}
-            icon={<Film className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
-            iconWrapperClassName="border-purple-100 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10"
+            allowVideo
+            title="2D Explainer Video"
+            subtitle="Plays as intro + 2D Explainer tab • no size limit"
+            icon={<Film className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
+            iconWrapperClassName="border-violet-100 bg-violet-50 dark:border-violet-500/20 dark:bg-violet-500/10"
             selectPlaceholder="Select video"
             previewKind="video"
+            previewClassName="aspect-video max-h-56"
             emptyIcon={<Film className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
           >
             <MediaSourceActions
@@ -120,45 +122,28 @@ export function Tab1MediaProfile() {
             />
           </VCardMediaField>
 
-          <div className="rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 shadow-sm dark:border-white/5 dark:bg-white/2">
-            <div className="mb-5 flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-rose-100 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10">
-                <LinkIcon className="h-5 w-5 text-rose-600 dark:text-rose-400" />
-              </div>
-              <div>
-                <h4 className="text-[15px] leading-none font-black text-slate-900 dark:text-white">
-                  External Video URL
-                </h4>
-                <p className="mt-1.5 text-[12px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                  YouTube / Vimeo
-                </p>
-              </div>
-            </div>
-            <div className="focus-within:border-primary-500/50 focus-within:ring-primary-500/50 group flex overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all focus-within:ring-1 dark:border-white/10 dark:bg-[#0b0f19]">
-              <span className="flex items-center justify-center border-r border-slate-200/80 bg-slate-50 px-5 py-4 text-[12px] font-bold tracking-wider text-slate-500 dark:border-white/10 dark:bg-slate-800/50 dark:text-slate-400">
-                URL
-              </span>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-[11px] font-black tracking-widest text-slate-400 uppercase">
+              <LinkIcon className="h-3.5 w-3.5" /> External / YouTube URL
+            </label>
+            <div className="flex gap-2">
               <input
-                type="url"
+                type="text"
                 value={externalUrl}
                 onChange={(e) => updateData('personal.explainerVideoUrl', e.target.value)}
-                placeholder="https://"
-                disabled={!canExplainer}
-                className="w-full bg-transparent px-5 py-4 text-[13px] font-medium text-slate-900 transition-colors outline-none placeholder:text-slate-500 disabled:opacity-60 dark:text-white"
+                placeholder="https://youtube.com/… or direct video URL"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none dark:border-white/10 dark:bg-[#070a13] dark:text-white"
               />
               {externalUrl.trim() ? (
                 <button
                   type="button"
                   onClick={() => updateData('personal.explainerVideoUrl', '')}
-                  disabled={!canExplainer}
-                  className="flex shrink-0 items-center gap-1.5 border-l border-slate-200/80 bg-rose-50 px-3 py-4 text-[12px] font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50 dark:border-white/10 dark:bg-rose-500/10 dark:text-rose-300"
-                  aria-label="Remove external video URL"
+                  className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
                 >
                   Remove
                 </button>
               ) : null}
             </div>
-            {canExplainer ? null : <PackageFeatureLockNote className="mt-3" />}
           </div>
         </div>
       </div>

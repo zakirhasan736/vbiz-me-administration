@@ -76,7 +76,7 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
   }
 
   const isBlur = style === 'blur'
-  const treatAsVideo = style === 'video' || (isBlur && isVideoUrl(src))
+  const treatAsVideo = style === 'video' || isVideoUrl(src) || (isBlur && isVideoUrl(src))
   const mediaClasses = cn(
     'absolute inset-0 h-full w-full object-cover',
     isBlur && 'scale-110 blur-md',

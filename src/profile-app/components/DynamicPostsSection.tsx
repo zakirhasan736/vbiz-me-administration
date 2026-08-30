@@ -224,8 +224,30 @@ function PostCard({
 }) {
   const dateLabel = formatGeneralPostDate(post.date)
   const imageUrl = post.featuredImage.trim()
+  const linkUrl = post.generalInfoUrl.trim()
   const isClickable = Boolean(onPostClick)
   const description = stripHtml(post.description)
+
+  const mediaBlock = imageUrl ? (
+    <div className="mb-4 h-28 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageUrl} alt={post.title} className="h-full w-full object-cover" />
+    </div>
+  ) : linkUrl ? (
+    <a
+      href={linkUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="mb-4 flex h-28 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-100 text-sm font-bold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:bg-zinc-800"
+    >
+      <ArrowUpRight size={16} className="text-[#eab308]" /> Open link
+    </a>
+  ) : (
+    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 text-[#eab308] dark:border-zinc-700 dark:bg-zinc-800/80">
+      <FileEdit size={18} />
+    </div>
+  )
 
   const content = (
     <motion.div
@@ -234,16 +256,7 @@ function PostCard({
       transition={{ duration: 0.4, delay }}
       className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
-      {imageUrl ? (
-        <div className="mb-4 h-28 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={post.title} className="h-full w-full object-cover" />
-        </div>
-      ) : (
-        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 text-[#eab308] dark:border-zinc-700 dark:bg-zinc-800/80">
-          <FileEdit size={18} />
-        </div>
-      )}
+      {mediaBlock}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         {dateLabel ? (
           <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500">{dateLabel}</span>
@@ -264,6 +277,17 @@ function PostCard({
             : undefined
         }
       />
+      {linkUrl ? (
+        <a
+          href={linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="mt-auto inline-flex items-center gap-2 text-sm font-bold text-[#eab308] transition-opacity hover:opacity-80"
+        >
+          {imageUrl ? 'Open link' : 'Open video link'} <ArrowUpRight size={15} />
+        </a>
+      ) : null}
     </motion.div>
   )
 

@@ -9,7 +9,7 @@ import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
-import { useMediaUploadLimit, usePackageAccess } from '@/hooks/usePackageAccess'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { cardAgentJson } from '@/lib/ai/cardAgentClient'
 import {
   AI_ASSISTANCE_ADDON_PRICE_USD,
@@ -26,12 +26,8 @@ import {
   type AssistantKnowledgeItem,
 } from '@/lib/assistantApi'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
-import {
-  mediaFileTooLargeMessage,
-  MediaUploadError,
-  uploadMediaWithProgress,
-} from '@/lib/media/uploadMediaWithProgress'
-import { PACKAGE_FEATURE_LOCKED_MESSAGE, perFileUploadLimitLabel } from '@/lib/packageAccess'
+import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
+import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
 import {
   MAX_OWNER_SEO_KEYWORDS,
   MAX_SEO_DESCRIPTION_LENGTH,
@@ -295,9 +291,7 @@ function Toggle({
 function TemplateDesigner() {
   const { user } = useAuth()
   const { allow_canva: canUseCanva, can } = usePackageAccess()
-  const uploadLimit = useMediaUploadLimit()
-  const limitLabel = perFileUploadLimitLabel(uploadLimit)
-  const canBgVideo = can('allow_background_video_upload')
+  const canBgVideo = true
   const { vCardData, updateData, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const accountDesign = useAppSelector((s) => s.designSettings)
@@ -349,11 +343,6 @@ function TemplateDesigner() {
     async (file: File) => {
       setProfileUploadError(null)
 
-      if (file.size > uploadLimit.maxBytes) {
-        setProfileUploadError(mediaFileTooLargeMessage(uploadLimit.maxBytes))
-        return
-      }
-
       profileUploadAbortRef.current?.abort()
       const controller = new AbortController()
       profileUploadAbortRef.current = controller
@@ -369,7 +358,6 @@ function TemplateDesigner() {
           file,
           profileId: profileId || undefined,
           attachmentType: FIELD_PROFILE_IMAGE,
-          maxBytes: uploadLimit.maxBytes,
           signal: controller.signal,
           onProgress: setProfileUploadProgress,
         })
@@ -385,7 +373,7 @@ function TemplateDesigner() {
         setProfileUploading(false)
       }
     },
-    [applyProfileImage, clearProfileLocalPreview, profileId, uploadLimit.maxBytes]
+    [applyProfileImage, clearProfileLocalPreview, profileId]
   )
 
   const handleRemoveProfileImage = () => {
@@ -418,10 +406,11 @@ function TemplateDesigner() {
   const setBackgroundMedia = useCallback(
     (url: string) => {
       setCustomValue(FIELD_BACKGROUND_MEDIA, url || '')
-      const storedStyle = vCardData.themeConfig?.wallpaper?.style
-      if (storedStyle && storedStyle !== 'image' && storedStyle !== 'video') return
-      const next = inferMediaWallpaperStyle(url)
-      if (storedStyle === next) return
+      const trimmed = url.trim()
+      if (!trimmed) return
+      // Always sync wallpaper style to image/video so cover media actually renders
+      // (fill/gradient/pattern styles ignore Background Video/Image URLs).
+      const next = inferMediaWallpaperStyle(trimmed)
       updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
     },
     [setCustomValue, templateId, updateData, vCardData.themeConfig]
@@ -549,7 +538,7 @@ function TemplateDesigner() {
               Profile photo
             </h4>
             <p className="mb-4 text-[13px] font-medium text-slate-500 sm:text-[14px] dark:text-slate-400">
-              Image only • {limitLabel}
+              Image only • no size limit
             </p>
             <div className="flex flex-wrap gap-2 sm:gap-3">
               <Button
@@ -808,15 +797,14 @@ function TemplateDesigner() {
             profileId={profileId}
             attachmentType={FIELD_BACKGROUND_MEDIA}
             accept={mediaAccept}
-            allowVideo={canBgVideo}
-            maxBytes={uploadLimit.maxBytes}
+            allowVideo
             selectPlaceholder="Select media file"
             subtitle={
               wallpaperStyle === 'blur'
-                ? `Blurred cover media • ${limitLabel}`
+                ? 'Blurred cover media • no size limit'
                 : wallpaperStyle === 'video'
-                  ? `Video loop • ${limitLabel}`
-                  : `Cover image • ${limitLabel}`
+                  ? 'Video loop • no size limit'
+                  : 'Cover image • no size limit'
             }
             previewKind="auto"
             previewClassName="aspect-video max-h-56"

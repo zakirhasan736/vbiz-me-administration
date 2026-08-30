@@ -152,6 +152,8 @@ export function mapDisplaySettingsToApiSettings(
     const customKey = CUSTOM_VALUE_SETTING_KEYS[label]
     const custom = field.customValue?.trim()
     if (customKey && custom && isPersistableMediaUrl(custom)) settings[customKey] = custom
+    // Empty clears are written by DELETE /media/clear so we don't wipe legacy
+    // attachment-backed media on every autosave of untouched empty fields.
   }
 
   // Compat: public MyCard historically reads bg_video_checkbox

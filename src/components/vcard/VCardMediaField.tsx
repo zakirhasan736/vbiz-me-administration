@@ -2,10 +2,8 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
-import { useMediaUploadLimit } from '@/hooks/usePackageAccess'
 import {
   isVideoFile,
-  mediaFileTooLargeMessage,
   mediaNeedsClientOptimize,
   MediaUploadError,
   uploadMediaWithProgress,
@@ -129,8 +127,7 @@ export function VCardMediaField({
   allowVideo = true,
   allowAudio = true,
 }: VCardMediaFieldProps) {
-  const packageLimit = useMediaUploadLimit()
-  const limitBytes = maxBytes ?? packageLimit.maxBytes
+  void maxBytes
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -141,6 +138,7 @@ export function VCardMediaField({
   const [localPreview, setLocalPreview] = useState<string | null>(null)
   const [localFileName, setLocalFileName] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   const savedUrl = (value || '').trim()
   const [prevSavedUrl, setPrevSavedUrl] = useState(savedUrl)
@@ -188,11 +186,6 @@ export function VCardMediaField({
         return
       }
 
-      if (file.size > limitBytes) {
-        setError(mediaFileTooLargeMessage(limitBytes))
-        return
-      }
-
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -210,7 +203,7 @@ export function VCardMediaField({
           file,
           profileId: profileId || undefined,
           attachmentType,
-          maxBytes: limitBytes,
+          // No client size gate — upload original when optimize is skipped/fails.
           signal: controller.signal,
           onStatus: setUploadStage,
           onProgress: setProgress,
@@ -229,11 +222,11 @@ export function VCardMediaField({
         setUploadStage(null)
       }
     },
-    [allowAudio, allowVideo, attachmentType, clearLocalPreview, limitBytes, onChange, profileId, uploadBlocked]
+    [allowAudio, allowVideo, attachmentType, clearLocalPreview, onChange, profileId, uploadBlocked]
   )
 
-  const clear = () => {
-    if (disabled) return
+  const clear = async () => {
+    if (disabled || clearing) return
     abortRef.current?.abort()
     abortRef.current = null
     setUploading(false)
@@ -244,10 +237,22 @@ export function VCardMediaField({
     setLocalFileName(null)
     if (inputRef.current) inputRef.current.value = ''
     onChange(null)
+
+    if (profileId && savedUrl && !savedUrl.startsWith('blob:')) {
+      setClearing(true)
+      try {
+        const { clearProfileMediaAttachment } = await import('@/lib/media/clearProfileMediaAttachment')
+        await clearProfileMediaAttachment({ profileId, attachmentType })
+      } catch {
+        setError('Removed locally, but server clear failed. Save again or retry remove.')
+      } finally {
+        setClearing(false)
+      }
+    }
   }
 
   const handleConfirmRemove = () => {
-    clear()
+    void clear()
     setConfirmOpen(false)
   }
 

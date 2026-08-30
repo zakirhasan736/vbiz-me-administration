@@ -74,7 +74,7 @@ type Envelope = {
 export async function uploadMediaWithProgress(
   options: UploadMediaWithProgressOptions
 ): Promise<MediaUploadWithProgressResult> {
-  const { profileId, attachmentType, maxBytes = MAX_MEDIA_UPLOAD_BYTES, onProgress, onStatus, signal } = options
+  const { profileId, attachmentType, maxBytes, onProgress, onStatus, signal } = options
   const sourceBytes = options.file.size
   let uploadFile = options.file
 
@@ -107,8 +107,8 @@ export async function uploadMediaWithProgress(
 
   if (signal?.aborted) throw new MediaUploadError('Upload cancelled')
 
-  // Soft transport ceiling only (multer / reverse-proxy). No package marketing size gate.
-  if (uploadFile.size > maxBytes) {
+  // Soft transport ceiling only when an explicit maxBytes is provided by the caller.
+  if (maxBytes != null && uploadFile.size > maxBytes) {
     throw new MediaUploadError(mediaFileTooLargeMessage(maxBytes))
   }
   onStatus?.('uploading')
@@ -169,7 +169,14 @@ export async function uploadMediaWithProgress(
       }
 
       if (isEntityTooLargeResponse(xhr.status, raw) || isEntityTooLargeResponse(xhr.status, parsed?.message || '')) {
-        reject(new MediaUploadError(mediaFileTooLargeMessage(maxBytes), 413))
+        reject(
+          new MediaUploadError(
+            maxBytes != null
+              ? mediaFileTooLargeMessage(maxBytes)
+              : 'Upload was rejected by the server as too large. Try a smaller file or contact support about proxy limits.',
+            413
+          )
+        )
         return
       }
 

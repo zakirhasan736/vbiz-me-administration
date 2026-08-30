@@ -95,6 +95,19 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                   <div className="relative h-[240px] w-full overflow-hidden bg-zinc-900 md:h-[360px]">
                     <FeaturedMedia src={media} alt={item.title || sectionTitle} forceVideo={forceVideo} />
                   </div>
+                ) : link ? (
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open ${item.title || 'link'}`}
+                    className="relative flex h-[200px] w-full items-center justify-center overflow-hidden bg-zinc-100 transition hover:bg-zinc-200 md:h-[240px] dark:bg-zinc-950 dark:hover:bg-zinc-900"
+                  >
+                    <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
+                    <span className="relative z-10 inline-flex items-center gap-2 rounded-2xl bg-white/90 px-5 py-3 text-sm font-bold text-zinc-900 shadow-lg backdrop-blur-sm">
+                      <ExternalLink size={16} /> Open link
+                    </span>
+                  </a>
                 ) : null}
                 <div className="space-y-4 p-5 md:p-8">
                   {item.title?.trim() ? (
@@ -119,7 +132,7 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
                     >
-                      <ExternalLink size={16} /> Learn more
+                      <ExternalLink size={16} /> {media ? 'Learn more' : 'Open video link'}
                     </a>
                   ) : null}
                 </div>

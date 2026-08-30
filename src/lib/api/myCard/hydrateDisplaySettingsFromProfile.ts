@@ -151,10 +151,21 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
     }
   }
 
-  // Overlay dedicated setting keys (authoritative for media URLs).
+  /** Setting keys that were intentionally cleared (present + empty) — do not revive from attachments. */
+  const clearedFields = new Set<string>()
+
+  // Overlay dedicated setting keys (authoritative for media URLs, including empty clears).
   for (const [settingKey, fieldKey] of Object.entries(SETTING_TO_FIELD)) {
+    if (!Object.prototype.hasOwnProperty.call(settingsMap, settingKey)) continue
     const value = settingsMap[settingKey]?.trim() || ''
-    if (!value) continue
+    if (!value) {
+      clearedFields.add(fieldKey)
+      fields[fieldKey] = {
+        ...(fields[fieldKey] || createDefaultFieldConfig()),
+        customValue: '',
+      }
+      continue
+    }
     if (fieldKey === 'Intro vCard Video' && isYoutubeMediaUrl(value)) {
       setFieldCustomValue(fields, 'Intro YouTube vCard Video Link', value)
       continue
@@ -170,11 +181,12 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
     setFieldCustomValue(fields, fieldKey, value)
   }
 
-  // Attachment fallbacks when setting keys are empty.
+  // Attachment fallbacks only when that media setting was never written (legacy cards).
   for (const att of input.attachments || []) {
     const field = attachmentFieldLabel(att)
     const url = attachmentUrl(att)
     if (!field || !url) continue
+    if (clearedFields.has(field)) continue
     const existing = fields[field]?.customValue?.trim() || ''
     if (existing) continue
     if (field === 'Intro vCard Video' && isYoutubeMediaUrl(url)) {
@@ -188,12 +200,14 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
 
   const avatarFromSettings = fields['Profile Image/Video']?.customValue?.trim() || ''
   const avatarFromColumn = (input.avatar || '').trim()
-  const avatarImageUrl =
-    (isDurableHttpUrl(avatarFromColumn) ? avatarFromColumn : '') ||
-    (isDurableHttpUrl(avatarFromSettings) ? avatarFromSettings : '') ||
-    ''
+  const profileCleared = clearedFields.has('Profile Image/Video')
+  const avatarImageUrl = profileCleared
+    ? ''
+    : (isDurableHttpUrl(avatarFromSettings) ? avatarFromSettings : '') ||
+      (isDurableHttpUrl(avatarFromColumn) ? avatarFromColumn : '') ||
+      ''
 
-  if (avatarImageUrl && !fields['Profile Image/Video']?.customValue?.trim()) {
+  if (!profileCleared && avatarImageUrl && !fields['Profile Image/Video']?.customValue?.trim()) {
     setFieldCustomValue(fields, 'Profile Image/Video', avatarImageUrl)
   }
 

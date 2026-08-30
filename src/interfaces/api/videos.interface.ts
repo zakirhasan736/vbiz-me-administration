@@ -18,12 +18,18 @@ export type VideoSectionGallery = {
 } | null
 
 export type VideoSectionItem = {
+  id?: string | number
   title: string
+  description?: string | null
   created_at: string
   type: string
-  featured_image: VideoSectionImage | null
+  featured_image: VideoSectionImage | VideoSectionImage[] | null
   gallery: VideoSectionGallery
   video?: { url?: string | null } | null
+  url?: string | null
+  general_info_url?: string | null
+  video_url?: string | null
+  review_link?: { url?: string | null } | null
 }
 
 export type VideoSectionData = {
@@ -43,9 +49,11 @@ export type VideoSectionResponse = ApiResponse<VideoSectionData> & {
 export type VideoListItem = {
   id: string
   title: string
+  description: string
   type: string
   createdAt: string
   featuredImage: string
+  videoUrl: string
   galleryCount: number
   galleryImages: string[]
 }

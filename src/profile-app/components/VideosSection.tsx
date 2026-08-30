@@ -4,7 +4,16 @@ import type { VideoListItem } from '@/interfaces/api/videos.interface'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetVideosQuery } from '@/redux/api'
-import { CalendarDays, ChevronLeft, ChevronRight, Film, Image as ImageIcon, PlayCircle, X } from 'lucide-react'
+import {
+  ArrowUpRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Film,
+  Image as ImageIcon,
+  PlayCircle,
+  X,
+} from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
@@ -168,6 +177,50 @@ function VideoCard({
   const date = formatDate(item.createdAt)
   const isGallery = item.type === 'gallery'
   const hasGalleryImages = item.galleryImages.length > 0
+  const videoUrl = item.videoUrl.trim()
+  const hasFeatured = Boolean(item.featuredImage.trim())
+  const description = item.description.trim()
+
+  const mediaInner = (
+    <>
+      {hasFeatured ? (
+        <Image
+          src={item.featuredImage}
+          alt={item.title}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
+          {isGallery ? (
+            <ImageIcon size={40} className="text-zinc-400 dark:text-zinc-500" />
+          ) : (
+            <Film size={40} className="text-zinc-400 dark:text-zinc-500" />
+          )}
+        </div>
+      )}
+      <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
+      {!isGallery && videoUrl ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/85 text-zinc-900 shadow-lg backdrop-blur-sm transition-transform group-hover:scale-105">
+            <PlayCircle size={24} />
+          </span>
+        </div>
+      ) : null}
+      <span
+        className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
+        style={{ backgroundColor: accent }}
+      >
+        {isGallery ? <ImageIcon size={12} /> : <PlayCircle size={12} />} {isGallery ? 'Gallery' : 'Video'}
+      </span>
+      {hasGalleryImages ? (
+        <span className="absolute right-3 bottom-3 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[11px] font-bold tracking-wide text-white uppercase backdrop-blur-sm">
+          View gallery
+        </span>
+      ) : null}
+    </>
+  )
 
   return (
     <motion.article
@@ -189,49 +242,50 @@ function VideoCard({
       role={hasGalleryImages ? 'button' : undefined}
       tabIndex={hasGalleryImages ? 0 : undefined}
     >
-      <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-        {item.featuredImage ? (
-          <Image
-            src={item.featuredImage}
-            alt={item.title}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
-            {isGallery ? (
-              <ImageIcon size={40} className="text-zinc-400 dark:text-zinc-500" />
-            ) : (
-              <Film size={40} className="text-zinc-400 dark:text-zinc-500" />
-            )}
-          </div>
-        )}
-        <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
-        <span
-          className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
-          style={{ backgroundColor: accent }}
+      {videoUrl && !hasGalleryImages ? (
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Watch ${item.title}`}
+          className="relative block h-56 overflow-hidden bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-zinc-950"
+          style={{ outlineColor: accent }}
+          onClick={(event) => event.stopPropagation()}
         >
-          {isGallery ? <ImageIcon size={12} /> : <PlayCircle size={12} />} {isGallery ? 'Gallery' : 'Video'}
-        </span>
-        {hasGalleryImages ? (
-          <span className="absolute right-3 bottom-3 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[11px] font-bold tracking-wide text-white uppercase backdrop-blur-sm">
-            View gallery
-          </span>
-        ) : null}
-      </div>
+          {mediaInner}
+        </a>
+      ) : (
+        <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">{mediaInner}</div>
+      )}
 
       <div className="flex flex-1 flex-col p-6">
         <h3 className="mb-3 line-clamp-2 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">
           {item.title}
         </h3>
-        <div className="mt-auto flex items-center justify-between text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+        {description ? (
+          <p className="mb-4 line-clamp-3 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
+            {description}
+          </p>
+        ) : null}
+        <div className="mt-auto flex items-center justify-between gap-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays size={13} />
             {date || 'Unknown date'}
           </span>
           {isGallery ? <span>{item.galleryCount} images</span> : null}
         </div>
+        {videoUrl ? (
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            className="mt-4 inline-flex items-center gap-2 text-sm font-bold transition-opacity hover:opacity-80"
+            style={{ color: accent }}
+          >
+            {hasFeatured ? 'Watch video' : 'Open video link'} <ArrowUpRight size={15} />
+          </a>
+        ) : null}
       </div>
     </motion.article>
   )
