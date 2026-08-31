@@ -188,8 +188,6 @@ export function VCardMediaField({
       abortRef.current = controller
 
       clearLocalPreview()
-      const blobUrl = URL.createObjectURL(file)
-      setLocalPreview(blobUrl)
       setLocalFileName(file.name)
       setUploading(true)
       setUploadStage(mediaNeedsClientOptimize(file) ? 'preparing' : 'uploading')
@@ -311,7 +309,7 @@ export function VCardMediaField({
         ) : null}
       </div>
       {uploading ? (
-        <UploadProgressBar progress={progress} label={uploadStage === 'preparing' ? 'Optimizing…' : undefined} />
+        <UploadProgressBar progress={progress} label={uploadStage === 'preparing' ? 'Optimizing…' : 'Uploading…'} />
       ) : null}
       {error ? <p className="mt-2 pl-1 text-[12px] font-medium text-rose-600 dark:text-rose-400">{error}</p> : null}
       {locked ? <PackageFeatureLockNote className="mt-2 pl-1" /> : null}
@@ -327,7 +325,21 @@ export function VCardMediaField({
         previewClassName
       )}
     >
-      {displayUrl && resolvedKind === 'video' ? (
+      {uploading ? (
+        <div className="flex w-full flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+          <Loader2 className="text-primary-500 h-10 w-10 animate-spin" />
+          <div>
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              {uploadStage === 'preparing' ? 'Optimizing video…' : 'Uploading…'}
+            </p>
+            <p className="mt-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
+              {uploadStage === 'preparing'
+                ? 'Compressing in the background — preview stays hidden until ready.'
+                : 'Sending to your card…'}
+            </p>
+          </div>
+        </div>
+      ) : displayUrl && resolvedKind === 'video' ? (
         <video
           src={displayUrl}
           controls={!videoAutoPlay}
@@ -335,6 +347,7 @@ export function VCardMediaField({
           loop={videoAutoPlay}
           muted={videoAutoPlay}
           playsInline
+          preload="metadata"
           className="h-full w-full object-cover"
         />
       ) : displayUrl && resolvedKind === 'audio' ? (

@@ -24,6 +24,8 @@ export type UploadMediaWithProgressOptions = {
   signal?: AbortSignal
 }
 
+const OPTIMIZE_PROGRESS_WEIGHT = 85
+
 export class MediaUploadError extends Error {
   status?: number
 
@@ -69,13 +71,18 @@ export async function uploadMediaWithProgress(
 
   if (isVideoFile(uploadFile)) {
     onStatus?.('preparing')
+    onProgress?.(0)
     if (uploadFile.size <= MAX_VIDEO_SOURCE_BYTES) {
       try {
-        uploadFile = await optimizeVideoFile(uploadFile, signal)
+        uploadFile = await optimizeVideoFile(uploadFile, {
+          signal,
+          onProgress: (pct) => onProgress?.(Math.round((pct / 100) * OPTIMIZE_PROGRESS_WEIGHT)),
+        })
       } catch (error) {
         if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
           throw new MediaUploadError('Upload cancelled')
         }
+        // Timeout or recorder failure — upload the original file.
       }
     }
   } else if (isOptimizableImageFile(uploadFile)) {
@@ -90,6 +97,9 @@ export async function uploadMediaWithProgress(
   }
 
   if (signal?.aborted) throw new MediaUploadError('Upload cancelled')
+
+  const hadPrepareStage = isVideoFile(options.file) || isOptimizableImageFile(options.file)
+  if (hadPrepareStage) onProgress?.(OPTIMIZE_PROGRESS_WEIGHT)
 
   onStatus?.('uploading')
 
@@ -124,8 +134,12 @@ export async function uploadMediaWithProgress(
 
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable || !onProgress) return
-      const percent = Math.min(100, Math.round((event.loaded / event.total) * 100))
-      onProgress(percent)
+      const uploadPct = Math.min(100, Math.round((event.loaded / event.total) * 100))
+      const combined =
+        isVideoFile(options.file) || isOptimizableImageFile(options.file)
+          ? OPTIMIZE_PROGRESS_WEIGHT + Math.round(((100 - OPTIMIZE_PROGRESS_WEIGHT) * uploadPct) / 100)
+          : uploadPct
+      onProgress(Math.min(100, combined))
     }
 
     xhr.onload = () => {
@@ -167,7 +181,6 @@ export async function uploadMediaWithProgress(
       reject(new MediaUploadError('Upload cancelled'))
     }
 
-    onProgress?.(0)
     xhr.send(form)
   })
 }
