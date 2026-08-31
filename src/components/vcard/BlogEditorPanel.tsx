@@ -1,6 +1,7 @@
 'use client'
 
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
@@ -14,6 +15,7 @@ import {
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapBlogsFromPayload } from '@/lib/ai/applyCardDraft'
+import { stripHtml } from '@/lib/htmlText'
 import { createDefaultGeneralPost, normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
 import type { VCardGeneralPost } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -84,7 +86,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
       >
         <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-black text-violet-600 dark:text-violet-400">News / Blogs</h2>
+            <h2 className="text-xl font-black text-violet-600 dark:text-violet-400">Blogs and Media</h2>
             <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
               Publish updates with a featured image or video per post.
             </p>
@@ -123,7 +125,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
           items={posts.map((p) => ({
             id: p.id,
             title: p.title || 'Untitled',
-            detail: p.description?.slice(0, 40),
+            detail: stripHtml(p.description || '').slice(0, 40),
           }))}
         />
       ) : null}
@@ -135,7 +137,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
           </div>
           <h4 className="mb-2 text-[16px] font-black text-slate-900 dark:text-white">No blog posts yet</h4>
           <p className="mx-auto mb-6 max-w-md text-[13px] text-slate-500 dark:text-slate-400">
-            Click &quot;Add post&quot; to publish your first article on the profile Blog section.
+            Click &quot;Add post&quot; to publish your first article on the profile Blogs and Media section.
           </p>
           <button
             type="button"
@@ -162,7 +164,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                   <ExpandableEntryHeader
                     indexLabel={idx + 1}
                     title={item.title || 'New Post'}
-                    subtitle={item.category || item.description?.slice(0, 48) || null}
+                    subtitle={item.category || stripHtml(item.description || '').slice(0, 48) || null}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(item.id)}
                     showRemove
@@ -197,13 +199,16 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                       className={`${inputClasses} font-semibold`}
                     />
 
-                    <textarea
-                      value={item.description}
-                      onChange={(e) => updatePost(item.id, 'description', e.target.value)}
-                      rows={3}
-                      placeholder="Short summary…"
-                      className={`${inputClasses} resize-none`}
-                    />
+                    <div className="group flex flex-col space-y-1.5">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                        Description
+                      </label>
+                      <RichTextEditor
+                        value={item.description}
+                        onChange={(html) => updatePost(item.id, 'description', html)}
+                        placeholder="Write the full article with formatting, links, and lists…"
+                      />
+                    </div>
 
                     <input
                       type="url"

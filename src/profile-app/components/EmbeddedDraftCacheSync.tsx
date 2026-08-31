@@ -114,7 +114,7 @@ function buildDraftNavBarLinks(input: {
     pushUnique(draftPostType('skills', 'skills', 'Skills'))
   }
   if ((input.generalPosts || []).some((p) => p.active !== false && p.title?.trim())) {
-    pushUnique(draftPostType('blog', 'Blog', 'Blog'))
+    pushUnique(draftPostType('blog', 'Blogs and Media', 'Blogs and Media'))
   }
   if ((input.faqs || []).some((f) => f.active !== false && f.question?.trim())) {
     pushUnique(draftPostType('faq', 'Faq', 'Faq'))
@@ -197,7 +197,7 @@ function toDynamicResult(sectionName: string, items: VCardSectionPostItem[]): Dy
 
 function generalPostsToDynamic(posts: VCardGeneralPost[]): DynamicPostsQueryResult {
   return {
-    sectionTitle: 'Blog',
+    sectionTitle: 'Blogs and Media',
     posts: posts
       .filter((p) => p.active)
       .map((p) => ({

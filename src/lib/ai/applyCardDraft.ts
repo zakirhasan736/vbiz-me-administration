@@ -214,6 +214,8 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
       about: p.about || next.personal.about,
       website: p.website || next.personal.website,
       address: p.address || next.personal.address,
+      city: p.city || next.personal.city,
+      state: p.state || next.personal.state,
       zipCode: p.zipCode || next.personal.zipCode,
     }
     const aboutText = String(p.about || '').trim()

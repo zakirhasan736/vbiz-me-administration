@@ -72,6 +72,8 @@ const FALLBACK_PERSONAL: VCardPersonal = {
   phone: '',
   whatsapp: '',
   address: '',
+  city: '',
+  state: '',
   zipCode: '',
   website: '',
   about: '',

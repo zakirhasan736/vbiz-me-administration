@@ -42,6 +42,8 @@ export type ApiProfile = {
   designation?: string | null
   about?: string | null
   address?: string | null
+  city?: string | null
+  state?: string | null
   zipCode?: string | null
   avatar?: string | null
   addresses?: Array<{
@@ -645,6 +647,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       phone: profile.phone || '',
       whatsapp: profile.whatsapp || '',
       address: profile.address || '',
+      city: profile.city || '',
+      state: profile.state || '',
       zipCode: profile.zipCode || '',
       website: profile.website || '',
       about: profile.about || '',
@@ -816,6 +820,8 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     whatsapp: data.personal.whatsapp,
     website: data.personal.website,
     address: data.personal.address,
+    city: data.personal.city || '',
+    state: data.personal.state || '',
     zipCode: data.personal.zipCode || '',
     prof: data.personal.profession,
     dob: dob || null,

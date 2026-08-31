@@ -42,6 +42,8 @@ export const cardBlueprintSchema = z.object({
     company: z.string().optional().default(''),
     profession: z.string().optional().default(''),
     address: z.string().optional().default(''),
+    city: z.string().optional().default(''),
+    state: z.string().optional().default(''),
     zipCode: z.string().optional().default(''),
     website: z.string().optional().default(''),
     about: z.string().optional().default(''),
@@ -174,6 +176,7 @@ export const TAB_NAV_MAP: Record<string, string> = {
   Services: 'services',
   Reviews: 'reviews',
   'News/Blogs': 'blog',
+  'Blogs and Media': 'blog',
   Blog: 'blog',
   Blogs: 'blog',
   Profile: 'profile',
@@ -318,6 +321,8 @@ export function mapBlueprintToVCardData(
       company: blueprint.personal.company || base?.personal.company || '',
       profession: blueprint.personal.profession || base?.personal.profession || '',
       address: blueprint.personal.address || base?.personal.address || '',
+      city: blueprint.personal.city || base?.personal.city || '',
+      state: blueprint.personal.state || base?.personal.state || '',
       zipCode: blueprint.personal.zipCode || base?.personal.zipCode || '',
       website: blueprint.personal.website || base?.personal.website || '',
       about: blueprint.personal.about || base?.personal.about || '',
@@ -358,7 +363,7 @@ export function mapBlueprintToVCardData(
   if (services.length) tabNames.add('Services')
   if (portfolio.length) tabNames.add('Portfolio')
   if (reviews.length) tabNames.add('Reviews')
-  if (generalPosts.length) tabNames.add('News/Blogs')
+  if (generalPosts.length) tabNames.add('Blogs and Media')
   if (faqs.length) tabNames.add('FAQs')
   // Profile mirrors personal — enable when we have a solid personal draft
   if (blueprint.personal.fullName && blueprint.personal.about) tabNames.add('Profile')
@@ -389,7 +394,7 @@ export const BLUEPRINT_JSON_INSTRUCTION = `Return a single JSON object matching 
   "personal": {
     "fullName": "", "email": "", "phone": "", "whatsapp": "",
     "designation": "", "company": "", "profession": "",
-    "address": "", "zipCode": "", "website": "", "about": ""
+    "address": "", "city": "", "state": "", "zipCode": "", "website": "", "about": ""
   },
   "socialHandles": { "facebook": "", "instagram": "", "twitter": "", "linkedin": "", "youtube": "", "tiktok": "", "website": "" },
   "education": [{ "institute": "", "degree": "", "fromDate": "YYYY-MM-DD", "toDate": "", "tillNow": false }],
@@ -408,4 +413,4 @@ export const BLUEPRINT_JSON_INSTRUCTION = `Return a single JSON object matching 
   }
 }
 Only include arrays when you have credible content from the sources. When a website crawl includes services, portfolio, blog, FAQ, or review pages, populate those arrays with real extracted items. Never invent customer reviews. If no real reviews exist, return an empty reviews array. Creative wording is allowed for about, FAQs, and blog ideas, but never invent factual claims. Missing facts stay empty. Dates as YYYY-MM-DD when known.
-enabledTabs = ONLY tabs that have content (do NOT dump a full default tab set). Always imply Personal is present. Never put Global Connection or My Info in enabledTabs — the product pins those last automatically. Use recommendedTabs for useful content tabs still missing data (Education, Experience, Skill, Services, Reviews, News/Blogs, Profile, Portfolio, Certifications/Licenses, FAQ).`
+enabledTabs = ONLY tabs that have content (do NOT dump a full default tab set). Always imply Personal is present. Never put Global Connection or My Info in enabledTabs — the product pins those last automatically. Use recommendedTabs for useful content tabs still missing data (Education, Experience, Skill, Services, Reviews, Blogs and Media, Profile, Portfolio, Certifications/Licenses, FAQ).`

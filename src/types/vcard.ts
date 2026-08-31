@@ -39,6 +39,8 @@ export type VCardPersonal = {
   phone: string
   whatsapp: string
   address: string
+  city?: string
+  state?: string
   /** Postal / ZIP code for Address Details */
   zipCode?: string
   /** Public website URL (contact card + MyInfo Website setting) */
@@ -293,6 +295,8 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
       phone: '',
       whatsapp: '',
       address: '',
+      city: '',
+      state: '',
       zipCode: '',
       website: '',
       about: '',

@@ -187,11 +187,11 @@ export function buildGapReport(
   if (nav.has('blog')) {
     add(!empty(data.generalPosts), 2, {
       id: 'blogs',
-      tab: 'News/Blogs',
+      tab: 'Blogs and Media',
       navId: 'blog',
       field: 'blogs',
       severity: 'optional',
-      title: 'News / blog posts',
+      title: 'Blogs and media posts',
       explanation: 'Articles keep your card fresh and improve SEO.',
       howToProvide: 'Paste article drafts or upload a DOC/PDF; AI will split them into posts.',
     })

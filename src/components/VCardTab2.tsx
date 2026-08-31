@@ -239,22 +239,43 @@ export function Tab2PersonalInfo() {
           </div>
           <div className="p-4 sm:p-8">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <FieldGroup label="Address" icon={<MapPin className="h-4 w-4" />}>
+              <FieldGroup label="State">
                 <input
                   type="text"
-                  value={vCardData.personal.address}
-                  onChange={(e) => updateData('personal.address', e.target.value)}
-                  placeholder="Street, city, state"
-                  className={`${inputClasses} pl-11`}
+                  value={vCardData.personal.state || ''}
+                  onChange={(e) => updateData('personal.state', e.target.value)}
+                  placeholder="e.g. California"
+                  autoComplete="address-level1"
+                  className={inputClasses}
                 />
               </FieldGroup>
-              <FieldGroup label="ZIP / Postal code" icon={<MapPin className="h-4 w-4" />}>
+              <FieldGroup label="City">
+                <input
+                  type="text"
+                  value={vCardData.personal.city || ''}
+                  onChange={(e) => updateData('personal.city', e.target.value)}
+                  placeholder="e.g. Los Angeles"
+                  autoComplete="address-level2"
+                  className={inputClasses}
+                />
+              </FieldGroup>
+              <FieldGroup label="Zip" required icon={<MapPin className="h-4 w-4" />}>
                 <input
                   type="text"
                   value={vCardData.personal.zipCode || ''}
                   onChange={(e) => updateData('personal.zipCode', e.target.value)}
                   placeholder="e.g. 10001"
                   autoComplete="postal-code"
+                  className={`${inputClasses} pl-11`}
+                />
+              </FieldGroup>
+              <FieldGroup label="Address" icon={<MapPin className="h-4 w-4" />} hint="Street, suite, or building">
+                <input
+                  type="text"
+                  value={vCardData.personal.address}
+                  onChange={(e) => updateData('personal.address', e.target.value)}
+                  placeholder="123 Main St, Suite 100"
+                  autoComplete="street-address"
                   className={`${inputClasses} pl-11`}
                 />
               </FieldGroup>

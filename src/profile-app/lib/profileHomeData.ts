@@ -1,3 +1,4 @@
+import { formatPersonalAddressLine, hasPersonalAddressParts } from '@/lib/personalAddress'
 import type { VCardExtraField, VCardPersonal } from '@/types/vcard'
 import type { DisplayFieldConfig } from '@/types/vcardDisplaySettings'
 import { Briefcase, Building2, Globe, Link2, Mail, MapPin, Phone, type LucideIcon } from 'lucide-react'
@@ -194,8 +195,8 @@ export function buildProfileContactItems(
       style: pickStyle(field('MyInfo Website'), iconFor('Website')),
     })
   }
-  if (isVisible('MyInfo Address') && (personal.address || personal.zipCode)) {
-    const addressValue = [personal.address, personal.zipCode].filter((part) => Boolean(part?.trim())).join(', ')
+  if (isVisible('MyInfo Address') && hasPersonalAddressParts(personal)) {
+    const addressValue = formatPersonalAddressLine(personal)
     items.push({
       icon: MapPin,
       label: 'Address',

@@ -562,16 +562,28 @@ export function getEditorPanelCompletionFields(
         edit: { type: 'scalar', path: 'personal.company', control: 'text' },
       },
       {
-        id: 'personal.address',
-        label: 'Address/location',
-        filled: filled(p.address),
-        edit: { type: 'scalar', path: 'personal.address', control: 'text' },
+        id: 'personal.state',
+        label: 'State',
+        filled: filled(p.state),
+        edit: { type: 'scalar', path: 'personal.state', control: 'text' },
+      },
+      {
+        id: 'personal.city',
+        label: 'City',
+        filled: filled(p.city),
+        edit: { type: 'scalar', path: 'personal.city', control: 'text' },
       },
       {
         id: 'personal.zipCode',
-        label: 'ZIP / Postal code',
+        label: 'Zip',
         filled: filled(p.zipCode),
         edit: { type: 'scalar', path: 'personal.zipCode', control: 'text' },
+      },
+      {
+        id: 'personal.address',
+        label: 'Address',
+        filled: filled(p.address),
+        edit: { type: 'scalar', path: 'personal.address', control: 'text' },
       },
     ],
     3: [
@@ -957,7 +969,7 @@ export function getEditorPanelCompletionFields(
         return [
           {
             id: 'generalPosts.seed',
-            label: 'News/blog posts',
+            label: 'Blogs and media posts',
             filled: false,
             edit: { type: 'seed-list', collection: 'generalPosts', label: 'Post' },
           },

@@ -126,10 +126,10 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
   },
   { name: 'Skill', navId: 'skills', icon: Star, description: 'Skill groups and proficiency', aiPriority: 'content' },
   {
-    name: 'News/Blogs',
+    name: 'Blogs and Media',
     navId: 'blog',
     icon: Newspaper,
-    description: 'Articles, news, and blog posts',
+    description: 'Articles, blog posts, and media',
     aiPriority: 'content',
   },
   {
