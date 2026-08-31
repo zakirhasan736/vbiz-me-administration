@@ -87,10 +87,20 @@ describe('resolvePublicCardSeo', () => {
     const myCard = card({
       profile_media: { url: 'https://cdn.example.com/intro.mp4', is_video: true },
       settings: { about_me_featured_media_url: 'https://cdn.example.com/about-hero.jpg' },
-      profile: { ...card().profile, avatar: '' },
+      profile: { ...card().profile, avatar: 'https://cdn.example.com/intro.mp4' },
     })
     expect(resolvePublicCardShareImageUrl(myCard, 'https://app.vbizme.com', 'michaelangelo-casanova-2')).toBe(
       'https://cdn.example.com/about-hero.jpg'
+    )
+  })
+
+  it('prefers server-resolved share preview image when present', () => {
+    const myCard = card({
+      profile_media: { url: 'https://cdn.example.com/intro.mp4', is_video: true },
+      settings: { share_preview_image_url: 'https://cdn.example.com/about-share.jpg' },
+    })
+    expect(resolvePublicCardShareImageUrl(myCard, 'https://app.vbizme.com', 'michaelangelo-casanova-2')).toBe(
+      'https://cdn.example.com/about-share.jpg'
     )
   })
 })

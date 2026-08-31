@@ -1,6 +1,7 @@
 import { fetchPublicCardResponseWithOneRetry, getApiBaseUrl } from '@/lib/api/serverApi'
 import type { MyCardData, MyCardResponse } from '@interfaces/api/myCard'
 import { cache } from 'react'
+import { enrichMyCardForSharePreview } from './enrichMyCardForSharePreview'
 import {
   logPublicCardFetchFailure,
   PublicCardApiError,
@@ -75,7 +76,7 @@ async function loadMyCardBySlug(slug: string): Promise<MyCardData | null> {
     throw error
   }
 
-  return json.data
+  return enrichMyCardForSharePreview(json.data)
 }
 
 /**

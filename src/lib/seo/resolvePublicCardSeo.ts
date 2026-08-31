@@ -51,8 +51,11 @@ export function collectPublicCardShareImageCandidates(card: MyCardData): string[
   const profileMediaIsVideo =
     profileMedia?.is_video === true || isVideoUrl(profileMedia?.url || '') || isVideoUrl(profileMedia?.video_url || '')
 
+  pushShareImageCandidate(seen, candidates, setting('share_preview_image_url'))
+
   if (profileMediaIsVideo) {
     pushShareImageCandidate(seen, candidates, profileMedia?.fallback_url)
+    pushShareImageCandidate(seen, candidates, setting('about_me_featured_media_url'))
   } else {
     pushShareImageCandidate(seen, candidates, profileMedia?.url)
     pushShareImageCandidate(seen, candidates, profileMedia?.fallback_url)
@@ -62,7 +65,18 @@ export function collectPublicCardShareImageCandidates(card: MyCardData): string[
   pushShareImageCandidate(seen, candidates, setting('profile_image'))
   pushShareImageCandidate(seen, candidates, setting('profile_image_url'))
   pushShareImageCandidate(seen, candidates, card.profile?.avatar)
-  pushShareImageCandidate(seen, candidates, setting('about_me_featured_media_url'))
+
+  if (!profileMediaIsVideo) {
+    pushShareImageCandidate(seen, candidates, setting('about_me_featured_media_url'))
+  }
+
+  for (const group of ['personal', 'professional', 'contact'] as const) {
+    const fields = card.my_info?.[group]
+    if (!fields) continue
+    for (const field of Object.values(fields)) {
+      pushShareImageCandidate(seen, candidates, field?.icon)
+    }
+  }
 
   for (const url of resolvePwaAvatarCandidates(card)) {
     pushShareImageCandidate(seen, candidates, url)

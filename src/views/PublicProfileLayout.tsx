@@ -6,7 +6,7 @@ import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import type { MappedProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
 import { CardScopeProvider } from '@/lib/card-scope'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
-import { collectPublicCardShareImageCandidates } from '@/lib/seo/resolvePublicCardSeo'
+import { collectPublicCardShareImageCandidates, resolvePublicCardShareImageUrl } from '@/lib/seo/resolvePublicCardSeo'
 import { ProfileApp } from '@/profile-app/ProfileApp'
 import { ProfileLoadingScreen } from '@/profile-app/components/ProfileLoadingScreen'
 import { ProfileThemeShell } from '@/profile-app/components/ProfileThemeShell'
@@ -158,9 +158,12 @@ export default function PublicProfileLayout({
 
   const shareImageUrl = useMemo(() => {
     const card = myCard ?? initialMyCard
+    if (card && typeof window !== 'undefined') {
+      return resolvePublicCardShareImageUrl(card, window.location.origin, slug) || record?.avatarImageUrl || ''
+    }
     if (card) return collectPublicCardShareImageCandidates(card)[0] || record?.avatarImageUrl || ''
     return record?.avatarImageUrl || ''
-  }, [myCard, initialMyCard, record?.avatarImageUrl])
+  }, [myCard, initialMyCard, record?.avatarImageUrl, slug])
 
   useGoogleFont(profileProps?.design?.fontFamily)
 
