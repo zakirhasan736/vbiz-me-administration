@@ -75,7 +75,10 @@ describe('public card SEO', () => {
       'online business card',
       'brand designer',
       'identity design',
+      'Maya Chen',
+      'Maya Design Studio',
     ])
+    expect(metadata.openGraph?.images).toEqual([{ url: 'https://cdn.example.com/maya.jpg', alt: 'Maya Chen' }])
     expect(collectSameAsUrls(myCard.profile)).toEqual([
       'https://facebook.com/mayastudio',
       'https://instagram.com/maya.design',

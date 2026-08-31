@@ -575,6 +575,86 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     [goToEditorPath]
   )
 
+  const editorTopActions = (
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+      <TakeTourTrigger tourKey="create_card" triggerLabel="Take card tour" className="px-4 py-2.5 text-xs font-black" />
+      <button
+        type="button"
+        onClick={opensPublicCard ? openPublicCard : openLivePreview}
+        className={cn(
+          'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
+          !opensPublicCard && 'hidden md:inline-flex'
+        )}
+        title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
+      >
+        <Eye className="h-4 w-4" />
+        {opensPublicCard ? 'View' : 'Preview'}
+      </button>
+
+      {saveStatusLabel && SaveStatusIcon ? (
+        <span
+          role="status"
+          title={saveStatusLabel}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-[12px] font-semibold whitespace-nowrap',
+            saveStatus === 'error'
+              ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
+              : saveStatus === 'dirty'
+                ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                : saveStatus === 'saving'
+                  ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+          )}
+        >
+          <SaveStatusIcon className={cn('h-3.5 w-3.5', saveStatus === 'saving' && 'animate-spin')} />
+          <span className="hidden sm:inline">{saveStatusLabel}</span>
+        </span>
+      ) : null}
+
+      {saveStatus === 'dirty' || saveStatus === 'error' ? (
+        <button
+          type="button"
+          onClick={handleSaveChanges}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2.5 text-[12px] font-bold whitespace-nowrap text-white transition-colors hover:bg-indigo-700"
+          title={saveStatus === 'error' ? 'Retry saving changes' : 'Save changes'}
+        >
+          <Save className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{saveStatus === 'error' ? 'Retry save' : 'Save changes'}</span>
+        </button>
+      ) : null}
+
+      <button
+        type="button"
+        data-tour="ai-generate"
+        data-tour-id="tour-ai-generate"
+        onClick={() => openAgent()}
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-sm transition-all hover:from-emerald-700 hover:to-teal-700 active:scale-95"
+        title="Generate with AI"
+        aria-label="Generate with AI"
+      >
+        <Sparkles className="h-4 w-4 text-emerald-100" />
+      </button>
+
+      <Link
+        id="tour-editor-settings"
+        href={settingsHref}
+        prefetch={false}
+        onClick={(event) => handleEditorLinkClick(event, settingsHref)}
+        data-tour-id="tour-editor-settings"
+        title="Card settings"
+        className={cn(
+          'inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-black transition-all',
+          isSettingsOpen
+            ? 'bg-primary-600 border-primary-500/50 dark:bg-primary-500/15 dark:text-primary-400 dark:border-primary-500/30 text-white shadow-sm'
+            : 'border-slate-200/80 bg-white/80 text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-[#0b0f19]/80 dark:text-slate-300 dark:hover:bg-white/5'
+        )}
+      >
+        <Settings className="h-4 w-4" strokeWidth={2} />
+        Card settings
+      </Link>
+    </div>
+  )
+
   useEffect(() => {
     const activate = (tab: string) => {
       const navId = createCardTabNameToNavId(tab)
@@ -781,25 +861,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <TakeTourTrigger
-                tourKey="create_card"
-                triggerLabel="Take card tour"
-                className="px-4 py-2.5 text-xs font-black"
-              />
-              <button
-                type="button"
-                onClick={opensPublicCard ? openPublicCard : openLivePreview}
-                className={cn(
-                  'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
-                  !opensPublicCard && 'hidden md:inline-flex'
-                )}
-                title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
-              >
-                <Eye className="h-4 w-4" />
-                {opensPublicCard ? 'View' : 'Preview'}
-              </button>
-            </div>
+            {editorTopActions}
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -810,25 +872,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
               <ArrowLeft className="h-4 w-4" />
               {directoryLabel}
             </Link>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <TakeTourTrigger
-                tourKey="create_card"
-                triggerLabel="Take card tour"
-                className="px-4 py-2.5 text-xs font-black"
-              />
-              <button
-                type="button"
-                onClick={opensPublicCard ? openPublicCard : openLivePreview}
-                className={cn(
-                  'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700',
-                  !opensPublicCard && 'hidden md:inline-flex'
-                )}
-                title={opensPublicCard ? 'Open the public card in a new tab' : 'Preview this card in the builder'}
-              >
-                <Eye className="h-4 w-4" />
-                {opensPublicCard ? 'View' : 'Preview'}
-              </button>
-            </div>
+            {editorTopActions}
           </div>
         )}
 
@@ -988,72 +1032,11 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 data-tour-id="tour-add-tabs"
                 onClick={() => setShowAddTabs(true)}
                 className="flex items-center gap-1.5 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/80 px-3 py-1.5 text-[14px] font-black whitespace-nowrap text-indigo-700 transition-all hover:bg-indigo-100 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-300 dark:hover:bg-indigo-500/20"
-                title="Add"
+                title="Add nav item"
               >
                 <Plus className="h-5 w-5" strokeWidth={2.5} />
-                Add
+                Add nav item
               </button>
-
-              {saveStatusLabel && SaveStatusIcon && (
-                <span
-                  role="status"
-                  title={saveStatusLabel}
-                  className={cn(
-                    'flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap',
-                    saveStatus === 'error'
-                      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
-                      : saveStatus === 'dirty'
-                        ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
-                        : saveStatus === 'saving'
-                          ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
-                          : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
-                  )}
-                >
-                  <SaveStatusIcon className={cn('h-3.5 w-3.5', saveStatus === 'saving' && 'animate-spin')} />
-                  {saveStatusLabel}
-                </span>
-              )}
-
-              {(saveStatus === 'dirty' || saveStatus === 'error') && (
-                <button
-                  type="button"
-                  onClick={handleSaveChanges}
-                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-[12px] font-bold whitespace-nowrap text-white transition-colors hover:bg-indigo-700"
-                  title={saveStatus === 'error' ? 'Retry saving changes' : 'Save changes'}
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {saveStatus === 'error' ? 'Retry save' : 'Save changes'}
-                </button>
-              )}
-
-              <button
-                type="button"
-                data-tour="ai-generate"
-                data-tour-id="tour-ai-generate"
-                onClick={() => openAgent()}
-                className="flex items-center gap-1.5 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-3 py-2 text-[14px] font-bold whitespace-nowrap text-white shadow-sm transition-all hover:from-emerald-700 hover:to-teal-700 active:scale-95"
-                title="Generate with AI"
-              >
-                <Sparkles className="h-5 w-5 text-emerald-200" />
-                Generate
-              </button>
-
-              <Link
-                id="tour-editor-settings"
-                href={settingsHref}
-                prefetch={false}
-                onClick={(event) => handleEditorLinkClick(event, settingsHref)}
-                data-tour-id="tour-editor-settings"
-                title="Settings"
-                className={cn(
-                  'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-all',
-                  isSettingsOpen
-                    ? 'bg-primary-600 border-primary-500/50 dark:bg-primary-500/15 dark:text-primary-400 dark:border-primary-500/30 text-white shadow-sm'
-                    : 'border-transparent text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'
-                )}
-              >
-                <Settings className="h-5 w-5" strokeWidth={2} />
-              </Link>
             </div>
           </div>
         </div>

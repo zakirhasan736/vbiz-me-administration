@@ -2,9 +2,7 @@
 
 import { MediaSourceActions, type MediaSourceMode } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
-import { useMediaUploadLimit } from '@/hooks/usePackageAccess'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
-import { perFileUploadLimitLabel } from '@/lib/packageAccess'
 import { cn } from '@/utils/cn'
 import { File, FileText, GripVertical, Image as ImageIcon, Loader2, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
@@ -26,13 +24,13 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function isAllowed(file: File, maxBytes: number) {
+function isAllowed(file: File) {
   const name = file.name.toLowerCase()
-  const okExt =
+  return (
     /\.(png|jpe?g|gif|webp|svg|pdf|txt|doc|docx)$/i.test(name) ||
     file.type.startsWith('image/') ||
     ['application/pdf', 'text/plain'].includes(file.type)
-  return okExt && file.size <= maxBytes
+  )
 }
 
 function DocIcon({ type, name }: { type: string; name: string }) {
@@ -70,9 +68,7 @@ export function DocumentUploadArea({
   profileId,
   attachmentType = 'Certificate Document',
 }: Props) {
-  const uploadLimit = useMediaUploadLimit()
-  const limitBytes = uploadLimit.maxBytes
-  const resolvedHint = hint || `Image, PDF, TXT, DOC — ${perFileUploadLimitLabel(uploadLimit)}`
+  const resolvedHint = hint || 'Image, PDF, TXT, DOC — no size limit'
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState('')
@@ -143,11 +139,11 @@ export function DocumentUploadArea({
 
   const ingest = async (list: FileList | File[]) => {
     const incoming = Array.from(list)
-    const rejected = incoming.filter((f) => !isAllowed(f, limitBytes))
-    const accepted = incoming.filter((f) => isAllowed(f, limitBytes))
+    const rejected = incoming.filter((f) => !isAllowed(f))
+    const accepted = incoming.filter((f) => isAllowed(f))
 
     if (rejected.length) {
-      setError(`Some files were skipped. Use image/PDF/TXT/DOC (${perFileUploadLimitLabel(uploadLimit)}).`)
+      setError('Some files were skipped. Use image, PDF, TXT, or DOC.')
     } else {
       setError('')
     }
@@ -173,7 +169,6 @@ export function DocumentUploadArea({
           file,
           profileId,
           attachmentType,
-          maxBytes: limitBytes,
         })
         mapped.push({
           id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,

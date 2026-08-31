@@ -24,8 +24,6 @@ export type MediaFileUploaderProps = {
   attachmentType?: string
   /** MIME / extension accept string. Defaults to images, video, audio, and common docs. */
   accept?: string
-  /** Max file size in bytes. Defaults to the signed-in package per-file cap. */
-  maxBytes?: number
   label?: string
   hint?: string
   className?: string
@@ -120,7 +118,6 @@ export function MediaFileUploader({
   profileId,
   attachmentType,
   accept = DEFAULT_ACCEPT,
-  maxBytes,
   label = 'Media file',
   hint,
   className,
@@ -128,7 +125,6 @@ export function MediaFileUploader({
   allowUrlPaste = true,
   accent = 'primary',
 }: MediaFileUploaderProps) {
-  void maxBytes
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)

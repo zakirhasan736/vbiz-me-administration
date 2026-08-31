@@ -1,6 +1,6 @@
 import {
   isEntityTooLargeResponse,
-  mediaFileTooLargeMessage,
+  mediaUploadRejectedTooLargeMessage,
   mediaUploadTransportErrorMessage,
 } from '@/lib/media/uploadMediaWithProgress'
 import { describe, expect, it } from 'vitest'
@@ -13,10 +13,8 @@ describe('upload media error mapping', () => {
     expect(isEntityTooLargeResponse(400, 'invalid file')).toBe(false)
   })
 
-  it('surfaces a size message when the proxy closes the connection', () => {
-    expect(mediaUploadTransportErrorMessage(7.8 * 1024 * 1024, 15 * 1024 * 1024)).toBe(
-      mediaFileTooLargeMessage(15 * 1024 * 1024)
-    )
-    expect(mediaUploadTransportErrorMessage(20 * 1024)).toBe('Upload failed')
+  it('uses generic transport errors instead of inventing a client size cap', () => {
+    expect(mediaUploadTransportErrorMessage()).toBe('Upload failed. Check your connection and try again.')
+    expect(mediaUploadRejectedTooLargeMessage()).toContain('rejected')
   })
 })

@@ -82,7 +82,6 @@ export type CompletionFieldEdit =
       accept: string
       attachmentType: string
       alsoUpdateMeta?: 'avatar'
-      maxBytes?: number
       previewKind?: 'image' | 'video' | 'audio' | 'auto'
     }
   | {
@@ -502,7 +501,6 @@ export function getEditorPanelCompletionFields(
           accept: 'image/*,video/*',
           attachmentType: 'Profile Image/Video',
           alsoUpdateMeta: 'avatar',
-          maxBytes: 50 * 1024 * 1024,
           previewKind: 'auto',
         },
       },
@@ -517,7 +515,6 @@ export function getEditorPanelCompletionFields(
           fieldKey: 'Background Video/Image',
           accept: 'image/*,video/*',
           attachmentType: 'Background Video/Image',
-          maxBytes: 50 * 1024 * 1024,
           previewKind: 'auto',
         },
       },
@@ -609,7 +606,6 @@ export function getEditorPanelCompletionFields(
           fieldKey: 'Intro vCard Video',
           accept: 'video/*',
           attachmentType: 'Intro vCard Video',
-          maxBytes: 50 * 1024 * 1024,
           previewKind: 'video',
         },
       },
@@ -622,7 +618,6 @@ export function getEditorPanelCompletionFields(
           fieldKey: 'Background Music',
           accept: 'audio/*,image/*,video/*',
           attachmentType: 'Background Music',
-          maxBytes: 50 * 1024 * 1024,
           previewKind: 'auto',
         },
       },
@@ -1061,7 +1056,6 @@ export function getEditorPanelCompletionFields(
             accept: 'image/*,video/*',
             attachmentType: 'Profile Image/Video',
             alsoUpdateMeta: 'avatar',
-            maxBytes: 50 * 1024 * 1024,
             previewKind: 'auto',
           },
         },

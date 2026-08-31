@@ -102,12 +102,8 @@ describe('corporate manage-access overrides', () => {
     })
   })
 
-  it('treats professional file size as a per-file cap, not a card total', () => {
-    expect(resolvePerFileUploadLimit(50)).toEqual({
-      maxBytes: 50 * 1024 * 1024,
-      maxMb: 50,
-      unlimited: false,
-    })
+  it('does not cap builder uploads by package file size', () => {
+    expect(resolvePerFileUploadLimit(50)).toEqual({ unlimited: true })
     expect(resolvePerFileUploadLimit(null).unlimited).toBe(true)
     expect(resolvePerFileUploadLimit(50, true).unlimited).toBe(true)
   })

@@ -275,7 +275,7 @@ export function ServicesEditorPanel({
                         attachmentType="Service Featured"
                         accept="image/*"
                         allowUrlPaste={false}
-                        hint="Max file size: 2MB"
+                        hint="Image or video • no size limit"
                         value={service.featuredImage}
                         onChange={(next) => updateService(service.id, 'featuredImage', next?.url || '')}
                       />

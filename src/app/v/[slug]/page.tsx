@@ -10,7 +10,6 @@ import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePub
 import {
   buildPublicCardJsonLd,
   buildPublicCardSeoMetadata,
-  resolvePublicOrigin,
   resolveRequestOrigin,
   serializeJsonLd,
 } from '@/lib/seo/publicCardSeo'
@@ -21,15 +20,6 @@ import { notFound } from 'next/navigation'
 
 type Props = {
   params: Promise<{ slug: string }>
-}
-
-async function publicCardOrigin() {
-  const headerStore = await headers()
-  return resolvePublicOrigin(
-    process.env.NEXT_PUBLIC_APP_URL,
-    headerStore.get('x-forwarded-host') || headerStore.get('host'),
-    headerStore.get('x-forwarded-proto')
-  )
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -71,10 +61,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: name, description: `${name}'s digital business card`, ...pwaMeta }
   }
 
-  const origin = await publicCardOrigin()
   const seo = buildPublicCardSeoMetadata({
     slug: trimmed,
-    origin,
+    origin: requestOrigin,
     cardPath: buildProfilePath(trimmed),
     myCard,
   })
@@ -111,7 +100,11 @@ export default async function PublicProfilePage({ params }: Props) {
     myCard.settings?.[AI_ASSISTANCE_SETTING_KEY] ?? myCard.features?.aiAssistance,
     trimmed
   )
-  const origin = await publicCardOrigin()
+  const headerStore = await headers()
+  const origin = resolveRequestOrigin(
+    headerStore.get('x-forwarded-host') || headerStore.get('host'),
+    headerStore.get('x-forwarded-proto')
+  )
   const cardPath = buildProfilePath(trimmed)
 
   const settled = await Promise.allSettled([

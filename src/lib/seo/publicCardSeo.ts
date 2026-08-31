@@ -1,6 +1,5 @@
 import type { MyCardData, MyCardProfile } from '@/interfaces/api/myCard'
-import { isVideoUrl } from '@/lib/mediaUrl'
-import { parseSeoSettings } from '@/lib/seo/cardSeo'
+import { resolvePublicCardSeo, resolvePublicCardShareImageUrl } from '@/lib/seo/resolvePublicCardSeo'
 import { socialHandleUrl } from '@/lib/vcardSocial'
 import type { Metadata } from 'next'
 
@@ -101,12 +100,8 @@ export function collectSameAsUrls(profile: MyCardProfile): string[] {
   return urls
 }
 
-export function resolvePublicCardImageUrl(myCard: MyCardData, origin: string): string {
-  const settingsUrl =
-    typeof myCard.settings?.profile_media_url === 'string' ? myCard.settings.profile_media_url.trim() : ''
-  const raw = settingsUrl || myCard.profile_media?.url?.trim() || myCard.profile_media?.fallback_url?.trim() || ''
-  if (!raw || isVideoUrl(raw)) return ''
-  return toAbsoluteUrl(origin, raw)
+export function resolvePublicCardImageUrl(myCard: MyCardData, origin: string, slug?: string): string {
+  return resolvePublicCardShareImageUrl(myCard, origin, slug || myCard.profile.slug || '')
 }
 
 export function extractPublicSeoReviews(section: unknown): PublicSeoReview[] {
@@ -174,13 +169,13 @@ function postalAddress(profile: MyCardProfile) {
 }
 
 export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string, unknown> {
-  const { myCard, origin, cardPath } = input
+  const { myCard, origin, cardPath, slug } = input
   const profile = myCard.profile
-  const seo = parseSeoSettings(myCard.settings || {})
+  const seo = resolvePublicCardSeo(myCard, slug)
   const canonical = buildPublicCardCanonicalUrl(origin, cardPath)
-  const name = profile.name?.trim() || input.slug
-  const description = seo.metaDescription || profile.description?.trim() || `${name}'s digital business card`
-  const image = resolvePublicCardImageUrl(myCard, origin)
+  const name = profile.name?.trim() || slug
+  const description = seo.metaDescription
+  const image = resolvePublicCardImageUrl(myCard, origin, slug)
   const sameAs = collectSameAsUrls(profile)
   const reviews = reviewsForJsonLd(input.reviews)
   const company = profile.company_name?.trim() || ''
@@ -243,12 +238,12 @@ export function serializeJsonLd(data: unknown): string {
 
 export function buildPublicCardSeoMetadata(input: PublicCardSeoInput): Metadata {
   const { myCard, origin, cardPath, slug } = input
-  const seo = parseSeoSettings(myCard.settings || {})
+  const seo = resolvePublicCardSeo(myCard, slug)
   const name = myCard.profile.name?.trim() || slug
-  const title = seo.metaTitle || name
-  const description = seo.metaDescription || `${name}'s digital business card`
+  const title = seo.metaTitle
+  const description = seo.metaDescription
   const canonical = buildPublicCardCanonicalUrl(origin, cardPath)
-  const image = resolvePublicCardImageUrl(myCard, origin)
+  const image = resolvePublicCardImageUrl(myCard, origin, slug)
   const keywords = seo.metaKeywords.filter(Boolean)
 
   return {

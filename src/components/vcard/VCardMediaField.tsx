@@ -23,7 +23,6 @@ export type VCardMediaFieldProps = {
   profileId?: string | null
   attachmentType: string
   accept: string
-  maxBytes?: number
   title?: string
   subtitle?: string
   icon?: ReactNode
@@ -107,7 +106,6 @@ export function VCardMediaField({
   profileId,
   attachmentType,
   accept,
-  maxBytes,
   title,
   subtitle,
   icon,
@@ -127,7 +125,6 @@ export function VCardMediaField({
   allowVideo = true,
   allowAudio = true,
 }: VCardMediaFieldProps) {
-  void maxBytes
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)

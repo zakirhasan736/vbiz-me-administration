@@ -42,6 +42,15 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      {
+        source: '/vCard/:slug',
+        destination: '/v/:slug',
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig

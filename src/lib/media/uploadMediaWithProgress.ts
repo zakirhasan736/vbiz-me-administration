@@ -9,9 +9,6 @@ export function mediaNeedsClientOptimize(file: File) {
   return isVideoFile(file) || isOptimizableImageFile(file)
 }
 
-export const MAX_MEDIA_UPLOAD_MB = 50
-export const MAX_MEDIA_UPLOAD_BYTES = MAX_MEDIA_UPLOAD_MB * 1024 * 1024
-
 export type MediaUploadWithProgressResult = {
   url: string
   publicId: string
@@ -22,8 +19,6 @@ export type UploadMediaWithProgressOptions = {
   file: File
   profileId?: string | null
   attachmentType?: string
-  /** Per-file transport ceiling. Builder uploads are not package-capped; videos are still optimized when feasible. */
-  maxBytes?: number
   onProgress?: (percent: number) => void
   onStatus?: (status: 'preparing' | 'uploading') => void
   signal?: AbortSignal
@@ -39,19 +34,9 @@ export class MediaUploadError extends Error {
   }
 }
 
-export function mediaFileTooLargeMessage(maxBytes: number) {
-  const mb = Math.max(1, Math.round(maxBytes / (1024 * 1024)))
-  return `File is too large. Maximum size is ${mb}MB.`
-}
-
-export function videoSourceTooLargeMessage() {
-  return 'Video could not be optimized in the browser; uploading the original file.'
-}
-
-export function assertMediaFileSize(file: File, maxBytes = MAX_MEDIA_UPLOAD_BYTES) {
-  if (file.size > maxBytes) {
-    throw new MediaUploadError(mediaFileTooLargeMessage(maxBytes))
-  }
+/** @deprecated Builder uploads have no client-side size gate. */
+export function assertMediaFileSize(_file: File, _maxBytes?: number) {
+  // no-op — uploads are not capped in the browser
 }
 
 export function isEntityTooLargeResponse(status: number, bodyText: string) {
@@ -60,9 +45,12 @@ export function isEntityTooLargeResponse(status: number, bodyText: string) {
 }
 
 /** Nginx often returns 413 HTML without CORS, so XHR fires onerror with status 0. */
-export function mediaUploadTransportErrorMessage(bytes: number, maxBytes = MAX_MEDIA_UPLOAD_BYTES) {
-  if (bytes >= 1024 * 1024) return mediaFileTooLargeMessage(maxBytes)
-  return 'Upload failed'
+export function mediaUploadTransportErrorMessage() {
+  return 'Upload failed. Check your connection and try again.'
+}
+
+export function mediaUploadRejectedTooLargeMessage() {
+  return 'Upload was rejected by the server or network proxy. If this persists, ask support to raise the upload limit.'
 }
 
 type Envelope = {
@@ -74,14 +62,12 @@ type Envelope = {
 export async function uploadMediaWithProgress(
   options: UploadMediaWithProgressOptions
 ): Promise<MediaUploadWithProgressResult> {
-  const { profileId, attachmentType, maxBytes, onProgress, onStatus, signal } = options
-  const sourceBytes = options.file.size
+  const { profileId, attachmentType, onProgress, onStatus, signal } = options
   let uploadFile = options.file
 
   if (signal?.aborted) throw new MediaUploadError('Upload cancelled')
 
   if (isVideoFile(uploadFile)) {
-    // Optimize when the browser can handle the source; never reject large videos — upload original instead.
     onStatus?.('preparing')
     if (uploadFile.size <= MAX_VIDEO_SOURCE_BYTES) {
       try {
@@ -90,7 +76,6 @@ export async function uploadMediaWithProgress(
         if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
           throw new MediaUploadError('Upload cancelled')
         }
-        // Fall through with the original file when optimization fails.
       }
     }
   } else if (isOptimizableImageFile(uploadFile)) {
@@ -101,16 +86,11 @@ export async function uploadMediaWithProgress(
       if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         throw new MediaUploadError('Upload cancelled')
       }
-      // Fall through with the original file when optimization fails.
     }
   }
 
   if (signal?.aborted) throw new MediaUploadError('Upload cancelled')
 
-  // Soft transport ceiling only when an explicit maxBytes is provided by the caller.
-  if (maxBytes != null && uploadFile.size > maxBytes) {
-    throw new MediaUploadError(mediaFileTooLargeMessage(maxBytes))
-  }
   onStatus?.('uploading')
 
   return new Promise((resolve, reject) => {
@@ -169,14 +149,7 @@ export async function uploadMediaWithProgress(
       }
 
       if (isEntityTooLargeResponse(xhr.status, raw) || isEntityTooLargeResponse(xhr.status, parsed?.message || '')) {
-        reject(
-          new MediaUploadError(
-            maxBytes != null
-              ? mediaFileTooLargeMessage(maxBytes)
-              : 'Upload was rejected by the server as too large. Try a smaller file or contact support about proxy limits.',
-            413
-          )
-        )
+        reject(new MediaUploadError(mediaUploadRejectedTooLargeMessage(), 413))
         return
       }
 
@@ -186,7 +159,7 @@ export async function uploadMediaWithProgress(
 
     xhr.onerror = () => {
       signal?.removeEventListener('abort', onAbort)
-      reject(new MediaUploadError(mediaUploadTransportErrorMessage(Math.max(sourceBytes, uploadFile.size), maxBytes)))
+      reject(new MediaUploadError(mediaUploadTransportErrorMessage()))
     }
 
     xhr.onabort = () => {

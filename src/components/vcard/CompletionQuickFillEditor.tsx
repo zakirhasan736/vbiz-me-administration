@@ -8,7 +8,7 @@ import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { useAppDispatch } from '@/hooks/redux'
-import { useMediaUploadLimit, usePackageAccess } from '@/hooks/usePackageAccess'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { getAboutMeDraft, isAboutMeDescriptionFilled, setAboutMeDraft } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert, scheduleAboutMeUpsert } from '@/lib/aboutMePersist'
 import { displayMediaAccess } from '@/lib/packageAccess'
@@ -793,7 +793,6 @@ export function CompletionQuickFillEditor({ field }: { field: VCardCompletionFie
   const { vCardData, updateData, updateMeta, cardId, isCreateMode, avatarImageUrl } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const { can } = usePackageAccess()
-  const uploadLimit = useMediaUploadLimit()
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
   const edit = field.edit
 
@@ -852,7 +851,6 @@ export function CompletionQuickFillEditor({ field }: { field: VCardCompletionFie
         locked={gate.locked}
         allowVideo={gate.allowVideo}
         allowAudio={gate.allowAudio}
-        maxBytes={uploadLimit.maxBytes}
         title={field.label}
         subtitle={field.hint || 'Upload media'}
         icon={<ImageIcon className="text-primary-600 dark:text-primary-400 h-5 w-5" />}

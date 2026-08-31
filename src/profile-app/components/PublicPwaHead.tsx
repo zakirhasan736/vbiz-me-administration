@@ -57,6 +57,14 @@ function upsertPropertyMeta(property: string, content: string) {
   metas.slice(1).forEach((duplicate) => duplicate.remove())
 }
 
+function shareImageUrl(slug: string, imageUrl?: string | null) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const trimmed = imageUrl?.trim() || ''
+  if (trimmed && !isVideoUrl(trimmed)) return toAbsoluteUrl(origin, trimmed)
+  if (!slug.trim() || !origin) return ''
+  return `${origin.replace(/\/$/, '')}/v/${encodeURIComponent(slug.trim())}/icon/512`
+}
+
 /** Injects per-card manifest + apple-touch-icon so Chrome / iOS can install this card. */
 export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadProps) {
   useEffect(() => {
@@ -65,10 +73,10 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
 
     const origin = window.location.origin
     const canonical = buildPublicCardCanonicalUrl(origin, buildProfilePath(trimmed))
-    const title = seo?.metaTitle?.trim() || ownerName?.trim() || ''
-    const description = seo?.metaDescription?.trim() || ''
+    const title = seo?.metaTitle?.trim() || ownerName?.trim() || trimmed
+    const description = seo?.metaDescription?.trim() || `${title}'s digital business card on vBiz Me.`
     const keywords = seo?.metaKeywords?.join(', ') || ''
-    const image = imageUrl?.trim() && !isVideoUrl(imageUrl) ? toAbsoluteUrl(origin, imageUrl) : ''
+    const image = shareImageUrl(trimmed, imageUrl)
 
     const manifestHref = buildPwaManifestUrl(trimmed)
     let manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
