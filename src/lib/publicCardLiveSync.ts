@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react'
 export const PUBLIC_CARD_LIVE_CHANNEL = 'vbiz-public-card-settings'
 export const PUBLIC_CARD_LIVE_STORAGE_KEY = 'vbiz_public_card_settings_rev'
 /** How often an open public card re-reads settings/theme while the tab is visible. */
-export const PUBLIC_CARD_LIVE_POLL_MS = 8000
+export const PUBLIC_CARD_LIVE_POLL_MS = 30_000
 
 export type PublicCardLiveEvent = {
   type: 'card-settings-saved'

@@ -422,6 +422,15 @@ export function PublicCardPwaRuntime({
       prefetchSectionData(forceRefetch)
     }
 
+    const scheduleIdlePrefetch = () => {
+      const run = () => prefetchSectionData(false)
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(run, { timeout: 5000 })
+      } else {
+        setTimeout(run, 2500)
+      }
+    }
+
     const onOnline = () => {
       setConnectionState('syncing')
       syncLatest(true)
@@ -434,7 +443,8 @@ export function PublicCardPwaRuntime({
     }
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') syncLatest(true)
+      if (document.visibilityState !== 'visible') return
+      void dispatch(myCardApi.endpoints.getMyCardBySlug.initiate(trimmed, { forceRefetch: true, subscribe: false }))
     }
 
     const onSettingsSaved = () => syncLatest(true)
@@ -445,7 +455,7 @@ export function PublicCardPwaRuntime({
     const unsubscribeSettings = subscribePublicCardSettingsSaved(onSettingsSaved)
 
     void warmLazyProfileChunks().finally(cacheShell)
-    syncLatest(false)
+    scheduleIdlePrefetch()
     const cacheTimer = window.setTimeout(cacheShell, 2500)
     const postPrefetchCacheTimer = window.setTimeout(cacheShell, 5000)
 

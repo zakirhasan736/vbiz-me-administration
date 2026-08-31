@@ -975,9 +975,9 @@ const profilesApi = api.injectEndpoints({
         if (params?.sortBy) search.set('sortBy', params.sortBy)
         if (params?.sortDir) search.set('sortDir', params.sortDir)
         if (params?.skip != null) search.set('skip', String(params.skip))
-        if (params?.limit != null) search.set('limit', String(params.limit))
+        search.set('limit', String(params?.limit ?? 24))
         const qs = search.toString()
-        return qs ? `/profiles?${qs}` : '/profiles'
+        return `/profiles?${qs}`
       },
       transformResponse: (res: Envelope<ProfilesListResult | ApiProfile[]>) => {
         const payload = res.data
