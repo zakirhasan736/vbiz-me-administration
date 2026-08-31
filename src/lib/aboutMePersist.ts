@@ -46,6 +46,7 @@ function buildUpsertBody() {
     title: draft.title.trim(),
     description: draft.descriptionHtml,
     featuredMediaUrl: draft.featuredMediaUrl || '',
+    featuredMediaFocusY: draft.featuredMediaFocusY,
   }
 }
 

@@ -628,11 +628,12 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
         data-tour="ai-generate"
         data-tour-id="tour-ai-generate"
         onClick={() => openAgent()}
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-sm transition-all hover:from-emerald-700 hover:to-teal-700 active:scale-95"
+        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:from-emerald-700 hover:to-teal-700 active:scale-95"
         title="Generate with AI"
         aria-label="Generate with AI"
       >
         <Sparkles className="h-4 w-4 text-emerald-100" />
+        AI builder
       </button>
 
       <Link

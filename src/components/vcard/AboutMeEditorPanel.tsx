@@ -3,6 +3,7 @@
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
+import { AboutFeaturedMediaFocusEditor } from '@/components/vcard/AboutFeaturedMediaFocusEditor'
 import { useAppDispatch } from '@/hooks/redux'
 import {
   getAboutMeDraft,
@@ -50,6 +51,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
         title: data.title || '',
         descriptionHtml: data.description || '',
         featuredMediaUrl: data.featuredMediaUrl || '',
+        featuredMediaFocusY: data.featuredMediaFocusY ?? null,
       })
       return
     }
@@ -61,6 +63,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
         title: '',
         descriptionHtml: about,
         featuredMediaUrl: '',
+        featuredMediaFocusY: null,
       })
     } else {
       resetAboutMeDraft()
@@ -150,14 +153,27 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             allowUrlPaste={false}
             hint="Upload an image or a video. The public About Me section shows this same file."
             value={draft.featuredMediaUrl}
-            onChange={(next) => update({ featuredMediaUrl: next?.url || '' })}
+            onChange={(next) =>
+              update({
+                featuredMediaUrl: next?.url || '',
+                featuredMediaFocusY: null,
+              })
+            }
           />
+          {draft.featuredMediaUrl.trim() ? (
+            <AboutFeaturedMediaFocusEditor
+              src={draft.featuredMediaUrl}
+              focusY={draft.featuredMediaFocusY}
+              onFocusYChange={(featuredMediaFocusY) => update({ featuredMediaFocusY })}
+              alt={draft.title.trim() || tabLabel}
+            />
+          ) : null}
           <MediaSourceActions
             mode="both"
             compact
             showVideoExtras
             profileId={cardId}
-            onSelect={(asset) => update({ featuredMediaUrl: asset.url })}
+            onSelect={(asset) => update({ featuredMediaUrl: asset.url, featuredMediaFocusY: null })}
           />
         </div>
       </section>

@@ -17,6 +17,7 @@ export type AboutMeItem = {
   created_at: string
   updated_at: string
   featured_image: string | null
+  featured_media_focus_y?: number | string | null
   attachments?: AboutMeAttachment[]
 }
 
@@ -66,6 +67,7 @@ export type AboutMeListItem = {
   htmlDescription: string
   introHtml: string
   featuredImage: string
+  featuredMediaFocusY: number
   pillars: AboutMePillar[]
   highlight: AboutMeHighlight | null
   footer: AboutMeFooter | null

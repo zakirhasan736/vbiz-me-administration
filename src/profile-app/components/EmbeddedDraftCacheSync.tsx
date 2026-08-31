@@ -269,6 +269,7 @@ function aboutMeDraftToQueryResult(draft: AboutMeDraft): AboutMeQueryResult {
         created_at: '',
         updated_at: '',
         featured_image: draft.featuredMediaUrl.trim() || null,
+        featured_media_focus_y: draft.featuredMediaFocusY,
       }),
     ],
   }

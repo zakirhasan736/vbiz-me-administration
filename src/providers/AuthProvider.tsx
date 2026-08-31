@@ -1,6 +1,6 @@
 'use client'
 
-import { SessionExpiryCoordinator } from '@/components/auth/SessionExpiryCoordinator'
+import { SilentSessionRenewal } from '@/components/auth/SilentSessionRenewal'
 import { useAppSelector } from '@/hooks/redux'
 import type { IUser } from '@/interfaces/user.interface'
 import { refreshSession, resetRefreshSessionLock } from '@/lib/auth/sessionClient'
@@ -8,7 +8,6 @@ import {
   isJwtExpired,
   jwtExpiresAt,
   redirectToRoleHome,
-  requestSessionExpiryWarning,
   SESSION_RENEW_BEFORE_EXPIRY_MS,
 } from '@/lib/auth/sessionPolicy'
 import { hydrateCompletedTours } from '@/lib/dashboardTour'
@@ -121,10 +120,6 @@ function useAuthBootstrap() {
       void refreshSession(currentToken).then((result) => {
         if (cancelled) return
         if (!result.accessToken) {
-          // Only interrupt workspace routes when the refresh cookie is actually dead.
-          if (result.hardExpired) {
-            requestSessionExpiryWarning('expired')
-          }
           return
         }
         if (store.getState().user.token !== result.accessToken) {
@@ -257,7 +252,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <>
       <AccountStatusSync />
-      <SessionExpiryCoordinator onSignOut={logout} />
+      <SilentSessionRenewal />
       {children}
     </>
   )

@@ -4,12 +4,15 @@ export type AboutMeDraft = {
   title: string
   descriptionHtml: string
   featuredMediaUrl: string
+  /** 0–100 object-position Y; null uses legacy public default until user adjusts. */
+  featuredMediaFocusY: number | null
 }
 
 const EMPTY: AboutMeDraft = {
   title: '',
   descriptionHtml: '',
   featuredMediaUrl: '',
+  featuredMediaFocusY: null,
 }
 
 let draft: AboutMeDraft = { ...EMPTY }

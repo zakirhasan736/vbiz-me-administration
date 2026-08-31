@@ -1,5 +1,6 @@
 'use client'
 
+import { DEFAULT_ABOUT_FEATURED_MEDIA_FOCUS_Y, featuredMediaObjectPosition } from '@/lib/media/featuredMediaFocus'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -57,14 +58,15 @@ function youtubeEmbedSrc(url: string): string | null {
   return match ? `https://www.youtube.com/embed/${match[1]}` : null
 }
 
-function AboutFeaturedMedia({ src, alt }: { src: string; alt: string }) {
+function AboutFeaturedMedia({ src, alt, focusY }: { src: string; alt: string; focusY: number }) {
   const encoded = encodeMediaUrl(src)
   const youtube = youtubeEmbedSrc(src)
+  const objectPosition = featuredMediaObjectPosition(focusY)
 
-  /** Taller frame + upper-biased focal point so portrait faces stay in view. */
+  /** Taller frame; focal point is user-adjustable (defaults to legacy upper bias). */
   const frameClass =
     'relative aspect-[4/3] min-h-[240px] max-h-[340px] w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg sm:min-h-[280px] sm:max-h-[400px] md:min-h-[300px] md:max-h-[440px]'
-  const mediaClass = 'object-cover object-[center_22%]'
+  const mediaClass = 'object-cover'
 
   if (youtube) {
     return (
@@ -88,6 +90,7 @@ function AboutFeaturedMedia({ src, alt }: { src: string; alt: string }) {
         <video
           src={encoded}
           className={`h-full w-full ${mediaClass}`}
+          style={{ objectPosition }}
           controls
           playsInline
           preload="metadata"
@@ -101,7 +104,15 @@ function AboutFeaturedMedia({ src, alt }: { src: string; alt: string }) {
 
   return (
     <div className={frameClass}>
-      <Image src={encoded} alt={alt} fill className={mediaClass} sizes="(max-width: 768px) 100vw, 768px" priority />
+      <Image
+        src={encoded}
+        alt={alt}
+        fill
+        className={mediaClass}
+        style={{ objectPosition }}
+        sizes="(max-width: 768px) 100vw, 768px"
+        priority
+      />
     </div>
   )
 }
@@ -192,7 +203,13 @@ export const AboutSection = () => {
                 )}
               </h2>
 
-              {heroImage ? <AboutFeaturedMedia src={heroImage} alt={headline || sectionTitle} /> : null}
+              {heroImage ? (
+                <AboutFeaturedMedia
+                  src={heroImage}
+                  alt={headline || sectionTitle}
+                  focusY={item?.featuredMediaFocusY ?? DEFAULT_ABOUT_FEATURED_MEDIA_FOCUS_Y}
+                />
+              ) : null}
 
               {showHeadline ? (
                 <p className="vbiz-hero-subtitle text-gold/90 max-w-2xl text-sm leading-tight font-bold md:text-base">

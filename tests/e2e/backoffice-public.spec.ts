@@ -25,7 +25,7 @@ test.describe('Backoffice, Admin, and Public Card', () => {
 
     // The admin shell keeps its profile query mounted across route changes; reload to force a request.
     await page.reload()
-    await expect(page).toHaveURL(/\/login\?reason=session-expired$/)
+    await expect(page).toHaveURL(/\/login$/)
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
   })
 

@@ -61,12 +61,36 @@ describe('resolvePublicCardSeo', () => {
     ])
   })
 
-  it('uses generated icon when profile media is a video', () => {
+  it('uses generated icon when profile media is a video and no still image exists', () => {
     const myCard = card({
-      profile_media: { url: 'https://cdn.example.com/intro.mp4' },
+      profile_media: { url: 'https://cdn.example.com/intro.mp4', is_video: true },
       profile: { ...card().profile, avatar: '' },
     })
     const image = resolvePublicCardShareImageUrl(myCard, 'https://app.vbizme.com', 'michaelangelo-casanova-2')
     expect(image).toBe('https://app.vbizme.com/v/michaelangelo-casanova-2/icon/512')
+  })
+
+  it('uses profile still fallback when card avatar media is a video', () => {
+    const myCard = card({
+      profile_media: {
+        url: 'https://cdn.example.com/intro.mp4',
+        is_video: true,
+        fallback_url: 'https://cdn.example.com/thumb.jpg',
+      },
+    })
+    expect(resolvePublicCardShareImageUrl(myCard, 'https://app.vbizme.com', 'michaelangelo-casanova-2')).toBe(
+      'https://cdn.example.com/thumb.jpg'
+    )
+  })
+
+  it('uses About Me featured image when avatar is video and no profile still exists', () => {
+    const myCard = card({
+      profile_media: { url: 'https://cdn.example.com/intro.mp4', is_video: true },
+      settings: { about_me_featured_media_url: 'https://cdn.example.com/about-hero.jpg' },
+      profile: { ...card().profile, avatar: '' },
+    })
+    expect(resolvePublicCardShareImageUrl(myCard, 'https://app.vbizme.com', 'michaelangelo-casanova-2')).toBe(
+      'https://cdn.example.com/about-hero.jpg'
+    )
   })
 })

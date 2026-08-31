@@ -12,6 +12,7 @@ export type ProfileAboutMeRecord = {
   title: string
   description: string | null
   featuredMediaUrl: string | null
+  featuredMediaFocusY: number | null
   status: string
   legacyPostId: number | null
   createdAt: string
@@ -22,6 +23,7 @@ export type UpsertAboutMeBody = {
   title: string
   description: string
   featuredMediaUrl: string
+  featuredMediaFocusY?: number | null
   status?: string
 }
 

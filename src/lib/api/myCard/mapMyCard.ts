@@ -7,7 +7,7 @@ import {
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { decodeHtmlText } from '@/lib/htmlText'
-import { resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
+import { collectPublicCardShareImageCandidates, resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { applyEnabledNavOrderToDisplaySettings } from '@/lib/vcardDisplaySettings'
@@ -553,26 +553,8 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
 export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
   const data = mapMyCardToVCardData(card)
   const now = new Date().toISOString()
-  const settingsProfile =
-    typeof card.settings?.profile_media_url === 'string' ? card.settings.profile_media_url.trim() : ''
-  const settingsLogo =
-    typeof card.settings?.company_logo === 'string'
-      ? card.settings.company_logo.trim()
-      : typeof card.settings?.company_icon_url === 'string'
-        ? card.settings.company_icon_url.trim()
-        : ''
-  const stillImage = [
-    settingsProfile,
-    card.profile_media.url,
-    card.profile_media.fallback_url,
-    card.profile.avatar,
-    settingsLogo,
-    data.displaySettings?.fields?.['Profile Image/Video']?.customValue,
-    data.displaySettings?.fields?.['Company/Office Icon']?.customValue,
-  ]
-    .map((value) => (typeof value === 'string' ? value.trim() : ''))
-    .find((url) => (/^https?:\/\//i.test(url) || url.startsWith('/')) && !/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url))
-  const avatarImageUrl = stillImage || ''
+  const stillImage = collectPublicCardShareImageCandidates(card)[0] || ''
+  const avatarImageUrl = stillImage
 
   const settingsBackground =
     typeof card.settings?.background_media_url === 'string' ? card.settings.background_media_url.trim() : ''

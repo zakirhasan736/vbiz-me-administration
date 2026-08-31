@@ -6,6 +6,7 @@ import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import type { MappedProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
 import { CardScopeProvider } from '@/lib/card-scope'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
+import { collectPublicCardShareImageCandidates } from '@/lib/seo/resolvePublicCardSeo'
 import { ProfileApp } from '@/profile-app/ProfileApp'
 import { ProfileLoadingScreen } from '@/profile-app/components/ProfileLoadingScreen'
 import { ProfileThemeShell } from '@/profile-app/components/ProfileThemeShell'
@@ -155,6 +156,12 @@ export default function PublicProfileLayout({
     }
   }, [liveAgentCardData, earlyProfileId, record, profileProps, slug])
 
+  const shareImageUrl = useMemo(() => {
+    const card = myCard ?? initialMyCard
+    if (card) return collectPublicCardShareImageCandidates(card)[0] || record?.avatarImageUrl || ''
+    return record?.avatarImageUrl || ''
+  }, [myCard, initialMyCard, record?.avatarImageUrl])
+
   useGoogleFont(profileProps?.design?.fontFamily)
 
   if (isLoading) {
@@ -191,7 +198,7 @@ export default function PublicProfileLayout({
 
   return (
     <ProfileThemeShell config={themeConfig} fromApi={fromApi} template={template}>
-      <PublicPwaHead slug={slug} ownerName={ownerName} seo={record.seo} imageUrl={record.avatarImageUrl} />
+      <PublicPwaHead slug={slug} ownerName={ownerName} seo={record.seo} imageUrl={shareImageUrl} />
       <PublicCardPwaRuntime
         slug={slug}
         profileId={earlyProfileId}

@@ -8,6 +8,7 @@ import type {
   AboutMeSectionResponse,
 } from '@/interfaces/api/aboutMe.interface'
 import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
+import { parseFeaturedMediaFocusY } from '@/lib/media/featuredMediaFocus'
 
 function isActiveStatus(status: number | string): boolean {
   return String(status).trim() === '1'
@@ -130,6 +131,7 @@ export function mapAboutMeItemToListItem(item: AboutMeItem): AboutMeListItem {
     htmlDescription: html,
     introHtml: parsed.introHtml || html,
     featuredImage: resolveFeaturedImage(item),
+    featuredMediaFocusY: parseFeaturedMediaFocusY(item.featured_media_focus_y),
     pillars: parsed.pillars,
     highlight: parsed.highlight,
     footer: parsed.footer,

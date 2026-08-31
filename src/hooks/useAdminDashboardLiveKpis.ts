@@ -2,7 +2,6 @@
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { refreshSession } from '@/lib/auth/sessionClient'
-import { requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
 import { baseUrl } from '@/redux/api/api'
 import { updateAuthState } from '@/redux/features/auth/user.slice'
 import type { DashboardPeriod } from '@/redux/features/profiles/profiles.api'
@@ -76,10 +75,7 @@ export function useDashboardLiveKpis(period: DashboardPeriod) {
 
       void refreshSession(token).then((result) => {
         if (cancelled) return
-        if (!result.accessToken) {
-          requestSessionExpiryWarning('expired')
-          return
-        }
+        if (!result.accessToken) return
         dispatch(updateAuthState({ token: result.accessToken }))
         socket.auth = { token: result.accessToken }
         socket.connect()

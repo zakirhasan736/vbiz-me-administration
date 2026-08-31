@@ -1,4 +1,4 @@
-import { SESSION_EXPIRING_EVENT } from '@/lib/auth/sessionPolicy'
+import { SESSION_EXPIRED_LOGIN_PATH } from '@/lib/auth/sessionPolicy'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { baseQueryWithRefreshToken } from './api'
 
@@ -75,15 +75,18 @@ describe('authenticated API session handling', () => {
     expect(dispatched).toHaveLength(1)
   })
 
-  it('opens the expiry warning when an owner refresh token is no longer valid', async () => {
+  it('redirects to login when refresh token is no longer valid', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(response({ message: 'Access token expired' }, 401))
       .mockResolvedValueOnce(response({ message: 'Refresh token expired' }, 401))
     vi.stubGlobal('fetch', fetchMock)
     const { context, dispatched } = apiContext('vcard-owner')
-    const warning = vi.fn()
-    window.addEventListener(SESSION_EXPIRING_EVENT, warning)
+    const replace = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, replace },
+    })
     window.history.replaceState({}, '', '/teamvcard')
 
     const result = await baseQueryWithRefreshToken({ url: '/protected' }, context, {})
@@ -92,23 +95,24 @@ describe('authenticated API session handling', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(requestUrl(fetchMock.mock.calls[1][0])).toContain('/auth/refresh-token')
     expect(dispatched).toHaveLength(0)
-    expect(warning).toHaveBeenCalledTimes(1)
-    window.removeEventListener(SESSION_EXPIRING_EVENT, warning)
+    expect(replace).toHaveBeenCalledWith(SESSION_EXPIRED_LOGIN_PATH)
   })
 
-  it('does not open the expiry warning on public card routes', async () => {
+  it('does not redirect on public card routes', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(response({ message: 'Access token expired' }, 401))
     vi.stubGlobal('fetch', fetchMock)
     const { context, dispatched } = apiContext('admin')
-    const warning = vi.fn()
-    window.addEventListener(SESSION_EXPIRING_EVENT, warning)
-    window.history.replaceState({}, '', '/v/acme-card')
+    const replace = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, pathname: '/v/acme-card', replace },
+    })
 
     const result = await baseQueryWithRefreshToken({ url: '/protected' }, context, {})
 
     expect(result).toMatchObject({ error: { status: 401 } })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(dispatched).toHaveLength(0)
-    expect(warning).not.toHaveBeenCalled()
-    window.removeEventListener(SESSION_EXPIRING_EVENT, warning)
+    expect(replace).not.toHaveBeenCalled()
   })
 })

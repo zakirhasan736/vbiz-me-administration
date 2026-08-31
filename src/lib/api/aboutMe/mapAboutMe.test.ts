@@ -21,4 +21,21 @@ describe('mapAboutMeItemToListItem', () => {
     expect(item.pillars[0]?.title).toBe('Visionary & Builder')
     expect(item.pillars[1]?.title).toBe('Sales & Marketing Strategist')
   })
+
+  it('maps featured media focus Y from the public API field', () => {
+    const item = mapAboutMeItemToListItem({
+      id: 2,
+      title: 'About',
+      description: '<p>Hello</p>',
+      profile_id: 10,
+      post_type_id: 2,
+      status: 1,
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+      featured_image: 'https://cdn.example.com/photo.jpg',
+      featured_media_focus_y: 68,
+    })
+
+    expect(item.featuredMediaFocusY).toBe(68)
+  })
 })

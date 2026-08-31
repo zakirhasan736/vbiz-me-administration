@@ -19,7 +19,7 @@ import { getLoginOtpChallenge, isLoginOtpRequired, type TLoginOtpChallenge } fro
 import { getPasswordSetupRequiredData, isPasswordSetupRequired } from '@/utils/passwordSetup'
 import { Form, Formik } from 'formik'
 import Cookies from 'js-cookie'
-import { Clock3, Lock, Mail } from 'lucide-react'
+import { Lock, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -57,7 +57,6 @@ const LoginView = () => {
   const dispatch = useAppDispatch()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const sessionExpired = searchParams.get('reason') === 'session-expired'
   const verifiedToastShownRef = useRef(false)
 
   const resetTurnstile = () => {
@@ -155,21 +154,6 @@ const LoginView = () => {
 
             return (
               <Form className="relative z-10 mb-6 space-y-4" noValidate>
-                {sessionExpired ? (
-                  <div
-                    role="status"
-                    className="flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-left text-rose-950 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-100"
-                  >
-                    <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
-                    <div className="space-y-1">
-                      <p className="text-xs leading-5 font-bold">Your session expired</p>
-                      <p className="text-xs leading-5 font-semibold opacity-90">
-                        Sign in again to continue in Admin, Corporate, or your back office. A fresh login resets your
-                        secure session tokens.
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
                 <div className="group flex flex-col space-y-1.5 text-left">
                   <label
                     htmlFor="email"

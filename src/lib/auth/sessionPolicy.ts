@@ -2,18 +2,15 @@ import { isStaffRole } from '@/constants/userRole'
 import { homePathForOwnerMode, ownerOfficeRedirectPath, type OwnerMode } from '@/lib/packageOwnerMode'
 import { isPublicCardMetaPath, isPublicCardPagePath } from '@/lib/pwa/publicCardCachePolicy'
 
-export const SESSION_EXPIRED_LOGIN_PATH = '/login?reason=session-expired'
+export const SESSION_EXPIRED_LOGIN_PATH = '/login'
 export const SESSION_EXPIRED_STORAGE_KEY = 'vbiz.session-expired'
+/** @deprecated Session expiry popups removed — event kept for backwards-compatible tests. */
 export const SESSION_EXPIRING_EVENT = 'vbiz:session-expiring'
 export const SESSION_FLUSH_DRAFT_EVENT = 'vbiz:flush-draft'
-/** Countdown after idle warning before automatic sign-out. */
-export const SESSION_WARNING_SECONDS = 45
-/** Maximum time with no pointer/keyboard/touch activity before the idle warning. */
-export const SESSION_IDLE_MS = 45 * 60 * 1000
-/** @deprecated Use SESSION_IDLE_MS */
-export const SESSION_RECENT_ACTIVITY_MS = SESSION_IDLE_MS
-/** Refresh the access token this far before JWT expiry while the user is still active. */
-export const SESSION_RENEW_BEFORE_EXPIRY_MS = 2 * 60 * 1000
+/** Access + refresh tokens live for 24 hours. */
+export const SESSION_LIFETIME_MS = 24 * 60 * 60 * 1000
+/** Refresh the access token this far before JWT expiry. */
+export const SESSION_RENEW_BEFORE_EXPIRY_MS = 5 * 60 * 1000
 
 export type SessionExpiryReason = 'idle' | 'expired' | 'unauthorized'
 
@@ -108,10 +105,8 @@ export function isJwtExpired(token: string | null | undefined, now = Date.now())
   return expiresAt === null || expiresAt <= now
 }
 
-export function requestSessionExpiryWarning(reason: SessionExpiryReason = 'unauthorized'): void {
-  if (typeof window === 'undefined') return
-  if (!isAuthenticatedWorkspacePath(currentPathname())) return
-  window.dispatchEvent(new CustomEvent<SessionExpiryReason>(SESSION_EXPIRING_EVENT, { detail: reason }))
+export function requestSessionExpiryWarning(_reason: SessionExpiryReason = 'unauthorized'): void {
+  // Session expiry popups and idle logout were removed. Token refresh is handled silently.
 }
 
 export function markSessionExpired(): void {
@@ -129,7 +124,6 @@ export function redirectToLogin(): void {
   if (pathname.startsWith('/login')) return
   // Never yank visitors off a public card when a stale auth cookie/token expires.
   if (!isAuthenticatedWorkspacePath(pathname)) return
-  markSessionExpired()
   window.location.replace(SESSION_EXPIRED_LOGIN_PATH)
 }
 

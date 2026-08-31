@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { refreshSession } from '@/lib/auth/sessionClient'
-import { isAuthenticatedWorkspacePath, requestSessionExpiryWarning } from '@/lib/auth/sessionPolicy'
+import { isAuthenticatedWorkspacePath, redirectToLogin } from '@/lib/auth/sessionPolicy'
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import { updateAuthState } from '../features/auth/user.slice'
 import { RootState } from '../store'
 
 export const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'
 
-const warnAboutExpiredSession = (api: any) => {
+const handleExpiredSession = (api: any) => {
   const state = api?.getState?.() as RootState | undefined
   if (!state?.user?.user?.id) return
-  requestSessionExpiryWarning('unauthorized')
+  redirectToLogin()
 }
 
 const baseQuery = fetchBaseQuery({
@@ -27,7 +27,7 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
   let result = await baseQuery(args, api, extraOptions)
 
   if (result?.error?.status === 419) {
-    warnAboutExpiredSession(api)
+    handleExpiredSession(api)
     return result
   }
 
@@ -41,14 +41,14 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
 
     const refreshed = await refreshSession(token)
     if (!refreshed.accessToken) {
-      warnAboutExpiredSession(api)
+      handleExpiredSession(api)
       return result
     }
 
     api?.dispatch(updateAuthState({ token: refreshed.accessToken }))
     result = await baseQuery(args, api, extraOptions)
     if (result?.error?.status === 401 || result?.error?.status === 419) {
-      warnAboutExpiredSession(api)
+      handleExpiredSession(api)
     }
     return result
   }
@@ -60,7 +60,7 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
     'message' in result.error.data &&
     result.error.data.message === 'Unauthorized'
   ) {
-    warnAboutExpiredSession(api)
+    handleExpiredSession(api)
   }
 
   return result

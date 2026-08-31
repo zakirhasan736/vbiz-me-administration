@@ -1,17 +1,19 @@
 'use client'
 
 import type { GalleryListItem } from '@/interfaces/api/gallery.interface'
-import { useDragScroll } from '@/profile-app/hooks/useDragScroll'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetGalleryQuery } from '@/redux/api'
-import { Camera, Image as ImageIcon, Maximize2, X } from 'lucide-react'
+import { Camera, ChevronLeft, ChevronRight, Image as ImageIcon, Maximize2, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
 const SKELETON_CARD_COUNT = 5
+const GALLERY_FILTER_MAX_WIDTH_PX = 500
+/** How many filter chips are visible at once inside the constrained bar. */
+const GALLERY_FILTER_WINDOW_SIZE = 2
 
 type HoverDirection = 'top' | 'right' | 'bottom' | 'left'
 
@@ -236,7 +238,6 @@ export const ImageGallerySection = () => {
   const profileId = cardOwnerId?.trim() ?? ''
   const [activeTab, setActiveTab] = useState('All')
   const [previewItem, setPreviewItem] = useState<GalleryListItem | null>(null)
-  const scrollRef = useDragScroll<HTMLDivElement>()
 
   const { data, isLoading, isError } = useGetGalleryQuery(profileId, { skip: !profileId })
 
@@ -301,7 +302,6 @@ export const ImageGallerySection = () => {
         categories={categories}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        scrollRef={scrollRef}
       />
 
       <motion.div
@@ -322,6 +322,86 @@ export const ImageGallerySection = () => {
   )
 }
 
+function resolveGalleryFilterWindowStart(
+  manualStart: number,
+  categories: string[],
+  activeTab: string,
+  windowSize: number
+): number {
+  const activeIndex = categories.indexOf(activeTab)
+  if (activeIndex < 0) return manualStart
+  if (activeIndex < manualStart) return activeIndex
+  if (activeIndex >= manualStart + windowSize) return Math.max(0, activeIndex - windowSize + 1)
+  return manualStart
+}
+
+function GalleryFilterBar({
+  categories,
+  activeTab,
+  onTabChange,
+}: {
+  categories: string[]
+  activeTab: string
+  onTabChange: (tab: string) => void
+}) {
+  const windowSize = Math.min(GALLERY_FILTER_WINDOW_SIZE, categories.length)
+  const [manualWindowStart, setManualWindowStart] = useState(0)
+  const windowStart = resolveGalleryFilterWindowStart(manualWindowStart, categories, activeTab, windowSize)
+  const showNav = categories.length > windowSize
+  const windowEnd = Math.min(windowStart + windowSize, categories.length)
+  const visibleCategories = categories.slice(windowStart, windowEnd)
+  const canGoPrev = windowStart > 0
+  const canGoNext = windowEnd < categories.length
+
+  const goPrev = () => setManualWindowStart((current) => Math.max(0, current - 1))
+  const goNext = () =>
+    setManualWindowStart((current) => Math.min(Math.max(0, categories.length - windowSize), current + 1))
+
+  return (
+    <div className="flex w-full max-w-[500px] items-center gap-1.5" style={{ maxWidth: GALLERY_FILTER_MAX_WIDTH_PX }}>
+      {showNav ? (
+        <button
+          type="button"
+          aria-label="Show previous filters"
+          disabled={!canGoPrev}
+          onClick={goPrev}
+          className="vbiz-filter-chip flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-opacity disabled:cursor-not-allowed disabled:opacity-35 md:h-10 md:w-10 md:rounded-xl"
+        >
+          <ChevronLeft size={18} strokeWidth={2.25} />
+        </button>
+      ) : null}
+
+      <div className="vbiz-filter-bar flex min-w-0 flex-1 items-stretch gap-1 overflow-hidden rounded-xl border p-1 md:gap-1.5 md:rounded-2xl md:p-1.5">
+        {visibleCategories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => onTabChange(category)}
+            title={category}
+            className={`relative z-10 flex min-w-0 flex-1 items-center justify-center rounded-lg px-2 py-1.5 text-xs font-bold transition-all duration-300 md:rounded-xl md:px-3 md:py-2.5 ${
+              activeTab === category ? 'vbiz-filter-chip-active' : 'vbiz-filter-chip'
+            }`}
+          >
+            <span className="relative z-10 truncate">{category}</span>
+          </button>
+        ))}
+      </div>
+
+      {showNav ? (
+        <button
+          type="button"
+          aria-label="Show next filters"
+          disabled={!canGoNext}
+          onClick={goNext}
+          className="vbiz-filter-chip flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-opacity disabled:cursor-not-allowed disabled:opacity-35 md:h-10 md:w-10 md:rounded-xl"
+        >
+          <ChevronRight size={18} strokeWidth={2.25} />
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 function SectionHeader({
   sectionTitle,
   isLoading,
@@ -329,7 +409,6 @@ function SectionHeader({
   categories = ['All'],
   activeTab = 'All',
   onTabChange,
-  scrollRef,
 }: {
   sectionTitle: string
   isLoading?: boolean
@@ -337,58 +416,46 @@ function SectionHeader({
   categories?: string[]
   activeTab?: string
   onTabChange?: (tab: string) => void
-  scrollRef?: RefObject<HTMLDivElement | null>
 }) {
   return (
     <div className="mb-3 grid grid-cols-1 gap-4 md:mb-4 lg:grid-cols-4">
-      <div className="vbiz-hero-banner bg-ocean-deep dark:border-gold/20 group relative flex flex-col items-start justify-between gap-2 overflow-hidden rounded-3xl border border-zinc-800 p-4 shadow-xl backdrop-blur-xl md:flex-row md:items-end md:gap-0 md:p-6 lg:col-span-4 lg:p-10">
+      <div className="vbiz-hero-banner bg-ocean-deep dark:border-gold/20 group relative flex flex-col items-start gap-4 overflow-hidden rounded-3xl border border-zinc-800 p-4 shadow-xl backdrop-blur-xl md:p-6 lg:col-span-4 lg:p-10">
         <div className="from-ocean-deep via-ocean-deep/80 pointer-events-none absolute inset-0 bg-linear-to-br to-violet-950/40" />
         <div className="bg-gold/10 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
         <div className="pointer-events-none absolute bottom-0 left-0 -mb-24 -ml-24 rounded-full bg-black/5 p-24 blur-3xl transition-transform delay-100 duration-1000 group-hover:scale-110 dark:bg-white/5" />
 
-        <div className="relative z-10 flex w-full flex-col gap-1 md:w-auto md:gap-2">
-          <div className="vbiz-hero-eyebrow vbiz-eyebrow mb-0 w-fit self-start rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
-            <Camera size={12} className="text-gold" /> Image Vault
-          </div>
-
-          {isLoading ? (
-            <>
-              <div className="h-8 w-2/3 max-w-lg animate-pulse rounded-lg bg-white/15 md:h-10" />
-              <div className="h-4 w-full max-w-xl animate-pulse rounded-md bg-white/10" />
-            </>
-          ) : (
-            <>
-              <h2 className="vbiz-hero-title max-w-2xl font-serif text-2xl leading-tight font-medium tracking-tight text-white italic sm:text-4xl lg:text-4xl">
-                {sectionTitle}
-              </h2>
-              <p className="vbiz-hero-subtitle max-w-xl text-sm leading-snug font-medium text-zinc-300 md:text-base md:leading-normal">
-                Browse curated gallery images from this profile.
-              </p>
-            </>
-          )}
-        </div>
-
-        {showFilters && onTabChange && scrollRef ? (
-          <div className="relative z-10 flex w-full shrink-0 md:w-auto">
-            <div
-              ref={scrollRef}
-              className="vbiz-filter-bar no-scrollbar mask-edges inline-flex max-w-full cursor-grab items-center gap-1 overflow-x-auto rounded-xl border p-1 active:cursor-grabbing md:gap-1.5 md:rounded-2xl md:p-1.5"
-            >
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => onTabChange(category)}
-                  className={`relative z-10 flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-300 md:rounded-xl md:px-4 md:py-2.5 ${
-                    activeTab === category ? 'vbiz-filter-chip-active' : 'vbiz-filter-chip'
-                  }`}
-                >
-                  <span className="relative z-10">{category}</span>
-                </button>
-              ))}
+        <div className="relative z-10 flex w-full flex-col gap-3 md:gap-4">
+          <div className="flex flex-col gap-1 md:gap-2">
+            <div className="vbiz-hero-eyebrow vbiz-eyebrow mb-0 w-fit self-start rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
+              <Camera size={12} className="text-gold" /> Image Vault
             </div>
+
+            {isLoading ? (
+              <>
+                <div className="h-8 w-2/3 max-w-lg animate-pulse rounded-lg bg-white/15 md:h-10" />
+                <div className="h-4 w-full max-w-xl animate-pulse rounded-md bg-white/10" />
+              </>
+            ) : (
+              <>
+                <h2 className="vbiz-hero-title max-w-2xl font-serif text-2xl leading-tight font-medium tracking-tight text-white italic sm:text-4xl lg:text-4xl">
+                  {sectionTitle}
+                </h2>
+                <p className="vbiz-hero-subtitle max-w-xl text-sm leading-snug font-medium text-zinc-300 md:text-base md:leading-normal">
+                  Browse curated gallery images from this profile.
+                </p>
+              </>
+            )}
           </div>
-        ) : null}
+
+          {showFilters && onTabChange ? (
+            <GalleryFilterBar
+              key={categories.join('|')}
+              categories={categories}
+              activeTab={activeTab}
+              onTabChange={onTabChange}
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   )
