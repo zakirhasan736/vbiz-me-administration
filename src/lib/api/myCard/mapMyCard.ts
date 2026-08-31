@@ -441,15 +441,7 @@ function mapPersonal(card: MyCardData): VCardPersonal {
     zipCode: decodeHtmlText(p.zip_code ?? p.zipCode ?? ''),
     website: p.website ?? '',
     about: decodeHtmlText(aboutSection),
-    explainerVideoUrl: (() => {
-      const fromSettings = card.settings?.intro_video_url?.trim() || ''
-      const file =
-        (fromSettings && !isYoutubeMediaUrl(fromSettings) ? fromSettings : '') ||
-        card.intro_video.regular_video?.url?.trim() ||
-        (card.intro_video.youtube ? '' : card.intro_video.url?.trim()) ||
-        ''
-      return file && !isYoutubeMediaUrl(file) ? file : ''
-    })(),
+    explainerVideoUrl: '',
   }
 }
 

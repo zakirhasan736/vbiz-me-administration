@@ -112,7 +112,7 @@ export const HomeHero: React.FC<{
    */
   const compact = embedded
 
-  const introSrc = homeMedia.introVideo || personal.explainerVideoUrl || undefined
+  const introSrc = homeMedia.introVideo || undefined
   const profileSrc = useMemo(
     () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc),
     [homeMedia.profileMedia, introSrc]

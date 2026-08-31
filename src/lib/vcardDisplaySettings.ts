@@ -277,16 +277,14 @@ export function getPersonalValueForField(personal: VCardPersonal, fieldKey: stri
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function getHomeMediaUrls(settings: VCardDisplaySettings, personal: VCardPersonal) {
+export function getHomeMediaUrls(settings: VCardDisplaySettings, _personal: VCardPersonal) {
   const introFile = getFieldConfig(settings, 'Intro vCard Video').customValue?.trim() || ''
   const introYoutube = getFieldConfig(settings, 'Intro YouTube vCard Video Link').customValue?.trim() || ''
-  const explainer = personal.explainerVideoUrl?.trim() || ''
 
   const isYoutube = (url: string) => /youtu\.?be/i.test(url)
 
-  // File/S3 intros only for <video> preloader — YouTube links are not valid video sources.
-  const introVideo =
-    (introFile && !isYoutube(introFile) ? introFile : '') || (explainer && !isYoutube(explainer) ? explainer : '') || ''
+  // Intro preloader only — 2D explainer lives in its own section tab.
+  const introVideo = introFile && !isYoutube(introFile) ? introFile : ''
 
   const bgMedia = getFieldConfig(settings, 'Background Video/Image').customValue?.trim() || ''
   const profileMedia = getFieldConfig(settings, 'Profile Image/Video').customValue?.trim() || ''

@@ -1,76 +1,73 @@
-import {
-  PROFILE_MEDIA_EXPLAINER_SOURCE,
-  PROFILE_MEDIA_EXPLAINER_TEMP_ID,
-  applyProfileMediaToExplainerTab,
-  explainerTabSignature,
-  readProfileMediaExplainer,
-} from '@/lib/vcardExplainerFromProfileMedia'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
-import type { VCardData, VCardSectionPostItem } from '@/types/vcard'
 import { createDefaultVCardData } from '@/types/vcard'
 import { describe, expect, it } from 'vitest'
+import {
+  EXPLAINER_SECTION,
+  patchExplainerSectionMedia,
+  readExplainerSectionMedia,
+} from './vcardExplainerFromProfileMedia'
 
-const EXPLAINER = PUBLIC_SECTION_NAMES.explainer
+const base = createDefaultVCardData()
 
-function card(opts?: {
-  file?: string
-  youtube?: string
-  personal?: string
-  extraItems?: VCardSectionPostItem[]
-}): VCardData {
-  const base = createDefaultVCardData()
-  return {
-    ...base,
-    personal: { ...base.personal, explainerVideoUrl: opts?.personal ?? '' },
-    displaySettings: {
-      globalEnabled: true,
-      fields: {
-        'Intro vCard Video': { visible: true, customValue: opts?.file ?? '' },
-        'Intro YouTube vCard Video Link': { visible: true, customValue: opts?.youtube ?? '' },
-      },
-    },
-    sectionPosts: {
-      [EXPLAINER]: opts?.extraItems ?? [],
-    },
-  }
-}
+describe('readExplainerSectionMedia', () => {
+  it('returns empty when no explainer section posts exist', () => {
+    expect(readExplainerSectionMedia(base)).toEqual({ fileUrl: '', externalUrl: '' })
+  })
 
-function items(data: VCardData): VCardSectionPostItem[] {
-  return data.sectionPosts?.[EXPLAINER] ?? []
-}
+  it('reads uploaded file from featuredImage', () => {
+    const data = patchExplainerSectionMedia(base, { fileUrl: 'https://cdn.example.com/explainer.mp4' })
+    expect(readExplainerSectionMedia(data)).toEqual({
+      fileUrl: 'https://cdn.example.com/explainer.mp4',
+      externalUrl: '',
+    })
+  })
 
-describe('applyProfileMediaToExplainerTab', () => {
-  it('copies an uploaded file into the 2D Video Explainer tab', () => {
+  it('reads YouTube URL from external url field', () => {
+    const data = patchExplainerSectionMedia(base, { externalUrl: 'https://youtube.com/watch?v=abc' })
+    expect(readExplainerSectionMedia(data)).toEqual({
+      fileUrl: '',
+      externalUrl: 'https://youtube.com/watch?v=abc',
+    })
+  })
+})
+
+describe('patchExplainerSectionMedia', () => {
+  it('writes explainer section posts without touching display settings', () => {
     const file = 'https://cdn.example.com/explainer.mp4'
-    const next = applyProfileMediaToExplainerTab(card({ file }))
-    const row = items(next)[0]
+    const next = patchExplainerSectionMedia(base, { fileUrl: file })
+    const items = next.sectionPosts?.[EXPLAINER_SECTION] ?? []
 
-    expect(readProfileMediaExplainer(next)).toEqual({ fileUrl: file, externalUrl: '' })
-    expect(row).toMatchObject({
-      id: PROFILE_MEDIA_EXPLAINER_TEMP_ID,
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({
       title: '2D Video Explainer',
       featuredImage: file,
       url: file,
       active: true,
-      metas: { source: PROFILE_MEDIA_EXPLAINER_SOURCE },
     })
+    expect(next.displaySettings?.fields?.['Intro vCard Video']?.customValue).toBeFalsy()
   })
 
-  it('copies a YouTube URL into the explainer tab without treating it as a file', () => {
-    const youtube = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-    const next = applyProfileMediaToExplainerTab(card({ personal: youtube }), { syncYoutubeFromPersonal: true })
-    const row = items(next)[0]
-
-    expect(row.featuredImage).toBe('')
-    expect(row.url).toBe(youtube)
-    expect(next.personal.explainerVideoUrl).toBe(youtube)
-    expect(next.displaySettings?.fields['Intro YouTube vCard Video Link']?.customValue).toBe(youtube)
+  it('clears explainer section when both file and external url are removed', () => {
+    const seeded = patchExplainerSectionMedia(base, { fileUrl: 'https://cdn.example.com/explainer.mp4' })
+    const cleared = patchExplainerSectionMedia(seeded, { fileUrl: '', externalUrl: '' })
+    expect(cleared.sectionPosts?.[PUBLIC_SECTION_NAMES.explainer] ?? []).toHaveLength(0)
   })
 
-  it('keeps extra explainer tab items when profile media is updated', () => {
-    const extra: VCardSectionPostItem = {
-      id: 'sec_manual',
-      title: 'Custom clip',
+  it('preserves extra explainer rows when updating the primary item', () => {
+    const primary = {
+      id: 'sec_primary',
+      title: 'Primary',
+      description: '',
+      url: 'https://cdn.example.com/old.mp4',
+      featuredImage: 'https://cdn.example.com/old.mp4',
+      date: '',
+      rating: '',
+      location: '',
+      active: true,
+    }
+    const extra = {
+      id: 'sec_extra',
+      title: 'Secondary',
       description: '',
       url: 'https://cdn.example.com/other.mp4',
       featuredImage: 'https://cdn.example.com/other.mp4',
@@ -79,46 +76,16 @@ describe('applyProfileMediaToExplainerTab', () => {
       location: '',
       active: true,
     }
-    const file = 'https://cdn.example.com/from-profile.mp4'
-    const next = applyProfileMediaToExplainerTab(card({ file, extraItems: [extra] }))
-    const rows = items(next)
-
-    expect(rows).toHaveLength(2)
-    expect(rows[0].metas?.source).toBe(PROFILE_MEDIA_EXPLAINER_SOURCE)
-    expect(rows[0].featuredImage).toBe(file)
-    expect(rows[1]).toMatchObject({ id: 'sec_manual', title: 'Custom clip' })
-  })
-
-  it('removes only the profile-media row when media is cleared', () => {
-    const extra: VCardSectionPostItem = {
-      id: 'sec_keep',
-      title: 'Keep me',
-      description: '',
-      url: 'https://cdn.example.com/keep.mp4',
-      featuredImage: '',
-      date: '',
-      rating: '',
-      location: '',
-      active: true,
+    const withExtra = {
+      ...base,
+      sectionPosts: {
+        [EXPLAINER_SECTION]: [primary, extra],
+      },
     }
-    const seeded = applyProfileMediaToExplainerTab(
-      card({ file: 'https://cdn.example.com/gone.mp4', extraItems: [extra] })
-    )
-    const cleared = applyProfileMediaToExplainerTab(
-      card({
-        extraItems: items(seeded),
-      })
-    )
-
-    expect(items(cleared)).toEqual([expect.objectContaining({ id: 'sec_keep', title: 'Keep me' })])
-  })
-
-  it('is a no-op when the explainer tab already matches profile media', () => {
-    const file = 'https://cdn.example.com/same.mp4'
-    const first = applyProfileMediaToExplainerTab(card({ file }))
-    const second = applyProfileMediaToExplainerTab(first)
-
-    expect(explainerTabSignature(second)).toBe(explainerTabSignature(first))
-    expect(second).toBe(first)
+    const next = patchExplainerSectionMedia(withExtra, { fileUrl: 'https://cdn.example.com/primary.mp4' })
+    const items = next.sectionPosts?.[EXPLAINER_SECTION] ?? []
+    expect(items).toHaveLength(2)
+    expect(items[0]?.featuredImage).toBe('https://cdn.example.com/primary.mp4')
+    expect(items[1]?.id).toBe('sec_extra')
   })
 })

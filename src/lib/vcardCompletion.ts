@@ -1,5 +1,6 @@
 import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
 import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
+import { readExplainerSectionMedia } from '@/lib/vcardExplainerFromProfileMedia'
 import type { EditorNavPanel } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { getSectionSchema } from '@/lib/vcardSectionSchemas'
@@ -476,12 +477,10 @@ export function getEditorPanelCompletionFields(
   const p = data.personal || ({} as VCardData['personal'])
   const avatar = displayCustom(data, 'Profile Image/Video') || meta?.avatarImageUrl || ''
   const background = displayCustom(data, 'Background Video/Image') || meta?.backgroundImageUrl || ''
-  const intro =
-    displayCustom(data, 'Intro vCard Video') ||
-    displayCustom(data, 'Intro YouTube vCard Video Link') ||
-    p.explainerVideoUrl ||
-    ''
+  const intro = displayCustom(data, 'Intro vCard Video') || displayCustom(data, 'Intro YouTube vCard Video Link') || ''
   const bgMusic = displayCustom(data, 'Background Music') || displayCustom(data, 'YouTube Background Music Link') || ''
+  const explainerMedia = readExplainerSectionMedia(data)
+  const explainer = explainerMedia.fileUrl || explainerMedia.externalUrl || ''
   const social = data.social
   const socialCount =
     (social?.handles ? Object.values(social.handles).filter((value) => filled(value)).length : 0) +
@@ -523,6 +522,13 @@ export function getEditorPanelCompletionFields(
         label: 'Public URL slug',
         filled: filled(data.slug),
         edit: { type: 'scalar', path: 'slug', control: 'slug' },
+      },
+      {
+        id: 'section.2d-explainer',
+        label: '2D explainer video',
+        filled: filled(explainer),
+        hint: 'Media & Profile tab — separate from Home Media intro video.',
+        upload: true,
       },
     ],
     2: [

@@ -14,25 +14,16 @@ function ExplainerSectionSkeleton() {
   )
 }
 
-function isYoutubeHref(url: string): boolean {
-  return /youtu\.?be/i.test(url)
-}
-
 export const ExplainerSection = () => {
-  const { cardOwnerId, homeMedia, personal } = useProfileDisplay()
+  const { cardOwnerId } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const { data, isLoading, isError } = useGetVideoExplainerQuery(profileId, { skip: !profileId })
 
-  const fallbackFile = homeMedia.introVideo?.trim() || ''
-  const personalUrl = personal.explainerVideoUrl?.trim() || ''
-  const fallbackExternal =
-    homeMedia.introYoutube?.trim() || (personalUrl && isYoutubeHref(personalUrl) ? personalUrl : '') || ''
-
   const sectionTitle = data?.sectionTitle ?? '2D Video Explainer'
-  const videoUrl = data?.videoUrl || fallbackFile
-  const externalUrl = data?.externalUrl || fallbackExternal || null
+  const videoUrl = data?.videoUrl?.trim() || ''
+  const externalUrl = data?.externalUrl?.trim() || null
   const hasVideo = Boolean(videoUrl)
   const showInitialLoader = isLoading && !hasVideo && !externalUrl
   const showEmptyState = !isLoading && !hasVideo && !externalUrl

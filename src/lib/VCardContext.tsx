@@ -44,11 +44,7 @@ import {
 import { designSettingsToVCardDefaults } from '@/lib/vcardDesignDefaults'
 import { applyEnabledNavOrderToDisplaySettings, getDisplaySettingsFromVCard } from '@/lib/vcardDisplaySettings'
 import { DEFAULT_EDITOR_SECTION, buildEditorPath } from '@/lib/vcardEditorRoutes'
-import {
-  applyProfileMediaToExplainerTab,
-  explainerTabSignature,
-  isExplainerMediaPath,
-} from '@/lib/vcardExplainerFromProfileMedia'
+import { isExplainerMediaPath } from '@/lib/vcardExplainerFromProfileMedia'
 import { storageKeyForEditorNavOrder } from '@/lib/vcardNavbar'
 import { loadAndSyncSectionPosts, mapApiPostsToSectionPosts } from '@/lib/vcardPostsSync'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
@@ -488,23 +484,16 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
       const latest = editDataRef.current || (record ? toVCardData(record) : null)
       if (!latest) return
-      const withPosts = applyProfileMediaToExplainerTab({
+      const withPosts = {
         ...latest,
         generalPosts,
         faqs,
         sectionPosts,
-      })
+      }
       editDataRef.current = withPosts
       lastSavedDataRef.current = withPosts
       lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(withPosts))
       dispatch(replaceVCardData({ id: profileId, data: withPosts }))
-      if (explainerTabSignature(withPosts) !== JSON.stringify(sectionPosts[PUBLIC_SECTION_NAMES.explainer] ?? [])) {
-        dirtyBucketsRef.current.add('posts')
-        saveGateRef.current.dirty = true
-        setSaveStatus('dirty')
-        writePendingCardSave(profileId, dirtyBucketsRef.current)
-        scheduleAutosaveRef.current()
-      }
     }
 
     ;(async () => {
@@ -648,7 +637,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       const tasks: Promise<unknown>[] = []
       let wroteProfile = false
       let wroteChanges = false
-      data = applyProfileMediaToExplainerTab(data)
       const saved = lastSavedDataRef.current
       const explainerKey = PUBLIC_SECTION_NAMES.explainer
       if (
@@ -884,12 +872,12 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           }
           postsHydratedForId.current = profileId
 
-          const next = applyProfileMediaToExplainerTab({
+          const next = {
             ...data,
             generalPosts,
             faqs,
             sectionPosts,
-          })
+          }
           // Only toast when persistable content actually changed (skip empty draft open/close no-ops).
           if (hasPersistablePostsDelta(next, postsSnapshotRef.current)) {
             wroteChanges = true
@@ -1082,11 +1070,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const prev = createDraftRef.current
         let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
         next = applyNameSlugAutofill(prev, next, path)
-        if (isExplainerMediaPath(path)) {
-          next = applyProfileMediaToExplainerTab(next, {
-            syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
-          })
-        }
         if (isAppearanceOrThemePath(path)) {
           next = {
             ...next,
@@ -1109,11 +1092,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (!base) return
       let next = setByPath(base as unknown as Record<string, unknown>, path, value) as unknown as VCardData
       next = applyNameSlugAutofill(base, next, path)
-      if (isExplainerMediaPath(path)) {
-        next = applyProfileMediaToExplainerTab(next, {
-          syncYoutubeFromPersonal: path === 'personal.explainerVideoUrl',
-        })
-      }
       if (isAppearanceOrThemePath(path)) {
         next = {
           ...next,
@@ -1180,7 +1158,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           setSaveError(null)
 
           try {
-            const draftRaw = applyProfileMediaToExplainerTab(createDraftRef.current)
+            const draftRaw = createDraftRef.current
             let draft = draftRaw
             try {
               const rawOrder = localStorage.getItem(storageKeyForEditorNavOrder('draft'))

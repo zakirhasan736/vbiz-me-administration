@@ -49,7 +49,7 @@ const ATTACHMENT_ALIASES: Array<{ field: string; aliases: string[] }> = [
   },
   {
     field: 'Intro vCard Video',
-    aliases: ['intro vcard video', 'intro video', '2d explainer', '2d video', 'profile video', 'intro'],
+    aliases: ['intro vcard video', 'intro video', 'profile video', 'intro'],
   },
   {
     field: 'Background Music',

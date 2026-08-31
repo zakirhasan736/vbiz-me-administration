@@ -670,7 +670,7 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
         { label: 'Public URL slug', filled: hasText(data.slug), hint: 'Needed before create.' },
         {
           label: 'Profile image/video',
-          filled: hasText(profileMedia) || hasText(personal.explainerVideoUrl),
+          filled: hasText(profileMedia),
           hint: 'Optional upload or Canva asset.',
           upload: true,
         },

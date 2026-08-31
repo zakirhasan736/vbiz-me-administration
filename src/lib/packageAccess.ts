@@ -92,6 +92,9 @@ export function displayMediaAccess(fieldKey: string, can: (key: string) => boole
   if (key === 'Intro vCard Video') {
     return { locked: false, allowVideo: true, allowAudio: false, sourceMode: 'video' as const }
   }
+  if (key === '2D Video Explainer') {
+    return { locked: false, allowVideo: true, allowAudio: false, sourceMode: 'video' as const }
+  }
   if (key === 'Background Music') {
     const allow = musicFileAllowed(can)
     return { locked: !allow, allowVideo: false, allowAudio: allow, sourceMode: 'image' as const }

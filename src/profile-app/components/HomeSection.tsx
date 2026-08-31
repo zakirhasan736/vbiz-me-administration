@@ -246,7 +246,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const theme = useProfileTheme()
   const wallpaper = resolveWallpaperConfig(theme?.themeConfig, homeMedia.bgMedia)
   const coverMediaUrl = encodeMediaUrl(homeMedia.bgMedia || '')
-  const introSrc = homeMedia.introVideo || personal.explainerVideoUrl || undefined
+  const introSrc = homeMedia.introVideo || undefined
   const profileSrc = useMemo(
     () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc),
     [homeMedia.profileMedia, introSrc]
