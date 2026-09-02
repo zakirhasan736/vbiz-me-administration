@@ -757,7 +757,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
 
   const applyAiProfile = (data: AiProfilePayload) => {
     if (data.fullName) updateData('personal.fullName', data.fullName)
-    if (data.title) updateData('personal.designation', data.title)
+    if (data.title) {
+      updateData('personal.designation', data.title)
+      updateData('personal.profession', data.title)
+    }
     if (data.company) updateData('personal.company', data.company)
     if (data.bio) updateData('personal.about', data.bio)
     if (data.email) updateData('personal.email', data.email)

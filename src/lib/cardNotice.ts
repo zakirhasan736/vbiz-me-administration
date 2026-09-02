@@ -33,14 +33,16 @@ export function clearLocalCardNotice(cardId: string) {
   localStorage.removeItem(cardNoticeTypeStorageKey(cardId))
 }
 
-/** Latest active per-card banner from team notices (server of truth for corporate dashboards). */
+/** Latest active per-card notice (public banner or backoffice-only). */
 export function noticeForCard(cardId: string, notices: TeamNotice[] | undefined): TeamNotice | null {
   if (!cardId || !notices?.length) return null
-  const matches = notices.filter(
-    (n) => n.targetCardId === cardId && n.audience === 'all' && (n.status || 'active') === 'active'
-  )
+  const matches = notices.filter((n) => n.targetCardId === cardId && (n.status || 'active') === 'active')
   if (!matches.length) return null
-  return [...matches].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null
+  // Prefer public `all` banners when both exist; otherwise any active notice for the card.
+  const preferred =
+    matches.find((n) => n.audience === 'all') ||
+    [...matches].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+  return preferred || null
 }
 
 export function noticeTypeFromTeamNotice(notice: TeamNotice | null): NoticeType {

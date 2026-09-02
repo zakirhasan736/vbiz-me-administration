@@ -381,7 +381,7 @@ export default function TeamVCardsView() {
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
         onClose={() => setNoticeCard(null)}
-        onSave={(text, type) => {
+        onSave={(text, type, options) => {
           if (!noticeCard) return
           if (isOwnerCardLocked(noticeCard.status)) {
             notify.error(SUSPENDED_CARD_MESSAGE)
@@ -395,8 +395,10 @@ export default function TeamVCardsView() {
                 await createTeamNotice({
                   text: text.trim(),
                   type,
-                  audience: 'all',
+                  audience: options.onlyBackoffice ? 'savers' : 'all',
                   targetProfileId: noticeCard.id,
+                  onlyBackoffice: options.onlyBackoffice,
+                  deliver: !options.onlyBackoffice,
                 }).unwrap()
               } else {
                 clearLocalCardNotice(noticeCard.id)
@@ -404,7 +406,13 @@ export default function TeamVCardsView() {
                 if (existing?.id) await deleteTeamNotice(existing.id).unwrap()
               }
               setNoticeVersion((n) => n + 1)
-              notify.success(text ? 'Notice saved for this card only.' : 'Notice cleared.')
+              notify.success(
+                text
+                  ? options.onlyBackoffice
+                    ? 'Notice saved for owner backoffice only.'
+                    : 'Notice saved for this card only.'
+                  : 'Notice cleared.'
+              )
             } catch (e) {
               const message =
                 (e as { data?: { message?: string } })?.data?.message ||

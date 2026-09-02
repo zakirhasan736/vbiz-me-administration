@@ -1,12 +1,16 @@
 'use client'
 
 import { isPushSupported, mapPushSubscribeError, sendTestNotification, subscribeToCard } from '@/lib/push/config'
-import { markNotificationDeclined, markNotificationSubscribed } from '@/lib/push/notificationRouting'
+import {
+  isSubscribedToCard,
+  markNotificationDeclined,
+  markNotificationSubscribed,
+} from '@/lib/push/notificationRouting'
 import { DEFAULT_BACKEND_NOTIFICATION_PREFERENCES } from '@/lib/push/preferenceMapping'
 import { notify } from '@/lib/toast/toast'
 import { ArrowRight, Bell, Check, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type NotificationFollowModalProps = {
   isOpen: boolean
@@ -34,6 +38,19 @@ export function NotificationFollowModal({
   const [submitting, setSubmitting] = useState(false)
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Defense: if this browser already follows the card, skip the Enable prompt.
+  useEffect(() => {
+    if (!isOpen || !cardSlug.trim()) return
+    let cancelled = false
+    void isSubscribedToCard(cardSlug).then((subscribed) => {
+      if (cancelled || !subscribed) return
+      onClose()
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, cardSlug, onClose])
 
   const handleSubscribe = async () => {
     setSubmitting(true)

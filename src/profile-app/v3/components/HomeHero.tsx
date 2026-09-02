@@ -1,11 +1,12 @@
 'use client'
 
-import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
+import { LANGUAGE_LABELS, languageFlagCodeForLang } from '@/lib/i18n/config'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
+import { LanguageFlag } from '@/profile-app/components/LanguageFlag'
 import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButtons'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -258,9 +259,12 @@ export const HomeHero: React.FC<{
                     onAction?.('language')
                   }}
                 >
-                  <span className={`text-base leading-none ${compact ? '' : 'md:text-lg'}`}>
-                    {(LANGUAGE_LABELS[lang] || { flag: '🇺🇸' }).flag}
-                  </span>
+                  <LanguageFlag
+                    flagCode={languageFlagCodeForLang(lang)}
+                    alt={(LANGUAGE_LABELS[lang] || { label: 'EN' }).label}
+                    width={32}
+                    className={`h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-4 md:w-6'}`}
+                  />
                   <span className={`mt-0.5 text-[7px] font-bold tracking-wider ${compact ? '' : 'md:text-[8px]'}`}>
                     {(LANGUAGE_LABELS[lang] || { label: 'EN' }).label}
                   </span>
@@ -427,7 +431,7 @@ export const HomeHero: React.FC<{
               <div className="flex flex-1 flex-col pt-8 drop-shadow-2xl xl:pt-12">
                 {showName && (
                   <h1
-                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[56px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
+                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[52px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
                     style={{
                       ...(field('MyInfo section Name').textColor
                         ? { color: field('MyInfo section Name').textColor }

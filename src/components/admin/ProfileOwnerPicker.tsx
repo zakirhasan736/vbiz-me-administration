@@ -12,17 +12,37 @@ export type ProfileOwnerSelection = {
   hostName: string
   ownerEmails: string[]
   identity: string
+  /** Corporate parent account id when the card sits under a company. */
+  companyUserId?: string | null
 }
 
-type ProfileOwnerPickerProps = {
-  value: ProfileOwnerSelection | null
-  onChange: (next: ProfileOwnerSelection | null) => void
+type ProfileOwnerPickerBaseProps = {
   label?: string
   className?: string
   listClassName?: string
   required?: boolean
   includeDrafts?: boolean
+  /** Keep search open after selecting (multi-select). */
+  keepSearchOpen?: boolean
 }
+
+type ProfileOwnerPickerSingleProps = ProfileOwnerPickerBaseProps & {
+  multiple?: false
+  value: ProfileOwnerSelection | null
+  onChange: (next: ProfileOwnerSelection | null) => void
+  values?: never
+  onChangeValues?: never
+}
+
+type ProfileOwnerPickerMultiProps = ProfileOwnerPickerBaseProps & {
+  multiple: true
+  values: ProfileOwnerSelection[]
+  onChangeValues: (next: ProfileOwnerSelection[]) => void
+  value?: never
+  onChange?: never
+}
+
+export type ProfileOwnerPickerProps = ProfileOwnerPickerSingleProps | ProfileOwnerPickerMultiProps
 
 function ownerLabel(row: AdminProfileRow): string {
   const name = row.name?.trim()
@@ -55,6 +75,7 @@ export function profileOwnerSelectionFromRow(row: AdminProfileRow): ProfileOwner
     hostName: ownerLabel(row),
     ownerEmails,
     identity: ownerSubline(row),
+    companyUserId: row.companyUser?.id ?? null,
   }
 }
 
@@ -79,18 +100,42 @@ function OwnerSearchRowSkeleton({ index = 0 }: { index?: number }) {
   )
 }
 
-export default function ProfileOwnerPicker({
-  value,
-  onChange,
-  label = 'vCard Profile Owner',
-  className,
-  listClassName,
-  required = true,
-  includeDrafts = false,
-}: ProfileOwnerPickerProps) {
+function SelectedOwnerChip({ owner, onRemove }: { owner: ProfileOwnerSelection; onRemove: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/5 px-3.5 py-2.5 dark:bg-indigo-500/10">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{owner.hostName}</p>
+        <p className="truncate text-[11px] font-semibold text-slate-400">{owner.identity || 'Selected vCard owner'}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="shrink-0 rounded-lg bg-white/80 p-1.5 text-slate-500 hover:bg-white hover:text-slate-800 dark:bg-white/5 dark:hover:bg-white/10 dark:hover:text-white"
+        aria-label={`Remove ${owner.hostName}`}
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
+
+export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
+  const {
+    label = 'vCard Profile Owner',
+    className,
+    listClassName,
+    required = true,
+    includeDrafts = false,
+    keepSearchOpen = false,
+  } = props
+  const multiple = props.multiple === true
+  const selectedOwners = multiple ? props.values : props.value ? [props.value] : []
+  const selectedIds = useMemo(() => new Set(selectedOwners.map((owner) => owner.profileId)), [selectedOwners])
+
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const normalizedInput = normalizedSearchQuery(searchQuery)
+  const showSearch = multiple || selectedOwners.length === 0 || keepSearchOpen
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(normalizedInput), 300)
@@ -115,6 +160,26 @@ export default function ProfileOwnerPicker({
   const { data, isLoading, isFetching, isError } = useGetAdminProfilesQuery(listQuery, { skip: !searchReady })
   const items = searchReady ? (data?.items ?? []) : []
 
+  const selectOwner = (row: AdminProfileRow) => {
+    const next = profileOwnerSelectionFromRow(row)
+    if (multiple) {
+      if (selectedIds.has(next.profileId)) return
+      props.onChangeValues([...props.values, next])
+      setSearchQuery('')
+      return
+    }
+    props.onChange(next)
+    setSearchQuery('')
+  }
+
+  const removeOwner = (profileId: string) => {
+    if (multiple) {
+      props.onChangeValues(props.values.filter((owner) => owner.profileId !== profileId))
+      return
+    }
+    props.onChange(null)
+  }
+
   return (
     <div className={cn('flex flex-col space-y-1.5', className)}>
       <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
@@ -122,24 +187,21 @@ export default function ProfileOwnerPicker({
         {required ? ' *' : ''}
       </label>
 
-      {value ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/5 px-3.5 py-2.5 dark:bg-indigo-500/10">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{value.hostName}</p>
-            <p className="truncate text-[11px] font-semibold text-slate-400">
-              {value.identity || 'Selected vCard owner'}
+      {selectedOwners.length ? (
+        <div className="space-y-2">
+          {selectedOwners.map((owner) => (
+            <SelectedOwnerChip key={owner.profileId} owner={owner} onRemove={() => removeOwner(owner.profileId)} />
+          ))}
+          {multiple ? (
+            <p className="px-1 text-[10px] font-semibold text-slate-400">
+              {selectedOwners.length} card owner{selectedOwners.length === 1 ? '' : 's'} selected for this group
+              session.
             </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="shrink-0 rounded-lg bg-white/80 p-1.5 text-slate-500 hover:bg-white hover:text-slate-800 dark:bg-white/5 dark:hover:bg-white/10 dark:hover:text-white"
-            aria-label="Clear selected owner"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          ) : null}
         </div>
-      ) : (
+      ) : null}
+
+      {showSearch ? (
         <>
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-white/15 dark:bg-slate-800">
             <Search className="h-4 w-4 shrink-0 text-slate-400" />
@@ -147,7 +209,11 @@ export default function ProfileOwnerPicker({
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search name, email, company, designation, profession, phone, or slug…"
+              placeholder={
+                multiple
+                  ? 'Search and add card owners…'
+                  : 'Search name, email, company, designation, profession, phone, or slug…'
+              }
               className="w-full bg-transparent text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none dark:text-white"
               autoComplete="off"
               minLength={MIN_IDENTITY_SEARCH_CHARACTERS}
@@ -158,6 +224,7 @@ export default function ProfileOwnerPicker({
           <p id="profile-owner-search-help" className="px-1 text-[10px] font-semibold text-slate-400">
             Enter at least {MIN_IDENTITY_SEARCH_CHARACTERS} characters. Results match every word across the full owner
             identity.
+            {multiple ? ' Click to add multiple owners.' : ''}
           </p>
 
           <div
@@ -167,6 +234,7 @@ export default function ProfileOwnerPicker({
             )}
             role="listbox"
             aria-label="vCard owners"
+            aria-multiselectable={multiple || undefined}
           >
             {!searchReady ? (
               <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
@@ -183,14 +251,21 @@ export default function ProfileOwnerPicker({
             ) : (
               items.map((row) => {
                 const hostName = ownerLabel(row)
+                const alreadySelected = selectedIds.has(row.id)
                 return (
                   <button
                     key={row.id}
                     type="button"
                     role="option"
-                    aria-selected={false}
-                    onClick={() => onChange(profileOwnerSelectionFromRow(row))}
-                    className="flex w-full items-start gap-2 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5"
+                    aria-selected={alreadySelected}
+                    disabled={alreadySelected}
+                    onClick={() => selectOwner(row)}
+                    className={cn(
+                      'flex w-full items-start gap-2 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 dark:border-white/5',
+                      alreadySelected
+                        ? 'cursor-default bg-indigo-500/5 opacity-60'
+                        : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                    )}
                   >
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-[10px] font-black text-indigo-600 uppercase">
                       {hostName.slice(0, 2)}
@@ -198,6 +273,7 @@ export default function ProfileOwnerPicker({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-extrabold text-slate-900 dark:text-white">
                         {hostName}
+                        {alreadySelected ? ' · added' : ''}
                       </span>
                       <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
                         {ownerSubline(row)}
@@ -209,7 +285,7 @@ export default function ProfileOwnerPicker({
             )}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }

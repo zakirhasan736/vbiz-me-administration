@@ -640,25 +640,28 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     isDraft: profile.isDraft === true,
     theme,
     ...(themeConfig ? { themeConfig } : {}),
-    personal: {
-      fullName: profile.name,
-      email: profile.email,
-      dob: toDateInputValue(profile.dob),
-      gender: profile.gender?.name || '',
-      relationship: profile.maritalStatus?.name || '',
-      profession: profile.prof || '',
-      designation: profile.designation || '',
-      company: profile.companyName || '',
-      phone: profile.phone || '',
-      whatsapp: profile.whatsapp || '',
-      address: profile.address || '',
-      city: profile.city || '',
-      state: profile.state || '',
-      zipCode: profile.zipCode || '',
-      website: profile.website || '',
-      about: profile.about || '',
-      explainerVideoUrl,
-    },
+    personal: (() => {
+      const role = (profile.designation || profile.prof || '').trim()
+      return {
+        fullName: profile.name,
+        email: profile.email,
+        dob: toDateInputValue(profile.dob),
+        gender: profile.gender?.name || '',
+        relationship: profile.maritalStatus?.name || '',
+        profession: role,
+        designation: role,
+        company: profile.companyName || '',
+        phone: profile.phone || '',
+        whatsapp: profile.whatsapp || '',
+        address: profile.address || '',
+        city: profile.city || '',
+        state: profile.state || '',
+        zipCode: profile.zipCode || '',
+        website: profile.website || '',
+        about: profile.about || '',
+        explainerVideoUrl,
+      }
+    })(),
     appearance: {
       profileTemplate,
       layoutStyle: profile.profileSettings?.layoutStyle || 'classic',
@@ -814,13 +817,14 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
       ? profileMediaUrl
       : ''
   const themeConfig = applyEditorSettingsToThemeConfig(data.themeConfig, data.theme, data.appearance)
+  const role = (data.personal.designation || data.personal.profession || '').trim()
 
   return {
     name: data.personal.fullName,
     email: data.personal.email,
     slug: data.slug,
     companyName: data.personal.company,
-    designation: data.personal.designation,
+    designation: role,
     phone: data.personal.phone,
     whatsapp: data.personal.whatsapp,
     website: data.personal.website,
@@ -828,7 +832,7 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     city: data.personal.city || '',
     state: data.personal.state || '',
     zipCode: data.personal.zipCode || '',
-    prof: data.personal.profession,
+    prof: role,
     dob: dob || null,
     isPublic: data.isDraft ? false : data.isPublic,
     isDraft: data.isDraft !== false,
@@ -1612,6 +1616,16 @@ const profilesApi = api.injectEndpoints({
       ) => res.data,
       invalidatesTags: ['auth'],
     }),
+    createAiAssistanceCheckout: builder.mutation<
+      { url: string | null; assigned: boolean; firstInvoiceCents?: number; recurringCents?: number },
+      { profileId?: string; successPath?: string; cancelPath?: string }
+    >({
+      query: (body) => ({ url: '/billing/checkout-ai-assistance', method: 'POST', body }),
+      transformResponse: (
+        res: Envelope<{ url: string | null; assigned: boolean; firstInvoiceCents?: number; recurringCents?: number }>
+      ) => res.data,
+      invalidatesTags: ['auth'],
+    }),
     getEntitlements: builder.query<EffectiveEntitlements, void>({
       query: () => '/profiles/entitlements',
       transformResponse: (res: Envelope<EffectiveEntitlements>) => res.data,
@@ -1681,6 +1695,7 @@ const profilesApi = api.injectEndpoints({
         audience: 'all' | 'savers'
         targetProfileId?: string
         deliver?: boolean
+        onlyBackoffice?: boolean
       }
     >({
       query: (body) => ({ url: '/profiles/team-notices', method: 'POST', body }),
@@ -1757,6 +1772,7 @@ export const {
   useGetPackagesQuery,
   useGetSubscriptionsQuery,
   useCreateBillingCheckoutMutation,
+  useCreateAiAssistanceCheckoutMutation,
   useGetEntitlementsQuery,
   useGetContactsQuery,
   usePatchContactMutation,

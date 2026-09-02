@@ -18,6 +18,8 @@ export type ScheduleMeetingSubmitPayload = {
   time: string
   notes: string
   globalHost?: string
+  /** Owner backoffice + in-app only — skip public-card / saver push. */
+  onlyBackoffice?: boolean
 }
 
 export type ScheduleMeetingModalProps = {
@@ -42,6 +44,31 @@ export type ScheduleMeetingModalProps = {
 function todayIsoDate() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function seedGroupOwners(
+  initialOwner: ProfileOwnerSelection | null,
+  groupProfileIds: string[]
+): ProfileOwnerSelection[] {
+  if (initialOwner) {
+    const extras = groupProfileIds
+      .filter((id) => id !== initialOwner.profileId)
+      .map((profileId) => ({
+        profileId,
+        hostName: 'Team card',
+        ownerEmails: [] as string[],
+        identity: profileId,
+        companyUserId: initialOwner.companyUserId ?? null,
+      }))
+    return [initialOwner, ...extras]
+  }
+  return groupProfileIds.map((profileId) => ({
+    profileId,
+    hostName: 'Team card',
+    ownerEmails: [] as string[],
+    identity: profileId,
+    companyUserId: null,
+  }))
 }
 
 type ScheduleMeetingModalContentProps = Omit<ScheduleMeetingModalProps, 'open'>
@@ -71,17 +98,27 @@ function ScheduleMeetingModalContent({
 
   const [scope, setScope] = useState<MeetingScope>(initialScope)
   const [owner, setOwner] = useState<ProfileOwnerSelection | null>(initialOwner)
+  const [groupOwners, setGroupOwners] = useState<ProfileOwnerSelection[]>(() =>
+    seedGroupOwners(initialOwner, groupProfileIds)
+  )
   const [globalHost, setGlobalHost] = useState('vBiz Team')
-  const [includeTeamGroup, setIncludeTeamGroup] = useState(Boolean(groupProfileIds.length || groupCompanyUserId))
+  const [includeTeamGroup, setIncludeTeamGroup] = useState(Boolean(groupCompanyUserId))
   const [meetType, setMeetType] = useState<MeetingType | string>(initialType)
   const [meetDate, setMeetDate] = useState(initialDate || todayIsoDate())
   const [meetTime, setMeetTime] = useState(initialTime)
   const [meetNotes, setMeetNotes] = useState(initialNotes)
+  const [onlyBackoffice, setOnlyBackoffice] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  const resolvedGroupCompanyUserId =
+    groupCompanyUserId || groupOwners.find((item) => item.companyUserId)?.companyUserId || owner?.companyUserId || null
 
   const handleScopeChange = (option: MeetingScope) => {
     setScope(option)
     if (option === 'one_to_one' && initialOwner) setOwner(initialOwner)
+    if (option === 'group' && initialOwner && groupOwners.length === 0) {
+      setGroupOwners([initialOwner])
+    }
   }
 
   const canSubmit =
@@ -89,31 +126,35 @@ function ScheduleMeetingModalContent({
       ? globalHost.trim().length > 0
       : scope === 'one_to_one'
         ? Boolean(owner)
-        : Boolean(owner) || Boolean(groupProfileIds.length)
+        : includeTeamGroup
+          ? Boolean(resolvedGroupCompanyUserId) || groupOwners.length > 0
+          : groupOwners.length > 0
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit || isSubmitting) return
 
+    const primaryGroupOwner = groupOwners[0] ?? owner
+    const selectedGroupIds = groupOwners.map((item) => item.profileId)
+
     const created = await onSubmit({
       scope,
-      owner: scope === 'global' ? null : owner,
+      owner: scope === 'global' ? null : scope === 'group' ? primaryGroupOwner : owner,
       groupProfileIds:
         scope === 'group'
-          ? includeTeamGroup && groupCompanyUserId
-            ? undefined
-            : groupProfileIds.length
-              ? groupProfileIds
-              : owner
-                ? [owner.profileId]
-                : []
+          ? includeTeamGroup && resolvedGroupCompanyUserId
+            ? selectedGroupIds.length
+              ? selectedGroupIds
+              : undefined
+            : selectedGroupIds
           : undefined,
-      companyUserId: scope === 'group' && includeTeamGroup ? groupCompanyUserId || null : null,
+      companyUserId: scope === 'group' && includeTeamGroup ? resolvedGroupCompanyUserId : null,
       type: meetType,
       date: meetDate,
       time: meetTime,
       notes: meetNotes.trim() || 'Advisory consultation session.',
       globalHost: scope === 'global' ? globalHost.trim() : undefined,
+      onlyBackoffice: scope === 'global' ? false : onlyBackoffice,
     })
     if (created) {
       setSaved(true)
@@ -196,17 +237,26 @@ function ScheduleMeetingModalContent({
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{owner.hostName}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{owner.identity}</p>
               </div>
+            ) : scope === 'group' ? (
+              <ProfileOwnerPicker
+                multiple
+                values={groupOwners}
+                onChangeValues={setGroupOwners}
+                label="Group card owners"
+                listClassName="max-h-40"
+                required
+              />
             ) : (
               <ProfileOwnerPicker
                 value={owner}
                 onChange={setOwner}
-                label={scope === 'group' ? 'Primary card / team anchor' : 'Owner / host'}
+                label="Owner / host"
                 listClassName="max-h-40"
                 required
               />
             )}
 
-            {scope === 'group' && !lockOwner ? (
+            {scope === 'group' && !lockOwner && resolvedGroupCompanyUserId ? (
               <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
                 <input
                   type="checkbox"
@@ -215,15 +265,16 @@ function ScheduleMeetingModalContent({
                   className="mt-1"
                 />
                 <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                  Include every card under the selected corporate account when a team anchor is chosen.
+                  Also include every other card under the selected corporate account.
                 </span>
               </label>
             ) : null}
 
-            {scope === 'group' && groupProfileIds.length ? (
+            {scope === 'group' && groupOwners.length > 0 ? (
               <p className="text-[11px] text-slate-400">
-                Group session covers {groupProfileIds.length} selected team card
-                {groupProfileIds.length === 1 ? '' : 's'}.
+                Group session will notify {groupOwners.length} selected card
+                {groupOwners.length === 1 ? '' : 's'}
+                {includeTeamGroup && resolvedGroupCompanyUserId ? ', plus the full corporate team' : ''}.
               </p>
             ) : null}
 
@@ -275,12 +326,34 @@ function ScheduleMeetingModalContent({
               />
             </div>
 
+            {scope !== 'global' ? (
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                <input
+                  type="checkbox"
+                  checked={onlyBackoffice}
+                  onChange={(e) => setOnlyBackoffice(e.target.checked)}
+                  className="mt-1"
+                />
+                <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">Only backoffice</span>
+                  <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
+                    Show in that card owner’s backoffice banner and notification area only. Uncheck to also push this
+                    card’s saved contacts / notification subscribers.
+                  </span>
+                </span>
+              </label>
+            ) : null}
+
             <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
               {scope === 'global'
                 ? 'Global sessions notify every card owner. They are not tied to a single card.'
                 : scope === 'group'
-                  ? 'Group sessions notify only the cards included in the group.'
-                  : 'One-to-one sessions notify only the selected card owner.'}
+                  ? onlyBackoffice
+                    ? 'Group sessions notify only the selected card owners in backoffice.'
+                    : 'Group sessions notify the selected card owners and each card’s push subscribers.'
+                  : onlyBackoffice
+                    ? 'One-to-one sessions notify only the selected card owner in backoffice.'
+                    : 'One-to-one sessions notify the selected card owner and that card’s push subscribers.'}
             </p>
           </div>
 

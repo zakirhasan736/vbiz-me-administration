@@ -21,7 +21,7 @@ export const I18N_CONFIG = {
 } as const
 
 export const LANGUAGE_MAP: Record<string, { flagCode: string; name: string }> = {
-  en: { flagCode: 'US', name: 'English (US)' },
+  en: { flagCode: 'US', name: 'American English' },
   es: { flagCode: 'ES', name: 'Spanish' },
   fr: { flagCode: 'FR', name: 'French' },
   de: { flagCode: 'DE', name: 'German' },
@@ -54,6 +54,16 @@ export const LANGUAGE_LABELS: Record<string, { label: string; flag: string }> = 
   ur: { label: 'UR', flag: '🇵🇰' },
   pl: { label: 'PL', flag: '🇵🇱' },
   vi: { label: 'VI', flag: '🇻🇳' },
+}
+
+/** ISO country → flag image (flagcdn). Prefer this over letter codes in the UI. */
+export function languageFlagImageUrl(flagCode: string, width = 40): string {
+  const code = flagCode.trim().toLowerCase() || 'us'
+  return `https://flagcdn.com/w${width}/${code}.png`
+}
+
+export function languageFlagCodeForLang(langCode: string): string {
+  return LANGUAGE_MAP[langCode]?.flagCode || LANGUAGE_MAP.en.flagCode
 }
 
 export const LANG_CODE_MAP: Record<string, string> = {

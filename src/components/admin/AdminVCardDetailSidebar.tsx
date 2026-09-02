@@ -1,9 +1,11 @@
 'use client'
 
 import { SocialClickChip } from '@/components/admin/AdminSocialClickChip'
-import { useVCard } from '@/lib/admin/AdminVCardListContext'
+import { CardAvatarThumb } from '@/components/CardAvatarThumb'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
+import { adminCardAvatarUrl } from '@/lib/admin/adminCardShape'
 import { setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
+import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { getCardSocialClickStats } from '@/lib/adminSocialStats'
 import { buildEditorSectionPath } from '@/lib/vcardEditorRoutes'
 import {
@@ -170,13 +172,7 @@ export default function VCardDetailSidebar({
       : typeof window !== 'undefined'
         ? localStorage.getItem(`notice_${card.id}`)
         : null
-  const initials =
-    fullName
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase() || 'VC'
+  const avatarSrc = adminCardAvatarUrl(card) || null
 
   const handleEdit = () => {
     if (editorReturnPath) setAdminEditorReturnPath(editorReturnPath)
@@ -218,9 +214,12 @@ export default function VCardDetailSidebar({
         <div className="shrink-0 border-b border-slate-100 bg-white dark:border-white/10 dark:bg-[#0a0e17]">
           <div className="h-1 bg-linear-to-r from-indigo-500 via-violet-500 to-emerald-400" />
           <div className="flex items-start gap-3 px-5 py-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-sm font-black text-indigo-600 dark:border-indigo-500/25 dark:bg-indigo-500/15 dark:text-indigo-300">
-              {initials}
-            </div>
+            <CardAvatarThumb
+              src={avatarSrc}
+              name={fullName}
+              size={48}
+              className="h-12 w-12 rounded-2xl border-indigo-100 text-sm dark:border-indigo-500/25"
+            />
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1 text-[10px] font-black tracking-wider text-violet-600 uppercase dark:text-violet-400">
                 <PanelRight className="h-3 w-3" /> Card panel
@@ -551,10 +550,21 @@ export default function VCardDetailSidebar({
                 </ResponsiveContainer>
               </div>
               {activeNotice && (
-                <div className="mt-3 rounded-xl border border-amber-200/50 bg-amber-50 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+                <button
+                  type="button"
+                  onClick={() => onNotice?.(card)}
+                  className="mt-3 w-full rounded-xl border border-amber-200/50 bg-amber-50 p-3 text-left transition hover:bg-amber-100/80 dark:border-amber-500/20 dark:bg-amber-500/10 dark:hover:bg-amber-500/15"
+                  disabled={!onNotice}
+                  title={onNotice ? 'Click to view or edit this notice' : undefined}
+                >
                   <p className="text-[10px] font-black text-amber-600 uppercase">Active notice</p>
                   <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-200">{activeNotice}</p>
-                </div>
+                  {onNotice ? (
+                    <p className="mt-1.5 text-[10px] font-bold tracking-wider text-amber-700/80 uppercase dark:text-amber-300/80">
+                      Click to edit
+                    </p>
+                  ) : null}
+                </button>
               )}
             </div>
           </Section>

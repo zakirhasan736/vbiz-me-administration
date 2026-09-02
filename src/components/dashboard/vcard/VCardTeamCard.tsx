@@ -1,6 +1,7 @@
 'use client'
 
 import { AlertModal } from '@/components/AlertModal'
+import { CardAvatarThumb } from '@/components/CardAvatarThumb'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { useAppDispatch } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
@@ -14,7 +15,6 @@ import type { VCardRecord } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { getVCardPublicPath, getVCardPublicUrl } from '@/utils/vcard'
 import { Building, GripVertical, Megaphone, Trash2 } from 'lucide-react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { ContactSaveChip, ShareCountChip, SocialClickChip } from './SocialClickChip'
@@ -151,7 +151,6 @@ export function VCardTeamCard({
   const publicPath = getVCardPublicPath(slug)
   const fullUrl = getVCardPublicUrl(slug)
   const cardName = card.personal.fullName || 'this vCard'
-  const initial = card.personal.fullName?.trim()?.[0]?.toUpperCase() || 'P'
   const avatarSrc = card.avatarImageUrl?.trim() || null
   const editPath = buildEditorSectionPath('/vcards/edit', 'home', card.id)
   const settingsPath = buildEditorSettingsPath('/vcards/edit', 'info', card.id)
@@ -370,19 +369,7 @@ export function VCardTeamCard({
           </div>
 
           <div className="mt-2.5 flex items-center justify-between gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/60 bg-slate-50 text-base font-black text-indigo-600 shadow-inner dark:border-white/5 dark:bg-slate-900 dark:text-indigo-400">
-              {avatarSrc ? (
-                <Image
-                  src={avatarSrc}
-                  alt={card.personal.fullName || 'Avatar'}
-                  className="h-full w-full object-cover"
-                  width={60}
-                  height={60}
-                />
-              ) : (
-                initial
-              )}
-            </div>
+            <CardAvatarThumb src={avatarSrc} name={card.personal.fullName} size={40} className="h-10 w-10 text-base" />
             <span
               className={cn(
                 'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase',
@@ -506,20 +493,26 @@ export function VCardTeamCard({
             <ContactSaveChip count={saves} compact />
             <ShareCountChip count={Number(card.shareCount || clicks) || 0} compact />
             {noticeText ? (
-              <span
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!ownerLocked) onNotice(card)
+                }}
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase',
+                  'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase transition hover:brightness-95',
+                  ownerLocked && 'cursor-not-allowed opacity-60',
                   noticeTone === 'success'
                     ? 'border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-200'
                     : noticeTone === 'warning'
                       ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
                       : 'border-indigo-300/60 bg-indigo-100 text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/25 dark:text-indigo-200'
                 )}
-                title={noticeText}
+                title={ownerLocked ? noticeText : `${noticeText}\n\nClick to view or edit`}
               >
                 <Megaphone className="h-3 w-3" />
                 Notice active
-              </span>
+              </button>
             ) : null}
           </div>
         </div>

@@ -49,6 +49,8 @@ export type CreateMeetingPayload = {
   profileId?: string | null
   groupProfileIds?: string[]
   companyUserId?: string | null
+  /** Owner backoffice + in-app only — skip public-card / saver push. */
+  onlyBackoffice?: boolean
 }
 
 export type UpdateMeetingPayload = Partial<CreateMeetingPayload>

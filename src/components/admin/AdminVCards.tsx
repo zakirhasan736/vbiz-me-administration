@@ -1433,9 +1433,9 @@ export default function AdminVCards() {
         cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
-        deliverySummary="Card-only delivery to the public card, its saved contacts, push subscribers, owner email, and owner back office."
+        deliverySummary="Choose backoffice-only, or public card + saved contacts + owner backoffice."
         onClose={() => setNoticeCard(null)}
-        onSave={(text, type) => {
+        onSave={(text, type, options) => {
           if (!noticeCard?.id) return
           void (async () => {
             try {
@@ -1454,32 +1454,61 @@ export default function AdminVCards() {
                   await createTeamNotice({
                     text: text.trim(),
                     type,
-                    audience: 'all',
+                    audience: options.onlyBackoffice ? 'savers' : 'all',
                     targetProfileId: noticeCard.id,
-                    deliver: true,
+                    deliver: !options.onlyBackoffice,
+                    onlyBackoffice: options.onlyBackoffice,
                   }).unwrap()
                   published = true
                 } catch (error) {
                   lastError = error
                 }
-                try {
-                  await createAnnouncement({
-                    type: announcementType,
-                    title: `Card notice · ${ownerName}`,
-                    body: text.trim(),
-                    status: 'active',
-                    targetType: 'specific',
-                    targetEmails,
-                    meta: { profileId: noticeCard.id, source: 'card_notice', showPublic: '1' },
-                  }).unwrap()
-                  published = true
-                } catch (error) {
-                  lastError = lastError ?? error
+                // Public notices also need a showPublic announcement banner; backoffice-only
+                // already creates the owner announcement inside createTeamNotice.
+                if (!options.onlyBackoffice) {
+                  try {
+                    await createAnnouncement({
+                      type: announcementType,
+                      title: `Card notice · ${ownerName}`,
+                      body: text.trim(),
+                      status: 'active',
+                      targetType: 'specific',
+                      targetEmails,
+                      meta: {
+                        profileId: noticeCard.id,
+                        source: 'card_notice',
+                        showPublic: '1',
+                        sendPush: '1',
+                      },
+                    }).unwrap()
+                    published = true
+                  } catch (error) {
+                    lastError = lastError ?? error
+                  }
+                } else if (!published && targetEmails.length) {
+                  try {
+                    await createAnnouncement({
+                      type: announcementType,
+                      title: `Card notice · ${ownerName}`,
+                      body: text.trim(),
+                      status: 'active',
+                      targetType: 'specific',
+                      targetEmails,
+                      meta: { profileId: noticeCard.id, source: 'card_notice', onlyBackoffice: '1' },
+                    }).unwrap()
+                    published = true
+                  } catch (error) {
+                    lastError = lastError ?? error
+                  }
                 }
                 if (!published) {
                   throw lastError instanceof Error ? lastError : new Error('Could not save notice.')
                 }
-                notify.success('Notice posted on this card’s public view, like a global banner.')
+                notify.success(
+                  options.onlyBackoffice
+                    ? 'Notice sent to this card’s owner backoffice only.'
+                    : 'Notice posted on this card’s public view, like a global banner.'
+                )
               } else {
                 clearLocalCardNotice(noticeCard.id)
                 const existing = noticeForCard(noticeCard.id, teamNotices)

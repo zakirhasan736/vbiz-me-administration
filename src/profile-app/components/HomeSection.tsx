@@ -1,10 +1,11 @@
 'use client'
 
-import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
+import { LANGUAGE_LABELS, languageFlagCodeForLang } from '@/lib/i18n/config'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import { LanguageFlag } from '@/profile-app/components/LanguageFlag'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
@@ -271,7 +272,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
 
   const [messageModalOpen, setMessageModalOpen] = useState(false)
   const messageOwnerName = personal.fullName?.trim() || 'the card owner'
-  const currentLanguage = (LANGUAGE_LABELS[lang]?.flag ?? lang.toUpperCase()).slice(0, 2)
+  const currentFlagCode = languageFlagCodeForLang(lang)
+  const currentLangLabel = (LANGUAGE_LABELS[lang] || { label: 'EN' }).label
 
   const triggerAction = (action: string) => {
     homeHeroProps?.onAction(action)
@@ -360,10 +362,13 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         {
                           content: (
                             <div className="flex flex-col items-center justify-center leading-none">
-                              <span className="text-[11px] font-black text-gray-700 dark:text-gray-300">
-                                {currentLanguage}
-                              </span>
-                              <span className="text-yellow-primary text-[8px] font-bold">LANG</span>
+                              <LanguageFlag
+                                flagCode={currentFlagCode}
+                                alt={currentLangLabel}
+                                width={28}
+                                className="h-3 w-4 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
+                              />
+                              <span className="text-yellow-primary mt-0.5 text-[8px] font-bold">LANG</span>
                             </div>
                           ),
                           label: 'Language',
@@ -477,10 +482,13 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           {
                             content: (
                               <div className="flex flex-col items-center justify-center leading-none">
-                                <span className="text-[11px] font-black text-gray-700 dark:text-gray-300">
-                                  {currentLanguage}
-                                </span>
-                                <span className="text-yellow-primary text-[8px] font-bold">LANG</span>
+                                <LanguageFlag
+                                  flagCode={currentFlagCode}
+                                  alt={currentLangLabel}
+                                  width={28}
+                                  className="h-3 w-4 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
+                                />
+                                <span className="text-yellow-primary mt-0.5 text-[8px] font-bold">LANG</span>
                               </div>
                             ),
                             label: 'Language',

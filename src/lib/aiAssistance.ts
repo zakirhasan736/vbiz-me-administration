@@ -4,10 +4,10 @@ export const AI_ASSISTANCE_SETTING_KEY = 'aiAssistance_checkbox'
 /** Paid add-on price shown when the package does not include AI Assistance. */
 export const AI_ASSISTANCE_ADDON_PRICE_USD = 10
 
-export const AI_ASSISTANCE_LOCKED_TITLE = 'Activate AI Assistance'
+export const AI_ASSISTANCE_LOCKED_TITLE = 'Start AI Assistance'
 
 export function aiAssistanceLockedMessage(priceUsd = AI_ASSISTANCE_ADDON_PRICE_USD): string {
-  return `AI Assistance is a premium add-on. Activate it for an extra $${priceUsd} / month, then turn it on for this card in Settings.`
+  return `AI Assistance is a premium add-on for $${priceUsd} / month. After you pay, it unlocks on your account and this card can turn it on automatically.`
 }
 
 /**

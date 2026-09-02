@@ -4,10 +4,12 @@ import { ContactSaveChip, ShareCountChip, SocialClickChip } from '@/components/a
 import { TrafficSparkline } from '@/components/admin/AdminTrafficSparkline'
 import VCardCardActions from '@/components/admin/AdminVCardCardActions'
 import { AlertModal } from '@/components/AlertModal'
+import { CardAvatarThumb } from '@/components/CardAvatarThumb'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { VCardOverflowMenu } from '@/components/dashboard/vcard/VCardOverflowMenu'
 import { VCardVisibilityToggle } from '@/components/dashboard/vcard/VCardVisibilityToggle'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
+import { adminCardAvatarUrl } from '@/lib/admin/adminCardShape'
 import { getCardSocialClickStats } from '@/lib/adminSocialStats'
 import { resolveCardAnalytics } from '@/lib/cardAnalytics'
 import { ADMIN_PAUSED_CARD_MESSAGE, ADMIN_SUSPENDED_CARD_MESSAGE, resolveCardStatus } from '@/lib/cardStatus'
@@ -187,14 +189,7 @@ export default function VCardTeamCard({
   const company = personalField(card.personal, 'company')
   const department = personalField(card.personal, 'department')
   const cardName = fullName || 'this vCard'
-  const initial =
-    fullName.trim()?.[0]?.toUpperCase() ||
-    fullName
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .slice(0, 1) ||
-    'P'
+  const avatarSrc = adminCardAvatarUrl(card) || null
 
   const badgeClass =
     badgeTone === 'violet'
@@ -357,9 +352,7 @@ export default function VCardTeamCard({
           </div>
 
           <div className="mt-2.5 flex items-center justify-between gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/60 bg-slate-50 text-base font-black text-indigo-600 shadow-inner dark:border-white/5 dark:bg-slate-900 dark:text-indigo-400">
-              {initial}
-            </div>
+            <CardAvatarThumb src={avatarSrc} name={fullName} size={40} className="h-10 w-10 text-base" />
             <span
               className={cn(
                 'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase',
@@ -473,20 +466,25 @@ export default function VCardTeamCard({
             <ContactSaveChip count={saves} compact />
             <ShareCountChip count={Number(card.shareCount || clicks) || 0} compact />
             {showNotice && noticeText ? (
-              <span
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onNotice?.()
+                }}
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase',
+                  'inline-flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[9px] font-black tracking-wider uppercase transition hover:brightness-95',
                   noticeTone === 'success'
                     ? 'border-emerald-300/60 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-200'
                     : noticeTone === 'warning'
                       ? 'border-amber-300/60 bg-amber-100 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/25 dark:text-amber-200'
                       : 'border-indigo-300/60 bg-indigo-100 text-indigo-800 dark:border-indigo-500/40 dark:bg-indigo-500/25 dark:text-indigo-200'
                 )}
-                title={noticeText}
+                title={`${noticeText}\n\nClick to view or edit`}
               >
                 <Megaphone className="h-3 w-3" />
                 Notice active
-              </span>
+              </button>
             ) : null}
           </div>
         </div>

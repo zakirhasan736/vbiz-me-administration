@@ -492,6 +492,12 @@ export default function AdminMyCards() {
         onEmail={openEmailForCard}
         onCall={openCallForCard}
         onSchedule={openScheduleForCard}
+        onNotice={(card) => setNoticeCard(card)}
+        activeNoticeText={
+          panelCard?.id
+            ? noticeForCard(panelCard.id, teamNotices)?.text || readLocalCardNotice(panelCard.id).text
+            : null
+        }
         onDuplicate={handleDuplicate}
         isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
       />
@@ -510,9 +516,9 @@ export default function AdminMyCards() {
         cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
-        deliverySummary="Card-only delivery to the public card, its saved contacts, push subscribers, owner email, and owner back office."
+        deliverySummary="Choose backoffice-only, or public card + saved contacts + owner backoffice."
         onClose={() => setNoticeCard(null)}
-        onSave={(text, type) => {
+        onSave={(text, type, options) => {
           if (!noticeCard?.id) return
           void (async () => {
             try {
@@ -521,11 +527,16 @@ export default function AdminMyCards() {
                 await createTeamNotice({
                   text: text.trim(),
                   type,
-                  audience: 'all',
+                  audience: options.onlyBackoffice ? 'savers' : 'all',
                   targetProfileId: noticeCard.id,
-                  deliver: true,
+                  deliver: !options.onlyBackoffice,
+                  onlyBackoffice: options.onlyBackoffice,
                 }).unwrap()
-                notify.success('Notice sent to this card’s owner and saved-contact audience.')
+                notify.success(
+                  options.onlyBackoffice
+                    ? 'Notice sent to this card’s owner backoffice only.'
+                    : 'Notice sent to this card’s owner and saved-contact audience.'
+                )
               } else {
                 clearLocalCardNotice(noticeCard.id)
                 const existing = noticeForCard(noticeCard.id, teamNotices)
