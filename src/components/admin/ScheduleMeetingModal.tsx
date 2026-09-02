@@ -2,11 +2,13 @@
 
 import { ModalPortal } from '@/components/ModalPortal'
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
+import { useAppSelector } from '@/hooks/redux'
 import { meetingScopeLabel } from '@/lib/meetingScope'
+import { useGetProfilesQuery, type ApiProfile } from '@/redux/features/profiles/profiles.api'
 import { MEETING_SCOPES, MEETING_TYPES, type Meeting, type MeetingScope, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
 import { Calendar, Loader2, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 export type ScheduleMeetingSubmitPayload = {
   scope: MeetingScope
@@ -37,11 +39,88 @@ export type ScheduleMeetingModalProps = {
   initialNotes?: string
   title?: string
   subtitle?: string
+  /** Admin searches every owner. Owners pick from their own cards (`GET /profiles`). */
+  cardPicker?: 'admin' | 'own'
 }
 
 function todayIsoDate() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function selectionFromApiProfile(row: ApiProfile): ProfileOwnerSelection {
+  const hostName = row.name?.trim() || row.slug?.trim() || 'My card'
+  const identity = [row.designation?.trim(), row.companyName?.trim(), row.slug ? `/${row.slug}` : null]
+    .filter(Boolean)
+    .join(' · ')
+  const ownerEmails = [
+    ...new Set(
+      [row.email, row.user?.email]
+        .map((email) => email?.trim().toLowerCase())
+        .filter((email): email is string => Boolean(email))
+    ),
+  ]
+  return { profileId: row.id, hostName, ownerEmails, identity }
+}
+
+function OwnCardsPicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: ProfileOwnerSelection | null
+  onChange: (next: ProfileOwnerSelection | null) => void
+  label: string
+}) {
+  const { data, isLoading } = useGetProfilesQuery({ limit: 100 })
+  const cards = data?.items ?? []
+
+  useEffect(() => {
+    if (value || !cards.length) return
+    onChange(selectionFromApiProfile(cards[0]))
+  }, [cards, onChange, value])
+
+  if (isLoading) {
+    return <p className="text-xs font-medium text-slate-400">Loading your cards…</p>
+  }
+
+  if (!cards.length) {
+    return (
+      <p className="rounded-2xl border border-amber-200/70 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+        Add a card first, then you can book a time from here.
+      </p>
+    )
+  }
+
+  if (cards.length === 1 && value) {
+    return (
+      <div className="rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+        <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">{label}</p>
+        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value.hostName}</p>
+        {value.identity ? <p className="text-xs text-slate-500 dark:text-slate-400">{value.identity}</p> : null}
+      </div>
+    )
+  }
+
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">{label}</span>
+      <select
+        value={value?.profileId ?? ''}
+        onChange={(event) => {
+          const row = cards.find((card) => card.id === event.target.value)
+          onChange(row ? selectionFromApiProfile(row) : null)
+        }}
+        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+      >
+        {cards.map((card) => (
+          <option key={card.id} value={card.id}>
+            {card.name?.trim() || card.slug || 'Untitled card'}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
 }
 
 type ScheduleMeetingModalContentProps = Omit<ScheduleMeetingModalProps, 'open'>
@@ -62,7 +141,10 @@ function ScheduleMeetingModalContent({
   initialNotes = '',
   title = 'Book session',
   subtitle = 'Creates a calendar event with a meeting link, owner notification, email, and push.',
+  cardPicker = 'admin',
 }: ScheduleMeetingModalContentProps) {
+  const sessionUserId = useAppSelector((state) => state.user.user?.id)
+  const useOwnCards = cardPicker === 'own'
   const scopeOptions = useMemo(
     () => (lockOwner ? (['one_to_one'] as MeetingScope[]) : allowedScopes),
     [allowedScopes, lockOwner]
@@ -72,7 +154,9 @@ function ScheduleMeetingModalContent({
   const [scope, setScope] = useState<MeetingScope>(initialScope)
   const [owner, setOwner] = useState<ProfileOwnerSelection | null>(initialOwner)
   const [globalHost, setGlobalHost] = useState('vBiz Team')
-  const [includeTeamGroup, setIncludeTeamGroup] = useState(Boolean(groupProfileIds.length || groupCompanyUserId))
+  const [includeTeamGroup, setIncludeTeamGroup] = useState(
+    Boolean(groupProfileIds.length || groupCompanyUserId) || useOwnCards
+  )
   const [meetType, setMeetType] = useState<MeetingType | string>(initialType)
   const [meetDate, setMeetDate] = useState(initialDate || todayIsoDate())
   const [meetTime, setMeetTime] = useState(initialTime)
@@ -108,7 +192,10 @@ function ScheduleMeetingModalContent({
                 ? [owner.profileId]
                 : []
           : undefined,
-      companyUserId: scope === 'group' && includeTeamGroup ? groupCompanyUserId || null : null,
+      companyUserId:
+        scope === 'group' && includeTeamGroup
+          ? groupCompanyUserId || (useOwnCards ? sessionUserId || null : null)
+          : null,
       type: meetType,
       date: meetDate,
       time: meetTime,
@@ -192,10 +279,12 @@ function ScheduleMeetingModalContent({
               </div>
             ) : lockOwner && owner ? (
               <div className="rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Card owner</p>
+                <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Card</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{owner.hostName}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{owner.identity}</p>
               </div>
+            ) : useOwnCards ? (
+              <OwnCardsPicker value={owner} onChange={setOwner} label="Which card?" />
             ) : (
               <ProfileOwnerPicker
                 value={owner}
@@ -215,7 +304,9 @@ function ScheduleMeetingModalContent({
                   className="mt-1"
                 />
                 <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                  Include every card under the selected corporate account when a team anchor is chosen.
+                  {useOwnCards
+                    ? 'Include every card on your team in this booking.'
+                    : 'Include every card under the selected corporate account when a team anchor is chosen.'}
                 </span>
               </label>
             ) : null}
@@ -277,10 +368,12 @@ function ScheduleMeetingModalContent({
 
             <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
               {scope === 'global'
-                ? 'Global sessions notify every card owner. They are not tied to a single card.'
+                ? 'This booking is for everyone — it isn’t tied to one card.'
                 : scope === 'group'
-                  ? 'Group sessions notify only the cards included in the group.'
-                  : 'One-to-one sessions notify only the selected card owner.'}
+                  ? 'This booking is for the team cards you include.'
+                  : useOwnCards
+                    ? 'We’ll send a reminder for the card you picked.'
+                    : 'One-to-one sessions notify only the selected card owner.'}
             </p>
           </div>
 
@@ -326,6 +419,7 @@ export function ScheduleMeetingModal({ open, ...rest }: ScheduleMeetingModalProp
     rest.initialTime ?? '',
     rest.initialType ?? '',
     rest.initialNotes ?? '',
+    rest.cardPicker ?? 'admin',
     ...(rest.groupProfileIds ?? []),
   ].join('|')
 

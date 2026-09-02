@@ -2,6 +2,7 @@
 
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { cn } from '@/utils/cn'
 import { ArrowLeftRight } from 'lucide-react'
@@ -17,18 +18,21 @@ export function SwitchToCrmButton({ variant = 'header', className }: SwitchToCrm
   const pathname = usePathname()
   const user = useAppSelector((state) => state.user.user)
   const role = user?.role
+  const isStaff = isStaffRole(role)
+  const { allow_crm: packageAllowsCrm, isLoading: entitlementsLoading } = usePackageAccess()
   const onCrm = pathname === '/crm' || pathname.startsWith('/crm/')
-  const staffMayOpenCrm = canSessionUseCrm({
-    role,
-    allowedModules: user?.allowedModules,
-    packageAllowsCrm: false,
-  })
+  const mayOpenCrm =
+    CRM_UI_ENABLED &&
+    canSessionUseCrm({
+      role,
+      allowedModules: user?.allowedModules,
+      packageAllowsCrm: isStaff ? false : packageAllowsCrm,
+    }) &&
+    (isStaff || !entitlementsLoading)
 
-  if (CRM_UI_ENABLED && isStaffRole(role) && !staffMayOpenCrm && !onCrm) {
-    return null
-  }
+  if (!onCrm && !mayOpenCrm) return null
 
-  const href = onCrm ? (isStaffRole(role) ? '/admin/dashboard' : '/') : '/crm'
+  const href = onCrm ? (isStaff ? '/admin/dashboard' : '/') : '/crm'
   const label = onCrm ? 'Cards' : 'CRM'
   const isMenu = variant === 'menu'
 

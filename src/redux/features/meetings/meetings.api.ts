@@ -96,6 +96,8 @@ const meetingsApi = api.injectEndpoints({
       invalidatesTags: (_r, _e, arg) => [
         { type: 'meetings', id: arg.id },
         { type: 'meetings', id: 'LIST' },
+        { type: 'meetings', id: 'OWNER_LIST' },
+        { type: 'meetings', id: 'OWNER_UPCOMING' },
         { type: 'activity', id: 'FEED' },
         { type: 'activity', id: 'AUDIT' },
       ],
@@ -105,6 +107,8 @@ const meetingsApi = api.injectEndpoints({
       transformResponse: (res: Envelope<{ id: string }>) => res.data,
       invalidatesTags: [
         { type: 'meetings', id: 'LIST' },
+        { type: 'meetings', id: 'OWNER_LIST' },
+        { type: 'meetings', id: 'OWNER_UPCOMING' },
         { type: 'activity', id: 'FEED' },
         { type: 'activity', id: 'AUDIT' },
       ],
