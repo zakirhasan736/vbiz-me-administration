@@ -49,10 +49,10 @@ export function useProfile(slug: string = DEFAULT_PROFILE_SLUG, options?: UsePro
   const query = useGetMyCardBySlugQuery(trimmed, {
     skip,
     refetchOnReconnect: true,
-    refetchOnFocus: true,
-    // SSR already loaded the card; skip an immediate duplicate GET. Polling + focus/reconnect stay live.
+    refetchOnFocus: !hasPrefetched,
+    // SSR already loaded the card; rely on settings-saved broadcast + slow poll instead of hammering GET /v/:slug.
     refetchOnMountOrArgChange: hasPrefetched ? false : true,
-    pollingInterval: !skip && visible ? PUBLIC_CARD_LIVE_POLL_MS : 0,
+    pollingInterval: !skip && visible && !hasPrefetched ? PUBLIC_CARD_LIVE_POLL_MS : 0,
   })
 
   useEffect(() => {

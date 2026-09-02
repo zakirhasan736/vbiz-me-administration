@@ -40,7 +40,10 @@ describe('fetchMyCardBySlug', () => {
     fetchMock.mockResolvedValue(
       jsonResponse({
         success: true,
-        data: { profile: { id: 1, slug: 'michaelangelo-casanova-2' } },
+        data: {
+          profile: { id: 1, slug: 'michaelangelo-casanova-2' },
+          settings: { share_preview_image_url: 'https://example.com/share.jpg' },
+        },
       })
     )
 

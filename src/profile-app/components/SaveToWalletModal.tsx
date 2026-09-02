@@ -20,7 +20,7 @@ type SaveToWalletModalProps = {
 export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: SaveToWalletModalProps) {
   const { design, personal, homeMedia, isVisible, pageColors } = useProfileDisplay()
   const primaryColor = design?.primaryColor || design?.accentColor || '#0B1F3A'
-  const secondaryColor = design?.accentColor || '#C9A24A'
+  const secondaryColor = design?.secondaryColor || '#0f2c4d'
   const pageBackground = pageColors.pageBg || undefined
   const [savingGoogle, setSavingGoogle] = useState(false)
   const [savingApple, setSavingApple] = useState(false)

@@ -4,6 +4,8 @@ import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
 export type VCardTheme = {
   primaryColor: string
+  /** Navy / dark brand color used for secondary buttons and contrast on primary fills. */
+  secondaryColor: string
   accentColor: string
   darkMode: boolean
   /** Matches Settings → Appearance typography id when synced */
@@ -304,6 +306,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     },
     theme: {
       primaryColor: '#6366f1',
+      secondaryColor: '#0f2c4d',
       accentColor: '#f43f5e',
       darkMode: true,
       fontFamily: 'inter',

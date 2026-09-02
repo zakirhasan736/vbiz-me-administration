@@ -198,6 +198,7 @@ export function parseThemeJson(raw?: string | null): Partial<VCardTheme> | null 
     const theme = parsed as Partial<VCardTheme>
     return {
       ...(typeof theme.primaryColor === 'string' ? { primaryColor: theme.primaryColor } : {}),
+      ...(typeof theme.secondaryColor === 'string' ? { secondaryColor: theme.secondaryColor } : {}),
       ...(typeof theme.accentColor === 'string' ? { accentColor: theme.accentColor } : {}),
       ...(typeof theme.darkMode === 'boolean' ? { darkMode: theme.darkMode } : {}),
       ...(typeof theme.fontFamily === 'string' && theme.fontFamily.trim()

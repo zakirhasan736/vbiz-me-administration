@@ -624,6 +624,11 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   const tabLabelOverrides = parseTabLabelOverrides(settingsMap[TAB_LABEL_OVERRIDES_SETTING_KEY])
   const theme = {
     primaryColor: savedTheme?.primaryColor || staticTheme.primaryColor,
+    secondaryColor:
+      savedTheme?.secondaryColor ||
+      themeConfig?.colors.dark.secondary ||
+      themeConfig?.colors.light.secondary ||
+      staticTheme.secondaryColor,
     accentColor: savedTheme?.accentColor || staticTheme.accentColor,
     darkMode: typeof savedTheme?.darkMode === 'boolean' ? savedTheme.darkMode : staticTheme.darkMode,
     fontFamily: savedTheme?.fontFamily || staticTheme.fontFamily,

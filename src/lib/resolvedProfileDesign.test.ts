@@ -16,11 +16,12 @@ const designSettings: DesignSettingsState = {
 }
 
 describe('applyEditorSettingsToThemeConfig', () => {
-  it('writes live primary and accent onto both color modes', () => {
+  it('writes live primary, secondary, and accent onto both color modes', () => {
     const next = applyEditorSettingsToThemeConfig(
       getDefaultThemeConfig('v3'),
       {
         primaryColor: '#112233',
+        secondaryColor: '#0f2c4d',
         accentColor: '#445566',
       },
       null
@@ -28,6 +29,8 @@ describe('applyEditorSettingsToThemeConfig', () => {
 
     expect(next.colors.light.primary).toBe('#112233')
     expect(next.colors.dark.primary).toBe('#112233')
+    expect(next.colors.light.secondary).toBe('#0f2c4d')
+    expect(next.colors.dark.secondary).toBe('#0f2c4d')
     expect(next.colors.light.accent).toBe('#445566')
     expect(next.colors.dark.accent).toBe('#445566')
   })
@@ -84,6 +87,7 @@ describe('resolveProfileDesign', () => {
   it('does not freeze brand colors onto inline vars so light/dark can swap surfaces', () => {
     const vars = designToCssVars({
       primaryColor: '#112233',
+      secondaryColor: '#0f2c4d',
       accentColor: '#445566',
       fontFamily: 'poppins',
       profileTemplate: 'v3',

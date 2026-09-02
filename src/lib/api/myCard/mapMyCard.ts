@@ -489,11 +489,20 @@ function resolveTemplate(card: MyCardData): ProfileTemplateId {
 }
 
 function resolveTheme(card: MyCardData): VCardTheme {
-  const staticTheme = getStaticProfileTheme(resolveTemplate(card))
+  const template = resolveTemplate(card)
+  const staticTheme = getStaticProfileTheme(template)
   const fromJson = parseThemeJson(card.settings?.[THEME_SETTING_KEY])
-  if (!fromJson) return staticTheme
+  const themeConfig = hasDynamicTheme(card.theme_config) ? resolveCardThemeConfig(card.theme_config, template) : null
+  const configSecondary = themeConfig?.colors.dark.secondary ?? themeConfig?.colors.light.secondary
+  if (!fromJson) {
+    return {
+      ...staticTheme,
+      ...(configSecondary ? { secondaryColor: configSecondary } : {}),
+    }
+  }
   return {
     primaryColor: fromJson.primaryColor || staticTheme.primaryColor,
+    secondaryColor: fromJson.secondaryColor || configSecondary || staticTheme.secondaryColor,
     accentColor: fromJson.accentColor || staticTheme.accentColor,
     darkMode: typeof fromJson.darkMode === 'boolean' ? fromJson.darkMode : staticTheme.darkMode,
     fontFamily: fromJson.fontFamily || staticTheme.fontFamily,

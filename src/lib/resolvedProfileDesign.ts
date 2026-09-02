@@ -9,6 +9,7 @@ import type { CSSProperties } from 'react'
 
 export type ResolvedProfileDesign = {
   primaryColor: string
+  secondaryColor: string
   accentColor: string
   fontFamily: string
   profileTemplate: ProfileTemplateId
@@ -76,9 +77,14 @@ export function resolveProfileDesign(
 
   const configBrand = options?.themeConfig
     ? brandColorsFromThemeConfig(options.themeConfig, mode)
-    : { primaryColor: staticTheme.primaryColor, accentColor: staticTheme.accentColor }
+    : {
+        primaryColor: staticTheme.primaryColor,
+        secondaryColor: staticTheme.secondaryColor,
+        accentColor: staticTheme.accentColor,
+      }
 
   const livePrimary = typeof cardTheme?.primaryColor === 'string' ? cardTheme.primaryColor.trim() : ''
+  const liveSecondary = typeof cardTheme?.secondaryColor === 'string' ? cardTheme.secondaryColor.trim() : ''
   const liveAccent = typeof cardTheme?.accentColor === 'string' ? cardTheme.accentColor.trim() : ''
 
   const fontFamily =
@@ -91,6 +97,7 @@ export function resolveProfileDesign(
 
   return {
     primaryColor: livePrimary || configBrand.primaryColor || staticTheme.primaryColor,
+    secondaryColor: liveSecondary || configBrand.secondaryColor || staticTheme.secondaryColor,
     accentColor: liveAccent || configBrand.accentColor || staticTheme.accentColor,
     fontFamily,
     profileTemplate: appearance.profileTemplate,

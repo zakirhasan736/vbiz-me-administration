@@ -62,7 +62,7 @@ export const publicApi = createApi({
   baseQuery: baseQuery,
   keepUnusedDataFor: DEFAULT_KEEP_UNUSED_SECONDS,
   refetchOnMountOrArgChange: true,
-  refetchOnFocus: true,
+  refetchOnFocus: false,
   refetchOnReconnect: true,
   tagTypes: [
     'MyCard',

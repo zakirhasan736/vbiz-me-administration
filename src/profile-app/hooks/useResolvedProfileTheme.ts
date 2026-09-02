@@ -35,15 +35,16 @@ export function useResolvedProfileTheme({
   const dispatch = useAppDispatch()
   const id = profileId.trim()
   const visible = useDocumentVisible()
+  const hasPrefetched = Boolean(initialSettings)
 
   const { data: liveSettings } = useGetProfileSettingsQuery(
     { profileId: id, template },
     {
       skip: !id,
-      refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
+      refetchOnMountOrArgChange: !hasPrefetched,
+      refetchOnFocus: !hasPrefetched,
       refetchOnReconnect: true,
-      pollingInterval: id && visible ? PUBLIC_CARD_LIVE_POLL_MS : 0,
+      pollingInterval: id && visible && !hasPrefetched ? PUBLIC_CARD_LIVE_POLL_MS : 0,
     }
   )
 

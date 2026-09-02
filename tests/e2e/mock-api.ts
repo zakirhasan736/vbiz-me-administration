@@ -87,8 +87,20 @@ type MockPublicNote = {
 
 const publicNotes: MockPublicNote[] = []
 
-/** Counts `GET /api/v1/public/v/:slug` so e2e can measure duplicate profile fetches. */
+/** Counts bootstrap + legacy profile GETs so e2e can measure duplicate SSR fetches. */
 const publicVHits: Record<string, number> = {}
+
+function publicBootstrapPayload(myCard: ReturnType<typeof publicCard>) {
+  return {
+    myCard,
+    postTypes: { StaticLink: [], post_types: [] },
+    settings: {
+      appearance: { profileTemplate: 'v2', layoutStyle: 'classic', buttonStyle: 'solid', cornerStyle: 'round' },
+      theme_config: null,
+    },
+    sections: {},
+  }
+}
 
 const publicCard = () => ({
   profile: {
@@ -276,6 +288,53 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   }
 
   if (path.startsWith('/api/v1/public/')) {
+    const publicBootstrapMatch = path.match(/^\/api\/v1\/public\/v\/([^/]+)\/bootstrap$/)
+    if (publicBootstrapMatch && method === 'GET') {
+      const slug = decodeURIComponent(publicBootstrapMatch[1])
+      publicVHits[slug] = (publicVHits[slug] || 0) + 1
+      const requestId = `e2e-${slug}`
+      const failHeaders = { 'x-vbiz-request-id': requestId }
+
+      if (slug === 'e2e-public-card') {
+        sendJson(res, 200, envelope(publicBootstrapPayload(publicCard())))
+        return
+      }
+      if (slug === 'e2e-missing-card') {
+        sendJson(res, 404, envelope(null, 'Profile not found', 404), failHeaders)
+        return
+      }
+      if (slug === 'e2e-fail-500') {
+        sendJson(res, 500, envelope(null, 'Internal error', 500), failHeaders)
+        return
+      }
+      if (slug === 'e2e-fail-503') {
+        sendJson(res, 503, envelope(null, 'Unavailable', 503), failHeaders)
+        return
+      }
+      if (slug === 'e2e-fail-429') {
+        sendJson(res, 429, envelope(null, 'Too many requests', 429), failHeaders)
+        return
+      }
+      if (slug === 'e2e-success-false') {
+        sendJson(res, 200, { success: false, data: null, error: 'unexpected' }, failHeaders)
+        return
+      }
+      if (slug === 'e2e-malformed-json') {
+        const payload = '{not-json'
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Length': Buffer.byteLength(payload),
+          'x-vbiz-request-id': requestId,
+          'Access-Control-Allow-Origin': 'http://127.0.0.1:3101',
+        })
+        res.end(payload)
+        return
+      }
+
+      sendJson(res, 404, envelope(null, 'Profile not found', 404), failHeaders)
+      return
+    }
+
     const publicVMatch = path.match(/^\/api\/v1\/public\/v\/([^/]+)$/)
     if (publicVMatch && method === 'GET') {
       const slug = decodeURIComponent(publicVMatch[1])

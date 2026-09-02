@@ -36,15 +36,6 @@ export function publicCardServerHeaders(extra?: HeadersInit): Headers {
   return headers
 }
 
-export async function fetchPublicCardResponse(url: string, init?: RequestInit): Promise<Response> {
-  const headers = publicCardServerHeaders(init?.headers)
-  return fetch(url, {
-    ...PUBLIC_CARD_FETCH_INIT,
-    ...init,
-    headers,
-  })
-}
-
 function retryAfterMs(response: Response): number {
   const raw = response.headers.get('Retry-After')
   if (!raw) return 250
@@ -55,11 +46,25 @@ function retryAfterMs(response: Response): number {
   return 250
 }
 
-/** At most one 429 retry. Identity fetch only — not a retry storm. */
-export async function fetchPublicCardResponseWithOneRetry(url: string, init?: RequestInit): Promise<Response> {
-  const first = await fetchPublicCardResponse(url, init)
+async function fetchPublicCardResponseOnce(url: string, init?: RequestInit): Promise<Response> {
+  const headers = publicCardServerHeaders(init?.headers)
+  return fetch(url, {
+    ...PUBLIC_CARD_FETCH_INIT,
+    ...init,
+    headers,
+  })
+}
+
+/** Server-side public API fetch — at most one 429 retry to avoid error pages on brief spikes. */
+export async function fetchPublicCardResponse(url: string, init?: RequestInit): Promise<Response> {
+  const first = await fetchPublicCardResponseOnce(url, init)
   if (first.status !== 429) return first
   await new Promise((resolve) => setTimeout(resolve, retryAfterMs(first)))
+  return fetchPublicCardResponseOnce(url, init)
+}
+
+/** @deprecated use fetchPublicCardResponse (retry is built in). */
+export async function fetchPublicCardResponseWithOneRetry(url: string, init?: RequestInit): Promise<Response> {
   return fetchPublicCardResponse(url, init)
 }
 

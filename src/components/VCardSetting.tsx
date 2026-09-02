@@ -466,12 +466,19 @@ function TemplateDesigner() {
 
       {/* Theme Colors */}
       <SettingSection title="Theme Colors">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <ColorPicker
             label="Primary Theme Color"
             value={vCardData.theme.primaryColor}
             onChange={(val) => {
               updateData('theme.primaryColor', val)
+            }}
+          />
+          <ColorPicker
+            label="Secondary Theme Color"
+            value={vCardData.theme.secondaryColor}
+            onChange={(val) => {
+              updateData('theme.secondaryColor', val)
             }}
           />
           <ColorPicker

@@ -64,7 +64,7 @@ test.describe('Public card fetch semantics', () => {
     await expect(page.getByText(next404Copy)).toHaveCount(0)
   })
 
-  test('generateMetadata + page share one profile GET (HTML-only)', async ({ request }) => {
+  test('generateMetadata + page share one bootstrap GET (HTML-only)', async ({ request }) => {
     await resetPublicVHits(request)
     const pageRes = await request.get('/vCard/e2e-public-card')
     expect(pageRes.ok()).toBeTruthy()
@@ -81,7 +81,10 @@ test.describe('Public card fetch semantics', () => {
     const count = hits['e2e-public-card'] || 0
     console.log(`PROFILE_API_CALLS=${count} hits=${JSON.stringify(hits)}`)
     test.info().annotations.push({ type: 'profile-api-calls', description: String(count) })
-    expect(count, `GET /api/v1/public/v/:slug count=${count} hits=${JSON.stringify(hits)}`).toBeGreaterThanOrEqual(1)
+    expect(
+      count,
+      `GET /api/v1/public/v/:slug/bootstrap count=${count} hits=${JSON.stringify(hits)}`
+    ).toBeGreaterThanOrEqual(1)
     // HTML document is 1 (memoized). Extra calls are separate PWA icon/manifest route handlers, not metadata+page.
     expect(count).toBeLessThanOrEqual(6)
   })

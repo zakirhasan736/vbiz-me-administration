@@ -331,10 +331,11 @@ export function hasDynamicTheme(raw: unknown): boolean {
 export function brandColorsFromThemeConfig(
   themeConfig: CardThemeConfig,
   mode: ThemeMode
-): { primaryColor: string; accentColor: string } {
+): { primaryColor: string; secondaryColor: string; accentColor: string } {
   const set = mode === 'light' ? themeConfig.colors.light : themeConfig.colors.dark
   return {
     primaryColor: set.primary,
+    secondaryColor: set.secondary,
     accentColor: set.accent,
   }
 }
@@ -351,7 +352,8 @@ function pickBrandColor(value: unknown): string | null {
  */
 export function applyEditorSettingsToThemeConfig(
   current: CardThemeConfig | null | undefined,
-  theme: { primaryColor?: string; accentColor?: string; fontFamily?: string } | null | undefined,
+  theme:
+    { primaryColor?: string; secondaryColor?: string; accentColor?: string; fontFamily?: string } | null | undefined,
   appearance:
     | {
         profileTemplate?: unknown
@@ -422,6 +424,7 @@ export function applyEditorSettingsToThemeConfig(
     : { ...base.components.socialIcon, cornerRadius: cornerStyleToRadius(cornerStyle) }
 
   const primary = pickBrandColor(theme?.primaryColor)
+  const secondary = pickBrandColor(theme?.secondaryColor)
   const accent = pickBrandColor(theme?.accentColor)
 
   return {
@@ -431,11 +434,13 @@ export function applyEditorSettingsToThemeConfig(
       light: {
         ...base.colors.light,
         ...(primary ? { primary } : {}),
+        ...(secondary ? { secondary } : {}),
         ...(accent ? { accent } : {}),
       },
       dark: {
         ...base.colors.dark,
         ...(primary ? { primary } : {}),
+        ...(secondary ? { secondary } : {}),
         ...(accent ? { accent } : {}),
       },
     },

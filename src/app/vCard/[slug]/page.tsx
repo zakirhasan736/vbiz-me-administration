@@ -1,9 +1,9 @@
+import type { ReviewItem } from '@/interfaces/api/reviews.interface'
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
-import { fetchMyCardBySlug } from '@/lib/api/myCard/fetchMyCardBySlug'
+import { fetchPublicCardBootstrap } from '@/lib/api/myCard/fetchPublicCardBootstrap'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
-import { fetchNavBarLinks } from '@/lib/api/navbar/fetchNavBarLinks'
-import { resolveProfileSettingsTheme } from '@/lib/api/profileSettings/fetchProfileSettings'
-import { fetchPublicReviews } from '@/lib/api/reviews/fetchPublicReviews'
+import { mapProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
+import { buildReviewsQueryResult } from '@/lib/api/reviews/mapReviews'
 import { resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
@@ -22,12 +22,20 @@ type Props = {
   params: Promise<{ slug: string }>
 }
 
+function reviewsFromBootstrapSection(section: unknown) {
+  if (!section || typeof section !== 'object') return null
+  const payload = section as { items?: ReviewItem[]; postType?: { title?: string } }
+  if (!Array.isArray(payload.items)) return null
+  return buildReviewsQueryResult(payload.items, payload.postType?.title?.trim() || 'Reviews')
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const trimmed = slug?.trim()
   if (!trimmed) return {}
 
-  const myCard = await fetchMyCardBySlug(trimmed)
+  const bootstrap = await fetchPublicCardBootstrap(trimmed)
+  const myCard = bootstrap?.myCard ?? null
   const name = resolvePwaDisplayName(myCard?.profile?.name?.trim() || myCard?.profile?.company_name, trimmed)
   const headerStore = await headers()
   const requestOrigin = resolveRequestOrigin(
@@ -89,11 +97,12 @@ export default async function PublicProfilePage({ params }: Props) {
     notFound()
   }
 
-  const myCard = await fetchMyCardBySlug(trimmed)
-  if (!myCard) {
+  const bootstrap = await fetchPublicCardBootstrap(trimmed)
+  if (!bootstrap?.myCard) {
     notFound()
   }
 
+  const myCard = bootstrap.myCard
   const profileId = myCard.profile.id
   const template = resolveProfileTemplateFromMyCard(myCard)
   const liveAgentEnabled = isAiAssistanceEnabled(
@@ -107,21 +116,11 @@ export default async function PublicProfilePage({ params }: Props) {
   )
   const cardPath = buildProfilePath(trimmed)
 
-  const settled = await Promise.allSettled([
-    fetchNavBarLinks(profileId),
-    liveAgentEnabled ? resolveLiveAgentPromptFromProfileId(profileId) : Promise.resolve(null),
-    resolveProfileSettingsTheme(profileId, template),
-    fetchPublicReviews(String(profileId)),
-  ])
-  const [navBarLinks, liveAgent, profileSettings, reviews] = settled.map((result) =>
-    result.status === 'fulfilled' ? result.value : null
-  ) as [
-    Awaited<ReturnType<typeof fetchNavBarLinks>>,
-    Awaited<ReturnType<typeof resolveLiveAgentPromptFromProfileId>> | null,
-    Awaited<ReturnType<typeof resolveProfileSettingsTheme>>,
-    Awaited<ReturnType<typeof fetchPublicReviews>>,
-  ]
+  const navBarLinks = bootstrap.postTypes ?? null
+  const profileSettings = mapProfileSettings(bootstrap.settings, template)
+  const reviews = reviewsFromBootstrapSection(bootstrap.sections?.reviews)
 
+  const liveAgent = liveAgentEnabled ? await resolveLiveAgentPromptFromProfileId(profileId).catch(() => null) : null
   const agent = liveAgentEnabled ? liveAgent : null
   const jsonLd = buildPublicCardJsonLd({
     slug: trimmed,
