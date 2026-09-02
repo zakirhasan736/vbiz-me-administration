@@ -1,6 +1,7 @@
 'use client'
 
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3EmptyState, V3ErrorState, V3LoadingSkeleton, V3SectionShell } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ChevronDown, HelpCircle, MessageCircle, RotateCcw, Search } from 'lucide-react'
@@ -86,7 +87,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
   const isNarrow = embedded || isMobile
   const filteredFaqs = faqs.filter((faq) => faq.question.toLowerCase().includes(searchQuery.toLowerCase()))
 
-  const sectionTitle = data?.sectionTitle ?? 'FAQ'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'FAQ')
   const showInitialLoader = isLoading && faqs.length === 0
   const showEmptyState = !isLoading && !isError && faqs.length === 0
 

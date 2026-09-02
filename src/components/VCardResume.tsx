@@ -2,6 +2,7 @@
 
 import { DocumentUploadArea, type UploadedDoc } from '@/components/DocumentUploadArea'
 import { useVCard } from '@/lib/VCardContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { FileText } from 'lucide-react'
 import { useState } from 'react'
 
@@ -72,6 +73,7 @@ const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 shadow-sm'
 
 export function TabResume() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Resume')
   const { vCardData, updateData, cardId } = useVCard()
   const sections = (vCardData as { sections?: Record<string, unknown> }).sections
   const legacyResume = (vCardData as { resume?: { title?: string; summary?: string; url?: string; fileName?: string } })
@@ -103,7 +105,7 @@ export function TabResume() {
             <FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />
           </div>
           <div>
-            <h3 className="text-lg font-black text-teal-600 dark:text-teal-400">Resume / CV</h3>
+            <h3 className="text-lg font-black text-teal-600 dark:text-teal-400">{sectionTitle}</h3>
             <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
               Upload your resume as PDF, image, TXT, or Word document.
             </p>

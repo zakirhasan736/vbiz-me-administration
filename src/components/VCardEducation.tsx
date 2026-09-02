@@ -11,6 +11,7 @@ import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultEducationEntry, normalizeEducationList } from '@/lib/vcardEducation'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardEducationEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { GraduationCap, Plus } from 'lucide-react'
@@ -27,6 +28,7 @@ const accent = {
 }
 
 export function TabEducation() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Education')
   const { vCardData, updateData } = useVCard()
   const educations = normalizeEducationList(vCardData.education)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
@@ -61,7 +63,7 @@ export function TabEducation() {
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-cyan-100 bg-cyan-50 dark:border-cyan-500/20 dark:bg-cyan-500/10">
               <GraduationCap className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
             </div>
-            <h3 className="text-lg font-black text-cyan-600 dark:text-cyan-400">Education History</h3>
+            <h3 className="text-lg font-black text-cyan-600 dark:text-cyan-400">{sectionTitle}</h3>
           </div>
           <button
             type="button"

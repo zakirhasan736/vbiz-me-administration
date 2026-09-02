@@ -5,6 +5,7 @@ import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { useSectionAccent, V3EmptyState, V3ErrorState, V3LoadingSkeleton, V3SectionShell } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, BookOpen, Quote } from 'lucide-react'
@@ -109,7 +110,7 @@ export const MissionSection = () => {
     { skip: !profileId }
   )
 
-  const sectionTitle = data?.sectionTitle ?? 'Mission Statement'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Mission Statement')
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0

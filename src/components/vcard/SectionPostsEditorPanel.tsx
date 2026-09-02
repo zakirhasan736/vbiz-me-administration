@@ -16,6 +16,7 @@ import {
   normalizeSectionPostList,
   type VCardSectionSchema,
 } from '@/lib/vcardSectionSchemas'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardSectionPostItem } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Calendar, FileBox, FileText, Layers, Link as LinkIcon, MapPin, Plus, Star } from 'lucide-react'
@@ -116,6 +117,7 @@ export function SectionPostsEditorPanel({
   onPostsChange,
   cardId,
 }: SectionPostsEditorPanelProps) {
+  const sectionTitle = useResolvedSectionTitle(undefined, schema.title)
   const posts = normalizeSectionPostList(rawPosts)
   const a = accentStyles[resolveAccent(schema.accentClass)]
   const inputClasses = `${baseInput} ${a.focus}`
@@ -169,7 +171,7 @@ export function SectionPostsEditorPanel({
             >
               <Layers className={`h-5 w-5 ${a.iconText}`} />
             </div>
-            <h3 className={`text-lg font-black ${a.titleText}`}>{schema.title}</h3>
+            <h3 className={`text-lg font-black ${a.titleText}`}>{sectionTitle}</h3>
           </div>
           <button
             type="button"

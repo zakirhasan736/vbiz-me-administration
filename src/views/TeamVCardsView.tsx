@@ -20,6 +20,7 @@ import {
   type NoticeType,
 } from '@/components/dashboard/vcard'
 import { VCardTeamCard } from '@/components/dashboard/vcard/VCardTeamCard'
+import { useVCardContactActions } from '@/hooks/useVCardContactActions'
 import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
 import {
   clearLocalCardNotice,
@@ -67,6 +68,13 @@ export default function TeamVCardsView() {
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
   const [createTeamNotice] = useCreateTeamNoticeMutation()
   const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
+  const {
+    contactHandlersForCard,
+    modals: contactModals,
+    openEmailForCard,
+    openCallForCard,
+    openScheduleForCard,
+  } = useVCardContactActions()
 
   const filteredCards = directory.filteredCards
 
@@ -224,6 +232,7 @@ export default function TeamVCardsView() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCards.map((card, idx) => {
             const serverNotice = noticeForCard(card.id, teamNotices)
+            const contact = contactHandlersForCard(card)
             return (
               <VCardTeamCard
                 key={card.id}
@@ -248,6 +257,9 @@ export default function TeamVCardsView() {
                 onOpenQr={() => openQr(card)}
                 onPanel={(c) => setPanelCardId(c.id)}
                 onNotice={openPromptNotice}
+                onEmail={contact.onEmail}
+                onCall={contact.onCall}
+                onSchedule={contact.onSchedule}
                 noticeVersion={noticeVersion}
                 cardNoticeText={serverNotice?.text ?? null}
                 cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
@@ -305,6 +317,9 @@ export default function TeamVCardsView() {
       <VCardDetailSidebar
         card={panelCard}
         onClose={() => setPanelCardId(null)}
+        onEmail={openEmailForCard}
+        onCall={openCallForCard}
+        onSchedule={openScheduleForCard}
         onNotice={openNotice}
         onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
         canDuplicate={directory.canCreate}
@@ -421,6 +436,8 @@ export default function TeamVCardsView() {
           })()
         }}
       />
+
+      {contactModals}
     </div>
   )
 }

@@ -11,7 +11,7 @@ import type { NavBarLinksData, PostTypeNavLink } from '@/interfaces/navbarLinks.
 import { getAboutMeDraft, hasAboutMeDraftContent, subscribeAboutMeDraft, type AboutMeDraft } from '@/lib/aboutMeDraft'
 import { mapAboutMeItemToListItem } from '@/lib/api/aboutMe/mapAboutMe'
 import { buildReviewsQueryResult } from '@/lib/api/reviews/mapReviews'
-import { NAV_ITEM_BY_ID } from '@/lib/vcardNavbar'
+import { getEditorNavLabel, getNavDisplayLabel, getNavLabelOverride, NAV_ITEM_BY_ID } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { dynamicSectionApi } from '@/redux/features/dynamicSection/dynamicSection.api'
 import { navBarLinksApi } from '@/redux/features/navbar/navbar.api'
@@ -34,6 +34,14 @@ import type {
   VCardTabLabelOverrides,
 } from '@/types/vcard'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+
+function resolveDraftNavSectionTitle(navId: string, tabLabelOverrides?: VCardTabLabelOverrides | null): string {
+  const override = getNavLabelOverride(navId, tabLabelOverrides)
+  if (override) return override
+  const def = NAV_ITEM_BY_ID[navId]
+  if (def) return getEditorNavLabel(def)
+  return navId
+}
 
 function draftPostType(id: string, name: string, title: string): PostTypeNavLink {
   return {
@@ -75,12 +83,7 @@ function buildDraftNavBarLinks(input: {
     const post_types = selectedOrder.map((id) => {
       const custom = customById.get(id)
       const def = NAV_ITEM_BY_ID[id]
-      const title =
-        (typeof overrides[id] === 'string' && overrides[id].trim()) ||
-        custom?.label?.trim() ||
-        def?.displayLabel ||
-        def?.label ||
-        id
+      const title = getNavLabelOverride(id, overrides) || custom?.label?.trim() || (def ? getNavDisplayLabel(def) : id)
       return draftPostType(id, id, title)
     })
     return { StaticLink: [], post_types }
@@ -92,32 +95,34 @@ function buildDraftNavBarLinks(input: {
     post_types.push(item)
   }
 
+  const overrides = input.tabLabelOverrides
+
   if (input.aboutMeDraft && hasAboutMeDraftContent(input.aboutMeDraft)) {
-    pushUnique(draftPostType('about', 'About Me', 'About Me'))
+    pushUnique(draftPostType('about', 'About Me', resolveDraftNavSectionTitle('about', overrides)))
   }
   if ((input.services || []).some((s) => s.active !== false && s.title?.trim())) {
-    pushUnique(draftPostType('services', 'services', 'Services'))
+    pushUnique(draftPostType('services', 'services', resolveDraftNavSectionTitle('services', overrides)))
   }
   if ((input.portfolio || []).some((p) => p.active !== false && (p.title?.trim() || p.imageUrl?.trim()))) {
-    pushUnique(draftPostType('gallery', 'gallery', 'Gallery'))
+    pushUnique(draftPostType('gallery', 'gallery', resolveDraftNavSectionTitle('gallery', overrides)))
   }
   if ((input.reviews || []).some((r) => r.author?.trim() || r.text?.trim() || r.url?.trim())) {
-    pushUnique(draftPostType('reviews', 'reviews', 'Reviews'))
+    pushUnique(draftPostType('reviews', 'reviews', resolveDraftNavSectionTitle('reviews', overrides)))
   }
   if ((input.education || []).some((e) => e.institute?.trim() || e.degree?.trim())) {
-    pushUnique(draftPostType('resume', 'Resume', 'Resume'))
+    pushUnique(draftPostType('education', 'Resume', resolveDraftNavSectionTitle('education', overrides)))
   }
   if ((input.experience || []).some((e) => e.company?.trim() || e.jobTitle?.trim())) {
-    pushUnique(draftPostType('work-experience', 'Work Experience', 'Work Experience'))
+    pushUnique(draftPostType('work', 'Work Experience', resolveDraftNavSectionTitle('work', overrides)))
   }
   if ((input.skills || []).some((g) => (g.skills || []).some((s) => s.trim()))) {
-    pushUnique(draftPostType('skills', 'skills', 'Skills'))
+    pushUnique(draftPostType('skills', 'skills', resolveDraftNavSectionTitle('skills', overrides)))
   }
   if ((input.generalPosts || []).some((p) => p.active !== false && p.title?.trim())) {
-    pushUnique(draftPostType('blog', 'Blogs and Media', 'Blogs and Media'))
+    pushUnique(draftPostType('blog', 'Blogs and Media', resolveDraftNavSectionTitle('blog', overrides)))
   }
   if ((input.faqs || []).some((f) => f.active !== false && f.question?.trim())) {
-    pushUnique(draftPostType('faq', 'Faq', 'Faq'))
+    pushUnique(draftPostType('faq', 'Faq', resolveDraftNavSectionTitle('faq', overrides)))
   }
   for (const [name, items] of Object.entries(input.sectionPosts || {})) {
     if (!name.trim() || !(items || []).some((p) => p.active !== false && (p.title?.trim() || p.description?.trim()))) {
@@ -195,9 +200,9 @@ function toDynamicResult(sectionName: string, items: VCardSectionPostItem[]): Dy
   }
 }
 
-function generalPostsToDynamic(posts: VCardGeneralPost[]): DynamicPostsQueryResult {
+function generalPostsToDynamic(posts: VCardGeneralPost[], sectionTitle: string): DynamicPostsQueryResult {
   return {
-    sectionTitle: 'Blogs and Media',
+    sectionTitle,
     posts: posts
       .filter((p) => p.active)
       .map((p) => ({
@@ -214,9 +219,9 @@ function generalPostsToDynamic(posts: VCardGeneralPost[]): DynamicPostsQueryResu
   }
 }
 
-function faqsToDynamic(faqs: VCardFaqEntry[]): DynamicPostsQueryResult {
+function faqsToDynamic(faqs: VCardFaqEntry[], sectionTitle: string): DynamicPostsQueryResult {
   return {
-    sectionTitle: 'Faq',
+    sectionTitle,
     posts: faqs
       .filter((f) => f.active)
       .map((f) => ({
@@ -251,13 +256,13 @@ type EmbeddedDraftCacheSyncProps = {
   tabLabelOverrides?: VCardTabLabelOverrides
 }
 
-function aboutMeDraftToQueryResult(draft: AboutMeDraft): AboutMeQueryResult {
+function aboutMeDraftToQueryResult(draft: AboutMeDraft, sectionTitle: string): AboutMeQueryResult {
   if (!hasAboutMeDraftContent(draft)) {
-    return { sectionTitle: 'About Me', items: [] }
+    return { sectionTitle, items: [] }
   }
   const title = draft.title.trim()
   return {
-    sectionTitle: 'About Me',
+    sectionTitle,
     items: [
       mapAboutMeItemToListItem({
         id: 1,
@@ -333,9 +338,17 @@ export function EmbeddedDraftCacheSync({
       write(payload)
     }
 
+    const sectionTitleFor = (navId: string, fallback?: string) =>
+      resolveDraftNavSectionTitle(navId, tabLabelOverrides) || fallback || navId
+
     for (const [sectionName, items] of Object.entries(sectionPosts || {})) {
       if (!sectionName || !items) continue
-      upsertIfChanged(`section:${sectionName}`, toDynamicResult(sectionName, items), (result) =>
+      const navMatch = Object.values(NAV_ITEM_BY_ID).find(
+        (item) => item.id === sectionName || item.apiSectionName === sectionName
+      )
+      const title =
+        (navMatch ? sectionTitleFor(navMatch.id) : getNavLabelOverride(sectionName, tabLabelOverrides)) || sectionName
+      upsertIfChanged(`section:${sectionName}`, toDynamicResult(title, items), (result) =>
         dispatch(dynamicSectionApi.util.upsertQueryData('getDynamicSection', { profileId, sectionName }, result))
       )
     }
@@ -343,7 +356,8 @@ export function EmbeddedDraftCacheSync({
     for (const tab of customTabs || []) {
       const sectionName = tab.id
       const result: DynamicPostsQueryResult = {
-        sectionTitle: tab.label?.trim() || sectionName,
+        sectionTitle:
+          getNavLabelOverride(tab.id, tabLabelOverrides) || tab.label?.trim() || sectionTitleFor(tab.id, 'Custom tab'),
         posts: (tab.items || [])
           .filter((item) => item.active !== false)
           .map((item) => ({
@@ -373,19 +387,22 @@ export function EmbeddedDraftCacheSync({
     }
 
     if (generalPosts) {
-      upsertIfChanged('blog', generalPostsToDynamic(generalPosts), (result) =>
-        dispatch(
-          dynamicSectionApi.util.upsertQueryData(
-            'getDynamicSection',
-            { profileId, sectionName: PUBLIC_SECTION_NAMES.blog },
-            result
+      upsertIfChanged(
+        'blog',
+        generalPostsToDynamic(generalPosts, sectionTitleFor('blog', 'Blogs and Media')),
+        (result) =>
+          dispatch(
+            dynamicSectionApi.util.upsertQueryData(
+              'getDynamicSection',
+              { profileId, sectionName: PUBLIC_SECTION_NAMES.blog },
+              result
+            )
           )
-        )
       )
     }
 
     if (faqs) {
-      upsertIfChanged('faq', faqsToDynamic(faqs), (result) =>
+      upsertIfChanged('faq', faqsToDynamic(faqs, sectionTitleFor('faq', 'Faq')), (result) =>
         dispatch(
           dynamicSectionApi.util.upsertQueryData(
             'getDynamicSection',
@@ -396,14 +413,14 @@ export function EmbeddedDraftCacheSync({
       )
     }
 
-    const aboutResult = aboutMeDraftToQueryResult(aboutMeDraft)
+    const aboutResult = aboutMeDraftToQueryResult(aboutMeDraft, sectionTitleFor('about', 'About Me'))
     upsertIfChanged('about', aboutResult, (result) =>
       dispatch(aboutMeApi.util.upsertQueryData('getAboutMe', profileId, result))
     )
 
     if (services) {
       const servicesResult: ServicesQueryResult = {
-        sectionTitle: 'Services',
+        sectionTitle: sectionTitleFor('services', 'Services'),
         services: services
           .filter((s) => s.active)
           .map((s) => ({
@@ -422,7 +439,7 @@ export function EmbeddedDraftCacheSync({
 
     if (portfolio) {
       const galleryResult: GalleryQueryResult = {
-        sectionTitle: 'Gallery',
+        sectionTitle: sectionTitleFor('gallery', 'Gallery'),
         items: portfolio
           .filter((p) => p.active)
           .map((p) => ({

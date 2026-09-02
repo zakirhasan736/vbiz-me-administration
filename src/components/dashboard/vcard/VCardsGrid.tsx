@@ -15,6 +15,11 @@ type VCardsGridProps = {
   showLimitPlaceholder?: boolean
   isPersonal?: boolean
   onTrends?: (card: VCardRecord) => void
+  contactHandlersForCard?: (card: VCardRecord) => {
+    onEmail: () => void
+    onCall: () => void
+    onSchedule: () => void
+  }
 }
 
 export function VCardsGrid({
@@ -28,9 +33,11 @@ export function VCardsGrid({
   showLimitPlaceholder = false,
   isPersonal = false,
   onTrends,
+  contactHandlersForCard,
 }: VCardsGridProps) {
   const cardNodes = cards.map((card) => {
     const serverNotice = noticeForCard(card.id, teamNotices)
+    const contact = contactHandlersForCard?.(card)
     return (
       <VCardTeamCard
         key={card.id}
@@ -46,6 +53,9 @@ export function VCardsGrid({
         canDuplicate={canCreate}
         duplicateDisabledReason={isPersonal ? 'Single card owners can create only one vCard' : 'Card limit reached'}
         onTrends={onTrends ? () => onTrends(card) : undefined}
+        onEmail={contact?.onEmail}
+        onCall={contact?.onCall}
+        onSchedule={contact?.onSchedule}
       />
     )
   })

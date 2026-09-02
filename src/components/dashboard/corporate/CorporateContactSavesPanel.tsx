@@ -2,6 +2,7 @@
 
 import type { DashboardContact } from '@/components/dashboard/home'
 import { cn } from '@/utils/cn'
+import { getVCardPublicPath } from '@/utils/vcard'
 import {
   AlertCircle,
   Building2,
@@ -433,7 +434,7 @@ export function CorporateContactSavesPanel({
 
                     {open && r.profile?.slug && (
                       <a
-                        href={`/v/${r.profile.slug}`}
+                        href={getVCardPublicPath(r.profile.slug)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 text-[11px] font-black tracking-wider text-emerald-600 uppercase dark:text-emerald-400"

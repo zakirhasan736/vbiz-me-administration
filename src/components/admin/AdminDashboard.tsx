@@ -11,7 +11,8 @@ import { getAdminThemeConfig, getThemeClasses } from '@/lib/admin/adminTheme'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
 import { resolveDashboardContactSaves } from '@/lib/dashboardContactSaves'
 import { isWithinPeriod, periodCutoff } from '@/lib/dashboardPeriod'
-import { meetLinkLabel, notifyScheduleCreated } from '@/lib/scheduleMeetingNotifications'
+import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
+import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
 import { useAuth } from '@/providers/AuthProvider'
 import { useGetHealthQuery } from '@/redux/features/health/health.api'
 import {
@@ -748,24 +749,7 @@ export default function AdminDashboard() {
         subtitle="Creates a Zoho Calendar event with meeting link, owner push, email, and backoffice notice."
         onSubmit={async (payload) => {
           try {
-            const created = await createMeeting({
-              host: payload.owner.hostName,
-              type: payload.type,
-              date: payload.date,
-              time: payload.time,
-              notes: payload.notes,
-              status: 'Scheduled',
-              profileId: payload.owner.profileId,
-            }).unwrap()
-            notifyScheduleCreated({
-              meeting: created,
-              hostName: payload.owner.hostName,
-              meetType: payload.type,
-              meetDate: payload.date,
-              meetTime: payload.time,
-              profileId: payload.owner.profileId,
-            })
-            return created
+            return await submitScheduleMeeting(createMeeting, payload)
           } catch {
             return undefined
           }

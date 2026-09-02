@@ -2,6 +2,7 @@
 
 import { useVCard } from '@/lib/VCardContext'
 import { DEFAULT_VCARD_MY_INFO } from '@/lib/vcardMyInfo'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardMyInfo } from '@/types/vcard'
 import { Contact, Mail, MessageCircle, Phone } from 'lucide-react'
 
@@ -9,6 +10,7 @@ const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-sm'
 
 export function TabMyInfo() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'My Info')
   const { vCardData, updateData } = useVCard()
   const m: VCardMyInfo = {
     ...DEFAULT_VCARD_MY_INFO,
@@ -24,7 +26,7 @@ export function TabMyInfo() {
           <Contact className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">My Info</h2>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white">{sectionTitle}</h2>
           <p className="mt-1 text-sm font-semibold text-slate-500">
             Controls the Call / Text / Email action screen on the public card.
           </p>

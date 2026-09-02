@@ -4,6 +4,7 @@ import { DEFAULT_ABOUT_FEATURED_MEDIA_FOCUS_Y, featuredMediaObjectPosition } fro
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3EmptyState, V3ErrorState, V3SectionShell } from '@/profile-app/sections'
 import { useGetAboutMeQuery } from '@/redux/api'
 import { BookOpen, Flag, Lightbulb, Quote, Sparkles, Target, Users } from 'lucide-react'
@@ -124,8 +125,8 @@ export const AboutSection = () => {
 
   const { data, isLoading, isFetching, isError } = useGetAboutMeQuery(profileId, { skip: !profileId })
 
-  // Section chrome is always "About Me" — never the editable headline.
-  const sectionTitle = FIXED_SECTION_TITLE
+  // Section chrome follows the nav tab label (including builder renames).
+  const sectionTitle = useResolvedSectionTitle(undefined, FIXED_SECTION_TITLE)
   const aboutItem = data?.items[0]
   /** Skeleton only until aboutItem exists — never after data arrives (incl. refetch). */
   const isAboutPending = (isLoading || isFetching) && !aboutItem

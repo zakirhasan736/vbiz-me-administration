@@ -4,6 +4,7 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { resolveCalendarItemUrl, stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, Calendar, Clock, Video } from 'lucide-react'
@@ -98,7 +99,7 @@ export const CalendarSection = () => {
   )
 
   const items = data?.posts ?? []
-  const sectionTitle = data?.sectionTitle ?? 'Calendar'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Calendar')
   const primaryItem = items[0]
   const primaryActionUrl = primaryItem ? resolveCalendarItemUrl(primaryItem) : ''
   const showInitialLoader = isLoading && items.length === 0

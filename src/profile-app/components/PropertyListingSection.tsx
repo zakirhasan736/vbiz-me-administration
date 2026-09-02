@@ -4,6 +4,7 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, Building2 } from 'lucide-react'
@@ -105,7 +106,7 @@ export const PropertyListingSection = () => {
     { skip: !profileId }
   )
 
-  const sectionTitle = data?.sectionTitle ?? 'Property Listing'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Property Listing')
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0

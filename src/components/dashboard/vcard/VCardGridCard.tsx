@@ -270,7 +270,7 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
                 copied ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary-600 dark:text-primary-400'
               )}
             >
-              {slug ? `vbiz.me/v/${slug}` : 'Set URL slug in editor'}
+              {slug ? `vbiz.me/vCard/${slug}` : 'Set URL slug in editor'}
             </span>
             <AnimatePresence>
               {copied && (

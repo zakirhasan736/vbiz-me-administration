@@ -66,8 +66,9 @@ describe('session policy', () => {
     expect(isAuthenticatedWorkspacePath('/crm')).toBe(true)
     expect(isAuthenticatedWorkspacePath('/crm/leads')).toBe(true)
 
+    expect(isAuthenticatedWorkspacePath('/vCard/acme')).toBe(false)
+    expect(isAuthenticatedWorkspacePath('/vCard/acme/icon/192')).toBe(false)
     expect(isAuthenticatedWorkspacePath('/v/acme')).toBe(false)
-    expect(isAuthenticatedWorkspacePath('/v/acme/icon/192')).toBe(false)
     expect(isAuthenticatedWorkspacePath('/login')).toBe(false)
     expect(isAuthenticatedWorkspacePath('/login?reason=session-expired')).toBe(false)
     expect(isAuthenticatedWorkspacePath('/register')).toBe(false)

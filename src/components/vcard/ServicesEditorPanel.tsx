@@ -14,6 +14,7 @@ import {
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapServicesFromPayload } from '@/lib/ai/applyCardDraft'
 import { createDefaultServiceEntry, normalizeServiceList } from '@/lib/vcardServices'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardServiceEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { BellRing, LayoutGrid, Link as LinkIcon, Plus, Type, Wrench } from 'lucide-react'
@@ -40,6 +41,7 @@ export function ServicesEditorPanel({
   onServicesChange: (next: VCardServiceEntry[]) => void
   profileId?: string | null
 }) {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Services')
   const services = normalizeServiceList(rawServices)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
     useExpandableEntryList(services)
@@ -82,7 +84,7 @@ export function ServicesEditorPanel({
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-indigo-100 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10">
               <Wrench className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <h3 className="text-lg font-black text-indigo-600 dark:text-indigo-400">Services Collection</h3>
+            <h3 className="text-lg font-black text-indigo-600 dark:text-indigo-400">{sectionTitle} Collection</h3>
           </div>
           <button
             type="button"

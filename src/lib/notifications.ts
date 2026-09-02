@@ -257,7 +257,7 @@ function maybeBrowserNotify(n: AppNotification, prefs: NotificationPrefs) {
     const note = new Notification(n.title, {
       body: n.body,
       tag: n.id,
-      icon: '/favicon.ico',
+      icon: '/logo-vbizme.webp',
     })
     note.onclick = () => {
       window.focus()

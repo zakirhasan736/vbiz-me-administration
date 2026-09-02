@@ -3,6 +3,7 @@
 import { useAppDispatch } from '@/hooks/redux'
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { mapNavBarLinks } from '@/lib/api/navbar/mapNavBarLinks'
+import { buildProfilePath } from '@/lib/profileRoutes'
 import { subscribePublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import { isBackofficePath, isPublicCardDataPath } from '@/lib/pwa/publicCardCachePolicy'
 import type { NavBarNavItem, ProfileNavContentKey } from '@/lib/vcardNavbar'
@@ -84,7 +85,7 @@ function isCacheableRuntimeUrl(url: URL, cardPath: string): boolean {
 }
 
 function collectCacheUrls(slug: string): string[] {
-  const path = `/v/${encodeURIComponent(slug.trim())}`
+  const path = buildProfilePath(slug.trim())
   const urls = new Set<string>([path, `${path}/manifest.webmanifest`, `${path}/icon/192`, `${path}/icon/512`])
 
   const addUrl = (raw: string | null | undefined) => {

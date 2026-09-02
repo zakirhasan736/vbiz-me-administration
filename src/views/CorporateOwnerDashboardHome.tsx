@@ -29,6 +29,7 @@ import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedules
 import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useDashboardLiveKpis } from '@/hooks/useAdminDashboardLiveKpis'
+import { useVCardContactActions } from '@/hooks/useVCardContactActions'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import {
   clearLocalCardNotice,
@@ -56,6 +57,8 @@ import {
   useGetTeamNoticesQuery,
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
+import { getVCardPublicPath } from '@/utils/vcard'
+import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 
 function formatTrendPercent(value?: number | null): { text?: string; negative?: boolean } {
@@ -67,6 +70,7 @@ function formatTrendPercent(value?: number | null): { text?: string; negative?: 
 }
 
 export default function CorporateOwnerDashboardHome() {
+  const router = useRouter()
   const user = useAppSelector((state) => state.user.user)
 
   const {
@@ -143,6 +147,13 @@ export default function CorporateOwnerDashboardHome() {
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
+  const {
+    contactHandlersForCard,
+    modals: contactModals,
+    openEmailForCard,
+    openCallForCard,
+    openScheduleForCard,
+  } = useVCardContactActions()
 
   const { data: upcomingMeetingsPage, isLoading: upcomingMeetingsLoading } = useGetOwnerUpcomingMeetingsQuery({
     limit: 5,
@@ -221,7 +232,7 @@ export default function CorporateOwnerDashboardHome() {
   const openQr = (url: string, name?: string, centerImageUrl?: string) => {
     const matched = cards.find((c) => {
       const slug = c.slug?.trim()
-      return Boolean(slug) && (url.includes(`/v/${slug}`) || url.endsWith(`/${slug}`))
+      return Boolean(slug) && (url.includes(getVCardPublicPath(slug)) || url.endsWith(`/${slug}`))
     })
     if (matched && isOwnerCardLocked(matched.status)) {
       notify.error(SUSPENDED_CARD_MESSAGE)
@@ -374,6 +385,7 @@ export default function CorporateOwnerDashboardHome() {
             title="Upcoming team sessions"
             subtitle="Latest admin-scheduled calls for your corporate cards."
             emptyMessage="No upcoming sessions scheduled for your team."
+            onViewAll={() => router.push('/events')}
           />
 
           <CorporateSocialBreakdown
@@ -426,6 +438,7 @@ export default function CorporateOwnerDashboardHome() {
             onActivatedFromDraft={handleActivatedFromDraft}
             activeTab={hubTab}
             onActiveTabChange={setHubTab}
+            contactHandlersForCard={contactHandlersForCard}
           />
         </>
       )}
@@ -467,6 +480,9 @@ export default function CorporateOwnerDashboardHome() {
       <VCardDetailSidebar
         card={panelCard}
         onClose={() => setPanelCardId(null)}
+        onEmail={openEmailForCard}
+        onCall={openCallForCard}
+        onSchedule={openScheduleForCard}
         onNotice={openNotice}
         onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
         canDuplicate={canCreate}
@@ -544,6 +560,8 @@ export default function CorporateOwnerDashboardHome() {
         onClose={() => setUpgradeAlert(false)}
         confirmLabel="Got it"
       />
+
+      {contactModals}
     </div>
   )
 }

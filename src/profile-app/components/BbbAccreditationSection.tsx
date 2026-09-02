@@ -3,6 +3,7 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { Shield } from 'lucide-react'
@@ -77,7 +78,7 @@ export const BbbAccreditationSection = () => {
     { skip: !profileId }
   )
 
-  const sectionTitle = data?.sectionTitle ?? 'Better Business Bureau (BBB) Accreditation'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Better Business Bureau (BBB) Accreditation')
   const items = data?.posts ?? []
   const buttonLabel = sectionTitle.toUpperCase()
   const showInitialLoader = isLoading && items.length === 0

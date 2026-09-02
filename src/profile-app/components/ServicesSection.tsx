@@ -2,6 +2,7 @@
 
 import { ServiceDetail } from '@/profile-app/components/ServiceDetail'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { useGetServicesQuery } from '@/redux/api'
 import { ArrowUpRight, Layers, Wrench } from 'lucide-react'
@@ -33,7 +34,7 @@ export const ServicesSection = () => {
   const { data, isLoading, isError } = useGetServicesQuery(profileId, { skip: !profileId })
 
   const services = data?.services ?? []
-  const sectionTitle = data?.sectionTitle ?? 'Services'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Services')
   const showInitialLoader = isLoading && services.length === 0
   const showEmptyState = !isLoading && !isError && services.length === 0
   const selectedService = services.find((service) => service.id === selectedServiceId)

@@ -5,6 +5,7 @@ import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, Landmark, Quote } from 'lucide-react'
@@ -114,7 +115,7 @@ export const WhyChooseUsSection = () => {
     { profileId, sectionName: PUBLIC_SECTION_NAMES.whyChooseUs },
     { skip: !profileId }
   )
-  const sectionTitle = data?.sectionTitle ?? 'Why Choose Us'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Why Choose Us')
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0

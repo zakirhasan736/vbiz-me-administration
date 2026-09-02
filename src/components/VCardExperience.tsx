@@ -11,6 +11,7 @@ import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultExperienceEntry, normalizeExperienceList } from '@/lib/vcardExperience'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardExperienceEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Briefcase, Plus } from 'lucide-react'
@@ -27,6 +28,7 @@ const accent = {
 }
 
 export function TabExperience() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Experience')
   const { vCardData, updateData } = useVCard()
   const experiences = normalizeExperienceList(vCardData.experience)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
@@ -61,7 +63,7 @@ export function TabExperience() {
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-orange-100 bg-orange-50 dark:border-orange-500/20 dark:bg-orange-500/10">
               <Briefcase className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             </div>
-            <h3 className="text-lg font-black text-orange-600 dark:text-orange-400">Work Experience</h3>
+            <h3 className="text-lg font-black text-orange-600 dark:text-orange-400">{sectionTitle}</h3>
           </div>
           <button
             type="button"

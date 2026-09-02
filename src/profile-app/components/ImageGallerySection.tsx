@@ -2,6 +2,7 @@
 
 import type { GalleryListItem } from '@/interfaces/api/gallery.interface'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetGalleryQuery } from '@/redux/api'
 import { Camera, Image as ImageIcon, Maximize2, X } from 'lucide-react'
@@ -238,7 +239,7 @@ export const ImageGallerySection = () => {
   const { data, isLoading, isError } = useGetGalleryQuery(profileId, { skip: !profileId })
 
   const items = useMemo(() => data?.items ?? [], [data?.items])
-  const sectionTitle = data?.sectionTitle ?? 'Gallery'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Gallery')
 
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0

@@ -1,22 +1,18 @@
 /** Keep service-worker fetch rules and PWA runtime cache warming in sync. */
 
-export function isPublicCardPagePath(pathname: string): boolean {
-  const parts = String(pathname || '')
-    .replace(/^\/+|\/+$/g, '')
-    .split('/')
-    .filter(Boolean)
-  if (parts[0] !== 'v' || !parts[1]) return false
-  if (!parts[2]) return true
-  return parts[2] !== 'icon' && parts[2] !== 'manifest.webmanifest'
-}
+import {
+  isPublicCardMetaPath as isPublicCardMetaRoute,
+  isPublicCardPagePath as isPublicCardPageRoute,
+  isPublicCardRootSegment,
+  PUBLIC_CARD_PATH_SEGMENT,
+} from '@/lib/profileRoutes'
 
-export function isPublicCardMetaPath(pathname: string): boolean {
-  return pathname.startsWith('/v/') && (pathname.includes('/icon/') || pathname.endsWith('manifest.webmanifest'))
-}
+export { isPublicCardMetaPath, isPublicCardPagePath } from '@/lib/profileRoutes'
 
 export function isBackofficePath(pathname: string): boolean {
   const path = String(pathname || '').toLowerCase()
-  if (path.startsWith('/v/')) return false
+  const root = path.replace(/^\/+|\/+$/g, '').split('/')[0]
+  if (isPublicCardRootSegment(root)) return false
   if (path.startsWith('/_next/')) return false
   if (path.startsWith('/api/pwa/')) return false
   if (path.includes('/api/v1/public/')) return false
@@ -42,7 +38,7 @@ export function isBackofficePath(pathname: string): boolean {
 
 export function isPublicCardDataPath(pathname: string): boolean {
   const path = String(pathname || '').toLowerCase()
-  if (path.startsWith('/_next/data/') && path.includes('/v/')) return true
+  if (path.startsWith('/_next/data/') && (path.includes('/v/') || path.includes('/vcard/'))) return true
   if (path.startsWith('/api/pwa/')) return true
   return (
     path.includes('/api/v1/public/') ||
@@ -57,4 +53,18 @@ export function isPublicCardDataPath(pathname: string): boolean {
 
 export function isHashedNextStaticPath(pathname: string): boolean {
   return String(pathname || '').startsWith('/_next/static/')
+}
+
+export function publicCardPathPrefix(): string {
+  return `/${PUBLIC_CARD_PATH_SEGMENT}/`
+}
+
+/** @deprecated Use isPublicCardPagePath from profileRoutes */
+export function isLegacyPublicCardPagePath(pathname: string): boolean {
+  return isPublicCardPageRoute(pathname)
+}
+
+/** @deprecated Use isPublicCardMetaPath from profileRoutes */
+export function isLegacyPublicCardMetaPath(pathname: string): boolean {
+  return isPublicCardMetaRoute(pathname)
 }

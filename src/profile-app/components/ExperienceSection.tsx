@@ -2,6 +2,7 @@
 
 import type { ProfileAiExperience } from '@/interfaces/api/profileAiData'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetProfileAiDataQuery } from '@/redux/api'
 import { Briefcase } from 'lucide-react'
@@ -45,7 +46,7 @@ type ExperienceSectionProps = {
 export function ExperienceSection({ sectionName = 'Work Experience' }: ExperienceSectionProps) {
   const { cardOwnerId } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
-  const sectionTitle = sectionName.trim() || 'Work Experience'
+  const sectionTitle = useResolvedSectionTitle(undefined, sectionName.trim() || 'Work Experience')
 
   const { data, isLoading, isError } = useGetProfileAiDataQuery(profileId, { skip: !profileId })
 

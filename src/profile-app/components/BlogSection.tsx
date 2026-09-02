@@ -3,6 +3,7 @@
 import { BlogPostDetail } from '@/profile-app/components/BlogPostDetail'
 import { DynamicPostsSection } from '@/profile-app/components/DynamicPostsSection'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { useState } from 'react'
 
@@ -21,9 +22,10 @@ export const BlogSection = ({ sectionName = 'blog' }: BlogSectionProps) => {
     { skip: !profileId || !resolvedSectionName }
   )
 
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, resolvedSectionName)
+
   if (!profileId) return null
 
-  const sectionTitle = data?.sectionTitle ?? resolvedSectionName
   const selectedPost = data?.posts.find((post) => post.id === selectedPostId)
 
   if (selectedPost) {

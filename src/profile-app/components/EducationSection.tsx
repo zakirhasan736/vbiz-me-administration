@@ -2,6 +2,7 @@
 
 import type { ProfileAiEducation } from '@/interfaces/api/profileAiData'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetProfileAiDataQuery } from '@/redux/api'
 import { GraduationCap } from 'lucide-react'
@@ -47,7 +48,7 @@ type EducationSectionProps = {
 export function EducationSection({ sectionName = 'Resume' }: EducationSectionProps) {
   const { cardOwnerId } = useProfileDisplay()
   const profileId = cardOwnerId?.trim() ?? ''
-  const sectionTitle = sectionName.trim() || 'Resume'
+  const sectionTitle = useResolvedSectionTitle(undefined, sectionName.trim() || 'Resume')
 
   const { data, isLoading, isError } = useGetProfileAiDataQuery(profileId, { skip: !profileId })
 

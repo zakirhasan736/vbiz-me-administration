@@ -3,6 +3,7 @@ import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { resolveVideoLinkUrl } from '@/lib/api/videoLinks/resolveVideoLinkUrl'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, PlayCircle, Video } from 'lucide-react'
@@ -129,7 +130,7 @@ export const VideoLinksSection = ({ sectionName = 'Video Links' }: VideoLinksSec
     { skip: !profileId || !resolvedSectionName }
   )
 
-  const sectionTitle = data?.sectionTitle ?? resolvedSectionName
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, resolvedSectionName)
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0

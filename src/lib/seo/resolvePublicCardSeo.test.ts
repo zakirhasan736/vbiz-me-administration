@@ -53,7 +53,7 @@ describe('resolvePublicCardSeo', () => {
     const metadata = buildPublicCardSeoMetadata({
       slug: 'michaelangelo-casanova-2',
       origin: 'https://app.vbizme.com',
-      cardPath: '/v/michaelangelo-casanova-2',
+      cardPath: '/vCard/michaelangelo-casanova-2',
       myCard,
     })
     expect(metadata.openGraph?.images).toEqual([
@@ -67,7 +67,7 @@ describe('resolvePublicCardSeo', () => {
       profile: { ...card().profile, avatar: '' },
     })
     const image = resolvePublicCardShareImageUrl(myCard, 'https://app.vbizme.com', 'michaelangelo-casanova-2')
-    expect(image).toBe('https://app.vbizme.com/v/michaelangelo-casanova-2/icon/512')
+    expect(image).toBe('https://app.vbizme.com/vCard/michaelangelo-casanova-2/icon/512')
   })
 
   it('uses profile still fallback when card avatar media is a video', () => {

@@ -2,6 +2,7 @@
 
 import type { VideoListItem } from '@/interfaces/api/videos.interface'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetVideosQuery } from '@/redux/api'
 import {
@@ -299,7 +300,7 @@ export function VideosSection() {
   const { data, isLoading, isError } = useGetVideosQuery(profileId, { skip: !profileId })
   const [galleryPreview, setGalleryPreview] = useState<GalleryPreview | null>(null)
 
-  const sectionTitle = data?.sectionTitle ?? 'Video'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Video')
   const items = data?.items ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0

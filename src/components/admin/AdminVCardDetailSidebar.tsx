@@ -12,6 +12,7 @@ import {
   useGetWeeklyEngagementQuery,
 } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
+import { getVCardPublicPath, getVCardPublicUrl } from '@/utils/vcard'
 import {
   Ban,
   Building2,
@@ -161,8 +162,8 @@ export default function VCardDetailSidebar({
   const status = card.status || 'active'
   const publicUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/v/${card.slug || 'profile'}`
-      : `/v/${card.slug || 'profile'}`
+      ? getVCardPublicUrl(card.slug || 'profile')
+      : getVCardPublicPath(card.slug || 'profile')
   const activeNotice =
     activeNoticeText !== undefined
       ? activeNoticeText
@@ -381,7 +382,7 @@ export default function VCardDetailSidebar({
           <Section title="Manage card" icon={Edit2}>
             <div className="grid grid-cols-2 gap-2">
               <a
-                href={`/v/${card.slug || 'profile'}`}
+                href={getVCardPublicPath(card.slug || 'profile')}
                 target="_blank"
                 rel="noreferrer"
                 className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-3 text-xs font-black tracking-wider text-white uppercase dark:bg-white dark:text-slate-900"

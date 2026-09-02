@@ -1,5 +1,6 @@
 'use client'
 
+import { VbizBrandMark } from '@/components/brand/VbizBrandMark'
 import { DashboardPushPrompt } from '@/components/DashboardPushPrompt'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
@@ -213,15 +214,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             if (mobile) closeMobileMenu()
           }}
         >
-          <div
-            className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-xl font-black text-white shadow-md transition-transform group-hover:scale-105',
-              themeClasses.bg,
-              themeClasses.shadow
-            )}
-          >
-            {themeConfig.appName?.[0]?.toUpperCase() || 'V'}
-          </div>
+          <VbizBrandMark size={36} priority className="shadow-md transition-transform group-hover:scale-105" />
           <div>
             <span className="block text-xl leading-none font-black tracking-tight text-slate-900 dark:text-white">
               {themeConfig.appName}

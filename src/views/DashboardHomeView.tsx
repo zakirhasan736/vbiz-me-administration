@@ -32,6 +32,7 @@ import {
 } from '@/redux/features/profiles/profiles.api'
 import CorporateOwnerDashboardHome from '@/views/CorporateOwnerDashboardHome'
 import { Calendar, Download, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
 const ENGAGEMENT_PAGE_SIZE = 10
@@ -168,6 +169,7 @@ function LegacyDashboardHome() {
 }
 
 function SingleOwnerDashboardHome() {
+  const router = useRouter()
   const user = useAppSelector((state) => state.user.user)
   const [period, setPeriod] = useState<DashboardPeriod>('all')
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
@@ -305,6 +307,7 @@ function SingleOwnerDashboardHome() {
           title="Your upcoming sessions"
           subtitle="Latest admin-scheduled calls with Zoho Meeting links."
           emptyMessage="No upcoming sessions — your admin team will notify you here when one is booked."
+          onViewAll={() => router.push('/events')}
         />
       </div>
 

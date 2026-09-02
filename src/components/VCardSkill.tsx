@@ -10,6 +10,7 @@ import {
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultSkillGroup, normalizeSkillGroups } from '@/lib/vcardSkills'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardSkillGroup } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Plus, Star, X } from 'lucide-react'
@@ -27,6 +28,7 @@ const accent = {
 }
 
 export function TabSkill() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Skills')
   const { vCardData, updateData } = useVCard()
   const skillGroups = normalizeSkillGroups(vCardData.skills)
   const skillGroupsRef = useRef(skillGroups)
@@ -137,7 +139,7 @@ export function TabSkill() {
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-purple-100 bg-purple-50 dark:border-purple-500/20 dark:bg-purple-500/10">
               <Star className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <h3 className="text-lg font-black text-purple-600 dark:text-purple-400">Skills</h3>
+            <h3 className="text-lg font-black text-purple-600 dark:text-purple-400">{sectionTitle}</h3>
           </div>
           <button
             type="button"

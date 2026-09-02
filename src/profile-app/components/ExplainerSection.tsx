@@ -1,6 +1,7 @@
 'use client'
 
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetVideoExplainerQuery } from '@/redux/api'
 import { ExternalLink, PlayCircle, Video } from 'lucide-react'
@@ -21,7 +22,7 @@ export const ExplainerSection = () => {
 
   const { data, isLoading, isError } = useGetVideoExplainerQuery(profileId, { skip: !profileId })
 
-  const sectionTitle = data?.sectionTitle ?? '2D Video Explainer'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, '2D Video Explainer')
   const videoUrl = data?.videoUrl?.trim() || ''
   const externalUrl = data?.externalUrl?.trim() || null
   const hasVideo = Boolean(videoUrl)

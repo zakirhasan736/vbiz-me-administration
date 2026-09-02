@@ -4,6 +4,7 @@ import type {
   Meeting,
   MeetingListPage,
   MeetingListQuery,
+  OwnerMeetingListQuery,
   UpdateMeetingPayload,
 } from '@/types/meeting'
 
@@ -40,10 +41,33 @@ const meetingsApi = api.injectEndpoints({
             ]
           : [{ type: 'meetings', id: 'LIST' }],
     }),
-    getOwnerUpcomingMeetings: builder.query<{ items: Meeting[]; total: number }, { limit?: number } | void>({
+    getOwnerMeetings: builder.query<MeetingListPage, OwnerMeetingListQuery | void>({
       query: (params) => {
+        const search = new URLSearchParams()
+        const skip = params?.skip ?? 0
+        const limit = params?.limit ?? 100
+        search.set('skip', String(skip))
+        search.set('limit', String(limit))
+        if (params?.status) search.set('status', params.status)
+        if (params?.from) search.set('from', params.from)
+        if (params?.to) search.set('to', params.to)
+        if (params?.profileId) search.set('profileId', params.profileId)
+        if (params?.upcomingOnly) search.set('upcomingOnly', 'true')
+        return `/meetings/owner?${search.toString()}`
+      },
+      transformResponse: (res: Envelope<MeetingListPage>) => res.data,
+      providesTags: [{ type: 'meetings', id: 'OWNER_LIST' }],
+    }),
+    getOwnerUpcomingMeetings: builder.query<
+      { items: Meeting[]; total: number },
+      { limit?: number; profileId?: string } | void
+    >({
+      query: (params) => {
+        const search = new URLSearchParams()
         const limit = params?.limit ?? 10
-        return `/meetings/owner/upcoming?limit=${limit}`
+        search.set('limit', String(limit))
+        if (params?.profileId) search.set('profileId', params.profileId)
+        return `/meetings/owner/upcoming?${search.toString()}`
       },
       transformResponse: (res: Envelope<{ items: Meeting[]; total: number }>) => res.data,
       providesTags: [{ type: 'meetings', id: 'OWNER_UPCOMING' }],
@@ -59,6 +83,7 @@ const meetingsApi = api.injectEndpoints({
       invalidatesTags: [
         { type: 'meetings', id: 'LIST' },
         { type: 'meetings', id: 'OWNER_UPCOMING' },
+        { type: 'meetings', id: 'OWNER_LIST' },
         { type: 'activity', id: 'FEED' },
         { type: 'activity', id: 'AUDIT' },
         { type: 'adminAnnouncements', id: 'LIST' },
@@ -89,6 +114,7 @@ const meetingsApi = api.injectEndpoints({
 
 export const {
   useGetMeetingsQuery,
+  useGetOwnerMeetingsQuery,
   useGetOwnerUpcomingMeetingsQuery,
   useGetMeetingQuery,
   useCreateMeetingMutation,

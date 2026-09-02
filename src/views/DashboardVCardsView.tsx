@@ -16,6 +16,7 @@ import {
 import { useAppDispatch } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
+import { useVCardContactActions } from '@/hooks/useVCardContactActions'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { clearLocalCardNotice, noticeForCard, noticeTypeFromTeamNotice, writeLocalCardNotice } from '@/lib/cardNotice'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
@@ -30,7 +31,7 @@ import {
 } from '@/redux/features/profiles/profiles.api'
 import { replaceAllVCards } from '@/redux/features/vcards/vcards.slice'
 import type { VCardRecord } from '@/types/vcard'
-import { filterVCardsByQuery } from '@/utils/vcard'
+import { filterVCardsByQuery, getVCardPublicPath } from '@/utils/vcard'
 import { useEffect, useMemo, useState } from 'react'
 
 const DashboardVCardsView = () => {
@@ -55,6 +56,13 @@ const DashboardVCardsView = () => {
   const [lifecycleTab, setLifecycleTab] = useState<CardLifecycleTab>('active')
   const [sort, setSort] = useState<VCardSortOption>('newest')
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
+  const {
+    contactHandlersForCard,
+    modals: contactModals,
+    openEmailForCard,
+    openCallForCard,
+    openScheduleForCard,
+  } = useVCardContactActions()
 
   const capacity = profilesResult?.capacity
   const { canMutateVcards } = useAccountStatus()
@@ -104,7 +112,7 @@ const DashboardVCardsView = () => {
   const openQrModal = (url: string, name?: string, centerImageUrl?: string) => {
     const matched = cards.find((c) => {
       const slug = c.slug?.trim()
-      return Boolean(slug) && (url.includes(`/v/${slug}`) || url.endsWith(`/${slug}`))
+      return Boolean(slug) && (url.includes(getVCardPublicPath(slug)) || url.endsWith(`/${slug}`))
     })
     if (matched && isOwnerCardLocked(matched.status)) {
       notify.error(SUSPENDED_CARD_MESSAGE)
@@ -200,6 +208,7 @@ const DashboardVCardsView = () => {
             showLimitPlaceholder={isPersonal && !canCreate && cards.length > 0}
             isPersonal={isPersonal}
             onTrends={setTrendsCard}
+            contactHandlersForCard={contactHandlersForCard}
           />
         </>
       )}
@@ -216,6 +225,9 @@ const DashboardVCardsView = () => {
       <VCardDetailSidebar
         card={panelCard}
         onClose={() => setPanelCardId(null)}
+        onEmail={openEmailForCard}
+        onCall={openCallForCard}
+        onSchedule={openScheduleForCard}
         onNotice={openNotice}
         onDuplicate={() => {
           setAlertMessage(
@@ -299,6 +311,8 @@ const DashboardVCardsView = () => {
           })()
         }}
       />
+
+      {contactModals}
     </div>
   )
 }

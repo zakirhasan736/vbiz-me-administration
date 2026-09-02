@@ -4,6 +4,7 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowLeft, ArrowUpRight, UtensilsCrossed } from 'lucide-react'
@@ -223,7 +224,7 @@ export const LunchSection = () => {
     { skip: !profileId }
   )
 
-  const sectionTitle = data?.sectionTitle ?? 'Lunch'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Lunch')
   const items = data?.posts ?? []
   const selectedItem = items.find((item) => item.id === selectedItemId)
   const showInitialLoader = isLoading && items.length === 0

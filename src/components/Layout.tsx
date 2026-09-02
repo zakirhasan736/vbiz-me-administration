@@ -3,6 +3,7 @@
 import { AccountDisabledShell } from '@/components/AccountDisabledShell'
 import { AccountStatusBanner } from '@/components/AccountStatusBanner'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
+import { VbizBrandMark } from '@/components/brand/VbizBrandMark'
 import { DashboardPushPrompt } from '@/components/DashboardPushPrompt'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { isStaffRole } from '@/constants/userRole'
@@ -17,7 +18,7 @@ import { roleToAudience } from '@/lib/notifications'
 import { ownerOfficeRedirectPath } from '@/lib/packageOwnerMode'
 import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
-import { Contact, Kanban, LayoutDashboard, Menu, Moon, Sun, X } from 'lucide-react'
+import { CalendarDays, Contact, Kanban, LayoutDashboard, Menu, Moon, Sun, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -101,6 +102,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       ]
     : [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
+        { name: 'Events', path: '/events', icon: CalendarDays, tourId: 'tour-nav-events' },
         ...(isCorporateBackOffice
           ? [{ name: 'Team vCards', path: '/teamvcard', icon: Contact, tourId: 'tour-nav-teamvcard' }]
           : [{ name: 'My vCards', path: '/vcards', icon: Contact, tourId: 'tour-nav-vcards' }]),
@@ -129,9 +131,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <div className="flex h-16 min-w-0 items-center justify-between gap-2 px-4 md:gap-3 md:px-6">
           <div className="flex min-w-0 items-center gap-4 lg:gap-8">
             <Link href={brandHref} className="group flex items-center gap-2">
-              <div className="bg-primary-600 dark:bg-primary-500 flex h-8 w-8 items-center justify-center rounded-xl font-bold text-white shadow-sm transition-transform group-hover:scale-105">
-                v
-              </div>
+              <VbizBrandMark size={32} priority className="shadow-sm transition-transform group-hover:scale-105" />
               <span className="hidden text-lg font-bold tracking-tight text-slate-900 sm:block dark:text-white">
                 vbiz.me
               </span>

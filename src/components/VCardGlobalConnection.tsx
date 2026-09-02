@@ -2,12 +2,14 @@
 
 import { mapPublicCardToListItem } from '@/lib/api/publicCards/mapPublicCards'
 import { PUBLIC_CARDS_CATALOG_PER_PAGE } from '@/lib/publicCards/publicCardsSearch'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { useGetPublicCardsQuery } from '@/redux/features/publicCards/publicCards.api'
 import { Globe2, Loader2 } from 'lucide-react'
 import { useMemo } from 'react'
 
 /** Editor preview of the shared Global Connection directory (live `/public-cards`). */
 export function TabGlobalConnection() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Global Connection')
   const { data, isLoading, isError } = useGetPublicCardsQuery({ per_page: PUBLIC_CARDS_CATALOG_PER_PAGE })
   const list = useMemo(() => (data?.cards ?? []).map(mapPublicCardToListItem), [data?.cards])
 
@@ -18,7 +20,7 @@ export function TabGlobalConnection() {
           <Globe2 className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">Global Connection</h2>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white">{sectionTitle}</h2>
           <p className="mt-1 text-sm font-semibold text-slate-500">
             Shared network directory from your vBiz backend — same list on every public card.
           </p>

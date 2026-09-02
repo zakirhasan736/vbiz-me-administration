@@ -68,7 +68,7 @@ export function buildGapReport(
     field: 'slug',
     severity: 'required',
     title: 'Public URL slug',
-    explanation: 'The slug becomes your shareable link (e.g. /v/your-name).',
+    explanation: 'The slug becomes your shareable link (e.g. /vCard/your-name).',
     howToProvide: 'Reply with a short lowercase URL (letters, numbers, hyphens).',
   })
   add(isAboutMeDescriptionFilled(getAboutMeDraft().descriptionHtml) || !empty(data.personal?.about), 3, {

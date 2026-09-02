@@ -1,5 +1,6 @@
 'use client'
 
+import { buildProfilePath } from '@/lib/profileRoutes'
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
 import { formatWalletTitle, resolveWalletFaceFromBrand } from '@/lib/pwa/walletCardBrand'
 import QRCode from 'qrcode'
@@ -65,7 +66,7 @@ export function UsaDigitalCardFace({
   const qrValue = useMemo(() => {
     const slug = cardSlug?.trim()
     if (!slug || typeof window === 'undefined') return ''
-    return `${window.location.origin}/v/${encodeURIComponent(slug)}`
+    return `${window.location.origin}${buildProfilePath(slug)}`
   }, [cardSlug])
 
   useEffect(() => {

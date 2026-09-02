@@ -105,7 +105,7 @@ describe('authenticated API session handling', () => {
     const replace = vi.fn()
     Object.defineProperty(window, 'location', {
       configurable: true,
-      value: { ...window.location, pathname: '/v/acme-card', replace },
+      value: { ...window.location, pathname: '/vCard/acme-card', replace },
     })
 
     const result = await baseQueryWithRefreshToken({ url: '/protected' }, context, {})

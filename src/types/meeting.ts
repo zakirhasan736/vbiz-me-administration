@@ -13,6 +13,10 @@ export const MEETING_STATUSES = ['Scheduled', 'Completed', 'Cancelled'] as const
 
 export type MeetingStatus = (typeof MEETING_STATUSES)[number]
 
+export const MEETING_SCOPES = ['global', 'group', 'one_to_one'] as const
+
+export type MeetingScope = (typeof MEETING_SCOPES)[number]
+
 export type Meeting = {
   id: string
   host: string
@@ -23,7 +27,9 @@ export type Meeting = {
   location: string | null
   notes: string | null
   status: MeetingStatus
+  scope: MeetingScope
   profileId: string | null
+  groupProfileIds?: string[]
   googleEventId?: string | null
   meetLink?: string | null
   createdById: string | null
@@ -39,7 +45,10 @@ export type CreateMeetingPayload = {
   location?: string | null
   notes?: string | null
   status?: MeetingStatus
+  scope?: MeetingScope
   profileId?: string | null
+  groupProfileIds?: string[]
+  companyUserId?: string | null
 }
 
 export type UpdateMeetingPayload = Partial<CreateMeetingPayload>
@@ -50,6 +59,7 @@ export type MeetingListQuery = {
   from?: string
   to?: string
   profileId?: string
+  scope?: MeetingScope
   skip?: number
   limit?: number
 }
@@ -59,4 +69,14 @@ export type MeetingListPage = {
   total: number
   skip: number
   limit: number
+}
+
+export type OwnerMeetingListQuery = {
+  status?: MeetingStatus
+  from?: string
+  to?: string
+  profileId?: string
+  upcomingOnly?: boolean
+  skip?: number
+  limit?: number
 }

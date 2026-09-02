@@ -1,6 +1,8 @@
 'use client'
 
-import { getNavDisplayLabel } from '@/lib/vcardNavbar'
+import { getEditorNavLabel, getNavDisplayLabel } from '@/lib/vcardNavbar'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { SectionTitleProvider } from '@/profile-app/lib/sectionTitleContext'
 import { useProfileNavigation } from '@/profile-app/providers/ProfileNavigationProvider'
 import {
   renderProfileSection,
@@ -19,18 +21,23 @@ type ProfileNavSectionProps = {
  * Home sections differ per template; all other sections share the same v3-styled components.
  */
 export function ProfileNavSection({ tabId, template = 'v3', homeHeroProps }: ProfileNavSectionProps) {
+  const { embedded } = useProfileDisplay()
   const { getNavItem } = useProfileNavigation()
   const item = getNavItem(tabId)
   const contentKey = item?.profileContent ?? 'empty'
-  const title = item ? getNavDisplayLabel(item) : tabId
+  const title = item ? (embedded ? getEditorNavLabel(item) : getNavDisplayLabel(item)) : tabId
   const sectionName = item?.apiSectionName
 
-  return renderProfileSection({
-    contentKey,
-    tabId,
-    title,
-    sectionName,
-    template,
-    homeHeroProps,
-  })
+  return (
+    <SectionTitleProvider title={title}>
+      {renderProfileSection({
+        contentKey,
+        tabId,
+        title,
+        sectionName,
+        template,
+        homeHeroProps,
+      })}
+    </SectionTitleProvider>
+  )
 }

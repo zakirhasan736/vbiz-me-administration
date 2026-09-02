@@ -14,6 +14,7 @@ import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapReviewsFromPayload } from '@/lib/ai/applyCardDraft'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultReviewEntry, normalizeReviewList } from '@/lib/vcardReviews'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardReviewEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { MessageSquareQuote, Plus, Star } from 'lucide-react'
@@ -33,6 +34,7 @@ const accent = {
 }
 
 export function TabReviews() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Reviews')
   const { cardId, vCardData, updateData } = useVCard()
   const reviews = normalizeReviewList(vCardData.reviews)
   const reviewsRef = useRef(reviews)
@@ -76,7 +78,7 @@ export function TabReviews() {
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10">
               <MessageSquareQuote className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <h3 className="text-lg font-black text-amber-600 dark:text-amber-400">Reviews</h3>
+            <h3 className="text-lg font-black text-amber-600 dark:text-amber-400">{sectionTitle}</h3>
           </div>
           <button
             type="button"

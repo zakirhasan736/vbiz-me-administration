@@ -30,6 +30,13 @@ const CATEGORY_ACTION = {
   announcements: 'posted an announcement',
 }
 
+const PUBLIC_CARD_SEGMENT = 'vCard'
+const LEGACY_PUBLIC_CARD_SEGMENT = 'v'
+
+function isPublicCardRoot(segment) {
+  return segment === PUBLIC_CARD_SEGMENT || segment === LEGACY_PUBLIC_CARD_SEGMENT
+}
+
 function slugFromUrl(url) {
   if (!url || typeof url !== 'string') return ''
   try {
@@ -38,8 +45,8 @@ function slugFromUrl(url) {
       .replace(/^\/+|\/+$/g, '')
       .split('/')
       .filter(Boolean)
-    if (parts[0] === 'v' && parts[1]) return parts[1]
-    if (parts[0] && parts[0] !== 'v') return parts[0]
+    if (isPublicCardRoot(parts[0]) && parts[1]) return decodeURIComponent(parts[1])
+    if (parts[0] && !isPublicCardRoot(parts[0])) return parts[0]
     return ''
   } catch {
     return ''
@@ -48,10 +55,10 @@ function slugFromUrl(url) {
 
 function cardPathFromSlug(slug) {
   const trimmed = String(slug || '').trim()
-  return trimmed ? `/v/${encodeURIComponent(trimmed)}` : '/'
+  return trimmed ? `/vCard/${encodeURIComponent(trimmed)}` : '/'
 }
 
-/** Prefer `/v/{slug}`; rewrite legacy `/{slug}` payload URLs. */
+/** Prefer `/vCard/{slug}`; rewrite legacy `/v/{slug}` and bare slug URLs. */
 function normalizeCardUrl(rawUrl, slug) {
   const fallback = cardPathFromSlug(slug)
   if (!rawUrl || typeof rawUrl !== 'string') return fallback
@@ -62,11 +69,15 @@ function normalizeCardUrl(rawUrl, slug) {
       .replace(/^\/+|\/+$/g, '')
       .split('/')
       .filter(Boolean)
-    if (parts[0] === 'v' && parts[1]) {
+    if (isPublicCardRoot(parts[0]) && parts[1]) {
+      if (parts[0] === LEGACY_PUBLIC_CARD_SEGMENT) {
+        parsed.pathname = `/vCard/${parts.slice(1).join('/')}`
+        return absolute ? parsed.href : `${parsed.pathname}${parsed.search}${parsed.hash}`
+      }
       return absolute ? parsed.href : `${parsed.pathname}${parsed.search}${parsed.hash}`
     }
     if (parts.length === 1 && parts[0]) {
-      parsed.pathname = `/v/${parts[0]}`
+      parsed.pathname = `/vCard/${parts[0]}`
       return absolute ? parsed.href : `${parsed.pathname}${parsed.search}${parsed.hash}`
     }
     return absolute ? parsed.href : rawUrl.startsWith('/') ? rawUrl : fallback
@@ -339,13 +350,17 @@ function isPublicCardPage(pathname) {
     .replace(/^\/+|\/+$/g, '')
     .split('/')
     .filter(Boolean)
-  if (parts[0] !== 'v' || !parts[1]) return false
+  if (!isPublicCardRoot(parts[0]) || !parts[1]) return false
   if (!parts[2]) return true
-  return parts[2] !== 'icon' && parts[2] !== 'manifest.webmanifest'
+  return parts[2] !== 'icon' && parts[2] !== 'manifest.webmanifest' && parts[2] !== 'wallet-art'
 }
 
 function isPublicCardMeta(pathname) {
-  return pathname.startsWith('/v/') && (pathname.includes('/icon/') || pathname.endsWith('manifest.webmanifest'))
+  const lower = String(pathname || '').toLowerCase()
+  return (
+    (lower.startsWith('/vcard/') || lower.startsWith('/v/')) &&
+    (lower.includes('/icon/') || lower.endsWith('manifest.webmanifest') || lower.includes('/wallet-art'))
+  )
 }
 
 function isCacheableResponse(res) {
@@ -354,7 +369,7 @@ function isCacheableResponse(res) {
 
 function isBackofficePath(pathname) {
   const path = String(pathname || '').toLowerCase()
-  if (path.startsWith('/v/')) return false
+  if (path.startsWith('/vcard/') || path.startsWith('/v/')) return false
   if (path.startsWith('/_next/')) return false
   if (path.startsWith('/api/pwa/')) return false
   if (path.includes('/api/v1/public/')) return false
@@ -376,7 +391,8 @@ function isBackofficePath(pathname) {
 
 function isPublicCardDataRequest(url) {
   const pathname = String(url.pathname || '').toLowerCase()
-  if (url.origin === self.location.origin && pathname.startsWith('/_next/data/')) return pathname.includes('/v/')
+  if (url.origin === self.location.origin && pathname.startsWith('/_next/data/'))
+    return pathname.includes('/vcard/') || pathname.includes('/v/')
   if (url.origin === self.location.origin && pathname.startsWith('/api/pwa/')) return true
   return (
     pathname.includes('/api/v1/public/') ||
@@ -394,7 +410,7 @@ function isPublicCardAssetRequest(url) {
   if (url.origin !== self.location.origin) return false
   if (pathname.startsWith('/_next/static/')) return false
   if (pathname.startsWith('/_next/image')) return true
-  if (pathname.startsWith('/v/')) return true
+  if (pathname.startsWith('/vcard/') || pathname.startsWith('/v/')) return true
   return false
 }
 
@@ -628,7 +644,7 @@ self.addEventListener('push', (event) => {
       const icon = isStaticImageUrl(iconSource)
         ? toAbsoluteUrl(iconSource)
         : payload.slug
-          ? toAbsoluteUrl(`/v/${payload.slug}/icon/192`)
+          ? toAbsoluteUrl(`/vCard/${payload.slug}/icon/192`)
           : ''
 
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })

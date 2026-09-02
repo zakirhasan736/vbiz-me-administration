@@ -80,6 +80,11 @@ type CorporateControlsHubProps = {
   showBulkSelect?: boolean
   selectedIds?: string[]
   onToggleSelect?: (id: string) => void
+  contactHandlersForCard?: (card: VCardRecord) => {
+    onEmail: () => void
+    onCall: () => void
+    onSchedule: () => void
+  }
 }
 
 const DEPT_COLORS = ['bg-amber-500', 'bg-pink-500', 'bg-indigo-500', 'bg-slate-400', 'bg-emerald-500', 'bg-cyan-500']
@@ -113,6 +118,7 @@ export function CorporateControlsHub({
   showBulkSelect = false,
   selectedIds = [],
   onToggleSelect,
+  contactHandlersForCard,
 }: CorporateControlsHubProps) {
   const [internalTab, setInternalTab] = useState<HubTab>('directory')
   const activeTab = controlledTab ?? internalTab
@@ -332,6 +338,7 @@ export function CorporateControlsHub({
             <div className="grid grid-cols-1 gap-6 bg-slate-50/20 p-8 md:grid-cols-2 lg:grid-cols-3 dark:bg-black/10">
               {cards.map((card, idx) => {
                 const serverNotice = noticeForCard(card.id, teamNotices)
+                const contact = contactHandlersForCard?.(card)
                 return (
                   <VCardTeamCard
                     key={card.id}
@@ -356,6 +363,9 @@ export function CorporateControlsHub({
                     onOpenQr={onOpenQr}
                     onPanel={onPanel}
                     onNotice={onNotice}
+                    onEmail={contact?.onEmail}
+                    onCall={contact?.onCall}
+                    onSchedule={contact?.onSchedule}
                     onTrends={onTrends ? () => onTrends(card) : undefined}
                     noticeVersion={noticeVersion}
                     cardNoticeText={serverNotice?.text ?? null}

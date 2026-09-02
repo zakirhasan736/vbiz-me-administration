@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/v/:slug/manifest.webmanifest',
+        source: '/vCard/:slug/manifest.webmanifest',
         headers: [{ key: 'Content-Type', value: 'application/manifest+json' }],
       },
     ]
@@ -45,8 +45,8 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
-        source: '/vCard/:slug',
-        destination: '/v/:slug',
+        source: '/v/:slug*',
+        destination: '/vCard/:slug*',
         permanent: true,
       },
     ]

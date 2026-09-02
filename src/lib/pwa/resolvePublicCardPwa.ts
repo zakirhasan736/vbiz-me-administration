@@ -1,3 +1,4 @@
+import { buildProfileIconPath, buildProfileManifestPath, buildProfilePath } from '@/lib/profileRoutes'
 import type { MyCardData } from '@interfaces/api/myCard'
 
 function ownerDisplayName(card: MyCardData | null | undefined): string {
@@ -72,22 +73,18 @@ export function resolvePwaAvatarUrl(card: MyCardData): string | null {
   return resolvePwaAvatarCandidates(card)[0] || null
 }
 
-function cardPath(slug: string): string {
-  return `/v/${encodeURIComponent(slug.trim())}`
-}
-
 /** Document URL — must match the public card page so Chrome treats it as in-scope. */
 export function buildPublicCardStartUrl(_origin: string, slug: string): string {
-  return cardPath(slug)
+  return buildProfilePath(slug)
 }
 
 export function buildPwaIconUrl(_origin: string, slug: string, size: 192 | 512): string {
-  return `${cardPath(slug)}/icon/${size}`
+  return buildProfileIconPath(slug, size)
 }
 
 /** In-scope manifest. Chrome hides Install if the manifest lives outside `scope`. */
 export function buildPwaManifestUrl(slug: string): string {
-  return `${cardPath(slug)}/manifest.webmanifest`
+  return buildProfileManifestPath(slug)
 }
 
 export type PublicCardPwaMeta = {
@@ -114,7 +111,7 @@ export function resolvePublicCardPwaMeta(card: MyCardData | null | undefined, sl
 
 export function buildPublicCardManifest(card: MyCardData | null | undefined, slug: string) {
   const trimmed = slug.trim()
-  const path = cardPath(trimmed)
+  const path = buildProfilePath(trimmed)
   const meta = resolvePublicCardPwaMeta(card, trimmed)
   const icon192 = `${path}/icon/192`
   const icon512 = `${path}/icon/512`

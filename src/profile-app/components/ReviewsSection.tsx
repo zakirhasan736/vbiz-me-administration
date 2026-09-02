@@ -3,6 +3,7 @@
 import { AllReviewsView, SliderReviewCard } from '@/profile-app/components/AllReviewsView'
 import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetReviewsQuery } from '@/redux/api'
 import {
@@ -73,7 +74,7 @@ export const ReviewsSection = () => {
   const [isMobile, setIsMobile] = useState(false)
 
   const slides = data?.slides ?? []
-  const sectionTitle = data?.sectionTitle ?? 'Reviews'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Reviews')
   const leaveReviewUrl = data?.leaveReviewUrl ?? null
   const reviewCount = data?.reviewCount ?? 0
   const averageRating = data?.averageRating ?? 0

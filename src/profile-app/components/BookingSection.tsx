@@ -3,9 +3,10 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
-import { CalendarDays } from 'lucide-react'
+import { CalendarCheck } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
 
@@ -66,7 +67,7 @@ function BookingCard({ item, idx, accent, primaryColor }: BookingCardProps) {
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
-            <CalendarDays size={40} className="text-zinc-400 dark:text-zinc-500" />
+            <CalendarCheck size={40} className="text-zinc-400 dark:text-zinc-500" />
           </div>
         )}
 
@@ -134,7 +135,7 @@ export const BookingSection = () => {
     { skip: !profileId }
   )
 
-  const sectionTitle = data?.sectionTitle ?? 'Booking'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Booking')
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0
@@ -158,7 +159,7 @@ export const BookingSection = () => {
       <div className="w-full pb-20">
         <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
-            <CalendarDays size={24} style={{ color: accent }} />
+            <CalendarCheck size={24} style={{ color: accent }} />
           </div>
           <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
             {sectionTitle}
@@ -185,7 +186,7 @@ export const BookingSection = () => {
 
           <div className="relative z-10 w-full md:w-auto">
             <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm transition-colors dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
-              <CalendarDays size={12} style={{ color: accent }} /> Reservations
+              <CalendarCheck size={12} style={{ color: accent }} /> Reservations
             </div>
 
             <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">

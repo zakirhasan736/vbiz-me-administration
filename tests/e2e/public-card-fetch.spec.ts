@@ -19,21 +19,21 @@ const next404Copy = /this page could not be found/i
 
 test.describe('Public card fetch semantics', () => {
   test('valid profile / API 200 renders', async ({ page }) => {
-    await page.goto('/v/e2e-public-card')
+    await page.goto('/vCard/e2e-public-card')
     await expect(page.getByRole('heading', { name: 'Public Test Card' })).toBeVisible()
     await expect(page).not.toHaveURL(/404/)
     await expect(page.getByText(troubleCopy)).toHaveCount(0)
   })
 
   test('nonexistent profile / API 404 is Next 404', async ({ page }) => {
-    await page.goto('/v/e2e-missing-card')
+    await page.goto('/vCard/e2e-missing-card')
     await expect(page.getByRole('heading', { name: '404' })).toBeVisible()
     await expect(page.getByRole('heading', { name: next404Copy })).toBeVisible()
     await expect(page.getByText(troubleCopy)).toHaveCount(0)
   })
 
   test('API 500 is error handling, not 404', async ({ page }) => {
-    const response = await page.goto('/v/e2e-fail-500')
+    const response = await page.goto('/vCard/e2e-fail-500')
     expect(response?.status()).not.toBe(404)
     await expect(page.getByText(troubleCopy)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Try Again' })).toBeVisible()
@@ -41,32 +41,32 @@ test.describe('Public card fetch semantics', () => {
   })
 
   test('API 503 is not 404', async ({ page }) => {
-    await page.goto('/v/e2e-fail-503')
+    await page.goto('/vCard/e2e-fail-503')
     await expect(page.getByText(troubleCopy)).toBeVisible()
     await expect(page.getByText(next404Copy)).toHaveCount(0)
   })
 
   test('API 429 is not 404', async ({ page }) => {
-    await page.goto('/v/e2e-fail-429')
+    await page.goto('/vCard/e2e-fail-429')
     await expect(page.getByText(troubleCopy)).toBeVisible()
     await expect(page.getByText(next404Copy)).toHaveCount(0)
   })
 
   test('malformed JSON is not 404', async ({ page }) => {
-    await page.goto('/v/e2e-malformed-json')
+    await page.goto('/vCard/e2e-malformed-json')
     await expect(page.getByText(troubleCopy)).toBeVisible()
     await expect(page.getByText(next404Copy)).toHaveCount(0)
   })
 
   test('success=false unexpected 200 is not 404', async ({ page }) => {
-    await page.goto('/v/e2e-success-false')
+    await page.goto('/vCard/e2e-success-false')
     await expect(page.getByText(troubleCopy)).toBeVisible()
     await expect(page.getByText(next404Copy)).toHaveCount(0)
   })
 
   test('generateMetadata + page share one profile GET (HTML-only)', async ({ request }) => {
     await resetPublicVHits(request)
-    const pageRes = await request.get('/v/e2e-public-card')
+    const pageRes = await request.get('/vCard/e2e-public-card')
     expect(pageRes.ok()).toBeTruthy()
     const hits = await publicVHits(request)
     expect(hits['e2e-public-card'], JSON.stringify(hits)).toBe(1)
@@ -74,7 +74,7 @@ test.describe('Public card fetch semantics', () => {
 
   test('measure profile API calls from one full browser page load', async ({ page, request }) => {
     await resetPublicVHits(request)
-    await page.goto('/v/e2e-public-card')
+    await page.goto('/vCard/e2e-public-card')
     await expect(page.getByRole('heading', { name: 'Public Test Card' })).toBeVisible()
     await page.waitForTimeout(1500)
     const hits = await publicVHits(request)

@@ -88,6 +88,7 @@ import {
   type EditorNavPanel,
 } from '@/lib/vcardNavbar'
 import { getSectionSchema } from '@/lib/vcardSectionSchemas'
+import { SectionTitleProvider } from '@/profile-app/lib/sectionTitleContext'
 import { useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
 import { updateVCard } from '@/redux/features/vcards/vcards.slice'
 import { cn } from '@/utils/cn'
@@ -1167,7 +1168,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       tourTargetId={`tour-editor-panel-${activeNavId}`}
                     />
                   ) : (
-                    renderEditorPanel(editorPanel)
+                    <SectionTitleProvider title={inspectorLabel}>{renderEditorPanel(editorPanel)}</SectionTitleProvider>
                   )}
                 </div>
               </div>

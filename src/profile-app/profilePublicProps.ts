@@ -76,7 +76,7 @@ export type VBizProfileAppProps = {
   displaySettings?: VCardDisplaySettings
   /** Public slug used to build the share URL. */
   shareSlug?: string
-  /** Slug for the public profile URL (`/v/{slug}`). */
+  /** Slug for the public profile URL (`/vCard/{slug}`). */
   profileSlug?: string
   /** Active nav section (client state — not reflected in the URL). */
   sectionId?: string
@@ -107,7 +107,7 @@ export function buildProfileShareUrl(slug: string): string {
   if (typeof window !== 'undefined') {
     return `${window.location.origin}${buildProfilePath(trimmed)}`
   }
-  return `https://vbiz.me/v/${trimmed}`
+  return `https://vbiz.me/vCard/${encodeURIComponent(trimmed)}`
 }
 
 export function vCardDataToProfileProps(

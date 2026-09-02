@@ -1,3 +1,4 @@
+import { buildProfilePath } from '@/lib/profileRoutes'
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
 import { resolvePwaAvatarUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
@@ -203,7 +204,7 @@ export function resolveWalletPassModel(
   if (photoUrl?.startsWith('/') && origin) photoUrl = `${origin.replace(/\/$/, '')}${photoUrl}`
   const globalTitle = card?.profile?.profession?.trim() || card?.profile?.designation?.trim() || ''
   const designation = formatWalletTitle(globalTitle, card?.profile?.company_name)
-  const path = `/v/${encodeURIComponent(slug.trim())}`
+  const path = buildProfilePath(slug.trim())
   return {
     name,
     designation,

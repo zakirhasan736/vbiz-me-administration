@@ -4,6 +4,7 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ShieldCheck } from 'lucide-react'
@@ -99,7 +100,7 @@ export const AdditionalServicesSection = () => {
     { skip: !profileId }
   )
 
-  const sectionTitle = data?.sectionTitle ?? 'Additional Services'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Additional Services')
   const services = data?.posts ?? []
   const showInitialLoader = isLoading && services.length === 0
   const showEmptyState = !isLoading && !isError && services.length === 0

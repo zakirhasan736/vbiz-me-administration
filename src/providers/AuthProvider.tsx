@@ -11,6 +11,7 @@ import {
   SESSION_RENEW_BEFORE_EXPIRY_MS,
 } from '@/lib/auth/sessionPolicy'
 import { hydrateCompletedTours } from '@/lib/dashboardTour'
+import { isPublicCardPagePath } from '@/lib/profileRoutes'
 import { api, baseUrl } from '@/redux/api/api'
 import { logout as clearAuth, updateAuthState, updateUser } from '@/redux/features/auth/user.slice'
 import { persistor, store } from '@/redux/store'
@@ -76,7 +77,7 @@ function authorHeaders(): HeadersInit {
 }
 
 function isPublicVisitorPath(pathname: string): boolean {
-  return pathname === '/v' || pathname.startsWith('/v/') || pathname.startsWith('/cards/')
+  return isPublicCardPagePath(pathname) || pathname.startsWith('/cards/')
 }
 
 /**

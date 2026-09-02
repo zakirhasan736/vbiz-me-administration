@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { StatNumber } from '@/components/ui/StatNumber'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppSelector } from '@/hooks/redux'
+import { useVCardContactActions } from '@/hooks/useVCardContactActions'
 import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { adminCardAvatarUrl, toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { ADMIN_MY_CARDS_PATH, setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
@@ -39,6 +40,7 @@ import {
   type DashboardSocialChannel,
 } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
+import { getVCardPublicUrl } from '@/utils/vcard'
 import {
   CreditCard,
   Eye,
@@ -116,6 +118,13 @@ export default function AdminMyCards() {
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
+  const {
+    contactHandlersForCard,
+    modals: contactModals,
+    openEmailForCard,
+    openCallForCard,
+    openScheduleForCard,
+  } = useVCardContactActions({ useAdminEmail: true })
 
   const createdProfiles = useMemo(() => createdProfilesResult?.items ?? [], [createdProfilesResult?.items])
   const showListSkeleton = cardsLoading && createdProfiles.length === 0
@@ -406,6 +415,7 @@ export default function AdminMyCards() {
                 const contactSaves = Number(card.saveCount || 0)
                 const badge = resolveMyCardsBadge(card)
                 const serverNotice = card.id ? noticeForCard(card.id, teamNotices) : null
+                const contact = contactHandlersForCard(card)
 
                 return (
                   <VCardTeamCard
@@ -422,6 +432,9 @@ export default function AdminMyCards() {
                     noticeVersion={noticeVersion}
                     onCardClick={() => setPanelCard(card)}
                     onTrends={() => setTrendsCard(card)}
+                    onEmail={contact.onEmail}
+                    onCall={contact.onCall}
+                    onSchedule={contact.onSchedule}
                     onEdit={() => {
                       setAdminEditorReturnPath(ADMIN_MY_CARDS_PATH)
                       setCurrentEditingCardId(card.id || null)
@@ -432,11 +445,11 @@ export default function AdminMyCards() {
                       setCurrentEditingCardId(card.id || null)
                       router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
                     }}
-                    onView={() => window.open(`/v/${card.slug || 'profile'}`, '_blank')}
+                    onView={() => window.open(getVCardPublicUrl(card.slug || 'profile'), '_blank')}
                     onPanel={() => setPanelCard(card)}
                     onQr={() =>
                       openQrModal(
-                        `${window.location.origin}/v/${card.slug || 'profile'}`,
+                        getVCardPublicUrl(card.slug || 'profile'),
                         String((card.personal as { fullName?: string })?.fullName || ''),
                         adminCardAvatarUrl(card)
                       )
@@ -476,6 +489,9 @@ export default function AdminMyCards() {
         mode="admin"
         editorReturnPath={ADMIN_MY_CARDS_PATH}
         onClose={() => setPanelCard(null)}
+        onEmail={openEmailForCard}
+        onCall={openCallForCard}
+        onSchedule={openScheduleForCard}
         onDuplicate={handleDuplicate}
         isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
       />
@@ -543,6 +559,8 @@ export default function AdminMyCards() {
           })()
         }}
       />
+
+      {contactModals}
     </div>
   )
 }

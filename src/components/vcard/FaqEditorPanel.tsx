@@ -14,6 +14,7 @@ import {
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapFaqsFromPayload } from '@/lib/ai/applyCardDraft'
 import { createDefaultFaqEntry, normalizeFaqList } from '@/lib/vcardFaq'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardFaqEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { FileBox, HelpCircle, Lightbulb, Plus } from 'lucide-react'
@@ -39,6 +40,7 @@ type FaqEditorPanelProps = {
 }
 
 export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEditorPanelProps) {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'FAQ')
   const faqs = normalizeFaqList(rawFaqs)
   const faqsRef = useRef(faqs)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
@@ -86,7 +88,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10">
               <Lightbulb className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <h3 className="text-lg font-black text-amber-600 dark:text-amber-400">FAQs</h3>
+            <h3 className="text-lg font-black text-amber-600 dark:text-amber-400">{sectionTitle}</h3>
           </div>
           <button
             type="button"

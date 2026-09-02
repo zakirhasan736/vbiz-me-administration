@@ -3,6 +3,7 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ExternalLink, UsersRound } from 'lucide-react'
@@ -125,7 +126,7 @@ export const MeetOurTeamSection = ({ sectionName = 'Meet Our Team' }: MeetOurTea
     { skip: !profileId || !resolvedSectionName }
   )
 
-  const sectionTitle = data?.sectionTitle ?? resolvedSectionName
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, resolvedSectionName)
   const members = data?.posts ?? []
   const showInitialLoader = isLoading && members.length === 0
   const showEmptyState = !isLoading && !isError && members.length === 0

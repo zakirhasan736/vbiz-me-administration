@@ -1,5 +1,6 @@
 'use client'
 
+import { PUBLIC_CARD_PATH_SEGMENT } from '@/lib/profileRoutes'
 import { useCheckSlugQuery } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import { Check, Loader2, X } from 'lucide-react'
@@ -106,8 +107,10 @@ export function SlugAvailabilityField({
         {variant === 'personal' && (
           <p className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
             Your card will be available at{' '}
-            <span className="text-primary-600 dark:text-primary-400 font-mono">/v/{value || '…'}</span>. Letters,
-            numbers, and hyphens only.
+            <span className="text-primary-600 dark:text-primary-400 font-mono">
+              /{PUBLIC_CARD_PATH_SEGMENT}/{value || '…'}
+            </span>
+            . Letters, numbers, and hyphens only.
           </p>
         )}
         {variant === 'settings' && !showChecking && !showAvailable && !showTaken && (

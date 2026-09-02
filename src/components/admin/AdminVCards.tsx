@@ -28,8 +28,9 @@ import {
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
 import { MIN_IDENTITY_SEARCH_CHARACTERS, normalizedSearchQuery } from '@/lib/identitySearch'
+import { deriveOwnerAudience } from '@/lib/meetingScope'
 import { appendAuditLog } from '@/lib/mockStore'
-import { notifyScheduleCreated } from '@/lib/scheduleMeetingNotifications'
+import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
 import { api } from '@/redux/api/api'
@@ -68,6 +69,7 @@ import {
 } from '@/redux/features/profiles/profiles.api'
 import type { AnnouncementType } from '@/types/announcement'
 import { cn } from '@/utils/cn'
+import { getVCardPublicUrl } from '@/utils/vcard'
 import {
   Contact,
   Delete,
@@ -977,7 +979,6 @@ export default function AdminVCards() {
           {cards.map((card, i) => {
             const contactSaves = Number(card.saveCount || 0)
             const badge = resolveDirectoryBadge(card)
-            const canContact = canAdminContactCard(card, ownerId)
             const directoryNotice = resolveDirectoryCardNotice(card)
 
             return (
@@ -998,9 +999,9 @@ export default function AdminVCards() {
                 noticeVersion={noticeVersion}
                 onCardClick={() => openPanel(card)}
                 onTrends={() => setTrendsCard(card)}
-                onEmail={canContact ? () => openEmailForCard(card) : undefined}
-                onCall={canContact ? () => openCallForCard(card) : undefined}
-                onSchedule={canContact ? () => openScheduleForCard(card) : undefined}
+                onEmail={() => openEmailForCard(card)}
+                onCall={() => openCallForCard(card)}
+                onSchedule={() => openScheduleForCard(card)}
                 onEdit={() => {
                   setAdminEditorReturnPath(ADMIN_VCARDS_PATH)
                   setCurrentEditingCardId(card.id || null)
@@ -1011,11 +1012,11 @@ export default function AdminVCards() {
                   setCurrentEditingCardId(card.id || null)
                   router.push(buildEditorSettingsPath('/vcards/edit', 'info', card.id))
                 }}
-                onView={() => window.open(`/v/${card.slug || 'profile'}`, '_blank')}
+                onView={() => window.open(getVCardPublicUrl(card.slug || 'profile'), '_blank')}
                 onPanel={() => openPanel(card)}
                 onQr={() =>
                   openQrModal(
-                    `${window.location.origin}/v/${card.slug || 'profile'}`,
+                    getVCardPublicUrl(card.slug || 'profile'),
                     personalField(card.personal, 'fullName') || undefined,
                     adminCardAvatarUrl(card)
                   )
@@ -1095,9 +1096,9 @@ export default function AdminVCards() {
         mode="admin"
         editorReturnPath={ADMIN_VCARDS_PATH}
         onClose={() => setPanelCard(null)}
-        onEmail={panelCard && canAdminContactCard(panelCard, ownerId) ? openEmailForCard : undefined}
-        onCall={panelCard && canAdminContactCard(panelCard, ownerId) ? openCallForCard : undefined}
-        onSchedule={panelCard && canAdminContactCard(panelCard, ownerId) ? openScheduleForCard : undefined}
+        onEmail={panelCard ? openEmailForCard : undefined}
+        onCall={panelCard ? openCallForCard : undefined}
+        onSchedule={panelCard ? openScheduleForCard : undefined}
         onNotice={openNoticeForCard}
         activeNoticeText={panelCard ? resolveDirectoryCardNotice(panelCard).text : null}
         onDuplicate={handleDuplicateCard}
@@ -1391,6 +1392,9 @@ export default function AdminVCards() {
         isSubmitting={isCreatingMeeting}
         initialOwner={scheduleOwner}
         lockOwner
+        allowedScopes={['one_to_one', 'group']}
+        defaultScope="one_to_one"
+        groupCompanyUserId={selectedCard?.companyUserId ?? null}
         title="Schedule growth consultation"
         subtitle={
           selectedCard
@@ -1400,31 +1404,11 @@ export default function AdminVCards() {
         onSubmit={async (payload) => {
           if (!scheduleOwner) return
           try {
-            const created = await createMeeting({
-              host: payload.owner.hostName,
-              type: payload.type,
-              date: payload.date,
-              time: payload.time,
-              notes: payload.notes,
-              status: 'Scheduled',
-              profileId: payload.owner.profileId,
-            }).unwrap()
-
-            const ownerAudience =
-              selectedCard?.ownerRole === 'corporate-owner' || selectedCard?.companyUserRole === 'corporate-owner'
-                ? 'corporate'
-                : 'single'
-            notifyScheduleCreated({
-              meeting: created,
-              hostName: payload.owner.hostName,
-              meetType: payload.type,
-              meetDate: payload.date,
-              meetTime: payload.time,
-              profileId: payload.owner.profileId,
-              ownerAudience,
+            return await submitScheduleMeeting(createMeeting, payload, {
+              ownerAudience: deriveOwnerAudience(selectedCard?.ownerRole, selectedCard?.companyUserRole),
+              ownerRole: selectedCard?.ownerRole,
+              companyUserRole: selectedCard?.companyUserRole,
             })
-            setScheduleOwner(null)
-            return created
           } catch {
             return undefined
           }

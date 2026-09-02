@@ -1,5 +1,6 @@
 'use client'
 
+import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { usePwaInstall } from '@/profile-app/hooks/usePwaInstall'
 import {
@@ -42,11 +43,11 @@ export function SaveCardPwaModal({
   const added = isInstalled || nativeAdded
 
   const label = ownerName?.trim() || 'this card'
-  const iconSrc = cardSlug?.trim() ? `/v/${encodeURIComponent(cardSlug.trim())}/icon/192` : avatarUrl || '/favicon.ico'
+  const iconSrc = cardSlug?.trim() ? buildProfileIconPath(cardSlug.trim(), 192) : avatarUrl || '/favicon.ico'
 
   useEffect(() => {
     if (!isOpen || !cardSlug?.trim() || typeof window === 'undefined' || !('caches' in window)) return
-    const path = `/v/${encodeURIComponent(cardSlug.trim())}`
+    const path = buildProfilePath(cardSlug.trim())
     let cancelled = false
 
     const checkOfflineReady = async () => {

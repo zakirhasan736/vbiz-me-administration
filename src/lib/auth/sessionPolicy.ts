@@ -1,6 +1,6 @@
 import { isStaffRole } from '@/constants/userRole'
 import { homePathForOwnerMode, ownerOfficeRedirectPath, type OwnerMode } from '@/lib/packageOwnerMode'
-import { isPublicCardMetaPath, isPublicCardPagePath } from '@/lib/pwa/publicCardCachePolicy'
+import { isPublicCardMetaPath, isPublicCardPagePath } from '@/lib/profileRoutes'
 
 export const SESSION_EXPIRED_LOGIN_PATH = '/login'
 export const SESSION_EXPIRED_STORAGE_KEY = 'vbiz.session-expired'
@@ -46,11 +46,11 @@ export function shouldSilentlyRefreshSession(_role?: string | null): boolean {
 
 /**
  * Session expiry UI + forced login redirect belong only on private backoffice routes
- * (admin, single-card owner, corporate). Public card routes (`/v/...`) must stay undisturbed.
+ * (admin, single-card owner, corporate). Public card routes (`/vCard/...`) must stay undisturbed.
  */
 export function isAuthenticatedWorkspacePath(pathname?: string | null): boolean {
   const path = String(pathname ?? '').split(/[?#]/)[0] || '/'
-  if (path === '/v' || path.startsWith('/v/') || isPublicCardPagePath(path) || isPublicCardMetaPath(path)) {
+  if (isPublicCardPagePath(path) || isPublicCardMetaPath(path)) {
     return false
   }
   if (AUTH_PAGE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {

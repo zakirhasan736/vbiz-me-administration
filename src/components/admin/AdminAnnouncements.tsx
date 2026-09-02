@@ -13,7 +13,8 @@ import {
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { notifyOwners } from '@/lib/notifications'
-import { meetLinkLabel, notifyScheduleCreated } from '@/lib/scheduleMeetingNotifications'
+import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
+import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
 import { notify } from '@/lib/toast/toast'
 import {
   useClearLiveAnnouncementMutation,
@@ -874,24 +875,7 @@ export default function AdminAnnouncements() {
         title="Schedule upcoming event"
         onSubmit={async (payload) => {
           try {
-            const created = await createMeeting({
-              host: payload.owner.hostName,
-              type: payload.type,
-              date: payload.date,
-              time: payload.time,
-              notes: payload.notes,
-              status: 'Scheduled',
-              profileId: payload.owner.profileId,
-            }).unwrap()
-            notifyScheduleCreated({
-              meeting: created,
-              hostName: payload.owner.hostName,
-              meetType: payload.type,
-              meetDate: payload.date,
-              meetTime: payload.time,
-              profileId: payload.owner.profileId,
-            })
-            return created
+            return await submitScheduleMeeting(createMeeting, payload)
           } catch {
             return undefined
           }

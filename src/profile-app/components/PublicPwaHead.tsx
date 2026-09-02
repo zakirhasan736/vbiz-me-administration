@@ -1,7 +1,7 @@
 'use client'
 
 import { isVideoUrl } from '@/lib/mediaUrl'
-import { buildProfilePath } from '@/lib/profileRoutes'
+import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl } from '@/lib/pwa/resolvePublicCardPwa'
 import { buildPublicCardCanonicalUrl, toAbsoluteUrl } from '@/lib/seo/publicCardSeo'
 import type { VCardSeo } from '@/types/vcard'
@@ -62,7 +62,8 @@ function shareImageUrl(slug: string, imageUrl?: string | null) {
   const trimmed = imageUrl?.trim() || ''
   if (trimmed && !isVideoUrl(trimmed)) return toAbsoluteUrl(origin, trimmed)
   if (!slug.trim() || !origin) return ''
-  return `${origin.replace(/\/$/, '')}/v/${encodeURIComponent(slug.trim())}/icon/512`
+  if (!slug.trim() || !origin) return ''
+  return `${origin.replace(/\/$/, '')}${buildProfileIconPath(slug.trim(), 512)}`
 }
 
 /** Injects per-card manifest + apple-touch-icon so Chrome / iOS can install this card. */
@@ -88,7 +89,7 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     manifestLink.href = manifestHref
     manifestLink.dataset.pwaManifest = 'card'
 
-    const iconHref = `/v/${encodeURIComponent(trimmed)}/icon/192`
+    const iconHref = buildProfileIconPath(trimmed, 192)
     let appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
     if (!appleLink) {
       appleLink = document.createElement('link')

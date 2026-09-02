@@ -30,7 +30,7 @@ test.describe('Backoffice, Admin, and Public Card', () => {
   })
 
   test('public card renders its identity and keyboard-accessible navigation', async ({ page }) => {
-    await page.goto('/v/e2e-public-card')
+    await page.goto('/vCard/e2e-public-card')
 
     await expect(page.getByRole('heading', { name: 'Public Test Card' })).toBeVisible()
     await expect(page).toHaveTitle('Public Test Card | Virtual Card')
@@ -53,7 +53,7 @@ test.describe('Backoffice, Admin, and Public Card', () => {
       localStorage.setItem('vbiz_profile_visitor_public-card-1', 'e2e-note-visitor')
       localStorage.setItem('vbiz_push_declined_e2e-public-card', '1')
     })
-    await page.goto('/v/e2e-public-card')
+    await page.goto('/vCard/e2e-public-card')
 
     const promptClose = page.locator('.vbiz-modal-backdrop .vbiz-modal-close')
     await promptClose

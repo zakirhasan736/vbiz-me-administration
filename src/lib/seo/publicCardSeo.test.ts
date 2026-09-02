@@ -60,13 +60,13 @@ describe('public card SEO', () => {
     const metadata = buildPublicCardSeoMetadata({
       slug: 'maya',
       origin,
-      cardPath: '/v/maya',
+      cardPath: '/vCard/maya',
       myCard,
     })
 
-    expect(buildPublicCardCanonicalUrl(origin, '/v/maya')).toBe('https://app.vbiz.me/v/maya')
-    expect(metadata.alternates?.canonical).toBe('https://app.vbiz.me/v/maya')
-    expect(metadata.openGraph?.url).toBe('https://app.vbiz.me/v/maya')
+    expect(buildPublicCardCanonicalUrl(origin, '/vCard/maya')).toBe('https://app.vbiz.me/vCard/maya')
+    expect(metadata.alternates?.canonical).toBe('https://app.vbiz.me/vCard/maya')
+    expect(metadata.openGraph?.url).toBe('https://app.vbiz.me/vCard/maya')
     expect(metadata.keywords).toEqual([
       'vbizme',
       'vbiz me',
@@ -91,14 +91,14 @@ describe('public card SEO', () => {
     const withReviews = buildPublicCardJsonLd({
       slug: 'maya',
       origin: 'https://app.vbiz.me',
-      cardPath: '/v/maya',
+      cardPath: '/vCard/maya',
       myCard: card(),
       reviews: [{ author: 'Pat', text: 'Clear, fast work.', rating: 5 }],
     })
     const withoutReviews = buildPublicCardJsonLd({
       slug: 'maya',
       origin: 'https://app.vbiz.me',
-      cardPath: '/v/maya',
+      cardPath: '/vCard/maya',
       myCard: card(),
       reviews: [],
     })

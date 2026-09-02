@@ -15,6 +15,7 @@ import {
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { useVCard } from '@/lib/VCardContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import { useGetProfileAboutMeQuery } from '@/redux/features/sections/aboutMe.api'
 import { AlignLeft, FileBox, Type } from 'lucide-react'
@@ -81,7 +82,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
     markAboutMeDirty()
   }
 
-  const tabLabel = TAB_REGISTRY.about_me.label
+  const tabLabel = useResolvedSectionTitle(undefined, TAB_REGISTRY.about_me.label)
 
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col space-y-6 pb-12 duration-500">

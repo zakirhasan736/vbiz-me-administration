@@ -4,6 +4,7 @@ import { DocumentUploadArea, type UploadedDoc } from '@/components/DocumentUploa
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
 import { useVCard } from '@/lib/VCardContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { Images, Plus, Trash2, Video } from 'lucide-react'
 import { useRef } from 'react'
 
@@ -16,6 +17,7 @@ type ContentMediaState = {
 }
 
 export function TabContentMedia() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Content & media')
   const { vCardData, updateData } = useVCard()
   const cm: ContentMediaState = {
     gallery: [],
@@ -44,7 +46,7 @@ export function TabContentMedia() {
           <Images className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">Content & media</h2>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white">{sectionTitle}</h2>
           <p className="mt-1 text-sm font-semibold text-slate-500">
             Gallery images and video links for your public card.
           </p>

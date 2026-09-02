@@ -58,7 +58,7 @@ export function normalizePublicCardsResponse(response: PublicCardsResponse): Pub
     image: card.image ?? '',
     image_type: card.image_type ?? '',
     is_video: Boolean(card.is_video),
-    profile_url: card.profile_url || (card.slug ? `/v/${card.slug}` : ''),
+    profile_url: card.profile_url || (card.slug ? buildProfilePath(card.slug) : ''),
   }))
 
   const links = Array.isArray(pageData.links)
@@ -109,7 +109,7 @@ export function mapPublicCardProfileUrl(slug: string, fallback?: string): string
   if (typeof window !== 'undefined') {
     return `${window.location.origin}${buildProfilePath(slug)}`
   }
-  return fallback ?? `https://vbiz.me/${slug}`
+  return fallback ?? `https://vbiz.me/vCard/${encodeURIComponent(slug.trim())}`
 }
 
 export type PublicCardListItem = {

@@ -13,7 +13,7 @@ const card = {
   image: '',
   image_type: 'image',
   is_video: false,
-  profile_url: '/v/smith-jones',
+  profile_url: '/vCard/smith-jones',
 }
 
 describe('public card text mapping', () => {

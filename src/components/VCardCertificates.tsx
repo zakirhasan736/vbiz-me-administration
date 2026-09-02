@@ -10,7 +10,6 @@ import {
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
-import { useVCard } from '@/lib/VCardContext'
 import {
   CERTIFICATES_POST_TYPE,
   certItemsToSectionPosts,
@@ -18,6 +17,8 @@ import {
   sectionPostsToCertItems,
   type CertItem,
 } from '@/lib/vcardCertificates'
+import { useVCard } from '@/lib/VCardContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { cn } from '@/utils/cn'
 import { Award, Plus } from 'lucide-react'
 import { useEffect, useRef } from 'react'
@@ -37,6 +38,7 @@ const accent = {
 }
 
 export function TabCertificates() {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Certificates/Licenses')
   const { cardId, vCardData, updateData } = useVCard()
   const items = sectionPostsToCertItems(vCardData.sectionPosts?.[CERTIFICATES_POST_TYPE])
   const itemsRef = useRef(items)
@@ -76,7 +78,7 @@ export function TabCertificates() {
               <Award className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-indigo-600 dark:text-indigo-400">Certifications / Licenses</h3>
+              <h3 className="text-lg font-black text-indigo-600 dark:text-indigo-400">{sectionTitle}</h3>
               <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
                 Upload certificate images, PDF, or text documents for each credential.
               </p>

@@ -52,6 +52,9 @@ type VCardTeamCardProps = {
   onDuplicate?: () => void
   /** Shows spinner on the Duplicate button while this card is being copied. */
   isDuplicating?: boolean
+  onEmail?: () => void
+  onCall?: () => void
+  onSchedule?: () => void
   /** Primary border + chip to mark a card that was just duplicated or activated. */
   isNewlyDuplicated?: boolean
   /** Chip text when highlighted — defaults to duplicated. */
@@ -84,6 +87,9 @@ export function VCardTeamCard({
   onTrends,
   onDuplicate,
   isDuplicating = false,
+  onEmail,
+  onCall,
+  onSchedule,
   isNewlyDuplicated = false,
   highlightLabel = 'duplicated',
   onActivatedFromDraft,
@@ -519,6 +525,9 @@ export function VCardTeamCard({
         </div>
 
         <VCardCardActions
+          onEmail={onEmail}
+          onCall={onCall}
+          onSchedule={onSchedule}
           onNotice={ownerLocked ? undefined : () => onNotice(card)}
           onEdit={() => {
             if (ownerLocked) {

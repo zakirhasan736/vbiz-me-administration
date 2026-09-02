@@ -1,3 +1,4 @@
+import { buildProfilePath } from '@/lib/profileRoutes'
 import type { VCardRecord } from '@/types/vcard'
 
 export function filterVCardsByQuery(cards: VCardRecord[], query: string): VCardRecord[] {
@@ -17,13 +18,13 @@ export function formatViewCount(views: number): string {
 
 export function getVCardPublicPath(slug: string): string {
   const trimmed = slug.trim()
-  return trimmed ? `/v/${encodeURIComponent(trimmed)}` : '#'
+  return trimmed ? buildProfilePath(trimmed) : '#'
 }
 
 export function getVCardPublicUrl(slug: string): string {
-  const trimmed = slug.trim()
-  if (!trimmed || typeof window === 'undefined') return ''
-  return `${window.location.origin}/v/${encodeURIComponent(trimmed)}`
+  const path = getVCardPublicPath(slug)
+  if (path === '#' || typeof window === 'undefined') return ''
+  return `${window.location.origin}${path}`
 }
 
 export function downloadQrCanvasFromContainer(container: HTMLElement | null, filename = 'vcard-qr.png') {

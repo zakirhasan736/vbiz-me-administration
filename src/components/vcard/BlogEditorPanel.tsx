@@ -17,6 +17,7 @@ import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapBlogsFromPayload } from '@/lib/ai/applyCardDraft'
 import { stripHtml } from '@/lib/htmlText'
 import { createDefaultGeneralPost, normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardGeneralPost } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Calendar, FileBox, LayoutGrid, Plus } from 'lucide-react'
@@ -42,6 +43,7 @@ type BlogEditorPanelProps = {
 }
 
 export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: BlogEditorPanelProps) {
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Blog')
   const posts = normalizeGeneralPostList(rawPosts)
   const postsRef = useRef(posts)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
@@ -86,7 +88,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
       >
         <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-black text-violet-600 dark:text-violet-400">Blogs and Media</h2>
+            <h2 className="text-xl font-black text-violet-600 dark:text-violet-400">{sectionTitle}</h2>
             <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
               Publish updates with a featured image or video per post.
             </p>

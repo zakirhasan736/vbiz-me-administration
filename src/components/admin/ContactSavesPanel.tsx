@@ -12,6 +12,7 @@ import {
 } from '@/lib/contactSaves'
 import { MIN_IDENTITY_SEARCH_CHARACTERS, matchesIdentitySearch } from '@/lib/identitySearch'
 import { cn } from '@/utils/cn'
+import { getVCardPublicPath } from '@/utils/vcard'
 import {
   AlertCircle,
   Building2,
@@ -578,7 +579,7 @@ export default function ContactSavesPanel({
 
                     {open && r.vCardSlug && (
                       <a
-                        href={`/v/${r.vCardSlug}`}
+                        href={getVCardPublicPath(r.vCardSlug)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 text-[11px] font-black tracking-wider text-emerald-600 uppercase dark:text-emerald-400"

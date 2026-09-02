@@ -15,6 +15,7 @@ import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapPortfolioFromPayload } from '@/lib/ai/applyCardDraft'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultPortfolioEntry, normalizePortfolioList } from '@/lib/vcardPortfolio'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardPortfolioEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { FileText, FolderOpen, LayoutGrid, Link as LinkIcon, Plus, Youtube } from 'lucide-react'
@@ -35,6 +36,7 @@ const accent = {
 
 export function TabPortfolio() {
   const { cardId, vCardData, updateData } = useVCard()
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Gallery')
   const portfolios = normalizePortfolioList(vCardData.portfolio)
   const portfoliosRef = useRef(portfolios)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef } =
@@ -85,7 +87,7 @@ export function TabPortfolio() {
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-teal-100 bg-teal-50 dark:border-teal-500/20 dark:bg-teal-500/10">
               <LayoutGrid className="h-5 w-5 text-teal-600 dark:text-teal-400" />
             </div>
-            <h3 className="text-lg font-black text-teal-600 dark:text-teal-400">Portfolio Collection</h3>
+            <h3 className="text-lg font-black text-teal-600 dark:text-teal-400">{sectionTitle} Collection</h3>
           </div>
           <button
             type="button"

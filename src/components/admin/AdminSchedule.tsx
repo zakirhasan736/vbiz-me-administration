@@ -3,9 +3,11 @@
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
 import { AdminScheduleCalendarSkeleton } from '@/components/admin/AdminScheduleSkeleton'
+import type { ScheduleMeetingSubmitPayload } from '@/components/admin/ScheduleMeetingModal'
 import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
-import { meetLinkLabel, notifyScheduleCreated } from '@/lib/scheduleMeetingNotifications'
+import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
+import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
 import {
   useCreateMeetingMutation,
   useDeleteMeetingMutation,
@@ -200,22 +202,8 @@ export default function AdminSchedule() {
     })
   }
 
-  const handleBookMeeting = async (payload: {
-    owner: { profileId: string; hostName: string }
-    type: string
-    date: string
-    time: string
-    notes: string
-  }) => {
-    const created = await createMeeting({
-      host: payload.owner.hostName,
-      type: payload.type,
-      date: payload.date,
-      time: payload.time,
-      notes: payload.notes,
-      status: 'Scheduled',
-      profileId: payload.owner.profileId,
-    }).unwrap()
+  const handleBookMeeting = async (payload: ScheduleMeetingSubmitPayload) => {
+    const created = await submitScheduleMeeting(createMeeting, payload)
 
     setSelectedDay(payload.date)
     const [y, m] = payload.date.split('-').map(Number)
@@ -223,15 +211,6 @@ export default function AdminSchedule() {
       setViewYear(y)
       setViewMonth(m - 1)
     }
-
-    notifyScheduleCreated({
-      meeting: created,
-      hostName: payload.owner.hostName,
-      meetType: payload.type,
-      meetDate: payload.date,
-      meetTime: payload.time,
-      profileId: payload.owner.profileId,
-    })
 
     return created
   }

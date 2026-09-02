@@ -5,7 +5,7 @@ import { fetchNavBarLinks } from '@/lib/api/navbar/fetchNavBarLinks'
 import { resolveProfileSettingsTheme } from '@/lib/api/profileSettings/fetchProfileSettings'
 import { fetchPublicReviews } from '@/lib/api/reviews/fetchPublicReviews'
 import { resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
-import { buildProfilePath } from '@/lib/profileRoutes'
+import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
 import {
   buildPublicCardJsonLd,
@@ -34,8 +34,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     headerStore.get('x-forwarded-host') || headerStore.get('host'),
     headerStore.get('x-forwarded-proto')
   )
-  const icon192 = `/v/${encodeURIComponent(trimmed)}/icon/192`
-  const icon512 = `/v/${encodeURIComponent(trimmed)}/icon/512`
+  const icon192 = buildProfileIconPath(trimmed, 192)
+  const icon512 = buildProfileIconPath(trimmed, 512)
   const pwaMeta: Metadata = {
     metadataBase: new URL(requestOrigin),
     applicationName: name,
@@ -80,7 +80,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-/** `/v/{slug}` — public vcard (Node `/api/v1/public`, template-services parity). */
+/** `/vCard/{slug}` — public vcard (Node `/api/v1/public`, template-services parity). */
 export default async function PublicProfilePage({ params }: Props) {
   const { slug } = await params
   const trimmed = slug?.trim()

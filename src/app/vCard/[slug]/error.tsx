@@ -5,7 +5,7 @@ type Props = {
   reset: () => void
 }
 
-/** Infrastructure failures for `/v/[slug]` — never a fake 404. */
+/** Infrastructure failures for `/vCard/[slug]` — never a fake 404. */
 export default function PublicCardError({ error: _error, reset }: Props) {
   return (
     <main

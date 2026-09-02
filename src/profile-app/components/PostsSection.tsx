@@ -5,6 +5,7 @@ import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { formatGeneralPostDate } from '@/lib/vcardGeneralPosts'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowLeft, ArrowUpRight, Calendar, FileEdit } from 'lucide-react'
@@ -242,7 +243,7 @@ export const PostsSection = () => {
     { skip: !profileId }
   )
 
-  const sectionTitle = data?.sectionTitle ?? 'Post'
+  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Post')
   const items = data?.posts ?? []
   const selectedItem = items.find((item) => item.id === selectedItemId)
   const showInitialLoader = isLoading && items.length === 0
