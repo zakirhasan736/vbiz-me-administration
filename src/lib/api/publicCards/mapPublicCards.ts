@@ -55,6 +55,7 @@ export function normalizePublicCardsResponse(response: PublicCardsResponse): Pub
     name: decodeHtmlText(card.name),
     profession: card.profession == null ? null : decodeHtmlText(card.profession),
     profession_id: card.profession_id ?? null,
+    designation: card.designation == null ? null : decodeHtmlText(card.designation),
     image: card.image ?? '',
     image_type: card.image_type ?? '',
     is_video: Boolean(card.is_video),
@@ -116,6 +117,9 @@ export type PublicCardListItem = {
   id: string | number
   name: string
   profession: string
+  designation: string | null
+  /** Designation preferred, then profession — shown under the owner name. */
+  roleLabel: string
   professionId: string | number | null
   img: string | null
   isVideo: boolean
@@ -125,14 +129,19 @@ export type PublicCardListItem = {
 
 export function mapPublicCardToListItem(card: PublicCard): PublicCardListItem {
   const image = resolvePublicCardImage(card)
+  const name = decodeHtmlText(card.name)
+  const designation = card.designation == null ? null : decodeHtmlText(card.designation.trim()) || null
+  const profession = decodeHtmlText(card.profession?.trim() || '') || null
   return {
     id: card.id,
-    name: decodeHtmlText(card.name),
-    profession: decodeHtmlText(card.profession?.trim() || 'Professional'),
+    name,
+    profession: profession || 'Professional',
+    designation,
+    roleLabel: designation || profession || 'Professional',
     professionId: card.profession_id,
     img: image.src,
     isVideo: image.isVideo,
-    initials: initialsFromPublicCardName(decodeHtmlText(card.name)),
+    initials: initialsFromPublicCardName(name),
     slug: card.slug,
   }
 }

@@ -204,8 +204,11 @@ function ConnectionCardInner({ card }: { card: PublicCardListItem }) {
           <h3 className="w-full truncate text-base font-bold text-zinc-100 md:text-lg" title={card.name}>
             {card.name}
           </h3>
-          <div className="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[#eab308] uppercase">
-            <Briefcase size={10} /> {card.profession}
+          <div
+            className="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[#eab308] uppercase"
+            title={card.roleLabel}
+          >
+            <Briefcase size={10} /> {card.roleLabel}
           </div>
         </div>
         <Link
@@ -887,9 +890,9 @@ export const PublicCardsSection = () => {
                         </h4>
                         <p
                           className={`mt-1 w-full truncate px-1 text-[9px] font-black tracking-wider text-[#eab308] uppercase ${compact ? '' : 'md:text-xs'}`}
-                          title={card.profession}
+                          title={card.roleLabel}
                         >
-                          {card.profession}
+                          {card.roleLabel}
                         </p>
                       </div>
 
