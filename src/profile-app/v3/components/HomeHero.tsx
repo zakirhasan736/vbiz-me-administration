@@ -425,7 +425,7 @@ export const HomeHero: React.FC<{
               <div className="flex flex-1 flex-col pt-8 drop-shadow-2xl xl:pt-12">
                 {showName && (
                   <h1
-                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[52px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
+                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[50px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
                     style={{
                       ...(field('MyInfo section Name').textColor
                         ? { color: field('MyInfo section Name').textColor }
