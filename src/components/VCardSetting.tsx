@@ -498,8 +498,8 @@ function TemplateDesigner() {
         {canUseCanva ? <CanvaConnectRow userId={user?.uid} variant="status" /> : <PackageLockedNote />}
       </SettingSection>
 
-      {/* Profile image */}
-      <SettingSection title="Profile image">
+      {/* Profile image / video */}
+      <SettingSection title="Profile image / video">
         <div className="flex w-full min-w-0 flex-col items-start gap-5 rounded-[20px] border border-slate-200/50 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:gap-6 sm:rounded-3xl sm:p-6 dark:border-white/5 dark:bg-white/2">
           <input
             ref={profileImageInputRef}
@@ -535,7 +535,7 @@ function TemplateDesigner() {
               Profile photo / video
             </h4>
             <p className="mb-4 text-[13px] font-medium text-slate-500 sm:text-[14px] dark:text-slate-400">
-              Image or short video • shows on your public card and card lists
+              Upload an image or short looping video • shows on your public card and card lists
               {profileDisplayUrl && (profileLocalIsVideo || isAvatarVideoSrc(profileDisplayUrl))
                 ? ' • video avatar active'
                 : ''}
@@ -555,7 +555,7 @@ function TemplateDesigner() {
                     Uploading…
                   </>
                 ) : (
-                  'Upload new'
+                  'Upload image or video'
                 )}
               </Button>
               <Button
@@ -569,6 +569,15 @@ function TemplateDesigner() {
                 Remove
               </Button>
             </div>
+            <MediaSourceActions
+              mode="both"
+              compact
+              className="mt-3"
+              onSelect={(asset) => {
+                clearProfileLocalPreview()
+                applyProfileImage(asset.url)
+              }}
+            />
             {profileUploading ? (
               <div className="mt-4 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">

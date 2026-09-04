@@ -1,6 +1,6 @@
 'use client'
 
-import { encodeMediaUrl, isUsableImageSrc } from '@/lib/mediaUrl'
+import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
 
 type CardAvatarThumbProps = {
@@ -21,12 +21,7 @@ function initialFromName(name?: string | null): string {
 
 /** True for stored avatar videos — does not treat bare blob: as video. */
 export function isAvatarVideoSrc(url: string): boolean {
-  const trimmed = url.trim()
-  if (!trimmed) return false
-  if (/^data:video\//i.test(trimmed)) return true
-  if (/\.(m4v|mov|mp4|ogv|webm|ogg)(\?|#|$)/i.test(trimmed)) return true
-  if (/\/video\/upload\//i.test(trimmed)) return true
-  return false
+  return isVideoUrl(url)
 }
 
 /** Compact avatar for card grids / settings — image, looping video, or name initial. */

@@ -165,7 +165,7 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   Object.assign(vars, componentVars('--vbiz-social', social, set, mode))
   vars['--vbiz-social-radius'] =
     typeof social.cornerRadius === 'number' ? `${social.cornerRadius}px` : String(social.cornerRadius)
-  vars['--vbiz-social-icon-size'] = `${social.iconSize}px`
+  vars['--vbiz-social-icon-size'] = `${Math.max(22, social.iconSize || 22)}px`
   vars['--vbiz-social-size'] = `${social.size}px`
 
   return vars as CSSProperties
@@ -287,8 +287,8 @@ ${themeUi('.vbiz-social')} {
 ${themeUi('.vbiz-social svg')} {
   color: inherit !important;
   stroke: currentColor;
-  width: var(--vbiz-social-icon-size, 18px);
-  height: var(--vbiz-social-icon-size, 18px);
+  width: var(--vbiz-social-icon-size, 22px);
+  height: var(--vbiz-social-icon-size, 22px);
 }
 ${themeUi('.vbiz-social:hover')} {
   background-image: linear-gradient(var(--vbiz-social-hover-overlay, transparent), var(--vbiz-social-hover-overlay, transparent));

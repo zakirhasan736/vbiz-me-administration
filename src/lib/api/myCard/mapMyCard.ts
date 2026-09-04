@@ -9,7 +9,8 @@ import {
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { decodeHtmlText } from '@/lib/htmlText'
-import { collectPublicCardShareImageCandidates, resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
+import { isGenericPublicCardImage } from '@/lib/publicCards/publicCardImage'
+import { resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { applyEnabledNavOrderToDisplaySettings } from '@/lib/vcardDisplaySettings'
@@ -141,6 +142,26 @@ function isDurableHttpUrl(url: string): boolean {
   const trimmed = url.trim()
   if (!trimmed || trimmed.startsWith('blob:')) return false
   return /^https?:\/\//i.test(trimmed) || trimmed.startsWith('/')
+}
+
+/** Profile avatar for card grids — image or video (unlike OG share stills). */
+export function resolveCardOwnerAvatarUrl(card: MyCardData): string {
+  const settings = card.settings || {}
+  const settingUrl = typeof settings.profile_media_url === 'string' ? settings.profile_media_url.trim() : ''
+  const media = card.profile_media
+  const candidates = [
+    settingUrl,
+    media?.url?.trim() || '',
+    media?.video_url?.trim() || '',
+    media?.regular_video?.url?.trim() || '',
+    media?.fallback_url?.trim() || '',
+    card.profile?.avatar?.trim() || '',
+  ]
+  for (const candidate of candidates) {
+    if (!candidate || !isDurableHttpUrl(candidate) || isGenericPublicCardImage(candidate)) continue
+    return candidate
+  }
+  return ''
 }
 
 function parseDisplaySettingsSnapshot(raw?: string): VCardDisplaySettings | null {
@@ -555,8 +576,7 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
 export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
   const data = mapMyCardToVCardData(card)
   const now = new Date().toISOString()
-  const stillImage = collectPublicCardShareImageCandidates(card)[0] || ''
-  const avatarImageUrl = stillImage
+  const avatarImageUrl = resolveCardOwnerAvatarUrl(card)
 
   const settingsBackground =
     typeof card.settings?.background_media_url === 'string' ? card.settings.background_media_url.trim() : ''

@@ -41,14 +41,16 @@ import {
 import Image from 'next/image'
 import React, { useMemo } from 'react'
 
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden>
+const HOME_ICON_SIZE = 22
+
+const XIcon = ({ size = HOME_ICON_SIZE }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden>
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 22.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 )
 
-const TikTokIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden>
+const TikTokIcon = ({ size = HOME_ICON_SIZE }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden>
     <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.14-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.24-2.61 1.05-5.26 3.23-6.6 1.46-.91 3.25-1.29 4.96-1v4.21c-.81-.19-1.7-.17-2.48.24-.95.49-1.64 1.41-1.79 2.49-.16 1.13.25 2.31 1.05 3.12.8.84 2.05 1.25 3.21 1.12 1.58-.16 2.87-1.42 3.15-3 .06-.41.07-.82.06-1.24-.03-6.09-.03-12.18-.03-18.27Z" />
   </svg>
 )
@@ -56,7 +58,7 @@ const TikTokIcon = () => (
 type V3SocialItem = {
   label: string
   title: string
-  icon: LucideIcon | (() => React.ReactElement)
+  icon: LucideIcon | ((props: { size?: number }) => React.ReactElement)
   isSvg?: boolean
 }
 
@@ -165,10 +167,10 @@ export const HomeHero: React.FC<{
     }
   }
 
-  const renderSocialIcon = (item: V3SocialItem, size: number) => {
+  const renderSocialIcon = (item: V3SocialItem, size: number = HOME_ICON_SIZE) => {
     if (item.isSvg) {
-      const Icon = item.icon as () => React.ReactElement
-      return <Icon />
+      const Icon = item.icon as (props: { size?: number }) => React.ReactElement
+      return <Icon size={size} />
     }
     const Icon = item.icon as LucideIcon
     return <Icon size={size} strokeWidth={2.5} />
@@ -232,7 +234,7 @@ export const HomeHero: React.FC<{
                   {viewCountLabel}
                 </span>
                 <span className={railButtonClass} style={viewsChrome}>
-                  <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
+                  <Eye size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 </span>
               </button>
               {showWebsite && (
@@ -245,7 +247,7 @@ export const HomeHero: React.FC<{
                   className={railButtonClass}
                   style={websiteChrome}
                 >
-                  <Globe size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
+                  <Globe size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 </a>
               )}
               {showLanguage && (
@@ -273,9 +275,9 @@ export const HomeHero: React.FC<{
                 className={railButtonClass}
               >
                 {theme === 'dark' ? (
-                  <Sun size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
+                  <Sun size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 ) : (
-                  <Moon size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
+                  <Moon size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 )}
               </div>
             </div>
@@ -307,7 +309,7 @@ export const HomeHero: React.FC<{
                     }`}
                     style={socialInlineStyle(item.label)}
                   >
-                    {renderSocialIcon(item, 18)}
+                    {renderSocialIcon(item, HOME_ICON_SIZE)}
                   </a>
                 )
               })}
@@ -338,7 +340,7 @@ export const HomeHero: React.FC<{
                     onAction?.('share')
                   }}
                 >
-                  <Share2 size={20} />
+                  <Share2 size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 </button>
               )}
               <button
@@ -349,7 +351,7 @@ export const HomeHero: React.FC<{
                   onAction?.('settings')
                 }}
               >
-                <Bell size={20} />
+                <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
               </button>
               <button
@@ -360,7 +362,7 @@ export const HomeHero: React.FC<{
                   onAction?.('notepad')
                 }}
               >
-                <FileText size={20} />
+                <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
               </button>
             </div>
 
@@ -473,7 +475,7 @@ export const HomeHero: React.FC<{
                         onAction?.('share')
                       }}
                     >
-                      <Share2 size={18} />
+                      <Share2 size={HOME_ICON_SIZE} strokeWidth={2.5} />
                     </button>
                   )}
                   <button
@@ -485,7 +487,7 @@ export const HomeHero: React.FC<{
                       onAction?.('settings')
                     }}
                   >
-                    <Bell size={18} />
+                    <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
                     <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
                   </button>
                   <button
@@ -497,7 +499,7 @@ export const HomeHero: React.FC<{
                       onAction?.('notepad')
                     }}
                   >
-                    <FileText size={18} />
+                    <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
                   </button>
                 </div>
 
@@ -516,7 +518,7 @@ export const HomeHero: React.FC<{
                           className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
                           style={socialInlineStyle(item.label)}
                         >
-                          {renderSocialIcon(item, 18)}
+                          {renderSocialIcon(item, HOME_ICON_SIZE)}
                         </a>
                       )
                     })}

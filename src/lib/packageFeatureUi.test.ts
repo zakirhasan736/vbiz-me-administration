@@ -100,13 +100,13 @@ describe('corporate manage-access overrides', () => {
     ).toBe(false)
   })
 
-  it('locks avatar video independently of still-image upload', () => {
+  it('allows avatar image and video uploads in the card builder', () => {
     const deny = (key: string) => key !== 'allow_video_upload'
     expect(displayMediaAccess('Profile Image/Video', deny)).toEqual({
       locked: false,
-      allowVideo: false,
+      allowVideo: true,
       allowAudio: false,
-      sourceMode: 'image',
+      sourceMode: 'both',
     })
   })
 

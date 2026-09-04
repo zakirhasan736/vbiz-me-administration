@@ -149,7 +149,7 @@ const ContactDetailItem: React.FC<{ item: ContactDetailItemData }> = ({ item }) 
             className="group-hover:border-yellow-primary group-hover:bg-yellow-primary flex h-9 w-9 items-center justify-center rounded-xl border border-black/5 bg-gray-50 text-gray-500 shadow-inner transition-all duration-500 group-hover:rotate-10 group-hover:text-black lg:h-11 lg:w-11 dark:border-white/10 dark:bg-white/5 dark:text-white/50"
             style={iconStyle}
           >
-            <item.icon size={18} strokeWidth={1.5} className="group-hover:stroke-2" />
+            <item.icon size={22} strokeWidth={1.5} className="group-hover:stroke-2" />
           </div>
           <div className="text-yellow-primary/40 group-hover:text-yellow-primary rounded-md border border-black/5 bg-gray-50 px-2 py-1 text-[7px] font-black tracking-[0.3em] uppercase transition-colors lg:text-[8px] dark:border-white/5 dark:bg-white/5">
             {item.detail}
@@ -400,7 +400,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                   >
                     {'icon' in action && action.icon ? (
                       <action.icon
-                        size={18}
+                        size={22}
                         className="relative z-10 transition-transform group-hover/btn:scale-110"
                         strokeWidth={2.5}
                       />
@@ -438,7 +438,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl"
                         style={socialInlineStyle}
                       >
-                        <item.icon size={16} fill="currentColor" />
+                        <item.icon size={22} fill="currentColor" />
                       </motion.a>
                     )
                   })}
@@ -505,7 +505,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               : undefined
                       }
                     >
-                      {'icon' in action && action.icon ? <action.icon size={16} strokeWidth={2.5} /> : null}
+                      {'icon' in action && action.icon ? <action.icon size={22} strokeWidth={2.5} /> : null}
                       {'content' in action && action.content ? action.content : null}
                       {'badge' in action ? action.badge : null}
                     </motion.button>
@@ -613,7 +613,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         className={`vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover}`}
                         style={idx === 0 && showShare ? shareChrome : undefined}
                       >
-                        <item.icon size={18} />
+                        <item.icon size={22} />
                       </button>
                     ))}
                   </div>
@@ -733,7 +733,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           className="vbiz-social flex h-10 w-10 items-center justify-center justify-self-center rounded-full shadow-xl transition-all duration-300 hover:-translate-y-1"
                           style={socialInlineStyle}
                         >
-                          <item.icon size={16} fill="currentColor" className="opacity-90 transition-none" />
+                          <item.icon size={22} fill="currentColor" className="opacity-90 transition-none" />
                         </a>
                       )
                     })}
@@ -776,7 +776,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         className={`vbiz-icon-btn flex flex-col items-center justify-center gap-1.5 rounded-xl border border-black/5 bg-gray-50 py-3 text-gray-500 shadow-sm transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] dark:border-white/10 dark:bg-white/5 dark:text-white/80 ${item.hover}`}
                         style={item.label === 'Share' ? shareChrome : undefined}
                       >
-                        <item.icon size={18} />
+                        <item.icon size={22} />
                         <span className="text-[10px] leading-none font-extrabold tracking-widest uppercase">
                           {item.label}
                         </span>

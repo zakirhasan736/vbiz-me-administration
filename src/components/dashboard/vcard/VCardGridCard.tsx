@@ -1,6 +1,7 @@
 'use client'
 
 import { AlertModal } from '@/components/AlertModal'
+import { CardAvatarThumb } from '@/components/CardAvatarThumb'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { Badge, Button, Card, Tooltip } from '@/components/ui'
 import { useAppDispatch } from '@/hooks/redux'
@@ -210,12 +211,12 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
         <div className="mb-5 flex items-end justify-between">
           <div className="group-hover:shadow-primary-500/20 relative -mt-11 h-22 w-22 shrink-0 overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-md transition-shadow dark:border-[#0b0f19] dark:bg-slate-800">
             {avatarSrc ? (
-              <Image
+              <CardAvatarThumb
                 src={avatarSrc}
-                alt={card.personal.fullName || 'Avatar'}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                width={100}
-                height={100}
+                name={card.personal.fullName}
+                size={88}
+                className="h-full w-full rounded-full border-0 text-2xl shadow-none"
+                mediaClassName="transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-slate-200 dark:bg-slate-700">
