@@ -1,5 +1,6 @@
 'use client'
 
+import { AdminPasswordField } from '@/components/admin/AdminPasswordField'
 import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import { Modal } from '@/components/ui/Modal'
 import type { CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
@@ -14,7 +15,7 @@ import {
 } from '@/redux/features/adminUsers/adminUsers.api'
 import { cn } from '@/utils/cn'
 import { getPasswordRules, isPasswordSameAsEmail } from '@/utils/passwordValidation'
-import { Building, Check, Eye, EyeOff, Search, User, UserPlus, X } from 'lucide-react'
+import { Building, Check, Search, User, UserPlus, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 
 function rtkErrorMessage(err: unknown, fallback: string) {
@@ -93,7 +94,6 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
   const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
-  const [showNewPassword, setShowNewPassword] = useState(false)
   const [newCompany, setNewCompany] = useState('')
   const [newPackageId, setNewPackageId] = useState('')
   const [newCardLimit, setNewCardLimit] = useState('')
@@ -127,7 +127,6 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
     setNewEmail('')
     setNewPassword('')
     setNewPasswordConfirm('')
-    setShowNewPassword(false)
     setNewCompany('')
     setNewPackageId('')
     setNewCardLimit('')
@@ -253,7 +252,7 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
         <div>
           <h3 className="text-xl font-black tracking-tight text-slate-950 dark:text-white">Assign card owner</h3>
           <p className="mt-1 text-xs font-semibold text-slate-400">
-            Choose who will own this vCard, then continue to Manual or AI create.
+            Pick an existing owner, or create a new Corporate/Single user first, then continue to Manual or AI create.
           </p>
         </div>
         <button
@@ -452,42 +451,24 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Password</label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      required
-                      minLength={8}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      autoComplete="new-password"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pr-11 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword((visible) => !visible)}
-                      className="absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white"
-                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Confirm Password
-                  </label>
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    required
-                    minLength={8}
-                    value={newPasswordConfirm}
-                    onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                    autoComplete="new-password"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
+                <AdminPasswordField
+                  id="assign-owner-password"
+                  label="Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  inputClassName="bg-white dark:bg-slate-800"
+                />
+                <AdminPasswordField
+                  id="assign-owner-confirm-password"
+                  label="Confirm Password"
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                  required
+                  minLength={8}
+                  inputClassName="bg-white dark:bg-slate-800"
+                />
               </div>
               <PasswordRulesTags password={newPassword} email={newEmail} />
               {newPasswordConfirm && newPassword !== newPasswordConfirm ? (

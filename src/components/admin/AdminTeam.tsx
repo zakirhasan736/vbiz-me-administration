@@ -1,5 +1,7 @@
 'use client'
 
+import { AdminPasswordField } from '@/components/admin/AdminPasswordField'
+import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
 import { useAppSelector } from '@/hooks/redux'
@@ -20,6 +22,7 @@ import {
   type AdminTeamMemberRow,
 } from '@/redux/features/adminTeam/adminTeam.api'
 import { cn } from '@/utils/cn'
+import { getPasswordRules } from '@/utils/passwordValidation'
 import { Edit2, Lock, Search, ShieldCheck, Trash2, UserPlus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
@@ -27,6 +30,7 @@ type FormState = {
   name: string
   email: string
   password: string
+  confirmPassword: string
   staffRole: AdminStaffRoleName
   allowedModules: AdminPermissionKey[]
 }
@@ -35,6 +39,7 @@ const emptyForm = (): FormState => ({
   name: '',
   email: '',
   password: '',
+  confirmPassword: '',
   staffRole: 'Co-Administrator',
   allowedModules: defaultsForStaffRole('Co-Administrator'),
 })
@@ -93,6 +98,7 @@ export default function AdminTeam() {
       name: member.name || '',
       email: member.email,
       password: '',
+      confirmPassword: '',
       staffRole: (member.staffRole as AdminStaffRoleName) || 'Moderator',
       allowedModules: (member.allowedModules || []) as AdminPermissionKey[],
     })
@@ -130,6 +136,15 @@ export default function AdminTeam() {
 
     try {
       if (modalMode === 'create') {
+        const unmetPasswordRule = getPasswordRules(form.password).find((rule) => !rule.met)
+        if (unmetPasswordRule) {
+          notify.error(`Password requires: ${unmetPasswordRule.label}.`)
+          return
+        }
+        if (form.password !== form.confirmPassword) {
+          notify.error('Passwords do not match.')
+          return
+        }
         await createMember({
           name: form.name.trim(),
           email: form.email.trim(),
@@ -379,19 +394,28 @@ export default function AdminTeam() {
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Password</label>
-                      <input
-                        type="password"
-                        required
-                        value={form.password}
-                        onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      />
-                      <p className="text-[10px] font-semibold text-slate-400">
-                        Min 8 chars with uppercase, number, and special character.
+                    <AdminPasswordField
+                      id="team-admin-password"
+                      label="Password"
+                      value={form.password}
+                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                      required
+                      minLength={8}
+                    />
+                    <AdminPasswordField
+                      id="team-admin-confirm-password"
+                      label="Confirm password"
+                      value={form.confirmPassword}
+                      onChange={(e) => setForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                      required
+                      minLength={8}
+                    />
+                    <PasswordRulesTags password={form.password} email={form.email} />
+                    {form.confirmPassword && form.password !== form.confirmPassword ? (
+                      <p className="text-[11px] font-semibold text-red-500" role="alert">
+                        Passwords do not match.
                       </p>
-                    </div>
+                    ) : null}
                   </>
                 )}
 
