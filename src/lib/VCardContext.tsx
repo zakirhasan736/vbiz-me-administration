@@ -210,6 +210,7 @@ function mergeServerProfileData(current: VCardData, server: VCardData): VCardDat
       ...(server.social ?? current.social ?? createDefaultVCardSocial()),
       customLinks: current.social?.customLinks ?? [],
     },
+    extraFields: current.extraFields ?? server.extraFields ?? [],
   }
 }
 

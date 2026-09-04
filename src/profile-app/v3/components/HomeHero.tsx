@@ -1,14 +1,13 @@
 'use client'
 
-import { LANGUAGE_LABELS, languageFlagCodeForLang } from '@/lib/i18n/config'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
-import { LanguageFlag } from '@/profile-app/components/LanguageFlag'
 import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButtons'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
+import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
@@ -93,7 +92,7 @@ export const HomeHero: React.FC<{
   onAction?: (action: string) => void
   toggleTheme?: () => void
 }> = ({ theme, onAction, toggleTheme }) => {
-  const { t, lang } = useTranslation()
+  const { t } = useTranslation()
   const {
     personal,
     isVisible,
@@ -251,23 +250,18 @@ export const HomeHero: React.FC<{
               )}
               {showLanguage && (
                 <div
-                  title="Language"
-                  className={`${railButtonClass} notranslate flex-col`}
+                  className={`${railButtonClass} notranslate h-auto min-h-10 w-auto min-w-10 flex-col gap-0.5 px-1 py-1 ${compact ? '' : 'md:min-h-12 md:min-w-12'}`}
                   style={languageChrome}
                   onClick={() => {
                     triggerHaptic(10)
                     onAction?.('language')
                   }}
                 >
-                  <LanguageFlag
-                    flagCode={languageFlagCodeForLang(lang)}
-                    alt={(LANGUAGE_LABELS[lang] || { label: 'EN' }).label}
-                    width={32}
-                    className={`h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-4 md:w-6'}`}
+                  <SelectedLanguageMark
+                    flagWidth={40}
+                    flagClassName={`h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-4 md:w-6'}`}
+                    nameClassName={`max-w-14 ${compact ? '' : 'md:max-w-16 md:text-[8px]'}`}
                   />
-                  <span className={`mt-0.5 text-[7px] font-bold tracking-wider ${compact ? '' : 'md:text-[8px]'}`}>
-                    {(LANGUAGE_LABELS[lang] || { label: 'EN' }).label}
-                  </span>
                 </div>
               )}
               <div

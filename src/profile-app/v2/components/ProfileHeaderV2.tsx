@@ -3,6 +3,7 @@
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
+import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
@@ -25,7 +26,6 @@ import {
   FileEdit,
   Globe,
   Instagram,
-  Languages,
   Linkedin,
   MessageCircle,
   Share2,
@@ -282,11 +282,15 @@ export function ProfileHeaderV2({
           <button
             type="button"
             onClick={onLanguage}
-            className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            className="vbiz-icon-btn flex h-auto min-h-8 w-auto min-w-8 flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-1 py-1 text-zinc-400 transition-colors hover:bg-zinc-50 md:min-h-10 md:min-w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
             style={languageChrome}
             aria-label="Language"
           >
-            <Languages size={14} className="md:h-4 md:w-4" />
+            <SelectedLanguageMark
+              flagWidth={40}
+              flagClassName="h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10 md:h-4 md:w-6"
+              nameClassName="max-w-14 text-[7px] md:text-[8px]"
+            />
           </button>
         )}
         {showShare && (

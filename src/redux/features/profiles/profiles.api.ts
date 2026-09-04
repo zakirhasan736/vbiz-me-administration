@@ -5,7 +5,9 @@ import {
 } from '@/lib/api/myCard/hydrateDisplaySettingsFromProfile'
 import {
   CUSTOM_TABS_SETTING_KEY,
+  EXTRA_FIELDS_SETTING_KEY,
   mapVCardEditorSettingsPayload,
+  parseExtraFieldsJson,
   parseThemeJson,
   TAB_LABEL_OVERRIDES_SETTING_KEY,
   THEME_SETTING_KEY,
@@ -621,6 +623,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   const staticTheme = getStaticProfileTheme(profileTemplate)
   const savedTheme = parseThemeJson(settingsMap[THEME_SETTING_KEY])
   const customTabs = parseCustomTabs(settingsMap[CUSTOM_TABS_SETTING_KEY])
+  const extraFields = parseExtraFieldsJson(settingsMap[EXTRA_FIELDS_SETTING_KEY])
   const tabLabelOverrides = parseTabLabelOverrides(settingsMap[TAB_LABEL_OVERRIDES_SETTING_KEY])
   const theme = {
     primaryColor: savedTheme?.primaryColor || staticTheme.primaryColor,
@@ -777,6 +780,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     }),
     skills: skillTagsToGroups(profile.skillTags),
     displaySettings,
+    extraFields,
     customTabs,
     tabLabelOverrides,
     myInfo: parseMyInfoJson(settingsMap[MY_INFO_SETTING_KEY]),

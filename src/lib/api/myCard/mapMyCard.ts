@@ -1,6 +1,8 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import {
   CUSTOM_TABS_SETTING_KEY,
+  EXTRA_FIELDS_SETTING_KEY,
+  parseExtraFieldsJson,
   parseThemeJson,
   TAB_LABEL_OVERRIDES_SETTING_KEY,
   THEME_SETTING_KEY,
@@ -478,14 +480,7 @@ function mapSocial(card: MyCardData): VCardSocial {
 }
 
 function mapExtraFields(card: MyCardData): VCardExtraField[] {
-  return (
-    card.my_info.additional_fields?.map((field, index) => ({
-      id: `api_extra_${index}`,
-      icon: field.icon ?? field.css_class ?? 'fa-link',
-      name: decodeHtmlText(field.key),
-      value: decodeHtmlText(field.value),
-    })) ?? []
-  )
+  return parseExtraFieldsJson(card.settings?.[EXTRA_FIELDS_SETTING_KEY])
 }
 
 function resolveTemplate(card: MyCardData): ProfileTemplateId {

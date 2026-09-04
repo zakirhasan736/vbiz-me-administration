@@ -1,12 +1,10 @@
 'use client'
 
-import { LANGUAGE_LABELS, languageFlagCodeForLang } from '@/lib/i18n/config'
-import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
-import { LanguageFlag } from '@/profile-app/components/LanguageFlag'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
+import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
   ArrowUpRight,
@@ -232,7 +230,6 @@ type HomeSectionProps = {
 }
 
 export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
-  const { lang } = useTranslation()
   const { personal, isVisible, field, homeMedia, design, socialHref, embedded, cardOwnerId, cardSlug, profileViews } =
     useProfileDisplay()
   const showShare = isVisible('Share Btn') || isVisible('Share')
@@ -272,8 +269,6 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
 
   const [messageModalOpen, setMessageModalOpen] = useState(false)
   const messageOwnerName = personal.fullName?.trim() || 'the card owner'
-  const currentFlagCode = languageFlagCodeForLang(lang)
-  const currentLangLabel = (LANGUAGE_LABELS[lang] || { label: 'EN' }).label
 
   const triggerAction = (action: string) => {
     homeHeroProps?.onAction(action)
@@ -361,15 +356,11 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                     ? [
                         {
                           content: (
-                            <div className="flex flex-col items-center justify-center leading-none">
-                              <LanguageFlag
-                                flagCode={currentFlagCode}
-                                alt={currentLangLabel}
-                                width={28}
-                                className="h-3 w-4 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
-                              />
-                              <span className="text-yellow-primary mt-0.5 text-[8px] font-bold">LANG</span>
-                            </div>
+                            <SelectedLanguageMark
+                              flagWidth={40}
+                              flagClassName="h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
+                              nameClassName="text-yellow-primary max-w-14"
+                            />
                           ),
                           label: 'Language',
                           action: () => triggerAction('language'),
@@ -481,15 +472,11 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       ? [
                           {
                             content: (
-                              <div className="flex flex-col items-center justify-center leading-none">
-                                <LanguageFlag
-                                  flagCode={currentFlagCode}
-                                  alt={currentLangLabel}
-                                  width={28}
-                                  className="h-3 w-4 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
-                                />
-                                <span className="text-yellow-primary mt-0.5 text-[8px] font-bold">LANG</span>
-                              </div>
+                              <SelectedLanguageMark
+                                flagWidth={40}
+                                flagClassName="h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
+                                nameClassName="text-yellow-primary max-w-14"
+                              />
                             ),
                             label: 'Language',
                             action: () => triggerAction('language'),
