@@ -9,16 +9,20 @@ type SelectedLanguageMarkProps = {
   className?: string
   flagClassName?: string
   nameClassName?: string
+  /** Home language button uses flag only (same image as Select Language popup). */
   showName?: boolean
   flagWidth?: number
 }
 
-/** Active public-card language: country flag + language name (never two-letter codes). */
+/**
+ * Selected language mark for the home language button.
+ * Uses the same country flag image as each row in the Select Language popup.
+ */
 export function SelectedLanguageMark({
   className,
   flagClassName,
   nameClassName,
-  showName = true,
+  showName = false,
   flagWidth = 40,
 }: SelectedLanguageMarkProps) {
   const { lang } = useTranslation()
@@ -34,9 +38,9 @@ export function SelectedLanguageMark({
       <LanguageFlag
         flagCode={flagCode}
         langCode={lang}
-        alt=""
+        alt={name}
         width={flagWidth}
-        className={flagClassName || 'h-4 w-6 rounded-[2px] object-cover shadow-sm ring-1 ring-black/15'}
+        className={flagClassName || 'h-5 w-7 shrink-0 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15'}
       />
       {showName ? (
         <span

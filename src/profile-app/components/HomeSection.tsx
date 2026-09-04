@@ -357,9 +357,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         {
                           content: (
                             <SelectedLanguageMark
-                              flagWidth={40}
-                              flagClassName="h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
-                              nameClassName="text-yellow-primary max-w-14"
+                              showName={false}
+                              flagWidth={48}
+                              flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10"
                             />
                           ),
                           label: 'Language',
@@ -473,9 +473,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           {
                             content: (
                               <SelectedLanguageMark
-                                flagWidth={40}
-                                flagClassName="h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
-                                nameClassName="text-yellow-primary max-w-14"
+                                showName={false}
+                                flagWidth={48}
+                                flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10"
                               />
                             ),
                             label: 'Language',

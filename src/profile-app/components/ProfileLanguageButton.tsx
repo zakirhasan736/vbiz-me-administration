@@ -40,9 +40,9 @@ export function ProfileLanguageButton({
       style={displayIconChromeStyle(field('Language'))}
     >
       <SelectedLanguageMark
-        flagWidth={40}
-        flagClassName="h-4 w-6 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
-        nameClassName="max-w-16"
+        showName={false}
+        flagWidth={48}
+        flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10"
       />
     </button>
   )

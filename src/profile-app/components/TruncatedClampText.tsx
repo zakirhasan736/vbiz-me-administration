@@ -40,7 +40,7 @@ export function TruncatedClampText({
   plain,
   html,
   className = '',
-  textClassName = 'text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400',
+  textClassName = 'vbiz-description text-sm leading-relaxed font-medium',
   accentColor = '#eab308',
   onReadMore,
   readMoreIcon,

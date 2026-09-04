@@ -258,9 +258,9 @@ export const HomeHero: React.FC<{
                   }}
                 >
                   <SelectedLanguageMark
-                    flagWidth={40}
-                    flagClassName={`h-3.5 w-5 rounded-[2px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-4 md:w-6'}`}
-                    nameClassName={`max-w-14 ${compact ? '' : 'md:max-w-16 md:text-[8px]'}`}
+                    showName={false}
+                    flagWidth={48}
+                    flagClassName={`h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-6 md:w-8'}`}
                   />
                 </div>
               )}

@@ -39,29 +39,17 @@ function resolveComponentColors(
         ? colorFromToken(modeColors.foreground, set, roleFill)
         : roleFill
   } else if (style === 'glass') {
+    // Frosted surface — always white label/icon for both CTAs and icon buttons.
     fill = `color-mix(in srgb, ${roleFill} 28%, transparent)`
-    foreground = ensureContrastPair(
-      roleFill,
-      modeColors.foreground && modeColors.foreground !== 'auto'
-        ? colorFromToken(modeColors.foreground, set, '')
-        : undefined
-    ).foreground
+    foreground = '#ffffff'
   } else if (style === 'outlined') {
-    // Modern outline: opacity surface so text stays readable (not gold-on-transparent).
-    // Light ≈ previous white panel + dark text; dark ≈ ocean/secondary panel + light text.
+    // Transparent / light tint surface — always white label/icon (Template Settings).
     if (mode === 'light') {
-      fill = `color-mix(in srgb, ${roleFill} 10%, #ffffff)`
-      foreground =
-        modeColors.foreground && modeColors.foreground !== 'auto'
-          ? colorFromToken(modeColors.foreground, set, set.text)
-          : set.text
+      fill = `color-mix(in srgb, ${roleFill} 10%, transparent)`
     } else {
-      fill = `color-mix(in srgb, ${set.secondary} 88%, #000000)`
-      foreground =
-        modeColors.foreground && modeColors.foreground !== 'auto'
-          ? colorFromToken(modeColors.foreground, set, set.text)
-          : set.text
+      fill = `color-mix(in srgb, ${set.secondary} 55%, transparent)`
     }
+    foreground = '#ffffff'
   } else if (style === 'ghost') {
     fill = 'transparent'
     foreground =
@@ -254,6 +242,10 @@ ${themeUi(".vbiz-btn[data-role='accent']")} {
   box-shadow: var(--vbiz-btn-shadow, none) !important;
   font-family: var(--vbiz-font, inherit) !important;
 }
+${themeUi('.vbiz-btn svg')} {
+  color: inherit !important;
+  stroke: currentColor;
+}
 ${themeUi(".vbiz-btn[data-role='primary']")} {
   background: var(--vbiz-btn-primary-fill) !important;
   color: var(--vbiz-btn-primary-fg) !important;
@@ -293,7 +285,8 @@ ${themeUi('.vbiz-social')} {
   font-family: var(--vbiz-font, inherit);
 }
 ${themeUi('.vbiz-social svg')} {
-  color: inherit;
+  color: inherit !important;
+  stroke: currentColor;
   width: var(--vbiz-social-icon-size, 18px);
   height: var(--vbiz-social-icon-size, 18px);
 }
@@ -312,6 +305,13 @@ ${themeUi('.vbiz-icon-btn')} {
 ${themeUi('.vbiz-icon-btn svg')},
 ${themeUi('.vbiz-icon-btn .text-gold')},
 ${themeUi('.vbiz-icon-btn .text-yellow-primary')} { color: inherit !important; }
+/* Language button: keep country flag images visible (same assets as Select Language popup) */
+${themeUi('.vbiz-icon-btn img')} {
+  display: block !important;
+  max-width: none;
+  object-fit: cover;
+  color: transparent !important;
+}
 ${themeUi('.vbiz-icon-btn:hover')} {
   background-image: linear-gradient(var(--vbiz-btn-secondary-hover-overlay, transparent), var(--vbiz-btn-secondary-hover-overlay, transparent));
   border-color: var(--vbiz-accent) !important;
@@ -690,6 +690,26 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 .vbiz-description {
   color: var(--vbiz-description, var(--vbiz-text-muted)) !important;
+}
+/* TipTap/editor HTML often ships inline black/white — force theme description color */
+.vbiz-profile-root .vbiz-description.vcard-rich-html,
+.vbiz-profile-root .vcard-rich-html.vbiz-description {
+  color: var(--vbiz-description, var(--vbiz-text-muted)) !important;
+}
+.vbiz-profile-root .vbiz-description.vcard-rich-html :where(*:not(a):not(code):not(pre)),
+.vbiz-profile-root .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre)) {
+  color: inherit !important;
+}
+.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html {
+  color: var(--vbiz-description, var(--vbiz-text-muted)) !important;
+}
+.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre)) {
+  color: inherit !important;
+}
+.vbiz-profile-root .vbiz-description.vcard-rich-html a,
+.vbiz-profile-root .vcard-rich-html.vbiz-description a,
+.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html a {
+  color: var(--vbiz-accent) !important;
 }
 
 /* ========== Preloader (brand splash + intro controls) ========== */

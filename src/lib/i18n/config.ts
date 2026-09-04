@@ -58,24 +58,75 @@ export const LANGUAGE_LABELS: Record<string, { label: string; flag: string }> = 
 
 const FLAGCDN_PNG_WIDTHS = [20, 40, 80, 160, 320] as const
 
+function normalizeFlagCountryCode(flagCode: string): string {
+  return flagCode.trim().toLowerCase() || 'us'
+}
+
+/** Normalize stored/API language codes (EN, en-US, zh-cn) onto LANGUAGE_MAP keys. */
+export function normalizeLanguageCode(langCode: string): string {
+  const raw = langCode?.trim()
+  if (!raw) return I18N_CONFIG.fallback
+  if (LANGUAGE_MAP[raw]) return raw
+  const lower = raw.toLowerCase()
+  if (LANGUAGE_MAP[lower]) return lower
+  const exact = Object.keys(LANGUAGE_MAP).find((key) => key.toLowerCase() === lower)
+  if (exact) return exact
+  const base = lower.split(/[-_]/)[0] || ''
+  if (base === 'zh') return 'zh-CN'
+  if (LANGUAGE_MAP[base]) return base
+  return I18N_CONFIG.fallback
+}
+
+/** Local first (same asset as language popup), then remote CDNs — never emoji letter-caps. */
+export function languageFlagLocalUrl(flagCode: string): string {
+  const code = normalizeFlagCountryCode(flagCode)
+  return `/flags/${code}.svg`
+}
+
 /** ISO country → flag image (flagcdn). Snap to sizes the CDN actually serves. */
 export function languageFlagImageUrl(flagCode: string, width = 40): string {
-  const code = flagCode.trim().toLowerCase() || 'us'
+  const code = normalizeFlagCountryCode(flagCode)
   const snapped = FLAGCDN_PNG_WIDTHS.find((size) => size >= width) ?? FLAGCDN_PNG_WIDTHS[FLAGCDN_PNG_WIDTHS.length - 1]
   return `https://flagcdn.com/w${snapped}/${code}.png`
 }
 
 export function languageFlagSvgUrl(flagCode: string): string {
-  const code = flagCode.trim().toLowerCase() || 'us'
+  const code = normalizeFlagCountryCode(flagCode)
   return `https://flagcdn.com/${code}.svg`
 }
 
-export function languageFlagCodeForLang(langCode: string): string {
-  return LANGUAGE_MAP[langCode]?.flagCode || LANGUAGE_MAP.en.flagCode
+/** Twemoji SVG — real flag artwork (Windows cannot render emoji flags as images). */
+export function languageFlagTwemojiUrl(flagCode: string): string {
+  const code = normalizeFlagCountryCode(flagCode).toUpperCase()
+  const points = [...code].map((letter) => (0x1f1e6 + letter.charCodeAt(0) - 65).toString(16)).join('-')
+  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${points}.svg`
+}
+
+export function languageFlagIconsUrl(flagCode: string): string {
+  const code = normalizeFlagCountryCode(flagCode)
+  return `https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/flags/4x3/${code}.svg`
+}
+
+/** Ordered image candidates — local public flags match the language popup. */
+export function languageFlagCandidateUrls(flagCode: string, width = 40): string[] {
+  return [
+    languageFlagLocalUrl(flagCode),
+    languageFlagSvgUrl(flagCode),
+    languageFlagImageUrl(flagCode, width),
+    languageFlagTwemojiUrl(flagCode),
+    languageFlagIconsUrl(flagCode),
+  ]
+}
+
+/** Country ISO used for the language’s flag (same mapping as Select Language popup). */
+export function languageFlagCodeForLang(langCode: string, fallbackFlagCode?: string): string {
+  const code = normalizeLanguageCode(langCode)
+  return LANGUAGE_MAP[code]?.flagCode || fallbackFlagCode?.trim().toUpperCase() || LANGUAGE_MAP.en.flagCode
 }
 
 export function languageDisplayName(langCode: string): string {
-  return LANGUAGE_MAP[langCode]?.name || LANGUAGE_MAP.en.name
+  const code = normalizeLanguageCode(langCode)
+  return LANGUAGE_MAP[code]?.name || LANGUAGE_MAP.en.name
 }
 
 export function languageEmojiFlag(langCode?: string, flagCode?: string): string {

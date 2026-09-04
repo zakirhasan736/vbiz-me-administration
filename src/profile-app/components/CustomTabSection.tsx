@@ -8,13 +8,13 @@ import { ExternalLink, Layers } from 'lucide-react'
 import Image from 'next/image'
 
 const RICH_PROSE =
-  'vcard-rich-html prose prose-sm dark:prose-invert max-w-none leading-relaxed font-medium text-zinc-600 dark:text-zinc-300 ' +
-  '[&_a]:text-[#eab308] [&_a]:underline-offset-2 hover:[&_a]:underline ' +
-  '[&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-zinc-900 dark:[&_h1]:text-white ' +
-  '[&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-zinc-900 dark:[&_h2]:text-white ' +
-  '[&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-zinc-900 dark:[&_h3]:text-white ' +
+  'vcard-rich-html vbiz-description prose prose-sm max-w-none leading-relaxed font-medium ' +
+  '[&_a]:text-[var(--vbiz-accent,#eab308)] [&_a]:underline-offset-2 hover:[&_a]:underline ' +
+  '[&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-[var(--vbiz-text)] ' +
+  '[&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-[var(--vbiz-text)] ' +
+  '[&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-[var(--vbiz-text)] ' +
   '[&_p]:mb-3 [&_p]:leading-relaxed ' +
-  '[&_strong]:font-bold [&_strong]:text-zinc-900 dark:[&_strong]:text-white ' +
+  '[&_strong]:font-bold [&_strong]:text-[var(--vbiz-text)] ' +
   '[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 ' +
   '[&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 ' +
   '[&_li]:mb-1'
@@ -119,10 +119,7 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                     html.includes('<') ? (
                       <div className={RICH_PROSE} dangerouslySetInnerHTML={{ __html: html }} />
                     ) : (
-                      <TruncatedClampText
-                        plain={html}
-                        className="text-sm font-medium text-zinc-600 dark:text-zinc-400"
-                      />
+                      <TruncatedClampText plain={html} className="vbiz-description text-sm font-medium" />
                     )
                   ) : null}
                   {link ? (

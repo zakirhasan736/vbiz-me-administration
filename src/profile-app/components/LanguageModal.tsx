@@ -1,6 +1,12 @@
 'use client'
 
-import { FALLBACK_LANGUAGES, I18N_CONFIG, LANGUAGE_MAP, languageDisplayName } from '@/lib/i18n/config'
+import {
+  FALLBACK_LANGUAGES,
+  I18N_CONFIG,
+  LANGUAGE_MAP,
+  languageDisplayName,
+  languageFlagCodeForLang,
+} from '@/lib/i18n/config'
 import { applyTranslation, getActiveLanguage, resetToEnglish, type BackendLanguage } from '@/lib/i18n/translation'
 import { LanguageFlag } from '@/profile-app/components/LanguageFlag'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
@@ -34,7 +40,7 @@ export function LanguageModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             setLanguages(
               data.languages.map((lang: BackendLanguage) => ({
                 ...lang,
-                flagCode: LANGUAGE_MAP[lang.code]?.flagCode || lang.flagCode,
+                flagCode: languageFlagCodeForLang(lang.code, lang.flagCode),
                 name: LANGUAGE_MAP[lang.code]?.name || lang.name,
               }))
             )
@@ -138,7 +144,11 @@ export function LanguageModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     isSelected ? 'vbiz-modal-row-selected scale-[1.02] font-semibold shadow-md' : 'vbiz-modal-row'
                   }`}
                 >
-                  <LanguageFlag flagCode={lang.flagCode} langCode={lang.code} alt="" />
+                  <LanguageFlag
+                    flagCode={languageFlagCodeForLang(lang.code, lang.flagCode)}
+                    langCode={lang.code}
+                    alt=""
+                  />
                   <span className="text-[13px] leading-tight font-medium select-none">
                     {LANGUAGE_MAP[lang.code]?.name || lang.name || languageDisplayName(lang.code)}
                   </span>

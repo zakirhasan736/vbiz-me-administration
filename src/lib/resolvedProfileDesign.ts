@@ -39,14 +39,14 @@ export function cornerStyleToRadius(cornerStyle: string): string {
 export function buttonStyleClasses(buttonStyle: string): string {
   switch (buttonStyle) {
     case 'glass':
-      return 'bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20'
+      return 'bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 [&_svg]:text-white'
     case 'outline':
-      return 'bg-transparent border-2 hover:bg-black/5 dark:hover:bg-white/5'
+      return 'bg-transparent border-2 text-white hover:bg-white/10 [&_svg]:text-white'
     case 'soft':
       return 'border border-transparent hover:opacity-90'
     case 'solid':
     default:
-      return 'text-white hover:opacity-90 shadow-sm'
+      return 'text-white hover:opacity-90 shadow-sm [&_svg]:text-white'
   }
 }
 

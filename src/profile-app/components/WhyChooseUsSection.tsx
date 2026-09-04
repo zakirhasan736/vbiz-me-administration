@@ -85,7 +85,7 @@ function WhyChooseUsCard({
             html={item.description}
             plain={plainDescription}
             accentColor={accent}
-            textClassName="text-base leading-normal font-medium lg:text-lg dark:text-zinc-400"
+            textClassName="vbiz-description text-base leading-normal font-medium lg:text-lg"
           />
 
           {detailUrl ? (
