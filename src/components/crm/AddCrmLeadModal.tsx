@@ -14,6 +14,10 @@ type AddCrmLeadModalProps = {
   open: boolean
   onClose: () => void
   isSubmitting?: boolean
+  /** Use a higher stack when this sheet opens over another modal (e.g. Book a time). */
+  overlayClassName?: string
+  initialFullName?: string
+  subtitle?: string
   onSubmit: (payload: {
     fullName: string
     email?: string
@@ -23,17 +27,34 @@ type AddCrmLeadModalProps = {
   }) => Promise<void>
 }
 
-export function AddCrmLeadModal({ open, onClose, isSubmitting, onSubmit }: AddCrmLeadModalProps) {
+export function AddCrmLeadModal({
+  open,
+  onClose,
+  isSubmitting,
+  onSubmit,
+  overlayClassName = 'z-200',
+  initialFullName = '',
+  subtitle = 'This person stays in CRM as an external lead. They won’t show on your card dashboard.',
+}: AddCrmLeadModalProps) {
   const role = useAppSelector((state) => state.user.user?.role)
   const isStaff = isStaffRole(role)
   const { data: profilesPage } = useGetProfilesQuery({ limit: 100 }, { skip: isStaff || !open })
 
-  const [fullName, setFullName] = useState('')
+  const [fullName, setFullName] = useState(initialFullName)
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
   const [owner, setOwner] = useState<ProfileOwnerSelection | null>(null)
   const [ownerCardId, setOwnerCardId] = useState('')
+  const [wasOpen, setWasOpen] = useState(open)
+
+  // Seed full name when the modal opens (adjust during render — avoid setState-in-effect).
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setFullName(initialFullName)
+    }
+  }
 
   const cards = useMemo(() => profilesPage?.items ?? [], [profilesPage?.items])
 
@@ -67,8 +88,14 @@ export function AddCrmLeadModal({ open, onClose, isSubmitting, onSubmit }: AddCr
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-200 flex items-end justify-center p-0 sm:items-center sm:p-4">
-        <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className={cn('fixed inset-0 flex items-end justify-center p-0 sm:items-center sm:p-4', overlayClassName)}>
+        <div
+          className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]"
+          onClick={(event) => {
+            event.stopPropagation()
+            onClose()
+          }}
+        />
         <form
           onSubmit={(event) => void handleSubmit(event)}
           className="animate-in slide-in-from-bottom-4 sm:zoom-in-95 relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-slate-200 bg-white shadow-2xl duration-200 sm:rounded-[28px] dark:border-white/10 dark:bg-[#0b1018]"
@@ -79,9 +106,7 @@ export function AddCrmLeadModal({ open, onClose, isSubmitting, onSubmit }: AddCr
                 New contact
               </p>
               <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">Add a lead</h2>
-              <p className="mt-1 text-xs font-medium text-slate-500">
-                This person stays in CRM so you can follow up. They won’t show on your card dashboard.
-              </p>
+              <p className="mt-1 text-xs font-medium text-slate-500">{subtitle}</p>
             </div>
             <button
               type="button"

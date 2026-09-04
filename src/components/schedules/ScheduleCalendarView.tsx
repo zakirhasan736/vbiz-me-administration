@@ -8,6 +8,7 @@ import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
 import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
 import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
+import { useGetCrmScheduleCalendarQuery, type CrmScheduleCalendarItem } from '@/redux/features/crm/crm.api'
 import {
   useCreateMeetingMutation,
   useDeleteMeetingMutation,
@@ -33,6 +34,23 @@ import { useMemo, useState } from 'react'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 
+type CalendarEntry = {
+  kind: 'meeting' | 'work_note'
+  id: string
+  host: string
+  type: string
+  date: string
+  time: string
+  startsAt: string
+  status: string
+  meetLink?: string | null
+  notes?: string | null
+  scope?: MeetingScope | string
+  profileId?: string | null
+  canManageMeeting: boolean
+  title?: string
+}
+
 function toIsoDate(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -44,7 +62,7 @@ function todayIsoDate(): string {
   return toIsoDate(new Date())
 }
 
-function meetingDayKey(meeting: Meeting): string {
+function meetingDayKey(meeting: Pick<CalendarEntry, 'date' | 'startsAt'>): string {
   const raw = (meeting.date || meeting.startsAt || '').trim()
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10)
   const parsed = new Date(raw)
@@ -83,24 +101,66 @@ function buildMonthCells(year: number, month: number): CalendarCell[] {
   })
 }
 
-function pinTone(status: MeetingStatus) {
-  if (status === 'Completed') {
+function pinTone(entry: CalendarEntry) {
+  if (entry.kind === 'work_note') {
+    return 'border-amber-200/80 bg-amber-50 text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200'
+  }
+  if (entry.status === 'Completed') {
     return 'border-emerald-200/80 bg-emerald-50 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
   }
-  if (status === 'Cancelled') {
+  if (entry.status === 'Cancelled') {
     return 'border-slate-200 bg-slate-100 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'
   }
-  return 'border-teal-200/80 bg-teal-50 text-teal-900 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-200'
+  return 'border-sky-200/80 bg-sky-50 text-sky-900 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-200'
 }
 
-function statusDot(status: MeetingStatus) {
-  if (status === 'Completed') return 'bg-emerald-500'
-  if (status === 'Cancelled') return 'bg-slate-400'
-  return 'bg-teal-500'
+function statusDot(entry: CalendarEntry) {
+  if (entry.kind === 'work_note') return 'bg-amber-500'
+  if (entry.status === 'Completed') return 'bg-emerald-500'
+  if (entry.status === 'Cancelled') return 'bg-slate-400'
+  return 'bg-sky-500'
+}
+
+function meetingToEntry(m: Meeting): CalendarEntry {
+  return {
+    kind: 'meeting',
+    id: m.id,
+    host: m.host,
+    type: String(m.type),
+    date: m.date,
+    time: m.time,
+    startsAt: m.startsAt,
+    status: m.status,
+    meetLink: m.meetLink,
+    notes: m.notes,
+    scope: m.scope,
+    profileId: m.profileId,
+    canManageMeeting: true,
+    title: m.type,
+  }
+}
+
+function crmItemToEntry(item: CrmScheduleCalendarItem): CalendarEntry {
+  return {
+    kind: item.kind,
+    id: item.id,
+    host: item.host,
+    type: item.type,
+    date: item.date,
+    time: item.time,
+    startsAt: item.startsAt,
+    status: item.status,
+    meetLink: item.meetLink,
+    notes: item.notes,
+    scope: item.scope,
+    profileId: item.profileId,
+    canManageMeeting: item.canManageMeeting,
+    title: item.title,
+  }
 }
 
 export type ScheduleCalendarViewProps = {
-  meetingsSource?: 'admin' | 'owner'
+  meetingsSource?: 'admin' | 'owner' | 'crm_zoho'
   canManageMeetings?: boolean
   allowedScopes?: MeetingScope[]
   defaultScope?: MeetingScope
@@ -109,6 +169,9 @@ export type ScheduleCalendarViewProps = {
   subtitle?: string
   upcomingSubtitle?: string
   compact?: boolean
+  cardPicker?: 'admin' | 'own'
+  /** Role-scoped host search (cards + saved guests) + inline create lead. */
+  personSearch?: boolean
 }
 
 export function ScheduleCalendarView({
@@ -121,20 +184,78 @@ export function ScheduleCalendarView({
   subtitle = 'A clear month view for onboarding calls, growth sessions, and owner discussions. Click any day to open details or book.',
   upcomingSubtitle = 'Latest scheduled sessions across the platform.',
   compact = false,
+  cardPicker,
+  personSearch = false,
 }: ScheduleCalendarViewProps) {
   const now = new Date()
-  const adminQuery = useGetMeetingsQuery({ limit: 100 }, { skip: meetingsSource !== 'admin' })
-  const ownerQuery = useGetOwnerMeetingsQuery({ limit: 100 }, { skip: meetingsSource !== 'owner' })
-  const data = meetingsSource === 'owner' ? ownerQuery.data : adminQuery.data
-  const isLoading = meetingsSource === 'owner' ? ownerQuery.isLoading : adminQuery.isLoading
-  const isError = meetingsSource === 'owner' ? ownerQuery.isError : adminQuery.isError
+  const [viewYear, setViewYear] = useState(now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(now.getMonth())
+
+  const monthRange = useMemo(() => {
+    const cells = buildMonthCells(viewYear, viewMonth)
+    return { from: cells[0]?.key, to: cells[cells.length - 1]?.key }
+  }, [viewYear, viewMonth])
+  const upcomingFrom = todayIsoDate()
+  const isCrmZoho = meetingsSource === 'crm_zoho'
+
+  const adminQuery = useGetMeetingsQuery(
+    { limit: 100, from: monthRange.from, to: monthRange.to },
+    { skip: meetingsSource !== 'admin' }
+  )
+  const ownerQuery = useGetOwnerMeetingsQuery(
+    { limit: 100, from: monthRange.from, to: monthRange.to },
+    { skip: meetingsSource !== 'owner' }
+  )
+  const adminUpcomingQuery = useGetMeetingsQuery(
+    { limit: 20, status: 'Scheduled', from: upcomingFrom },
+    { skip: meetingsSource !== 'admin' }
+  )
+  const ownerUpcomingQuery = useGetOwnerMeetingsQuery(
+    { limit: 20, upcomingOnly: true },
+    { skip: meetingsSource !== 'owner' }
+  )
+  const crmQuery = useGetCrmScheduleCalendarQuery(
+    { from: monthRange.from || upcomingFrom, to: monthRange.to || upcomingFrom },
+    { skip: !isCrmZoho || !monthRange.from || !monthRange.to }
+  )
+
+  const entries: CalendarEntry[] = useMemo(() => {
+    if (isCrmZoho) return (crmQuery.data?.items ?? []).map(crmItemToEntry)
+    const meetings = (meetingsSource === 'owner' ? ownerQuery.data?.items : adminQuery.data?.items) ?? []
+    return meetings.map(meetingToEntry)
+  }, [isCrmZoho, crmQuery.data?.items, meetingsSource, ownerQuery.data?.items, adminQuery.data?.items])
+
+  const isLoading = isCrmZoho
+    ? crmQuery.isLoading
+    : meetingsSource === 'owner'
+      ? ownerQuery.isLoading
+      : adminQuery.isLoading
+  const isError = isCrmZoho ? crmQuery.isError : meetingsSource === 'owner' ? ownerQuery.isError : adminQuery.isError
+
+  const upcomingEntries = useMemo(() => {
+    if (isCrmZoho) {
+      return [...entries]
+        .filter((e) => {
+          const day = meetingDayKey(e)
+          if (!day || day < upcomingFrom) return false
+          if (e.kind === 'work_note') return e.status !== 'complete'
+          return e.status === 'Scheduled'
+        })
+        .sort((a, b) => String(a.startsAt || a.date).localeCompare(String(b.startsAt || b.date)))
+        .slice(0, 20)
+    }
+    const rows = (meetingsSource === 'owner' ? ownerUpcomingQuery.data?.items : adminUpcomingQuery.data?.items) ?? []
+    return rows
+      .filter((m) => m.status === 'Scheduled')
+      .map(meetingToEntry)
+      .sort((a, b) => String(a.startsAt || a.date).localeCompare(String(b.startsAt || b.date)))
+  }, [isCrmZoho, entries, upcomingFrom, meetingsSource, ownerUpcomingQuery.data?.items, adminUpcomingQuery.data?.items])
+
   const [createMeeting, { isLoading: isCreating }] = useCreateMeetingMutation()
   const [updateMeeting] = useUpdateMeetingMutation()
   const [deleteMeeting] = useDeleteMeetingMutation()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewYear, setViewYear] = useState(now.getFullYear())
-  const [viewMonth, setViewMonth] = useState(now.getMonth())
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -146,23 +267,24 @@ export function ScheduleCalendarView({
     onConfirm: () => void
   } | null>(null)
 
-  const filteredMeetings = useMemo(() => {
-    const meetings = data?.items ?? []
+  const filteredEntries = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
-    if (!q) return meetings
-    return meetings.filter(
+    if (!q) return entries
+    return entries.filter(
       (m) =>
         m.host.toLowerCase().includes(q) ||
         String(m.type).toLowerCase().includes(q) ||
         m.status.toLowerCase().includes(q) ||
+        (m.title || '').toLowerCase().includes(q) ||
         (m.notes || '').toLowerCase().includes(q) ||
-        meetingDayKey(m).includes(q)
+        meetingDayKey(m).includes(q) ||
+        m.kind.includes(q)
     )
-  }, [data?.items, searchQuery])
+  }, [entries, searchQuery])
 
   const meetingsByDay = useMemo(() => {
-    const map = new Map<string, Meeting[]>()
-    for (const meeting of filteredMeetings) {
+    const map = new Map<string, CalendarEntry[]>()
+    for (const meeting of filteredEntries) {
       const key = meetingDayKey(meeting)
       if (!key) continue
       const list = map.get(key) || []
@@ -173,52 +295,48 @@ export function ScheduleCalendarView({
       list.sort((a, b) => String(a.time).localeCompare(String(b.time)))
     }
     return map
-  }, [filteredMeetings])
+  }, [filteredEntries])
 
   const monthCells = useMemo(() => buildMonthCells(viewYear, viewMonth), [viewYear, viewMonth])
   const todayKey = todayIsoDate()
   const selectedMeetings = selectedDay ? meetingsByDay.get(selectedDay) || [] : []
 
   const shiftMonth = (delta: number) => {
-    const next = new Date(viewYear, viewMonth + delta, 1)
-    setViewYear(next.getFullYear())
-    setViewMonth(next.getMonth())
-  }
-
-  const openBookModal = (isoDate?: string) => {
-    setBookDate(isoDate || todayIsoDate())
-    setIsAddOpen(true)
+    const d = new Date(viewYear, viewMonth + delta, 1)
+    setViewYear(d.getFullYear())
+    setViewMonth(d.getMonth())
   }
 
   const handleDayClick = (cell: CalendarCell) => {
-    const items = meetingsByDay.get(cell.key) || []
-    if (items.length) {
-      setSelectedDay(cell.key)
-      return
-    }
-    if (cell.inMonth) openBookModal(cell.key)
+    setSelectedDay(cell.key)
+  }
+
+  const openBookModal = (date: string) => {
+    setBookDate(date)
+    setIsAddOpen(true)
   }
 
   const handleUpdateStatus = async (id: string, nextStatus: MeetingStatus) => {
     try {
       await updateMeeting({ id, body: { status: nextStatus } }).unwrap()
+      if (nextStatus === 'Cancelled' || nextStatus === 'Completed') setSelectedDay(null)
     } catch {
-      /* RTK surfaces error via cache */
+      /* toast handled upstream if wired */
     }
   }
 
-  const handleDeleteMeeting = (meeting: Meeting) => {
+  const handleDeleteMeeting = (meeting: CalendarEntry) => {
     setConfirmState({
       open: true,
-      title: 'Cancel scheduled discussion?',
-      description: `Cancel and remove scheduled discussion with ${meeting.host}?`,
+      title: 'Delete this session?',
+      description: `Remove ${meeting.type} with ${meeting.host} on ${meeting.date}. This cannot be undone.`,
       onConfirm: () => {
         void (async () => {
           try {
             await deleteMeeting(meeting.id).unwrap()
             setSelectedDay((day) => {
-              if (!day) return day
-              const remaining = (meetingsByDay.get(day) || []).filter((row) => row.id !== meeting.id)
+              if (!day) return null
+              const remaining = (meetingsByDay.get(day) || []).filter((m) => m.id !== meeting.id)
               return remaining.length ? day : null
             })
           } finally {
@@ -242,21 +360,13 @@ export function ScheduleCalendarView({
     return created
   }
 
-  const upcomingMeetings = useMemo(
-    () =>
-      [...filteredMeetings]
-        .filter((m) => m.status === 'Scheduled')
-        .sort((a, b) => String(a.startsAt || a.date).localeCompare(String(b.startsAt || b.date))),
-    [filteredMeetings]
-  )
-
   const monthMeetingCount = useMemo(() => {
     const prefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`
-    return filteredMeetings.filter((m) => meetingDayKey(m).startsWith(prefix)).length
-  }, [filteredMeetings, viewYear, viewMonth])
+    return filteredEntries.filter((m) => meetingDayKey(m).startsWith(prefix)).length
+  }, [filteredEntries, viewYear, viewMonth])
 
-  const renderMeetingActions = (mtg: Meeting) => {
-    if (!canManageMeetings) return null
+  const renderMeetingActions = (mtg: CalendarEntry) => {
+    if (!canManageMeetings || mtg.kind !== 'meeting' || !mtg.canManageMeeting) return null
     return (
       <div className="flex gap-2">
         {mtg.status === 'Scheduled' && (
@@ -299,7 +409,7 @@ export function ScheduleCalendarView({
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top,_rgba(13,148,136,0.12),_transparent_55%),linear-gradient(180deg,_rgba(15,23,42,0.03),_transparent)] dark:bg-[radial-gradient(ellipse_at_top,_rgba(45,212,191,0.08),_transparent_55%),linear-gradient(180deg,_rgba(255,255,255,0.02),_transparent)]"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top,rgba(13,148,136,0.12),transparent_55%),linear-gradient(180deg,rgba(15,23,42,0.03),transparent)] dark:bg-[radial-gradient(ellipse_at_top,rgba(45,212,191,0.08),transparent_55%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]"
       />
 
       <header className="flex flex-col gap-5 border-b border-slate-200/70 pb-6 md:flex-row md:items-end md:justify-between dark:border-white/10">
@@ -307,7 +417,7 @@ export function ScheduleCalendarView({
           <p className="text-[11px] font-semibold tracking-[0.18em] text-teal-700 uppercase dark:text-teal-300">
             {eyebrow}
           </p>
-          <h1 className="mt-1.5 font-[family-name:var(--font-geist-sans,ui-sans-serif)] text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
+          <h1 className="mt-1.5 font-(family-name:--font-geist-sans,ui-sans-serif) text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
             {title}
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>
@@ -329,7 +439,11 @@ export function ScheduleCalendarView({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
-              meetingsSource === 'owner' ? 'Filter by type, notes, or date…' : 'Filter by owner, type, notes, or date…'
+              isCrmZoho
+                ? 'Filter by host, type, work note, or date…'
+                : meetingsSource === 'owner'
+                  ? 'Filter by type, notes, or date…'
+                  : 'Filter by owner, type, notes, or date…'
             }
             className="w-full bg-transparent text-sm font-medium text-slate-800 placeholder-slate-400 outline-none dark:text-white"
           />
@@ -338,19 +452,21 @@ export function ScheduleCalendarView({
           <span className="inline-flex h-2 w-2 rounded-sm bg-teal-500" />
           {monthMeetingCount} this month
           <span className="text-slate-300 dark:text-white/20">·</span>
-          {filteredMeetings.length} total
+          {filteredEntries.length} total
         </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#0b1018]">
-          <div className="flex flex-col gap-4 border-b border-slate-100 bg-[linear-gradient(135deg,_rgba(13,148,136,0.08),_transparent_42%),linear-gradient(180deg,_#f8fafc,_#ffffff)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 dark:border-white/5 dark:bg-[linear-gradient(135deg,_rgba(45,212,191,0.08),_transparent_45%),linear-gradient(180deg,_#0f1622,_#0b1018)]">
+          <div className="flex flex-col gap-4 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(13,148,136,0.08),transparent_42%),linear-gradient(180deg,#f8fafc,#ffffff)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 dark:border-white/5 dark:bg-[linear-gradient(135deg,rgba(45,212,191,0.08),transparent_45%),linear-gradient(180deg,#0f1622,#0b1018)]">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
                 {monthTitle(viewYear, viewMonth)}
               </h2>
               <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                Session pins show time and owner. Empty days open booking.
+                {isCrmZoho
+                  ? 'Loaded from your database. New bookings still sync to Zoho.'
+                  : 'Each pin shows the time and host. Click an empty day to book.'}
               </p>
             </div>
             <div className="flex items-center gap-1.5 self-start rounded-2xl border border-slate-200/80 bg-white/80 p-1 dark:border-white/10 dark:bg-white/5">
@@ -414,13 +530,11 @@ export function ScheduleCalendarView({
                         type="button"
                         onClick={() => handleDayClick(cell)}
                         className={cn(
-                          'group relative flex min-h-[5.5rem] flex-col gap-1 bg-white p-1.5 text-left transition sm:min-h-[7rem] sm:p-2 dark:bg-[#0d121c]',
+                          'group relative flex min-h-22 flex-col gap-1 bg-white p-1.5 text-left transition sm:min-h-28 sm:p-2 dark:bg-[#0d121c]',
                           !cell.inMonth && 'bg-slate-50/90 text-slate-400 dark:bg-[#0a0e16] dark:text-slate-600',
                           cell.inMonth && 'hover:bg-teal-50/50 dark:hover:bg-teal-500/5',
                           isSelected && 'bg-teal-50 ring-2 ring-teal-500/50 ring-inset dark:bg-teal-500/10',
-                          isToday &&
-                            !isSelected &&
-                            'bg-[linear-gradient(180deg,_rgba(13,148,136,0.08),_transparent_40%)]'
+                          isToday && !isSelected && 'bg-[linear-gradient(180deg,rgba(13,148,136,0.08),transparent_40%)]'
                         )}
                       >
                         <div className="flex items-center justify-between gap-1">
@@ -443,18 +557,18 @@ export function ScheduleCalendarView({
                         <div className="mt-auto space-y-1">
                           {items.slice(0, 2).map((meeting) => (
                             <span
-                              key={meeting.id}
+                              key={`${meeting.kind}-${meeting.id}`}
                               className={cn(
                                 'flex items-center gap-1 truncate rounded-lg border px-1.5 py-1 text-[9px] leading-tight font-semibold',
-                                pinTone(meeting.status)
+                                pinTone(meeting)
                               )}
-                              title={`${meeting.time} · ${meeting.host} · ${meeting.type}`}
+                              title={`${meeting.time} · ${meeting.kind === 'work_note' ? meeting.title || meeting.host : meeting.host} · ${meeting.type}`}
                             >
-                              <span className={cn('h-1.5 w-1.5 shrink-0 rounded-sm', statusDot(meeting.status))} />
+                              <span className={cn('h-1.5 w-1.5 shrink-0 rounded-sm', statusDot(meeting))} />
                               <span className="truncate">
                                 <span className="tabular-nums">{meeting.time}</span>
                                 <span className="opacity-70"> · </span>
-                                {meeting.host}
+                                {meeting.kind === 'work_note' ? meeting.title || meeting.host : meeting.host}
                               </span>
                             </span>
                           ))}
@@ -471,7 +585,7 @@ export function ScheduleCalendarView({
 
                 <div className="mt-4 flex flex-wrap items-center gap-4 px-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-sm bg-teal-500" /> Scheduled
+                    <span className="h-2 w-2 rounded-sm bg-sky-500" /> Scheduled
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-sm bg-emerald-500" /> Completed
@@ -479,11 +593,18 @@ export function ScheduleCalendarView({
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-sm bg-slate-400" /> Cancelled
                   </span>
+                  {isCrmZoho ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-sm bg-amber-500" /> Work note
+                    </span>
+                  ) : null}
                 </div>
 
-                {filteredMeetings.length === 0 ? (
+                {filteredEntries.length === 0 ? (
                   <p className="mt-8 pb-4 text-center text-sm font-medium text-slate-400">
-                    No discussions match this filter. Book a session to pin it on the calendar.
+                    {isCrmZoho
+                      ? 'No meetings or timed work notes in this range. Book a session to add one (it syncs to Zoho).'
+                      : 'No discussions match this filter. Book a session to pin it on the calendar.'}
                   </p>
                 ) : null}
               </>
@@ -492,7 +613,7 @@ export function ScheduleCalendarView({
         </section>
 
         <UpcomingSchedulesPanel
-          meetings={upcomingMeetings}
+          meetings={upcomingEntries}
           isLoading={isLoading}
           title="Next up"
           subtitle={upcomingSubtitle}
@@ -518,7 +639,7 @@ export function ScheduleCalendarView({
                       {formatDayHeading(selectedDay)}
                     </h2>
                     <p className="mt-1 text-xs font-medium text-slate-500">
-                      {selectedMeetings.length} discussion{selectedMeetings.length === 1 ? '' : 's'}
+                      {selectedMeetings.length} item{selectedMeetings.length === 1 ? '' : 's'}
                     </p>
                   </div>
                   <button
@@ -534,12 +655,12 @@ export function ScheduleCalendarView({
 
               <div className="space-y-3 px-6 py-5">
                 {selectedMeetings.length === 0 ? (
-                  <p className="py-8 text-center text-sm font-medium text-slate-400">No discussions on this date.</p>
+                  <p className="py-8 text-center text-sm font-medium text-slate-400">Nothing scheduled on this date.</p>
                 ) : (
                   selectedMeetings.map((mtg) => (
                     <article
-                      key={mtg.id}
-                      className="space-y-3 rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,_#f8fafc,_#ffffff)] p-4 dark:border-white/10 dark:bg-white/3"
+                      key={`${mtg.kind}-${mtg.id}`}
+                      className="space-y-3 rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,#f8fafc,#ffffff)] p-4 dark:border-white/10 dark:bg-white/3"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -547,16 +668,16 @@ export function ScheduleCalendarView({
                             {mtg.type}
                           </p>
                           <h4 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                            Discussion with {mtg.host}
+                            {mtg.kind === 'work_note' ? mtg.title || mtg.host : `Discussion with ${mtg.host}`}
                           </h4>
                         </div>
                         <span
                           className={cn(
                             'rounded-lg border px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase',
-                            pinTone(mtg.status)
+                            pinTone(mtg)
                           )}
                         >
-                          {mtg.status}
+                          {mtg.kind === 'work_note' ? mtg.status.replaceAll('_', ' ') : mtg.status}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
@@ -605,12 +726,15 @@ export function ScheduleCalendarView({
         initialDate={bookDate}
         allowedScopes={allowedScopes}
         defaultScope={defaultScope}
-        cardPicker={meetingsSource === 'owner' ? 'own' : 'admin'}
+        cardPicker={cardPicker ?? (meetingsSource === 'owner' ? 'own' : 'admin')}
+        personSearch={personSearch}
         title="Book a time"
         subtitle={
-          meetingsSource === 'owner'
-            ? 'Choose one of your cards, then pick a date and time. We’ll include a meeting link.'
-            : 'Find an owner by name, email, designation, profession, company, or card slug.'
+          personSearch
+            ? 'Search cards or saved guests. If they aren’t listed, add a CRM lead — that sheet opens on top and then fills this booking.'
+            : meetingsSource === 'owner'
+              ? 'Choose one of your cards, then pick a date and time. We’ll include a meeting link.'
+              : 'Find an owner by name, email, designation, profession, company, or card slug.'
         }
         onSubmit={async (payload) => {
           try {

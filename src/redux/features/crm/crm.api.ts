@@ -19,13 +19,44 @@ export type CrmDashboardScope = 'admin' | 'corporate' | 'single'
 
 export type CrmLeadOrigin = 'guest' | 'crm_external'
 
+export type WorkNoteStatus = 'not_started' | 'in_progress' | 'in_review' | 'complete'
+
+export type WorkNoteRow = {
+  id: string
+  title: string
+  description: string | null
+  status: WorkNoteStatus
+  assigneeUserId: string | null
+  assigneeName: string | null
+  createdById: string
+  createdByName: string | null
+  profileId: string | null
+  profileName: string | null
+  leadRef: string | null
+  startsAt: string | null
+  dueAt: string | null
+  remindAt: string | null
+  ownerUserId: string | null
+  companyUserId: string | null
+  sortOrder?: number
+  createdAt: string
+  updatedAt: string
+  isOverdue: boolean
+}
+
 export type CrmDashboard = {
   scope: CrmDashboardScope
   metrics: {
     newLeads: number
     openLeads: number
     externalLeads: number
+    workNotesTotal?: number
+    workNotesOpen?: number
+    workNotesOverdue?: number
+    upcomingMeetings?: number
   }
+  upcomingWorkNotes?: WorkNoteRow[]
+  overdueWorkNotes?: WorkNoteRow[]
 }
 
 export type CrmLeadMetadata = {
@@ -93,6 +124,83 @@ export type PatchCrmLeadBody = {
   lastReply?: string
 }
 
+export type SchedulePerson = {
+  id: string
+  kind: 'card' | 'guest'
+  name: string
+  email: string
+  phone: string
+  profileId: string | null
+  subtitle: string
+}
+
+export type WorkNotesListQuery = {
+  q?: string
+  status?: WorkNoteStatus
+  skip?: number
+  limit?: number
+}
+
+export type WorkNotesPage = {
+  items: WorkNoteRow[]
+  total: number
+  skip: number
+  limit: number
+  hasMore: boolean
+}
+
+export type CreateWorkNoteBody = {
+  title: string
+  description?: string
+  status?: WorkNoteStatus
+  assigneeUserId?: string
+  profileId?: string
+  leadRef?: string
+  startsAt?: string
+  dueAt?: string
+  remindAt?: string
+}
+
+export type UpdateWorkNoteBody = Partial<{
+  title: string
+  description: string | null
+  status: WorkNoteStatus
+  sortOrder: number
+  assigneeUserId: string | null
+  profileId: string | null
+  leadRef: string | null
+  startsAt: string | null
+  dueAt: string | null
+  remindAt: string | null
+}>
+
+export type ReorderWorkNotesBody = {
+  items: { id: string; status: WorkNoteStatus; sortOrder: number }[]
+}
+
+export type CrmScheduleCalendarItem = {
+  kind: 'meeting' | 'work_note'
+  id: string
+  zohoEventId?: string | null
+  title: string
+  host: string
+  type: string
+  date: string
+  time: string
+  startsAt: string
+  status: string
+  meetLink?: string | null
+  notes?: string | null
+  scope?: string
+  profileId?: string | null
+  canManageMeeting: boolean
+}
+
+export type CrmScheduleCalendarPage = {
+  items: CrmScheduleCalendarItem[]
+  zohoError: string | null
+}
+
 function buildListSearch(params?: CrmLeadsListQuery) {
   const search = new URLSearchParams()
   if (params?.q?.trim()) search.set('q', params.q.trim())
@@ -104,7 +212,26 @@ function buildListSearch(params?: CrmLeadsListQuery) {
   return qs ? `?${qs}` : ''
 }
 
+function buildWorkNotesSearch(params?: WorkNotesListQuery) {
+  const search = new URLSearchParams()
+  if (params?.q?.trim()) search.set('q', params.q.trim())
+  if (params?.status) search.set('status', params.status)
+  if (params?.skip != null) search.set('skip', String(params.skip))
+  if (params?.limit != null) search.set('limit', String(params.limit))
+  const qs = search.toString()
+  return qs ? `?${qs}` : ''
+}
+
 function toPage(res: Envelope<CrmLeadRow[]>, fallbackSkip = 0, fallbackLimit = 50): CrmLeadsPage {
+  const items = res.data ?? []
+  const total = res.meta?.total ?? res.totalDoc ?? items.length
+  const skip = res.meta?.skip ?? fallbackSkip
+  const limit = res.meta?.limit ?? fallbackLimit
+  const hasMore = res.meta?.hasMore ?? skip + items.length < total
+  return { items, total, skip, limit, hasMore }
+}
+
+function toWorkNotesPage(res: Envelope<WorkNoteRow[]>, fallbackSkip = 0, fallbackLimit = 100): WorkNotesPage {
   const items = res.data ?? []
   const total = res.meta?.total ?? res.totalDoc ?? items.length
   const skip = res.meta?.skip ?? fallbackSkip
@@ -138,6 +265,7 @@ const crmApi = api.injectEndpoints({
       invalidatesTags: [
         { type: 'crm', id: 'LEADS' },
         { type: 'crm', id: 'DASHBOARD' },
+        { type: 'crm', id: 'SCHEDULE_PEOPLE' },
       ],
     }),
     patchCrmLead: builder.mutation<CrmLeadRow, { id: string; body: PatchCrmLeadBody }>({
@@ -163,6 +291,89 @@ const crmApi = api.injectEndpoints({
         { type: 'crm', id: 'DASHBOARD' },
       ],
     }),
+    searchCrmSchedulePeople: builder.query<SchedulePerson[], { q?: string; limit?: number } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.q?.trim()) search.set('q', params.q.trim())
+        if (params?.limit != null) search.set('limit', String(params.limit))
+        const qs = search.toString()
+        return `/crm/schedule-people${qs ? `?${qs}` : ''}`
+      },
+      transformResponse: (res: Envelope<SchedulePerson[]>) => res.data ?? [],
+      providesTags: [{ type: 'crm', id: 'SCHEDULE_PEOPLE' }],
+    }),
+    getCrmScheduleCalendar: builder.query<CrmScheduleCalendarPage, { from: string; to: string }>({
+      query: ({ from, to }) => {
+        const search = new URLSearchParams({ from, to })
+        return `/crm/schedule-calendar?${search.toString()}`
+      },
+      transformResponse: (res: Envelope<CrmScheduleCalendarPage>) => res.data,
+      providesTags: [{ type: 'crm', id: 'SCHEDULE_CALENDAR' }],
+    }),
+    getCrmWorkNotes: builder.query<WorkNotesPage, WorkNotesListQuery | void>({
+      query: (params) => `/crm/work-notes${buildWorkNotesSearch(params || undefined)}`,
+      transformResponse: (res: Envelope<WorkNoteRow[]>, _meta, arg) =>
+        toWorkNotesPage(res, arg?.skip ?? 0, arg?.limit ?? 100),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.items.map((row) => ({ type: 'crm' as const, id: `work-${row.id}` })),
+              { type: 'crm', id: 'WORK_NOTES' },
+            ]
+          : [{ type: 'crm', id: 'WORK_NOTES' }],
+    }),
+    getCrmWorkNote: builder.query<WorkNoteRow, string>({
+      query: (id) => `/crm/work-notes/${encodeURIComponent(id)}`,
+      transformResponse: (res: Envelope<WorkNoteRow>) => res.data,
+      providesTags: (_r, _e, id) => [{ type: 'crm', id: `work-${id}` }],
+    }),
+    createCrmWorkNote: builder.mutation<WorkNoteRow, CreateWorkNoteBody>({
+      query: (body) => ({ url: '/crm/work-notes', method: 'POST', body }),
+      transformResponse: (res: Envelope<WorkNoteRow>) => res.data,
+      invalidatesTags: [
+        { type: 'crm', id: 'WORK_NOTES' },
+        { type: 'crm', id: 'DASHBOARD' },
+        { type: 'crm', id: 'SCHEDULE_CALENDAR' },
+      ],
+    }),
+    updateCrmWorkNote: builder.mutation<WorkNoteRow, { id: string; body: UpdateWorkNoteBody }>({
+      query: ({ id, body }) => ({
+        url: `/crm/work-notes/${encodeURIComponent(id)}`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: Envelope<WorkNoteRow>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'crm', id: 'WORK_NOTES' },
+        { type: 'crm', id: `work-${arg.id}` },
+        { type: 'crm', id: 'DASHBOARD' },
+        { type: 'crm', id: 'SCHEDULE_CALENDAR' },
+      ],
+    }),
+    reorderCrmWorkNotes: builder.mutation<{ updated: number }, ReorderWorkNotesBody>({
+      query: (body) => ({
+        url: '/crm/work-notes/reorder',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: Envelope<{ updated: number }>) => res.data,
+      invalidatesTags: [
+        { type: 'crm', id: 'WORK_NOTES' },
+        { type: 'crm', id: 'DASHBOARD' },
+      ],
+    }),
+    deleteCrmWorkNote: builder.mutation<{ id: string; deleted: boolean }, string>({
+      query: (id) => ({
+        url: `/crm/work-notes/${encodeURIComponent(id)}`,
+        method: 'DELETE',
+      }),
+      transformResponse: (res: Envelope<{ id: string; deleted: boolean }>) => res.data,
+      invalidatesTags: [
+        { type: 'crm', id: 'WORK_NOTES' },
+        { type: 'crm', id: 'DASHBOARD' },
+        { type: 'crm', id: 'SCHEDULE_CALENDAR' },
+      ],
+    }),
   }),
 })
 
@@ -172,6 +383,15 @@ export const {
   useCreateCrmLeadMutation,
   usePatchCrmLeadMutation,
   useDeleteCrmLeadMutation,
+  useSearchCrmSchedulePeopleQuery,
+  useLazySearchCrmSchedulePeopleQuery,
+  useGetCrmScheduleCalendarQuery,
+  useGetCrmWorkNotesQuery,
+  useGetCrmWorkNoteQuery,
+  useCreateCrmWorkNoteMutation,
+  useUpdateCrmWorkNoteMutation,
+  useReorderCrmWorkNotesMutation,
+  useDeleteCrmWorkNoteMutation,
 } = crmApi
 
 export default crmApi

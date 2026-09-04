@@ -2,6 +2,7 @@
 
 import { ModalPortal } from '@/components/ModalPortal'
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
+import { SchedulePersonPicker } from '@/components/crm/SchedulePersonPicker'
 import { useAppSelector } from '@/hooks/redux'
 import { meetingScopeLabel } from '@/lib/meetingScope'
 import { useGetProfilesQuery, type ApiProfile } from '@/redux/features/profiles/profiles.api'
@@ -41,6 +42,8 @@ export type ScheduleMeetingModalProps = {
   subtitle?: string
   /** Admin searches every owner. Owners pick from their own cards (`GET /profiles`). */
   cardPicker?: 'admin' | 'own'
+  /** Role-scoped search of cards + saved guests, with inline create lead. */
+  personSearch?: boolean
 }
 
 function todayIsoDate() {
@@ -73,7 +76,7 @@ function OwnCardsPicker({
   label: string
 }) {
   const { data, isLoading } = useGetProfilesQuery({ limit: 100 })
-  const cards = data?.items ?? []
+  const cards = useMemo(() => data?.items ?? [], [data?.items])
 
   useEffect(() => {
     if (value || !cards.length) return
@@ -142,9 +145,10 @@ function ScheduleMeetingModalContent({
   title = 'Book session',
   subtitle = 'Creates a calendar event with a meeting link, owner notification, email, and push.',
   cardPicker = 'admin',
+  personSearch = false,
 }: ScheduleMeetingModalContentProps) {
   const sessionUserId = useAppSelector((state) => state.user.user?.id)
-  const useOwnCards = cardPicker === 'own'
+  const useOwnCards = cardPicker === 'own' && !personSearch
   const scopeOptions = useMemo(
     () => (lockOwner ? (['one_to_one'] as MeetingScope[]) : allowedScopes),
     [allowedScopes, lockOwner]
@@ -213,13 +217,13 @@ function ScheduleMeetingModalContent({
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
         <form
           onSubmit={(e) => void handleSubmit(e)}
           className="animate-in zoom-in-95 relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-slate-200/80 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]"
         >
-          <div className="border-b border-slate-100 bg-[linear-gradient(135deg,_rgba(13,148,136,0.08),_transparent_50%)] px-6 py-5 dark:border-white/5">
+          <div className="border-b border-slate-100 bg-[linear-gradient(135deg,rgba(13,148,136,0.08),transparent_50%)] px-6 py-5 dark:border-white/5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-teal-700 uppercase dark:text-teal-300">
@@ -283,6 +287,18 @@ function ScheduleMeetingModalContent({
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{owner.hostName}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{owner.identity}</p>
               </div>
+            ) : personSearch ? (
+              <SchedulePersonPicker
+                value={owner}
+                onChange={setOwner}
+                label={scope === 'group' ? 'Primary card / team anchor' : 'Card or saved guest'}
+                defaultProfileId={initialOwner?.profileId}
+                onCreatedLead={(lead) => {
+                  setMeetNotes((prev) =>
+                    prev.trim() ? prev : `Follow-up with ${lead.fullName}${lead.email ? ` (${lead.email})` : ''}.`
+                  )
+                }}
+              />
             ) : useOwnCards ? (
               <OwnCardsPicker value={owner} onChange={setOwner} label="Which card?" />
             ) : (
@@ -420,6 +436,7 @@ export function ScheduleMeetingModal({ open, ...rest }: ScheduleMeetingModalProp
     rest.initialType ?? '',
     rest.initialNotes ?? '',
     rest.cardPicker ?? 'admin',
+    rest.personSearch ? 'person' : 'cards',
     ...(rest.groupProfileIds ?? []),
   ].join('|')
 

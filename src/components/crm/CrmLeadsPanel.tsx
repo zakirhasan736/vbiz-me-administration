@@ -71,7 +71,7 @@ export function CrmLeadsPanel() {
   )
 
   const { data: dashboard } = useGetCrmDashboardQuery()
-  const { data: page, isLoading, isFetching } = useGetCrmLeadsQuery(listQuery)
+  const { data: page, isLoading, isFetching, isError, error } = useGetCrmLeadsQuery(listQuery)
   const [createLead, { isLoading: isCreating }] = useCreateCrmLeadMutation()
   const [createMeeting, { isLoading: isScheduling }] = useCreateMeetingMutation()
 
@@ -98,10 +98,19 @@ export function CrmLeadsPanel() {
     notes?: string
     profileId: string
   }) => {
-    await createLead(payload).unwrap()
-    notify.info('Lead saved. You can follow up from CRM.')
-    setSkip(0)
-    setAccum([])
+    try {
+      await createLead(payload).unwrap()
+      notify.info('Lead saved. It stays in CRM only — not on your card dashboard.')
+      setSkip(0)
+      setAccum([])
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'data' in error
+          ? String((error as { data?: { message?: string } }).data?.message || '')
+          : ''
+      notify.error(message || 'Couldn’t save this lead. Please try again.')
+      throw error
+    }
   }
 
   const handleSchedule = async (payload: ScheduleMeetingSubmitPayload) => {
@@ -143,7 +152,15 @@ export function CrmLeadsPanel() {
       </div>
 
       <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#0b0f15]">
-        {isLoading && skip === 0 ? (
+        {isError ? (
+          <div className="px-6 py-12 text-center">
+            <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">
+              {error && typeof error === 'object' && 'data' in error
+                ? String((error as { data?: { message?: string } }).data?.message || 'Couldn’t load CRM leads.')
+                : 'Couldn’t load CRM leads.'}
+            </p>
+          </div>
+        ) : isLoading && skip === 0 ? (
           <div className="space-y-3 p-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-24 w-full rounded-2xl" />
@@ -153,7 +170,7 @@ export function CrmLeadsPanel() {
           <div className="px-6 py-16 text-center">
             <UserPlus className="mx-auto h-8 w-8 text-slate-300" />
             <p className="mt-3 text-sm font-semibold text-slate-500">
-              No leads yet. Add someone, or they’ll appear here when they save your card.
+              No leads yet. Add someone here — external leads stay in CRM and won’t appear on your card dashboard.
             </p>
           </div>
         ) : (
@@ -189,7 +206,7 @@ export function CrmLeadsPanel() {
                     <button
                       type="button"
                       onClick={() => setScheduleLead(lead)}
-                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-teal-50 px-2.5 py-2 text-[10px] font-black tracking-wider text-teal-800 uppercase dark:bg-teal-500/15 dark:text-teal-200"
+                      className="inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl bg-teal-50 px-2.5 py-2 text-[10px] font-black tracking-wider text-teal-800 uppercase dark:bg-teal-500/15 dark:text-teal-200"
                     >
                       <Calendar className="h-3.5 w-3.5" /> Schedule
                     </button>

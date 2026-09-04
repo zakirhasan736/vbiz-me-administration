@@ -1,6 +1,8 @@
 'use client'
 
+import { CrmHomeDashboard } from '@/components/crm/CrmHomeDashboard'
 import { CrmLeadsPanel } from '@/components/crm/CrmLeadsPanel'
+import { CrmWorkNotesBoard } from '@/components/crm/CrmWorkNotesBoard'
 import { ScheduleCalendarView } from '@/components/schedules/ScheduleCalendarView'
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
@@ -8,10 +10,10 @@ import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { cn } from '@/utils/cn'
-import { CalendarDays, Kanban, Lock } from 'lucide-react'
+import { CalendarDays, ClipboardList, LayoutDashboard, Lock, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 
-type CrmTab = 'leads' | 'calendar'
+type CrmTab = 'dashboard' | 'leads' | 'calendar' | 'work_notes'
 
 export default function CrmWorkspace() {
   const role = useAppSelector((state) => state.user.user?.role)
@@ -26,7 +28,7 @@ export default function CrmWorkspace() {
       allowedModules,
       packageAllowsCrm: isStaff ? false : packageAllowsCrm,
     })
-  const [tab, setTab] = useState<CrmTab>('leads')
+  const [tab, setTab] = useState<CrmTab>('dashboard')
 
   if (!isStaff && entitlementsLoading) {
     return (
@@ -60,35 +62,50 @@ export default function CrmWorkspace() {
         <p className="text-[11px] font-bold tracking-[0.18em] text-indigo-500 uppercase">vBiz Me</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">CRM</h1>
         <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500">
-          Follow up with people who saved your card, add extra contacts yourself, and book a time to talk.
+          Follow up with leads, schedule conversations, and track work notes with reminders.
         </p>
       </div>
 
-      <div className="mb-6 flex w-full gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-white/5">
-        <TabButton active={tab === 'leads'} onClick={() => setTab('leads')} icon={Kanban} label="Leads" />
+      <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 dark:bg-white/5">
+        <TabButton
+          active={tab === 'dashboard'}
+          onClick={() => setTab('dashboard')}
+          icon={LayoutDashboard}
+          label="Home"
+        />
+        <TabButton active={tab === 'leads'} onClick={() => setTab('leads')} icon={UserPlus} label="Leads" />
         <TabButton
           active={tab === 'calendar'}
           onClick={() => setTab('calendar')}
           icon={CalendarDays}
-          label="Calendar"
+          label="Schedules"
+        />
+        <TabButton
+          active={tab === 'work_notes'}
+          onClick={() => setTab('work_notes')}
+          icon={ClipboardList}
+          label="Work notes"
         />
       </div>
 
-      {tab === 'leads' ? (
-        <CrmLeadsPanel />
-      ) : (
+      {tab === 'dashboard' ? <CrmHomeDashboard onOpenTab={setTab} /> : null}
+      {tab === 'leads' ? <CrmLeadsPanel /> : null}
+      {tab === 'calendar' ? (
         <ScheduleCalendarView
           compact
-          meetingsSource={isStaff ? 'admin' : 'owner'}
-          canManageMeetings={isStaff}
+          meetingsSource="crm_zoho"
+          canManageMeetings
+          cardPicker={isStaff ? 'admin' : 'own'}
+          personSearch
           allowedScopes={isStaff ? undefined : isCorporateBackOffice ? ['one_to_one', 'group'] : ['one_to_one']}
           defaultScope="one_to_one"
           eyebrow="Calendar"
           title="Schedule"
-          subtitle="See what’s booked this month. Tap a day to view details or pick a time."
-          upcomingSubtitle="Your next conversations."
+          subtitle="Meetings load from your database for speed. Booking still syncs to Zoho Calendar."
+          upcomingSubtitle="What’s coming up next on your calendar."
         />
-      )}
+      ) : null}
+      {tab === 'work_notes' ? <CrmWorkNotesBoard /> : null}
     </div>
   )
 }
@@ -101,7 +118,7 @@ function TabButton({
 }: {
   active: boolean
   onClick: () => void
-  icon: typeof Kanban
+  icon: typeof CalendarDays
   label: string
 }) {
   return (

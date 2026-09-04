@@ -1,12 +1,26 @@
 'use client'
 
 import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
-import type { Meeting } from '@/types/meeting'
 import { cn } from '@/utils/cn'
 import { Calendar, Clock, ExternalLink } from 'lucide-react'
 
+export type UpcomingScheduleItem = {
+  id: string
+  host: string
+  type: string
+  date: string
+  time: string
+  startsAt?: string
+  status: string
+  meetLink?: string | null
+  scope?: string
+  profileId?: string | null
+  kind?: 'meeting' | 'work_note'
+  title?: string
+}
+
 type UpcomingSchedulesPanelProps = {
-  meetings: Meeting[]
+  meetings: UpcomingScheduleItem[]
   isLoading?: boolean
   title?: string
   subtitle?: string
@@ -16,7 +30,7 @@ type UpcomingSchedulesPanelProps = {
   onViewAll?: () => void
 }
 
-function formatMeetingWhen(meeting: Meeting) {
+function formatMeetingWhen(meeting: UpcomingScheduleItem) {
   return `${meeting.date} · ${meeting.time}`
 }
 
@@ -30,7 +44,12 @@ export function UpcomingSchedulesPanel({
   compact = false,
   onViewAll,
 }: UpcomingSchedulesPanelProps) {
-  const upcoming = meetings.filter((m) => m.status === 'Scheduled').slice(0, compact ? 3 : 5)
+  const upcoming = meetings
+    .filter((m) => {
+      if (m.kind === 'work_note') return m.status !== 'complete'
+      return m.status === 'Scheduled'
+    })
+    .slice(0, compact ? 3 : 5)
 
   return (
     <section
@@ -73,19 +92,25 @@ export function UpcomingSchedulesPanel({
         ) : (
           upcoming.map((meeting) => {
             const linkLabel = meetLinkLabel(meeting.meetLink)
+            const isNote = meeting.kind === 'work_note'
             const scope = meeting.scope ?? (meeting.profileId ? 'one_to_one' : 'global')
             return (
-              <article key={meeting.id} className="px-5 py-4">
+              <article key={`${meeting.kind || 'meeting'}-${meeting.id}`} className="px-5 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{meeting.type}</p>
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                      {isNote ? meeting.title || meeting.type : meeting.type}
+                    </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                      {scope === 'global'
-                        ? 'Global session'
-                        : scope === 'group'
-                          ? 'Group session'
-                          : 'One-to-one session'}{' '}
-                      · with {meeting.host}
+                      {isNote
+                        ? `Work note · ${meeting.host}`
+                        : `${
+                            scope === 'global'
+                              ? 'Global session'
+                              : scope === 'group'
+                                ? 'Group session'
+                                : 'One-to-one session'
+                          } · with ${meeting.host}`}
                     </p>
                     <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                       <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
