@@ -206,12 +206,7 @@ export default function SettingsDialog() {
   const { user } = useAuth()
   const reduxUser = useAppSelector((state) => state.user.user)
   const { isSuspended, canPerformAccountActions } = useAccountStatus()
-  const {
-    entitlements,
-    allow_canva: canUseCanva,
-    allow_push_notification: canUsePush,
-    allow_email_notification: canUseEmail,
-  } = usePackageAccess()
+  const { entitlements, allow_canva: canUseCanva, allow_email_notification: canUseEmail } = usePackageAccess()
   const router = useRouter()
   const { accentColor, setAccentColor } = useTheme()
   const [selectedTab, setSelectedTab] = useState('profile')
@@ -253,7 +248,6 @@ export default function SettingsDialog() {
   }
 
   const handleBrowserPushToggle = () => {
-    if (!canUsePush) return
     if (notifPrefs.browserPush) {
       void deactivateDashboardPush()
       setNotifPrefs(getNotificationPrefs())
@@ -543,12 +537,8 @@ export default function SettingsDialog() {
               <div className="space-y-4">
                 <ToggleRow
                   title="Browser push alerts"
-                  description={
-                    canUsePush
-                      ? 'Show OS notifications when this tab is open or in the background.'
-                      : PACKAGE_FEATURE_LOCKED_MESSAGE
-                  }
-                  checked={canUsePush && notifPrefs.browserPush}
+                  description="Show OS notifications when this tab is open or in the background."
+                  checked={notifPrefs.browserPush}
                   onChange={handleBrowserPushToggle}
                 />
                 <ToggleRow

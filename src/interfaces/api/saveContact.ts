@@ -9,6 +9,7 @@ export type SaveContactCardData = {
   slug: string
   profileUrl: string
   imageUrl: string
+  imageUrls?: string[]
 }
 
 export type SaveContactResponse = {

@@ -103,7 +103,6 @@ import {
   CloudOff,
   Eye,
   Loader2,
-  Plus,
   Save,
   Settings,
   Sparkles,
@@ -1037,10 +1036,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                 data-tour-id="tour-add-tabs"
                 onClick={() => setShowAddTabs(true)}
                 className="flex items-center gap-1.5 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/80 px-3 py-1.5 text-[14px] font-black whitespace-nowrap text-indigo-700 transition-all hover:bg-indigo-100 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-300 dark:hover:bg-indigo-500/20"
-                title="Add nav item"
+                title="Navbar settings"
               >
-                <Plus className="h-5 w-5" strokeWidth={2.5} />
-                Add nav item
+                <Settings className="h-5 w-5" strokeWidth={2} />
+                Navbar settings
               </button>
             </div>
           </div>

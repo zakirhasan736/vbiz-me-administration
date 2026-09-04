@@ -7,6 +7,7 @@ import {
   PACKAGE_LIMIT_REACHED,
   catalogFeatureAllowed,
   displayMediaAccess,
+  entitlementsFromFeatures,
   isFeatureLimitCode,
   isFeatureLockCode,
   musicFileAllowed,
@@ -34,6 +35,21 @@ describe('package launch matrix', () => {
         'allow_canva'
       )
     ).toBe(false)
+    expect(
+      catalogFeatureAllowed(
+        {
+          access: { ...paidAccess, allow_push_notification: false },
+          features: [{ featureKey: 'allow_push_notification', featureValue: '0' }],
+          subscriptionActive: false,
+        },
+        'allow_push_notification'
+      )
+    ).toBe(true)
+  })
+
+  it('keeps push notification on even when the package flag is explicitly off', () => {
+    const access = entitlementsFromFeatures([{ featureKey: 'allow_push_notification', featureValue: '0' }], false)
+    expect(access.allow_push_notification).toBe(true)
   })
 
   it('treats FEATURE_NOT_INCLUDED and PACKAGE_FEATURE_LOCKED as the same lock', () => {

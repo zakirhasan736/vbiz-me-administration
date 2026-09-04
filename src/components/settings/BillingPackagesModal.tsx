@@ -2,6 +2,7 @@
 
 import { AlertModal } from '@/components/AlertModal'
 import { Modal } from '@/components/ui/Modal'
+import { isMandatoryPackageAccess } from '@/lib/packageAccess'
 import { ownerModeLabel, resolveOwnerMode } from '@/lib/packageOwnerMode'
 import type { OwnerPackage, OwnerPackageFeature } from '@/redux/features/profiles/profiles.api'
 import { useCreateBillingCheckoutMutation } from '@/redux/features/profiles/profiles.api'
@@ -32,7 +33,8 @@ function formatFeatureLine(feat: OwnerPackageFeature): string {
   if (raw.toLowerCase() === 'unlimited') return `${label}: Unlimited`
 
   if (isAllow) {
-    const on = raw === '1' || raw.toLowerCase() === 'true' || raw.toLowerCase() === 'yes'
+    const on =
+      isMandatoryPackageAccess(key) || raw === '1' || raw.toLowerCase() === 'true' || raw.toLowerCase() === 'yes'
     return on ? label : `${label}: No`
   }
 

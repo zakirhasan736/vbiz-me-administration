@@ -5,7 +5,9 @@ import { ModalPortal } from '@/components/ModalPortal'
 import { AdminPackagesSkeleton } from '@/components/admin/AdminPackagesSkeleton'
 import {
   allPackageAccessEnabled,
+  configurablePackageAccessFeatures,
   entitlementsFromFeatures,
+  isMandatoryPackageAccess,
   isPackageAccessKey,
   isRetiredPackage,
   PACKAGE_ACCESS_FEATURES,
@@ -171,7 +173,7 @@ function toBody(form: FormState): UpsertAdminPackageBody {
   const maxCardsNum = Math.max(0, Math.round(Number(form.maxCards)))
   const accessFeatures = PACKAGE_ACCESS_FEATURES.map((item) => ({
     featureKey: item.key,
-    featureValue: form.access[item.key] ? '1' : '0',
+    featureValue: isMandatoryPackageAccess(item.key) || form.access[item.key] ? '1' : '0',
   }))
   const features = [
     ...marketing,
@@ -436,7 +438,8 @@ export default function AdminPackages() {
                 <div className="mb-6 space-y-2">
                   <p className="mb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">Feature access</p>
                   {PACKAGE_ACCESS_FEATURES.map((item) => {
-                    const included = entitlementsFromFeatures(pkg.features)[item.key]
+                    const included =
+                      isMandatoryPackageAccess(item.key) || entitlementsFromFeatures(pkg.features)[item.key]
                     return (
                       <div
                         key={item.key}
@@ -632,9 +635,10 @@ export default function AdminPackages() {
                   <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Feature access</p>
                   <p className="text-[10px] font-semibold text-slate-400">
                     Turn features on or off for everyone on this package. Unchecked means owners cannot use that area.
+                    Push notification is included for every package and cannot be turned off.
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {PACKAGE_ACCESS_FEATURES.map((item) => (
+                    {configurablePackageAccessFeatures().map((item) => (
                       <label
                         key={item.key}
                         className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"
