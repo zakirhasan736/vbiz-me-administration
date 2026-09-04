@@ -55,6 +55,15 @@ function defaultTitle(type: AnnouncementType): string {
   return 'Info announcement'
 }
 
+/** Same surfaces public cards can still render after Clear. */
+function isLivePublicBanner(notice: Announcement) {
+  return (
+    notice.status === 'active' &&
+    notice.meta?.channel !== 'inbox' &&
+    (notice.targetType === 'all' || notice.meta?.showPublic === '1')
+  )
+}
+
 function AnnouncementAudienceBadges({ notice }: { notice: Announcement }) {
   const audience = describeAnnouncementAudience(notice)
   return (
@@ -114,9 +123,9 @@ export default function AdminAnnouncements() {
   const history = useMemo(() => announcementsPage?.items ?? [], [announcementsPage?.items])
   const liveAnnouncement = useMemo(
     () =>
-      history.find(
-        (notice) => notice.status === 'active' && notice.targetType === 'all' && notice.meta?.channel !== 'inbox'
-      ) ?? null,
+      history.find((notice) => isLivePublicBanner(notice) && notice.targetType === 'all') ??
+      history.find((notice) => isLivePublicBanner(notice)) ??
+      null,
     [history]
   )
 
