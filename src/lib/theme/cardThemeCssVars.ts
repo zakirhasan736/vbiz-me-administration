@@ -711,6 +711,17 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html a {
   color: var(--vbiz-accent) !important;
 }
+/* Reviews body: theme text (white in dark, dark in light) — override TipTap black */
+.vbiz-profile-root .vbiz-review-body,
+.vbiz-profile-root .vbiz-review-body.vcard-rich-html {
+  color: var(--vbiz-text) !important;
+}
+.vbiz-profile-root .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre)) {
+  color: inherit !important;
+}
+.vbiz-profile-root .vbiz-review-body.vcard-rich-html a {
+  color: var(--vbiz-accent) !important;
+}
 
 /* ========== Preloader (brand splash + intro controls) ========== */
 .vbiz-preloader {

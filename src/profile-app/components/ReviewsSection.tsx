@@ -341,12 +341,12 @@ export const ReviewsSection = () => {
                   </div>
                   {item.htmlDescription ? (
                     <div
-                      className={`prose prose-sm dark:prose-invert mb-8 max-w-none ${isFeatured && !compact ? 'prose-lg' : ''}`}
+                      className={`vbiz-review-body vcard-rich-html prose prose-sm mb-8 max-w-none ${isFeatured && !compact ? 'prose-lg' : ''}`}
                       dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
                     />
                   ) : (
                     <p
-                      className={`mb-8 leading-relaxed font-medium text-zinc-700 italic transition-colors group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100 ${
+                      className={`vbiz-review-body mb-8 leading-relaxed font-medium italic ${
                         compact ? 'text-sm' : isFeatured ? 'text-xl md:text-2xl' : 'text-base'
                       }`}
                     >
