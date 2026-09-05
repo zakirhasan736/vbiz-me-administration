@@ -129,7 +129,6 @@ export const HomeHero: React.FC<{
   const profileIsVideo = Boolean(profileSrc) && isVideoUrl(profileSrc)
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn') || isVisible('Share')
-  const showLanguage = isVisible('Language')
   const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
   const languageChrome = displayIconChromeStyle(field('Language'))
   const websiteChrome = displayIconChromeStyle(field('Website'))
@@ -146,7 +145,6 @@ export const HomeHero: React.FC<{
   )
 
   const websiteHref = useMemo(() => resolveSocialLinkHref('Website', socialHref).trim(), [socialHref])
-  const showWebsite = Boolean(websiteHref) && isVisible('Website')
 
   const visibleSocials = useMemo(
     () =>
@@ -223,6 +221,7 @@ export const HomeHero: React.FC<{
             <div
               className={`pointer-events-auto absolute flex flex-col gap-3 ${compact ? 'top-24 right-1' : 'top-8 right-2 md:right-6'}`}
             >
+              {/* Fixed rail: Eye → World (website) → Language → CRM → Theme */}
               <button
                 type="button"
                 title="Total views"
@@ -239,35 +238,56 @@ export const HomeHero: React.FC<{
                   <Eye size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 </span>
               </button>
-              {showWebsite && (
+              {websiteHref ? (
                 <a
                   href={websiteHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Website"
+                  aria-label="Website"
                   onClick={() => triggerHaptic(10)}
                   className={railButtonClass}
                   style={websiteChrome}
                 >
                   <Globe size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 </a>
+              ) : (
+                <button
+                  type="button"
+                  title="Website"
+                  aria-label="Website"
+                  className={railButtonClass}
+                  style={websiteChrome}
+                  onClick={() => triggerHaptic(10)}
+                >
+                  <Globe size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                </button>
               )}
-              {showLanguage && (
-                <div
-                  className={`${railButtonClass} notranslate h-auto min-h-10 w-auto min-w-10 flex-col gap-0.5 px-1 py-1 ${compact ? '' : 'md:min-h-12 md:min-w-12'}`}
-                  style={languageChrome}
-                  onClick={() => {
+              <div
+                role="button"
+                tabIndex={0}
+                title="Language"
+                aria-label="Language"
+                className={`${railButtonClass} notranslate h-auto min-h-10 w-auto min-w-10 flex-col gap-0.5 px-1 py-1 ${compact ? '' : 'md:min-h-12 md:min-w-12'}`}
+                style={languageChrome}
+                onClick={() => {
+                  triggerHaptic(10)
+                  onAction?.('language')
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
                     triggerHaptic(10)
                     onAction?.('language')
-                  }}
-                >
-                  <SelectedLanguageMark
-                    showName={false}
-                    flagWidth={48}
-                    flagClassName={`h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-6 md:w-8'}`}
-                  />
-                </div>
-              )}
+                  }
+                }}
+              >
+                <SelectedLanguageMark
+                  showName={false}
+                  flagWidth={48}
+                  flagClassName={`h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-6 md:w-8'}`}
+                />
+              </div>
               <button
                 type="button"
                 title="CRM"
@@ -281,10 +301,20 @@ export const HomeHero: React.FC<{
                 <Kanban size={HOME_ICON_SIZE} strokeWidth={2.5} />
               </button>
               <div
+                role="button"
+                tabIndex={0}
                 title="Toggle Theme"
+                aria-label="Toggle Theme"
                 onClick={() => {
                   triggerHaptic(10)
                   toggleTheme?.()
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    triggerHaptic(10)
+                    toggleTheme?.()
+                  }
                 }}
                 className={railButtonClass}
               >
