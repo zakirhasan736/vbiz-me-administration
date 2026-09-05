@@ -1,6 +1,7 @@
 'use client'
 
 import { ModalPortal } from '@/components/ModalPortal'
+import { Tooltip } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { notify } from '@/lib/toast/toast'
 import {
@@ -27,11 +28,11 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Loader2, Plus, X } from 'lucide-react'
+import { AlertTriangle, Loader2, Plus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 const COLUMNS: { id: WorkNoteStatus; label: string }[] = [
-  { id: 'not_started', label: 'Not started' },
+  { id: 'not_started', label: 'Pending' },
   { id: 'in_progress', label: 'In progress' },
   { id: 'in_review', label: 'In review' },
   { id: 'complete', label: 'Complete' },
@@ -245,7 +246,7 @@ export function CrmWorkNotesBoard() {
       }
     } catch {
       commitBoardNotes(origin)
-      notify.error('Couldn’t update work note order.')
+      notify.error('Couldn’t update note order.')
     } finally {
       orderPendingRef.current = false
     }
@@ -263,14 +264,18 @@ export function CrmWorkNotesBoard() {
     dueAt: string | null
     startsAt: string | null
   }) => {
+    if (!payload.startsAt || !payload.dueAt) {
+      notify.error('Start and due dates are required.')
+      return
+    }
     await createNote({
       title: payload.title,
       description: payload.description || undefined,
-      dueAt: payload.dueAt || undefined,
-      startsAt: payload.startsAt || undefined,
+      dueAt: payload.dueAt,
+      startsAt: payload.startsAt,
       status: 'not_started',
     }).unwrap()
-    notify.info('Work note created')
+    notify.info('Note created')
     setCreateOpen(false)
   }
 
@@ -282,6 +287,10 @@ export function CrmWorkNotesBoard() {
     startsAt: string | null
   }) => {
     if (!selected) return
+    if (!payload.startsAt || !payload.dueAt) {
+      notify.error('Start and due dates are required.')
+      return
+    }
     await updateNote({
       id: selected.id,
       body: {
@@ -293,13 +302,13 @@ export function CrmWorkNotesBoard() {
       },
     }).unwrap()
     setSelected(null)
-    notify.info('Work note saved')
+    notify.info('Note saved')
   }
 
   const handleDelete = async () => {
     if (!selected) return
     await deleteNote(selected.id).unwrap()
-    notify.info('Work note deleted')
+    notify.info('Note deleted')
     setSelected(null)
   }
 
@@ -310,7 +319,7 @@ export function CrmWorkNotesBoard() {
         : ''
     return (
       <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-6 py-10 text-sm font-semibold text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
-        {message || 'Couldn’t load work notes.'}
+        {message || 'Couldn’t load notes.'}
       </div>
     )
   }
@@ -327,7 +336,7 @@ export function CrmWorkNotesBoard() {
           onClick={() => setCreateOpen(true)}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[11px] font-black tracking-wider text-white uppercase dark:bg-indigo-500"
         >
-          <Plus className="h-4 w-4" /> Add work note
+          <Plus className="h-4 w-4" /> Add note
         </button>
       </div>
 
@@ -363,7 +372,7 @@ export function CrmWorkNotesBoard() {
 
       {createOpen ? (
         <WorkNoteFormModal
-          title="New work note"
+          title="New note"
           submitLabel="Create"
           isSubmitting={creating}
           onClose={() => setCreateOpen(false)}
@@ -445,12 +454,26 @@ function SortableNote({ note, onOpen }: { note: WorkNoteRow; onOpen: () => void 
 }
 
 function NoteCard({ note, onClick, dragging }: { note: WorkNoteRow; onClick?: () => void; dragging?: boolean }) {
+  const showOverdueWarning = note.status === 'not_started' && note.isOverdue
+
   return (
-    <button
-      type="button"
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
       className={cn(
-        'w-full cursor-grab rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm active:cursor-grabbing dark:border-white/10 dark:bg-[#0d121c]',
+        'relative w-full cursor-grab rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm active:cursor-grabbing dark:border-white/10 dark:bg-[#0d121c]',
+        onClick && 'outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
         dragging && 'shadow-lg ring-2 ring-indigo-400',
         note.isOverdue && 'border-rose-300 dark:border-rose-500/40'
       )}
@@ -459,13 +482,33 @@ function NoteCard({ note, onClick, dragging }: { note: WorkNoteRow; onClick?: ()
       {note.description ? (
         <p className="mt-1 line-clamp-2 text-xs font-medium text-slate-500">{note.description}</p>
       ) : null}
-      <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold text-slate-400">
-        {note.assigneeName ? <span>{note.assigneeName}</span> : null}
-        {note.dueAt ? (
-          <span className={note.isOverdue ? 'text-rose-600' : ''}>Due {formatWhen(note.dueAt)}</span>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2 text-[10px] font-semibold text-slate-400">
+          {note.assigneeName ? <span>{note.assigneeName}</span> : null}
+          {note.dueAt ? (
+            <span className={note.isOverdue ? 'text-rose-600' : ''}>Due {formatWhen(note.dueAt)}</span>
+          ) : null}
+        </div>
+        {showOverdueWarning ? (
+          <Tooltip content="Due date has passed" side="top">
+            <span
+              role="img"
+              aria-label="Due date has passed"
+              className="inline-flex shrink-0 rounded-md p-0.5 text-amber-600 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:text-amber-400"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+            </span>
+          </Tooltip>
         ) : null}
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -507,7 +550,7 @@ function WorkNoteFormModal({
               description: description.trim(),
               dueAt: fromDatetimeLocalValue(dueAt),
               startsAt: fromDatetimeLocalValue(startsAt),
-            }).catch(() => notify.error('Couldn’t save work note'))
+            }).catch(() => notify.error('Couldn’t save note'))
           }}
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-white/5">
@@ -544,6 +587,7 @@ function WorkNoteFormModal({
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Start</span>
                 <input
                   type="datetime-local"
+                  required
                   value={startsAt}
                   onChange={(e) => setStartsAt(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold outline-none dark:border-white/10 dark:bg-slate-900"
@@ -553,6 +597,7 @@ function WorkNoteFormModal({
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Due</span>
                 <input
                   type="datetime-local"
+                  required
                   value={dueAt}
                   onChange={(e) => setDueAt(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold outline-none dark:border-white/10 dark:bg-slate-900"
@@ -563,7 +608,7 @@ function WorkNoteFormModal({
           <div className="border-t border-slate-100 px-5 py-4 dark:border-white/5">
             <button
               type="submit"
-              disabled={!noteTitle.trim() || isSubmitting}
+              disabled={!noteTitle.trim() || !startsAt.trim() || !dueAt.trim() || isSubmitting}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-3 text-[11px] font-black tracking-wider text-white uppercase disabled:bg-slate-300 dark:bg-indigo-500"
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -608,7 +653,7 @@ function WorkNoteDetailModal({
         <div className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] border border-slate-200 bg-white shadow-2xl sm:rounded-[28px] dark:border-white/10 dark:bg-[#0b1018]">
           <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-white/5">
             <div>
-              <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase">Work note</p>
+              <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase">Note</p>
               <h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white">Details</h2>
             </div>
             <button
@@ -630,7 +675,7 @@ function WorkNoteDetailModal({
                 status,
                 dueAt: fromDatetimeLocalValue(dueAt),
                 startsAt: fromDatetimeLocalValue(startsAt),
-              }).catch(() => notify.error('Couldn’t save work note'))
+              }).catch(() => notify.error('Couldn’t save note'))
             }}
           >
             <label className="block space-y-1">
@@ -669,6 +714,7 @@ function WorkNoteDetailModal({
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Start</span>
                 <input
                   type="datetime-local"
+                  required
                   value={startsAt}
                   onChange={(e) => setStartsAt(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold outline-none dark:border-white/10 dark:bg-slate-900"
@@ -678,6 +724,7 @@ function WorkNoteDetailModal({
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Due</span>
                 <input
                   type="datetime-local"
+                  required
                   value={dueAt}
                   onChange={(e) => setDueAt(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold outline-none dark:border-white/10 dark:bg-slate-900"
@@ -691,7 +738,7 @@ function WorkNoteDetailModal({
             <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:items-stretch">
               <button
                 type="submit"
-                disabled={isSubmitting || !title.trim()}
+                disabled={isSubmitting || !title.trim() || !startsAt.trim() || !dueAt.trim()}
                 className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-950 py-3 text-[11px] font-black tracking-wider text-white uppercase disabled:bg-slate-300 dark:bg-indigo-500"
               >
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

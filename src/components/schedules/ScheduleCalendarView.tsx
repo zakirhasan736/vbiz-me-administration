@@ -8,7 +8,12 @@ import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
 import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
 import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
-import { useGetCrmScheduleCalendarQuery, type CrmScheduleCalendarItem } from '@/redux/features/crm/crm.api'
+import {
+  useDeleteCrmEventMutation,
+  useGetCrmScheduleCalendarQuery,
+  useUpdateCrmEventMutation,
+  type CrmScheduleCalendarItem,
+} from '@/redux/features/crm/crm.api'
 import {
   useCreateMeetingMutation,
   useDeleteMeetingMutation,
@@ -16,6 +21,7 @@ import {
   useGetOwnerMeetingsQuery,
   useUpdateMeetingMutation,
 } from '@/redux/features/meetings/meetings.api'
+import type { CrmEventAttachment, CrmEventStatus } from '@/types/crmEvent'
 import { type Meeting, type MeetingScope, type MeetingStatus } from '@/types/meeting'
 import { cn } from '@/utils/cn'
 import {
@@ -34,8 +40,19 @@ import { useMemo, useState } from 'react'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 
+const WORK_NOTE_STATUS_LABELS: Record<string, string> = {
+  not_started: 'Pending',
+  in_progress: 'In progress',
+  in_review: 'In review',
+  complete: 'Complete',
+}
+
+function workNoteStatusLabel(status: string) {
+  return WORK_NOTE_STATUS_LABELS[status] ?? status.replaceAll('_', ' ')
+}
+
 type CalendarEntry = {
-  kind: 'meeting' | 'work_note'
+  kind: 'meeting' | 'work_note' | 'event'
   id: string
   host: string
   type: string
@@ -45,6 +62,7 @@ type CalendarEntry = {
   status: string
   meetLink?: string | null
   notes?: string | null
+  attachments?: CrmEventAttachment[]
   scope?: MeetingScope | string
   profileId?: string | null
   canManageMeeting: boolean
@@ -105,6 +123,15 @@ function pinTone(entry: CalendarEntry) {
   if (entry.kind === 'work_note') {
     return 'border-amber-200/80 bg-amber-50 text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200'
   }
+  if (entry.kind === 'event') {
+    if (entry.status === 'Completed') {
+      return 'border-emerald-200/80 bg-emerald-50 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
+    }
+    if (entry.status === 'Cancelled') {
+      return 'border-slate-200 bg-slate-100 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'
+    }
+    return 'border-rose-200/80 bg-rose-50 text-rose-900 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-200'
+  }
   if (entry.status === 'Completed') {
     return 'border-emerald-200/80 bg-emerald-50 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
   }
@@ -116,6 +143,11 @@ function pinTone(entry: CalendarEntry) {
 
 function statusDot(entry: CalendarEntry) {
   if (entry.kind === 'work_note') return 'bg-amber-500'
+  if (entry.kind === 'event') {
+    if (entry.status === 'Completed') return 'bg-emerald-500'
+    if (entry.status === 'Cancelled') return 'bg-slate-400'
+    return 'bg-rose-500'
+  }
   if (entry.status === 'Completed') return 'bg-emerald-500'
   if (entry.status === 'Cancelled') return 'bg-slate-400'
   return 'bg-sky-500'
@@ -152,6 +184,7 @@ function crmItemToEntry(item: CrmScheduleCalendarItem): CalendarEntry {
     status: item.status,
     meetLink: item.meetLink,
     notes: item.notes,
+    attachments: item.attachments,
     scope: item.scope,
     profileId: item.profileId,
     canManageMeeting: item.canManageMeeting,
@@ -254,6 +287,8 @@ export function ScheduleCalendarView({
   const [createMeeting, { isLoading: isCreating }] = useCreateMeetingMutation()
   const [updateMeeting] = useUpdateMeetingMutation()
   const [deleteMeeting] = useDeleteMeetingMutation()
+  const [updateCrmEvent] = useUpdateCrmEventMutation()
+  const [deleteCrmEvent] = useDeleteCrmEventMutation()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
@@ -316,9 +351,13 @@ export function ScheduleCalendarView({
     setIsAddOpen(true)
   }
 
-  const handleUpdateStatus = async (id: string, nextStatus: MeetingStatus) => {
+  const handleUpdateStatus = async (entry: CalendarEntry, nextStatus: MeetingStatus | CrmEventStatus) => {
     try {
-      await updateMeeting({ id, body: { status: nextStatus } }).unwrap()
+      if (entry.kind === 'event') {
+        await updateCrmEvent({ id: entry.id, body: { status: nextStatus as CrmEventStatus } }).unwrap()
+      } else {
+        await updateMeeting({ id: entry.id, body: { status: nextStatus as MeetingStatus } }).unwrap()
+      }
       if (nextStatus === 'Cancelled' || nextStatus === 'Completed') setSelectedDay(null)
     } catch {
       /* toast handled upstream if wired */
@@ -326,17 +365,24 @@ export function ScheduleCalendarView({
   }
 
   const handleDeleteMeeting = (meeting: CalendarEntry) => {
+    const isEvent = meeting.kind === 'event'
     setConfirmState({
       open: true,
-      title: 'Delete this session?',
+      title: isEvent ? 'Delete this event?' : 'Delete this session?',
       description: `Remove ${meeting.type} with ${meeting.host} on ${meeting.date}. This cannot be undone.`,
       onConfirm: () => {
         void (async () => {
           try {
-            await deleteMeeting(meeting.id).unwrap()
+            if (isEvent) {
+              await deleteCrmEvent(meeting.id).unwrap()
+            } else {
+              await deleteMeeting(meeting.id).unwrap()
+            }
             setSelectedDay((day) => {
               if (!day) return null
-              const remaining = (meetingsByDay.get(day) || []).filter((m) => m.id !== meeting.id)
+              const remaining = (meetingsByDay.get(day) || []).filter(
+                (m) => !(m.id === meeting.id && m.kind === meeting.kind)
+              )
               return remaining.length ? day : null
             })
           } finally {
@@ -366,23 +412,24 @@ export function ScheduleCalendarView({
   }, [filteredEntries, viewYear, viewMonth])
 
   const renderMeetingActions = (mtg: CalendarEntry) => {
-    if (!canManageMeetings || mtg.kind !== 'meeting' || !mtg.canManageMeeting) return null
+    if (!canManageMeetings || !mtg.canManageMeeting) return null
+    if (mtg.kind !== 'meeting' && mtg.kind !== 'event') return null
     return (
       <div className="flex gap-2">
         {mtg.status === 'Scheduled' && (
           <>
             <button
               type="button"
-              onClick={() => void handleUpdateStatus(mtg.id, 'Completed')}
+              onClick={() => void handleUpdateStatus(mtg, 'Completed')}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-2.5 text-[10px] font-bold tracking-wide text-white uppercase transition hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-500"
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> Mark Done
             </button>
             <button
               type="button"
-              onClick={() => void handleUpdateStatus(mtg.id, 'Cancelled')}
+              onClick={() => void handleUpdateStatus(mtg, 'Cancelled')}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-600 transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
-              title="Cancel Meeting"
+              title={mtg.kind === 'event' ? 'Cancel Event' : 'Cancel Meeting'}
             >
               <XCircle className="h-4 w-4" />
             </button>
@@ -440,7 +487,7 @@ export function ScheduleCalendarView({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
               isCrmZoho
-                ? 'Filter by host, type, work note, or date…'
+                ? 'Filter by host, type, note, or date…'
                 : meetingsSource === 'owner'
                   ? 'Filter by type, notes, or date…'
                   : 'Filter by owner, type, notes, or date…'
@@ -562,13 +609,23 @@ export function ScheduleCalendarView({
                                 'flex items-center gap-1 truncate rounded-lg border px-1.5 py-1 text-[9px] leading-tight font-semibold',
                                 pinTone(meeting)
                               )}
-                              title={`${meeting.time} · ${meeting.kind === 'work_note' ? meeting.title || meeting.host : meeting.host} · ${meeting.type}`}
+                              title={`${meeting.time} · ${
+                                meeting.kind === 'work_note'
+                                  ? meeting.title || meeting.host
+                                  : meeting.kind === 'event'
+                                    ? meeting.type
+                                    : meeting.host
+                              } · ${meeting.type}`}
                             >
                               <span className={cn('h-1.5 w-1.5 shrink-0 rounded-sm', statusDot(meeting))} />
                               <span className="truncate">
                                 <span className="tabular-nums">{meeting.time}</span>
                                 <span className="opacity-70"> · </span>
-                                {meeting.kind === 'work_note' ? meeting.title || meeting.host : meeting.host}
+                                {meeting.kind === 'work_note'
+                                  ? meeting.title || meeting.host
+                                  : meeting.kind === 'event'
+                                    ? meeting.type
+                                    : meeting.host}
                               </span>
                             </span>
                           ))}
@@ -595,7 +652,12 @@ export function ScheduleCalendarView({
                   </span>
                   {isCrmZoho ? (
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-sm bg-amber-500" /> Work note
+                      <span className="h-2 w-2 rounded-sm bg-amber-500" /> Note
+                    </span>
+                  ) : null}
+                  {isCrmZoho ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-sm bg-rose-500" /> Event
                     </span>
                   ) : null}
                 </div>
@@ -603,7 +665,7 @@ export function ScheduleCalendarView({
                 {filteredEntries.length === 0 ? (
                   <p className="mt-8 pb-4 text-center text-sm font-medium text-slate-400">
                     {isCrmZoho
-                      ? 'No meetings or timed work notes in this range. Book a session to add one (it syncs to Zoho).'
+                      ? 'No meetings, events, or timed notes in this range. Book a session or create an event to add one.'
                       : 'No discussions match this filter. Book a session to pin it on the calendar.'}
                   </p>
                 ) : null}
@@ -668,7 +730,11 @@ export function ScheduleCalendarView({
                             {mtg.type}
                           </p>
                           <h4 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                            {mtg.kind === 'work_note' ? mtg.title || mtg.host : `Discussion with ${mtg.host}`}
+                            {mtg.kind === 'work_note'
+                              ? mtg.title || mtg.host
+                              : mtg.kind === 'event'
+                                ? mtg.type
+                                : `Discussion with ${mtg.host}`}
                           </h4>
                         </div>
                         <span
@@ -677,14 +743,19 @@ export function ScheduleCalendarView({
                             pinTone(mtg)
                           )}
                         >
-                          {mtg.kind === 'work_note' ? mtg.status.replaceAll('_', ' ') : mtg.status}
+                          {mtg.kind === 'work_note' ? workNoteStatusLabel(mtg.status) : mtg.status}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-300" /> {mtg.time}
                         </span>
-                        {mtg.meetLink ? (
+                        {mtg.kind === 'event' ? (
+                          <span className="text-[10px] font-semibold tracking-wide text-rose-600 uppercase dark:text-rose-300">
+                            Event · {mtg.host}
+                          </span>
+                        ) : null}
+                        {mtg.meetLink && mtg.kind === 'meeting' ? (
                           <a
                             href={mtg.meetLink}
                             target="_blank"
@@ -695,7 +766,24 @@ export function ScheduleCalendarView({
                           </a>
                         ) : null}
                       </div>
-                      {mtg.notes ? <p className="text-xs leading-relaxed text-slate-500">{mtg.notes}</p> : null}
+                      {mtg.kind === 'event' && mtg.attachments?.length ? (
+                        <ul className="space-y-1 text-xs text-slate-500">
+                          {mtg.attachments.map((file, index) => (
+                            <li key={`${file.url}-${index}`}>
+                              <a
+                                href={file.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-medium text-rose-700 hover:underline dark:text-rose-300"
+                              >
+                                {file.fileName}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : mtg.notes ? (
+                        <p className="text-xs leading-relaxed text-slate-500">{mtg.notes}</p>
+                      ) : null}
                       {renderMeetingActions(mtg)}
                     </article>
                   ))

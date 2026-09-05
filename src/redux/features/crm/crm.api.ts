@@ -1,4 +1,11 @@
 import { api } from '@/redux/api/api'
+import type {
+  CreateCrmEventPayload,
+  CrmEvent,
+  CrmEventListPage,
+  CrmEventListQuery,
+  UpdateCrmEventPayload,
+} from '@/types/crmEvent'
 
 type Envelope<T> = {
   success: boolean
@@ -93,6 +100,7 @@ export type CrmLeadRow = {
   consent: boolean
   origin: CrmLeadOrigin
   metadata: CrmLeadMetadata
+  notesCount?: number
 }
 
 export type CrmLeadsListQuery = {
@@ -123,6 +131,43 @@ export type PatchCrmLeadBody = {
   privateNotes?: string
   lastReply?: string
 }
+
+export type LeadNoteKind = 'text' | 'voice' | 'voice_to_text'
+
+export type LeadNoteRow = {
+  id: string
+  guestUserDataId: string
+  createdById: string
+  createdByName: string | null
+  kind: LeadNoteKind
+  content: string | null
+  audioUrl: string | null
+  audioFileName: string | null
+  audioMimeType: string | null
+  startsAt: string | null
+  dueAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateLeadNoteBody = {
+  kind: LeadNoteKind
+  content?: string
+  audioUrl?: string
+  audioFileName?: string
+  audioMimeType?: string
+  startsAt: string
+  dueAt: string
+}
+
+export type UpdateLeadNoteBody = Partial<{
+  content: string | null
+  audioUrl: string | null
+  audioFileName: string | null
+  audioMimeType: string | null
+  startsAt: string | null
+  dueAt: string | null
+}>
 
 export type SchedulePerson = {
   id: string
@@ -156,8 +201,8 @@ export type CreateWorkNoteBody = {
   assigneeUserId?: string
   profileId?: string
   leadRef?: string
-  startsAt?: string
-  dueAt?: string
+  startsAt: string
+  dueAt: string
   remindAt?: string
 }
 
@@ -178,8 +223,16 @@ export type ReorderWorkNotesBody = {
   items: { id: string; status: WorkNoteStatus; sortOrder: number }[]
 }
 
+export type CrmScheduleCalendarAttachment = {
+  url: string
+  fileName: string
+  mimeType?: string | null
+  publicId?: string | null
+  resourceType?: 'image' | 'video' | 'audio' | null
+}
+
 export type CrmScheduleCalendarItem = {
-  kind: 'meeting' | 'work_note'
+  kind: 'meeting' | 'work_note' | 'event'
   id: string
   zohoEventId?: string | null
   title: string
@@ -191,6 +244,7 @@ export type CrmScheduleCalendarItem = {
   status: string
   meetLink?: string | null
   notes?: string | null
+  attachments?: CrmScheduleCalendarAttachment[]
   scope?: string
   profileId?: string | null
   canManageMeeting: boolean
@@ -232,6 +286,29 @@ function toPage(res: Envelope<CrmLeadRow[]>, fallbackSkip = 0, fallbackLimit = 5
 }
 
 function toWorkNotesPage(res: Envelope<WorkNoteRow[]>, fallbackSkip = 0, fallbackLimit = 100): WorkNotesPage {
+  const items = res.data ?? []
+  const total = res.meta?.total ?? res.totalDoc ?? items.length
+  const skip = res.meta?.skip ?? fallbackSkip
+  const limit = res.meta?.limit ?? fallbackLimit
+  const hasMore = res.meta?.hasMore ?? skip + items.length < total
+  return { items, total, skip, limit, hasMore }
+}
+
+function buildCrmEventsSearch(params?: CrmEventListQuery) {
+  const search = new URLSearchParams()
+  if (params?.status) search.set('status', params.status)
+  if (params?.type?.trim()) search.set('type', params.type.trim())
+  if (params?.from) search.set('from', params.from)
+  if (params?.to) search.set('to', params.to)
+  if (params?.profileId?.trim()) search.set('profileId', params.profileId.trim())
+  if (params?.scope) search.set('scope', params.scope)
+  if (params?.skip != null) search.set('skip', String(params.skip))
+  if (params?.limit != null) search.set('limit', String(params.limit))
+  const qs = search.toString()
+  return qs ? `?${qs}` : ''
+}
+
+function toCrmEventsPage(res: Envelope<CrmEvent[]>, fallbackSkip = 0, fallbackLimit = 50): CrmEventListPage {
   const items = res.data ?? []
   const total = res.meta?.total ?? res.totalDoc ?? items.length
   const skip = res.meta?.skip ?? fallbackSkip
@@ -289,6 +366,45 @@ const crmApi = api.injectEndpoints({
       invalidatesTags: [
         { type: 'crm', id: 'LEADS' },
         { type: 'crm', id: 'DASHBOARD' },
+      ],
+    }),
+    getCrmLeadNotes: builder.query<LeadNoteRow[], string>({
+      query: (leadId) => `/crm/leads/${encodeURIComponent(leadId)}/notes`,
+      transformResponse: (res: Envelope<LeadNoteRow[]>) => res.data ?? [],
+      providesTags: (_r, _e, leadId) => [{ type: 'crm', id: `lead-notes-${leadId}` }],
+    }),
+    createCrmLeadNote: builder.mutation<LeadNoteRow, { leadId: string; body: CreateLeadNoteBody }>({
+      query: ({ leadId, body }) => ({
+        url: `/crm/leads/${encodeURIComponent(leadId)}/notes`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: Envelope<LeadNoteRow>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'crm', id: `lead-notes-${arg.leadId}` },
+        { type: 'crm', id: 'LEADS' },
+        { type: 'crm', id: `lead-${arg.leadId}` },
+      ],
+    }),
+    updateCrmLeadNote: builder.mutation<LeadNoteRow, { leadId: string; noteId: string; body: UpdateLeadNoteBody }>({
+      query: ({ leadId, noteId, body }) => ({
+        url: `/crm/leads/${encodeURIComponent(leadId)}/notes/${encodeURIComponent(noteId)}`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: Envelope<LeadNoteRow>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [{ type: 'crm', id: `lead-notes-${arg.leadId}` }],
+    }),
+    deleteCrmLeadNote: builder.mutation<{ id: string; deleted: boolean }, { leadId: string; noteId: string }>({
+      query: ({ leadId, noteId }) => ({
+        url: `/crm/leads/${encodeURIComponent(leadId)}/notes/${encodeURIComponent(noteId)}`,
+        method: 'DELETE',
+      }),
+      transformResponse: (res: Envelope<{ id: string; deleted: boolean }>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'crm', id: `lead-notes-${arg.leadId}` },
+        { type: 'crm', id: 'LEADS' },
+        { type: 'crm', id: `lead-${arg.leadId}` },
       ],
     }),
     searchCrmSchedulePeople: builder.query<SchedulePerson[], { q?: string; limit?: number } | void>({
@@ -374,6 +490,53 @@ const crmApi = api.injectEndpoints({
         { type: 'crm', id: 'SCHEDULE_CALENDAR' },
       ],
     }),
+    getCrmEvents: builder.query<CrmEventListPage, CrmEventListQuery | void>({
+      query: (params) => `/crm/events${buildCrmEventsSearch(params || undefined)}`,
+      transformResponse: (res: Envelope<CrmEvent[]>, _meta, arg) =>
+        toCrmEventsPage(res, arg?.skip ?? 0, arg?.limit ?? 50),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.items.map((row) => ({ type: 'crm' as const, id: `event-${row.id}` })),
+              { type: 'crm', id: 'CRM_EVENTS' },
+            ]
+          : [{ type: 'crm', id: 'CRM_EVENTS' }],
+    }),
+    createCrmEvent: builder.mutation<CrmEvent, CreateCrmEventPayload>({
+      query: (body) => ({ url: '/crm/events', method: 'POST', body }),
+      transformResponse: (res: Envelope<CrmEvent>) => res.data,
+      invalidatesTags: [
+        { type: 'crm', id: 'CRM_EVENTS' },
+        { type: 'crm', id: 'SCHEDULE_CALENDAR' },
+        { type: 'crm', id: 'DASHBOARD' },
+      ],
+    }),
+    updateCrmEvent: builder.mutation<CrmEvent, { id: string; body: UpdateCrmEventPayload }>({
+      query: ({ id, body }) => ({
+        url: `/crm/events/${encodeURIComponent(id)}`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: Envelope<CrmEvent>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'crm', id: 'CRM_EVENTS' },
+        { type: 'crm', id: `event-${arg.id}` },
+        { type: 'crm', id: 'SCHEDULE_CALENDAR' },
+        { type: 'crm', id: 'DASHBOARD' },
+      ],
+    }),
+    deleteCrmEvent: builder.mutation<{ id: string }, string>({
+      query: (id) => ({
+        url: `/crm/events/${encodeURIComponent(id)}`,
+        method: 'DELETE',
+      }),
+      transformResponse: (res: Envelope<{ id: string }>) => res.data,
+      invalidatesTags: [
+        { type: 'crm', id: 'CRM_EVENTS' },
+        { type: 'crm', id: 'SCHEDULE_CALENDAR' },
+        { type: 'crm', id: 'DASHBOARD' },
+      ],
+    }),
   }),
 })
 
@@ -383,6 +546,10 @@ export const {
   useCreateCrmLeadMutation,
   usePatchCrmLeadMutation,
   useDeleteCrmLeadMutation,
+  useGetCrmLeadNotesQuery,
+  useCreateCrmLeadNoteMutation,
+  useUpdateCrmLeadNoteMutation,
+  useDeleteCrmLeadNoteMutation,
   useSearchCrmSchedulePeopleQuery,
   useLazySearchCrmSchedulePeopleQuery,
   useGetCrmScheduleCalendarQuery,
@@ -392,6 +559,10 @@ export const {
   useUpdateCrmWorkNoteMutation,
   useReorderCrmWorkNotesMutation,
   useDeleteCrmWorkNoteMutation,
+  useGetCrmEventsQuery,
+  useCreateCrmEventMutation,
+  useUpdateCrmEventMutation,
+  useDeleteCrmEventMutation,
 } = crmApi
 
 export default crmApi

@@ -1,5 +1,6 @@
 'use client'
 
+import { CrmEventsBoard } from '@/components/crm/CrmEventsBoard'
 import { CrmHomeDashboard } from '@/components/crm/CrmHomeDashboard'
 import { CrmLeadsPanel } from '@/components/crm/CrmLeadsPanel'
 import { CrmWorkNotesBoard } from '@/components/crm/CrmWorkNotesBoard'
@@ -10,10 +11,10 @@ import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { cn } from '@/utils/cn'
-import { CalendarDays, ClipboardList, LayoutDashboard, Lock, UserPlus } from 'lucide-react'
+import { CalendarDays, CalendarHeart, ClipboardList, LayoutDashboard, Lock, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 
-type CrmTab = 'dashboard' | 'leads' | 'calendar' | 'work_notes'
+type CrmTab = 'dashboard' | 'leads' | 'calendar' | 'work_notes' | 'events'
 
 export default function CrmWorkspace() {
   const role = useAppSelector((state) => state.user.user?.role)
@@ -56,13 +57,19 @@ export default function CrmWorkspace() {
     )
   }
 
+  const eventScopes = isStaff
+    ? undefined
+    : isCorporateBackOffice
+      ? (['one_to_one', 'group'] as MeetingScopeTuple)
+      : (['one_to_one'] as MeetingScopeTuple)
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6">
       <div className="mb-6">
         <p className="text-[11px] font-bold tracking-[0.18em] text-indigo-500 uppercase">vBiz Me</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">CRM</h1>
         <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500">
-          Follow up with leads, schedule conversations, and track work notes with reminders.
+          Follow up with leads, schedule conversations, and track notes with reminders.
         </p>
       </div>
 
@@ -84,8 +91,9 @@ export default function CrmWorkspace() {
           active={tab === 'work_notes'}
           onClick={() => setTab('work_notes')}
           icon={ClipboardList}
-          label="Work notes"
+          label="Notes"
         />
+        <TabButton active={tab === 'events'} onClick={() => setTab('events')} icon={CalendarHeart} label="Events" />
       </div>
 
       {tab === 'dashboard' ? <CrmHomeDashboard onOpenTab={setTab} /> : null}
@@ -106,9 +114,19 @@ export default function CrmWorkspace() {
         />
       ) : null}
       {tab === 'work_notes' ? <CrmWorkNotesBoard /> : null}
+      {tab === 'events' ? (
+        <CrmEventsBoard
+          cardPicker={isStaff ? 'admin' : 'own'}
+          personSearch
+          allowedScopes={eventScopes ? [...eventScopes] : undefined}
+          defaultScope="one_to_one"
+        />
+      ) : null}
     </div>
   )
 }
+
+type MeetingScopeTuple = readonly ['one_to_one'] | readonly ['one_to_one', 'group']
 
 function TabButton({
   active,

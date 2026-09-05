@@ -8,7 +8,7 @@ import { AlertTriangle, Bell, CalendarDays, ClipboardList, UserPlus } from 'luci
 import { useMemo, useState } from 'react'
 
 type CrmHomeDashboardProps = {
-  onOpenTab: (tab: 'leads' | 'calendar' | 'work_notes') => void
+  onOpenTab: (tab: 'leads' | 'calendar' | 'work_notes' | 'events') => void
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
@@ -43,7 +43,7 @@ function formatWhen(iso: string | null | undefined) {
 function statusLabel(status: WorkNoteRow['status']) {
   switch (status) {
     case 'not_started':
-      return 'Not started'
+      return 'Pending'
     case 'in_progress':
       return 'In progress'
     case 'in_review':
@@ -136,7 +136,7 @@ export function CrmHomeDashboard({ onOpenTab }: CrmHomeDashboardProps) {
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-black text-rose-800 dark:text-rose-200">
-              {overdueCount} overdue work note{overdueCount === 1 ? '' : 's'}
+              {overdueCount} overdue note{overdueCount === 1 ? '' : 's'}
             </span>
             <span className="mt-0.5 block text-xs font-medium text-rose-700/80 dark:text-rose-300/80">
               Past due and still open — open the board to catch up.
@@ -149,7 +149,7 @@ export function CrmHomeDashboard({ onOpenTab }: CrmHomeDashboardProps) {
         <MetricCard label="Total leads" value={dashboard?.metrics.openLeads} onClick={() => onOpenTab('leads')} />
         <MetricCard label="Leads this week" value={dashboard?.metrics.newLeads} onClick={() => onOpenTab('leads')} />
         <MetricCard
-          label="Work notes"
+          label="Notes"
           value={dashboard?.metrics.workNotesTotal}
           hint={
             typeof dashboard?.metrics.workNotesOpen === 'number' ? `${dashboard.metrics.workNotesOpen} open` : undefined
@@ -232,7 +232,7 @@ export function CrmHomeDashboard({ onOpenTab }: CrmHomeDashboardProps) {
             <span className="h-1.5 w-1.5 rounded-full bg-teal-500" /> Meetings
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Work notes
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Notes
           </span>
         </p>
       </section>
@@ -253,7 +253,7 @@ export function CrmHomeDashboard({ onOpenTab }: CrmHomeDashboardProps) {
               <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] text-indigo-600 uppercase dark:text-indigo-300">
                 <ClipboardList className="h-3.5 w-3.5" /> Work
               </p>
-              <h3 className="mt-1 text-base font-semibold text-slate-950 dark:text-white">Upcoming work notes</h3>
+              <h3 className="mt-1 text-base font-semibold text-slate-950 dark:text-white">Upcoming notes</h3>
             </div>
             <button
               type="button"
@@ -298,7 +298,7 @@ export function CrmHomeDashboard({ onOpenTab }: CrmHomeDashboardProps) {
       <div className="flex flex-wrap gap-2">
         <QuickAction label="Add lead" icon={UserPlus} onClick={() => onOpenTab('leads')} />
         <QuickAction label="Book session" icon={CalendarDays} onClick={() => onOpenTab('calendar')} />
-        <QuickAction label="New work note" icon={ClipboardList} onClick={() => onOpenTab('work_notes')} />
+        <QuickAction label="New note" icon={ClipboardList} onClick={() => onOpenTab('work_notes')} />
       </div>
     </div>
   )

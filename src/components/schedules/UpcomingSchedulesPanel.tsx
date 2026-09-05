@@ -15,7 +15,7 @@ export type UpcomingScheduleItem = {
   meetLink?: string | null
   scope?: string
   profileId?: string | null
-  kind?: 'meeting' | 'work_note'
+  kind?: 'meeting' | 'work_note' | 'event'
   title?: string
 }
 
@@ -93,6 +93,7 @@ export function UpcomingSchedulesPanel({
           upcoming.map((meeting) => {
             const linkLabel = meetLinkLabel(meeting.meetLink)
             const isNote = meeting.kind === 'work_note'
+            const isEvent = meeting.kind === 'event'
             const scope = meeting.scope ?? (meeting.profileId ? 'one_to_one' : 'global')
             return (
               <article key={`${meeting.kind || 'meeting'}-${meeting.id}`} className="px-5 py-4">
@@ -103,21 +104,23 @@ export function UpcomingSchedulesPanel({
                     </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                       {isNote
-                        ? `Work note · ${meeting.host}`
-                        : `${
-                            scope === 'global'
-                              ? 'Global session'
-                              : scope === 'group'
-                                ? 'Group session'
-                                : 'One-to-one session'
-                          } · with ${meeting.host}`}
+                        ? `Note · ${meeting.host}`
+                        : isEvent
+                          ? `Event · with ${meeting.host}`
+                          : `${
+                              scope === 'global'
+                                ? 'Global session'
+                                : scope === 'group'
+                                  ? 'Group session'
+                                  : 'One-to-one session'
+                            } · with ${meeting.host}`}
                     </p>
                     <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                       <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
                       {formatMeetingWhen(meeting)}
                     </p>
                   </div>
-                  {meeting.meetLink ? (
+                  {meeting.meetLink && !isEvent ? (
                     <a
                       href={meeting.meetLink}
                       target="_blank"
