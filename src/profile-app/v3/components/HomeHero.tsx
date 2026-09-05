@@ -24,6 +24,7 @@ import { resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
   Bell,
+  CalendarDays,
   CreditCard,
   Eye,
   Facebook,
@@ -329,7 +330,7 @@ export const HomeHero: React.FC<{
           </div>
 
           <div className="relative z-20 mt-5 flex w-full flex-1 flex-col items-center">
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {showShare && (
                 <button
                   title="Share"
@@ -363,6 +364,18 @@ export const HomeHero: React.FC<{
                 }}
               >
                 <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
+              </button>
+              <button
+                type="button"
+                title="Request 1-on-1"
+                className={`group flex items-center gap-1.5 rounded-xl border px-2.5 py-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
+                onClick={() => {
+                  triggerHaptic(10)
+                  onAction?.('one_on_one')
+                }}
+              >
+                <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                <span className="text-[10px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
               </button>
             </div>
 
@@ -463,7 +476,7 @@ export const HomeHero: React.FC<{
                   </p>
                 )}
 
-                <div className="mb-4 flex gap-2">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
                   {showShare && (
                     <button
                       type="button"
@@ -500,6 +513,18 @@ export const HomeHero: React.FC<{
                     }}
                   >
                     <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  </button>
+                  <button
+                    type="button"
+                    title="Request 1-on-1"
+                    className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12"
+                    onClick={() => {
+                      triggerHaptic(10)
+                      onAction?.('one_on_one')
+                    }}
+                  >
+                    <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                    <span className="text-[11px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
                   </button>
                 </div>
 

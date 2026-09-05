@@ -1,17 +1,6 @@
 import { openVbizmeLogin, openVbizmePricing, reloadProfileCard } from '@/profile-app/lib/profileExternalLinks'
 import type { MyCardActionButton, MyCardActionButtons } from '@interfaces/api/myCard'
-import {
-  ArrowUpRight,
-  CalendarDays,
-  Download,
-  Eye,
-  Globe,
-  QrCode,
-  RefreshCw,
-  Share2,
-  User,
-  type LucideIcon,
-} from 'lucide-react'
+import { ArrowUpRight, Download, Eye, Globe, QrCode, RefreshCw, Share2, User, type LucideIcon } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
 type CSSPropertiesWithVariables = CSSProperties & {
@@ -124,18 +113,10 @@ export function resolveHomeCtaLayout(options: {
     role: 'secondary',
   }
 
-  // Guest 1-on-1 request CTA — always available for public cards.
-  const oneOnOne: ResolvedHomeCtaButton = {
-    key: 'one_on_one',
-    label: (labels.one_on_one ?? HOME_CTA_DEFAULT_LABELS.one_on_one).toUpperCase(),
-    icon: CalendarDays,
-    variant: 'outline',
-    role: 'secondary',
-  }
-
+  // 1-on-1 lives in the hero icon row (share / notification / notepad), not CTA rows.
   const rows: ResolvedHomeCtaButton[][] = includeMyInfo
-    ? [[myInfo, myVcard], [saveMyInfo, googleWallet], [getVcardNow], [oneOnOne]]
-    : [[saveMyInfo, myVcard], [googleWallet], [getVcardNow], [oneOnOne]]
+    ? [[myInfo, myVcard], [saveMyInfo, googleWallet], [getVcardNow]]
+    : [[saveMyInfo, myVcard], [googleWallet], [getVcardNow]]
 
   return { rows }
 }

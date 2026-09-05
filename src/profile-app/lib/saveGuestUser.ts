@@ -92,7 +92,7 @@ export async function saveGuestUser(input: SaveGuestUserInput): Promise<SavedGue
     }
 
     if (isDuplicateEmailMessage(rawMessage)) {
-      markContactSaved(profileId, { email, fullName })
+      markContactSaved(profileId, { email, fullName, phone })
       throw new SaveGuestUserError('This email has already saved this contact.', response.status, true)
     }
     throw new SaveGuestUserError(rawMessage, response.status)
@@ -100,6 +100,6 @@ export async function saveGuestUser(input: SaveGuestUserInput): Promise<SavedGue
 
   const payload = (await response.json()) as { data?: SavedGuestUser } & SavedGuestUser
   const saved = (payload.data ?? payload) as SavedGuestUser
-  markContactSaved(profileId, { email, fullName })
+  markContactSaved(profileId, { email, fullName, phone })
   return saved
 }
