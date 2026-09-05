@@ -262,6 +262,8 @@ export default function AdminAnnouncements() {
       )
       if (onlyBackoffice) {
         nextMeta.onlyBackoffice = '1'
+        // Owner/target Web Push only (no public saver blast — requires showPublic).
+        nextMeta.sendPush = '1'
       } else {
         nextMeta.showPublic = '1'
         nextMeta.sendPush = '1'

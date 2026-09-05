@@ -42,10 +42,12 @@ export type NotificationPrefs = {
 
 const STORAGE_KEY = 'vbiz_notifications'
 const PREFS_KEY = 'vbiz_notification_prefs'
+const DISMISSED_ANNOUNCEMENT_IDS_KEY = 'vbiz_dismissed_announcement_ids'
 const LEGACY_SEED_KEY = 'vbiz_notifications_seeded_v1'
 const LEGACY_SEED_NOTIFICATION_IDS = new Set(['seed_single_1', 'seed_single_2', 'seed_corp_1', 'seed_admin_1'])
 
 export const NOTIFICATIONS_EVENT = 'vbiz_notifications_update'
+export const ANNOUNCEMENT_DISMISS_EVENT = 'announcement-dismiss'
 
 const DEFAULT_PREFS: NotificationPrefs = {
   browserPush: true,
@@ -148,8 +150,68 @@ export function markNotificationRead(id: string) {
   persist(list)
 }
 
+function loadDismissedAnnouncementIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const raw = localStorage.getItem(DISMISSED_ANNOUNCEMENT_IDS_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.map((id) => String(id).trim()).filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
+function persistDismissedAnnouncementIds(ids: Set<string>) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(DISMISSED_ANNOUNCEMENT_IDS_KEY, JSON.stringify([...ids].slice(-500)))
+    window.dispatchEvent(new Event(ANNOUNCEMENT_DISMISS_EVENT))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+/** Durable per-browser memory: deleted/dismissed announcements must not reappear in the bell. */
+export function markAnnouncementUserDismissed(announcementId: string) {
+  const id = announcementId.trim()
+  if (!id) return
+  const ids = loadDismissedAnnouncementIds()
+  ids.add(id)
+  persistDismissedAnnouncementIds(ids)
+  try {
+    localStorage.setItem(`announcement:${id}:dismissed`, '1')
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isAnnouncementUserDismissed(announcementId: string): boolean {
+  const id = announcementId.trim()
+  if (!id) return false
+  if (loadDismissedAnnouncementIds().has(id)) return true
+  try {
+    return localStorage.getItem(`announcement:${id}:dismissed`) === '1'
+  } catch {
+    return false
+  }
+}
+
 export function deleteNotification(id: string) {
-  const list = loadNotifications().filter((n) => n.id !== id)
+  const list = loadNotifications()
+  const target = list.find((n) => n.id === id)
+  const announcementId = target?.meta?.announcementId?.trim()
+  if (announcementId) markAnnouncementUserDismissed(announcementId)
+  persist(list.filter((n) => n.id !== id))
+}
+
+/** Remove every local inbox/bell row for an announcement and remember the dismiss. */
+export function dismissAnnouncementEverywhere(announcementId: string) {
+  const id = announcementId.trim()
+  if (!id) return
+  markAnnouncementUserDismissed(id)
+  const list = loadNotifications().filter((n) => n.meta?.announcementId !== id)
   persist(list)
 }
 
@@ -355,6 +417,7 @@ export function notifyCardOwner(input: {
 /**
  * Seed the owner bell from a server-backed active announcement (once per announcement id).
  * Global admin publish only writes localStorage on the admin browser — owners need this.
+ * Never re-seed after the user deleted/dismissed that announcement.
  */
 export function seedActiveAnnouncementNotification(input: {
   audience: 'single' | 'corporate'
@@ -364,8 +427,12 @@ export function seedActiveAnnouncementNotification(input: {
   profileId?: string
   href?: string
 }) {
+  const announcementId = input.announcementId.trim()
+  if (!announcementId) return null
+  if (isAnnouncementUserDismissed(announcementId)) return null
+
   const already = loadNotifications().some(
-    (n) => n.audience === input.audience && n.meta?.announcementId === input.announcementId
+    (n) => n.audience === input.audience && n.meta?.announcementId === announcementId
   )
   if (already) return null
 
@@ -376,9 +443,10 @@ export function seedActiveAnnouncementNotification(input: {
     body: input.body,
     href: input.href || (input.profileId ? `/vcards/edit/home/${input.profileId}` : '/'),
     meta: {
-      announcementId: input.announcementId,
+      announcementId,
       ...(input.profileId ? { profileId: input.profileId } : {}),
     },
+    // Browser toast only on first seed — never again after dismiss/delete.
     forceBrowser: true,
   })
 }

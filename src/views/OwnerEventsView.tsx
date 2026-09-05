@@ -2,7 +2,11 @@
 
 import { ModalPortal } from '@/components/ModalPortal'
 import { OneOnOneRequestsPanel } from '@/components/admin/OneOnOneRequestsPanel'
+import type { ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
+import { profileOwnerSelectionFromApiProfile } from '@/components/admin/ProfileOwnerPicker'
+import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
+import { useAppSelector } from '@/hooks/redux'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
 import {
   buildMonthCells,
@@ -17,11 +21,12 @@ import {
   type CalendarCell,
 } from '@/lib/scheduleCalendar'
 import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
-import { useGetOwnerMeetingsQuery } from '@/redux/features/meetings/meetings.api'
+import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
+import { useCreateMeetingMutation, useGetOwnerMeetingsQuery } from '@/redux/features/meetings/meetings.api'
 import { useGetProfilesQuery } from '@/redux/features/profiles/profiles.api'
-import type { Meeting } from '@/types/meeting'
+import type { Meeting, MeetingScope } from '@/types/meeting'
 import { cn } from '@/utils/cn'
-import { ChevronLeft, ChevronRight, Clock, ExternalLink, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, ExternalLink, Plus, Search, X } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
@@ -38,17 +43,32 @@ function meetingScopeLabel(meeting: Meeting) {
 
 export default function OwnerEventsView({ initialProfileId = null }: OwnerEventsViewProps) {
   const now = new Date()
-  const { isCorporateBackOffice } = useOwnerMode()
+  const user = useAppSelector((state) => state.user.user)
+  const { isCorporateBackOffice, isSingleBackOffice } = useOwnerMode()
   const [viewYear, setViewYear] = useState(now.getFullYear())
   const [viewMonth, setViewMonth] = useState(now.getMonth())
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [profileFilter, setProfileFilter] = useState(initialProfileId ?? '')
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [bookDate, setBookDate] = useState(todayIsoDate())
 
   const monthRange = useMemo(() => monthRangeIso(viewYear, viewMonth), [viewYear, viewMonth])
 
-  const { data: profilesPage } = useGetProfilesQuery({ limit: 100, skip: 0 }, { skip: !isCorporateBackOffice })
+  const { data: profilesPage } = useGetProfilesQuery({ limit: 100, skip: 0 })
   const profileOptions = profilesPage?.items ?? []
+  const [createMeeting, { isLoading: isCreating }] = useCreateMeetingMutation()
+
+  const primaryOwner = useMemo<ProfileOwnerSelection | null>(() => {
+    const preferred =
+      profileOptions.find((p) => p.id === (profileFilter || initialProfileId)) || profileOptions[0] || null
+    return preferred ? profileOwnerSelectionFromApiProfile(preferred) : null
+  }, [profileOptions, profileFilter, initialProfileId])
+
+  const scheduleScopes = useMemo<MeetingScope[]>(() => {
+    if (isCorporateBackOffice) return ['one_to_one', 'group']
+    return ['one_to_one']
+  }, [isCorporateBackOffice])
 
   const { data, isLoading, isError } = useGetOwnerMeetingsQuery({
     from: monthRange.from,
@@ -103,6 +123,11 @@ export default function OwnerEventsView({ initialProfileId = null }: OwnerEvents
     if (items.length) setSelectedDay(cell.key)
   }
 
+  const openBookModal = (date: string) => {
+    setBookDate(date || todayIsoDate())
+    setIsAddOpen(true)
+  }
+
   return (
     <div className="animate-in fade-in relative mx-auto max-w-7xl space-y-6 duration-500">
       <header className="flex flex-col gap-4 border-b border-slate-200/70 pb-6 md:flex-row md:items-end md:justify-between dark:border-white/10">
@@ -114,11 +139,20 @@ export default function OwnerEventsView({ initialProfileId = null }: OwnerEvents
             Your schedule
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            View platform-wide sessions, one-to-one calls, and team group meetings on the calendar. Global, group, and
-            card-specific events appear here.
+            Review open 1-on-1 requests first, then manage your calendar. Book one-to-one or group sessions for your
+            {isCorporateBackOffice ? ' team cards' : ' card'}.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => openBookModal(selectedDay || todayIsoDate())}
+          className="inline-flex items-center justify-center gap-2 self-start rounded-2xl bg-slate-950 px-5 py-3.5 text-xs font-semibold tracking-wide text-white uppercase transition hover:bg-slate-800 active:scale-[0.98] md:self-auto dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+        >
+          <Plus className="h-4 w-4" /> Add schedule
+        </button>
       </header>
+
+      <OneOnOneRequestsPanel />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
         <label className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-[#0d121c]/90">
@@ -275,11 +309,9 @@ export default function OwnerEventsView({ initialProfileId = null }: OwnerEvents
         meetings={upcomingMeetings}
         isLoading={upcomingLoading}
         title="All upcoming sessions"
-        subtitle="Global platform events plus your one-to-one and group meetings."
-        emptyMessage="When admin or your team books a session, it will appear here."
+        subtitle="Platform events plus your one-to-one and group meetings."
+        emptyMessage="When you or your team books a session, it will appear here."
       />
-
-      <OneOnOneRequestsPanel className="mt-4" />
 
       {selectedDay ? (
         <ModalPortal>
@@ -358,10 +390,52 @@ export default function OwnerEventsView({ initialProfileId = null }: OwnerEvents
                   )
                 })}
               </div>
+
+              <div className="border-t border-slate-100 px-6 py-4 dark:border-white/5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDay(null)
+                    openBookModal(selectedDay)
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-3.5 text-[11px] font-semibold tracking-wide text-white uppercase transition hover:bg-slate-800 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+                >
+                  <Plus className="h-4 w-4" /> Add schedule on this date
+                </button>
+              </div>
             </div>
           </div>
         </ModalPortal>
       ) : null}
+
+      <ScheduleMeetingModal
+        open={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        isSubmitting={isCreating}
+        initialDate={bookDate}
+        initialOwner={isSingleBackOffice ? primaryOwner : null}
+        lockOwner={isSingleBackOffice && Boolean(primaryOwner)}
+        allowedScopes={scheduleScopes}
+        defaultScope="one_to_one"
+        ownerPickerSource="owner"
+        groupCompanyUserId={isCorporateBackOffice ? primaryOwner?.companyUserId || user?.id || null : null}
+        title="Add schedule"
+        subtitle={
+          isCorporateBackOffice
+            ? 'Choose one-to-one or group, then search and select team cards — same booking flow as admin.'
+            : 'Book a one-to-one session for your card with calendar invite, email, and push.'
+        }
+        onSubmit={async (payload) => {
+          try {
+            return await submitScheduleMeeting(createMeeting, payload, {
+              ownerAudience: isCorporateBackOffice ? 'corporate' : 'single',
+              ownerRole: user?.role,
+            })
+          } catch {
+            return undefined
+          }
+        }}
+      />
     </div>
   )
 }

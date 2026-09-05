@@ -1,9 +1,11 @@
 'use client'
 
 import { ModalPortal } from '@/components/ModalPortal'
+import { useAppDispatch } from '@/hooks/redux'
 import {
   NOTIFICATIONS_EVENT,
   deleteNotification,
+  dismissAnnouncementEverywhere,
   ensureNotificationPermission,
   listNotifications,
   markAllNotificationsRead,
@@ -12,6 +14,7 @@ import {
   type NotificationAudience,
   type NotificationCategory,
 } from '@/lib/notifications'
+import { clearActiveAnnouncementBannerCache } from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
 import { cn } from '@/utils/cn'
 import {
   AlertCircle,
@@ -110,6 +113,7 @@ function getServerNotificationPermissionSnapshot(): NotificationPermission | 'un
 
 export function NotificationCenter({ audience, title = 'Your Alerts', className }: NotificationCenterProps) {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const btnRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
@@ -167,7 +171,14 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
   }
 
   const handleDelete = (id: string) => {
-    deleteNotification(id)
+    const target = storedItems.find((item) => item.id === id)
+    const announcementId = target?.meta?.announcementId?.trim()
+    if (announcementId) {
+      dismissAnnouncementEverywhere(announcementId)
+      dispatch(clearActiveAnnouncementBannerCache())
+    } else {
+      deleteNotification(id)
+    }
     setDeletedIds((current) => new Set(current).add(id))
   }
 

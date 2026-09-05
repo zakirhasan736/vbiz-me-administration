@@ -1,7 +1,10 @@
 'use client'
 
 import { ModalPortal } from '@/components/ModalPortal'
-import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
+import ProfileOwnerPicker, {
+  type ProfileOwnerPickerSource,
+  type ProfileOwnerSelection,
+} from '@/components/admin/ProfileOwnerPicker'
 import { meetingScopeLabel } from '@/lib/meetingScope'
 import { MEETING_SCOPES, MEETING_TYPES, type Meeting, type MeetingScope, type MeetingType } from '@/types/meeting'
 import { cn } from '@/utils/cn'
@@ -39,6 +42,8 @@ export type ScheduleMeetingModalProps = {
   initialNotes?: string
   title?: string
   subtitle?: string
+  /** admin searches all cards; owner searches own/team cards */
+  ownerPickerSource?: ProfileOwnerPickerSource
 }
 
 function todayIsoDate() {
@@ -89,6 +94,7 @@ function ScheduleMeetingModalContent({
   initialNotes = '',
   title = 'Book session',
   subtitle = 'Creates a calendar event with a meeting link, owner notification, email, and push.',
+  ownerPickerSource = 'admin',
 }: ScheduleMeetingModalContentProps) {
   const scopeOptions = useMemo(
     () => (lockOwner ? (['one_to_one'] as MeetingScope[]) : allowedScopes),
@@ -242,17 +248,19 @@ function ScheduleMeetingModalContent({
                 multiple
                 values={groupOwners}
                 onChangeValues={setGroupOwners}
-                label="Group card owners"
+                label={ownerPickerSource === 'owner' ? 'Group team cards' : 'Group card owners'}
                 listClassName="max-h-40"
                 required
+                source={ownerPickerSource}
               />
             ) : (
               <ProfileOwnerPicker
                 value={owner}
                 onChange={setOwner}
-                label="Owner / host"
+                label={ownerPickerSource === 'owner' ? 'Team card / host' : 'Owner / host'}
                 listClassName="max-h-40"
                 required
+                source={ownerPickerSource}
               />
             )}
 

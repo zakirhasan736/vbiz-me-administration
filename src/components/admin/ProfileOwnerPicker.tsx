@@ -3,6 +3,7 @@
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MIN_IDENTITY_SEARCH_CHARACTERS, normalizedSearchQuery } from '@/lib/identitySearch'
 import { type AdminProfileRow, useGetAdminProfilesQuery } from '@/redux/features/adminProfiles/adminProfiles.api'
+import { type ApiProfile, useGetProfilesQuery } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import { Search, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -16,6 +17,8 @@ export type ProfileOwnerSelection = {
   companyUserId?: string | null
 }
 
+export type ProfileOwnerPickerSource = 'admin' | 'owner'
+
 type ProfileOwnerPickerBaseProps = {
   label?: string
   className?: string
@@ -24,6 +27,8 @@ type ProfileOwnerPickerBaseProps = {
   includeDrafts?: boolean
   /** Keep search open after selecting (multi-select). */
   keepSearchOpen?: boolean
+  /** admin = /admin/profiles search; owner = team/own cards via /profiles */
+  source?: ProfileOwnerPickerSource
 }
 
 type ProfileOwnerPickerSingleProps = ProfileOwnerPickerBaseProps & {
@@ -44,19 +49,28 @@ type ProfileOwnerPickerMultiProps = ProfileOwnerPickerBaseProps & {
 
 export type ProfileOwnerPickerProps = ProfileOwnerPickerSingleProps | ProfileOwnerPickerMultiProps
 
-function ownerLabel(row: AdminProfileRow): string {
+function ownerLabel(row: Pick<AdminProfileRow, 'name' | 'slug' | 'email'> | ApiProfile): string {
   const name = row.name?.trim()
   if (name) return name
   if (row.slug?.trim()) return row.slug.trim()
   return row.email?.trim() || 'vCard Owner'
 }
 
-function ownerSubline(row: AdminProfileRow): string {
-  const accountName = row.user?.name?.trim() || row.companyUser?.name?.trim()
-  const accountEmail = row.user?.email?.trim() || row.companyUser?.email?.trim() || row.email?.trim()
+function ownerSubline(row: AdminProfileRow | ApiProfile): string {
+  const accountName =
+    ('user' in row ? row.user?.name?.trim() : null) || ('companyUser' in row ? row.companyUser?.name?.trim() : null)
+  const accountEmail = ('user' in row ? row.user?.email?.trim() : null) || row.email?.trim()
+  const profession =
+    'profession' in row &&
+    row.profession &&
+    typeof row.profession === 'object' &&
+    row.profession &&
+    'name' in row.profession
+      ? String((row.profession as { name?: string | null }).name || '').trim()
+      : null
   const parts = [
     row.designation?.trim(),
-    row.profession?.name?.trim(),
+    profession || null,
     row.companyName,
     accountName,
     accountEmail,
@@ -79,10 +93,22 @@ export function profileOwnerSelectionFromRow(row: AdminProfileRow): ProfileOwner
   }
 }
 
+export function profileOwnerSelectionFromApiProfile(row: ApiProfile): ProfileOwnerSelection {
+  const ownerEmails = [
+    ...new Set([row.user?.email, row.email].map((email) => email?.trim().toLowerCase()).filter(Boolean)),
+  ] as string[]
+  return {
+    profileId: row.id,
+    hostName: ownerLabel(row),
+    ownerEmails,
+    identity: ownerSubline(row),
+    companyUserId: row.companyUserId ?? row.companyUser?.id ?? null,
+  }
+}
+
 const OWNER_NAME_WIDTHS = ['w-28', 'w-24', 'w-32', 'w-36'] as const
 const OWNER_META_WIDTHS = ['w-48', 'w-44', 'w-52', 'w-40'] as const
 
-/** Card-style placeholder matching vCard owner list rows (avatar + name + meta). */
 function OwnerSearchRowSkeleton({ index = 0 }: { index?: number }) {
   const i = index % OWNER_NAME_WIDTHS.length
 
@@ -127,6 +153,7 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
     required = true,
     includeDrafts = false,
     keepSearchOpen = false,
+    source = 'admin',
   } = props
   const multiple = props.multiple === true
   const selectedOwners = multiple ? props.values : props.value ? [props.value] : []
@@ -136,16 +163,19 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
   const [debouncedQ, setDebouncedQ] = useState('')
   const normalizedInput = normalizedSearchQuery(searchQuery)
   const showSearch = multiple || selectedOwners.length === 0 || keepSearchOpen
+  const isOwnerSource = source === 'owner'
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(normalizedInput), 300)
     return () => window.clearTimeout(t)
   }, [normalizedInput])
 
-  const searchReady = normalizedInput.length >= MIN_IDENTITY_SEARCH_CHARACTERS && debouncedQ === normalizedInput
+  const searchReady = isOwnerSource
+    ? debouncedQ === normalizedInput
+    : normalizedInput.length >= MIN_IDENTITY_SEARCH_CHARACTERS && debouncedQ === normalizedInput
   const typedLength = searchQuery.trim().length
 
-  const listQuery = useMemo(
+  const adminListQuery = useMemo(
     () => ({
       q: debouncedQ || undefined,
       ...(!includeDrafts ? { lifecycle: 'active' as const } : {}),
@@ -157,11 +187,29 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
     [debouncedQ, includeDrafts]
   )
 
-  const { data, isLoading, isFetching, isError } = useGetAdminProfilesQuery(listQuery, { skip: !searchReady })
-  const items = searchReady ? (data?.items ?? []) : []
+  const ownerListQuery = useMemo(
+    () => ({
+      q: debouncedQ || undefined,
+      limit: 50,
+      skip: 0,
+      sortBy: 'name' as const,
+      sortDir: 'asc' as const,
+    }),
+    [debouncedQ]
+  )
 
-  const selectOwner = (row: AdminProfileRow) => {
-    const next = profileOwnerSelectionFromRow(row)
+  const adminQuery = useGetAdminProfilesQuery(adminListQuery, { skip: !searchReady || isOwnerSource })
+  const ownerQuery = useGetProfilesQuery(ownerListQuery, { skip: !searchReady || !isOwnerSource })
+
+  const isLoading = isOwnerSource ? ownerQuery.isLoading : adminQuery.isLoading
+  const isFetching = isOwnerSource ? ownerQuery.isFetching : adminQuery.isFetching
+  const isError = isOwnerSource ? ownerQuery.isError : adminQuery.isError
+  const items = searchReady ? (isOwnerSource ? (ownerQuery.data?.items ?? []) : (adminQuery.data?.items ?? [])) : []
+
+  const selectOwner = (row: AdminProfileRow | ApiProfile) => {
+    const next = isOwnerSource
+      ? profileOwnerSelectionFromApiProfile(row as ApiProfile)
+      : profileOwnerSelectionFromRow(row as AdminProfileRow)
     if (multiple) {
       if (selectedIds.has(next.profileId)) return
       props.onChangeValues([...props.values, next])
@@ -194,8 +242,7 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
           ))}
           {multiple ? (
             <p className="px-1 text-[10px] font-semibold text-slate-400">
-              {selectedOwners.length} card owner{selectedOwners.length === 1 ? '' : 's'} selected for this group
-              session.
+              {selectedOwners.length} card{selectedOwners.length === 1 ? '' : 's'} selected for this group session.
             </p>
           ) : null}
         </div>
@@ -210,21 +257,26 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={
-                multiple
-                  ? 'Search and add card owners…'
-                  : 'Search name, email, company, designation, profession, phone, or slug…'
+                isOwnerSource
+                  ? multiple
+                    ? 'Search and add team cards…'
+                    : 'Search your cards by name, email, or slug…'
+                  : multiple
+                    ? 'Search and add card owners…'
+                    : 'Search name, email, company, designation, profession, phone, or slug…'
               }
               className="w-full bg-transparent text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none dark:text-white"
               autoComplete="off"
-              minLength={MIN_IDENTITY_SEARCH_CHARACTERS}
+              minLength={isOwnerSource ? 0 : MIN_IDENTITY_SEARCH_CHARACTERS}
               aria-describedby="profile-owner-search-help"
             />
           </div>
 
           <p id="profile-owner-search-help" className="px-1 text-[10px] font-semibold text-slate-400">
-            Enter at least {MIN_IDENTITY_SEARCH_CHARACTERS} characters. Results match every word across the full owner
-            identity.
-            {multiple ? ' Click to add multiple owners.' : ''}
+            {isOwnerSource
+              ? `Browse your ${multiple ? 'team cards' : 'cards'} or type to filter.`
+              : `Enter at least ${MIN_IDENTITY_SEARCH_CHARACTERS} characters. Results match every word across the full owner identity.`}
+            {multiple ? ' Click to add multiple cards.' : ''}
           </p>
 
           <div
@@ -233,7 +285,7 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
               listClassName
             )}
             role="listbox"
-            aria-label="vCard owners"
+            aria-label={isOwnerSource ? 'Team cards' : 'vCard owners'}
             aria-multiselectable={multiple || undefined}
           >
             {!searchReady ? (
@@ -245,9 +297,13 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
             ) : isLoading || isFetching ? (
               Array.from({ length: 4 }).map((_, index) => <OwnerSearchRowSkeleton key={index} index={index} />)
             ) : isError ? (
-              <p className="px-3 py-4 text-center text-xs font-semibold text-rose-500">Could not load vCard owners.</p>
+              <p className="px-3 py-4 text-center text-xs font-semibold text-rose-500">
+                Could not load {isOwnerSource ? 'team cards' : 'vCard owners'}.
+              </p>
             ) : items.length === 0 ? (
-              <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">No matching vCard owners.</p>
+              <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
+                No matching {isOwnerSource ? 'cards' : 'vCard owners'}.
+              </p>
             ) : (
               items.map((row) => {
                 const hostName = ownerLabel(row)
