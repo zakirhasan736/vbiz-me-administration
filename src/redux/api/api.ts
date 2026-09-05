@@ -85,6 +85,7 @@ export const api = createApi({
     'templates',
     'adminPackages',
     'adminTeam',
+    'oneOnOne',
   ],
   endpoints: () => ({}),
 })

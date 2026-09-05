@@ -1,6 +1,7 @@
 'use client'
 
 import { ModalPortal } from '@/components/ModalPortal'
+import { OneOnOneRequestsPanel } from '@/components/admin/OneOnOneRequestsPanel'
 import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
 import {
@@ -277,6 +278,8 @@ export default function OwnerEventsView({ initialProfileId = null }: OwnerEvents
         subtitle="Global platform events plus your one-to-one and group meetings."
         emptyMessage="When admin or your team books a session, it will appear here."
       />
+
+      <OneOnOneRequestsPanel className="mt-4" />
 
       {selectedDay ? (
         <ModalPortal>

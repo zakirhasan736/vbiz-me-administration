@@ -1,5 +1,6 @@
 'use client'
 
+import { OneOnOneRequestsPanel } from '@/components/admin/OneOnOneRequestsPanel'
 import { AlertModal } from '@/components/AlertModal'
 import {
   CorporateControlsHub,
@@ -387,6 +388,8 @@ export default function CorporateOwnerDashboardHome() {
             emptyMessage="No upcoming sessions scheduled for your team."
             onViewAll={() => router.push('/events')}
           />
+
+          <OneOnOneRequestsPanel className="mt-2" />
 
           <CorporateSocialBreakdown
             channels={statsReady ? stats?.socialChannels : undefined}

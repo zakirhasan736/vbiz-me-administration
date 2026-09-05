@@ -1,5 +1,6 @@
 'use client'
 
+import { OneOnOneRequestsPanel } from '@/components/admin/OneOnOneRequestsPanel'
 import {
   ActiveOrdersSection,
   ContactModal,
@@ -310,6 +311,8 @@ function SingleOwnerDashboardHome() {
           onViewAll={() => router.push('/events')}
         />
       </div>
+
+      <OneOnOneRequestsPanel className="mb-8" />
 
       <EngagementAnalyticsSection socialChannels={statsReady ? stats?.socialChannels : undefined} />
 

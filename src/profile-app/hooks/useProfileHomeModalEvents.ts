@@ -30,6 +30,7 @@ export function useProfileHomeModalEvents(
       // Already subscribed → open settings instead of the Enable Notifications prompt.
       void resolveNotificationModalTarget(cardSlug).then(setActiveModal)
     }
+    const handleOpenOneOnOne = () => setActiveModal('one_on_one')
 
     window.addEventListener('saveContactAction', handleSaveContact)
     window.addEventListener('openNotepadAction', handleOpenNotepad)
@@ -38,6 +39,7 @@ export function useProfileHomeModalEvents(
     window.addEventListener('openWalletModal', handleOpenWallet)
     window.addEventListener('openPwaInstallModal', handleOpenPwa)
     window.addEventListener('openFollowModal', handleOpenFollow)
+    window.addEventListener('openOneOnOneModal', handleOpenOneOnOne)
 
     return () => {
       window.removeEventListener('saveContactAction', handleSaveContact)
@@ -47,6 +49,7 @@ export function useProfileHomeModalEvents(
       window.removeEventListener('openWalletModal', handleOpenWallet)
       window.removeEventListener('openPwaInstallModal', handleOpenPwa)
       window.removeEventListener('openFollowModal', handleOpenFollow)
+      window.removeEventListener('openOneOnOneModal', handleOpenOneOnOne)
     }
   }, [setActiveModal, cardSlug])
 }
