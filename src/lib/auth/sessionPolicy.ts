@@ -124,6 +124,7 @@ export function redirectToLogin(): void {
   if (pathname.startsWith('/login')) return
   // Never yank visitors off a public card when a stale auth cookie/token expires.
   if (!isAuthenticatedWorkspacePath(pathname)) return
+  rememberPostLoginPath(pathname + (typeof window !== 'undefined' ? window.location.search : ''))
   window.location.replace(SESSION_EXPIRED_LOGIN_PATH)
 }
 
@@ -143,9 +144,55 @@ export function clearSessionExpiredMarker(): void {
   }
 }
 
+const REDIRECT_AFTER_LOGIN_COOKIE = 'redirect_after_login'
+
+/** Persist a safe in-app path so login can continue to the originally requested area (e.g. /crm). */
+export function rememberPostLoginPath(path?: string | null): void {
+  if (typeof window === 'undefined') return
+  const cleaned = sanitizePostLoginPath(path)
+  if (!cleaned) return
+  try {
+    const maxAge = 60 * 30
+    document.cookie = `${REDIRECT_AFTER_LOGIN_COOKIE}=${encodeURIComponent(cleaned)}; path=/; max-age=${maxAge}; SameSite=Lax`
+  } catch {
+    // Ignore unavailable cookies.
+  }
+}
+
+export function consumePostLoginPath(): string | null {
+  if (typeof window === 'undefined') return null
+  const fromQuery = sanitizePostLoginPath(
+    new URLSearchParams(window.location.search).get('redirect') ||
+      new URLSearchParams(window.location.search).get('next')
+  )
+  let fromCookie: string | null = null
+  try {
+    const match = document.cookie.match(/(?:^|; )redirect_after_login=([^;]*)/)
+    if (match?.[1]) fromCookie = sanitizePostLoginPath(decodeURIComponent(match[1]))
+  } catch {
+    fromCookie = null
+  }
+  try {
+    document.cookie = `${REDIRECT_AFTER_LOGIN_COOKIE}=; path=/; max-age=0; SameSite=Lax`
+  } catch {
+    // Ignore unavailable cookies.
+  }
+  return fromQuery || fromCookie
+}
+
+function sanitizePostLoginPath(path?: string | null): string | null {
+  const requested = path?.trim()
+  if (!requested || !requested.startsWith('/') || requested.startsWith('//') || requested.startsWith('/login')) {
+    return null
+  }
+  return requested
+}
+
+/** Already signed-in on /login — honor deep-link cookie/query, else role home. */
 export function redirectToRoleHome(session?: SessionHomeInput | string | null): void {
   if (typeof window === 'undefined' || !window.location.pathname.startsWith('/login')) return
-  window.location.replace(homePathForSession(toSession(session)))
+  const target = resolvePostLoginPath(toSession(session), consumePostLoginPath())
+  window.location.replace(target)
 }
 
 export function resolvePostLoginPath(

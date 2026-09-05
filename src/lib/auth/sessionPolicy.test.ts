@@ -41,6 +41,8 @@ describe('session policy', () => {
     expect(resolvePostLoginPath('corporate-owner', '/admin/dashboard')).toBe('/teamvcard')
     expect(resolvePostLoginPath('admin', '/admin/users')).toBe('/admin/users')
     expect(resolvePostLoginPath('admin', '/crm')).toBe('/crm')
+    expect(resolvePostLoginPath('vcard-owner', '/crm')).toBe('/crm')
+    expect(resolvePostLoginPath('corporate-owner', '/crm')).toBe('/crm')
     expect(resolvePostLoginPath({ role: 'corporate-owner', ownerMode: 'single' }, '/teamvcard')).toBe('/')
     expect(resolvePostLoginPath({ role: 'vcard-owner', ownerMode: 'corporate' }, '/vcards')).toBe('/teamvcard')
     expect(resolvePostLoginPath({ role: 'vcard-owner', ownerMode: 'corporate' }, '/vcards/create/home')).toBe(

@@ -10,7 +10,12 @@ import type { TPasswordSetupRequiredData } from '@/interfaces'
 import type { IQueryMutationErrorResponse } from '@/interfaces/queryMutationErrorResponse'
 import type { IUser } from '@/interfaces/user.interface'
 import { resetRefreshSessionLock } from '@/lib/auth/sessionClient'
-import { clearSessionExpiredMarker, resolvePostLoginPath } from '@/lib/auth/sessionPolicy'
+import {
+  clearSessionExpiredMarker,
+  consumePostLoginPath,
+  rememberPostLoginPath,
+  resolvePostLoginPath,
+} from '@/lib/auth/sessionPolicy'
 import { useLoginMutation } from '@/redux/features/auth/auth.api'
 import { updateAuthState } from '@/redux/features/auth/user.slice'
 import { cn } from '@/utils/cn'
@@ -73,6 +78,10 @@ const LoginView = () => {
     router.replace('/login')
   }, [searchParams, router])
 
+  useEffect(() => {
+    rememberPostLoginPath(searchParams.get('redirect') || searchParams.get('next'))
+  }, [searchParams])
+
   const completeLogin = (payload: { profile: IUser; accessToken: string }) => {
     resetRefreshSessionLock()
     dispatch(
@@ -87,7 +96,7 @@ const LoginView = () => {
     clearSessionExpiredMarker()
     const redirectTo = resolvePostLoginPath(
       { role: payload.profile.role, ownerMode: payload.profile.ownerMode },
-      Cookies.get('redirect_after_login')
+      consumePostLoginPath()
     )
     Cookies.remove('redirect_after_login')
     router.push(redirectTo)

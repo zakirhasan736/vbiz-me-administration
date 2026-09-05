@@ -6,7 +6,7 @@ import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
+import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
   cleanProfileFieldValue,
   formatProfileViewCount,
@@ -26,6 +26,7 @@ import {
   FileEdit,
   Globe,
   Instagram,
+  Kanban,
   Linkedin,
   MessageCircle,
   Share2,
@@ -295,6 +296,15 @@ export function ProfileHeaderV2({
             />
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => openVbizmeCrm()}
+          className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+          aria-label="Open CRM"
+          title="CRM"
+        >
+          <Kanban size={HOME_ICON_SIZE} />
+        </button>
         {showShare && (
           <button
             type="button"

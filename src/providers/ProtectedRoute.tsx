@@ -2,7 +2,7 @@
 import Loader from '@/components/ui/Loader'
 import { useAppSelector } from '@/hooks/redux'
 import { TUserRole } from '@/interfaces'
-import { homePathForSession, loginPathForAuthState } from '@/lib/auth/sessionPolicy'
+import { homePathForSession, loginPathForAuthState, rememberPostLoginPath } from '@/lib/auth/sessionPolicy'
 import Cookies from 'js-cookie'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -20,6 +20,7 @@ const ProtectedRoute = ({ children, role }: IProps) => {
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
+        rememberPostLoginPath(pathname)
         Cookies.set('redirect_after_login', pathname)
         router.replace(loginPathForAuthState())
       }

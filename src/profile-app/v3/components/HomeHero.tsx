@@ -9,7 +9,7 @@ import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButt
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
+import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
   buildBentoContactItems,
   formatProfileViewCount,
@@ -31,6 +31,7 @@ import {
   FileText,
   Globe,
   Instagram,
+  Kanban,
   Linkedin,
   MessageCircle,
   Moon,
@@ -267,6 +268,18 @@ export const HomeHero: React.FC<{
                   />
                 </div>
               )}
+              <button
+                type="button"
+                title="CRM"
+                aria-label="Open CRM"
+                className={railButtonClass}
+                onClick={() => {
+                  triggerHaptic(10)
+                  openVbizmeCrm()
+                }}
+              >
+                <Kanban size={HOME_ICON_SIZE} strokeWidth={2.5} />
+              </button>
               <div
                 title="Toggle Theme"
                 onClick={() => {
