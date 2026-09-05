@@ -1,4 +1,4 @@
-import { CARD_LIMIT_FEATURE_KEY } from '@/lib/packageAccess'
+import { CARD_LIMIT_FEATURE_KEY, isMandatoryPackageAccess } from '@/lib/packageAccess'
 
 export type FeatureRow = { featureKey: string; featureValue: string | null }
 
@@ -37,7 +37,14 @@ export function overridablePackageFeatures(features: FeatureRow[] | undefined | 
   const rows: FeatureRow[] = []
   for (const row of features || []) {
     const featureKey = row.featureKey.trim().toLowerCase()
-    if (!featureKey || featureKey === CARD_LIMIT_FEATURE_KEY || seen.has(featureKey)) continue
+    if (
+      !featureKey ||
+      featureKey === CARD_LIMIT_FEATURE_KEY ||
+      isMandatoryPackageAccess(featureKey) ||
+      seen.has(featureKey)
+    ) {
+      continue
+    }
     seen.add(featureKey)
     rows.push({ featureKey, featureValue: row.featureValue ?? null })
   }

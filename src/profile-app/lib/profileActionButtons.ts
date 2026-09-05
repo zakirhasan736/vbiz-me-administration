@@ -10,7 +10,7 @@ type CSSPropertiesWithVariables = CSSProperties & {
 export type ProfileActionButtonKey = 'my_info' | 'save_contact' | 'share' | 'refresh' | 'language' | 'view_counter'
 
 /** Fixed home-page CTAs (left column). Marked buttons always render. */
-export type HomeCtaKey = 'my_info' | 'save_my_info' | 'my_vcard' | 'google_wallet' | 'get_vcard_now'
+export type HomeCtaKey = 'my_info' | 'save_my_info' | 'my_vcard' | 'google_wallet' | 'get_vcard_now' | 'one_on_one'
 
 /** Theme button role — maps to theme_config.components.button.{primary|secondary|accent}. */
 export type HomeCtaButtonRole = 'primary' | 'secondary' | 'accent'
@@ -49,6 +49,7 @@ const HOME_CTA_DEFAULT_LABELS: Record<HomeCtaKey, string> = {
   my_vcard: 'MY VCARD',
   google_wallet: 'SAVE TO WALLET',
   get_vcard_now: 'GET YOUR VCARD NOW',
+  one_on_one: 'REQUEST 1-ON-1',
 }
 
 function resolveSaveMyInfoButton(
@@ -112,6 +113,7 @@ export function resolveHomeCtaLayout(options: {
     role: 'secondary',
   }
 
+  // 1-on-1 lives in the hero icon row (share / notification / notepad), not CTA rows.
   const rows: ResolvedHomeCtaButton[][] = includeMyInfo
     ? [[myInfo, myVcard], [saveMyInfo, googleWallet], [getVcardNow]]
     : [[saveMyInfo, myVcard], [googleWallet], [getVcardNow]]
@@ -133,6 +135,13 @@ export function handleHomeCtaClick(
         return
       }
       window.dispatchEvent(new CustomEvent('openMyInfoModal'))
+      return
+    case 'one_on_one':
+      if (handlers?.onAction) {
+        handlers.onAction('one_on_one')
+        return
+      }
+      window.dispatchEvent(new CustomEvent('openOneOnOneModal'))
       return
     case 'save_my_info':
       // Only the dedicated Save Contact button opens the save-contact popup.
@@ -190,6 +199,7 @@ export const HOME_CTA_SETTING_KEYS: Record<HomeCtaKey, string[]> = {
   my_vcard: ['My vCard Btn', 'Your QR Code'],
   google_wallet: [],
   get_vcard_now: ['Get your VCard Now'],
+  one_on_one: ['Request 1-on-1'],
 }
 
 export function isHomeCtaSettingVisible(key: HomeCtaKey, isVisible: (fieldKey: string) => boolean): boolean {

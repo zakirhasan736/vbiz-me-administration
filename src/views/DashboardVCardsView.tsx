@@ -254,7 +254,7 @@ const DashboardVCardsView = () => {
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
         onClose={() => setNoticeCard(null)}
-        onSave={(text, type) => {
+        onSave={(text, type, options) => {
           if (!noticeCard) return
           if (isOwnerCardLocked(noticeCard.status)) {
             notify.error(SUSPENDED_CARD_MESSAGE)
@@ -268,8 +268,10 @@ const DashboardVCardsView = () => {
                 await createTeamNotice({
                   text: text.trim(),
                   type,
-                  audience: 'all',
+                  audience: options.onlyBackoffice ? 'savers' : 'all',
                   targetProfileId: noticeCard.id,
+                  onlyBackoffice: options.onlyBackoffice,
+                  deliver: !options.onlyBackoffice,
                 }).unwrap()
               } else {
                 clearLocalCardNotice(noticeCard.id)
@@ -278,7 +280,11 @@ const DashboardVCardsView = () => {
               }
               setNoticeVersion((n) => n + 1)
               notify.success(
-                text ? 'Notice saved for this card. Visitors will see it after the intro.' : 'Notice cleared.'
+                text
+                  ? options.onlyBackoffice
+                    ? 'Notice saved for owner backoffice only.'
+                    : 'Notice saved for this card. Visitors will see it after the intro.'
+                  : 'Notice cleared.'
               )
             } catch (e) {
               const message =

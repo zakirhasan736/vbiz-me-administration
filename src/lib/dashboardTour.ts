@@ -149,9 +149,9 @@ export const CREATE_CARD_TOUR_STEPS: DashboardTourStep[] = [
     id: 'add',
     target: "[data-tour='add-tabs']",
     placement: 'bottom',
-    title: '+ Add — enable & reorder',
+    title: 'Navbar settings — enable & reorder',
     description:
-      'Open Add to turn sections on or off and set Tab order (3-column grid). Drag or use ↑↓ to reorder, then Apply.',
+      'Open Navbar settings to turn sections on or off and set tab order (3-column grid). Drag or use ↑↓ to reorder, then Apply.',
     tips: ['Personal stays required.', 'Global Connection & My Info stay pinned near the end by default.'],
   },
   {
@@ -169,12 +169,12 @@ export const CREATE_CARD_TOUR_STEPS: DashboardTourStep[] = [
   },
   {
     id: 'settings-gear',
-    target: "[data-tour='tabs-actions']",
+    target: "[data-tour-id='tour-editor-settings']",
     placement: 'bottom',
-    title: 'Settings gear',
+    title: 'Card settings',
     description:
-      'The gear opens card-wide Settings — theme, visibility, and the full nav catalog. It’s separate from the section tabs you’re editing day to day.',
-    tips: ['Use Settings for global look & feel; use Add for quick tab enable/order.'],
+      'Card settings opens card-wide options — theme, visibility, and the full nav catalog. It’s separate from Navbar settings, where you enable and reorder tabs.',
+    tips: ['Use Card settings for global look & feel; use Navbar settings for quick tab enable/order.'],
   },
   {
     id: 'personal',

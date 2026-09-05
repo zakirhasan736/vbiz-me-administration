@@ -7,6 +7,10 @@ import { useState } from 'react'
 
 export type NoticeType = 'info' | 'warning' | 'success'
 
+export type NoticeSaveOptions = {
+  onlyBackoffice: boolean
+}
+
 type NoticeModalProps = {
   open: boolean
   cardName: string
@@ -14,7 +18,7 @@ type NoticeModalProps = {
   initialType: NoticeType
   deliverySummary?: string
   onClose: () => void
-  onSave: (text: string, type: NoticeType) => void
+  onSave: (text: string, type: NoticeType, options: NoticeSaveOptions) => void
   onClear?: () => void
 }
 
@@ -30,6 +34,7 @@ export function NoticeModal({
 }: NoticeModalProps) {
   const [text, setText] = useState(initialText)
   const [type, setType] = useState<NoticeType>(initialType)
+  const [onlyBackoffice, setOnlyBackoffice] = useState(false)
   const [saved, setSaved] = useState(false)
 
   const [prevOpen, setPrevOpen] = useState(open)
@@ -38,12 +43,15 @@ export function NoticeModal({
     if (open) {
       setText(initialText)
       setType(initialType)
+      setOnlyBackoffice(false)
       setSaved(false)
     }
   }
 
+  const isEditingExisting = Boolean(initialText.trim())
+
   const handleSave = () => {
-    onSave(text.trim(), type)
+    onSave(text.trim(), type, { onlyBackoffice })
     setSaved(true)
     setTimeout(() => {
       setSaved(false)
@@ -75,7 +83,11 @@ export function NoticeModal({
         Card notice
       </h2>
       <p className="mt-1 text-xs font-semibold text-slate-400">
-        {deliverySummary || `This notice is shown for ${cardName || 'this card'}. Clear the message to remove it.`}
+        {deliverySummary ||
+          (onlyBackoffice
+            ? `Backoffice-only for ${cardName || 'this card'} — owner banner, inbox, and email.`
+            : `Shown on ${cardName || 'this card'}’s public view, for saved contacts, and in the owner backoffice.`)}
+        {isEditingExisting ? ' Edit the message below and update to replace the live notice.' : ''}
       </p>
 
       <div className="mt-6 space-y-4">
@@ -111,6 +123,22 @@ export function NoticeModal({
           />
         </div>
 
+        <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+          <input
+            type="checkbox"
+            checked={onlyBackoffice}
+            onChange={(e) => setOnlyBackoffice(e.target.checked)}
+            className="mt-1"
+          />
+          <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+            <span className="font-semibold text-slate-800 dark:text-slate-100">Only backoffice</span>
+            <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
+              Owner backoffice and in-app notifications only. Uncheck to also show on the public card and notify saved
+              contacts / push subscribers.
+            </span>
+          </span>
+        </label>
+
         <div className="mt-6 flex gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
           {onClear && (
             <button
@@ -136,7 +164,13 @@ export function NoticeModal({
             onClick={handleSave}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm hover:bg-indigo-700 active:scale-95"
           >
-            {saved ? 'Notice saved ✓' : 'Save notice'}
+            {saved
+              ? isEditingExisting
+                ? 'Updated ✓'
+                : 'Notice saved ✓'
+              : isEditingExisting
+                ? 'Update notice'
+                : 'Save notice'}
           </button>
         </div>
       </div>

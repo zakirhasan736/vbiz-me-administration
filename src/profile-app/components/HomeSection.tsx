@@ -1,15 +1,15 @@
 'use client'
 
-import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
-import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
+import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
   ArrowUpRight,
   Bell,
+  CalendarDays,
   Eye,
   Facebook,
   FileText,
@@ -150,7 +150,7 @@ const ContactDetailItem: React.FC<{ item: ContactDetailItemData }> = ({ item }) 
             className="group-hover:border-yellow-primary group-hover:bg-yellow-primary flex h-9 w-9 items-center justify-center rounded-xl border border-black/5 bg-gray-50 text-gray-500 shadow-inner transition-all duration-500 group-hover:rotate-10 group-hover:text-black lg:h-11 lg:w-11 dark:border-white/10 dark:bg-white/5 dark:text-white/50"
             style={iconStyle}
           >
-            <item.icon size={18} strokeWidth={1.5} className="group-hover:stroke-2" />
+            <item.icon size={22} strokeWidth={1.5} className="group-hover:stroke-2" />
           </div>
           <div className="text-yellow-primary/40 group-hover:text-yellow-primary rounded-md border border-black/5 bg-gray-50 px-2 py-1 text-[7px] font-black tracking-[0.3em] uppercase transition-colors lg:text-[8px] dark:border-white/5 dark:bg-white/5">
             {item.detail}
@@ -231,7 +231,6 @@ type HomeSectionProps = {
 }
 
 export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
-  const { lang } = useTranslation()
   const { personal, isVisible, field, homeMedia, design, socialHref, embedded, cardOwnerId, cardSlug, profileViews } =
     useProfileDisplay()
   const showShare = isVisible('Share Btn') || isVisible('Share')
@@ -271,7 +270,6 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
 
   const [messageModalOpen, setMessageModalOpen] = useState(false)
   const messageOwnerName = personal.fullName?.trim() || 'the card owner'
-  const currentLanguage = (LANGUAGE_LABELS[lang]?.flag ?? lang.toUpperCase()).slice(0, 2)
 
   const triggerAction = (action: string) => {
     homeHeroProps?.onAction(action)
@@ -359,12 +357,11 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                     ? [
                         {
                           content: (
-                            <div className="flex flex-col items-center justify-center leading-none">
-                              <span className="text-[11px] font-black text-gray-700 dark:text-gray-300">
-                                {currentLanguage}
-                              </span>
-                              <span className="text-yellow-primary text-[8px] font-bold">LANG</span>
-                            </div>
+                            <SelectedLanguageMark
+                              showName={false}
+                              flagWidth={48}
+                              flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10"
+                            />
                           ),
                           label: 'Language',
                           action: () => triggerAction('language'),
@@ -404,7 +401,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                   >
                     {'icon' in action && action.icon ? (
                       <action.icon
-                        size={18}
+                        size={22}
                         className="relative z-10 transition-transform group-hover/btn:scale-110"
                         strokeWidth={2.5}
                       />
@@ -442,7 +439,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl"
                         style={socialInlineStyle}
                       >
-                        <item.icon size={16} fill="currentColor" />
+                        <item.icon size={22} fill="currentColor" />
                       </motion.a>
                     )
                   })}
@@ -476,12 +473,11 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       ? [
                           {
                             content: (
-                              <div className="flex flex-col items-center justify-center leading-none">
-                                <span className="text-[11px] font-black text-gray-700 dark:text-gray-300">
-                                  {currentLanguage}
-                                </span>
-                                <span className="text-yellow-primary text-[8px] font-bold">LANG</span>
-                              </div>
+                              <SelectedLanguageMark
+                                showName={false}
+                                flagWidth={48}
+                                flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10"
+                              />
                             ),
                             label: 'Language',
                             action: () => triggerAction('language'),
@@ -510,7 +506,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               : undefined
                       }
                     >
-                      {'icon' in action && action.icon ? <action.icon size={16} strokeWidth={2.5} /> : null}
+                      {'icon' in action && action.icon ? <action.icon size={22} strokeWidth={2.5} /> : null}
                       {'content' in action && action.content ? action.content : null}
                       {'badge' in action ? action.badge : null}
                     </motion.button>
@@ -589,36 +585,53 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                 ) : null}
 
                 {homeHeroProps ? (
-                  <div className="mt-4 flex w-full items-center justify-center gap-3 md:hidden">
+                  <div className="mt-4 flex w-full flex-wrap items-center justify-center gap-3 md:hidden">
                     {[
                       ...(showShare
                         ? [
                             {
                               icon: Share2,
+                              label: null as string | null,
                               hover: 'hover:bg-blue-500 hover:border-blue-500 hover:text-white text-blue-500',
                               onClick: () => triggerAction('share'),
+                              className: 'h-10 w-10',
                             },
                           ]
                         : []),
                       {
                         icon: Bell,
+                        label: null as string | null,
                         hover: 'hover:bg-amber-500 hover:border-amber-500 hover:text-white text-amber-500',
                         onClick: () => triggerAction('settings'),
+                        className: 'h-10 w-10',
                       },
                       {
                         icon: FileText,
+                        label: null as string | null,
                         hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white text-emerald-500',
                         onClick: () => triggerAction('notepad'),
+                        className: 'h-10 w-10',
+                      },
+                      {
+                        icon: CalendarDays,
+                        label: '1-ON-1',
+                        hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white text-teal-600',
+                        onClick: () => triggerAction('one_on_one'),
+                        className: 'h-10 gap-1.5 px-2.5',
                       },
                     ].map((item, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={item.onClick}
-                        className={`vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover}`}
+                        title={item.label ?? undefined}
+                        className={`vbiz-icon-btn flex items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover} ${item.className}`}
                         style={idx === 0 && showShare ? shareChrome : undefined}
                       >
-                        <item.icon size={18} />
+                        <item.icon size={22} />
+                        {item.label ? (
+                          <span className="text-[10px] font-black tracking-wide whitespace-nowrap">{item.label}</span>
+                        ) : null}
                       </button>
                     ))}
                   </div>
@@ -738,7 +751,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           className="vbiz-social flex h-10 w-10 items-center justify-center justify-self-center rounded-full shadow-xl transition-all duration-300 hover:-translate-y-1"
                           style={socialInlineStyle}
                         >
-                          <item.icon size={16} fill="currentColor" className="opacity-90 transition-none" />
+                          <item.icon size={22} fill="currentColor" className="opacity-90 transition-none" />
                         </a>
                       )
                     })}
@@ -749,7 +762,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                   <h3 className="text-xs font-semibold tracking-widest text-gray-500 uppercase dark:text-white/60">
                     Actions
                   </h3>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[
                       ...(showShare
                         ? [
@@ -773,6 +786,12 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white',
                         onClick: () => triggerAction('notepad'),
                       },
+                      {
+                        icon: CalendarDays,
+                        label: '1-ON-1',
+                        hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white',
+                        onClick: () => triggerAction('one_on_one'),
+                      },
                     ].map((item, idx) => (
                       <button
                         key={idx}
@@ -781,7 +800,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         className={`vbiz-icon-btn flex flex-col items-center justify-center gap-1.5 rounded-xl border border-black/5 bg-gray-50 py-3 text-gray-500 shadow-sm transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] dark:border-white/10 dark:bg-white/5 dark:text-white/80 ${item.hover}`}
                         style={item.label === 'Share' ? shareChrome : undefined}
                       >
-                        <item.icon size={18} />
+                        <item.icon size={22} />
                         <span className="text-[10px] leading-none font-extrabold tracking-widest uppercase">
                           {item.label}
                         </span>

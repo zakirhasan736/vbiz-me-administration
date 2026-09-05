@@ -112,6 +112,10 @@ export function VBizProfileAppV3({
         void resolveNotificationModalTarget(cardSlug).then(setActiveModal)
         return
       }
+      if (action === 'one_on_one') {
+        setActiveModal('one_on_one')
+        return
+      }
       setActiveModal(action as V3ModalState)
     },
     [openLanguageModal, cardSlug]

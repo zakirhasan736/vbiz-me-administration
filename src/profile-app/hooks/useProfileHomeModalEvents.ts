@@ -1,5 +1,6 @@
 'use client'
 
+import { resolveNotificationModalTarget } from '@/lib/push/notificationRouting'
 import type { ProfileHomeModalId } from '@/profile-app/components/ProfileHomeModals'
 import { useEffect } from 'react'
 
@@ -10,8 +11,10 @@ type ProfileHomeModalEventsOptions = {
 /** Wire global CTA custom events to profile home modal state (all templates). */
 export function useProfileHomeModalEvents(
   setActiveModal: (modal: ProfileHomeModalId) => void,
-  _options?: ProfileHomeModalEventsOptions
+  options?: ProfileHomeModalEventsOptions
 ) {
+  const cardSlug = options?.cardSlug?.trim() ?? ''
+
   useEffect(() => {
     const handleSaveContact = () => setActiveModal('contact')
     const handleOpenNotepad = () => setActiveModal('notepad')
@@ -19,7 +22,15 @@ export function useProfileHomeModalEvents(
     const handleOpenShare = () => setActiveModal('share')
     const handleOpenWallet = () => setActiveModal('wallet')
     const handleOpenPwa = () => setActiveModal('pwa')
-    const handleOpenFollow = () => setActiveModal('follow')
+    const handleOpenFollow = () => {
+      if (!cardSlug) {
+        setActiveModal('follow')
+        return
+      }
+      // Already subscribed → open settings instead of the Enable Notifications prompt.
+      void resolveNotificationModalTarget(cardSlug).then(setActiveModal)
+    }
+    const handleOpenOneOnOne = () => setActiveModal('one_on_one')
 
     window.addEventListener('saveContactAction', handleSaveContact)
     window.addEventListener('openNotepadAction', handleOpenNotepad)
@@ -28,6 +39,7 @@ export function useProfileHomeModalEvents(
     window.addEventListener('openWalletModal', handleOpenWallet)
     window.addEventListener('openPwaInstallModal', handleOpenPwa)
     window.addEventListener('openFollowModal', handleOpenFollow)
+    window.addEventListener('openOneOnOneModal', handleOpenOneOnOne)
 
     return () => {
       window.removeEventListener('saveContactAction', handleSaveContact)
@@ -37,6 +49,7 @@ export function useProfileHomeModalEvents(
       window.removeEventListener('openWalletModal', handleOpenWallet)
       window.removeEventListener('openPwaInstallModal', handleOpenPwa)
       window.removeEventListener('openFollowModal', handleOpenFollow)
+      window.removeEventListener('openOneOnOneModal', handleOpenOneOnOne)
     }
-  }, [setActiveModal])
+  }, [setActiveModal, cardSlug])
 }

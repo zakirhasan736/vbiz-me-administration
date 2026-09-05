@@ -1,13 +1,16 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import {
   CUSTOM_TABS_SETTING_KEY,
+  EXTRA_FIELDS_SETTING_KEY,
+  parseExtraFieldsJson,
   parseThemeJson,
   TAB_LABEL_OVERRIDES_SETTING_KEY,
   THEME_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { decodeHtmlText } from '@/lib/htmlText'
-import { collectPublicCardShareImageCandidates, resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
+import { isGenericPublicCardImage } from '@/lib/publicCards/publicCardImage'
+import { resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { applyEnabledNavOrderToDisplaySettings } from '@/lib/vcardDisplaySettings'
@@ -139,6 +142,26 @@ function isDurableHttpUrl(url: string): boolean {
   const trimmed = url.trim()
   if (!trimmed || trimmed.startsWith('blob:')) return false
   return /^https?:\/\//i.test(trimmed) || trimmed.startsWith('/')
+}
+
+/** Profile avatar for card grids — image or video (unlike OG share stills). */
+export function resolveCardOwnerAvatarUrl(card: MyCardData): string {
+  const settings = card.settings || {}
+  const settingUrl = typeof settings.profile_media_url === 'string' ? settings.profile_media_url.trim() : ''
+  const media = card.profile_media
+  const candidates = [
+    settingUrl,
+    media?.url?.trim() || '',
+    media?.video_url?.trim() || '',
+    media?.regular_video?.url?.trim() || '',
+    media?.fallback_url?.trim() || '',
+    card.profile?.avatar?.trim() || '',
+  ]
+  for (const candidate of candidates) {
+    if (!candidate || !isDurableHttpUrl(candidate) || isGenericPublicCardImage(candidate)) continue
+    return candidate
+  }
+  return ''
 }
 
 function parseDisplaySettingsSnapshot(raw?: string): VCardDisplaySettings | null {
@@ -424,14 +447,18 @@ function mapPersonal(card: MyCardData): VCardPersonal {
   const contactEmail = card.my_info.contact?.email?.value?.trim() || ''
   const contactWhatsapp = card.my_info.contact?.whatsapp?.value?.trim() || ''
 
+  const designation = decodeHtmlText(p.designation ?? '')
+  const professionRaw = decodeHtmlText(p.profession ?? '')
+  const role = designation.trim() || professionRaw.trim()
+
   return {
     fullName: decodeHtmlText(p.name ?? ''),
     email: p.email || contactEmail,
     dob: card.my_info.personal?.dob?.value ?? '',
     gender: decodeHtmlText(p.gender ?? card.my_info.personal?.gender?.value ?? 'Male'),
     relationship: decodeHtmlText(p.marital_status ?? card.my_info.personal?.marital_status?.value ?? 'Single'),
-    profession: decodeHtmlText(p.profession ?? ''),
-    designation: decodeHtmlText(p.designation ?? ''),
+    profession: role,
+    designation: role,
     company: decodeHtmlText(p.company_name ?? ''),
     phone: p.phone || contactPhone,
     whatsapp: p.whatsapp || contactWhatsapp || p.phone || contactPhone,
@@ -474,14 +501,7 @@ function mapSocial(card: MyCardData): VCardSocial {
 }
 
 function mapExtraFields(card: MyCardData): VCardExtraField[] {
-  return (
-    card.my_info.additional_fields?.map((field, index) => ({
-      id: `api_extra_${index}`,
-      icon: field.icon ?? field.css_class ?? 'fa-link',
-      name: decodeHtmlText(field.key),
-      value: decodeHtmlText(field.value),
-    })) ?? []
-  )
+  return parseExtraFieldsJson(card.settings?.[EXTRA_FIELDS_SETTING_KEY])
 }
 
 function resolveTemplate(card: MyCardData): ProfileTemplateId {
@@ -556,8 +576,7 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
 export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
   const data = mapMyCardToVCardData(card)
   const now = new Date().toISOString()
-  const stillImage = collectPublicCardShareImageCandidates(card)[0] || ''
-  const avatarImageUrl = stillImage
+  const avatarImageUrl = resolveCardOwnerAvatarUrl(card)
 
   const settingsBackground =
     typeof card.settings?.background_media_url === 'string' ? card.settings.background_media_url.trim() : ''

@@ -80,7 +80,7 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
             accentColor={accent}
             readMoreLabel="Read more"
             readLessLabel="Read less"
-            textClassName="text-base leading-normal font-medium text-zinc-600 lg:text-lg dark:text-zinc-400"
+            textClassName="vbiz-description text-base leading-normal font-medium lg:text-lg"
           />
 
           {detailUrl ? (

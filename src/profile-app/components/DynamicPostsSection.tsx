@@ -175,7 +175,7 @@ function FeaturedPostCard({
         <TruncatedClampText
           plain={description}
           className="mb-8 max-w-xl"
-          textClassName="text-base leading-normal font-medium text-zinc-600 lg:text-lg dark:text-zinc-400"
+          textClassName="vbiz-description text-base leading-normal font-medium lg:text-lg"
           minLength={150}
           onReadMore={
             onPostClick

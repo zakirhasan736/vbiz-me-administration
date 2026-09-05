@@ -1,6 +1,5 @@
 'use client'
 
-import { LANGUAGE_LABELS } from '@/lib/i18n/translation'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
@@ -8,8 +7,9 @@ import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConf
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButtons'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
+import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
+import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
   buildBentoContactItems,
   formatProfileViewCount,
@@ -24,12 +24,14 @@ import { resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
   Bell,
+  CalendarDays,
   CreditCard,
   Eye,
   Facebook,
   FileText,
   Globe,
   Instagram,
+  Kanban,
   Linkedin,
   MessageCircle,
   Moon,
@@ -41,14 +43,16 @@ import {
 import Image from 'next/image'
 import React, { useMemo } from 'react'
 
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden>
+const HOME_ICON_SIZE = 22
+
+const XIcon = ({ size = HOME_ICON_SIZE }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden>
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 22.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 )
 
-const TikTokIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden>
+const TikTokIcon = ({ size = HOME_ICON_SIZE }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden>
     <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.14-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.24-2.61 1.05-5.26 3.23-6.6 1.46-.91 3.25-1.29 4.96-1v4.21c-.81-.19-1.7-.17-2.48.24-.95.49-1.64 1.41-1.79 2.49-.16 1.13.25 2.31 1.05 3.12.8.84 2.05 1.25 3.21 1.12 1.58-.16 2.87-1.42 3.15-3 .06-.41.07-.82.06-1.24-.03-6.09-.03-12.18-.03-18.27Z" />
   </svg>
 )
@@ -56,7 +60,7 @@ const TikTokIcon = () => (
 type V3SocialItem = {
   label: string
   title: string
-  icon: LucideIcon | (() => React.ReactElement)
+  icon: LucideIcon | ((props: { size?: number }) => React.ReactElement)
   isSvg?: boolean
 }
 
@@ -92,7 +96,7 @@ export const HomeHero: React.FC<{
   onAction?: (action: string) => void
   toggleTheme?: () => void
 }> = ({ theme, onAction, toggleTheme }) => {
-  const { t, lang } = useTranslation()
+  const { t } = useTranslation()
   const {
     personal,
     isVisible,
@@ -165,10 +169,10 @@ export const HomeHero: React.FC<{
     }
   }
 
-  const renderSocialIcon = (item: V3SocialItem, size: number) => {
+  const renderSocialIcon = (item: V3SocialItem, size: number = HOME_ICON_SIZE) => {
     if (item.isSvg) {
-      const Icon = item.icon as () => React.ReactElement
-      return <Icon />
+      const Icon = item.icon as (props: { size?: number }) => React.ReactElement
+      return <Icon size={size} />
     }
     const Icon = item.icon as LucideIcon
     return <Icon size={size} strokeWidth={2.5} />
@@ -232,7 +236,7 @@ export const HomeHero: React.FC<{
                   {viewCountLabel}
                 </span>
                 <span className={railButtonClass} style={viewsChrome}>
-                  <Eye size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5.5 md:w-5.5'} />
+                  <Eye size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 </span>
               </button>
               {showWebsite && (
@@ -245,27 +249,37 @@ export const HomeHero: React.FC<{
                   className={railButtonClass}
                   style={websiteChrome}
                 >
-                  <Globe size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
+                  <Globe size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 </a>
               )}
               {showLanguage && (
                 <div
-                  title="Language"
-                  className={`${railButtonClass} notranslate flex-col`}
+                  className={`${railButtonClass} notranslate h-auto min-h-10 w-auto min-w-10 flex-col gap-0.5 px-1 py-1 ${compact ? '' : 'md:min-h-12 md:min-w-12'}`}
                   style={languageChrome}
                   onClick={() => {
                     triggerHaptic(10)
                     onAction?.('language')
                   }}
                 >
-                  <span className={`text-base leading-none ${compact ? '' : 'md:text-lg'}`}>
-                    {(LANGUAGE_LABELS[lang] || { flag: '🇺🇸' }).flag}
-                  </span>
-                  <span className={`mt-0.5 text-[7px] font-bold tracking-wider ${compact ? '' : 'md:text-[8px]'}`}>
-                    {(LANGUAGE_LABELS[lang] || { label: 'EN' }).label}
-                  </span>
+                  <SelectedLanguageMark
+                    showName={false}
+                    flagWidth={48}
+                    flagClassName={`h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-6 md:w-8'}`}
+                  />
                 </div>
               )}
+              <button
+                type="button"
+                title="CRM"
+                aria-label="Open CRM"
+                className={railButtonClass}
+                onClick={() => {
+                  triggerHaptic(10)
+                  openVbizmeCrm()
+                }}
+              >
+                <Kanban size={HOME_ICON_SIZE} strokeWidth={2.5} />
+              </button>
               <div
                 title="Toggle Theme"
                 onClick={() => {
@@ -275,9 +289,9 @@ export const HomeHero: React.FC<{
                 className={railButtonClass}
               >
                 {theme === 'dark' ? (
-                  <Sun size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
+                  <Sun size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 ) : (
-                  <Moon size={18} strokeWidth={2.5} className={compact ? '' : 'md:h-5 md:w-5'} />
+                  <Moon size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 )}
               </div>
             </div>
@@ -309,7 +323,7 @@ export const HomeHero: React.FC<{
                     }`}
                     style={socialInlineStyle(item.label)}
                   >
-                    {renderSocialIcon(item, 18)}
+                    {renderSocialIcon(item, HOME_ICON_SIZE)}
                   </a>
                 )
               })}
@@ -329,7 +343,7 @@ export const HomeHero: React.FC<{
           </div>
 
           <div className="relative z-20 mt-5 flex w-full flex-1 flex-col items-center">
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {showShare && (
                 <button
                   title="Share"
@@ -340,7 +354,7 @@ export const HomeHero: React.FC<{
                     onAction?.('share')
                   }}
                 >
-                  <Share2 size={20} />
+                  <Share2 size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 </button>
               )}
               <button
@@ -351,7 +365,7 @@ export const HomeHero: React.FC<{
                   onAction?.('settings')
                 }}
               >
-                <Bell size={20} />
+                <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
                 <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
               </button>
               <button
@@ -362,7 +376,19 @@ export const HomeHero: React.FC<{
                   onAction?.('notepad')
                 }}
               >
-                <FileText size={20} />
+                <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
+              </button>
+              <button
+                type="button"
+                title="Request 1-on-1"
+                className={`group flex items-center gap-1.5 rounded-xl border px-2.5 py-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
+                onClick={() => {
+                  triggerHaptic(10)
+                  onAction?.('one_on_one')
+                }}
+              >
+                <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                <span className="text-[10px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
               </button>
             </div>
 
@@ -427,7 +453,7 @@ export const HomeHero: React.FC<{
               <div className="flex flex-1 flex-col pt-8 drop-shadow-2xl xl:pt-12">
                 {showName && (
                   <h1
-                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[56px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
+                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[50px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
                     style={{
                       ...(field('MyInfo section Name').textColor
                         ? { color: field('MyInfo section Name').textColor }
@@ -463,7 +489,7 @@ export const HomeHero: React.FC<{
                   </p>
                 )}
 
-                <div className="mb-4 flex gap-2">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
                   {showShare && (
                     <button
                       type="button"
@@ -475,7 +501,7 @@ export const HomeHero: React.FC<{
                         onAction?.('share')
                       }}
                     >
-                      <Share2 size={18} />
+                      <Share2 size={HOME_ICON_SIZE} strokeWidth={2.5} />
                     </button>
                   )}
                   <button
@@ -487,7 +513,7 @@ export const HomeHero: React.FC<{
                       onAction?.('settings')
                     }}
                   >
-                    <Bell size={18} />
+                    <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
                     <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
                   </button>
                   <button
@@ -499,7 +525,19 @@ export const HomeHero: React.FC<{
                       onAction?.('notepad')
                     }}
                   >
-                    <FileText size={18} />
+                    <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  </button>
+                  <button
+                    type="button"
+                    title="Request 1-on-1"
+                    className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12"
+                    onClick={() => {
+                      triggerHaptic(10)
+                      onAction?.('one_on_one')
+                    }}
+                  >
+                    <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                    <span className="text-[11px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
                   </button>
                 </div>
 
@@ -518,7 +556,7 @@ export const HomeHero: React.FC<{
                           className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
                           style={socialInlineStyle(item.label)}
                         >
-                          {renderSocialIcon(item, 18)}
+                          {renderSocialIcon(item, HOME_ICON_SIZE)}
                         </a>
                       )
                     })}

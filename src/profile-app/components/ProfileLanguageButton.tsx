@@ -1,9 +1,9 @@
 'use client'
 
 import { displayIconChromeStyle } from '@/lib/vcardDisplaySettings'
+import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useOptionalTranslationUi } from '@/profile-app/providers/TranslationProvider'
-import { Languages } from 'lucide-react'
 
 type ProfileLanguageButtonProps = {
   className?: string
@@ -36,11 +36,14 @@ export function ProfileLanguageButton({
       type="button"
       onClick={handleClick}
       aria-label={label}
-      title={label}
       className={`vbiz-icon-btn inline-flex items-center justify-center gap-1.5 transition-all active:scale-95 ${className}`}
       style={displayIconChromeStyle(field('Language'))}
     >
-      <Languages size={18} />
+      <SelectedLanguageMark
+        showName={false}
+        flagWidth={48}
+        flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10"
+      />
     </button>
   )
 }

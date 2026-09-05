@@ -12,6 +12,7 @@ import {
 } from '@/components/admin/AdminAnnouncementsSkeleton'
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
+import { describeAnnouncementAudience } from '@/lib/announcementAudience'
 import { notifyOwners } from '@/lib/notifications'
 import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
 import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
@@ -54,6 +55,44 @@ function defaultTitle(type: AnnouncementType): string {
   return 'Info announcement'
 }
 
+/** Same surfaces public cards can still render after Clear. */
+function isLivePublicBanner(notice: Announcement) {
+  return (
+    notice.status === 'active' &&
+    notice.meta?.channel !== 'inbox' &&
+    (notice.targetType === 'all' || notice.meta?.showPublic === '1')
+  )
+}
+
+function AnnouncementAudienceBadges({ notice }: { notice: Announcement }) {
+  const audience = describeAnnouncementAudience(notice)
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span
+        className={cn(
+          'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+          audience.isCardScoped
+            ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300'
+            : 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+        )}
+      >
+        {audience.scopeLabel}
+      </span>
+      {audience.cardLabel ? (
+        <span
+          className="max-w-48 truncate rounded-md bg-slate-200/80 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300"
+          title={audience.cardLabel}
+        >
+          {audience.cardLabel}
+        </span>
+      ) : null}
+      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-slate-500 uppercase dark:bg-white/10 dark:text-slate-400">
+        {audience.visibilityLabel}
+      </span>
+    </div>
+  )
+}
+
 type BannerDraft = {
   text: string
   type: AnnouncementType
@@ -84,9 +123,9 @@ export default function AdminAnnouncements() {
   const history = useMemo(() => announcementsPage?.items ?? [], [announcementsPage?.items])
   const liveAnnouncement = useMemo(
     () =>
-      history.find(
-        (notice) => notice.status === 'active' && notice.targetType === 'all' && notice.meta?.channel !== 'inbox'
-      ) ?? null,
+      history.find((notice) => isLivePublicBanner(notice) && notice.targetType === 'all') ??
+      history.find((notice) => isLivePublicBanner(notice)) ??
+      null,
     [history]
   )
 
@@ -120,15 +159,16 @@ export default function AdminAnnouncements() {
   }
 
   const editAnnouncement = (notice: Announcement) => {
+    const audience = describeAnnouncementAudience(notice)
     setBannerDraft({ text: notice.body, type: notice.type, targetType: notice.targetType })
     setOnlyBackoffice(notice.meta?.showPublic !== '1')
     setBannerOwner(
       notice.targetType === 'specific'
         ? {
             profileId: notice.meta?.profileId || '',
-            hostName: notice.title || 'Selected card owner',
+            hostName: audience.cardLabel || notice.title || 'Selected card owner',
             ownerEmails: notice.targetEmails,
-            identity: notice.targetEmails.join(', '),
+            identity: notice.targetEmails.join(', ') || audience.cardLabel || notice.meta?.profileId || '',
           }
         : null
     )
@@ -216,9 +256,15 @@ export default function AdminAnnouncements() {
         ? history.find((notice) => notice.id === editingAnnouncementId)?.meta
         : undefined
       const nextMeta = Object.fromEntries(
-        Object.entries(existingMeta || {}).filter(([key]) => !['showPublic', 'sendPush', 'profileId'].includes(key))
+        Object.entries(existingMeta || {}).filter(
+          ([key]) => !['showPublic', 'sendPush', 'profileId', 'onlyBackoffice'].includes(key)
+        )
       )
-      if (!onlyBackoffice) {
+      if (onlyBackoffice) {
+        nextMeta.onlyBackoffice = '1'
+        // Owner/target Web Push only (no public saver blast — requires showPublic).
+        nextMeta.sendPush = '1'
+      } else {
         nextMeta.showPublic = '1'
         nextMeta.sendPush = '1'
       }
@@ -539,11 +585,16 @@ export default function AdminAnnouncements() {
               />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-1">
               <label className="inline-flex items-center gap-2 text-xs">
                 <input type="checkbox" checked={onlyBackoffice} onChange={(e) => setOnlyBackoffice(e.target.checked)} />
                 <span className="text-[11px] font-semibold">Only backoffice</span>
               </label>
+              <p className="pl-6 text-[10px] leading-relaxed text-slate-400">
+                {onlyBackoffice
+                  ? 'Shows in owner backoffice banner and in-app notifications only.'
+                  : 'Also shows on the public card and pushes this card’s saved contacts / notification subscribers.'}
+              </p>
             </div>
 
             {formError && <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">{formError}</p>}
@@ -605,7 +656,12 @@ export default function AdminAnnouncements() {
 
             <div className="rounded-[28px] border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-black text-slate-900 dark:text-white">Recent publishes</h3>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Recent publishes</h3>
+                  <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
+                    Global and single-card notices — edit any item to update it.
+                  </p>
+                </div>
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
                   {recentPublishes.length} items
                 </span>
@@ -622,7 +678,7 @@ export default function AdminAnnouncements() {
                       className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/5 dark:bg-white/2"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span
                             className={cn(
                               'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
@@ -643,6 +699,7 @@ export default function AdminAnnouncements() {
                           >
                             {n.status === 'active' ? 'Live' : 'Paused'}
                           </span>
+                          <AnnouncementAudienceBadges notice={n} />
                         </div>
                         <span className="text-[10px] font-semibold text-slate-400">
                           {new Date(n.createdAt).toLocaleString()}
@@ -671,7 +728,7 @@ export default function AdminAnnouncements() {
                   Warnings
                 </h2>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                  Every warning notice. Edit, pause, reactivate, or delete.
+                  Every warning notice — labeled Global or Single card. Edit, pause, reactivate, or delete.
                 </p>
               </div>
               {announcementsLoading ? (
@@ -707,6 +764,7 @@ export default function AdminAnnouncements() {
                         >
                           {n.status === 'active' ? 'Live' : 'Paused'}
                         </span>
+                        <AnnouncementAudienceBadges notice={n} />
                         <span className="text-[10px] font-semibold text-slate-400">
                           {new Date(n.createdAt).toLocaleString()}
                         </span>
@@ -729,7 +787,7 @@ export default function AdminAnnouncements() {
                   Notices
                 </h2>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                  Info and success notices. Edit, pause, reactivate, or delete.
+                  Info and success notices — labeled Global or Single card. Edit, pause, reactivate, or delete.
                 </p>
               </div>
               <span className="inline-flex shrink-0 items-center self-start rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[11px] leading-none font-black tracking-wider whitespace-nowrap text-indigo-600 uppercase">
@@ -768,6 +826,7 @@ export default function AdminAnnouncements() {
                         >
                           {n.status === 'active' ? 'Live' : 'Paused'}
                         </span>
+                        <AnnouncementAudienceBadges notice={n} />
                         <span className="text-[10px] font-semibold text-slate-400">
                           {new Date(n.createdAt).toLocaleString()}
                         </span>

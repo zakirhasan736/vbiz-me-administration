@@ -3,9 +3,10 @@
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
+import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
+import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
   cleanProfileFieldValue,
   formatProfileViewCount,
@@ -25,7 +26,7 @@ import {
   FileEdit,
   Globe,
   Instagram,
-  Languages,
+  Kanban,
   Linkedin,
   MessageCircle,
   Share2,
@@ -36,21 +37,23 @@ import {
 import Image from 'next/image'
 import { useMemo, type ReactElement } from 'react'
 
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden className="md:h-4 md:w-4">
+const HOME_ICON_SIZE = 22
+
+const XIcon = ({ size = HOME_ICON_SIZE }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden>
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 22.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 )
 
-const TikTokIcon = () => (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden className="md:h-4 md:w-4">
+const TikTokIcon = ({ size = HOME_ICON_SIZE }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden>
     <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.14-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.24-2.61 1.05-5.26 3.23-6.6 1.46-.91 3.25-1.29 4.96-1v4.21c-.81-.19-1.7-.17-2.48.24-.95.49-1.64 1.41-1.79 2.49-.16 1.13.25 2.31 1.05 3.12.8.84 2.05 1.25 3.21 1.12 1.58-.16 2.87-1.42 3.15-3 .06-.41.07-.82.06-1.24-.03-6.09-.03-12.18-.03-18.27Z" />
   </svg>
 )
 
 type V2SocialItem = {
   label: string
-  icon: LucideIcon | (() => ReactElement)
+  icon: LucideIcon | ((props: { size?: number }) => ReactElement)
   isSvg?: boolean
 }
 
@@ -128,11 +131,11 @@ export function ProfileHeaderV2({
 
   const renderSocialIcon = (item: V2SocialItem) => {
     if (item.isSvg) {
-      const Icon = item.icon as () => ReactElement
-      return <Icon />
+      const Icon = item.icon as (props: { size?: number }) => ReactElement
+      return <Icon size={HOME_ICON_SIZE} />
     }
     const Icon = item.icon as LucideIcon
-    return <Icon size={14} className="md:h-4 md:w-4" />
+    return <Icon size={HOME_ICON_SIZE} />
   }
 
   const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label))
@@ -260,7 +263,7 @@ export function ProfileHeaderV2({
             style={viewsChrome}
             aria-label="View analytics"
           >
-            <Eye size={14} className="md:h-4 md:w-4" />
+            <Eye size={HOME_ICON_SIZE} />
             <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[8px] font-bold text-white md:-top-2 md:-right-2 md:px-1 md:text-[9px]">
               {formatProfileViewCount(viewCounterCount)}
             </span>
@@ -275,20 +278,33 @@ export function ProfileHeaderV2({
             style={websiteChrome}
             aria-label="Visit website"
           >
-            <Globe size={14} className="md:h-4 md:w-4" />
+            <Globe size={HOME_ICON_SIZE} />
           </a>
         )}
         {showLanguage && (
           <button
             type="button"
             onClick={onLanguage}
-            className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            className="vbiz-icon-btn flex h-auto min-h-8 w-auto min-w-8 flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-1 py-1 text-zinc-400 transition-colors hover:bg-zinc-50 md:min-h-10 md:min-w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
             style={languageChrome}
             aria-label="Language"
           >
-            <Languages size={14} className="md:h-4 md:w-4" />
+            <SelectedLanguageMark
+              showName={false}
+              flagWidth={48}
+              flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10 md:h-6 md:w-8"
+            />
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => openVbizmeCrm()}
+          className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+          aria-label="Open CRM"
+          title="CRM"
+        >
+          <Kanban size={HOME_ICON_SIZE} />
+        </button>
         {showShare && (
           <button
             type="button"
@@ -297,7 +313,7 @@ export function ProfileHeaderV2({
             style={shareChrome}
             aria-label="Share profile"
           >
-            <Share2 size={14} className="md:h-4 md:w-4" />
+            <Share2 size={HOME_ICON_SIZE} />
           </button>
         )}
         <button
@@ -306,7 +322,7 @@ export function ProfileHeaderV2({
           className="relative flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
           aria-label="Notification settings"
         >
-          <Bell size={14} className="text-[#eab308] md:h-4 md:w-4" />
+          <Bell size={HOME_ICON_SIZE} className="text-[#eab308]" />
           <span className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-red-500 md:top-1 md:right-1" />
         </button>
         <button
@@ -318,7 +334,7 @@ export function ProfileHeaderV2({
             window.dispatchEvent(new CustomEvent('openNotepadAction'))
           }}
         >
-          <FileEdit size={14} className="text-[#eab308] md:h-4 md:w-4" />
+          <FileEdit size={HOME_ICON_SIZE} className="text-[#eab308]" />
         </button>
       </div>
     </header>
@@ -327,9 +343,9 @@ export function ProfileHeaderV2({
 
 function itemIcon(item: V2SocialItem) {
   if (item.isSvg) {
-    const Icon = item.icon as () => ReactElement
-    return <Icon />
+    const Icon = item.icon as (props: { size?: number }) => ReactElement
+    return <Icon size={HOME_ICON_SIZE} />
   }
   const Icon = item.icon as LucideIcon
-  return <Icon size={16} />
+  return <Icon size={HOME_ICON_SIZE} />
 }

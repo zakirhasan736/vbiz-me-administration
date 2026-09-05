@@ -1,5 +1,6 @@
 'use client'
 
+import { OneOnOneRequestsPanel } from '@/components/admin/OneOnOneRequestsPanel'
 import { AlertModal } from '@/components/AlertModal'
 import {
   CorporateControlsHub,
@@ -388,6 +389,8 @@ export default function CorporateOwnerDashboardHome() {
             onViewAll={() => router.push('/events')}
           />
 
+          <OneOnOneRequestsPanel className="mt-2" />
+
           <CorporateSocialBreakdown
             channels={statsReady ? stats?.socialChannels : undefined}
             loading={!statsReady}
@@ -498,7 +501,7 @@ export default function CorporateOwnerDashboardHome() {
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
         onClose={() => setNoticeCard(null)}
-        onSave={(text, type) => {
+        onSave={(text, type, options) => {
           if (!noticeCard) return
           if (isOwnerCardLocked(noticeCard.status)) {
             notify.error(SUSPENDED_CARD_MESSAGE)
@@ -512,10 +515,16 @@ export default function CorporateOwnerDashboardHome() {
                 await createTeamNotice({
                   text: text.trim(),
                   type,
-                  audience: 'all',
+                  audience: options.onlyBackoffice ? 'savers' : 'all',
                   targetProfileId: noticeCard.id,
+                  onlyBackoffice: options.onlyBackoffice,
+                  deliver: !options.onlyBackoffice,
                 }).unwrap()
-                notify.success(`Notice saved for ${noticeCard.personal.fullName || 'this card'} only.`)
+                notify.success(
+                  options.onlyBackoffice
+                    ? `Notice saved for ${noticeCard.personal.fullName || 'this card'} backoffice only.`
+                    : `Notice saved for ${noticeCard.personal.fullName || 'this card'} only.`
+                )
               } else {
                 clearLocalCardNotice(noticeCard.id)
                 const existing = noticeForCard(noticeCard.id, teamNotices)

@@ -116,15 +116,17 @@ export function deriveProfessionOptionsFromListItems(
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export function filterPublicCardsByQuery<T extends { name: string; profession: string; slug: string }>(
-  cards: T[],
-  query: string
-): T[] {
+export function filterPublicCardsByQuery<
+  T extends { name: string; profession: string; designation?: string | null; roleLabel?: string; slug: string },
+>(cards: T[], query: string): T[] {
   const normalized = normalizePublicCardsSearchQuery(query).toLowerCase()
   if (!isPublicCardsSearchReady(normalized)) return cards
 
   return cards.filter((card) => {
-    const haystack = [card.name, card.profession, card.slug].join(' ').toLowerCase()
+    const haystack = [card.name, card.profession, card.designation, card.roleLabel, card.slug]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
     return haystack.includes(normalized)
   })
 }

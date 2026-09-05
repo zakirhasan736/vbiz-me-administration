@@ -221,7 +221,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
     >
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-6 py-5 sm:px-8 dark:border-white/5">
         <div>
-          <h3 className="text-lg font-black text-slate-900 dark:text-white">Add tab</h3>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white">Navbar settings</h3>
           <p className="mt-1 text-xs font-semibold text-slate-500">
             Same sections, names, and order used by the builder and the public card.
           </p>

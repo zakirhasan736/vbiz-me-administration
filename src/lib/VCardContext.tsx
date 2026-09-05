@@ -163,6 +163,23 @@ function applyNameSlugAutofill(prev: VCardData, next: VCardData, path: string): 
   return { ...next, slug: generated }
 }
 
+/** Profession + designation stay identical in the builder; designation wins when present. */
+function applyProfessionDesignationSync(next: VCardData, path: string, value: unknown): VCardData {
+  if (path !== 'personal.designation' && path !== 'personal.profession') return next
+  if (typeof value !== 'string') return next
+  const personal = next.personal
+  if (!personal) return next
+  if (personal.designation === value && personal.profession === value) return next
+  return {
+    ...next,
+    personal: {
+      ...personal,
+      designation: value,
+      profession: value,
+    },
+  }
+}
+
 function toVCardData(record: VCardRecord): VCardData {
   const rest = { ...record } as Record<string, unknown>
   delete rest.id
@@ -193,6 +210,7 @@ function mergeServerProfileData(current: VCardData, server: VCardData): VCardDat
       ...(server.social ?? current.social ?? createDefaultVCardSocial()),
       customLinks: current.social?.customLinks ?? [],
     },
+    extraFields: current.extraFields ?? server.extraFields ?? [],
   }
 }
 
@@ -1070,6 +1088,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const prev = createDraftRef.current
         let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
         next = applyNameSlugAutofill(prev, next, path)
+        next = applyProfessionDesignationSync(next, path, value)
         if (isAppearanceOrThemePath(path)) {
           next = {
             ...next,
@@ -1092,6 +1111,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (!base) return
       let next = setByPath(base as unknown as Record<string, unknown>, path, value) as unknown as VCardData
       next = applyNameSlugAutofill(base, next, path)
+      next = applyProfessionDesignationSync(next, path, value)
       if (isAppearanceOrThemePath(path)) {
         next = {
           ...next,

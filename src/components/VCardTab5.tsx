@@ -9,20 +9,21 @@ const inputClasses =
 const selectClasses =
   'appearance-none bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 w-full text-[13px] font-medium text-slate-900 dark:text-white outline-none cursor-pointer focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all shadow-sm'
 
+const EMPTY_EXTRA_FIELD: VCardExtraField = { id: 'extra_draft', icon: 'Link', name: '', value: '' }
+
 export function Tab5ExtraFields() {
   const { vCardData, updateData } = useVCard()
-  const fields =
-    (vCardData.extraFields?.length ?? 0) > 0 ? vCardData.extraFields! : [{ id: '1', icon: 'Link', name: '', value: '' }]
+  const fields = (vCardData.extraFields?.length ?? 0) > 0 ? vCardData.extraFields! : [EMPTY_EXTRA_FIELD]
 
   const setFields = (next: VCardExtraField[]) => updateData('extraFields', next)
 
   const addField = () => {
-    setFields([...fields, { id: String(Date.now()), icon: 'Link', name: '', value: '' }])
+    setFields([...fields, { id: `extra_${Date.now()}`, icon: 'Link', name: '', value: '' }])
   }
 
   const removeField = (id: string) => {
     const next = fields.filter((field) => field.id !== id)
-    setFields(next.length > 0 ? next : [{ id: String(Date.now()), icon: 'Link', name: '', value: '' }])
+    setFields(next.length > 0 ? next : [{ id: `extra_${Date.now()}`, icon: 'Link', name: '', value: '' }])
   }
 
   const updateField = (id: string, key: 'icon' | 'name' | 'value', value: string) => {

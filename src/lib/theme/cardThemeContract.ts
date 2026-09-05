@@ -244,7 +244,7 @@ export function defaultButtonComponents(): ButtonComponents {
 export function defaultSocialIconComponent(): SocialIconComponent {
   return {
     style: 'filled',
-    iconSize: 18,
+    iconSize: 22,
     size: 40,
     cornerRadius: 9999,
     colors: {

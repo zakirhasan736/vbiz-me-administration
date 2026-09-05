@@ -27,11 +27,13 @@ export function buildCreateMeetingPayload(payload: ScheduleMeetingSubmitPayload)
       profileId: payload.owner?.profileId ?? payload.groupProfileIds?.[0] ?? null,
       ...(payload.groupProfileIds?.length ? { groupProfileIds: payload.groupProfileIds } : {}),
       companyUserId: payload.companyUserId ?? null,
+      ...(payload.onlyBackoffice ? { onlyBackoffice: true } : {}),
     }
   }
 
   return {
     ...base,
     profileId: payload.owner?.profileId ?? null,
+    ...(payload.onlyBackoffice ? { onlyBackoffice: true } : {}),
   }
 }

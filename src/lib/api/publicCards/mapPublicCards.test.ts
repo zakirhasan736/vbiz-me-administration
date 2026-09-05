@@ -10,6 +10,7 @@ const card = {
   slug: 'smith-jones',
   profession: 'Sales&#x20;&amp;&#x20;Marketing',
   profession_id: 2,
+  designation: 'Senior&#x20;Advisor',
   image: '',
   image_type: 'image',
   is_video: false,
@@ -17,10 +18,20 @@ const card = {
 }
 
 describe('public card text mapping', () => {
-  it('decodes directory card names and professions', () => {
+  it('decodes directory card names and prefers designation for role label', () => {
     expect(mapPublicCardToListItem(card)).toMatchObject({
       name: 'Smith & Jones',
       profession: 'Sales & Marketing',
+      designation: 'Senior Advisor',
+      roleLabel: 'Senior Advisor',
+      slug: 'smith-jones',
+    })
+  })
+
+  it('falls back to profession when designation is missing', () => {
+    expect(mapPublicCardToListItem({ ...card, designation: null })).toMatchObject({
+      roleLabel: 'Sales & Marketing',
+      designation: null,
     })
   })
 

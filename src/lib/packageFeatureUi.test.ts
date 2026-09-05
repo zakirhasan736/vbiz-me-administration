@@ -17,6 +17,14 @@ describe('corporate manage-access overrides', () => {
     expect(rows.map((row) => row.featureKey)).toEqual(['allow_2d_explainer', 'max_file_size_mb'])
   })
 
+  it('does not let Corporate accounts override mandatory push notification', () => {
+    const rows = overridablePackageFeatures([
+      { featureKey: 'allow_push_notification', featureValue: '0' },
+      { featureKey: 'allow_canva', featureValue: '1' },
+    ])
+    expect(rows.map((row) => row.featureKey)).toEqual(['allow_canva'])
+  })
+
   it('stores only real overrides', () => {
     const withYes = setOverride([], 'allow_2d_explainer', '0')
     const inherit = setOverride(withYes, 'allow_2d_explainer', null)
@@ -92,13 +100,13 @@ describe('corporate manage-access overrides', () => {
     ).toBe(false)
   })
 
-  it('locks avatar video independently of still-image upload', () => {
+  it('allows avatar image and video uploads in the card builder', () => {
     const deny = (key: string) => key !== 'allow_video_upload'
     expect(displayMediaAccess('Profile Image/Video', deny)).toEqual({
       locked: false,
-      allowVideo: false,
+      allowVideo: true,
       allowAudio: false,
-      sourceMode: 'image',
+      sourceMode: 'both',
     })
   })
 

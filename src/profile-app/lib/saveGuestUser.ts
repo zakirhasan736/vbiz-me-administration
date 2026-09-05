@@ -1,4 +1,5 @@
 import type { SavedGuestUser } from '@/interfaces/api/saveGuestUser'
+import { markContactSaved } from '@/profile-app/lib/contactSaveState'
 import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
 import { baseUrl } from '@/redux/api/publicApi'
 
@@ -22,6 +23,7 @@ function isDuplicateEmailMessage(message: string): boolean {
     normalized.includes('duplicate entry') ||
     normalized.includes('guest_user_data_email_unique') ||
     normalized.includes('1062') ||
+    normalized.includes('already_saved') ||
     (normalized.includes('email') && normalized.includes('already'))
   )
 }
@@ -90,11 +92,14 @@ export async function saveGuestUser(input: SaveGuestUserInput): Promise<SavedGue
     }
 
     if (isDuplicateEmailMessage(rawMessage)) {
+      markContactSaved(profileId, { email, fullName, phone })
       throw new SaveGuestUserError('This email has already saved this contact.', response.status, true)
     }
     throw new SaveGuestUserError(rawMessage, response.status)
   }
 
   const payload = (await response.json()) as { data?: SavedGuestUser } & SavedGuestUser
-  return (payload.data ?? payload) as SavedGuestUser
+  const saved = (payload.data ?? payload) as SavedGuestUser
+  markContactSaved(profileId, { email, fullName, phone })
+  return saved
 }

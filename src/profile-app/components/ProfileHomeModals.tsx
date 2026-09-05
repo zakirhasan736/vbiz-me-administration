@@ -1,5 +1,6 @@
 'use client'
 
+import { RequestOneOnOneModal } from '@/components/public/RequestOneOnOneModal'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { writeContactFlowAsked } from '@/lib/push/config'
 import { DoneModal } from '@/profile-app/components/DoneModal'
@@ -20,7 +21,18 @@ const NotepadModal = dynamic(
 )
 
 export type ProfileHomeModalId =
-  'contact' | 'pwa' | 'follow' | 'notification' | 'done' | 'settings' | 'notepad' | 'share' | 'info' | 'wallet' | null
+  | 'contact'
+  | 'pwa'
+  | 'follow'
+  | 'notification'
+  | 'done'
+  | 'settings'
+  | 'notepad'
+  | 'share'
+  | 'info'
+  | 'wallet'
+  | 'one_on_one'
+  | null
 
 type ProfileHomeModalsProps = {
   activeModal: ProfileHomeModalId
@@ -71,6 +83,12 @@ export function ProfileHomeModals({
         profileId={cardOwnerId}
         cardSlug={cardSlug}
         ownerName={ownerName}
+      />
+      <RequestOneOnOneModal
+        open={activeModal === 'one_on_one'}
+        onClose={onClose}
+        profileId={ownerId}
+        cardName={ownerName}
       />
       <SaveCardPwaModal
         isOpen={activeModal === 'pwa'}

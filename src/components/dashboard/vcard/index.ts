@@ -1,6 +1,6 @@
 export { CardLifecycleTabs, type CardLifecycleTab } from './CardLifecycleTabs'
 export { CreateVCardCard } from './CreateVCardCard'
-export { NoticeModal, type NoticeType } from './NoticeModal'
+export { NoticeModal, type NoticeSaveOptions, type NoticeType } from './NoticeModal'
 export { QrCodeModal } from './QrCodeModal'
 export { VCardDetailSidebar, VCardTrendsPopup } from './VCardDetailSidebar'
 export { CreateNewCardSkeleton, VCardDirectoryListSkeleton, VCardTeamCardSkeleton } from './VCardDirectoryListSkeleton'

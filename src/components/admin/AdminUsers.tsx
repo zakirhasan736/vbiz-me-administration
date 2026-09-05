@@ -1,12 +1,17 @@
 'use client'
 
+import { AdminPasswordField } from '@/components/admin/AdminPasswordField'
 import { AdminUserListSkeleton } from '@/components/admin/AdminUserListSkeleton'
 import CorporateManageAccessDialog from '@/components/admin/CorporateManageAccessDialog'
 import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
 import { StatNumber } from '@/components/ui/StatNumber'
+import { CreateCardModeModal } from '@/components/vcard/create-agent/CreateCardModeModal'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
+import { ADMIN_VCARDS_PATH, setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
+import { setCreateCardOwner, type CreateCardOwnerSession } from '@/lib/admin/createCardOwner'
 import { isRetiredPackage } from '@/lib/packageAccess'
 import { compactFeatureOverrides } from '@/lib/packageFeatureUi'
 import { ownerModeLabel, parsePackageMaxCards, resolveOwnerMode } from '@/lib/packageOwnerMode'
@@ -46,12 +51,11 @@ import {
   Copy,
   Download,
   Edit2,
-  Eye,
-  EyeOff,
   Link2,
   MailCheck,
   Pause,
   Play,
+  Plus,
   Search,
   Settings2,
   Trash2,
@@ -60,6 +64,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 const PAGE_SIZE = 8
@@ -75,6 +80,8 @@ type ProvisionedCredentials = {
   emailVerificationRequired: boolean
   paymentLinkUrl: string | null
   firstInvoiceCents: number | null
+  userId: string
+  role: string
 }
 
 function credentialFilename(name: string) {
@@ -229,8 +236,17 @@ function rtkErrorMessage(err: unknown, fallback: string) {
   return fallback
 }
 
+function withFreshReset(href: string) {
+  const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const hasQuery = href.includes('?')
+  const joiner = hasQuery ? '&' : '?'
+  return `${href}${joiner}reset=${stamp}`
+}
+
 export default function AdminUsers() {
   const dispatch = useAppDispatch()
+  const router = useRouter()
+  const { allow_auto_card_builder: canUseAi } = usePackageAccess()
   const searchQuery = useAppSelector((s) => s.adminUsersList.searchQuery)
   const debouncedQ = useAppSelector((s) => s.adminUsersList.debouncedQ)
   const roleFilter = useAppSelector((s) => s.adminUsersList.roleFilter)
@@ -244,6 +260,7 @@ export default function AdminUsers() {
   const [editPasswordConfirm, setEditPasswordConfirm] = useState('')
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [provisionedCredentials, setProvisionedCredentials] = useState<ProvisionedCredentials | null>(null)
+  const [createCardModeOpen, setCreateCardModeOpen] = useState(false)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -261,7 +278,6 @@ export default function AdminUsers() {
   const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
-  const [showNewPassword, setShowNewPassword] = useState(false)
   const [newCompany, setNewCompany] = useState('')
   const [newPackageId, setNewPackageId] = useState('')
   const [newCardLimit, setNewCardLimit] = useState('')
@@ -418,7 +434,6 @@ export default function AdminUsers() {
     setNewEmail('')
     setNewPassword('')
     setNewPasswordConfirm('')
-    setShowNewPassword(false)
     setNewCompany('')
     setNewPackageId('')
     setNewCardLimit('')
@@ -428,6 +443,12 @@ export default function AdminUsers() {
     setNewFreePeriodUnit('days')
     setNewFreePeriodLifetime(false)
     setNewFeatureOverrides([])
+  }
+
+  const launchCreateCardForOwner = (owner: CreateCardOwnerSession) => {
+    setCreateCardOwner(owner)
+    setAdminEditorReturnPath(ADMIN_VCARDS_PATH)
+    setCreateCardModeOpen(true)
   }
 
   const copyCredential = async (label: string, value: string) => {
@@ -507,6 +528,8 @@ export default function AdminUsers() {
         emailVerificationRequired: !created.isVerified,
         paymentLinkUrl: created.paymentLinkUrl || null,
         firstInvoiceCents: created.firstInvoiceCents ?? null,
+        userId: created.id,
+        role: created.role,
       })
       resetCreateForm()
       if (created.paymentLinkUrl) {
@@ -591,6 +614,15 @@ export default function AdminUsers() {
     if (editPassword || editPasswordConfirm) {
       if (!editPassword) {
         notify.error('Enter a new password to reset it.')
+        return
+      }
+      const unmetPasswordRule = getPasswordRules(editPassword).find((rule) => !rule.met)
+      if (unmetPasswordRule) {
+        notify.error(`Password requires: ${unmetPasswordRule.label}.`)
+        return
+      }
+      if (isPasswordSameAsEmail(editPassword, editingUser.email)) {
+        notify.error("Password can't be the same as email.")
         return
       }
       if (editPassword !== editPasswordConfirm) {
@@ -907,6 +939,23 @@ export default function AdminUsers() {
                   </div>
 
                   <div className="mt-auto space-y-1.5 border-t border-slate-100 pt-2 dark:border-white/5">
+                    {(u.role === 'vcard-owner' || u.role === 'corporate-owner') && active ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          launchCreateCardForOwner({
+                            userId: u.id,
+                            name: displayName,
+                            email: u.email,
+                            role: u.role,
+                          })
+                        }
+                        className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-indigo-600 py-1.5 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700"
+                      >
+                        <Plus className="h-3 w-3" />
+                        {corporate && u.registeredCards === 0 ? 'Create first card' : 'Create card'}
+                      </button>
+                    ) : null}
                     {u.subscriptionStatus === 'pending_payment' ? (
                       <button
                         type="button"
@@ -1000,8 +1049,8 @@ export default function AdminUsers() {
           <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeEditModal} />
 
-            <div className="animate-in zoom-in-95 relative max-h-[90vh] w-full max-w-3xl overflow-hidden overflow-y-auto rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
-              <div className="flex items-start justify-between gap-3">
+            <div className="animate-in zoom-in-95 relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-8 pt-8 pb-4 dark:border-white/5">
                 <div className="min-w-0">
                   <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
                     <Edit2 className="h-5 w-5 shrink-0 text-indigo-600" /> Configure User Parameters
@@ -1020,262 +1069,260 @@ export default function AdminUsers() {
                 </button>
               </div>
 
-              <form onSubmit={handleEditSubmit} className="mt-6 space-y-4">
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Package</label>
-                  <select
-                    value={editPackageId || editingUser.packageId || ''}
-                    onChange={(e) => {
-                      const nextPackageId = e.target.value
-                      setEditPackageId(nextPackageId)
-                      const pkg = provisionPackages.find((item) => item.id === nextPackageId)
-                      if (pkg && resolveOwnerMode(pkg) === 'corporate') {
-                        setEditNegotiatedMonthly(centsToDollarsInput(pkg.monthlyPrice))
-                        setEditNegotiatedSignup(centsToDollarsInput(pkg.signupFeeCents))
-                      }
-                    }}
-                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  >
-                    <option value="">{editingUser.packageName || 'Current package'}</option>
-                    {provisionPackages.map((pkg) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.name} — {ownerModeLabel(resolveOwnerMode(pkg))}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    Current: {editingUser.packageName || 'Unassigned'}. Choose another package to move between Single
-                    and Corporate back offices.
-                  </p>
-                </div>
+              <form onSubmit={handleEditSubmit} className="flex min-h-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-8 py-5">
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Package</label>
+                    <select
+                      value={editPackageId || editingUser.packageId || ''}
+                      onChange={(e) => {
+                        const nextPackageId = e.target.value
+                        setEditPackageId(nextPackageId)
+                        const pkg = provisionPackages.find((item) => item.id === nextPackageId)
+                        if (pkg && resolveOwnerMode(pkg) === 'corporate') {
+                          setEditNegotiatedMonthly(centsToDollarsInput(pkg.monthlyPrice))
+                          setEditNegotiatedSignup(centsToDollarsInput(pkg.signupFeeCents))
+                        }
+                      }}
+                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">{editingUser.packageName || 'Current package'}</option>
+                      {provisionPackages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>
+                          {pkg.name} — {ownerModeLabel(resolveOwnerMode(pkg))}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] font-semibold text-slate-400">
+                      Current: {editingUser.packageName || 'Unassigned'}. Choose another package to move between Single
+                      and Corporate back offices.
+                    </p>
+                  </div>
 
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Back office</label>
-                  <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 dark:border-white/15 dark:bg-slate-800 dark:text-white">
-                    {ownerModeLabel(editTargetOwnerMode)}
-                    {editSelectedPackage && editPackageId && editPackageId !== editingUser.packageId ? (
-                      <span className="ml-2 text-xs font-semibold text-indigo-600">(after save)</span>
-                    ) : null}
-                  </p>
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Full Username
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editingUser.name || ''}
-                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={editingUser.email}
-                    onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Linked Company / Organization
-                  </label>
-                  <input
-                    type="text"
-                    value={editingUser.companyName || ''}
-                    onChange={(e) => setEditingUser({ ...editingUser, companyName: e.target.value })}
-                    placeholder="e.g. NextGen Solution Experts"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                {editTargetOwnerMode === 'corporate' && (
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Account card limit
+                      Back office
+                    </label>
+                    <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 dark:border-white/15 dark:bg-slate-800 dark:text-white">
+                      {ownerModeLabel(editTargetOwnerMode)}
+                      {editSelectedPackage && editPackageId && editPackageId !== editingUser.packageId ? (
+                        <span className="ml-2 text-xs font-semibold text-indigo-600">(after save)</span>
+                      ) : null}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      Full Username
                     </label>
                     <input
-                      type="number"
-                      min={0}
-                      step={1}
+                      type="text"
                       required
-                      value={editingUser.cardLimit ?? editingUser.packageCardLimit ?? 0}
-                      onChange={(e) =>
-                        setEditingUser({
-                          ...editingUser,
-                          cardLimit: e.target.value === '' ? 0 : Math.max(0, Math.round(Number(e.target.value))),
-                        })
-                      }
+                      value={editingUser.name || ''}
+                      onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                     />
-                    <p className="text-[11px] font-semibold text-slate-400">
-                      Package default is {editingUser.packageCardLimit ?? 'unset'}. Raising this lets the account create
-                      more cards immediately. Lowering it does not delete existing cards.
-                    </p>
                   </div>
-                )}
 
-                {editTargetOwnerMode === 'corporate' ? (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                        One-time card creation fee (USD)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={editNegotiatedSignup}
-                        onChange={(e) => setEditNegotiatedSignup(e.target.value)}
-                        placeholder={`Package default ${formatMoney(editSelectedPackage?.signupFeeCents ?? editingUser.signupFeeCents)}`}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      />
-                    </div>
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                        Monthly subscription (USD)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={editNegotiatedMonthly}
-                        onChange={(e) => setEditNegotiatedMonthly(e.target.value)}
-                        placeholder={`Package default ${formatMoney(editSelectedPackage?.monthlyPrice ?? editingUser.packageMonthlyCents)}`}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-700 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200">
-                    Billing uses package catalog pricing:{' '}
-                    {formatMoney(editSelectedPackage?.signupFeeCents ?? editingUser.signupFeeCents)} signup,{' '}
-                    {formatMoney(editSelectedPackage?.monthlyPrice ?? editingUser.packageMonthlyCents)} / month.
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Extend complimentary period
+                      Email Address
                     </label>
                     <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      disabled={editFreePeriodLifetime}
-                      value={editFreePeriodAmount}
-                      onChange={(e) => setEditFreePeriodAmount(e.target.value)}
-                      placeholder={editingUser.trialEndsAt ? 'New period' : 'Optional'}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      type="email"
+                      required
+                      value={editingUser.email}
+                      onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                     />
                   </div>
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Unit</label>
-                    <select
-                      disabled={editFreePeriodLifetime}
-                      value={editFreePeriodUnit}
-                      onChange={(e) => setEditFreePeriodUnit(e.target.value as 'days' | 'months' | 'years')}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                    >
-                      <option value="days">Days</option>
-                      <option value="months">Months</option>
-                      <option value="years">Years</option>
-                    </select>
-                  </div>
-                  <div className="flex items-end">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={editFreePeriodLifetime}
-                        onChange={(e) => setEditFreePeriodLifetime(e.target.checked)}
-                      />
-                      Lifetime free
-                    </label>
-                  </div>
-                </div>
-                {editingUser.trialEndsAt ? (
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    Complimentary access until{' '}
-                    {new Date(editingUser.trialEndsAt).toLocaleDateString(undefined, {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </p>
-                ) : null}
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={isCreatingPaymentLink}
-                    onClick={() => editingUser && void handleGeneratePaymentLink(editingUser)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-black tracking-wider text-indigo-700 uppercase transition hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300"
-                  >
-                    <Link2 className="h-4 w-4" /> Generate payment link & email
-                  </button>
-                </div>
-
-                {editingUser.ownerMode === 'corporate' && (
-                  <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-900/60">
-                    <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Manage Access</p>
-                    <p className="text-[11px] font-semibold text-slate-400">
-                      {compactFeatureOverrides(editingUser.featureOverrides).length} override
-                      {compactFeatureOverrides(editingUser.featureOverrides).length === 1 ? '' : 's'} stored. Everything
-                      else uses the Corporate package.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditAccessOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-black tracking-wider text-indigo-700 uppercase ring-1 ring-indigo-100 dark:bg-slate-800 dark:text-indigo-300 dark:ring-white/10"
-                    >
-                      <Settings2 className="h-4 w-4" /> Configure
-                    </button>
-                  </div>
-                )}
-
-                <div className="space-y-4 border-t border-slate-100 pt-2 dark:border-white/5">
-                  <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Reset Password (optional)
-                  </p>
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      New Password
+                      Linked Company / Organization
                     </label>
                     <input
-                      type="password"
+                      type="text"
+                      value={editingUser.companyName || ''}
+                      onChange={(e) => setEditingUser({ ...editingUser, companyName: e.target.value })}
+                      placeholder="e.g. NextGen Solution Experts"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+
+                  {editTargetOwnerMode === 'corporate' && (
+                    <div className="flex flex-col space-y-1.5">
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                        Account card limit
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        required
+                        value={editingUser.cardLimit ?? editingUser.packageCardLimit ?? 0}
+                        onChange={(e) =>
+                          setEditingUser({
+                            ...editingUser,
+                            cardLimit: e.target.value === '' ? 0 : Math.max(0, Math.round(Number(e.target.value))),
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      />
+                      <p className="text-[11px] font-semibold text-slate-400">
+                        Package default is {editingUser.packageCardLimit ?? 'unset'}. Raising this lets the account
+                        create more cards immediately. Lowering it does not delete existing cards.
+                      </p>
+                    </div>
+                  )}
+
+                  {editTargetOwnerMode === 'corporate' ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="flex flex-col space-y-1.5">
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                          One-time card creation fee (USD)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={editNegotiatedSignup}
+                          onChange={(e) => setEditNegotiatedSignup(e.target.value)}
+                          placeholder={`Package default ${formatMoney(editSelectedPackage?.signupFeeCents ?? editingUser.signupFeeCents)}`}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        />
+                      </div>
+                      <div className="flex flex-col space-y-1.5">
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                          Monthly subscription (USD)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={editNegotiatedMonthly}
+                          onChange={(e) => setEditNegotiatedMonthly(e.target.value)}
+                          placeholder={`Package default ${formatMoney(editSelectedPackage?.monthlyPrice ?? editingUser.packageMonthlyCents)}`}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-700 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200">
+                      Billing uses package catalog pricing:{' '}
+                      {formatMoney(editSelectedPackage?.signupFeeCents ?? editingUser.signupFeeCents)} signup,{' '}
+                      {formatMoney(editSelectedPackage?.monthlyPrice ?? editingUser.packageMonthlyCents)} / month.
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="flex flex-col space-y-1.5">
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                        Extend complimentary period
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        disabled={editFreePeriodLifetime}
+                        value={editFreePeriodAmount}
+                        onChange={(e) => setEditFreePeriodAmount(e.target.value)}
+                        placeholder={editingUser.trialEndsAt ? 'New period' : 'Optional'}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      />
+                    </div>
+                    <div className="flex flex-col space-y-1.5">
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Unit</label>
+                      <select
+                        disabled={editFreePeriodLifetime}
+                        value={editFreePeriodUnit}
+                        onChange={(e) => setEditFreePeriodUnit(e.target.value as 'days' | 'months' | 'years')}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      >
+                        <option value="days">Days</option>
+                        <option value="months">Months</option>
+                        <option value="years">Years</option>
+                      </select>
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={editFreePeriodLifetime}
+                          onChange={(e) => setEditFreePeriodLifetime(e.target.checked)}
+                        />
+                        Lifetime free
+                      </label>
+                    </div>
+                  </div>
+                  {editingUser.trialEndsAt ? (
+                    <p className="text-[11px] font-semibold text-slate-400">
+                      Complimentary access until{' '}
+                      {new Date(editingUser.trialEndsAt).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={isCreatingPaymentLink}
+                      onClick={() => editingUser && void handleGeneratePaymentLink(editingUser)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-black tracking-wider text-indigo-700 uppercase transition hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300"
+                    >
+                      <Link2 className="h-4 w-4" /> Generate payment link & email
+                    </button>
+                  </div>
+
+                  {editingUser.ownerMode === 'corporate' && (
+                    <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-900/60">
+                      <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Manage Access</p>
+                      <p className="text-[11px] font-semibold text-slate-400">
+                        {compactFeatureOverrides(editingUser.featureOverrides).length} override
+                        {compactFeatureOverrides(editingUser.featureOverrides).length === 1 ? '' : 's'} stored.
+                        Everything else uses the Corporate package.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditAccessOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-black tracking-wider text-indigo-700 uppercase ring-1 ring-indigo-100 dark:bg-slate-800 dark:text-indigo-300 dark:ring-white/10"
+                      >
+                        <Settings2 className="h-4 w-4" /> Configure
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-4 border-t border-slate-100 pt-2 dark:border-white/5">
+                    <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      Reset Password (optional)
+                    </p>
+                    <AdminPasswordField
+                      id="edit-new-password"
+                      label="New Password"
                       value={editPassword}
                       onChange={(e) => setEditPassword(e.target.value)}
                       placeholder="Leave blank to keep current password"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      autoComplete="new-password"
                     />
-                  </div>
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                      Confirm New Password
-                    </label>
-                    <input
-                      type="password"
+                    <AdminPasswordField
+                      id="edit-confirm-password"
+                      label="Confirm New Password"
                       value={editPasswordConfirm}
                       onChange={(e) => setEditPasswordConfirm(e.target.value)}
                       placeholder="Re-enter new password"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      autoComplete="new-password"
                     />
+                    {editPassword ? <PasswordRulesTags password={editPassword} email={editingUser.email} /> : null}
+                    {editPasswordConfirm && editPassword !== editPasswordConfirm ? (
+                      <p className="mt-2 text-[11px] font-semibold text-red-500" role="alert">
+                        Passwords do not match.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
-                <div className="mt-6 flex gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
+                <div className="mt-auto flex shrink-0 gap-3 border-t border-slate-100 bg-white px-8 py-4 dark:border-white/5 dark:bg-[#0b0f19]">
                   <button
                     type="button"
                     onClick={closeEditModal}
@@ -1425,42 +1472,24 @@ export default function AdminUsers() {
                     </p>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Password</label>
-                      <div className="relative">
-                        <input
-                          type={showNewPassword ? 'text' : 'password'}
-                          required
-                          minLength={8}
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          autoComplete="new-password"
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 pr-11 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPassword((visible) => !visible)}
-                          className="absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white"
-                          aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                        >
-                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                        Confirm Password
-                      </label>
-                      <input
-                        type={showNewPassword ? 'text' : 'password'}
-                        required
-                        minLength={8}
-                        value={newPasswordConfirm}
-                        onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                        autoComplete="new-password"
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      />
-                    </div>
+                    <AdminPasswordField
+                      id="new-user-password"
+                      label="Password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      inputClassName="bg-white dark:bg-slate-800"
+                    />
+                    <AdminPasswordField
+                      id="new-user-confirm-password"
+                      label="Confirm Password"
+                      value={newPasswordConfirm}
+                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                      required
+                      minLength={8}
+                      inputClassName="bg-white dark:bg-slate-800"
+                    />
                   </div>
                   <PasswordRulesTags password={newPassword} email={newEmail} />
                   {newPasswordConfirm && newPassword !== newPasswordConfirm ? (
@@ -1728,6 +1757,33 @@ export default function AdminUsers() {
                   <Download className="h-4 w-4" /> Download image
                 </button>
               </div>
+              <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/10">
+                <p className="text-sm font-black text-slate-900 dark:text-white">
+                  Create the user first, then the card
+                </p>
+                <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-300">
+                  {provisionedCredentials.role === 'corporate-owner' ||
+                  provisionedCredentials.accountType.toLowerCase().includes('corporate')
+                    ? 'This Corporate account is ready. Continue by creating their first card now.'
+                    : 'This account is ready. Continue by creating a card now.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const owner: CreateCardOwnerSession = {
+                      userId: provisionedCredentials.userId,
+                      name: provisionedCredentials.name,
+                      email: provisionedCredentials.email,
+                      role: provisionedCredentials.role,
+                    }
+                    setProvisionedCredentials(null)
+                    launchCreateCardForOwner(owner)
+                  }}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3.5 text-xs font-black tracking-wide text-white uppercase hover:bg-indigo-700"
+                >
+                  <Plus className="h-4 w-4" /> Create first card
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setProvisionedCredentials(null)}
@@ -1800,6 +1856,20 @@ export default function AdminUsers() {
           </div>
         </ModalPortal>
       ) : null}
+
+      <CreateCardModeModal
+        open={createCardModeOpen}
+        onClose={() => setCreateCardModeOpen(false)}
+        onChooseManual={() => {
+          setCreateCardModeOpen(false)
+          router.push(withFreshReset('/vcards/create/home'))
+        }}
+        onChooseAi={() => {
+          setCreateCardModeOpen(false)
+          router.push(withFreshReset('/vcards/create/home?agent=1'))
+        }}
+        canUseAi={canUseAi}
+      />
     </div>
   )
 }

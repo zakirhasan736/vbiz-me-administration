@@ -1,6 +1,7 @@
 'use client'
 
 import { CanvaConnectRow } from '@/components/canva'
+import { CardAvatarThumb, isAvatarVideoSrc } from '@/components/CardAvatarThumb'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { Button, Modal, Switch } from '@/components/ui'
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
@@ -26,7 +27,7 @@ import {
   type AssistantKnowledgeItem,
 } from '@/lib/assistantApi'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
-import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
+import { isVideoFile, MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
 import {
   MAX_OWNER_SEO_KEYWORDS,
@@ -62,7 +63,7 @@ import {
 } from '@/lib/vcardDisplaySettings'
 import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
-import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
+import { isLocalTempId, useCreateAiAssistanceCheckoutMutation } from '@/redux/features/profiles/profiles.api'
 import type { VCardAppearance } from '@/types/vcard'
 import type { DisplayFieldConfig, VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { cn } from '@/utils/cn'
@@ -70,6 +71,7 @@ import {
   Bot,
   CheckCircle2,
   Compass,
+  Crown,
   FileText,
   Globe,
   Home,
@@ -77,18 +79,16 @@ import {
   LayoutTemplate,
   Link2,
   Loader2,
-  Lock,
   Menu,
   Search,
   Settings2,
   Sparkles,
   Upload,
-  User,
   X,
   Zap,
 } from 'lucide-react'
-import Image from 'next/image'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 const FIELD_PROFILE_IMAGE = 'Profile Image/Video'
@@ -310,6 +310,7 @@ function TemplateDesigner() {
   const profileImageInputRef = useRef<HTMLInputElement>(null)
   const profileUploadAbortRef = useRef<AbortController | null>(null)
   const [profileLocalPreview, setProfileLocalPreview] = useState<string | null>(null)
+  const [profileLocalIsVideo, setProfileLocalIsVideo] = useState(false)
   const [profileUploading, setProfileUploading] = useState(false)
   const [profileUploadProgress, setProfileUploadProgress] = useState(0)
   const [profileUploadError, setProfileUploadError] = useState<string | null>(null)
@@ -321,6 +322,7 @@ function TemplateDesigner() {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
       return null
     })
+    setProfileLocalIsVideo(false)
   }, [])
 
   useEffect(() => {
@@ -350,6 +352,7 @@ function TemplateDesigner() {
       clearProfileLocalPreview()
       const blobUrl = URL.createObjectURL(file)
       setProfileLocalPreview(blobUrl)
+      setProfileLocalIsVideo(isVideoFile(file))
       setProfileUploading(true)
       setProfileUploadProgress(0)
 
@@ -495,14 +498,14 @@ function TemplateDesigner() {
         {canUseCanva ? <CanvaConnectRow userId={user?.uid} variant="status" /> : <PackageLockedNote />}
       </SettingSection>
 
-      {/* Profile image */}
-      <SettingSection title="Profile image">
+      {/* Profile image / video */}
+      <SettingSection title="Profile image / video">
         <div className="flex w-full min-w-0 flex-col items-start gap-5 rounded-[20px] border border-slate-200/50 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:gap-6 sm:rounded-3xl sm:p-6 dark:border-white/5 dark:bg-white/2">
           <input
             ref={profileImageInputRef}
             type="file"
             className="hidden"
-            accept="image/*"
+            accept="image/*,video/*"
             disabled={profileUploading}
             onChange={(e) => {
               const file = e.target.files?.[0]
@@ -516,36 +519,26 @@ function TemplateDesigner() {
             disabled={profileUploading}
             className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#0b0f19]"
           >
-            {profileDisplayUrl ? (
-              profileDisplayUrl.startsWith('blob:') ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profileDisplayUrl}
-                  alt="Profile"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-              ) : (
-                <Image
-                  src={profileDisplayUrl}
-                  alt="Profile"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  width={96}
-                  height={96}
-                />
-              )
-            ) : (
-              <User className="h-8 w-8 text-slate-400 dark:text-slate-500" />
-            )}
+            <CardAvatarThumb
+              src={profileDisplayUrl || null}
+              name={vCardData.personal?.fullName}
+              size={96}
+              forceVideo={Boolean(profileLocalPreview && profileLocalIsVideo)}
+              className="h-24 w-24 rounded-3xl border-0 text-2xl shadow-none"
+            />
             <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-900/40 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
               <span className="text-[11px] font-bold tracking-wider text-white uppercase">Change</span>
             </div>
           </button>
           <div className="w-full min-w-0 sm:flex-1">
             <h4 className="mb-1 text-lg leading-tight font-black tracking-tight text-slate-900 sm:text-[20px] dark:text-white">
-              Profile photo
+              Profile photo / video
             </h4>
             <p className="mb-4 text-[13px] font-medium text-slate-500 sm:text-[14px] dark:text-slate-400">
-              Image only • no size limit
+              Upload an image or short looping video • shows on your public card and card lists
+              {profileDisplayUrl && (profileLocalIsVideo || isAvatarVideoSrc(profileDisplayUrl))
+                ? ' • video avatar active'
+                : ''}
             </p>
             <div className="flex flex-wrap gap-2 sm:gap-3">
               <Button
@@ -562,7 +555,7 @@ function TemplateDesigner() {
                     Uploading…
                   </>
                 ) : (
-                  'Upload new'
+                  'Upload image or video'
                 )}
               </Button>
               <Button
@@ -576,6 +569,15 @@ function TemplateDesigner() {
                 Remove
               </Button>
             </div>
+            <MediaSourceActions
+              mode="both"
+              compact
+              className="mt-3"
+              onSelect={(asset) => {
+                clearProfileLocalPreview()
+                applyProfileImage(asset.url)
+              }}
+            />
             {profileUploading ? (
               <div className="mt-4 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
@@ -1167,11 +1169,17 @@ function AiAgentTrainModal({
   onClose,
   onTrained,
   profileId,
+  allowSkip = false,
+  title = 'Train AI Assistance',
+  subtitle = 'Upload docs or describe your business — the assistant reads this and uses it when talking to guests.',
 }: {
   open: boolean
   onClose: () => void
   onTrained: (summary: string) => void
   profileId: string
+  allowSkip?: boolean
+  title?: string
+  subtitle?: string
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
@@ -1227,15 +1235,19 @@ function AiAgentTrainModal({
             <Bot className="h-6 w-6 text-violet-600 dark:text-violet-300" />
           </span>
           <div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">Train AI Assistance</h3>
-            <p className="text-[.75rem] font-semibold text-slate-500">
-              Upload docs or describe your business — the assistant reads this and uses it when talking to guests.
-            </p>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">{title}</h3>
+            <p className="text-[.75rem] font-semibold text-slate-500">{subtitle}</p>
           </div>
         </div>
 
         {step === 'form' && (
           <div className="space-y-5">
+            {allowSkip ? (
+              <p className="rounded-xl border border-emerald-200/70 bg-emerald-50/80 px-3 py-2 text-[.75rem] font-semibold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                Payment successful — AI Assistance is active. Training is optional; a default assistant format is
+                already ready.
+              </p>
+            ) : null}
             <div>
               <p className="mb-2 text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">
                 Information document upload
@@ -1293,6 +1305,15 @@ function AiAgentTrainModal({
             >
               <Sparkles className="h-4 w-4" /> Read & train assistant
             </button>
+            {allowSkip ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full rounded-2xl border border-slate-200 py-3 text-[.75rem] font-bold tracking-wider text-slate-600 uppercase dark:border-white/10 dark:text-slate-300"
+              >
+                Skip for now
+              </button>
+            ) : null}
             {error ? <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">{error}</p> : null}
           </div>
         )}
@@ -1335,14 +1356,19 @@ function AiAgentTrainModal({
 
 function CardAiAssistancePanel() {
   const { cardId, vCardData, updateData } = useVCard()
-  const { allow_ai_assistance: canUseAiAssistance } = usePackageAccess()
+  const searchParams = useSearchParams()
+  const { allow_ai_assistance: canUseAiAssistance, isLoading: entitlementsLoading } = usePackageAccess()
+  const [createAiCheckout, { isLoading: checkoutBusy }] = useCreateAiAssistanceCheckoutMutation()
   const active = isAiAssistanceEnabled(vCardData.aiAssistanceEnabled, vCardData.slug)
   const [showTrain, setShowTrain] = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [postPayTrain, setPostPayTrain] = useState(false)
   const [lastTrain, setLastTrain] = useState<string | null>(null)
   const [knowledge, setKnowledge] = useState<AssistantKnowledgeItem[]>([])
   const [loadingKnowledge, setLoadingKnowledge] = useState(false)
   const [configBusy, setConfigBusy] = useState(false)
+  const handledBillingRef = useRef<string | null>(null)
+  const readyPollRef = useRef(0)
 
   const refreshTraining = useCallback(async () => {
     if (!cardId || isLocalTempId(cardId) || !canUseAiAssistance) return
@@ -1363,6 +1389,70 @@ function CardAiAssistancePanel() {
     return () => window.clearTimeout(timer)
   }, [refreshTraining])
 
+  const enableAssistantOnCard = useCallback(async () => {
+    updateData('aiAssistanceEnabled', true)
+    if (!cardId || isLocalTempId(cardId)) return
+    setConfigBusy(true)
+    try {
+      await patchAssistantConfig(cardId, { enabled: true })
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Could not activate AI Assistance on this card.')
+    } finally {
+      setConfigBusy(false)
+    }
+  }, [cardId, updateData])
+
+  useEffect(() => {
+    const flag = searchParams.get('aiAssistance')
+    if (!flag || handledBillingRef.current === flag) return
+    handledBillingRef.current = flag
+
+    if (flag === 'cancel') {
+      notify.info('AI Assistance checkout was cancelled. You can start again anytime.')
+      return
+    }
+
+    if (flag !== 'success') return
+
+    void (async () => {
+      notify.success('Payment received. Unlocking AI Assistance…')
+      // Give the Stripe webhook a moment, then refresh entitlements via a hard reload of access.
+      await new Promise((resolve) => window.setTimeout(resolve, 1200))
+      const base = buildEditorSettingsPath(
+        '/vcards/edit',
+        'ai-assistance',
+        cardId && !isLocalTempId(cardId) ? cardId : undefined
+      )
+      window.location.replace(`${base}${base.includes('?') ? '&' : '?'}aiAssistance=ready`)
+    })()
+  }, [cardId, searchParams])
+
+  useEffect(() => {
+    const flag = searchParams.get('aiAssistance')
+    if (flag !== 'ready' || entitlementsLoading) return
+    if (handledBillingRef.current === 'ready-done') return
+
+    if (!canUseAiAssistance) {
+      if (readyPollRef.current >= 8) {
+        handledBillingRef.current = 'ready-done'
+        notify.info('Payment received. Unlock may take a minute — refresh this page if AI Assistance stays locked.')
+        return
+      }
+      readyPollRef.current += 1
+      const timer = window.setTimeout(() => {
+        window.location.reload()
+      }, 1500)
+      return () => window.clearTimeout(timer)
+    }
+
+    handledBillingRef.current = 'ready-done'
+    void (async () => {
+      if (!active) await enableAssistantOnCard()
+      setPostPayTrain(true)
+      setShowTrain(true)
+    })()
+  }, [active, canUseAiAssistance, enableAssistantOnCard, entitlementsLoading, searchParams])
+
   const toggleAssistant = async () => {
     if (!canUseAiAssistance) {
       setShowUpgrade(true)
@@ -1382,17 +1472,37 @@ function CardAiAssistancePanel() {
     }
   }
 
+  const startCheckout = async () => {
+    if (!cardId || isLocalTempId(cardId)) {
+      notify.error('Save this card first, then start AI Assistance.')
+      return
+    }
+    try {
+      const base = buildEditorSettingsPath('/vcards/edit', 'ai-assistance', cardId)
+      const successPath = `${base}${base.includes('?') ? '&' : '?'}aiAssistance=success`
+      const cancelPath = `${base}${base.includes('?') ? '&' : '?'}aiAssistance=cancel`
+      const result = await createAiCheckout({ profileId: cardId, successPath, cancelPath }).unwrap()
+      if (result.url) {
+        window.location.href = result.url
+        return
+      }
+      notify.error('Stripe checkout could not be started.')
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Could not start Stripe checkout.')
+    }
+  }
+
   return (
     <div className="max-w-3xl space-y-5">
       <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
-        AI Assistance talks with guests on this public vCard. Separate from Canva Integration. Turn it active, train
-        with documents or a business brief, then guests can chat with your assistant.
+        AI Assistance talks with guests on this public vCard. Unlock the premium add-on, pay with Stripe, then
+        optionally train with documents. A default assistant format is ready even if you skip training.
       </p>
 
       {!canUseAiAssistance ? (
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
           <p className="flex items-center gap-2 text-sm font-black text-amber-900 dark:text-amber-100">
-            <Lock className="h-4 w-4 shrink-0" /> Premium add-on
+            <Crown className="h-4 w-4 shrink-0" /> Premium add-on
           </p>
           <p className="mt-1 text-[.75rem] font-semibold text-amber-800/90 dark:text-amber-100/80">
             Unlock AI Assistance for an extra{' '}
@@ -1402,9 +1512,9 @@ function CardAiAssistancePanel() {
           <button
             type="button"
             onClick={() => setShowUpgrade(true)}
-            className="mt-3 inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2 text-[.6875rem] font-black tracking-wider text-white uppercase hover:bg-amber-700"
+            className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-[.6875rem] font-black tracking-wider text-white uppercase hover:bg-amber-700"
           >
-            Activate AI Assistance
+            <Crown className="h-3.5 w-3.5" /> Start
           </button>
         </div>
       ) : null}
@@ -1419,7 +1529,7 @@ function CardAiAssistancePanel() {
               <p className="text-sm font-black text-slate-900 dark:text-white">AI Assistance</p>
               <p className="mt-0.5 text-[.75rem] font-semibold text-slate-500">
                 {!canUseAiAssistance
-                  ? `Locked — unlock for $${AI_ASSISTANCE_ADDON_PRICE_USD}/mo to activate on this card`
+                  ? `Locked — start for $${AI_ASSISTANCE_ADDON_PRICE_USD}/mo to activate on this card`
                   : active
                     ? 'Active — guests can talk to your assistant on this card'
                     : 'Inactive — turn on so guests can chat with your assistant'}
@@ -1431,39 +1541,43 @@ function CardAiAssistancePanel() {
               ) : null}
             </div>
           </div>
-          <button
-            type="button"
-            disabled={configBusy}
-            onClick={() => void toggleAssistant()}
-            className={cn(
-              'relative inline-flex h-8 w-14 shrink-0 items-center self-start rounded-full transition-colors sm:self-center',
-              active && canUseAiAssistance ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-            )}
-            title={
-              !canUseAiAssistance
-                ? AI_ASSISTANCE_LOCKED_TITLE
-                : active
-                  ? 'Deactivate AI Assistance'
-                  : 'Activate AI Assistance'
-            }
-          >
-            <span
+          {!canUseAiAssistance ? (
+            <button
+              type="button"
+              onClick={() => setShowUpgrade(true)}
+              className="inline-flex items-center justify-center gap-1.5 self-start rounded-full bg-amber-600 px-4 py-2 text-[.6875rem] font-black tracking-wider text-white uppercase hover:bg-amber-700 sm:self-center"
+            >
+              <Crown className="h-3.5 w-3.5" /> Start
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={configBusy}
+              onClick={() => void toggleAssistant()}
               className={cn(
-                'inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform',
-                active && canUseAiAssistance ? 'translate-x-6.5' : 'translate-x-1'
+                'relative inline-flex h-8 w-14 shrink-0 items-center self-start rounded-full transition-colors sm:self-center',
+                active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
               )}
-            />
-            {!canUseAiAssistance ? (
-              <Lock className="pointer-events-none absolute inset-0 m-auto h-3.5 w-3.5 text-slate-600" />
-            ) : null}
-          </button>
+              title={active ? 'Deactivate AI Assistance' : 'Activate AI Assistance'}
+            >
+              <span
+                className={cn(
+                  'inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform',
+                  active ? 'translate-x-6.5' : 'translate-x-1'
+                )}
+              />
+            </button>
+          )}
         </div>
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             disabled={!canUseAiAssistance || !active || !cardId || isLocalTempId(cardId)}
-            onClick={() => setShowTrain(true)}
+            onClick={() => {
+              setPostPayTrain(false)
+              setShowTrain(true)
+            }}
             className={cn(
               'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-[.6875rem] font-black tracking-wider uppercase',
               canUseAiAssistance && active && cardId && !isLocalTempId(cardId)
@@ -1479,7 +1593,7 @@ function CardAiAssistancePanel() {
           <p className="text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">Knowledge sources</p>
           {!canUseAiAssistance ? (
             <p className="mt-2 text-xs font-semibold text-slate-500">
-              Training unlocks after the AI Assistance add-on is active on your package.
+              Training unlocks after the AI Assistance add-on is paid and active.
             </p>
           ) : loadingKnowledge ? (
             <p className="mt-2 text-xs font-semibold text-slate-500">Loading training history…</p>
@@ -1507,7 +1621,9 @@ function CardAiAssistancePanel() {
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-xs font-semibold text-slate-500">No training sources yet.</p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">
+              No extra training yet — default assistant format is ready.
+            </p>
           )}
         </div>
       </div>
@@ -1516,19 +1632,30 @@ function CardAiAssistancePanel() {
         <p className="text-[.6875rem] font-black tracking-wider text-slate-400 uppercase">How it works</p>
         <ol className="list-decimal space-y-1.5 pl-4 text-[.75rem] font-semibold text-slate-600 dark:text-slate-300">
           <li>
-            Unlock the AI Assistance add-on for{' '}
-            <span className="font-black text-slate-900 dark:text-white">${AI_ASSISTANCE_ADDON_PRICE_USD}/month</span>.
+            Tap <span className="font-black text-slate-900 dark:text-white">Start</span> and confirm the{' '}
+            <span className="font-black text-slate-900 dark:text-white">${AI_ASSISTANCE_ADDON_PRICE_USD}/month</span>{' '}
+            add-on.
           </li>
-          <li>Turn AI Assistance Active for this card.</li>
-          <li>Train with document uploads and/or write about your business.</li>
-          <li>Guests chat with the assistant on your public vCard using that knowledge.</li>
+          <li>Complete Stripe checkout.</li>
+          <li>AI Assistance unlocks and activates on this card automatically.</li>
+          <li>Optionally upload instructions or skip — default format is already ready.</li>
         </ol>
       </div>
 
       <AiAgentTrainModal
         open={showTrain}
-        onClose={() => setShowTrain(false)}
+        onClose={() => {
+          setShowTrain(false)
+          setPostPayTrain(false)
+        }}
         profileId={cardId ?? ''}
+        allowSkip={postPayTrain}
+        title={postPayTrain ? 'Optional AI training' : 'Train AI Assistance'}
+        subtitle={
+          postPayTrain
+            ? 'Add documents or a business brief so guests get better answers — or skip and use the default format.'
+            : 'Upload docs or describe your business — the assistant reads this and uses it when talking to guests.'
+        }
         onTrained={(summary) => {
           setLastTrain(summary)
           void refreshTraining()
@@ -1543,7 +1670,7 @@ function CardAiAssistancePanel() {
         className="max-w-md p-6"
       >
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300">
-          <Lock className="h-6 w-6" />
+          <Crown className="h-6 w-6" />
         </div>
         <h2 id="ai-assistance-upgrade-title" className="text-center text-xl font-bold text-slate-950 dark:text-white">
           {AI_ASSISTANCE_LOCKED_TITLE}
@@ -1559,7 +1686,7 @@ function CardAiAssistancePanel() {
           <span className="ml-1 text-sm font-semibold text-slate-500">/ month</span>
         </p>
         <p className="mt-2 text-center text-xs font-semibold text-slate-500">
-          Contact support or your administrator to add AI Assistance to your package, then return here to activate it.
+          Do you want to continue to Stripe checkout?
         </p>
         <div className="mt-6 flex gap-3">
           <button
@@ -1569,12 +1696,22 @@ function CardAiAssistancePanel() {
           >
             Not now
           </button>
-          <Link
-            href="/settings"
-            className="flex flex-1 items-center justify-center rounded-xl bg-amber-600 py-3 text-sm font-black text-white hover:bg-amber-700"
+          <button
+            type="button"
+            disabled={checkoutBusy}
+            onClick={() => void startCheckout()}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-600 py-3 text-sm font-black text-white hover:bg-amber-700 disabled:opacity-60"
           >
-            Contact / upgrade
-          </Link>
+            {checkoutBusy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Opening…
+              </>
+            ) : (
+              <>
+                <Crown className="h-4 w-4" /> Continue to pay
+              </>
+            )}
+          </button>
         </div>
       </Modal>
     </div>

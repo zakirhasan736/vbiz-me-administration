@@ -2,9 +2,10 @@
 
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
+import { hasSavedContact } from '@/profile-app/lib/contactSaveState'
 import { downloadProfileContactVcf, vcfFilenameFromName } from '@/profile-app/lib/contactVcf'
 import { saveGuestUser, SaveGuestUserError } from '@/profile-app/lib/saveGuestUser'
-import { Check, X } from 'lucide-react'
+import { Check, Download, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 
@@ -40,6 +41,21 @@ export const SaveContactModal = ({
   const [showSuccess, setShowSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [alreadySaved, setAlreadySaved] = useState(false)
+  const openSyncKey = isOpen ? `open:${profileId ?? ''}` : 'closed'
+  const [syncKey, setSyncKey] = useState(openSyncKey)
+
+  // Reset modal session when it opens (or profile changes) — adjust during render.
+  if (openSyncKey !== syncKey) {
+    setSyncKey(openSyncKey)
+    if (isOpen) {
+      const id = profileId?.trim()
+      setAlreadySaved(Boolean(id && id !== 'preview' && hasSavedContact(id)))
+      setShowSuccess(false)
+      setSubmitError(null)
+      setSubmitting(false)
+    }
+  }
 
   const resetTransientState = () => {
     setShowSuccess(false)
@@ -52,8 +68,9 @@ export const SaveContactModal = ({
     onClose()
   }
 
-  const finishSuccess = () => {
-    if (onSuccess) {
+  const finishSuccess = (options?: { continueFlow?: boolean }) => {
+    // Returning visitors who only re-download should not get the install / follow funnel again.
+    if (onSuccess && options?.continueFlow !== false) {
       resetTransientState()
       onSuccess()
       return
@@ -64,6 +81,27 @@ export const SaveContactModal = ({
       resetTransientState()
       onClose()
     }, 1000)
+  }
+
+  const handleDownloadOnly = async () => {
+    const trimmedId = profileId?.trim()
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      if (!trimmedId || trimmedId === 'preview') {
+        await new Promise((resolve) => setTimeout(resolve, 400))
+      } else {
+        await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
+      }
+      notify.success('Contact file downloading.')
+      finishSuccess({ continueFlow: false })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to download contact. Please try again.'
+      setSubmitError(message)
+      notify.error(message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,12 +126,14 @@ export const SaveContactModal = ({
       }
 
       notify.success('Contact saved — your card is downloading.')
-      finishSuccess()
+      setAlreadySaved(true)
+      finishSuccess({ continueFlow: true })
     } catch (error) {
       // Duplicate email isn't a real failure: the visitor already exists, so just
       // hand them the contact file again and continue the flow with a friendly note.
       if (error instanceof SaveGuestUserError && error.isDuplicate) {
         notify.info('You have already saved this contact.')
+        setAlreadySaved(true)
         try {
           if (trimmedId && trimmedId !== 'preview') {
             await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
@@ -101,7 +141,7 @@ export const SaveContactModal = ({
         } catch {
           /* ignore secondary download errors */
         }
-        finishSuccess()
+        finishSuccess({ continueFlow: false })
         return
       }
 
@@ -129,60 +169,86 @@ export const SaveContactModal = ({
         </button>
 
         {!showSuccess ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="mb-1 pr-8">
-              <h3 className="vbiz-title text-xl font-bold tracking-tight">Download Contact Info</h3>
-              <p className="vbiz-description mt-2 text-sm leading-relaxed">
-                You&apos;re about to receive {contactOwnerLabel}&apos;s contact file. First, tell us who you are — your
-                full name, phone number, and email — so we know who&apos;s saving this contact.
-              </p>
+          alreadySaved ? (
+            <div className="space-y-4">
+              <div className="mb-1 pr-8">
+                <h3 className="vbiz-title text-xl font-bold tracking-tight">Download Contact Info</h3>
+                <p className="vbiz-description mt-2 text-sm leading-relaxed">
+                  You already shared your details for {contactOwnerLabel}. Download the contact file anytime — no need
+                  to fill the form again.
+                </p>
+              </div>
+              {submitError ? (
+                <p className="text-center text-xs text-red-400" role="alert">
+                  {submitError}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void handleDownloadOnly()}
+                disabled={submitting}
+                className="vbiz-btn vbiz-modal-btn-primary flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Download size={16} />
+                {submitting ? 'Preparing download…' : 'Download Contact File'}
+              </button>
             </div>
-            <input
-              type="text"
-              placeholder="Your full name"
-              aria-label="Your full name"
-              value={formData.fullName}
-              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-              required
-              disabled={submitting}
-              autoComplete="name"
-              className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
-            />
-            <input
-              type="tel"
-              placeholder="Your phone number"
-              aria-label="Your phone number"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              required
-              disabled={submitting}
-              autoComplete="tel"
-              className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
-            />
-            <input
-              type="email"
-              placeholder="Your email address"
-              aria-label="Your email address"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-              disabled={submitting}
-              autoComplete="email"
-              className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
-            />
-            {submitError ? (
-              <p className="text-center text-xs text-red-400" role="alert">
-                {submitError}
-              </p>
-            ) : null}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="vbiz-btn vbiz-modal-btn-primary w-full rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {submitting ? 'Preparing download…' : 'Download Contact File'}
-            </button>
-          </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="mb-1 pr-8">
+                <h3 className="vbiz-title text-xl font-bold tracking-tight">Download Contact Info</h3>
+                <p className="vbiz-description mt-2 text-sm leading-relaxed">
+                  You&apos;re about to receive {contactOwnerLabel}&apos;s contact file. First, tell us who you are —
+                  your full name, phone number, and email — so we know who&apos;s saving this contact.
+                </p>
+              </div>
+              <input
+                type="text"
+                placeholder="Your full name"
+                aria-label="Your full name"
+                value={formData.fullName}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                required
+                disabled={submitting}
+                autoComplete="name"
+                className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
+              />
+              <input
+                type="tel"
+                placeholder="Your phone number"
+                aria-label="Your phone number"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                required
+                disabled={submitting}
+                autoComplete="tel"
+                className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
+              />
+              <input
+                type="email"
+                placeholder="Your email address"
+                aria-label="Your email address"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                disabled={submitting}
+                autoComplete="email"
+                className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
+              />
+              {submitError ? (
+                <p className="text-center text-xs text-red-400" role="alert">
+                  {submitError}
+                </p>
+              ) : null}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="vbiz-btn vbiz-modal-btn-primary w-full rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submitting ? 'Preparing download…' : 'Download Contact File'}
+              </button>
+            </form>
+          )
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <motion.div

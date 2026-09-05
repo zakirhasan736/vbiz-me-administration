@@ -2,7 +2,12 @@
 
 import { useAppDispatch } from '@/hooks/redux'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
-import { seedActiveAnnouncementNotification } from '@/lib/notifications'
+import {
+  ANNOUNCEMENT_DISMISS_EVENT,
+  dismissAnnouncementEverywhere,
+  isAnnouncementUserDismissed,
+  seedActiveAnnouncementNotification,
+} from '@/lib/notifications'
 import {
   clearActiveAnnouncementBannerCache,
   useGetActiveAnnouncementQuery,
@@ -12,39 +17,22 @@ import { cn } from '@/utils/cn'
 import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
-const DISMISS_PREFIX = 'announcement:'
-const DISMISS_SUFFIX = ':dismissed'
-const DISMISS_EVENT = 'announcement-dismiss'
-
-function dismissKey(id: string) {
-  return `${DISMISS_PREFIX}${id}${DISMISS_SUFFIX}`
-}
-
 function isDismissed(id: string): boolean {
-  try {
-    return localStorage.getItem(dismissKey(id)) === '1'
-  } catch {
-    return false
-  }
+  return isAnnouncementUserDismissed(id)
 }
 
 function markDismissed(id: string) {
   const trimmed = id.trim()
   if (!trimmed) return
-  try {
-    localStorage.setItem(dismissKey(trimmed), '1')
-    window.dispatchEvent(new Event(DISMISS_EVENT))
-  } catch {
-    /* ignore quota / private mode */
-  }
+  dismissAnnouncementEverywhere(trimmed)
 }
 
 function subscribeDismissals(onStoreChange: () => void) {
   window.addEventListener('storage', onStoreChange)
-  window.addEventListener(DISMISS_EVENT, onStoreChange)
+  window.addEventListener(ANNOUNCEMENT_DISMISS_EVENT, onStoreChange)
   return () => {
     window.removeEventListener('storage', onStoreChange)
-    window.removeEventListener(DISMISS_EVENT, onStoreChange)
+    window.removeEventListener(ANNOUNCEMENT_DISMISS_EVENT, onStoreChange)
   }
 }
 

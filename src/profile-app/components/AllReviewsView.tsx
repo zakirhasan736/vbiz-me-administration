@@ -46,12 +46,12 @@ function ReviewCardContent({ item, compact }: { item: ReviewListItem; compact: b
       </div>
       {item.htmlDescription ? (
         <div
-          className="prose prose-sm dark:prose-invert mb-8 max-w-none text-zinc-700 dark:text-zinc-300"
+          className="vbiz-review-body vcard-rich-html prose prose-sm mb-8 max-w-none"
           dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
         />
       ) : item.plainDescription ? (
         <p
-          className={`mb-8 leading-relaxed font-medium text-zinc-700 italic dark:text-zinc-300 ${
+          className={`vbiz-review-body mb-8 leading-relaxed font-medium italic ${
             compact ? 'text-sm' : 'text-lg md:text-xl'
           }`}
         >
@@ -151,14 +151,14 @@ export function SliderReviewCard({ item, compact = false }: { item: ReviewListIt
       <div className={`mb-4 min-h-0 flex-1 overflow-hidden ${compact ? '' : 'md:mb-6'}`}>
         {item.htmlDescription ? (
           <div
-            className={`prose prose-sm dark:prose-invert line-clamp-5 max-w-none text-sm leading-relaxed font-medium text-zinc-700 dark:text-zinc-300 ${
+            className={`vbiz-review-body vcard-rich-html prose prose-sm line-clamp-5 max-w-none text-sm leading-relaxed font-medium ${
               compact ? '' : 'sm:line-clamp-6 sm:text-base md:text-lg'
             }`}
             dangerouslySetInnerHTML={{ __html: item.htmlDescription }}
           />
         ) : item.plainDescription ? (
           <p
-            className={`line-clamp-5 text-sm leading-relaxed font-medium text-zinc-700 italic dark:text-zinc-300 ${
+            className={`vbiz-review-body line-clamp-5 text-sm leading-relaxed font-medium italic ${
               compact ? '' : 'sm:line-clamp-6 sm:text-base md:text-lg'
             }`}
           >

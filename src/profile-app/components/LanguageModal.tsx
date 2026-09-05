@@ -1,7 +1,14 @@
 'use client'
 
-import { FALLBACK_LANGUAGES, I18N_CONFIG } from '@/lib/i18n/config'
+import {
+  FALLBACK_LANGUAGES,
+  I18N_CONFIG,
+  LANGUAGE_MAP,
+  languageDisplayName,
+  languageFlagCodeForLang,
+} from '@/lib/i18n/config'
 import { applyTranslation, getActiveLanguage, resetToEnglish, type BackendLanguage } from '@/lib/i18n/translation'
+import { LanguageFlag } from '@/profile-app/components/LanguageFlag'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { Check, Loader2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -30,7 +37,13 @@ export function LanguageModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         if (res.ok) {
           const data = await res.json()
           if (data.languages?.length > 0) {
-            setLanguages(data.languages)
+            setLanguages(
+              data.languages.map((lang: BackendLanguage) => ({
+                ...lang,
+                flagCode: languageFlagCodeForLang(lang.code, lang.flagCode),
+                name: LANGUAGE_MAP[lang.code]?.name || lang.name,
+              }))
+            )
           }
           if (data.fallback) {
             setFallbackLang(data.fallback)
@@ -114,22 +127,31 @@ export function LanguageModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
               return (
                 <div
                   key={lang.code}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     triggerHaptic(10)
                     setSelected(lang.code)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      triggerHaptic(10)
+                      setSelected(lang.code)
+                    }
                   }}
                   className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-all duration-200 active:scale-98 ${
                     isSelected ? 'vbiz-modal-row-selected scale-[1.02] font-semibold shadow-md' : 'vbiz-modal-row'
                   }`}
                 >
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[11px] font-black tracking-wider transition-all ${
-                      isSelected ? 'bg-black/15 text-inherit' : 'vbiz-pill-icon border px-1.5 py-0.5 text-[11px]'
-                    }`}
-                  >
-                    {lang.flagCode}
+                  <LanguageFlag
+                    flagCode={languageFlagCodeForLang(lang.code, lang.flagCode)}
+                    langCode={lang.code}
+                    alt=""
+                  />
+                  <span className="text-[13px] leading-tight font-medium select-none">
+                    {LANGUAGE_MAP[lang.code]?.name || lang.name || languageDisplayName(lang.code)}
                   </span>
-                  <span className="text-[13px] leading-tight font-medium select-none">{lang.name}</span>
                 </div>
               )
             })}
@@ -161,7 +183,7 @@ export function LanguageModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
           onClick={handleReset}
           className="vbiz-pin mt-1 cursor-pointer text-xs font-bold tracking-wider uppercase transition-all duration-200 hover:opacity-80 active:scale-95 disabled:opacity-50"
         >
-          Reset to English
+          Reset to American English
         </button>
       </div>
     </div>

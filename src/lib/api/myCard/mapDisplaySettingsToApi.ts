@@ -169,8 +169,47 @@ export function mapDisplaySettingsToApiSettings(
   return settings
 }
 
+const EXTRA_FIELD_ICONS = ['Link', 'Phone', 'Mail', 'Location'] as const
+
+export function normalizeExtraFieldIcon(icon: unknown): string {
+  const raw = String(icon ?? '').trim()
+  if (!raw) return 'Link'
+  if ((EXTRA_FIELD_ICONS as readonly string[]).includes(raw)) return raw
+  const lower = raw.toLowerCase()
+  if (lower.includes('phone')) return 'Phone'
+  if (lower.includes('mail')) return 'Mail'
+  if (lower.includes('location') || lower.includes('map') || lower.includes('pin')) return 'Location'
+  return 'Link'
+}
+
+/** Keep empty rows so Extra Fields drafts survive autosave and reload. */
+export function parseExtraFieldsJson(raw?: string | null): VCardExtraField[] {
+  if (!raw?.trim()) return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((row, index): VCardExtraField | null => {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) return null
+        const record = row as Record<string, unknown>
+        const id = typeof record.id === 'string' && record.id.trim() ? record.id.trim() : `extra_${index}`
+        const name = typeof record.name === 'string' ? record.name : typeof record.key === 'string' ? record.key : ''
+        const value = typeof record.value === 'string' ? record.value : ''
+        return {
+          id,
+          icon: normalizeExtraFieldIcon(record.icon ?? record.css_class),
+          name,
+          value,
+        }
+      })
+      .filter((row): row is VCardExtraField => row !== null)
+  } catch {
+    return []
+  }
+}
+
 export function mapExtraFieldsToApiSettings(extraFields: VCardExtraField[] | undefined): Record<string, string> {
-  if (!extraFields?.length) return {}
+  if (!extraFields) return {}
   return { [EXTRA_FIELDS_SETTING_KEY]: JSON.stringify(extraFields) }
 }
 

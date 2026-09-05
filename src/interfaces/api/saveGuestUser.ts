@@ -8,4 +8,6 @@ export type SavedGuestUser = {
   owner_name: string | null
   meta?: unknown
   created_at: string
+  /** True when this guest/email already saved this card — no new lead row. */
+  already_saved?: boolean
 }

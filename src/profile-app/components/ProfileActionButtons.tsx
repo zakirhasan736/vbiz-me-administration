@@ -75,7 +75,7 @@ function HomeCtaButton({
   onClick: () => void
   chromeStyle?: CSSProperties
 }) {
-  const iconSize = isDesktop ? (template === 'v1' ? 18 : 16) : 16
+  const iconSize = 22
 
   return (
     <button

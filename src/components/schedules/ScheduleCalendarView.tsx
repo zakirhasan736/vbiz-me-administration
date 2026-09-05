@@ -3,6 +3,7 @@
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
 import { AdminScheduleCalendarSkeleton } from '@/components/admin/AdminScheduleSkeleton'
+import { OneOnOneRequestsPanel } from '@/components/admin/OneOnOneRequestsPanel'
 import type { ScheduleMeetingSubmitPayload } from '@/components/admin/ScheduleMeetingModal'
 import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
@@ -502,6 +503,8 @@ export function ScheduleCalendarView({
           {filteredEntries.length} total
         </div>
       </div>
+
+      {meetingsSource === 'admin' ? <OneOnOneRequestsPanel /> : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#0b1018]">

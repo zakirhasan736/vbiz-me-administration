@@ -176,7 +176,10 @@ export function Tab2PersonalInfo() {
               <input
                 type="text"
                 value={vCardData.personal.profession}
-                onChange={(e) => updateData('personal.profession', e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  updateData('personal.profession', value)
+                }}
                 className={`${inputClasses} pl-10`}
               />
             </FieldGroup>
@@ -185,7 +188,10 @@ export function Tab2PersonalInfo() {
               <input
                 type="text"
                 value={vCardData.personal.designation}
-                onChange={(e) => updateData('personal.designation', e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  updateData('personal.designation', value)
+                }}
                 className={`${inputClasses} pl-10`}
               />
             </FieldGroup>
