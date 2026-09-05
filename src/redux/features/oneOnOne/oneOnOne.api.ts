@@ -7,6 +7,15 @@ type Envelope<T> = {
   data: T
 }
 
+export type OneOnOneSlot = {
+  id: string
+  date: string
+  startTime: string
+  durationMinutes: number
+  timezone: string
+  status: string
+}
+
 export type OneOnOneRequest = {
   id: string
   profileId: string
@@ -17,8 +26,13 @@ export type OneOnOneRequest = {
   status: string
   cardOwnerUserId: string | null
   corporateId: string | null
+  proposedTitle?: string | null
+  proposedDescription?: string | null
+  proposedTimezone?: string | null
+  proposedDurationMinutes?: number | null
   createdAt: string
   updatedAt: string
+  slots?: OneOnOneSlot[]
   meeting: {
     id: string
     title: string
@@ -34,6 +48,15 @@ export type OneOnOneRequest = {
 }
 
 export type OneOnOneMeeting = OneOnOneRequest['meeting']
+
+export type Propose1On1SlotsPayload = {
+  requestId: string
+  title?: string
+  description?: string | null
+  timezone: string
+  durationMinutes?: number
+  slots: Array<{ date: string; startTime: string }>
+}
 
 export type Schedule1On1Payload = {
   requestId: string
@@ -58,7 +81,8 @@ export type OneOnOneScheduleResult = {
     timezone: string
     status: string
     zohoMeetingUrl: string | null
-  }
+  } | null
+  guestPickUrl?: string
 }
 
 export type OpenRequestsPage = {
@@ -69,6 +93,7 @@ export type OpenRequestsPage = {
 }
 
 export type GuestMeetingView = {
+  mode: 'pick_slot' | 'confirmed'
   title: string
   guestName: string
   date: string
@@ -78,6 +103,7 @@ export type GuestMeetingView = {
   description: string | null
   joinUrl: string | null
   status: string
+  slots: OneOnOneSlot[]
 }
 
 const oneOnOneApi = api.injectEndpoints({
@@ -88,7 +114,7 @@ const oneOnOneApi = api.injectEndpoints({
       transformResponse: (res: Envelope<OpenRequestsPage>) => res.data,
       providesTags: [{ type: 'meetings', id: 'ONE_ON_ONE_LIST' }],
     }),
-    scheduleOneOnOneMeeting: builder.mutation<OneOnOneScheduleResult, Schedule1On1Payload>({
+    scheduleOneOnOneMeeting: builder.mutation<OneOnOneScheduleResult, Propose1On1SlotsPayload>({
       query: (body) => ({
         url: '/one-on-one/schedule',
         method: 'POST',
@@ -145,6 +171,15 @@ const oneOnOneApi = api.injectEndpoints({
       query: (requestId) => `/one-on-one/guest/${requestId}`,
       transformResponse: (res: Envelope<GuestMeetingView>) => res.data,
     }),
+    confirmGuestOneOnOneSlot: builder.mutation<OneOnOneScheduleResult, { requestId: string; slotId: string }>({
+      query: ({ requestId, slotId }) => ({
+        url: `/one-on-one/guest/${requestId}/confirm-slot`,
+        method: 'POST',
+        body: { slotId },
+      }),
+      transformResponse: (res: Envelope<OneOnOneScheduleResult>) => res.data,
+      invalidatesTags: [{ type: 'meetings', id: 'ONE_ON_ONE_LIST' }],
+    }),
   }),
 })
 
@@ -156,6 +191,7 @@ export const {
   useCompleteOneOnOneMeetingMutation,
   useCreatePublicOneOnOneRequestMutation,
   useGetGuestOneOnOneMeetingQuery,
+  useConfirmGuestOneOnOneSlotMutation,
 } = oneOnOneApi
 
 export default oneOnOneApi

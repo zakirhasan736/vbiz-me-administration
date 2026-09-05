@@ -2,12 +2,11 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { OneOnOneScheduleModal } from '@/components/admin/OneOnOneScheduleModal'
-import type { OneOnOneRequest } from '@/redux/features/oneOnOne/oneOnOne.api'
+import type { OneOnOneRequest, Propose1On1SlotsPayload } from '@/redux/features/oneOnOne/oneOnOne.api'
 import {
   useCancelOneOnOneMeetingMutation,
   useCompleteOneOnOneMeetingMutation,
   useListOpenOneOnOneRequestsQuery,
-  useRescheduleOneOnOneMeetingMutation,
   useScheduleOneOnOneMeetingMutation,
 } from '@/redux/features/oneOnOne/oneOnOne.api'
 import { cn } from '@/utils/cn'
@@ -33,6 +32,16 @@ function formatWhen(startAt: string, timezone: string) {
   }
 }
 
+function statusLabel(request: OneOnOneRequest) {
+  if (request.meeting) return formatWhen(request.meeting.startAt, request.meeting.timezone)
+  if (request.status === 'awaiting_guest') {
+    const count = request.slots?.length ?? 0
+    return count > 0 ? `Awaiting guest · ${count} option${count === 1 ? '' : 's'} sent` : 'Awaiting guest pick'
+  }
+  if (request.status === 'open') return 'Awaiting proposed times'
+  return request.status
+}
+
 export function OneOnOneRequestsPanel({ className }: Props) {
   const { data, isLoading } = useListOpenOneOnOneRequestsQuery(undefined, { refetchOnMountOrArgChange: true })
   const [scheduleRequest, setScheduleRequest] = useState<OneOnOneRequest | null>(null)
@@ -42,35 +51,16 @@ export function OneOnOneRequestsPanel({ className }: Props) {
     description: string
     onConfirm: () => void
   } | null>(null)
-  const [busyId, setBusyId] = useState<string | null>(null)
+  const [, setBusyId] = useState<string | null>(null)
 
   const [scheduleMeeting] = useScheduleOneOnOneMeetingMutation()
-  const [rescheduleMeeting] = useRescheduleOneOnOneMeetingMutation()
   const [cancelMeeting] = useCancelOneOnOneMeetingMutation()
   const [completeMeeting] = useCompleteOneOnOneMeetingMutation()
 
   const items = data?.items ?? []
 
-  const handleSchedule = async (payload: {
-    requestId: string
-    date: string
-    startTime: string
-    durationMinutes: number
-    timezone: string
-    description?: string
-  }) => {
+  const handleSchedule = async (payload: Propose1On1SlotsPayload) => {
     await scheduleMeeting(payload).unwrap()
-  }
-
-  const handleReschedule = async (payload: {
-    requestId: string
-    date: string
-    startTime: string
-    durationMinutes: number
-    timezone: string
-    description?: string
-  }) => {
-    await rescheduleMeeting(payload).unwrap()
   }
 
   const handleCancel = async (requestId: string) => {
@@ -92,7 +82,7 @@ export function OneOnOneRequestsPanel({ className }: Props) {
   }
 
   const actions = (request: OneOnOneRequest) => {
-    if (request.status === 'scheduled' || request.status === 'open') {
+    if (request.status === 'open' || request.status === 'awaiting_guest') {
       return (
         <div className="flex flex-wrap gap-1.5">
           <button
@@ -100,43 +90,47 @@ export function OneOnOneRequestsPanel({ className }: Props) {
             onClick={() => setScheduleRequest(request)}
             className="rounded-lg bg-teal-500/10 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-teal-700 uppercase dark:text-teal-300"
           >
-            Schedule Meeting
+            {request.status === 'awaiting_guest' ? 'Update times' : 'Propose times'}
           </button>
-          {request.status === 'scheduled' && request.meeting ? (
-            <>
-              <button
-                type="button"
-                onClick={() =>
-                  setConfirmState({
-                    open: true,
-                    title: 'Cancel meeting?',
-                    description: `Cancel the scheduled meeting with ${request.guestName}?`,
-                    onConfirm: () => void handleCancel(request.id),
-                  })
-                }
-                className="rounded-lg bg-rose-500/10 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase dark:text-rose-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setConfirmState({
-                    open: true,
-                    title: 'Mark completed?',
-                    description: `Mark the meeting with ${request.guestName} as completed?`,
-                    onConfirm: () => void handleComplete(request.id),
-                  })
-                }
-                className="rounded-lg bg-slate-500/10 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-slate-700 uppercase dark:text-slate-300"
-              >
-                Complete
-              </button>
-            </>
-          ) : null}
         </div>
       )
     }
+
+    if (request.status === 'scheduled' && request.meeting) {
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() =>
+              setConfirmState({
+                open: true,
+                title: 'Cancel meeting?',
+                description: `Cancel the scheduled meeting with ${request.guestName}?`,
+                onConfirm: () => void handleCancel(request.id),
+              })
+            }
+            className="rounded-lg bg-rose-500/10 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase dark:text-rose-300"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setConfirmState({
+                open: true,
+                title: 'Mark completed?',
+                description: `Mark the meeting with ${request.guestName} as completed?`,
+                onConfirm: () => void handleComplete(request.id),
+              })
+            }
+            className="rounded-lg bg-slate-500/10 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-slate-700 uppercase dark:text-slate-300"
+          >
+            Complete
+          </button>
+        </div>
+      )
+    }
+
     return null
   }
 
@@ -154,7 +148,7 @@ export function OneOnOneRequestsPanel({ className }: Props) {
           </p>
           <h3 className="mt-1 text-base font-semibold text-slate-950 dark:text-white">Open requests</h3>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Schedule a meeting from public 1-on-1 requests using Zoho Calendar.
+            Propose multiple times. Guest confirms one — meeting is created automatically.
           </p>
         </div>
         {isLoading ? <div className="h-8 w-8 animate-pulse rounded-full bg-slate-200 dark:bg-white/10" /> : null}
@@ -181,11 +175,7 @@ export function OneOnOneRequestsPanel({ className }: Props) {
                   <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{request.guestEmail}</p>
                   <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                     <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                    {request.meeting
-                      ? formatWhen(request.meeting.startAt, request.meeting.timezone)
-                      : request.status === 'open'
-                        ? 'Awaiting schedule'
-                        : request.status}
+                    {statusLabel(request)}
                   </p>
                 </div>
                 {actions(request)}

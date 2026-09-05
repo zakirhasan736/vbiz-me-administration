@@ -22,6 +22,15 @@ type FormProps = {
   onSuccess?: () => void
 }
 
+function getRequestErrorMessage(err: unknown): string {
+  if (typeof err === 'object' && err && 'data' in err) {
+    const data = (err as { data?: { message?: string; code?: string } }).data
+    if (data?.message?.trim()) return data.message.trim()
+  }
+  if (err instanceof Error && err.message.trim()) return err.message.trim()
+  return 'Failed to send request'
+}
+
 function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormProps) {
   const saved = readSavedGuestContact(profileId)
   const [guestName, setGuestName] = useState(saved?.fullName ?? '')
@@ -30,13 +39,8 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
   const [message, setMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const lockName = Boolean(saved?.lockName)
-  const lockEmail = Boolean(saved?.lockEmail)
-  const lockPhone = Boolean(saved?.lockPhone)
   const [createPublicRequest] = useCreatePublicOneOnOneRequestMutation()
-
-  const allIdentityLocked = lockName && lockEmail && lockPhone
-  const hasLockedIdentity = lockName || lockEmail || lockPhone
+  const hasPrefill = Boolean(saved?.fullName || saved?.email || saved?.phone)
 
   const handleSubmit = async () => {
     setError(null)
@@ -56,7 +60,7 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
       onSuccess?.()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send request')
+      setError(getRequestErrorMessage(err))
     } finally {
       setIsSubmitting(false)
     }
@@ -84,11 +88,9 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
         </button>
       </div>
 
-      {hasLockedIdentity ? (
-        <p className="mt-3 rounded-xl border border-teal-200/70 bg-teal-50 px-3 py-2 text-[11px] font-medium text-teal-800 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-200">
-          {allIdentityLocked
-            ? 'Using your saved contact details. Only the message can be edited.'
-            : 'Using your saved contact details. Locked fields can’t be changed.'}
+      {hasPrefill ? (
+        <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-medium text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+          We filled your saved contact details. You can edit them if this request should use different info.
         </p>
       ) : null}
 
@@ -99,8 +101,7 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
             value={guestName}
             onChange={(e) => setGuestName(e.target.value)}
             className="mt-1"
-            disabled={isSubmitting || lockName}
-            readOnly={lockName}
+            disabled={isSubmitting}
           />
         </label>
         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -110,8 +111,7 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
             value={guestEmail}
             onChange={(e) => setGuestEmail(e.target.value)}
             className="mt-1"
-            disabled={isSubmitting || lockEmail}
-            readOnly={lockEmail}
+            disabled={isSubmitting}
           />
         </label>
         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -120,8 +120,7 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
             value={guestPhone}
             onChange={(e) => setGuestPhone(e.target.value)}
             className="mt-1"
-            disabled={isSubmitting || lockPhone}
-            readOnly={lockPhone}
+            disabled={isSubmitting}
           />
         </label>
         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -137,7 +136,11 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
         </label>
       </div>
 
-      {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
+      {error ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          {error}
+        </p>
+      ) : null}
 
       <div className="mt-5 flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
