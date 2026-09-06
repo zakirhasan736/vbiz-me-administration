@@ -11,9 +11,8 @@ import {
 } from '@/profile-app/lib/shareQrCode'
 import {
   Check,
-  Download,
+  Copy,
   Facebook,
-  Link2,
   Linkedin,
   Mail,
   MessageCircle,
@@ -52,17 +51,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
   }, [isOpen])
   const [qrCodeUrl, setQrCodeUrl] = useState('')
   const [copied, setCopied] = useState(false)
-  const [qrColor, setQrColor] = useState<'classic' | 'amber'>('classic')
 
   useEffect(() => {
     if (!isOpen || !shareUrl) return
 
     let cancelled = false
-    const foregroundColor = qrColor === 'amber' ? accentColor : '#09090b'
 
     void generateShareQrDataUrl({
       url: shareUrl,
-      foregroundColor,
+      foregroundColor: '#09090b',
       centerImageUrl: centerSources.imageUrl,
       centerVideoUrl: centerSources.videoUrl,
     })
@@ -76,7 +73,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     return () => {
       cancelled = true
     }
-  }, [isOpen, shareUrl, qrColor, accentColor, centerSources])
+  }, [isOpen, shareUrl, centerSources])
 
   const handleCopyLink = async () => {
     try {
@@ -86,16 +83,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     } catch {
       /* ignore */
     }
-  }
-
-  const handleDownloadQr = () => {
-    if (!qrCodeUrl) return
-    const link = document.createElement('a')
-    link.href = qrCodeUrl
-    link.download = `${(profileName || 'profile').toLowerCase().replace(/\s+/g, '_')}_qr_code.png`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
 
   const shareText = profileName
@@ -180,7 +167,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
             <QrIcon size={18} />
           </div>
           <div>
-            <h3 className="text-[calc(0.70rem*1.75)] font-bold tracking-tight text-zinc-900 sm:text-lg dark:text-zinc-100">
+            <h3 className="text-[1.2249999999999999rem] font-bold tracking-tight text-zinc-900 sm:text-lg dark:text-zinc-100">
               Share Profile
             </h3>
             <p className="text-[11px] font-medium text-zinc-500 sm:text-xs">Generate QR & connect instantly</p>
@@ -200,7 +187,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
         <div className="flex min-h-full flex-col justify-start gap-2 sm:min-h-0 sm:justify-start sm:gap-2">
           <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-100 bg-zinc-50 dark:border-zinc-900/80 dark:bg-zinc-900/40">
             <div className="group relative flex w-full flex-col items-center text-center text-zinc-950">
-              <div className="mb-1 hidden min-h-0 sm:mt-2 sm:mb-1 sm:min-h-[2.5rem]">
+              <div className="mb-1 hidden min-h-0 sm:mt-2 sm:mb-1 sm:min-h-10">
                 {profileName ? (
                   <h4 className="notranslate text-md font-bold tracking-tight text-black sm:text-sm">{profileName}</h4>
                 ) : null}
@@ -214,7 +201,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                 ) : null}
               </div>
 
-              <div className="relative flex h-auto w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50 p-2 shadow-inner sm:rounded-2xl sm:p-3">
+              <div className="relative flex h-auto w-full max-w-65 items-center justify-center overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50 p-2 shadow-inner sm:rounded-2xl sm:p-3">
                 {qrCodeUrl ? (
                   <motion.img
                     key={qrCodeUrl}
@@ -229,22 +216,39 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="mt-2 flex w-full items-center justify-center gap-2 px-1 sm:mt-2 sm:gap-4 sm:px-2">
+          <div className="space-y-2">
+            <label className="mb-2! block text-[1.1375rem] font-bold text-zinc-900 dark:text-white">
+              Share your vCard Link
+            </label>
+            <div className="flex items-center gap-2 rounded-xl border border-zinc-200/60 bg-zinc-50/50 p-2 dark:border-zinc-800/80 dark:bg-zinc-900/30">
+              <p className="min-w-0 flex-1 truncate px-1.5 text-[14.3px] font-medium text-zinc-700 dark:text-zinc-300">
+                {shareUrl || '…'}
+              </p>
               <button
-                onClick={handleDownloadQr}
-                className="flex items-center gap-1.5 text-base font-bold text-[#eab308] transition-all hover:text-[#ca8a04] active:scale-95"
+                type="button"
+                onClick={() => void handleCopyLink()}
+                disabled={!shareUrl}
+                title={copied ? 'Link copied' : 'Copy link'}
+                aria-label={copied ? 'Link copied' : 'Copy link'}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[13.2px] font-bold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  copied
+                    ? 'border-emerald-500/50 bg-emerald-500 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-900 hover:bg-zinc-900 hover:text-white dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-100 dark:hover:text-zinc-950'
+                }`}
               >
-                <Download size={14} /> Download PNG
+                {copied ? <Check size={14} className="stroke-[2.5]" /> : <Copy size={14} />}
+                {copied ? 'Copied' : 'Copy link'}
               </button>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="!mb-2 block text-[calc(0.65rem*1.75)] font-bold text-zinc-900 dark:text-white">
+            <label className="mb-2! block text-[1.1375rem] font-bold text-zinc-900 dark:text-white">
               Share with Social Media
             </label>
-            <div className="grid grid-cols-6 gap-1">
+            <div className="grid grid-cols-5 gap-1">
               {socialShares.map((platform) => (
                 <a
                   key={platform.name}
@@ -258,36 +262,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                     size={26}
                     className={`opacity-80 transition-opacity group-hover:opacity-100 ${platform.textColor} group-hover:text-white`}
                   />
-                  <span className="mt-1 hidden text-[calc(9px*1.2)] font-bold text-zinc-900 group-hover:text-white sm:mt-1.5 dark:text-zinc-900">
+                  <span className="mt-1 hidden text-[10.799999999999999px] font-bold text-zinc-900 group-hover:text-white sm:mt-1.5 dark:text-zinc-900">
                     {platform.name}
                   </span>
                 </a>
               ))}
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                title={copied ? 'Link copied' : 'Copy link'}
-                aria-label={copied ? 'Link copied' : 'Copy link'}
-                className={`group flex flex-col items-center justify-center rounded-xl border p-2 transition-all duration-300 active:scale-95 sm:p-3 ${
-                  copied
-                    ? 'border-emerald-500/50 bg-emerald-500 text-white'
-                    : 'border-zinc-200/60 bg-zinc-50/50 text-zinc-700 hover:border-zinc-900 hover:bg-zinc-900 hover:text-white dark:border-zinc-800/80 dark:bg-zinc-900/30 dark:text-zinc-300 dark:hover:bg-zinc-100 dark:hover:text-zinc-950'
-                }`}
-              >
-                {copied ? (
-                  <Check size={24} className="stroke-3" />
-                ) : (
-                  <Link2 size={26} className="opacity-80 transition-opacity group-hover:opacity-100" />
-                )}
-                <span className="mt-1 hidden text-[calc(9px*1.2)] font-bold sm:mt-1.5">
-                  {copied ? 'Copied' : 'Link'}
-                </span>
-              </button>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="!mb-2 block text-[calc(0.65rem*1.75)] font-bold text-zinc-900 dark:text-white">
+            <label className="mb-2! block text-[1.1375rem] font-bold text-zinc-900 dark:text-white">
               Direct Contact Shortcuts
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -295,7 +279,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                 <a
                   key={link.name}
                   href={link.href}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center text-[calc(11px*1.3)] font-medium transition-all duration-200 active:scale-95 sm:px-2.5 sm:py-3 ${link.color}`}
+                  className={`flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center text-[14.3px] font-medium transition-all duration-200 active:scale-95 sm:px-2.5 sm:py-3 ${link.color}`}
                 >
                   <link.icon size={20} />
                   <span className="truncate font-bold text-zinc-900 dark:text-zinc-900">{link.name}</span>
