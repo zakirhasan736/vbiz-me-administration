@@ -115,8 +115,6 @@ export type ApiProfile = {
     url?: string | null
     imageUrl?: string | null
     featuredImage?: string | null
-    attachmentUrl?: string | null
-    attachmentName?: string | null
     status?: number | string | null
   }>
   galleries?: Array<{
@@ -125,8 +123,6 @@ export type ApiProfile = {
     description?: string | null
     url?: string | null
     featuredImage?: string | null
-    attachmentUrl?: string | null
-    attachmentName?: string | null
     status?: string | null
   }>
   reviews?: Array<{
@@ -742,8 +738,6 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
                 ...gallery,
                 featuredImage: gallery.featuredImage || legacy?.imageUrl || gallery.featuredImage,
                 imageUrl: ('imageUrl' in gallery ? gallery.imageUrl : undefined) || legacy?.imageUrl,
-                attachmentUrl: gallery.attachmentUrl || legacy?.attachmentUrl || gallery.attachmentUrl,
-                attachmentName: gallery.attachmentName || legacy?.attachmentName || gallery.attachmentName,
               }
             })
           : portfolios
@@ -751,16 +745,13 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
         const imageUrl = String(('featuredImage' in p && p.featuredImage) || ('imageUrl' in p && p.imageUrl) || '')
         const status = p.status
         const active = status !== 0 && status !== '0'
-        const attachmentUrl = typeof p.attachmentUrl === 'string' ? p.attachmentUrl : ''
-        const attachmentName = typeof p.attachmentName === 'string' ? p.attachmentName : ''
         return {
           id: p.id,
           type: 'Image' as const,
           title: p.title || '',
           description: p.description || '',
           imageUrl,
-          imageName: attachmentName,
-          attachments: attachmentUrl ? { url: attachmentUrl, name: attachmentName } : null,
+          imageName: '',
           url: p.url || '',
           active,
         }

@@ -193,8 +193,6 @@ export type VCardPortfolioEntry = {
   description: string
   imageUrl: string
   imageName?: string
-  /** Secondary image/video — backoffice “Attachments (Images/Video)”. */
-  attachments?: { url: string; name: string } | null
   url: string
   active: boolean
 }

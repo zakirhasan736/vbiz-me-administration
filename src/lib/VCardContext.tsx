@@ -767,8 +767,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
                 description: p.description,
                 imageUrl: p.imageUrl,
                 featuredImage: p.imageUrl,
-                attachmentUrl: p.attachments?.url || null,
-                attachmentName: p.attachments?.name || null,
                 url: p.url,
                 status: p.active ? 1 : 0,
               })),

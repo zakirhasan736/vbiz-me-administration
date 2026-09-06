@@ -49,11 +49,12 @@ function getGalleryGridClass(idx: number): string {
 
 function ImageWithPlaceholder({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const [isLoaded, setIsLoaded] = useState(false)
+  const safeSrc = src.trim()
 
   return (
     <div className={`relative ${className ?? ''} overflow-hidden`}>
       <AnimatePresence>
-        {!isLoaded && (
+        {(!safeSrc || !isLoaded) && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -65,14 +66,16 @@ function ImageWithPlaceholder({ src, alt, className }: { src: string; alt: strin
           </motion.div>
         )}
       </AnimatePresence>
-      <Image
-        width={800}
-        height={600}
-        src={src}
-        alt={alt}
-        onLoad={() => setIsLoaded(true)}
-        className={`h-full w-full object-cover transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-      />
+      {safeSrc ? (
+        <Image
+          width={800}
+          height={600}
+          src={safeSrc}
+          alt={alt}
+          onLoad={() => setIsLoaded(true)}
+          className={`h-full w-full object-cover transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        />
+      ) : null}
     </div>
   )
 }
@@ -220,8 +223,10 @@ function GalleryLightbox({ item, onClose }: { item: GalleryListItem; onClose: ()
         className="vbiz-modal-panel relative flex max-h-[calc(100dvh-9rem)] max-w-[min(900px,90vw)] flex-col overflow-hidden rounded-lg shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.imageUrl} alt={item.title} className="max-h-[calc(100dvh-11rem)] w-full object-contain" />
+        {item.imageUrl.trim() ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.imageUrl} alt={item.title} className="max-h-[calc(100dvh-11rem)] w-full object-contain" />
+        ) : null}
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-5 py-4">
           <p className="vbiz-title text-base font-bold text-white">{item.title}</p>
         </div>
@@ -238,7 +243,7 @@ export const ImageGallerySection = () => {
 
   const { data, isLoading, isError } = useGetGalleryQuery(profileId, { skip: !profileId })
 
-  const items = useMemo(() => data?.items ?? [], [data?.items])
+  const items = useMemo(() => (data?.items ?? []).filter((item) => Boolean(item.imageUrl?.trim())), [data?.items])
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Gallery')
 
   const showInitialLoader = isLoading && items.length === 0

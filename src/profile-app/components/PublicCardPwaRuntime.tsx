@@ -8,7 +8,6 @@ import { subscribePublicCardSettingsSaved } from '@/lib/publicCardLiveSync'
 import { isBackofficePath, isPublicCardDataPath } from '@/lib/pwa/publicCardCachePolicy'
 import type { NavBarNavItem, ProfileNavContentKey } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
-import { publicApi } from '@/redux/api/publicApi'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 import { dynamicSectionApi } from '@/redux/features/dynamicSection/dynamicSection.api'
 import { myCardApi } from '@/redux/features/myCard'
@@ -30,6 +29,10 @@ const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v2'
 const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v2'
 const CARD_DATA_CACHE = 'vbiz-public-card-data-v2'
 const NEXT_STATIC_CACHE = 'vbiz-next-static-v2'
+/** Avoid re-hammering the shared public rate-limit bucket on every tab focus. */
+const VISIBILITY_SYNC_MIN_MS = 5 * 60_000
+/** Space out offline prefetch so one card visit cannot exhaust the IP budget. */
+const SECTION_PREFETCH_GAP_MS = 175
 
 function isStandaloneDisplay() {
   if (typeof window === 'undefined') return false
@@ -86,7 +89,9 @@ function isCacheableRuntimeUrl(url: URL, cardPath: string): boolean {
 
 function collectCacheUrls(slug: string): string[] {
   const path = buildProfilePath(slug.trim())
-  const urls = new Set<string>([path, `${path}/manifest.webmanifest`, `${path}/icon/192`, `${path}/icon/512`])
+  // Do not warm PWA icon routes here — each icon fetch hits the public card API
+  // and was burning the shared IP rate-limit budget during local browsing.
+  const urls = new Set<string>([path, `${path}/manifest.webmanifest`])
 
   const addUrl = (raw: string | null | undefined) => {
     if (!raw?.trim()) return
@@ -300,34 +305,53 @@ export function PublicCardPwaRuntime({
 
     const serviceWorker = 'serviceWorker' in navigator ? navigator.serviceWorker : null
     serviceWorker?.addEventListener?.('controllerchange', cacheShell)
-    void serviceWorker?.ready
-      .then(() => {
-        cacheShell()
-        window.setTimeout(cacheShell, 500)
-      })
-      .catch(() => undefined)
+    void serviceWorker?.ready.then(cacheShell).catch(() => undefined)
 
-    const prefetchSectionData = (forceRefetch = false) => {
+    const prefetchTimers: number[] = []
+    let lastVisibilitySyncAt = 0
+    let cancelled = false
+
+    const queuePrefetch = (run: () => void, delayMs: number) => {
+      const timer = window.setTimeout(() => {
+        if (!cancelled && navigator.onLine) run()
+      }, delayMs)
+      prefetchTimers.push(timer)
+    }
+
+    /** Soft cache warm for offline — never force-refetch; sections already load on demand when opened. */
+    const prefetchSectionData = () => {
       if (!navigator.onLine || !normalizedProfileId) return
 
-      void dispatch(
-        navBarLinksApi.endpoints.getNavBarLinks.initiate(normalizedProfileId, {
-          forceRefetch,
-          subscribe: false,
-        })
-      )
-      void dispatch(
-        profileSettingsApi.endpoints.getProfileSettings.initiate(
-          { profileId: normalizedProfileId, template },
-          { forceRefetch, subscribe: false }
+      let delay = 0
+      const enqueue = (run: () => void) => {
+        queuePrefetch(run, delay)
+        delay += SECTION_PREFETCH_GAP_MS
+      }
+
+      enqueue(() => {
+        void dispatch(
+          navBarLinksApi.endpoints.getNavBarLinks.initiate(normalizedProfileId, {
+            forceRefetch: false,
+            subscribe: false,
+          })
         )
-      )
-      void dispatch(
-        publicAnnouncementsApi.endpoints.getPublicProfileAnnouncement.initiate(
-          { profileId: normalizedProfileId },
-          { forceRefetch, subscribe: false }
+      })
+      enqueue(() => {
+        void dispatch(
+          profileSettingsApi.endpoints.getProfileSettings.initiate(
+            { profileId: normalizedProfileId, template },
+            { forceRefetch: false, subscribe: false }
+          )
         )
-      )
+      })
+      enqueue(() => {
+        void dispatch(
+          publicAnnouncementsApi.endpoints.getPublicProfileAnnouncement.initiate(
+            { profileId: normalizedProfileId },
+            { forceRefetch: false, subscribe: false }
+          )
+        )
+      })
 
       let needsProfileAiData = false
       const dynamicSectionNames = new Set<string>()
@@ -335,42 +359,74 @@ export function PublicCardPwaRuntime({
       for (const item of navItems) {
         switch (item.profileContent) {
           case 'about':
-            void dispatch(
-              aboutMeApi.endpoints.getAboutMe.initiate(normalizedProfileId, { forceRefetch, subscribe: false })
-            )
+            enqueue(() => {
+              void dispatch(
+                aboutMeApi.endpoints.getAboutMe.initiate(normalizedProfileId, {
+                  forceRefetch: false,
+                  subscribe: false,
+                })
+              )
+            })
             break
           case 'services':
-            void dispatch(
-              servicesApi.endpoints.getServices.initiate(normalizedProfileId, { forceRefetch, subscribe: false })
-            )
+            enqueue(() => {
+              void dispatch(
+                servicesApi.endpoints.getServices.initiate(normalizedProfileId, {
+                  forceRefetch: false,
+                  subscribe: false,
+                })
+              )
+            })
             break
           case 'gallery':
-            void dispatch(
-              galleryApi.endpoints.getGallery.initiate(normalizedProfileId, { forceRefetch, subscribe: false })
-            )
+            enqueue(() => {
+              void dispatch(
+                galleryApi.endpoints.getGallery.initiate(normalizedProfileId, {
+                  forceRefetch: false,
+                  subscribe: false,
+                })
+              )
+            })
             break
           case 'videos':
-            void dispatch(
-              videosApi.endpoints.getVideos.initiate(normalizedProfileId, { forceRefetch, subscribe: false })
-            )
+            enqueue(() => {
+              void dispatch(
+                videosApi.endpoints.getVideos.initiate(normalizedProfileId, {
+                  forceRefetch: false,
+                  subscribe: false,
+                })
+              )
+            })
             break
           case 'explainer':
-            void dispatch(
-              videoExplainerApi.endpoints.getVideoExplainer.initiate(normalizedProfileId, {
-                forceRefetch,
-                subscribe: false,
-              })
-            )
+            enqueue(() => {
+              void dispatch(
+                videoExplainerApi.endpoints.getVideoExplainer.initiate(normalizedProfileId, {
+                  forceRefetch: false,
+                  subscribe: false,
+                })
+              )
+            })
             break
           case 'reviews':
-            void dispatch(
-              reviewsApi.endpoints.getReviews.initiate(normalizedProfileId, { forceRefetch, subscribe: false })
-            )
+            enqueue(() => {
+              void dispatch(
+                reviewsApi.endpoints.getReviews.initiate(normalizedProfileId, {
+                  forceRefetch: false,
+                  subscribe: false,
+                })
+              )
+            })
             break
           case 'clients':
-            void dispatch(
-              clientsApi.endpoints.getClients.initiate(normalizedProfileId, { forceRefetch, subscribe: false })
-            )
+            enqueue(() => {
+              void dispatch(
+                clientsApi.endpoints.getClients.initiate(normalizedProfileId, {
+                  forceRefetch: false,
+                  subscribe: false,
+                })
+              )
+            })
             break
           case 'education':
           case 'skills':
@@ -386,46 +442,50 @@ export function PublicCardPwaRuntime({
       }
 
       if (needsProfileAiData) {
-        void dispatch(
-          profileAiDataApi.endpoints.getProfileAiData.initiate(normalizedProfileId, {
-            forceRefetch,
-            subscribe: false,
-          })
-        )
+        enqueue(() => {
+          void dispatch(
+            profileAiDataApi.endpoints.getProfileAiData.initiate(normalizedProfileId, {
+              forceRefetch: false,
+              subscribe: false,
+            })
+          )
+        })
       }
 
       for (const sectionName of dynamicSectionNames) {
-        void dispatch(
-          dynamicSectionApi.endpoints.getDynamicSection.initiate(
-            { profileId: normalizedProfileId, sectionName },
-            { forceRefetch, subscribe: false }
+        enqueue(() => {
+          void dispatch(
+            dynamicSectionApi.endpoints.getDynamicSection.initiate(
+              { profileId: normalizedProfileId, sectionName },
+              { forceRefetch: false, subscribe: false }
+            )
           )
-        )
+        })
       }
     }
 
-    const syncLatest = (forceRefetch = false) => {
+    /** Light shell refresh only — do not invalidate / force-refetch every tab section. */
+    const syncShell = (forceRefetch = false) => {
       if (!navigator.onLine) return
-      dispatch(
-        publicApi.util.invalidateTags([
-          { type: 'MyCard', id: trimmed },
-          'ProfileSettings',
-          'NavBarLinks',
-          'PublicAnnouncement',
-        ])
-      )
       void dispatch(
         myCardApi.endpoints.getMyCardBySlug.initiate(trimmed, {
           forceRefetch,
           subscribe: false,
         })
       )
-      prefetchSectionData(forceRefetch)
+      if (!normalizedProfileId) return
+      void dispatch(
+        profileSettingsApi.endpoints.getProfileSettings.initiate(
+          { profileId: normalizedProfileId, template },
+          { forceRefetch, subscribe: false }
+        )
+      )
     }
 
     const onOnline = () => {
       setConnectionState('syncing')
-      syncLatest(true)
+      syncShell(true)
+      prefetchSectionData()
       window.setTimeout(cacheShell, 800)
       window.setTimeout(() => setConnectionState('online'), 2200)
     }
@@ -435,10 +495,17 @@ export function PublicCardPwaRuntime({
     }
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') syncLatest(true)
+      if (document.visibilityState !== 'visible') return
+      const now = Date.now()
+      if (now - lastVisibilitySyncAt < VISIBILITY_SYNC_MIN_MS) return
+      lastVisibilitySyncAt = now
+      syncShell(false)
     }
 
-    const onSettingsSaved = () => syncLatest(true)
+    const onSettingsSaved = () => {
+      syncShell(true)
+      prefetchSectionData()
+    }
 
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
@@ -446,11 +513,12 @@ export function PublicCardPwaRuntime({
     const unsubscribeSettings = subscribePublicCardSettingsSaved(onSettingsSaved)
 
     void warmLazyProfileChunks().finally(cacheShell)
-    syncLatest(false)
-    const cacheTimer = window.setTimeout(cacheShell, 2500)
-    const postPrefetchCacheTimer = window.setTimeout(cacheShell, 5000)
+    // Soft warm only: RTK cache + section components already fetch when the user opens a tab.
+    prefetchSectionData()
+    const cacheTimer = window.setTimeout(cacheShell, 4000)
 
     return () => {
+      cancelled = true
       media.removeEventListener?.('change', onDisplayMode)
       serviceWorker?.removeEventListener?.('controllerchange', cacheShell)
       window.removeEventListener('online', onOnline)
@@ -458,7 +526,7 @@ export function PublicCardPwaRuntime({
       document.removeEventListener('visibilitychange', onVisible)
       unsubscribeSettings()
       window.clearTimeout(cacheTimer)
-      window.clearTimeout(postPrefetchCacheTimer)
+      for (const timer of prefetchTimers) window.clearTimeout(timer)
     }
   }, [dispatch, navItems, normalizedProfileId, template, trimmed])
 

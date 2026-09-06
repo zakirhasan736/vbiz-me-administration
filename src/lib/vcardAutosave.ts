@@ -238,9 +238,7 @@ export function isEmptyService(item: VCardServiceEntry): boolean {
 }
 
 export function isEmptyPortfolio(item: VCardPortfolioEntry): boolean {
-  return (
-    blank(item.title) && blank(item.description) && blank(item.imageUrl) && blank(item.url) && !item.attachments?.url
-  )
+  return blank(item.title) && blank(item.description) && blank(item.imageUrl) && blank(item.url)
 }
 
 export function isEmptyReview(item: VCardReviewEntry): boolean {

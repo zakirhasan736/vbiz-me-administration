@@ -1,8 +1,14 @@
-import { fetchMyCardBySlug } from '@/lib/api/myCard/fetchMyCardBySlug'
+import { PublicCardApiError } from '@/lib/api/myCard/publicCardApiError'
+import { fetchCardForPublicIcon } from '@/lib/pwa/fetchCardForPublicIcon'
 import { resolvePwaAvatarCandidates, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
 import { createSolidPng } from '@/lib/pwa/solidPng'
+import type { MyCardData } from '@interfaces/api/myCard'
 import { ImageResponse } from 'next/og'
 import { NextResponse } from 'next/server'
+
+const ICON_CACHE_CONTROL = 'public, max-age=86400, stale-while-revalidate=604800'
+/** Short TTL so browsers retry after a public-API rate-limit window. */
+const DEGRADED_ICON_CACHE_CONTROL = 'public, max-age=30, stale-while-revalidate=60'
 
 const ALLOWED_HOST_SUFFIXES = [
   'app.vbizme.com',
@@ -112,27 +118,49 @@ async function firstRenderableAvatar(urls: string[], origin: string): Promise<st
   return null
 }
 
-function pngResponse(buffer: Buffer): NextResponse {
+function pngResponse(buffer: Buffer, cacheControl = ICON_CACHE_CONTROL): NextResponse {
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+      'Cache-Control': cacheControl,
     },
   })
 }
 
-function solidFallback(size: number) {
-  return pngResponse(createSolidPng(size))
+function solidFallback(size: number, degraded = false) {
+  return pngResponse(createSolidPng(size), degraded ? DEGRADED_ICON_CACHE_CONTROL : ICON_CACHE_CONTROL)
+}
+
+async function loadCardForIcon(slug: string): Promise<{ card: MyCardData | null; degraded: boolean }> {
+  try {
+    return { card: await fetchCardForPublicIcon(slug), degraded: false }
+  } catch (error) {
+    if (error instanceof PublicCardApiError) {
+      console.warn('[renderPublicCardPwaIcon] using degraded icon', {
+        slug,
+        kind: error.kind,
+        status: error.status,
+        requestId: error.requestId,
+      })
+      return { card: null, degraded: true }
+    }
+    console.warn('[renderPublicCardPwaIcon] unexpected card fetch failure; using degraded icon', {
+      slug,
+      message: error instanceof Error ? error.message : String(error),
+    })
+    return { card: null, degraded: true }
+  }
 }
 
 export async function renderPublicCardPwaIcon(slug: string, size: 192 | 512, origin: string): Promise<Response> {
-  const card = await fetchMyCardBySlug(slug)
+  const { card, degraded } = await loadCardForIcon(slug)
   const ownerName = card?.profile?.name?.trim() || card?.profile?.company_name?.trim() || ''
   const name = resolvePwaDisplayName(ownerName, slug)
   const candidates = card ? resolvePwaAvatarCandidates(card) : []
   const photoSrc = await firstRenderableAvatar(candidates, origin)
   const initials = initialsFromName(name)
+  const cacheControl = degraded ? DEGRADED_ICON_CACHE_CONTROL : ICON_CACHE_CONTROL
 
   try {
     return new ImageResponse(
@@ -172,11 +200,11 @@ export async function renderPublicCardPwaIcon(slug: string, size: 192 | 512, ori
         height: size,
         headers: {
           'Content-Type': 'image/png',
-          'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+          'Cache-Control': cacheControl,
         },
       }
     )
   } catch {
-    return solidFallback(size)
+    return solidFallback(size, degraded)
   }
 }

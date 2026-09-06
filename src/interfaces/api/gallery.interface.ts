@@ -13,7 +13,6 @@ export type GalleryItem = {
   type?: string
   featured_image: GalleryImageAsset | GalleryImageAsset[] | string | null
   gallery?: GalleryImageAsset[] | null
-  attachments?: Array<{ id?: string | number; doc_name?: string; url?: string }> | null
 }
 
 export type GallerySectionPostType = {

@@ -93,9 +93,9 @@ export default function PublicAnnouncementBanner({ profileId, placement = 'chrom
   const skip = !trimmed || activeSectionId !== 'home'
   const queryOpts = {
     skip,
-    pollingInterval: 60_000,
-    refetchOnMountOrArgChange: true,
-    refetchOnFocus: true,
+    pollingInterval: 120_000,
+    refetchOnMountOrArgChange: 60,
+    refetchOnFocus: false,
     refetchOnReconnect: true,
   }
   const { data, isFetching } = useGetPublicProfileAnnouncementQuery({ profileId: trimmed, visitorId }, queryOpts)
