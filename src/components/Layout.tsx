@@ -11,6 +11,7 @@ import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
 import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
@@ -49,13 +50,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const showMobileMenu = isMobileMenuOpen && (!isTourActive || keepMobileNavOpen)
   const role = useAppSelector((state) => state.user.user?.role)
   const allowedModules = useAppSelector((state) => state.user.user?.allowedModules)
-  const staffCanUseCrm = !CRM_UI_ENABLED || canSessionUseCrm({ role, allowedModules, packageAllowsCrm: false })
-  const { ownerMode, isCorporateBackOffice, isSingleBackOffice } = useOwnerMode()
+  const { allow_crm: packageAllowsCrm, isLoading: entitlementsLoading } = usePackageAccess()
+  const isStaff = isStaffRole(role)
+  const canUseCrm =
+    CRM_UI_ENABLED &&
+    canSessionUseCrm({
+      role,
+      allowedModules,
+      packageAllowsCrm: isStaff ? false : packageAllowsCrm,
+    }) &&
+    (isStaff || !entitlementsLoading)
+  const { ownerMode, isCorporateBackOffice } = useOwnerMode()
   const { isSuspended, isPaused } = useAccountStatus()
   const audience = roleToAudience(role, ownerMode)
   const isAdminRoute = pathname.startsWith('/admin')
   const isEditorRoute = pathname.startsWith('/vcards/create') || pathname.startsWith('/vcards/edit')
-  const isStaff = isStaffRole(role)
   const showOwnerStatusBanner = Boolean(ownerMode) && (isPaused || isSuspended)
 
   useEffect(() => {
@@ -98,7 +107,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     ? [
         { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
         { name: 'VBizMe Team Cards', path: '/admin/mycards', icon: Contact, tourId: 'tour-nav-vcards' },
-        ...(staffCanUseCrm ? [{ name: 'CRM', path: '/crm', icon: Kanban, tourId: 'tour-nav-crm' }] : []),
+        ...(canUseCrm ? [{ name: 'CRM', path: '/crm', icon: Kanban, tourId: 'tour-nav-crm' }] : []),
       ]
     : [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard, tourId: 'tour-nav-dashboard' },
@@ -106,7 +115,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         ...(isCorporateBackOffice
           ? [{ name: 'Team vCards', path: '/teamvcard', icon: Contact, tourId: 'tour-nav-teamvcard' }]
           : [{ name: 'My vCards', path: '/vcards', icon: Contact, tourId: 'tour-nav-vcards' }]),
-        { name: 'CRM', path: '/crm', icon: Kanban, tourId: 'tour-nav-crm' },
+        ...(canUseCrm ? [{ name: 'CRM', path: '/crm', icon: Kanban, tourId: 'tour-nav-crm' }] : []),
       ]
 
   // Admin console provides its own shell; avoid double chrome on /admin/*

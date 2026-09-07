@@ -92,7 +92,21 @@ export {
   useSetAdminUserStatusMutation,
   useUpdateAdminUserMutation,
 } from '@/redux/features/adminUsers/adminUsers.api'
-export { useGetCrmDashboardQuery } from '@/redux/features/crm/crm.api'
+export {
+  useCreateCrmLeadMutation,
+  useCreateCrmWorkNoteMutation,
+  useDeleteCrmLeadMutation,
+  useDeleteCrmWorkNoteMutation,
+  useGetCrmDashboardQuery,
+  useGetCrmLeadsQuery,
+  useGetCrmScheduleCalendarQuery,
+  useGetCrmWorkNotesQuery,
+  useLazySearchCrmSchedulePeopleQuery,
+  usePatchCrmLeadMutation,
+  useReorderCrmWorkNotesMutation,
+  useSearchCrmSchedulePeopleQuery,
+  useUpdateCrmWorkNoteMutation,
+} from '@/redux/features/crm/crm.api'
 export {
   useGetDynamicSectionQuery,
   useLazyGetDynamicSectionQuery,

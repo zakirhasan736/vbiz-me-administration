@@ -153,17 +153,12 @@ export const AboutSection = () => {
   const { lead: titleLead, accent: titleAccent } = splitSectionTitle(sectionTitle)
   const hasIntro = Boolean(item && (hasIntroHtml || item.plainDescription))
   const ownerInitial = personal.fullName?.trim().charAt(0).toUpperCase() || ''
-  const primaryColor = design?.primaryColor?.trim() || '#0f172a'
   const accentColor = design?.accentColor?.trim() || '#eab308'
-  const sectionBackground = `linear-gradient(145deg, color-mix(in srgb, var(--vbiz-primary, ${primaryColor}) 34%, #020617) 0%, color-mix(in srgb, var(--vbiz-accent, ${accentColor}) 16%, #07111f) 48%, #020617 100%)`
 
   return (
     <V3SectionShell>
       <div className="flex flex-col gap-4 md:gap-6">
-        <div
-          className="vbiz-hero-banner dark:border-gold/20 relative flex min-h-52 w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 shadow-xl sm:min-h-56 md:min-h-64 md:rounded-[2.5rem]"
-          style={{ background: sectionBackground }}
-        >
+        <div className="vbiz-hero-banner dark:border-gold/20 relative flex min-h-52 w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 shadow-xl sm:min-h-56 md:min-h-64 md:rounded-[2.5rem]">
           <div
             className="pointer-events-none absolute inset-0 z-0 opacity-40"
             style={{

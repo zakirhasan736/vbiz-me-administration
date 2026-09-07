@@ -123,7 +123,7 @@ export function vCardDataToProfileProps(
 ): VBizProfileAppProps {
   const slug = data.slug.trim()
   const display = getDisplaySettingsFromVCard(data)
-  const homeMedia = getHomeMediaUrls(display, data.personal)
+  const homeMedia = getHomeMediaUrls(display)
   const introUrl = homeMedia.introVideo || undefined
   const coverUrl = homeMedia.bgMedia || undefined
   const avatarOnly = homeMedia.profileMedia || meta?.avatarImageUrl?.trim() || undefined

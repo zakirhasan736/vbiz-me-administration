@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { CRM_UI_ENABLED, canSessionUseCrm } from './crmAccess'
 
 describe('CRM session gate', () => {
-  it('keeps the CRM area disabled until features ship', () => {
-    expect(CRM_UI_ENABLED).toBe(false)
+  it('enables the native CRM workspace', () => {
+    expect(CRM_UI_ENABLED).toBe(true)
   })
+
   it('requires the leads module for staff CRM', () => {
     expect(canSessionUseCrm({ role: 'super-admin', packageAllowsCrm: false })).toBe(true)
     expect(canSessionUseCrm({ role: 'admin', allowedModules: ['leads'], packageAllowsCrm: false })).toBe(true)

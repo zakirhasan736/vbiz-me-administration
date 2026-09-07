@@ -447,11 +447,21 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-text) !important;
   border-radius: 1rem !important;
 }
-.vbiz-profile-root .vbiz-section-banner {
-  background-color: var(--vbiz-page-header-fill, color-mix(in srgb, var(--vbiz-surface) 94%, transparent)) !important;
+/* Pages Header gradient: soft branding tint by default; --vbiz-page-header-fill overrides (never solid / never full blast) */
+.vbiz-profile-root .vbiz-section-banner,
+.vbiz-profile-root .vbiz-hero-banner,
+.vbiz-profile-root .vbiz-page-header-surface {
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 28%, #020617) 0%,
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 12%, #020617) 42%,
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 5%, #0a0f1a) 100%
+  ) !important;
 }
-.vbiz-profile-root .vbiz-hero-banner {
-  background-color: unset !important;
+.vbiz-profile-root .vbiz-page-header-surface {
+  border-color: var(--vbiz-border) !important;
+  border-radius: 1rem !important;
 }
 .vbiz-profile-root .vbiz-hero-card {
   background-color: color-mix(in srgb, var(--vbiz-surface) 96%, white) !important;
@@ -501,6 +511,76 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-card .text-zinc-500 {
   color: var(--vbiz-text-muted) !important;
 }
+
+/*
+ * Pages Header banners always sit on a dark gradient (branding / Pages Header fill),
+ * including in light theme. Force light content colors so titles + descriptions stay
+ * readable and consistent across every section header.
+ */
+.vbiz-profile-root .vbiz-section-banner .vbiz-title,
+.vbiz-profile-root .vbiz-section-banner h2,
+.vbiz-profile-root .vbiz-section-banner h3,
+.vbiz-profile-root .vbiz-page-header-surface .vbiz-title,
+.vbiz-profile-root .vbiz-page-header-surface h2,
+.vbiz-profile-root .vbiz-public-cards-banner h2 {
+  color: var(--vbiz-page-header-fg, #ffffff) !important;
+}
+.vbiz-profile-root .vbiz-section-banner .vbiz-description,
+.vbiz-profile-root .vbiz-page-header-surface .vbiz-description,
+.vbiz-profile-root .vbiz-public-cards-banner .vbiz-description,
+.vbiz-profile-root .vbiz-section-banner p,
+.vbiz-profile-root .vbiz-page-header-surface p,
+.vbiz-profile-root .vbiz-public-cards-banner p,
+.vbiz-profile-root .vbiz-section-banner .text-zinc-600,
+.vbiz-profile-root .vbiz-section-banner .text-zinc-500,
+.vbiz-profile-root .vbiz-section-banner .text-zinc-400,
+.vbiz-profile-root .vbiz-section-banner .text-zinc-300,
+.vbiz-profile-root .vbiz-section-banner .dark\\:text-zinc-400,
+.vbiz-profile-root .vbiz-section-banner .dark\\:text-zinc-300,
+.vbiz-profile-root .vbiz-page-header-surface .text-zinc-600,
+.vbiz-profile-root .vbiz-page-header-surface .text-zinc-500,
+.vbiz-profile-root .vbiz-page-header-surface .text-zinc-400,
+.vbiz-profile-root .vbiz-page-header-surface .dark\\:text-zinc-400,
+.vbiz-profile-root .vbiz-public-cards-banner .text-zinc-600,
+.vbiz-profile-root .vbiz-public-cards-banner .text-zinc-300,
+.vbiz-profile-root .vbiz-public-cards-banner .dark\\:text-zinc-300 {
+  color: color-mix(in srgb, #ffffff 78%, transparent) !important;
+}
+.vbiz-profile-root .vbiz-section-banner .text-zinc-900,
+.vbiz-profile-root .vbiz-section-banner .dark\\:text-zinc-100,
+.vbiz-profile-root .vbiz-page-header-surface .text-zinc-900,
+.vbiz-profile-root .vbiz-page-header-surface .dark\\:text-zinc-100,
+.vbiz-profile-root .vbiz-public-cards-banner .text-zinc-900,
+.vbiz-profile-root .vbiz-public-cards-banner .dark\\:text-white {
+  color: var(--vbiz-page-header-fg, #ffffff) !important;
+}
+.vbiz-profile-root .vbiz-section-banner .vbiz-eyebrow,
+.vbiz-profile-root .vbiz-page-header-surface .vbiz-eyebrow {
+  color: #ffffff !important;
+  background-color: color-mix(in srgb, #ffffff 12%, transparent) !important;
+  border-color: color-mix(in srgb, var(--vbiz-accent) 45%, transparent) !important;
+}
+.vbiz-profile-root .vbiz-section-banner .vbiz-eyebrow svg,
+.vbiz-profile-root .vbiz-page-header-surface .vbiz-eyebrow svg {
+  color: var(--vbiz-accent) !important;
+}
+/* Zinc badge chips inside pages headers → translucent chip on dark gradient */
+.vbiz-profile-root .vbiz-section-banner [class*='tracking-wider'].uppercase,
+.vbiz-profile-root .vbiz-page-header-surface [class*='tracking-wider'].uppercase,
+.vbiz-profile-root .vbiz-public-cards-banner [class*='tracking-wider'].uppercase,
+.vbiz-profile-root .vbiz-public-cards-banner [class*='tracking-widest'].uppercase {
+  color: #ffffff !important;
+  background-color: color-mix(in srgb, #ffffff 12%, transparent) !important;
+  border-color: color-mix(in srgb, var(--vbiz-accent) 45%, transparent) !important;
+}
+/* Soften light-mode wash overlays so the dark gradient stays visible */
+.vbiz-profile-root .vbiz-section-banner .from-zinc-100\\/50,
+.vbiz-profile-root .vbiz-page-header-surface .from-zinc-100\\/40 {
+  --tw-gradient-from: color-mix(in srgb, #ffffff 10%, transparent) !important;
+  --tw-gradient-to: transparent !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
 /* Body titles only — skip light-surface chips/pills (filters, card labels) */
 .vbiz-profile-root .text-zinc-900:not(.vbiz-btn):not(.vbiz-live-agent-fab):not(.vbiz-social):not(.vbiz-filter-chip-active):not(.vbiz-card-pill):not(.vbiz-on-light-surface),
 .vbiz-profile-root .dark\\:text-zinc-100 {

@@ -431,6 +431,7 @@ export function mapApiPostsToSectionPosts(posts: ApiPost[]): VCardSectionPostIte
     }
     return {
       id: p.id,
+      clientKey: p.id,
       title: p.title || '',
       description: p.description || '',
       url: p.url || '',

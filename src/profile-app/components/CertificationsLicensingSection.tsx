@@ -4,11 +4,12 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
+import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
-import { Award } from 'lucide-react'
+import { Award, Maximize2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
 import { useState } from 'react'
@@ -93,6 +94,15 @@ function CertificationCard({
             <span className="truncate">{credentialLabel}</span>
           </div>
         </div>
+
+        <IconHoverTooltip label="See full size" placement="left" className="absolute right-4 bottom-4 z-20">
+          <div
+            aria-label={`View full size: ${item.title}`}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white/80 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80"
+          >
+            <Maximize2 size={16} strokeWidth={2.25} className="text-zinc-600 dark:text-zinc-300" />
+          </div>
+        </IconHoverTooltip>
       </div>
 
       <div className="relative z-20 flex flex-1 flex-col p-6 md:p-8">
@@ -188,8 +198,8 @@ export const CertificationsLicensingSection = () => {
   return (
     <div className="w-full pb-20">
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <div className="group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-8 backdrop-blur-xl md:flex-row md:items-center md:gap-0 lg:col-span-4 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900/50">
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
+        <div className="vbiz-section-banner group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border p-8 backdrop-blur-xl md:flex-row md:items-center lg:col-span-4 lg:p-10">
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
           <div
             className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110"
             style={{ backgroundColor: `${accent}18` }}

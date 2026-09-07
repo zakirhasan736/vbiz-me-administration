@@ -11,7 +11,7 @@ import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
-const SKELETON_CARD_COUNT = 5
+const SKELETON_CARD_COUNT = 4
 
 type HoverDirection = 'top' | 'right' | 'bottom' | 'left'
 
@@ -41,19 +41,14 @@ function getHoverDirection(event: React.MouseEvent<HTMLElement>, element: HTMLEl
   return 'right'
 }
 
-function getGalleryGridClass(idx: number): string {
-  const pos = idx % 5
-  if (pos < 3) return 'col-span-1 md:col-span-2'
-  return 'col-span-1 md:col-span-3'
-}
-
 function ImageWithPlaceholder({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const [isLoaded, setIsLoaded] = useState(false)
+  const safeSrc = src.trim()
 
   return (
     <div className={`relative ${className ?? ''} overflow-hidden`}>
       <AnimatePresence>
-        {!isLoaded && (
+        {(!safeSrc || !isLoaded) && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -65,14 +60,16 @@ function ImageWithPlaceholder({ src, alt, className }: { src: string; alt: strin
           </motion.div>
         )}
       </AnimatePresence>
-      <Image
-        width={800}
-        height={600}
-        src={src}
-        alt={alt}
-        onLoad={() => setIsLoaded(true)}
-        className={`h-full w-full object-cover transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-      />
+      {safeSrc ? (
+        <Image
+          width={800}
+          height={600}
+          src={safeSrc}
+          alt={alt}
+          onLoad={() => setIsLoaded(true)}
+          className={`h-full w-full object-cover transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        />
+      ) : null}
     </div>
   )
 }
@@ -83,7 +80,7 @@ function GalleryCardSkeleton({ delay, className }: { delay: number; className?: 
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, delay }}
-      className={`vbiz-card aspect-4/3 w-full animate-pulse overflow-hidden rounded-sm border ${className ?? ''}`}
+      className={`vbiz-card aspect-4/3 w-full animate-pulse overflow-hidden rounded-xl border ${className ?? ''}`}
     />
   )
 }
@@ -125,7 +122,7 @@ function GalleryCard({
       transition={{ duration: 0.4, delay: idx * 0.04, ease: [0.32, 0.72, 0, 1] }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`vbiz-card group relative aspect-4/3 w-full overflow-hidden rounded-sm border shadow-sm ${getGalleryGridClass(idx)}`}
+      className="vbiz-card group relative aspect-4/3 w-full overflow-hidden rounded-xl border shadow-sm"
     >
       <ImageWithPlaceholder src={item.imageUrl} alt={item.title} className="relative z-0 h-full w-full" />
 
@@ -220,8 +217,10 @@ function GalleryLightbox({ item, onClose }: { item: GalleryListItem; onClose: ()
         className="vbiz-modal-panel relative flex max-h-[calc(100dvh-9rem)] max-w-[min(900px,90vw)] flex-col overflow-hidden rounded-lg shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.imageUrl} alt={item.title} className="max-h-[calc(100dvh-11rem)] w-full object-contain" />
+        {item.imageUrl.trim() ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.imageUrl} alt={item.title} className="max-h-[calc(100dvh-11rem)] w-full object-contain" />
+        ) : null}
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-5 py-4">
           <p className="vbiz-title text-base font-bold text-white">{item.title}</p>
         </div>
@@ -238,7 +237,7 @@ export const ImageGallerySection = () => {
 
   const { data, isLoading, isError } = useGetGalleryQuery(profileId, { skip: !profileId })
 
-  const items = useMemo(() => data?.items ?? [], [data?.items])
+  const items = useMemo(() => (data?.items ?? []).filter((item) => Boolean(item.imageUrl?.trim())), [data?.items])
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Gallery')
 
   const showInitialLoader = isLoading && items.length === 0
@@ -250,9 +249,9 @@ export const ImageGallerySection = () => {
     return (
       <div className="w-full pb-20">
         <SectionHeader sectionTitle={sectionTitle} isLoading />
-        <div className="vbiz-bento-grid relative z-20 grid w-full grid-cols-2 gap-3 pt-2 md:grid-cols-6 md:gap-4">
+        <div className="vbiz-bento-grid relative z-20 grid w-full grid-cols-2 gap-3 pt-2">
           {Array.from({ length: SKELETON_CARD_COUNT }, (_, idx) => (
-            <GalleryCardSkeleton key={idx} delay={idx * 0.04} className={getGalleryGridClass(idx)} />
+            <GalleryCardSkeleton key={idx} delay={idx * 0.04} />
           ))}
         </div>
       </div>
@@ -271,7 +270,7 @@ export const ImageGallerySection = () => {
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="vbiz-card flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed p-10 text-center">
+        <div className="vbiz-card flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed p-10 text-center">
           <div className="vbiz-pill-icon mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border">
             <Camera size={24} />
           </div>
@@ -288,10 +287,7 @@ export const ImageGallerySection = () => {
     <div className="w-full pb-20">
       <SectionHeader sectionTitle={sectionTitle} />
 
-      <motion.div
-        layout
-        className="vbiz-bento-grid relative z-20 grid w-full grid-cols-2 gap-3 pt-2 md:grid-cols-6 md:gap-4"
-      >
+      <motion.div layout className="vbiz-bento-grid relative z-20 grid w-full grid-cols-2 gap-3 pt-2">
         <AnimatePresence mode="popLayout">
           {items.map((item, idx) => (
             <GalleryCard key={`${item.id}-${item.createdAt}`} item={item} idx={idx} onOpen={setPreviewItem} />
@@ -309,8 +305,7 @@ export const ImageGallerySection = () => {
 function SectionHeader({ sectionTitle, isLoading }: { sectionTitle: string; isLoading?: boolean }) {
   return (
     <div className="mb-3 grid grid-cols-1 gap-4 md:mb-4 lg:grid-cols-4">
-      <div className="vbiz-hero-banner bg-ocean-deep dark:border-gold/20 group relative flex flex-col items-start gap-4 overflow-hidden rounded-3xl border border-zinc-800 p-4 shadow-xl backdrop-blur-xl md:p-6 lg:col-span-4 lg:p-10">
-        <div className="from-ocean-deep via-ocean-deep/80 pointer-events-none absolute inset-0 bg-linear-to-br to-violet-950/40" />
+      <div className="vbiz-hero-banner dark:border-gold/20 group relative flex flex-col items-start gap-4 overflow-hidden rounded-3xl border border-zinc-800 p-4 shadow-xl backdrop-blur-xl md:p-6 lg:col-span-4 lg:p-10">
         <div className="bg-gold/10 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
         <div className="pointer-events-none absolute bottom-0 left-0 -mb-24 -ml-24 rounded-full bg-black/5 p-24 blur-3xl transition-transform delay-100 duration-1000 group-hover:scale-110 dark:bg-white/5" />
 

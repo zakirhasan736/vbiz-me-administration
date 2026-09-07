@@ -99,7 +99,7 @@ const defaultValue: ProfileDisplayContextValue = {
   personalValue: () => '',
   socialHref: () => '',
   pageColors: getPageColors(resolveDisplaySettings()),
-  homeMedia: getHomeMediaUrls(resolveDisplaySettings(), FALLBACK_PERSONAL),
+  homeMedia: getHomeMediaUrls(resolveDisplaySettings()),
   embedded: false,
   previewActive: true,
   cardOwnerId: undefined,
@@ -191,7 +191,7 @@ export function ProfileDisplayProvider({
       socialHref: (label: string) => getSocialHrefForDisplayLabel(label, soc, p.website),
       pageColors: getPageColors(settings),
       homeMedia: (() => {
-        const media = getHomeMediaUrls(settings, p)
+        const media = getHomeMediaUrls(settings)
         const avatar = media.profileMedia || avatarMediaUrl?.trim() || ''
         return avatar === media.profileMedia ? media : { ...media, profileMedia: avatar }
       })(),

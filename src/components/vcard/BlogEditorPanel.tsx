@@ -60,13 +60,13 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
   const addPost = () => {
     const next = createDefaultGeneralPost()
     setPosts([...postsRef.current, next])
-    expandNew(next.id)
+    expandNew(next.clientKey || next.id)
   }
 
-  const removePost = (id: string) => {
-    const next = postsRef.current.filter((p) => p.id !== id)
+  const removePost = (key: string) => {
+    const next = postsRef.current.filter((p) => (p.clientKey || p.id) !== key)
     setPosts(next)
-    recoverExpandedAfterRemove(id, next)
+    recoverExpandedAfterRemove(key, next)
   }
 
   const updatePost = (id: string, field: keyof VCardGeneralPost, value: VCardGeneralPost[keyof VCardGeneralPost]) => {
@@ -77,7 +77,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
     const mapped = mapBlogsFromPayload(result.payload)
     if (!mapped.length) return
     setPosts([...mapped, ...postsRef.current.filter((p) => p.title || p.description)])
-    expandNew(mapped[0]!.id)
+    expandNew(mapped[0]!.clientKey || mapped[0]!.id)
   }
 
   return (
@@ -153,14 +153,15 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
         <>
           <ReorderList
             items={posts}
-            getKey={(p) => p.id}
+            getKey={(p) => p.clientKey || p.id}
             onReorder={setPosts}
             renderItem={(item, idx) => {
-              const open = isExpanded(item.id)
+              const key = item.clientKey || item.id
+              const open = isExpanded(key)
               return (
                 <section
-                  id={`entry-${item.id}`}
-                  ref={(el) => setCardRef(item.id, el)}
+                  id={`entry-${key}`}
+                  ref={(el) => setCardRef(key, el)}
                   className={cn(expandableCardClassName(open, accent), 'scroll-mt-24')}
                 >
                   <ExpandableEntryHeader
@@ -168,9 +169,9 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                     title={item.title || 'New Post'}
                     subtitle={item.category || stripHtml(item.description || '').slice(0, 48) || null}
                     isExpanded={open}
-                    onToggle={() => toggleExpanded(item.id)}
+                    onToggle={() => toggleExpanded(key)}
                     showRemove
-                    onRemove={() => removePost(item.id)}
+                    onRemove={() => removePost(key)}
                     accent={accent}
                   />
 

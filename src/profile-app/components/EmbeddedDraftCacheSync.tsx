@@ -441,11 +441,11 @@ export function EmbeddedDraftCacheSync({
       const galleryResult: GalleryQueryResult = {
         sectionTitle: sectionTitleFor('gallery', 'Gallery'),
         items: portfolio
-          .filter((p) => p.active)
+          .filter((p) => p.active && Boolean(p.imageUrl?.trim()))
           .map((p) => ({
             id: p.id,
             title: p.title,
-            imageUrl: p.imageUrl || p.attachments?.url || '',
+            imageUrl: p.imageUrl.trim(),
             createdAt: '',
           })),
       }
@@ -536,8 +536,6 @@ export function EmbeddedDraftCacheSync({
         description: p.description,
         url: p.url || null,
         imageUrl: p.imageUrl || null,
-        attachmentUrl: p.attachments?.url || null,
-        attachmentName: p.attachments?.name || null,
         status: p.active ? 1 : 0,
       })),
       customSections: (customTabs || []).flatMap((tab) =>

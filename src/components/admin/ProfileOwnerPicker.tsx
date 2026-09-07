@@ -156,7 +156,10 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
     source = 'admin',
   } = props
   const multiple = props.multiple === true
-  const selectedOwners = multiple ? props.values : props.value ? [props.value] : []
+  const selectedOwners = useMemo((): ProfileOwnerSelection[] => {
+    if (multiple) return props.values
+    return props.value ? [props.value] : []
+  }, [multiple, props.values, props.value])
   const selectedIds = useMemo(() => new Set(selectedOwners.map((owner) => owner.profileId)), [selectedOwners])
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -170,10 +173,12 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
     return () => window.clearTimeout(t)
   }, [normalizedInput])
 
-  const searchReady = isOwnerSource
-    ? debouncedQ === normalizedInput
-    : normalizedInput.length >= MIN_IDENTITY_SEARCH_CHARACTERS && debouncedQ === normalizedInput
+  // Owner source can browse with an empty query; admin requires a min character count.
+  const hasMinChars = isOwnerSource || normalizedInput.length >= MIN_IDENTITY_SEARCH_CHARACTERS
+  const isDebouncing = hasMinChars && debouncedQ !== normalizedInput
+  const searchReady = hasMinChars && !isDebouncing
   const typedLength = searchQuery.trim().length
+  const charsStillNeeded = Math.max(0, MIN_IDENTITY_SEARCH_CHARACTERS - typedLength)
 
   const adminListQuery = useMemo(
     () => ({
@@ -205,6 +210,8 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
   const isFetching = isOwnerSource ? ownerQuery.isFetching : adminQuery.isFetching
   const isError = isOwnerSource ? ownerQuery.isError : adminQuery.isError
   const items = searchReady ? (isOwnerSource ? (ownerQuery.data?.items ?? []) : (adminQuery.data?.items ?? [])) : []
+  // Keep the list stable while typing: skeleton during debounce + network, not a flash of empty/helper text.
+  const showSkeleton = isDebouncing || (searchReady && (isLoading || isFetching))
 
   const selectOwner = (row: AdminProfileRow | ApiProfile) => {
     const next = isOwnerSource
@@ -281,21 +288,26 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
 
           <div
             className={cn(
-              'max-h-48 overflow-y-auto rounded-xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#0b0f19]',
+              'max-h-48 min-h-46 overflow-y-auto rounded-xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#0b0f19]',
               listClassName
             )}
             role="listbox"
+            aria-busy={showSkeleton}
             aria-label={isOwnerSource ? 'Team cards' : 'vCard owners'}
             aria-multiselectable={multiple || undefined}
           >
-            {!searchReady ? (
+            {!hasMinChars ? (
               <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
                 {typedLength > 0
-                  ? `${MIN_IDENTITY_SEARCH_CHARACTERS - typedLength} more character${MIN_IDENTITY_SEARCH_CHARACTERS - typedLength === 1 ? '' : 's'} needed.`
+                  ? `${charsStillNeeded} more character${charsStillNeeded === 1 ? '' : 's'} needed.`
                   : `Type ${MIN_IDENTITY_SEARCH_CHARACTERS} or more characters to search vCard owners.`}
               </p>
-            ) : isLoading || isFetching ? (
-              Array.from({ length: 4 }).map((_, index) => <OwnerSearchRowSkeleton key={index} index={index} />)
+            ) : showSkeleton ? (
+              <div className="animate-in fade-in duration-150" aria-hidden>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <OwnerSearchRowSkeleton key={index} index={index} />
+                ))}
+              </div>
             ) : isError ? (
               <p className="px-3 py-4 text-center text-xs font-semibold text-rose-500">
                 Could not load {isOwnerSource ? 'team cards' : 'vCard owners'}.
@@ -305,39 +317,41 @@ export default function ProfileOwnerPicker(props: ProfileOwnerPickerProps) {
                 No matching {isOwnerSource ? 'cards' : 'vCard owners'}.
               </p>
             ) : (
-              items.map((row) => {
-                const hostName = ownerLabel(row)
-                const alreadySelected = selectedIds.has(row.id)
-                return (
-                  <button
-                    key={row.id}
-                    type="button"
-                    role="option"
-                    aria-selected={alreadySelected}
-                    disabled={alreadySelected}
-                    onClick={() => selectOwner(row)}
-                    className={cn(
-                      'flex w-full items-start gap-2 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 dark:border-white/5',
-                      alreadySelected
-                        ? 'cursor-default bg-indigo-500/5 opacity-60'
-                        : 'hover:bg-slate-50 dark:hover:bg-white/5'
-                    )}
-                  >
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-[10px] font-black text-indigo-600 uppercase">
-                      {hostName.slice(0, 2)}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-extrabold text-slate-900 dark:text-white">
-                        {hostName}
-                        {alreadySelected ? ' · added' : ''}
+              <div className="animate-in fade-in duration-150">
+                {items.map((row) => {
+                  const hostName = ownerLabel(row)
+                  const alreadySelected = selectedIds.has(row.id)
+                  return (
+                    <button
+                      key={row.id}
+                      type="button"
+                      role="option"
+                      aria-selected={alreadySelected}
+                      disabled={alreadySelected}
+                      onClick={() => selectOwner(row)}
+                      className={cn(
+                        'flex w-full items-start gap-2 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 dark:border-white/5',
+                        alreadySelected
+                          ? 'cursor-default bg-indigo-500/5 opacity-60'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                      )}
+                    >
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-[10px] font-black text-indigo-600 uppercase">
+                        {hostName.slice(0, 2)}
                       </span>
-                      <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
-                        {ownerSubline(row)}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-extrabold text-slate-900 dark:text-white">
+                          {hostName}
+                          {alreadySelected ? ' · added' : ''}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
+                          {ownerSubline(row)}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                )
-              })
+                    </button>
+                  )
+                })}
+              </div>
             )}
           </div>
         </>

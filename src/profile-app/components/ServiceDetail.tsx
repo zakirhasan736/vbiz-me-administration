@@ -3,7 +3,6 @@
 import type { ServiceListItem } from '@/interfaces/api/services.interface'
 import { ArrowLeft, ExternalLink, Layers } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
 
 type ServiceDetailProps = {
   service: ServiceListItem
@@ -33,8 +32,9 @@ export function ServiceDetail({ service, sectionTitle, onBack }: ServiceDetailPr
 
       <article className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
         {heroImage ? (
-          <div className="relative aspect-21/9 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-            <Image src={heroImage} alt={service.title} fill className="object-cover" priority sizes="100vw" />
+          <div className="relative w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={heroImage} alt={service.title} className="mx-auto max-h-72 w-full object-contain" />
             <div className="absolute inset-0 bg-linear-to-t from-zinc-950/70 via-zinc-950/20 to-transparent" />
             <div className="absolute right-0 bottom-0 left-0 p-8 lg:p-10">
               <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/30 px-3 py-1.5 text-[10px] font-bold tracking-wider text-white uppercase backdrop-blur-sm">
@@ -59,11 +59,22 @@ export function ServiceDetail({ service, sectionTitle, onBack }: ServiceDetailPr
         <div className="space-y-8 px-5 py-6 lg:p-10">
           {hasHtml ? (
             <div
-              className="prose prose-zinc dark:prose-invert max-w-3xl text-base leading-relaxed font-medium lg:text-lg [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_p]:mb-4"
+              className={
+                'vcard-rich-html vbiz-description prose max-w-3xl text-base leading-relaxed font-medium lg:text-lg ' +
+                '[&_a]:text-(--vbiz-accent,#eab308) [&_a]:underline-offset-2 hover:[&_a]:underline ' +
+                '[&_h1]:mt-6 [&_h1]:mb-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:text-(--vbiz-text) ' +
+                '[&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-(--vbiz-text) ' +
+                '[&_h3]:mt-6 [&_h3]:mb-3 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-(--vbiz-text) ' +
+                '[&_p]:mb-4 [&_p]:leading-relaxed ' +
+                '[&_strong]:font-bold [&_strong]:text-(--vbiz-text) ' +
+                '[&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-5 ' +
+                '[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-5 ' +
+                '[&_li]:mb-2'
+              }
               dangerouslySetInnerHTML={{ __html: service.htmlDescription }}
             />
           ) : service.description ? (
-            <p className="max-w-3xl text-base leading-relaxed font-medium whitespace-pre-wrap text-zinc-700 lg:text-lg dark:text-zinc-300">
+            <p className="vbiz-description max-w-3xl text-base leading-relaxed font-medium whitespace-pre-wrap lg:text-lg">
               {service.description}
             </p>
           ) : null}

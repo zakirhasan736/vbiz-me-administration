@@ -63,14 +63,12 @@ function getCtaButtonClasses(template: ProfileTemplateId, isDesktop: boolean): s
 function HomeCtaButton({
   button,
   template,
-  accentColor,
   isDesktop,
   onClick,
   chromeStyle,
 }: {
   button: ResolvedHomeCtaButton
   template: ProfileTemplateId
-  accentColor: string
   isDesktop: boolean
   onClick: () => void
   chromeStyle?: CSSProperties
@@ -83,7 +81,7 @@ function HomeCtaButton({
       data-role={button.role}
       onClick={onClick}
       className={getCtaButtonClasses(template, isDesktop)}
-      style={{ ...buildHomeCtaInlineStyle(button, accentColor), ...chromeStyle }}
+      style={{ ...buildHomeCtaInlineStyle(button), ...chromeStyle }}
     >
       <CtaButtonContent button={button} iconSize={iconSize} />
     </button>
@@ -93,13 +91,11 @@ function HomeCtaButton({
 function CtaButtonGrid({
   layout,
   template,
-  accentColor,
   isDesktop,
   onClick,
 }: {
   layout: HomeCtaLayout
   template: ProfileTemplateId
-  accentColor: string
   isDesktop: boolean
   onClick: (button: ResolvedHomeCtaButton) => void
 }) {
@@ -119,7 +115,6 @@ function CtaButtonGrid({
                 key={button.key}
                 button={button}
                 template={template}
-                accentColor={accentColor}
                 isDesktop={isDesktop}
                 chromeStyle={chromeFor(button)}
                 onClick={() => onClick(button)}
@@ -132,7 +127,6 @@ function CtaButtonGrid({
               key={button.key}
               button={button}
               template={template}
-              accentColor={accentColor}
               isDesktop={isDesktop}
               chromeStyle={chromeFor(button)}
               onClick={() => onClick(button)}
@@ -193,24 +187,12 @@ export function ProfileActionButtons({
     <>
       {showMobile ? (
         <div className={visibleOn === 'both' ? `md:hidden ${mobileWrapperClass}` : mobileWrapperClass}>
-          <CtaButtonGrid
-            layout={mobileLayout}
-            template={template}
-            accentColor={accentColor}
-            isDesktop={false}
-            onClick={click}
-          />
+          <CtaButtonGrid layout={mobileLayout} template={template} isDesktop={false} onClick={click} />
         </div>
       ) : null}
       {showDesktop ? (
         <div className={desktopWrapperClass || undefined}>
-          <CtaButtonGrid
-            layout={desktopLayout}
-            template={template}
-            accentColor={accentColor}
-            isDesktop={!embedded}
-            onClick={click}
-          />
+          <CtaButtonGrid layout={desktopLayout} template={template} isDesktop={!embedded} onClick={click} />
         </div>
       ) : null}
     </>

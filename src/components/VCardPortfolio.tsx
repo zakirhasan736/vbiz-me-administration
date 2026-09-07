@@ -208,79 +208,49 @@ export function TabPortfolio() {
                         </div>
                       </div>
 
-                      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <div className="space-y-3">
-                          <MediaFileUploader
-                            label="Featured media"
-                            accent="teal"
-                            profileId={cardId}
-                            attachmentType="Portfolio Gallery"
-                            value={portfolio.imageUrl}
-                            fileName={portfolio.imageName}
-                            accept={
-                              portfolio.type === 'Video'
-                                ? 'video/*,image/*'
-                                : portfolio.type === 'Audio'
-                                  ? 'audio/*,image/*'
-                                  : portfolio.type === 'Document'
-                                    ? 'application/pdf,.pdf,.doc,.docx,image/*'
-                                    : 'image/*,video/*,audio/*,application/pdf'
+                      <div className="mb-8 space-y-3">
+                        <MediaFileUploader
+                          label="Featured media"
+                          accent="teal"
+                          profileId={cardId}
+                          attachmentType="Portfolio Gallery"
+                          value={portfolio.imageUrl}
+                          fileName={portfolio.imageName}
+                          accept={
+                            portfolio.type === 'Video'
+                              ? 'video/*,image/*'
+                              : portfolio.type === 'Audio'
+                                ? 'audio/*,image/*'
+                                : portfolio.type === 'Document'
+                                  ? 'application/pdf,.pdf,.doc,.docx,image/*'
+                                  : 'image/*,video/*,audio/*,application/pdf'
+                          }
+                          hint="Upload image, video, audio, or a document - preview appears below"
+                          onChange={(next) => {
+                            if (!next) {
+                              patchPortfolio(portfolio.id, {
+                                imageUrl: '',
+                                imageName: '',
+                              })
+                              return
                             }
-                            hint="Upload image, video, audio, or a document - preview appears below"
-                            onChange={(next) => {
-                              if (!next) {
-                                patchPortfolio(portfolio.id, { imageUrl: '', imageName: '' })
-                                return
-                              }
-                              patchPortfolio(portfolio.id, {
-                                imageUrl: next.url,
-                                imageName: next.fileName,
-                              })
-                            }}
-                          />
-                          <MediaSourceActions
-                            mode="both"
-                            compact
-                            profileId={cardId}
-                            onSelect={(asset) =>
-                              patchPortfolio(portfolio.id, {
-                                imageUrl: asset.url,
-                                imageName: asset.name,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-3">
-                          <MediaFileUploader
-                            label="Attachments (Images/Video)"
-                            accent="teal"
-                            profileId={cardId}
-                            attachmentType="Portfolio Attachment"
-                            value={portfolio.attachments?.url || ''}
-                            fileName={portfolio.attachments?.name || ''}
-                            accept="image/*,video/*"
-                            hint="Optional secondary image or video attachment"
-                            onChange={(next) => {
-                              if (!next) {
-                                patchPortfolio(portfolio.id, { attachments: null })
-                                return
-                              }
-                              patchPortfolio(portfolio.id, {
-                                attachments: { url: next.url, name: next.fileName },
-                              })
-                            }}
-                          />
-                          <MediaSourceActions
-                            mode="both"
-                            compact
-                            profileId={cardId}
-                            onSelect={(asset) =>
-                              patchPortfolio(portfolio.id, {
-                                attachments: { url: asset.url, name: asset.name },
-                              })
-                            }
-                          />
-                        </div>
+                            patchPortfolio(portfolio.id, {
+                              imageUrl: next.url,
+                              imageName: next.fileName,
+                            })
+                          }}
+                        />
+                        <MediaSourceActions
+                          mode="both"
+                          compact
+                          profileId={cardId}
+                          onSelect={(asset) =>
+                            patchPortfolio(portfolio.id, {
+                              imageUrl: asset.url,
+                              imageName: asset.name,
+                            })
+                          }
+                        />
                       </div>
 
                       <div className="group mb-8 flex flex-col space-y-1.5">

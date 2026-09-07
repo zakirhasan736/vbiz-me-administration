@@ -72,11 +72,10 @@ export function MyInfoSection() {
     <V3SectionShell>
       <div className="flex flex-col gap-5 md:gap-6">
         <div
-          className={`vbiz-hero-banner bg-ocean-deep dark:border-gold/20 relative overflow-hidden rounded-4xl border border-zinc-800 shadow-xl ${
+          className={`vbiz-hero-banner dark:border-gold/20 relative overflow-hidden rounded-4xl border border-zinc-800 shadow-xl ${
             embedded ? 'px-4 py-8' : 'px-6 py-10 sm:px-8 sm:py-12 md:rounded-[2.5rem] md:px-10 md:py-14'
           }`}
         >
-          <div className="from-ocean-deep via-ocean-deep/80 pointer-events-none absolute inset-0 bg-linear-to-br to-violet-950/40" />
           <div className="bg-gold/10 pointer-events-none absolute top-0 right-0 -mt-24 -mr-24 rounded-full p-32 blur-3xl" />
           <h2 className="relative z-10 max-w-xl font-serif text-3xl leading-tight font-medium tracking-tight text-white italic sm:text-4xl md:text-5xl">
             {accentWord ? (

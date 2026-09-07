@@ -111,6 +111,10 @@ type SectionPostsEditorPanelProps = {
   cardId?: string | null
 }
 
+function postEntryKey(post: VCardSectionPostItem): string {
+  return post.clientKey || post.id
+}
+
 export function SectionPostsEditorPanel({
   schema,
   posts: rawPosts,
@@ -144,13 +148,13 @@ export function SectionPostsEditorPanel({
   const addPost = () => {
     const next = createDefaultSectionPostItem()
     setPosts([...posts, next])
-    expandNew(next.id)
+    expandNew(postEntryKey(next))
   }
 
-  const removePost = (id: string) => {
-    const next = posts.filter((p) => p.id !== id)
+  const removePost = (key: string) => {
+    const next = posts.filter((p) => postEntryKey(p) !== key)
     setPosts(next)
-    recoverExpandedAfterRemove(id, next)
+    recoverExpandedAfterRemove(key, next)
   }
 
   const updatePost = (
@@ -213,20 +217,21 @@ export function SectionPostsEditorPanel({
           <div>
             <ReorderList
               items={posts}
-              getKey={(post) => post.id}
+              getKey={(post) => postEntryKey(post)}
               onReorder={setPosts}
               renderItem={(post, index) => {
-                const open = isExpanded(post.id)
+                const key = postEntryKey(post)
+                const open = isExpanded(key)
                 return (
-                  <section ref={(el) => setCardRef(post.id, el)} className={expandableCardClassName(open, cardAccent)}>
+                  <section ref={(el) => setCardRef(key, el)} className={expandableCardClassName(open, cardAccent)}>
                     <ExpandableEntryHeader
                       indexLabel={index + 1}
                       title={post.title || 'New Item'}
                       subtitle={post.description || post.url || null}
                       isExpanded={open}
-                      onToggle={() => toggleExpanded(post.id)}
+                      onToggle={() => toggleExpanded(key)}
                       showRemove
-                      onRemove={() => removePost(post.id)}
+                      onRemove={() => removePost(key)}
                       accent={cardAccent}
                     />
 

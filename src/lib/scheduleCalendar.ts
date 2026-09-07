@@ -59,7 +59,7 @@ export function pinTone(status: MeetingStatus) {
   if (status === 'Cancelled') {
     return 'border-slate-200 bg-slate-100 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'
   }
-  return 'border-teal-200/80 bg-teal-50 text-teal-900 dark:border-teal-500/25 dark:bg-teal-500/10 dark:text-teal-200'
+  return 'border-sky-200/80 bg-sky-50 text-sky-900 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-200'
 }
 
 export function meetingsByDayMap(meetings: Meeting[]): Map<string, Meeting[]> {

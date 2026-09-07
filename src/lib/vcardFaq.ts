@@ -1,8 +1,10 @@
 import type { VCardFaqEntry } from '@/types/vcard'
 
 export function createDefaultFaqEntry(): VCardFaqEntry {
+  const id = `faq_${Date.now()}`
   return {
-    id: `faq_${Date.now()}`,
+    id,
+    clientKey: id,
     question: '',
     answer: '',
     featuredImage: '',
@@ -13,14 +15,18 @@ export function createDefaultFaqEntry(): VCardFaqEntry {
 
 export function normalizeFaqList(raw?: VCardFaqEntry[] | null): VCardFaqEntry[] {
   if (!raw?.length) return []
-  return raw.map((entry) => ({
-    id: entry.id || `faq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    question: entry.question ?? '',
-    answer: entry.answer ?? '',
-    featuredImage: entry.featuredImage ?? '',
-    url: entry.url ?? '',
-    active: entry.active !== false,
-  }))
+  return raw.map((entry) => {
+    const id = entry.id || `faq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    return {
+      id,
+      clientKey: entry.clientKey || id,
+      question: entry.question ?? '',
+      answer: entry.answer ?? '',
+      featuredImage: entry.featuredImage ?? '',
+      url: entry.url ?? '',
+      active: entry.active !== false,
+    }
+  })
 }
 
 /** Active FAQs with a question and answer — shown on the public profile FAQ tab. */

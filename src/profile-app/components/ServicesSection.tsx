@@ -19,7 +19,7 @@ function ServiceCardSkeleton({ delay }: { delay: number }) {
       transition={{ duration: 0.4, delay }}
       className="flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50"
     >
-      <div className="mb-4 h-32 w-full animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+      <div className="mb-4 aspect-square w-full animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
       <div className="mb-2 h-6 w-3/4 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
       <div className="h-16 w-full animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
     </motion.div>
@@ -105,12 +105,12 @@ export const ServicesSection = () => {
               className={`group relative flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 md:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${isClickable ? 'cursor-pointer' : ''}`}
             >
               {imageUrl ? (
-                <div className="mb-4 h-32 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80">
+                <div className="mb-4 aspect-square w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imageUrl} alt={service.title} className="h-full w-full object-cover" />
+                  <img src={imageUrl} alt={service.title} className="h-full w-full object-contain" />
                 </div>
               ) : (
-                <div className="mb-4 flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
+                <div className="mb-4 flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-200 bg-white text-[#eab308] shadow-sm transition-transform duration-300 group-hover:scale-110 dark:border-zinc-700 dark:bg-zinc-800/80">
                     <Wrench size={22} />
                   </div>

@@ -173,10 +173,7 @@ export function handleHomeCtaClick(
  * Optional per-button overrides only. Theme tokens (primary/secondary/accent)
  * drive fill/foreground/border via `.vbiz-btn[data-role]`.
  */
-export function buildHomeCtaInlineStyle(
-  button: ResolvedHomeCtaButton,
-  _accentColor?: string
-): CSSProperties | undefined {
+export function buildHomeCtaInlineStyle(button: ResolvedHomeCtaButton): CSSProperties | undefined {
   const style: CSSPropertiesWithVariables = {}
   if (button.backgroundColor) {
     style['--vbiz-btn-fill'] = button.backgroundColor
@@ -196,7 +193,7 @@ export function buildHomeCtaInlineStyle(
 export const HOME_CTA_SETTING_KEYS: Record<HomeCtaKey, string[]> = {
   my_info: ['My Info Btn'],
   save_my_info: ['Save Contact'],
-  my_vcard: ['My vCard Btn', 'Your QR Code'],
+  my_vcard: ['My vCard Btn'],
   google_wallet: [],
   get_vcard_now: ['Get your VCard Now'],
   one_on_one: ['Request 1-on-1'],

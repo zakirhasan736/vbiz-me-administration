@@ -105,8 +105,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
     return <V3EmptyState icon={HelpCircle} title={sectionTitle} message="No FAQ items have been published yet." />
   }
 
-  const cardClass =
-    'rounded-4xl border border-zinc-200 dark:border-zinc-800/80 bg-white/50 dark:bg-[#031327]/80 backdrop-blur-xl'
+  const cardClass = 'vbiz-section-banner rounded-4xl border backdrop-blur-xl'
 
   return (
     <V3SectionShell className="overflow-hidden select-none">

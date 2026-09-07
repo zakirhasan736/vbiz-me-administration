@@ -27,7 +27,7 @@ import {
   isEmptyGeneralPost,
   isEmptySectionPost,
   isSaveWorthyChange,
-  mergeLocalEmptyDrafts,
+  mergeSyncedListPreservingClientKeys,
   persistableEducation,
   persistableExperience,
   persistableFaqs,
@@ -767,8 +767,6 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
                 description: p.description,
                 imageUrl: p.imageUrl,
                 featuredImage: p.imageUrl,
-                attachmentUrl: p.attachments?.url || null,
-                attachmentName: p.attachments?.name || null,
                 url: p.url,
                 status: p.active ? 1 : 0,
               })),
@@ -875,14 +873,18 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const wrotePosts = Boolean(synced.blog || synced.faqs || Object.keys(synced.sectionPosts || {}).length)
         if (wrotePosts) {
           const generalPosts = synced.blog
-            ? mergeLocalEmptyDrafts(data.generalPosts, mapApiPostsToGeneralPosts(synced.blog), isEmptyGeneralPost)
+            ? mergeSyncedListPreservingClientKeys(
+                data.generalPosts,
+                mapApiPostsToGeneralPosts(synced.blog),
+                isEmptyGeneralPost
+              )
             : data.generalPosts || []
           const faqs = synced.faqs
-            ? mergeLocalEmptyDrafts(data.faqs, mapApiPostsToFaqs(synced.faqs), isEmptyFaq)
+            ? mergeSyncedListPreservingClientKeys(data.faqs, mapApiPostsToFaqs(synced.faqs), isEmptyFaq)
             : data.faqs || []
           const sectionPosts: Record<string, VCardSectionPostItem[]> = { ...(data.sectionPosts || {}) }
           for (const [postTypeName, apiPosts] of Object.entries(synced.sectionPosts || {})) {
-            sectionPosts[postTypeName] = mergeLocalEmptyDrafts(
+            sectionPosts[postTypeName] = mergeSyncedListPreservingClientKeys(
               data.sectionPosts?.[postTypeName],
               mapApiPostsToSectionPosts(apiPosts),
               isEmptySectionPost

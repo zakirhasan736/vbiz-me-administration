@@ -71,7 +71,7 @@ export const ExplainerSection = () => {
   return (
     <div className="w-full pb-20">
       <div className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-4 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
         <div className="bg-yellow-primary/10 dark:bg-yellow-primary/5 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
 
         {hasVideo ? (

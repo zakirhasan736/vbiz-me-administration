@@ -31,9 +31,9 @@ export function CardNoticeAfterIntro({ embedded, profileSlug, ownerName }: Props
     { profileId: profileId || '', visitorId, origin: 'owner' },
     {
       skip: !profileId || !slug || embedded || !intro?.introAllowed,
-      pollingInterval: 60_000,
-      refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
+      pollingInterval: 120_000,
+      refetchOnMountOrArgChange: 60,
+      refetchOnFocus: false,
       refetchOnReconnect: true,
     }
   )

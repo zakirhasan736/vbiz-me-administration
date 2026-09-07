@@ -88,9 +88,6 @@ export const GENERAL_SETTINGS_FIELDS = [
   'My vCard Btn',
   'Share Btn',
   'Get your VCard Now',
-  'Your QR Code',
-  'Home Page BG Color',
-  'Home Page Banner Color',
 ] as const
 
 export const HOME_PAGE_FIELDS = [
@@ -100,12 +97,19 @@ export const HOME_PAGE_FIELDS = [
   'YouTube Background Music Link',
   'Background Video/Image',
   'Profile Image/Video',
-  'Save Contact',
-  'Skills',
   'vCard Header Color',
-  'Info Box Style',
   'Repeat Background Music',
 ] as const
+
+/** Home fields that store a media/URL `customValue` (not colors or toggle-only). */
+export const HOME_PAGE_URL_FIELDS = new Set<string>([
+  'Intro vCard Video',
+  'Intro YouTube vCard Video Link',
+  'Background Music',
+  'YouTube Background Music Link',
+  'Background Video/Image',
+  'Profile Image/Video',
+])
 
 export const ALL_DISPLAY_FIELD_KEYS = [
   ...MY_INFO_FIELDS,
@@ -277,17 +281,22 @@ export function getPersonalValueForField(personal: VCardPersonal, fieldKey: stri
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function getHomeMediaUrls(settings: VCardDisplaySettings, _personal: VCardPersonal) {
-  const introFile = getFieldConfig(settings, 'Intro vCard Video').customValue?.trim() || ''
-  const introYoutube = getFieldConfig(settings, 'Intro YouTube vCard Video Link').customValue?.trim() || ''
-
+export function getHomeMediaUrls(settings: VCardDisplaySettings) {
   const isYoutube = (url: string) => /youtu\.?be/i.test(url)
+
+  const visibleValue = (key: string) => {
+    if (!isFieldVisible(settings, key)) return ''
+    return getFieldConfig(settings, key).customValue?.trim() || ''
+  }
+
+  const introFile = visibleValue('Intro vCard Video')
+  const introYoutube = visibleValue('Intro YouTube vCard Video Link')
 
   // Intro preloader only — 2D explainer lives in its own section tab.
   const introVideo = introFile && !isYoutube(introFile) ? introFile : ''
 
-  const bgMedia = getFieldConfig(settings, 'Background Video/Image').customValue?.trim() || ''
-  const profileMedia = getFieldConfig(settings, 'Profile Image/Video').customValue?.trim() || ''
+  const bgMedia = visibleValue('Background Video/Image')
+  const profileMedia = visibleValue('Profile Image/Video')
   return { introVideo, introYoutube, bgMedia, profileMedia }
 }
 
@@ -328,18 +337,16 @@ export function syncEditorNavOrderAfterNavVisibilityChange(
   return applyEnabledNavOrderToDisplaySettings(settings, nextOrder)
 }
 
-/** Page-level colors from Card Settings → General / Home / Nav Bar. */
+/** Page-level colors from Card Settings → Home / Nav Bar. Home BG/banner retired in favor of Wallpaper. */
 export function getPageColors(settings: VCardDisplaySettings) {
-  const pageBgField = getFieldConfig(settings, 'Home Page BG Color')
-  const pageBannerField = getFieldConfig(settings, 'Home Page Banner Color')
-  const pageBg = pageBgField.visible === false ? undefined : pageBgField.backgroundColor || undefined
-  const pageBanner = pageBannerField.visible === false ? undefined : pageBannerField.backgroundColor || undefined
   const headerField = getFieldConfig(settings, 'vCard Header Color')
-  const headerColor = headerField.textColor || headerField.backgroundColor || undefined
+  const headerColor = isFieldVisible(settings, 'vCard Header Color')
+    ? headerField.textColor || headerField.backgroundColor || undefined
+    : undefined
   const navBg = getFieldConfig(settings, 'Nav Background Color').backgroundColor || undefined
   return {
-    pageBg,
-    pageBanner,
+    pageBg: undefined,
+    pageBanner: undefined,
     headerColor,
     navBg,
   }
@@ -435,23 +442,13 @@ export function displayLiveAgentChromeStyle(config?: DisplayFieldConfig): CSSPro
 
 /**
  * Card Settings → General. Sets scoped CSS variables on the profile root.
- * Home/banner/header colors apply only to those areas; `--vbiz-bg` / `--vbiz-surface`
- * still swap with dark/light.
+ * Pages Header colors apply only to section headers; `--vbiz-bg` / `--vbiz-surface`
+ * still swap with dark/light. Home BG/banner come from Template → Wallpaper.
  */
 export function displayGeneralRootStyle(settings: VCardDisplaySettings): CSSProperties | undefined {
   const style: CSSPropertiesWithVariables = {}
-  const pageBg = getFieldConfig(settings, 'Home Page BG Color')
-  const pageBanner = getFieldConfig(settings, 'Home Page Banner Color')
   const pagesHeader = getFieldConfig(settings, 'Pages Header')
 
-  if (pageBg.visible !== false) {
-    const fill = firstColor(pageBg.backgroundColor)
-    if (fill) style['--vbiz-home-bg'] = fill
-  }
-  if (pageBanner.visible !== false) {
-    const fill = firstColor(pageBanner.backgroundColor)
-    if (fill) style['--vbiz-home-banner'] = fill
-  }
   if (pagesHeader.visible !== false) {
     const fg = firstColor(pagesHeader.textColor, pagesHeader.iconColor)
     const fill = firstColor(pagesHeader.backgroundColor)

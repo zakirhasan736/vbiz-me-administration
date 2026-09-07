@@ -37,7 +37,7 @@ describe('display chrome styles', () => {
     expect(merged.backgroundColor).toBe('#222222')
   })
 
-  it('scopes General Settings colors to home/banner/header vars without replacing --vbiz-bg', () => {
+  it('scopes General Settings Pages Header vars without replacing --vbiz-bg or applying retired home colors', () => {
     const settings: VCardDisplaySettings = {
       globalEnabled: true,
       fields: {
@@ -49,19 +49,19 @@ describe('display chrome styles', () => {
 
     const style = displayGeneralRootStyle(settings) as Record<string, string>
 
-    expect(style['--vbiz-home-bg']).toBe('#112233')
-    expect(style['--vbiz-home-banner']).toBe('#445566')
+    expect(style['--vbiz-home-bg']).toBeUndefined()
+    expect(style['--vbiz-home-banner']).toBeUndefined()
     expect(style['--vbiz-page-header-fg']).toBe('#778899')
     expect(style['--vbiz-page-header-fill']).toBe('#aabbcc')
     expect(style.backgroundColor).toBeUndefined()
     expect(style['--vbiz-bg']).toBeUndefined()
   })
 
-  it('ignores hidden General Settings colors so dark/light tokens remain', () => {
+  it('ignores hidden Pages Header so dark/light tokens remain', () => {
     const settings: VCardDisplaySettings = {
       globalEnabled: true,
       fields: {
-        'Home Page BG Color': { visible: false, backgroundColor: '#112233' },
+        'Home Page BG Color': { visible: true, backgroundColor: '#112233' },
         'Pages Header': { visible: false, textColor: '#778899' },
       },
     }

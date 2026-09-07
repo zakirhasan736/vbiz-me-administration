@@ -38,11 +38,10 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.6, delay: idx * 0.1, ease: 'easeOut' }}
-      className="group relative flex min-h-[240px] flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white p-5 md:p-6 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900"
+      className="vbiz-page-header-surface group relative flex min-h-60 flex-col justify-between overflow-hidden rounded-3xl border p-5 md:p-6 lg:p-8"
     >
-      <div className="absolute inset-0 h-full w-full bg-zinc-100 dark:bg-zinc-950">
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-zinc-100 via-zinc-100/90 to-zinc-100/60 dark:from-zinc-950 dark:via-zinc-900/90 dark:to-zinc-900/60" />
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-100/80 to-transparent dark:from-zinc-950/80" />
+      <div className="pointer-events-none absolute inset-0">
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
       </div>
 
       <div
