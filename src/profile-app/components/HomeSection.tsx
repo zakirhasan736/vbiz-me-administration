@@ -38,6 +38,7 @@ import {
 import { filterSocialItemsWithLinks, onTrackedSocialClick, resolveSocialLinkHref } from '../lib/profileSocialLinks'
 import { resolveProfileAvatarSrc } from '../profilePublicProps'
 import { CustomVideoPlayer } from './CustomVideoPlayer'
+import { IconHoverTooltip } from './IconHoverTooltip'
 import { LeaveMessageModal } from './LeaveMessageModal'
 import { ProfileActionButtons } from './ProfileActionButtons'
 import { SectionContainer } from './SectionContainer'
@@ -55,6 +56,20 @@ const V1_SOCIAL_GRID = [
   { label: 'Truth', icon: Globe },
   { label: 'Website', icon: Globe },
 ] as const
+
+const V1_SOCIAL_TOOLTIP: Record<string, string> = {
+  Twitter: 'X',
+  FaceBook: 'Facebook',
+  Instagram: 'Instagram',
+  LinkedIn: 'LinkedIn',
+  Whatsapp: 'WhatsApp',
+  TikTok: 'TikTok',
+  Youtube: 'YouTube',
+  Pinterest: 'Pinterest',
+  Rumble: 'Rumble',
+  Truth: 'Truth Social',
+  Website: 'Website',
+}
 
 const TypewriterText = ({ text, delay = 0, speed = 100 }: { text: string; delay?: number; speed?: number }) => {
   const [displayedText, setDisplayedText] = useState('')
@@ -374,46 +389,45 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                     action: () => homeHeroProps.toggleTheme(),
                   },
                 ].map((action, idx) => (
-                  <motion.button
-                    key={`${action.label}-${idx}`}
-                    type="button"
-                    onClick={action.action}
-                    whileHover={{
-                      scale: 1.15,
-                      rotate: idx % 2 === 0 ? 10 : -10,
-                      backgroundColor: accent,
-                      color: 'rgba(0, 0, 0, 1)',
-                      boxShadow: `0 0 20px color-mix(in srgb, ${accent} 40%, transparent)`,
-                    }}
-                    whileTap={{ scale: 0.9 }}
-                    className="vbiz-icon-btn group/btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-12 w-12 items-center justify-center overflow-visible rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl transition-all duration-500 dark:bg-black/40 dark:text-gray-300"
-                    style={
-                      action.label === 'Share'
-                        ? shareChrome
-                        : action.label === 'Views'
-                          ? viewsChrome
-                          : action.label === 'Website'
-                            ? websiteChrome
-                            : action.label === 'Language'
-                              ? languageChrome
-                              : undefined
-                    }
-                  >
-                    {'icon' in action && action.icon ? (
-                      <action.icon
-                        size={22}
-                        className="relative z-10 transition-transform group-hover/btn:scale-110"
-                        strokeWidth={2.5}
-                      />
-                    ) : null}
-                    {'content' in action && action.content ? (
-                      <div className="relative z-10">{action.content}</div>
-                    ) : null}
-                    {'badge' in action ? action.badge : null}
-                    <div className="text-yellow-primary pointer-events-none absolute right-full z-30 mr-4 hidden translate-x-4 rounded-lg border border-white/10 bg-black/80 px-3 py-1.5 text-[10px] font-black tracking-widest whitespace-nowrap uppercase opacity-0 shadow-xl backdrop-blur-md transition-all group-hover/btn:translate-x-0 group-hover/btn:opacity-100 lg:block dark:border-black/5 dark:bg-white/90">
-                      {action.label}
-                    </div>
-                  </motion.button>
+                  <IconHoverTooltip key={`${action.label}-${idx}`} label={action.label} placement="left">
+                    <motion.button
+                      type="button"
+                      onClick={action.action}
+                      whileHover={{
+                        scale: 1.15,
+                        rotate: idx % 2 === 0 ? 10 : -10,
+                        backgroundColor: accent,
+                        color: 'rgba(0, 0, 0, 1)',
+                        boxShadow: `0 0 20px color-mix(in srgb, ${accent} 40%, transparent)`,
+                      }}
+                      whileTap={{ scale: 0.9 }}
+                      aria-label={action.label}
+                      className="vbiz-icon-btn group/btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-12 w-12 items-center justify-center overflow-visible rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl transition-all duration-500 dark:bg-black/40 dark:text-gray-300"
+                      style={
+                        action.label === 'Share'
+                          ? shareChrome
+                          : action.label === 'Views'
+                            ? viewsChrome
+                            : action.label === 'Website'
+                              ? websiteChrome
+                              : action.label === 'Language'
+                                ? languageChrome
+                                : undefined
+                      }
+                    >
+                      {'icon' in action && action.icon ? (
+                        <action.icon
+                          size={22}
+                          className="relative z-10 transition-transform group-hover/btn:scale-110"
+                          strokeWidth={2.5}
+                        />
+                      ) : null}
+                      {'content' in action && action.content ? (
+                        <div className="relative z-10">{action.content}</div>
+                      ) : null}
+                      {'badge' in action ? action.badge : null}
+                    </motion.button>
+                  </IconHoverTooltip>
                 ))}
               </div>
             ) : null}
@@ -427,20 +441,23 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                 <div className="absolute top-0 left-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
                   {visibleSocials.slice(0, 5).map((item, idx) => {
                     const socialInlineStyle = displaySocialChromeStyle(field(item.label))
+                    const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
                     return (
-                      <motion.a
-                        key={`${item.label}-${idx}`}
-                        href={socialHref(item.label)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl"
-                        style={socialInlineStyle}
-                      >
-                        <item.icon size={22} fill="currentColor" />
-                      </motion.a>
+                      <IconHoverTooltip key={`${item.label}-${idx}`} label={tip} placement="right">
+                        <motion.a
+                          href={socialHref(item.label)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={tip}
+                          onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl"
+                          style={socialInlineStyle}
+                        >
+                          <item.icon size={22} fill="currentColor" />
+                        </motion.a>
+                      </IconHoverTooltip>
                     )
                   })}
                 </div>
@@ -490,26 +507,28 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       action: () => homeHeroProps.toggleTheme(),
                     },
                   ].map((action, idx) => (
-                    <motion.button
-                      key={`${action.label}-${idx}`}
-                      type="button"
-                      onClick={action.action}
-                      whileTap={{ scale: 0.9 }}
-                      className="vbiz-icon-btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-10 w-10 items-center justify-center rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl dark:bg-black/40 dark:text-gray-300"
-                      style={
-                        action.label === 'Views'
-                          ? viewsChrome
-                          : action.label === 'Website'
-                            ? websiteChrome
-                            : action.label === 'Language'
-                              ? languageChrome
-                              : undefined
-                      }
-                    >
-                      {'icon' in action && action.icon ? <action.icon size={22} strokeWidth={2.5} /> : null}
-                      {'content' in action && action.content ? action.content : null}
-                      {'badge' in action ? action.badge : null}
-                    </motion.button>
+                    <IconHoverTooltip key={`${action.label}-${idx}`} label={action.label} placement="left">
+                      <motion.button
+                        type="button"
+                        onClick={action.action}
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={action.label}
+                        className="vbiz-icon-btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-10 w-10 items-center justify-center rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl dark:bg-black/40 dark:text-gray-300"
+                        style={
+                          action.label === 'Views'
+                            ? viewsChrome
+                            : action.label === 'Website'
+                              ? websiteChrome
+                              : action.label === 'Language'
+                                ? languageChrome
+                                : undefined
+                        }
+                      >
+                        {'icon' in action && action.icon ? <action.icon size={22} strokeWidth={2.5} /> : null}
+                        {'content' in action && action.content ? action.content : null}
+                        {'badge' in action ? action.badge : null}
+                      </motion.button>
+                    </IconHoverTooltip>
                   ))}
                 </div>
               ) : null}
@@ -591,6 +610,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         ? [
                             {
                               icon: Share2,
+                              tip: 'Share',
                               label: null as string | null,
                               hover: 'hover:bg-blue-500 hover:border-blue-500 hover:text-white text-blue-500',
                               onClick: () => triggerAction('share'),
@@ -600,6 +620,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         : []),
                       {
                         icon: Bell,
+                        tip: 'Notifications',
                         label: null as string | null,
                         hover: 'hover:bg-amber-500 hover:border-amber-500 hover:text-white text-amber-500',
                         onClick: () => triggerAction('settings'),
@@ -607,6 +628,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       },
                       {
                         icon: FileText,
+                        tip: 'Notes',
                         label: null as string | null,
                         hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white text-emerald-500',
                         onClick: () => triggerAction('notepad'),
@@ -614,25 +636,27 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       },
                       {
                         icon: CalendarDays,
+                        tip: '1-on-1',
                         label: '1-ON-1',
                         hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white text-teal-600',
                         onClick: () => triggerAction('one_on_one'),
                         className: 'h-10 gap-1.5 px-2.5',
                       },
                     ].map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={item.onClick}
-                        title={item.label ?? undefined}
-                        className={`vbiz-icon-btn flex items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover} ${item.className}`}
-                        style={idx === 0 && showShare ? shareChrome : undefined}
-                      >
-                        <item.icon size={22} />
-                        {item.label ? (
-                          <span className="text-[10px] font-black tracking-wide whitespace-nowrap">{item.label}</span>
-                        ) : null}
-                      </button>
+                      <IconHoverTooltip key={idx} label={item.tip}>
+                        <button
+                          type="button"
+                          onClick={item.onClick}
+                          aria-label={item.tip}
+                          className={`vbiz-icon-btn flex items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover} ${item.className}`}
+                          style={idx === 0 && showShare ? shareChrome : undefined}
+                        >
+                          <item.icon size={22} />
+                          {item.label ? (
+                            <span className="text-[10px] font-black tracking-wide whitespace-nowrap">{item.label}</span>
+                          ) : null}
+                        </button>
+                      </IconHoverTooltip>
                     ))}
                   </div>
                 ) : null}
@@ -741,18 +765,21 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                     {visibleSocials.map((item, idx) => {
                       const socialInlineStyle = displaySocialChromeStyle(field(item.label))
                       const href = socialHref(item.label)
+                      const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
                       return (
-                        <a
-                          key={idx}
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
-                          className="vbiz-social flex h-10 w-10 items-center justify-center justify-self-center rounded-full shadow-xl transition-all duration-300 hover:-translate-y-1"
-                          style={socialInlineStyle}
-                        >
-                          <item.icon size={22} fill="currentColor" className="opacity-90 transition-none" />
-                        </a>
+                        <IconHoverTooltip key={idx} label={tip}>
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={tip}
+                            onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
+                            className="vbiz-social flex h-10 w-10 items-center justify-center justify-self-center rounded-full shadow-xl transition-all duration-300 hover:-translate-y-1"
+                            style={socialInlineStyle}
+                          >
+                            <item.icon size={22} fill="currentColor" className="opacity-90 transition-none" />
+                          </a>
+                        </IconHoverTooltip>
                       )
                     })}
                   </div>

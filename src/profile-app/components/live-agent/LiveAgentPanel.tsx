@@ -11,9 +11,7 @@ import { DEFAULT_LIVE_AGENT_CARD, type LiveAgentCardData } from '@/profile-app/l
 import { openExternalIntent, toMailtoHref, toSmsHref, toTelHref } from '@/profile-app/lib/openExternalIntent'
 
 import { buildLiveAgentToolConfig } from '@/lib/liveAgent/tools'
-import { displayLiveAgentChromeStyle } from '@/lib/vcardDisplaySettings'
 import { LIVE_AGENT_PUBLIC_PLACEMENT } from '@/profile-app/lib/liveAgentPlacement'
-import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { GoogleGenAI, LiveServerMessage, Modality, Session } from '@google/genai'
 import { AlertCircle, Bot, Loader2, Mic, MicOff, Square, Volume2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -76,8 +74,6 @@ export function LiveAgentPanel({
   accentColor = 'var(--vbiz-accent, #ebd675)',
   wrapperClassName,
 }: LiveAgentPanelProps) {
-  const { field } = useProfileDisplay()
-  const crmChrome = displayLiveAgentChromeStyle(field('CRM'))
   const [panelDismissed, setPanelDismissed] = useState(false)
   const [manualOpen, setManualOpen] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
@@ -576,7 +572,7 @@ export function LiveAgentPanel({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-            className="pointer-events-auto relative flex w-[260px] flex-col gap-3 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/90 p-4 shadow-sm backdrop-blur-xl md:w-72 md:gap-4 md:rounded-3xl md:p-5"
+            className="pointer-events-auto relative flex w-65 flex-col gap-3 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/90 p-4 shadow-sm backdrop-blur-xl md:w-72 md:gap-4 md:rounded-3xl md:p-5"
           >
             {isSpeaking && (
               <div
@@ -595,9 +591,9 @@ export function LiveAgentPanel({
                   }`}
                 >
                   {isSpeaking ? (
-                    <Volume2 className="h-4 w-4 animate-pulse md:h-[18px] md:w-[18px]" />
+                    <Volume2 className="h-4 w-4 animate-pulse md:h-4.5 md:w-4.5" />
                   ) : (
-                    <Bot className="h-4 w-4 md:h-[18px] md:w-[18px]" />
+                    <Bot className="h-4 w-4 md:h-4.5 md:w-4.5" />
                   )}
                 </div>
                 <div className="flex flex-col">
@@ -627,9 +623,9 @@ export function LiveAgentPanel({
                     className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all md:h-12 md:w-12 ${isMuted ? 'border-red-500/30 bg-red-500/10 text-red-400' : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'}`}
                   >
                     {isMuted ? (
-                      <MicOff className="h-4 w-4 md:h-[18px] md:w-[18px]" />
+                      <MicOff className="h-4 w-4 md:h-4.5 md:w-4.5" />
                     ) : (
-                      <Mic className="h-4 w-4 md:h-[18px] md:w-[18px]" />
+                      <Mic className="h-4 w-4 md:h-4.5 md:w-4.5" />
                     )}
                   </button>
                   <button
@@ -644,7 +640,6 @@ export function LiveAgentPanel({
                   onClick={toggleConnection}
                   disabled={isConnecting}
                   className="vbiz-live-agent-fab ml-auto flex h-12 w-12 items-center justify-center rounded-full shadow-sm transition-all hover:scale-105 hover:brightness-110 active:scale-95 disabled:opacity-50 md:h-16 md:w-16"
-                  style={crmChrome}
                 >
                   {isConnecting ? (
                     <Loader2 className="h-5 w-5 animate-spin md:h-6 md:w-6" />
@@ -706,7 +701,6 @@ export function LiveAgentPanel({
               ? 'h-10 w-10 border-zinc-800 bg-zinc-900 text-zinc-400 shadow-sm hover:bg-zinc-800 hover:text-zinc-200 md:h-14 md:w-14'
               : 'vbiz-live-agent-fab h-10 w-10 border-white shadow-sm hover:scale-105 active:scale-95 md:h-14 md:w-14'
           }`}
-          style={fabLooksOpen ? undefined : crmChrome}
         >
           <Bot className="h-5 w-5 md:h-6 md:w-6" />
           {!isMobile && isConnected && !fabLooksOpen ? (

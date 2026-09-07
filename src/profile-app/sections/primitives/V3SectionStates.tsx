@@ -47,7 +47,7 @@ export function V3SectionHeader({ badge, badgeIcon: Icon, title, subtitle, class
     <div
       className={`vbiz-section-banner group relative mb-4 w-full overflow-hidden rounded-4xl border p-5 shadow-sm md:mb-4 md:rounded-[2.5rem] md:p-6 lg:p-8 ${className}`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
       <div className="bg-gold/10 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
 
       <div className="relative z-10">

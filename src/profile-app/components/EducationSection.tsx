@@ -87,7 +87,7 @@ export function EducationSection({ sectionName = 'Resume' }: EducationSectionPro
     <div className="w-full pb-20">
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
         <div className="vbiz-section-banner group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border p-8 backdrop-blur-xl md:flex-row md:items-center lg:col-span-4 lg:p-10">
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
           <div className="bg-yellow-primary/10 dark:bg-yellow-primary/5 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
 
           <div className="relative z-10 w-full md:w-auto">
@@ -95,7 +95,10 @@ export function EducationSection({ sectionName = 'Resume' }: EducationSectionPro
               <GraduationCap size={12} /> {sectionTitle}
             </div>
             <h2 className="vbiz-title mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight sm:text-4xl lg:text-4xl">
-              Academic <span className="vbiz-accent-text font-medium italic">Background</span>
+              Academic{' '}
+              <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">
+                Background
+              </span>
             </h2>
             <p className="vbiz-description max-w-xl text-base leading-normal font-medium lg:text-lg">
               Degrees, institutions, and study timelines from your profile resume.

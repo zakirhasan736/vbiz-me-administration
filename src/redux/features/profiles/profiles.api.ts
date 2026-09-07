@@ -581,6 +581,7 @@ export function mapApiPostsToGeneralPosts(posts: ApiPost[]): VCardGeneralPost[] 
     const metas = metaMap(p.metas)
     return {
       id: p.id,
+      clientKey: p.id,
       category: metas.category || p.category || '',
       title: p.title || '',
       description: p.description || '',
@@ -595,6 +596,7 @@ export function mapApiPostsToGeneralPosts(posts: ApiPost[]): VCardGeneralPost[] 
 export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
   return posts.map((p) => ({
     id: p.id,
+    clientKey: p.id,
     question: p.title || '',
     answer: p.description || '',
     featuredImage: p.featuredImage || '',

@@ -4,6 +4,7 @@ import { resolveNotificationModalTarget } from '@/lib/push/notificationRouting'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { designToCssVars, resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { displayGeneralRootStyle, isPagesHeaderVisible } from '@/lib/vcardDisplaySettings'
+import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { ProfileHomeModals, type ProfileHomeModalId } from '@/profile-app/components/ProfileHomeModals'
 import { useProfileHomeModalEvents } from '@/profile-app/hooks/useProfileHomeModalEvents'
 import { profileRootThemeClass, useProfileTheme } from '@/profile-app/hooks/useProfileTheme'
@@ -140,30 +141,32 @@ export function VBizProfileApp({
       {!embedded && (
         <div className="absolute top-4 right-4 z-100 flex items-center gap-2 sm:fixed">
           <ProfileLanguageButton className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700" />
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.1, rotate: 15 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-700/50 bg-zinc-800 p-1.5 text-yellow-400 shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-blur-md transition-colors md:h-10 md:w-10 md:p-2.5 dark:border-zinc-200 dark:bg-white dark:text-zinc-800"
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={theme}
-                initial={{ y: -15, opacity: 0, scale: 0.5, rotate: -45 }}
-                animate={{ y: 0, opacity: 1, scale: 1, rotate: 0 }}
-                exit={{ y: 15, opacity: 0, scale: 0.5, rotate: 45 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-              >
-                {theme === 'dark' ? (
-                  <Sun size={16} className="stroke-[2.5] text-yellow-400 md:h-5 md:w-5" />
-                ) : (
-                  <Moon size={16} className="stroke-[2.5] text-zinc-100 md:h-5 md:w-5 dark:text-zinc-800" />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </motion.button>
+          <IconHoverTooltip label={theme === 'dark' ? 'Light mode' : 'Dark mode'} placement="left">
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.1, rotate: 15 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-700/50 bg-zinc-800 p-1.5 text-yellow-400 shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-blur-md transition-colors md:h-10 md:w-10 md:p-2.5 dark:border-zinc-200 dark:bg-white dark:text-zinc-800"
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={theme}
+                  initial={{ y: -15, opacity: 0, scale: 0.5, rotate: -45 }}
+                  animate={{ y: 0, opacity: 1, scale: 1, rotate: 0 }}
+                  exit={{ y: 15, opacity: 0, scale: 0.5, rotate: 45 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                >
+                  {theme === 'dark' ? (
+                    <Sun size={16} className="stroke-[2.5] text-yellow-400 md:h-5 md:w-5" />
+                  ) : (
+                    <Moon size={16} className="stroke-[2.5] text-zinc-100 md:h-5 md:w-5 dark:text-zinc-800" />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </motion.button>
+          </IconHoverTooltip>
         </div>
       )}
 

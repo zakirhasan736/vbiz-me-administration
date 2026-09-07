@@ -270,8 +270,10 @@ export function getSectionSchema(key: string): VCardSectionSchema | undefined {
 }
 
 export function createDefaultSectionPostItem(): VCardSectionPostItem {
+  const id = `sec_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
   return {
-    id: `sec_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id,
+    clientKey: id,
     title: '',
     description: '',
     url: '',
@@ -285,16 +287,20 @@ export function createDefaultSectionPostItem(): VCardSectionPostItem {
 
 export function normalizeSectionPostList(items: VCardSectionPostItem[] | null | undefined): VCardSectionPostItem[] {
   if (!items?.length) return []
-  return items.map((entry) => ({
-    id: entry.id || `sec_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    title: entry.title ?? '',
-    description: entry.description ?? '',
-    url: entry.url ?? '',
-    featuredImage: entry.featuredImage ?? '',
-    date: entry.date ?? '',
-    rating: entry.rating ?? '',
-    location: entry.location ?? '',
-    active: entry.active !== false,
-    ...(entry.metas ? { metas: entry.metas } : {}),
-  }))
+  return items.map((entry) => {
+    const id = entry.id || `sec_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    return {
+      id,
+      clientKey: entry.clientKey || id,
+      title: entry.title ?? '',
+      description: entry.description ?? '',
+      url: entry.url ?? '',
+      featuredImage: entry.featuredImage ?? '',
+      date: entry.date ?? '',
+      rating: entry.rating ?? '',
+      location: entry.location ?? '',
+      active: entry.active !== false,
+      ...(entry.metas ? { metas: entry.metas } : {}),
+    }
+  })
 }

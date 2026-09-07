@@ -163,15 +163,14 @@ export const ReviewsSection = () => {
           <ReviewsHeaderSkeleton compact={compact} />
         ) : (
           <div
-            className={`group relative flex w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 bg-[#020914] shadow-xl lg:col-span-4 dark:border-[#eed677]/20 ${
+            className={`vbiz-section-banner group relative flex w-full flex-col overflow-hidden rounded-4xl border shadow-xl lg:col-span-4 ${
               compact ? '' : 'min-h-50 md:min-h-[22vh] md:rounded-[2.5rem] lg:min-h-[24vh]'
             }`}
           >
-            {/* Accent background (no video) */}
+            {/* Soft wash over Pages Header gradient */}
             <div className="absolute inset-0 z-0 h-full w-full">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,rgba(238,214,119,0.14),transparent_60%)]" />
-              <div className="absolute inset-0 bg-linear-to-t from-[#020914] via-[#020914]/85 to-[#020914]/40" />
-              <div className="absolute inset-0 hidden bg-linear-to-r from-[#020914] via-[#020914]/60 to-transparent md:block md:w-2/3" />
+              <div className="bg-gold/10 pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,color-mix(in_srgb,var(--vbiz-accent,#eed677)_14%,transparent),transparent_60%)]" />
+              <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
             </div>
 
             {/* View toggle — floats over the banner when there is room, in-flow inside the phone preview */}
@@ -208,7 +207,7 @@ export const ReviewsSection = () => {
                     }`}
                   >
                     Trusted by{' '}
-                    <span className="bg-linear-to-r from-[#eed677] to-yellow-500 bg-clip-text text-transparent italic">
+                    <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent italic">
                       Professionals
                     </span>
                   </h2>

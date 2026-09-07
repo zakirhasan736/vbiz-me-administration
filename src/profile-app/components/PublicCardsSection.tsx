@@ -406,7 +406,7 @@ export const PublicCardsSection = () => {
                   }`}
                 >
                   Global{' '}
-                  <span className="bg-linear-to-r from-[#eab308] to-yellow-500 bg-clip-text text-transparent italic">
+                  <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent italic">
                     Connections
                   </span>
                 </h2>

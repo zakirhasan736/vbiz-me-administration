@@ -1,8 +1,10 @@
 import type { VCardGeneralPost } from '@/types/vcard'
 
 export function createDefaultGeneralPost(): VCardGeneralPost {
+  const id = `post_${Date.now()}`
   return {
-    id: `post_${Date.now()}`,
+    id,
+    clientKey: id,
     category: '',
     title: '',
     description: '',
@@ -15,16 +17,20 @@ export function createDefaultGeneralPost(): VCardGeneralPost {
 
 export function normalizeGeneralPostList(raw?: VCardGeneralPost[] | null): VCardGeneralPost[] {
   if (!raw?.length) return []
-  return raw.map((entry) => ({
-    id: entry.id || `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    category: entry.category ?? '',
-    title: entry.title ?? '',
-    description: entry.description ?? '',
-    customUrl: entry.customUrl ?? '',
-    featuredImage: entry.featuredImage ?? '',
-    date: entry.date ?? '',
-    active: entry.active !== false,
-  }))
+  return raw.map((entry) => {
+    const id = entry.id || `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    return {
+      id,
+      clientKey: entry.clientKey || id,
+      category: entry.category ?? '',
+      title: entry.title ?? '',
+      description: entry.description ?? '',
+      customUrl: entry.customUrl ?? '',
+      featuredImage: entry.featuredImage ?? '',
+      date: entry.date ?? '',
+      active: entry.active !== false,
+    }
+  })
 }
 
 /** Active posts with at least a title or description — shown on the public profile Blog tab. */

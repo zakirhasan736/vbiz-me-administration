@@ -3,6 +3,7 @@
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
+import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -71,6 +72,20 @@ const V2_SOCIAL_ITEMS: V2SocialItem[] = [
   { label: 'Website', icon: Globe },
 ]
 
+const V2_SOCIAL_TOOLTIP: Record<string, string> = {
+  Twitter: 'X',
+  FaceBook: 'Facebook',
+  Instagram: 'Instagram',
+  LinkedIn: 'LinkedIn',
+  Whatsapp: 'WhatsApp',
+  TikTok: 'TikTok',
+  Youtube: 'YouTube',
+  Pinterest: 'Pinterest',
+  Rumble: 'Rumble',
+  Truth: 'Truth Social',
+  Website: 'Website',
+}
+
 type ProfileHeaderV2Props = {
   avatarVideoUrl?: string
   explainerVideoUrl?: string
@@ -110,10 +125,12 @@ export function ProfileHeaderV2({
   const designation = rawProfession ? cleanProfileFieldValue(rawProfession) : ''
 
   const showShare = isProfileActionButtonEnabled('share', actionButtons, isVisible)
+  const showCrm = isVisible('CRM')
   const showViewCounter = isProfileActionButtonEnabled('view_counter', actionButtons, isVisible)
   const showLanguage = isProfileActionButtonEnabled('language', actionButtons, isVisible)
   const viewCounterCount = actionButtons?.view_counter?.count ?? profileViews
   const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
+  const crmChrome = displayIconChromeStyle(field('CRM'))
   const languageChrome = displayIconChromeStyle(field('Language'))
   const websiteChrome = displayIconChromeStyle(field('Website'))
   const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'))
@@ -160,19 +177,21 @@ export function ProfileHeaderV2({
         <div className="absolute top-0 left-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:hidden dark:border-zinc-700/50 dark:bg-zinc-900/50">
           {visibleSocials.map((social) => {
             const href = resolveSocialLinkHref(social.label, socialHref, personal.whatsapp)
+            const tip = V2_SOCIAL_TOOLTIP[social.label] ?? social.label
             return (
-              <a
-                key={social.label}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
-                className="vbiz-social flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10"
-                aria-label={social.label}
-                style={socialInlineStyle(social.label)}
-              >
-                {renderSocialIcon(social)}
-              </a>
+              <IconHoverTooltip key={social.label} label={tip} placement="right">
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
+                  className="vbiz-social flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10"
+                  aria-label={tip}
+                  style={socialInlineStyle(social.label)}
+                >
+                  {renderSocialIcon(social)}
+                </a>
+              </IconHoverTooltip>
             )
           })}
         </div>
@@ -230,19 +249,21 @@ export function ProfileHeaderV2({
           >
             {visibleSocials.map((social) => {
               const href = resolveSocialLinkHref(social.label, socialHref, personal.whatsapp)
+              const tip = V2_SOCIAL_TOOLTIP[social.label] ?? social.label
               return (
-                <a
-                  key={social.label}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
-                  className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full transition-colors"
-                  aria-label={social.label}
-                  style={socialInlineStyle(social.label)}
-                >
-                  {itemIcon(social)}
-                </a>
+                <IconHoverTooltip key={social.label} label={tip}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
+                    className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full transition-colors"
+                    aria-label={tip}
+                    style={socialInlineStyle(social.label)}
+                  >
+                    {itemIcon(social)}
+                  </a>
+                </IconHoverTooltip>
               )
             })}
           </div>
@@ -256,86 +277,102 @@ export function ProfileHeaderV2({
         )}
       >
         {showViewCounter && (
-          <button
-            type="button"
-            onClick={() => openVbizmeLogin()}
-            className="vbiz-icon-btn group relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-            style={viewsChrome}
-            aria-label="View analytics"
-          >
-            <Eye size={HOME_ICON_SIZE} />
-            <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[8px] font-bold text-white md:-top-2 md:-right-2 md:px-1 md:text-[9px]">
-              {formatProfileViewCount(viewCounterCount)}
-            </span>
-          </button>
+          <IconHoverTooltip label="Total views" placement="left">
+            <button
+              type="button"
+              onClick={() => openVbizmeLogin()}
+              className="vbiz-icon-btn group relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              style={viewsChrome}
+              aria-label="Total views"
+            >
+              <Eye size={HOME_ICON_SIZE} />
+              <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[8px] font-bold text-white md:-top-2 md:-right-2 md:px-1 md:text-[9px]">
+                {formatProfileViewCount(viewCounterCount)}
+              </span>
+            </button>
+          </IconHoverTooltip>
         )}
         {showWebsite && (
-          <a
-            href={websiteHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-            style={websiteChrome}
-            aria-label="Visit website"
-          >
-            <Globe size={HOME_ICON_SIZE} />
-          </a>
+          <IconHoverTooltip label="Website" placement="left">
+            <a
+              href={websiteHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              style={websiteChrome}
+              aria-label="Website"
+            >
+              <Globe size={HOME_ICON_SIZE} />
+            </a>
+          </IconHoverTooltip>
         )}
         {showLanguage && (
-          <button
-            type="button"
-            onClick={onLanguage}
-            className="vbiz-icon-btn flex h-auto min-h-8 w-auto min-w-8 flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-1 py-1 text-zinc-400 transition-colors hover:bg-zinc-50 md:min-h-10 md:min-w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-            style={languageChrome}
-            aria-label="Language"
-          >
-            <SelectedLanguageMark
-              showName={false}
-              flagWidth={48}
-              flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10 md:h-6 md:w-8"
-            />
-          </button>
+          <IconHoverTooltip label="Language" placement="left">
+            <button
+              type="button"
+              onClick={onLanguage}
+              className="vbiz-icon-btn flex h-auto min-h-8 w-auto min-w-8 flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-1 py-1 text-zinc-400 transition-colors hover:bg-zinc-50 md:min-h-10 md:min-w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              style={languageChrome}
+              aria-label="Language"
+            >
+              <SelectedLanguageMark
+                showName={false}
+                flagWidth={48}
+                flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10 md:h-6 md:w-8"
+              />
+            </button>
+          </IconHoverTooltip>
         )}
-        <button
-          type="button"
-          onClick={() => openVbizmeCrm()}
-          className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-          aria-label="Open CRM"
-          title="CRM"
-        >
-          <Kanban size={HOME_ICON_SIZE} />
-        </button>
+        {showCrm && (
+          <IconHoverTooltip label="CRM" placement="left">
+            <button
+              type="button"
+              onClick={() => openVbizmeCrm()}
+              className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              style={crmChrome}
+              aria-label="Open CRM"
+            >
+              <Kanban size={HOME_ICON_SIZE} />
+            </button>
+          </IconHoverTooltip>
+        )}
         {showShare && (
+          <IconHoverTooltip label="Share" placement="left">
+            <button
+              type="button"
+              onClick={onShare}
+              className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              style={shareChrome}
+              aria-label="Share"
+            >
+              <Share2 size={HOME_ICON_SIZE} />
+            </button>
+          </IconHoverTooltip>
+        )}
+        <IconHoverTooltip label="Notifications" placement="left">
           <button
             type="button"
-            onClick={onShare}
-            className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-            style={shareChrome}
-            aria-label="Share profile"
+            onClick={onNotificationSettings}
+            className="relative flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            aria-label="Notifications"
           >
-            <Share2 size={HOME_ICON_SIZE} />
+            <Bell size={HOME_ICON_SIZE} className="text-[#eab308]" />
+            <span className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-red-500 md:top-1 md:right-1" />
           </button>
-        )}
-        <button
-          type="button"
-          onClick={onNotificationSettings}
-          className="relative flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-          aria-label="Notification settings"
-        >
-          <Bell size={HOME_ICON_SIZE} className="text-[#eab308]" />
-          <span className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-red-500 md:top-1 md:right-1" />
-        </button>
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-          aria-label="Open notepad"
-          onClick={() => {
-            onOpenNotepad?.()
-            window.dispatchEvent(new CustomEvent('openNotepadAction'))
-          }}
-        >
-          <FileEdit size={HOME_ICON_SIZE} className="text-[#eab308]" />
-        </button>
+        </IconHoverTooltip>
+        <IconHoverTooltip label="Notes" placement="left">
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+            aria-label="Notes"
+            onClick={() => {
+              onOpenNotepad?.()
+              window.dispatchEvent(new CustomEvent('openNotepadAction'))
+            }}
+          >
+            <FileEdit size={HOME_ICON_SIZE} className="text-[#eab308]" />
+          </button>
+        </IconHoverTooltip>
       </div>
     </header>
   )

@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { decodeHtmlText } from '@/lib/htmlText'
+import { sameMediaUrl } from '@/lib/media/attachmentTypeMatch'
 import { isGenericPublicCardImage } from '@/lib/publicCards/publicCardImage'
 import { resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
@@ -351,18 +352,29 @@ function mapDisplaySettings(card: MyCardData): VCardDisplaySettings {
   }
 
   const bgCleared = Object.prototype.hasOwnProperty.call(settings, 'background_media_url')
-  const bgUrl = bgCleared
+  let bgUrl = bgCleared
     ? settings.background_media_url?.trim() || ''
     : settings.background_media_url || card.background_media.video_url || card.background_media.url || ''
+  // Contaminated settings: same URL as intro while public background_media was cleared → do not revive wallpaper.
+  if (
+    bgUrl &&
+    introFile &&
+    isDurableHttpUrl(String(bgUrl)) &&
+    sameMediaUrl(String(bgUrl), introFile) &&
+    !card.background_media?.url &&
+    !card.background_media?.video_url
+  ) {
+    bgUrl = ''
+  }
   if (bgCleared && !bgUrl) {
     fields['Background Video/Image'] = {
       ...fields['Background Video/Image'],
       customValue: '',
     }
-  } else if (bgUrl && isDurableHttpUrl(bgUrl)) {
+  } else if (bgUrl && isDurableHttpUrl(String(bgUrl))) {
     fields['Background Video/Image'] = {
       ...fields['Background Video/Image'],
-      customValue: bgUrl,
+      customValue: String(bgUrl),
     }
   }
 
@@ -580,10 +592,16 @@ export function mapMyCardToVCardRecord(card: MyCardData): VCardRecord {
 
   const settingsBackground =
     typeof card.settings?.background_media_url === 'string' ? card.settings.background_media_url.trim() : ''
+  const introFromSettings =
+    typeof card.settings?.intro_video_url === 'string' ? card.settings.intro_video_url.trim() : ''
+  const apiBackground = card.background_media.video_url || card.background_media.url || ''
+  const settingsBackgroundSafe =
+    settingsBackground && introFromSettings && sameMediaUrl(settingsBackground, introFromSettings) && !apiBackground
+      ? ''
+      : settingsBackground
   const background =
-    settingsBackground ||
-    card.background_media.video_url ||
-    card.background_media.url ||
+    settingsBackgroundSafe ||
+    apiBackground ||
     data.displaySettings?.fields?.['Background Video/Image']?.customValue?.trim() ||
     ''
   const backgroundImageUrl = background && isDurableHttpUrl(background) ? background : ''

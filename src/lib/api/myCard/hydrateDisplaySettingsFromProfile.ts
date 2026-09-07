@@ -1,4 +1,5 @@
 import { DISPLAY_SETTINGS_SETTING_KEY, LABEL_TO_NAV_CHECKBOX } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import { attachmentTypeToDisplayField, sameMediaUrl } from '@/lib/media/attachmentTypeMatch'
 import { shouldPreserveCustomNavOrder } from '@/lib/publicNavOrder'
 import {
   ALL_DISPLAY_FIELD_KEYS,
@@ -28,34 +29,6 @@ const SETTING_TO_FIELD: Record<string, string> = {
   background_music_url: 'YouTube Background Music Link',
   company_icon_url: 'Company/Office Icon',
 }
-
-/** Attachment type name aliases (lowercase) → display field label. */
-const ATTACHMENT_ALIASES: Array<{ field: string; aliases: string[] }> = [
-  {
-    field: 'Profile Image/Video',
-    aliases: [
-      'profile image/video',
-      'profile picture',
-      'profile pic',
-      'profile_pic',
-      'avatar',
-      'profile image',
-      'profile',
-    ],
-  },
-  {
-    field: 'Background Video/Image',
-    aliases: ['background video/image', 'background_media', 'bg_video', 'bg video', 'background video', 'background'],
-  },
-  {
-    field: 'Intro vCard Video',
-    aliases: ['intro vcard video', 'intro video', 'profile video', 'intro'],
-  },
-  {
-    field: 'Background Music',
-    aliases: ['background music', 'background audio', 'bg music', 'audio', 'music'],
-  },
-]
 
 function isYoutubeMediaUrl(url: string): boolean {
   return /youtu\.?be/i.test(url)
@@ -96,12 +69,7 @@ function attachmentUrl(att: ProfileAttachmentRow): string {
 }
 
 function attachmentFieldLabel(att: ProfileAttachmentRow): string | null {
-  const label = `${att.attachmentType?.name || ''} ${att.docName || ''}`.toLowerCase().trim()
-  if (!label) return null
-  for (const entry of ATTACHMENT_ALIASES) {
-    if (entry.aliases.some((alias) => label.includes(alias))) return entry.field
-  }
-  return null
+  return attachmentTypeToDisplayField(att.attachmentType?.name)
 }
 
 function setFieldCustomValue(fields: VCardDisplaySettings['fields'], key: string, url: string) {
@@ -209,6 +177,27 @@ export function hydrateDisplaySettingsFromProfile(input: HydrateDisplaySettingsI
 
   if (!profileCleared && avatarImageUrl && !fields['Profile Image/Video']?.customValue?.trim()) {
     setFieldCustomValue(fields, 'Profile Image/Video', avatarImageUrl)
+  }
+
+  // Contaminated cards: identical intro+background URLs with only an Intro attachment → keep intro only.
+  const introFileUrl = fields['Intro vCard Video']?.customValue?.trim() || ''
+  const backgroundCandidate = fields['Background Video/Image']?.customValue?.trim() || ''
+  if (introFileUrl && backgroundCandidate && sameMediaUrl(introFileUrl, backgroundCandidate)) {
+    let hasIntroAttachment = false
+    let hasBackgroundAttachment = false
+    for (const att of input.attachments || []) {
+      const field = attachmentFieldLabel(att)
+      const url = attachmentUrl(att)
+      if (!url || !sameMediaUrl(url, introFileUrl)) continue
+      if (field === 'Intro vCard Video') hasIntroAttachment = true
+      if (field === 'Background Video/Image') hasBackgroundAttachment = true
+    }
+    if (hasIntroAttachment && !hasBackgroundAttachment) {
+      fields['Background Video/Image'] = {
+        ...(fields['Background Video/Image'] || createDefaultFieldConfig()),
+        customValue: '',
+      }
+    }
   }
 
   const backgroundFromSettings = fields['Background Video/Image']?.customValue?.trim() || ''

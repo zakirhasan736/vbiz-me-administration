@@ -198,16 +198,20 @@ iframe.goog-te-banner-frame {
   --vbiz-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
 }
 
-/* Public Cards / Global Connection banner — follows the card theme, including editor preview */
-.vbiz-profile-root[data-theme='light'] .vbiz-public-cards-banner,
-.vbiz-profile-root.vbiz-theme-light .vbiz-public-cards-banner {
-  background-color: var(--vbiz-page-header-fill, #fafafa);
-  border-color: #e4e4e7;
+/* Public Cards / Global Connection banner — same soft branding/Pages Header gradient as section banners */
+.vbiz-profile-root .vbiz-public-cards-banner {
+  background-color: transparent !important;
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 28%, #020617) 0%,
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 12%, #020617) 42%,
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 5%, #0a0f1a) 100%
+  ) !important;
+  border-color: var(--vbiz-border, #e4e4e7);
 }
 .vbiz-profile-root[data-theme='dark'] .vbiz-public-cards-banner,
 .vbiz-profile-root.dark .vbiz-public-cards-banner {
-  background-color: var(--vbiz-page-header-fill, var(--color-ocean-deep, #020914));
-  border-color: color-mix(in srgb, #eab308 20%, transparent);
+  border-color: color-mix(in srgb, var(--vbiz-accent, #eab308) 20%, transparent);
 }
 .vbiz-profile-root[data-theme='light'] .vbiz-public-cards-banner-wash,
 .vbiz-profile-root.vbiz-theme-light .vbiz-public-cards-banner-wash {
@@ -217,20 +221,24 @@ iframe.goog-te-banner-frame {
 .vbiz-profile-root.dark .vbiz-public-cards-banner-wash {
   background-image: linear-gradient(
     to top,
-    var(--color-ocean-deep, #020914),
-    color-mix(in srgb, var(--color-ocean-deep, #020914) 85%, transparent),
-    color-mix(in srgb, var(--color-ocean-deep, #020914) 30%, transparent)
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 18%, transparent),
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 6%, transparent),
+    transparent
   );
 }
 .vbiz-profile-root[data-theme='light'] .vbiz-public-cards-banner-accent,
 .vbiz-profile-root.vbiz-theme-light .vbiz-public-cards-banner-accent {
-  background-image: linear-gradient(to right, color-mix(in srgb, #eab308 10%, transparent), transparent);
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--vbiz-accent, #eab308) 10%, transparent),
+    transparent
+  );
 }
 .vbiz-profile-root[data-theme='dark'] .vbiz-public-cards-banner-accent,
 .vbiz-profile-root.dark .vbiz-public-cards-banner-accent {
   background-image: linear-gradient(
     to right,
-    color-mix(in srgb, var(--color-ocean-deep, #020914) 60%, transparent),
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 14%, transparent),
     transparent
   );
 }

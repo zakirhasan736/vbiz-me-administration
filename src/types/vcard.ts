@@ -123,6 +123,8 @@ export type VCardServiceEntry = {
 /** Back office → Blog tab posts (shown on profile Blog section, v1 and v2). */
 export type VCardGeneralPost = {
   id: string
+  /** Stable React list identity; survives draft→server id remap after first autosave. */
+  clientKey?: string
   category: string
   title: string
   description: string
@@ -135,6 +137,8 @@ export type VCardGeneralPost = {
 /** Back office → FAQ tab entries (shown on profile FAQ section, v1 and v2). */
 export type VCardFaqEntry = {
   id: string
+  /** Stable React list identity; survives draft→server id remap after first autosave. */
+  clientKey?: string
   question: string
   answer: string
   featuredImage?: string
@@ -145,6 +149,8 @@ export type VCardFaqEntry = {
 /** Generic posts-backed nav section items (Mission, Reviews, Calendar, etc.). */
 export type VCardSectionPostItem = {
   id: string
+  /** Stable React list identity; survives draft→server id remap after first autosave. */
+  clientKey?: string
   title: string
   description: string
   url: string

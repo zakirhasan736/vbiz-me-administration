@@ -55,6 +55,7 @@ import {
   getDisplaySettingsFromVCard,
   getFieldColorPreview,
   HOME_PAGE_FIELDS,
+  HOME_PAGE_URL_FIELDS,
   ICON_FIELDS,
   MY_INFO_FIELDS,
   patchDisplayField,
@@ -854,28 +855,18 @@ const FieldCard: React.FC<{
 }) => {
   return (
     <div className="relative flex h-full min-w-0 flex-col rounded-[1.25rem] border border-black/5 bg-white p-5 shadow-sm transition-all hover:border-black/10 hover:shadow-md dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/10">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="-m-1 hidden cursor-grab p-1 text-slate-400 transition-colors hover:text-slate-600 sm:block dark:text-slate-500 dark:hover:text-slate-300">
-            <Menu className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-[.9375rem] font-bold text-slate-900 dark:text-white">{title}</h3>
-            {toggleLabel ? (
-              <p className="mt-0.5 text-[.75rem] font-medium text-slate-500 dark:text-slate-400">{toggleLabel}</p>
-            ) : (
-              <p className="mt-0.5 text-[.75rem] font-medium text-slate-500 dark:text-slate-400">
-                Manage visibility and styling
-              </p>
-            )}
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-[.9375rem] font-bold text-slate-900 dark:text-white">{title}</h3>
+          {toggleLabel ? (
+            <p className="mt-0.5 text-[.75rem] font-medium text-slate-500 dark:text-slate-400">{toggleLabel}</p>
+          ) : (
+            <p className="mt-0.5 text-[.75rem] font-medium text-slate-500 dark:text-slate-400">
+              Manage visibility and styling
+            </p>
+          )}
         </div>
-        <div className="flex items-center gap-4">
-          <div className="cursor-grab p-1 text-slate-400 sm:hidden dark:text-slate-500">
-            <Menu className="h-5 w-5" />
-          </div>
-          <Toggle checked={config.visible} onChange={(visible) => onPatch({ visible })} />
-        </div>
+        <Toggle checked={config.visible} onChange={(visible) => onPatch({ visible })} />
       </div>
 
       {(showInput || showTextCol || showBgCol || iconColLabel) && (
@@ -1783,7 +1774,29 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
       case 'general':
         return renderFieldCards(GENERAL_SETTINGS_FIELDS, { showTextCol: true, showBgCol: true })
       case 'home':
-        return renderFieldCards(HOME_PAGE_FIELDS, { showInput: true })
+        return HOME_PAGE_FIELDS.map((key) => {
+          const isHeaderColor = key === 'vCard Header Color'
+          const showInput = HOME_PAGE_URL_FIELDS.has(key)
+          return (
+            <FieldCard
+              key={key}
+              title={key}
+              config={display.fields[key] ?? { visible: true }}
+              onPatch={(patch) => patchField(key, patch)}
+              colorPreview={colorPreview}
+              showInput={showInput}
+              showTextCol={isHeaderColor}
+              showBgCol={isHeaderColor}
+              toggleLabel={
+                showInput
+                  ? 'Visibility and media URL'
+                  : isHeaderColor
+                    ? 'Visibility and header colors'
+                    : 'Visibility only'
+              }
+            />
+          )
+        })
       case 'template':
         return <TemplateDesigner />
       case 'seo':

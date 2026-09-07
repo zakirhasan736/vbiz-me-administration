@@ -87,7 +87,7 @@ function sniffImageContentType(buffer: Buffer): string | null {
   return null
 }
 
-async function avatarDataUrl(avatarUrl: string, origin: string): Promise<string | null> {
+async function fetchAvatarBuffer(avatarUrl: string, origin: string): Promise<Buffer | null> {
   const fetchUrl = resolveFetchUrl(avatarUrl, origin)
   if (!fetchUrl) return null
   try {
@@ -101,19 +101,34 @@ async function avatarDataUrl(avatarUrl: string, origin: string): Promise<string 
       return null
     }
     const buffer = Buffer.from(await response.arrayBuffer())
+    if (buffer.length < 32 || buffer.length > 8_000_000) return null
     const sniffed = sniffImageContentType(buffer)
-    const contentType = sniffed || (headerType.startsWith('image/') ? headerType : null)
-    if (!contentType) return null
-    return `data:${contentType};base64,${buffer.toString('base64')}`
+    if (!sniffed && !headerType.startsWith('image/')) return null
+    return buffer
   } catch {
     return null
   }
 }
 
-async function firstRenderableAvatar(urls: string[], origin: string): Promise<string | null> {
+/**
+ * Resize avatar with sharp — avoids next/og (Satori) which throws
+ * "u2 is not iterable" / failed-to-pipe for many PNG/WebP avatars.
+ */
+async function resizeAvatarPng(buffer: Buffer, size: number): Promise<Buffer | null> {
+  try {
+    const sharp = (await import('sharp')).default
+    return await sharp(buffer).rotate().resize(size, size, { fit: 'cover', position: 'centre' }).png().toBuffer()
+  } catch {
+    return null
+  }
+}
+
+async function firstRenderableAvatarPng(urls: string[], origin: string, size: number): Promise<Buffer | null> {
   for (const url of urls) {
-    const photo = await avatarDataUrl(url, origin)
-    if (photo) return photo
+    const raw = await fetchAvatarBuffer(url, origin)
+    if (!raw) continue
+    const png = await resizeAvatarPng(raw, size)
+    if (png) return png
   }
   return null
 }
@@ -153,17 +168,10 @@ async function loadCardForIcon(slug: string): Promise<{ card: MyCardData | null;
   }
 }
 
-export async function renderPublicCardPwaIcon(slug: string, size: 192 | 512, origin: string): Promise<Response> {
-  const { card, degraded } = await loadCardForIcon(slug)
-  const ownerName = card?.profile?.name?.trim() || card?.profile?.company_name?.trim() || ''
-  const name = resolvePwaDisplayName(ownerName, slug)
-  const candidates = card ? resolvePwaAvatarCandidates(card) : []
-  const photoSrc = await firstRenderableAvatar(candidates, origin)
-  const initials = initialsFromName(name)
-  const cacheControl = degraded ? DEGRADED_ICON_CACHE_CONTROL : ICON_CACHE_CONTROL
-
+/** Materialize ImageResponse so Satori/stream failures hit our catch (pipe errors otherwise escape). */
+async function initialsIconPng(initials: string, size: number): Promise<Buffer | null> {
   try {
-    return new ImageResponse(
+    const response = new ImageResponse(
       <div
         style={{
           width: '100%',
@@ -172,39 +180,33 @@ export async function renderPublicCardPwaIcon(slug: string, size: 192 | 512, ori
           alignItems: 'center',
           justifyContent: 'center',
           background: '#0b0f19',
-          overflow: 'hidden',
+          color: 'white',
+          fontSize: Math.round(size * 0.38),
+          fontWeight: 700,
         }}
       >
-        {photoSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoSrc} width={size} height={size} style={{ objectFit: 'cover' }} alt="" />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              height: '100%',
-              color: 'white',
-              fontSize: Math.round(size * 0.38),
-              fontWeight: 700,
-            }}
-          >
-            {initials}
-          </div>
-        )}
+        {initials}
       </div>,
-      {
-        width: size,
-        height: size,
-        headers: {
-          'Content-Type': 'image/png',
-          'Cache-Control': cacheControl,
-        },
-      }
+      { width: size, height: size }
     )
+    return Buffer.from(await response.arrayBuffer())
   } catch {
-    return solidFallback(size, degraded)
+    return null
   }
+}
+
+export async function renderPublicCardPwaIcon(slug: string, size: 192 | 512, origin: string): Promise<Response> {
+  const { card, degraded } = await loadCardForIcon(slug)
+  const ownerName = card?.profile?.name?.trim() || card?.profile?.company_name?.trim() || ''
+  const name = resolvePwaDisplayName(ownerName, slug)
+  const candidates = card ? resolvePwaAvatarCandidates(card) : []
+  const cacheControl = degraded ? DEGRADED_ICON_CACHE_CONTROL : ICON_CACHE_CONTROL
+
+  const photoPng = await firstRenderableAvatarPng(candidates, origin, size)
+  if (photoPng) return pngResponse(photoPng, cacheControl)
+
+  const initialsPng = await initialsIconPng(initialsFromName(name), size)
+  if (initialsPng) return pngResponse(initialsPng, cacheControl)
+
+  return solidFallback(size, degraded)
 }

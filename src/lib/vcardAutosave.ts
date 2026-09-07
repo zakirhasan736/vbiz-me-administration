@@ -433,6 +433,36 @@ export function mergeLocalEmptyDrafts<T extends { id: string }>(
   return [...savedItems, ...empties]
 }
 
+/**
+ * After posts autosave, rewrite server fields onto local rows while keeping `clientKey`
+ * so React list keys (and focus) survive draft→server id remaps.
+ * Sync returns saved items in the same order as non-empty local rows.
+ */
+export function mergeSyncedListPreservingClientKeys<T extends { id: string; clientKey?: string }>(
+  localItems: T[] | undefined,
+  savedItems: T[],
+  isEmpty: (item: T) => boolean
+): T[] {
+  const local = localItems || []
+  const empties = local.filter((item) => isEditorDraftId(item.id) && isEmpty(item))
+  const localFilled = local.filter((item) => !(isEditorDraftId(item.id) && isEmpty(item)))
+
+  const merged = localFilled.map((localItem, index) => {
+    const saved = savedItems[index]
+    if (!saved) return localItem
+    const clientKey = localItem.clientKey || localItem.id
+    return { ...saved, clientKey }
+  })
+
+  if (savedItems.length > localFilled.length) {
+    for (const extra of savedItems.slice(localFilled.length)) {
+      merged.push({ ...extra, clientKey: extra.clientKey || extra.id })
+    }
+  }
+
+  return empties.length ? [...merged, ...empties] : merged
+}
+
 /** Clone only the path being written — avoid JSON-cloning the whole card on every keystroke. */
 export function setByPath(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
   const keys = path.split('.')

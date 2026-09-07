@@ -144,8 +144,8 @@ export const MediaPressSection = () => {
   return (
     <div className="w-full pb-20">
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <div className="group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-8 backdrop-blur-xl md:flex-row md:items-center md:gap-0 lg:col-span-4 lg:p-10 dark:border-zinc-800/80 dark:bg-zinc-900/50">
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-zinc-100/50 to-transparent dark:from-zinc-800/20" />
+        <div className="vbiz-section-banner group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border p-8 backdrop-blur-xl md:flex-row md:items-center lg:col-span-4 lg:p-10">
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
           <div
             className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110"
             style={{ backgroundColor: `${accent}18` }}

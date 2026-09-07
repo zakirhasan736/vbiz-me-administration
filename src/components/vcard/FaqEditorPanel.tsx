@@ -57,13 +57,13 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
   const addFaq = () => {
     const next = createDefaultFaqEntry()
     setFaqs([...faqsRef.current, next])
-    expandNew(next.id)
+    expandNew(next.clientKey || next.id)
   }
 
-  const removeFaq = (id: string) => {
-    const next = faqsRef.current.filter((f) => f.id !== id)
+  const removeFaq = (key: string) => {
+    const next = faqsRef.current.filter((f) => (f.clientKey || f.id) !== key)
     setFaqs(next)
-    recoverExpandedAfterRemove(id, next)
+    recoverExpandedAfterRemove(key, next)
   }
 
   const updateFaq = (id: string, field: keyof VCardFaqEntry, value: VCardFaqEntry[keyof VCardFaqEntry]) => {
@@ -74,7 +74,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
     const mapped = mapFaqsFromPayload(result.payload)
     if (!mapped.length) return
     setFaqs([...mapped, ...faqsRef.current.filter((f) => f.question || f.answer)])
-    expandNew(mapped[0]!.id)
+    expandNew(mapped[0]!.clientKey || mapped[0]!.id)
   }
 
   return (
@@ -155,14 +155,15 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
           <div>
             <ReorderList
               items={faqs}
-              getKey={(faq) => faq.id}
+              getKey={(faq) => faq.clientKey || faq.id}
               onReorder={setFaqs}
               renderItem={(faq, index) => {
-                const open = isExpanded(faq.id)
+                const key = faq.clientKey || faq.id
+                const open = isExpanded(key)
                 return (
                   <section
-                    id={`entry-${faq.id}`}
-                    ref={(el) => setCardRef(faq.id, el)}
+                    id={`entry-${key}`}
+                    ref={(el) => setCardRef(key, el)}
                     className={cn(expandableCardClassName(open, accent), 'scroll-mt-24')}
                   >
                     <ExpandableEntryHeader
@@ -170,9 +171,9 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                       title={faq.question || 'New Question'}
                       subtitle={faq.answer?.slice(0, 64) || null}
                       isExpanded={open}
-                      onToggle={() => toggleExpanded(faq.id)}
+                      onToggle={() => toggleExpanded(key)}
                       showRemove
-                      onRemove={() => removeFaq(faq.id)}
+                      onRemove={() => removeFaq(key)}
                       accent={accent}
                     />
 

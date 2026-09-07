@@ -5,6 +5,7 @@ import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
+import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButtons'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
@@ -129,7 +130,9 @@ export const HomeHero: React.FC<{
   const profileIsVideo = Boolean(profileSrc) && isVideoUrl(profileSrc)
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn') || isVisible('Share')
+  const showCrm = isVisible('CRM')
   const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
+  const crmChrome = displayIconChromeStyle(field('CRM'))
   const languageChrome = displayIconChromeStyle(field('Language'))
   const websiteChrome = displayIconChromeStyle(field('Website'))
   const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'))
@@ -222,108 +225,118 @@ export const HomeHero: React.FC<{
               className={`pointer-events-auto absolute flex flex-col gap-3 ${compact ? 'top-24 right-1' : 'top-8 right-2 md:right-6'}`}
             >
               {/* Fixed rail: Eye → World (website) → Language → CRM → Theme */}
-              <button
-                type="button"
-                title="Total views"
-                className="group relative cursor-pointer transition-transform hover:scale-105"
-                onClick={() => {
-                  triggerHaptic(10)
-                  openVbizmeLogin()
-                }}
-              >
-                <span className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                  {viewCountLabel}
-                </span>
-                <span className={railButtonClass} style={viewsChrome}>
-                  <Eye size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                </span>
-              </button>
-              {websiteHref ? (
-                <a
-                  href={websiteHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Website"
-                  aria-label="Website"
-                  onClick={() => triggerHaptic(10)}
-                  className={railButtonClass}
-                  style={websiteChrome}
-                >
-                  <Globe size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                </a>
-              ) : (
+              <IconHoverTooltip label="Total views" placement="left">
                 <button
                   type="button"
-                  title="Website"
-                  aria-label="Website"
-                  className={railButtonClass}
-                  style={websiteChrome}
-                  onClick={() => triggerHaptic(10)}
+                  aria-label="Total views"
+                  className="group relative cursor-pointer transition-transform hover:scale-105"
+                  onClick={() => {
+                    triggerHaptic(10)
+                    openVbizmeLogin()
+                  }}
                 >
-                  <Globe size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  <span className="absolute -top-2 -right-2 z-10 rounded-full border border-red-800 bg-[#e3342f] px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                    {viewCountLabel}
+                  </span>
+                  <span className={railButtonClass} style={viewsChrome}>
+                    <Eye size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  </span>
                 </button>
+              </IconHoverTooltip>
+              {websiteHref ? (
+                <IconHoverTooltip label="Website" placement="left">
+                  <a
+                    href={websiteHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Website"
+                    onClick={() => triggerHaptic(10)}
+                    className={railButtonClass}
+                    style={websiteChrome}
+                  >
+                    <Globe size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  </a>
+                </IconHoverTooltip>
+              ) : (
+                <IconHoverTooltip label="Website" placement="left">
+                  <button
+                    type="button"
+                    aria-label="Website"
+                    className={railButtonClass}
+                    style={websiteChrome}
+                    onClick={() => triggerHaptic(10)}
+                  >
+                    <Globe size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  </button>
+                </IconHoverTooltip>
               )}
-              <div
-                role="button"
-                tabIndex={0}
-                title="Language"
-                aria-label="Language"
-                className={`${railButtonClass} notranslate h-auto min-h-10 w-auto min-w-10 flex-col gap-0.5 px-1 py-1 ${compact ? '' : 'md:min-h-12 md:min-w-12'}`}
-                style={languageChrome}
-                onClick={() => {
-                  triggerHaptic(10)
-                  onAction?.('language')
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
+              <IconHoverTooltip label="Language" placement="left">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Language"
+                  className={`${railButtonClass} notranslate h-auto min-h-10 w-auto min-w-10 flex-col gap-0.5 px-1 py-1 ${compact ? '' : 'md:min-h-12 md:min-w-12'}`}
+                  style={languageChrome}
+                  onClick={() => {
                     triggerHaptic(10)
                     onAction?.('language')
-                  }
-                }}
-              >
-                <SelectedLanguageMark
-                  showName={false}
-                  flagWidth={48}
-                  flagClassName={`h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-6 md:w-8'}`}
-                />
-              </div>
-              <button
-                type="button"
-                title="CRM"
-                aria-label="Open CRM"
-                className={railButtonClass}
-                onClick={() => {
-                  triggerHaptic(10)
-                  openVbizmeCrm()
-                }}
-              >
-                <Kanban size={HOME_ICON_SIZE} strokeWidth={2.5} />
-              </button>
-              <div
-                role="button"
-                tabIndex={0}
-                title="Toggle Theme"
-                aria-label="Toggle Theme"
-                onClick={() => {
-                  triggerHaptic(10)
-                  toggleTheme?.()
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      triggerHaptic(10)
+                      onAction?.('language')
+                    }
+                  }}
+                >
+                  <SelectedLanguageMark
+                    showName={false}
+                    flagWidth={48}
+                    flagClassName={`h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-6 md:w-8'}`}
+                  />
+                </div>
+              </IconHoverTooltip>
+              {showCrm && (
+                <IconHoverTooltip label="CRM" placement="left">
+                  <button
+                    type="button"
+                    aria-label="Open CRM"
+                    className={railButtonClass}
+                    style={crmChrome}
+                    onClick={() => {
+                      triggerHaptic(10)
+                      openVbizmeCrm()
+                    }}
+                  >
+                    <Kanban size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  </button>
+                </IconHoverTooltip>
+              )}
+              <IconHoverTooltip label="Toggle Theme" placement="left">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Toggle Theme"
+                  onClick={() => {
                     triggerHaptic(10)
                     toggleTheme?.()
-                  }
-                }}
-                className={railButtonClass}
-              >
-                {theme === 'dark' ? (
-                  <Sun size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                ) : (
-                  <Moon size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                )}
-              </div>
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      triggerHaptic(10)
+                      toggleTheme?.()
+                    }
+                  }}
+                  className={railButtonClass}
+                >
+                  {theme === 'dark' ? (
+                    <Sun size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  ) : (
+                    <Moon size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  )}
+                </div>
+              </IconHoverTooltip>
             </div>
           </div>
         </div>
@@ -339,22 +352,24 @@ export const HomeHero: React.FC<{
               {visibleSocials.map((item) => {
                 const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
                 return (
-                  <a
-                    key={item.label}
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => {
-                      triggerHaptic(10)
-                      onTrackedSocialClick(item.label, cardOwnerId, cardSlug)
-                    }}
-                    className={`vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 hover:scale-[1.12] hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] ${
-                      compact ? '' : 'md:h-10 md:w-10'
-                    }`}
-                    style={socialInlineStyle(item.label)}
-                  >
-                    {renderSocialIcon(item, HOME_ICON_SIZE)}
-                  </a>
+                  <IconHoverTooltip key={item.label} label={item.title} placement="right">
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={item.title}
+                      onClick={() => {
+                        triggerHaptic(10)
+                        onTrackedSocialClick(item.label, cardOwnerId, cardSlug)
+                      }}
+                      className={`vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 hover:scale-[1.12] hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] ${
+                        compact ? '' : 'md:h-10 md:w-10'
+                      }`}
+                      style={socialInlineStyle(item.label)}
+                    >
+                      {renderSocialIcon(item, HOME_ICON_SIZE)}
+                    </a>
+                  </IconHoverTooltip>
                 )
               })}
             </div>
@@ -375,51 +390,59 @@ export const HomeHero: React.FC<{
           <div className="relative z-20 mt-5 flex w-full flex-1 flex-col items-center">
             <div className="flex flex-wrap items-center justify-center gap-2">
               {showShare && (
+                <IconHoverTooltip label="Share">
+                  <button
+                    aria-label="Share"
+                    className="vbiz-icon-btn group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110"
+                    style={shareChrome}
+                    onClick={() => {
+                      triggerHaptic(10)
+                      onAction?.('share')
+                    }}
+                  >
+                    <Share2 size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  </button>
+                </IconHoverTooltip>
+              )}
+              <IconHoverTooltip label="Notifications">
                 <button
-                  title="Share"
-                  className="vbiz-icon-btn group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110"
-                  style={shareChrome}
+                  aria-label="Notifications"
+                  className={`group relative flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
                   onClick={() => {
                     triggerHaptic(10)
-                    onAction?.('share')
+                    onAction?.('settings')
                   }}
                 >
-                  <Share2 size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
                 </button>
-              )}
-              <button
-                title="Notification"
-                className={`group relative flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
-                onClick={() => {
-                  triggerHaptic(10)
-                  onAction?.('settings')
-                }}
-              >
-                <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
-              </button>
-              <button
-                title="Notepad"
-                className={`group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
-                onClick={() => {
-                  triggerHaptic(10)
-                  onAction?.('notepad')
-                }}
-              >
-                <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
-              </button>
-              <button
-                type="button"
-                title="Request 1-on-1"
-                className={`group flex items-center gap-1.5 rounded-xl border px-2.5 py-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
-                onClick={() => {
-                  triggerHaptic(10)
-                  onAction?.('one_on_one')
-                }}
-              >
-                <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                <span className="text-[10px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
-              </button>
+              </IconHoverTooltip>
+              <IconHoverTooltip label="Notes">
+                <button
+                  aria-label="Notes"
+                  className={`group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
+                  onClick={() => {
+                    triggerHaptic(10)
+                    onAction?.('notepad')
+                  }}
+                >
+                  <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                </button>
+              </IconHoverTooltip>
+              <IconHoverTooltip label="1-on-1">
+                <button
+                  type="button"
+                  aria-label="Request 1-on-1"
+                  className={`group flex items-center gap-1.5 rounded-xl border px-2.5 py-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
+                  onClick={() => {
+                    triggerHaptic(10)
+                    onAction?.('one_on_one')
+                  }}
+                >
+                  <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  <span className="text-[10px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
+                </button>
+              </IconHoverTooltip>
             </div>
 
             {showName && (
@@ -521,54 +544,62 @@ export const HomeHero: React.FC<{
 
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   {showShare && (
+                    <IconHoverTooltip label="Share">
+                      <button
+                        type="button"
+                        aria-label="Share"
+                        className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                        style={shareChrome}
+                        onClick={() => {
+                          triggerHaptic(10)
+                          onAction?.('share')
+                        }}
+                      >
+                        <Share2 size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                      </button>
+                    </IconHoverTooltip>
+                  )}
+                  <IconHoverTooltip label="Notifications">
                     <button
                       type="button"
-                      title="Share"
-                      className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
-                      style={shareChrome}
+                      aria-label="Notifications"
+                      className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
                       onClick={() => {
                         triggerHaptic(10)
-                        onAction?.('share')
+                        onAction?.('settings')
                       }}
                     >
-                      <Share2 size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                      <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                      <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    title="Notification"
-                    className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
-                    onClick={() => {
-                      triggerHaptic(10)
-                      onAction?.('settings')
-                    }}
-                  >
-                    <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                    <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
-                  </button>
-                  <button
-                    type="button"
-                    title="Notepad"
-                    className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
-                    onClick={() => {
-                      triggerHaptic(10)
-                      onAction?.('notepad')
-                    }}
-                  >
-                    <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                  </button>
-                  <button
-                    type="button"
-                    title="Request 1-on-1"
-                    className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12"
-                    onClick={() => {
-                      triggerHaptic(10)
-                      onAction?.('one_on_one')
-                    }}
-                  >
-                    <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                    <span className="text-[11px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
-                  </button>
+                  </IconHoverTooltip>
+                  <IconHoverTooltip label="Notes">
+                    <button
+                      type="button"
+                      aria-label="Notes"
+                      className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                      onClick={() => {
+                        triggerHaptic(10)
+                        onAction?.('notepad')
+                      }}
+                    >
+                      <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                    </button>
+                  </IconHoverTooltip>
+                  <IconHoverTooltip label="1-on-1">
+                    <button
+                      type="button"
+                      aria-label="Request 1-on-1"
+                      className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12"
+                      onClick={() => {
+                        triggerHaptic(10)
+                        onAction?.('one_on_one')
+                      }}
+                    >
+                      <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                      <span className="text-[11px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
+                    </button>
+                  </IconHoverTooltip>
                 </div>
 
                 {visibleSocials.length > 0 && (
@@ -576,18 +607,19 @@ export const HomeHero: React.FC<{
                     {visibleSocials.map((item) => {
                       const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
                       return (
-                        <a
-                          key={item.label}
-                          title={item.title}
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
-                          className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
-                          style={socialInlineStyle(item.label)}
-                        >
-                          {renderSocialIcon(item, HOME_ICON_SIZE)}
-                        </a>
+                        <IconHoverTooltip key={item.label} label={item.title}>
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={item.title}
+                            onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
+                            className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
+                            style={socialInlineStyle(item.label)}
+                          >
+                            {renderSocialIcon(item, HOME_ICON_SIZE)}
+                          </a>
+                        </IconHoverTooltip>
                       )
                     })}
                   </div>
