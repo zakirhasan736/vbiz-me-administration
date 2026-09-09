@@ -30,7 +30,17 @@ function PropertyListingSkeleton() {
   )
 }
 
-function PropertyListingCard({ item, idx, accent }: { item: DynamicPostListItem; idx: number; accent: string }) {
+function PropertyListingCard({
+  item,
+  idx,
+  accent,
+  tallImage = false,
+}: {
+  item: DynamicPostListItem
+  idx: number
+  accent: string
+  tallImage?: boolean
+}) {
   const imageUrl = resolvePropertyImage(item)
   const preview = stripHtml(item.description)
   const detailUrl = item.generalInfoUrl.trim()
@@ -42,7 +52,7 @@ function PropertyListingCard({ item, idx, accent }: { item: DynamicPostListItem;
       transition={{ duration: 0.4, delay: idx * 0.08 }}
       className={`group flex h-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${detailUrl ? 'cursor-pointer' : ''}`}
     >
-      <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+      <div className={cn('relative overflow-hidden bg-zinc-100 dark:bg-zinc-950', tallImage ? 'h-80' : 'h-56')}>
         {imageUrl ? (
           <Image
             src={imageUrl}
@@ -167,7 +177,7 @@ export const PropertyListingSection = () => {
 
       <div className={cn('relative z-20 mt-4', contentGridClass(items.length, 'md:grid-cols-2 lg:grid-cols-3'))}>
         {items.map((item, idx) => (
-          <PropertyListingCard key={item.id} item={item} idx={idx} accent={accent} />
+          <PropertyListingCard key={item.id} item={item} idx={idx} accent={accent} tallImage={items.length === 1} />
         ))}
       </div>
     </div>

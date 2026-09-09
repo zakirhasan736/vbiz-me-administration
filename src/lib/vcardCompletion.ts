@@ -1,10 +1,20 @@
 import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
+import { isPersistableMediaUrl } from '@/lib/vcardContentMedia'
 import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import { readExplainerSectionMedia } from '@/lib/vcardExplainerFromProfileMedia'
 import type { EditorNavPanel } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { getVCardResume } from '@/lib/vcardResume'
 import { getSectionSchema } from '@/lib/vcardSectionSchemas'
 import type { VCardData } from '@/types/vcard'
+
+function contentMediaUrlFilled(item: unknown): boolean {
+  if (!item || typeof item !== 'object') {
+    return typeof item === 'string' && isPersistableMediaUrl(item)
+  }
+  const url = (item as { url?: unknown }).url
+  return typeof url === 'string' && isPersistableMediaUrl(url)
+}
 
 function filled(value?: string | null) {
   return Boolean(value && String(value).trim())
@@ -281,31 +291,12 @@ function itemLabel(base: string, index: number, field: string): string {
 }
 
 function resumeDocuments(data: VCardData): unknown[] {
-  const block = (
-    data as { sections?: Record<string, unknown>; resume?: { url?: string; title?: string; summary?: string } }
-  ).sections?.Resume as
-    | {
-        title?: string
-        summary?: string
-        body?: string
-        documents?: unknown[]
-        document?: unknown
-        url?: string
-      }
-    | undefined
-  const legacy = (data as { resume?: { url?: string; title?: string; summary?: string } }).resume
-  if (Array.isArray(block?.documents)) return block.documents
-  if (block?.document) return [block.document]
-  if (block?.url || legacy?.url) return [block?.url || legacy?.url]
-  return []
+  return getVCardResume(data).documents
 }
 
 function resumeSummary(data: VCardData): string {
-  const block = (
-    data as { sections?: Record<string, unknown>; resume?: { url?: string; title?: string; summary?: string } }
-  ).sections?.Resume as { title?: string; summary?: string; body?: string } | undefined
-  const legacy = (data as { resume?: { url?: string; title?: string; summary?: string } }).resume
-  return block?.summary || block?.body || legacy?.summary || block?.title || legacy?.title || ''
+  const resume = getVCardResume(data)
+  return resume.summary || resume.title || ''
 }
 
 function sectionPostFields(
@@ -1101,7 +1092,7 @@ export function getEditorPanelCompletionFields(
         {
           id: 'contentMedia.gallery',
           label: 'Gallery media',
-          filled: Boolean(cm?.gallery?.length),
+          filled: Boolean(cm?.gallery?.some(contentMediaUrlFilled)),
           hint: 'Upload, Gallery, or Canva asset.',
           upload: true,
           edit: { type: 'content-gallery' },
@@ -1109,7 +1100,7 @@ export function getEditorPanelCompletionFields(
         {
           id: 'contentMedia.videos',
           label: 'Video media',
-          filled: Boolean(cm?.videos?.length),
+          filled: Boolean(cm?.videos?.some(contentMediaUrlFilled)),
           hint: 'Upload, Gallery, or Canva asset.',
           upload: true,
           edit: { type: 'content-video' },
@@ -1314,29 +1305,10 @@ function panelPercent(panel: EditorNavPanel, data: VCardData, meta?: PersonalCom
     case 'profile':
       return personalPercent(data, meta)
     case 'resume': {
-      const block = (
-        data as { sections?: Record<string, unknown>; resume?: { url?: string; title?: string; summary?: string } }
-      ).sections?.Resume as
-        | {
-            title?: string
-            summary?: string
-            body?: string
-            documents?: unknown[]
-            document?: unknown
-            url?: string
-          }
-        | undefined
-      const legacy = (data as { resume?: { url?: string; title?: string; summary?: string } }).resume
-      const docs = Array.isArray(block?.documents)
-        ? block.documents
-        : block?.document
-          ? [block.document]
-          : block?.url || legacy?.url
-            ? [block?.url || legacy?.url]
-            : []
-      const hasDoc = docs.length > 0
-      const hasSummary = filled(block?.summary) || filled(block?.body) || filled(legacy?.summary)
-      const hasTitle = filled(block?.title) || filled(legacy?.title)
+      const resume = getVCardResume(data)
+      const hasDoc = resume.documents.length > 0
+      const hasSummary = filled(resume.summary)
+      const hasTitle = filled(resume.title) && resume.title.trim().toLowerCase() !== 'resume'
       if (!hasDoc && !hasSummary && !hasTitle) return 0
       if (hasDoc && hasSummary) return 100
       if (hasDoc) return 70
@@ -1345,7 +1317,8 @@ function panelPercent(panel: EditorNavPanel, data: VCardData, meta?: PersonalCom
     }
     case 'content-media': {
       const cm = (data as { contentMedia?: { gallery?: unknown[]; videos?: unknown[] } }).contentMedia
-      return listProgress([...(cm?.gallery || []), ...(cm?.videos || [])])
+      const persistable = [...(cm?.gallery || []), ...(cm?.videos || [])].filter(contentMediaUrlFilled)
+      return listProgress(persistable)
     }
     case 'global-connection':
       return 100

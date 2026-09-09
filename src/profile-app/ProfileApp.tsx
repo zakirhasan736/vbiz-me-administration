@@ -36,6 +36,8 @@ export function ProfileApp(props: VBizProfileAppProps) {
       social={props.social}
       extraFields={props.extraFields}
       myInfo={props.myInfo}
+      resume={props.resume}
+      contentMedia={props.contentMedia}
       education={props.education}
       experience={props.experience}
       services={props.services}

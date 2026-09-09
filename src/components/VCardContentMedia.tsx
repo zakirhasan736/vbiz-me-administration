@@ -3,13 +3,14 @@
 import { DocumentUploadArea, type UploadedDoc } from '@/components/DocumentUploadArea'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
+import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { useVCard } from '@/lib/VCardContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { cn } from '@/utils/cn'
-import { GripVertical, Images, Plus, Trash2, Video } from 'lucide-react'
-import { useRef } from 'react'
+import { GripVertical, Images, Loader2, Plus, Trash2, Video } from 'lucide-react'
+import { useRef, useState } from 'react'
 
-type GalleryItem = { id: string; url: string; name: string }
+type GalleryItem = { id: string; url: string; name: string; type?: string; size?: number }
 type VideoItem = { id: string; title: string; url: string }
 type ContentMediaState = {
   gallery: GalleryItem[]
@@ -19,7 +20,7 @@ type ContentMediaState = {
 
 export function TabContentMedia() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Content & media')
-  const { vCardData, updateData } = useVCard()
+  const { vCardData, updateData, cardId } = useVCard()
   const cm: ContentMediaState = {
     gallery: [],
     videos: [],
@@ -29,6 +30,8 @@ export function TabContentMedia() {
   const gallery = cm.gallery || []
   const videos = cm.videos || []
   const videoRef = useRef<HTMLInputElement>(null)
+  const [videoUploading, setVideoUploading] = useState(false)
+  const [videoError, setVideoError] = useState('')
 
   const persist = (next: ContentMediaState) => updateData('contentMedia', next)
 
@@ -36,9 +39,40 @@ export function TabContentMedia() {
     id: g.id,
     name: g.name,
     url: g.url,
-    type: 'image/*',
-    size: 0,
+    type: g.type || 'image/*',
+    size: typeof g.size === 'number' ? g.size : 0,
   }))
+
+  const ingestVideoFile = async (file: File) => {
+    setVideoError('')
+    if (!cardId) {
+      setVideoError('Save the card first, then upload a video.')
+      return
+    }
+    setVideoUploading(true)
+    try {
+      const result = await uploadMediaWithProgress({
+        file,
+        profileId: cardId,
+        attachmentType: 'Content Media Video',
+      })
+      persist({
+        ...cm,
+        videos: [
+          {
+            id: `vid_${Date.now()}`,
+            url: result.url,
+            title: '',
+          },
+          ...videos,
+        ],
+      })
+    } catch (err) {
+      setVideoError(err instanceof MediaUploadError ? err.message : 'Upload failed. Please try again.')
+    } finally {
+      setVideoUploading(false)
+    }
+  }
 
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl space-y-6 pb-12 duration-500">
@@ -61,10 +95,18 @@ export function TabContentMedia() {
           label="Gallery images"
           hint="Drag & drop images — PNG, JPG, WEBP"
           mediaAssist="image"
+          profileId={cardId}
+          attachmentType="Content Media Gallery"
           onChange={(files) =>
             persist({
               ...cm,
-              gallery: files.map((f) => ({ id: f.id, url: f.url, name: f.name })),
+              gallery: files.map((f) => ({
+                id: f.id,
+                url: f.url,
+                name: f.name,
+                type: f.type,
+                size: f.size,
+              })),
             })
           }
         />
@@ -92,37 +134,35 @@ export function TabContentMedia() {
           type="file"
           accept="video/*"
           className="hidden"
+          disabled={videoUploading}
           onChange={(e) => {
             const file = e.target.files?.[0]
-            if (!file) return
-            persist({
-              ...cm,
-              videos: [
-                {
-                  id: `vid_${Date.now()}`,
-                  url: URL.createObjectURL(file),
-                  title: file.name,
-                },
-                ...videos,
-              ],
-            })
             e.target.value = ''
+            if (!file) return
+            void ingestVideoFile(file)
           }}
         />
         <button
           type="button"
+          disabled={videoUploading}
           onClick={() => videoRef.current?.click()}
-          className="w-full rounded-2xl border-2 border-dashed border-slate-200 py-6 text-center hover:border-violet-400/50 dark:border-white/15"
+          className="w-full rounded-2xl border-2 border-dashed border-slate-200 py-6 text-center hover:border-violet-400/50 disabled:cursor-wait disabled:opacity-70 dark:border-white/15"
         >
-          <Video className="mx-auto mb-1 h-6 w-6 text-violet-500" />
-          <p className="text-sm font-bold">Upload or add video URL below</p>
+          {videoUploading ? (
+            <Loader2 className="mx-auto mb-1 h-6 w-6 animate-spin text-violet-500" />
+          ) : (
+            <Video className="mx-auto mb-1 h-6 w-6 text-violet-500" />
+          )}
+          <p className="text-sm font-bold">{videoUploading ? 'Uploading video…' : 'Upload or add video URL below'}</p>
         </button>
+        {videoError ? <p className="text-xs font-semibold text-rose-500">{videoError}</p> : null}
         <MediaSourceActions
           mode="video"
+          profileId={cardId}
           onSelect={(asset) =>
             persist({
               ...cm,
-              videos: [{ id: `vid_${Date.now()}`, url: asset.url, title: asset.name }, ...videos],
+              videos: [{ id: `vid_${Date.now()}`, url: asset.url, title: '' }, ...videos],
             })
           }
         />

@@ -1,6 +1,8 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import { seoToApiSettings } from '@/lib/seo/cardSeo'
+import { mapContentMediaToApiSettings } from '@/lib/vcardContentMedia'
 import { mapMyInfoToApiSettings } from '@/lib/vcardMyInfo'
+import { getVCardResume, mapResumeToApiSettings } from '@/lib/vcardResume'
 import type { VCardData, VCardExtraField, VCardTheme } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
@@ -257,6 +259,8 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
     ...mapThemeToApiSettings(data),
     ...mapCustomTabsToApiSettings(data),
     ...mapMyInfoToApiSettings(data.myInfo, data.personal),
+    ...mapResumeToApiSettings(getVCardResume(data)),
+    ...mapContentMediaToApiSettings(data.contentMedia),
     ...seoToApiSettings(data.seo),
     [AI_ASSISTANCE_SETTING_KEY]: isAiAssistanceEnabled(data.aiAssistanceEnabled) ? '1' : '0',
   }

@@ -1,12 +1,13 @@
 'use client'
 
 import { getNavTabBackgroundColor } from '@/lib/vcardDisplaySettings'
+import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { useProfileNavScroll } from '@/profile-app/hooks/useProfileNavScroll'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { cn } from '@/utils/cn'
 import { ChevronLeft, ChevronRight, LucideIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState, type ReactNode } from 'react'
 
 interface Tab {
   id: string
@@ -21,6 +22,14 @@ interface NavigationProps {
   theme?: string
   /** Persist horizontal scroll position per profile slug. */
   slugForPersistence?: string
+}
+
+function maybeTooltip({ embedded, label, children }: { embedded: boolean; label: string; children: ReactNode }) {
+  return (
+    <IconHoverTooltip label={label} placement={embedded ? 'bottom' : 'top'} portal className="shrink-0">
+      {children}
+    </IconHoverTooltip>
+  )
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActiveTab, slugForPersistence }) => {
@@ -68,18 +77,27 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
     <div className="relative flex w-full min-w-0 items-center">
       <AnimatePresence>
         {canScrollLeft && (
-          <motion.button
-            type="button"
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            onClick={() => scrollToEdge('left')}
-            className="vbiz-nav-scroll-btn absolute left-0 z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-all active:scale-90"
-            title="Scroll left"
-            aria-label="Scroll navigation left"
+            className="absolute left-0 z-30"
           >
-            <ChevronLeft size={14} strokeWidth={2.5} />
-          </motion.button>
+            {maybeTooltip({
+              embedded,
+              label: 'Scroll left',
+              children: (
+                <motion.button
+                  type="button"
+                  onClick={() => scrollToEdge('left')}
+                  className="vbiz-nav-scroll-btn flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-all active:scale-90"
+                  aria-label="Scroll navigation left"
+                >
+                  <ChevronLeft size={14} strokeWidth={2.5} />
+                </motion.button>
+              ),
+            })}
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -99,10 +117,9 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
           const isHovered = hoveredTab === tab.id
           const tabBg = getNavTabBackgroundColor(settings, tab.id)
 
-          return (
+          const button = (
             <motion.button
               layout="position"
-              key={tab.id}
               type="button"
               role="tab"
               onClick={() => handleTabClick(tab.id)}
@@ -113,7 +130,6 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
               onMouseEnter={() => setHoveredTab(tab.id)}
               onMouseLeave={() => setHoveredTab(null)}
               className="vbiz-nav-tab focus-visible:ring-gold/60 relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-300 outline-none focus-visible:ring-1 active:scale-95 md:h-12 md:w-12 md:rounded-[14px]"
-              title={tab.label}
               aria-label={tab.label}
               style={tabBg ? { backgroundColor: tabBg } : undefined}
             >
@@ -143,34 +159,49 @@ export const Navigation: React.FC<NavigationProps> = ({ tabs, activeTab, setActi
                 />
               </div>
 
-              {!embedded && (isActive || isHovered) && (
-                <span className="pointer-events-none absolute -top-8 left-1/2 z-30 -translate-x-1/2 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[9px] font-black tracking-wide whitespace-nowrap text-zinc-900 shadow-sm md:bottom-auto dark:border-white/15 dark:bg-[#0b0f19] dark:text-white">
-                  {tab.label}
-                </span>
-              )}
-
               {isActive && (
                 <span className="vbiz-nav-tab-dot absolute bottom-0.5 left-1/2 z-10 h-1.5 w-1.5 -translate-x-1/2 animate-pulse rounded-full md:hidden" />
               )}
             </motion.button>
+          )
+
+          return (
+            <IconHoverTooltip
+              key={tab.id}
+              label={tab.label}
+              placement={embedded ? 'bottom' : 'top'}
+              portal
+              className="shrink-0"
+            >
+              {button}
+            </IconHoverTooltip>
           )
         })}
       </div>
 
       <AnimatePresence>
         {canScrollRight && (
-          <motion.button
-            type="button"
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            onClick={() => scrollToEdge('right')}
-            className="vbiz-nav-scroll-btn absolute right-0 z-30 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-all active:scale-90"
-            title="Scroll right"
-            aria-label="Scroll navigation right"
+            className="absolute right-0 z-30"
           >
-            <ChevronRight size={14} strokeWidth={2.5} />
-          </motion.button>
+            {maybeTooltip({
+              embedded,
+              label: 'Scroll right',
+              children: (
+                <motion.button
+                  type="button"
+                  onClick={() => scrollToEdge('right')}
+                  className="vbiz-nav-scroll-btn flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-all active:scale-90"
+                  aria-label="Scroll navigation right"
+                >
+                  <ChevronRight size={14} strokeWidth={2.5} />
+                </motion.button>
+              ),
+            })}
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

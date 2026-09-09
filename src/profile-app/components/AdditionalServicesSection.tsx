@@ -21,7 +21,7 @@ function resolveServiceImage(item: DynamicPostListItem): string {
 function AdditionalServicesSkeleton() {
   return (
     <div className="w-full pb-20">
-      <div className="min-h-[280px] animate-pulse rounded-2xl border border-l-4 border-zinc-200 border-l-zinc-300 bg-zinc-200 shadow-sm dark:border-zinc-800/80 dark:border-l-zinc-600 dark:bg-zinc-800" />
+      <div className="min-h-70 animate-pulse rounded-2xl border border-l-4 border-zinc-200 border-l-zinc-300 bg-zinc-200 shadow-sm dark:border-zinc-800/80 dark:border-l-zinc-600 dark:bg-zinc-800" />
     </div>
   )
 }
@@ -45,8 +45,15 @@ function ServiceCard({ item, accent }: { item: DynamicPostListItem; accent: stri
       />
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         {imageUrl ? (
-          <div className="relative mb-6 h-24 w-24 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-md transition-transform duration-300 group-hover:scale-105 sm:mb-8 sm:h-28 sm:w-28 dark:border-zinc-700 dark:bg-zinc-950">
-            <Image src={imageUrl} alt={item.title} fill className="object-contain p-2" sizes="112px" />
+          <div className="mb-6 w-full overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-md transition-transform duration-300 group-hover:scale-[1.01] sm:mb-8 dark:border-zinc-700 dark:bg-zinc-950">
+            <Image
+              src={imageUrl}
+              alt={item.title}
+              width={768}
+              height={432}
+              className="mx-auto h-auto max-h-56 w-full object-contain"
+              sizes="(max-width: 768px) 100vw, 768px"
+            />
           </div>
         ) : null}
 
@@ -122,7 +129,7 @@ export const AdditionalServicesSection = () => {
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <ShieldCheck size={24} style={{ color: accent }} />
           </div>

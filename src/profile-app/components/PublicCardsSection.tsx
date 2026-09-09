@@ -348,20 +348,23 @@ export const PublicCardsSection = () => {
   const showInitialLoader = isLoading && cards.length === 0
   const showEmptyState = !isLoading && !isPrefetchingAll && !error && cards.length === 0
 
+  // Inactive labels must avoid text-zinc-600 / dark:text-zinc-300 — card theme CSS remaps
+  // those inside .vbiz-public-cards-banner to near-white, which disappears on the light wash.
+  const viewToggleInactive = 'text-zinc-700 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-zinc-50'
   const viewToggle = (
     <div
       className={`inline-flex items-center rounded-xl border border-zinc-200 bg-white/80 p-1 shadow-2xl backdrop-blur-xl dark:border-zinc-800/80 dark:bg-black/60 ${compact ? 'shadow-md' : ''}`}
     >
       <button
         onClick={() => setViewMode('slider')}
-        className={`flex items-center gap-1.5 rounded-lg text-[10px] font-black transition-all duration-300 ${compact ? 'px-2.5 py-1.5' : 'px-3 py-1.5 md:px-4 md:py-2 md:text-xs'} ${viewMode === 'slider' ? 'bg-[#eab308] text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'}`}
+        className={`flex items-center gap-1.5 rounded-lg text-[10px] font-black transition-all duration-300 ${compact ? 'px-2.5 py-1.5' : 'px-3 py-1.5 md:px-4 md:py-2 md:text-xs'} ${viewMode === 'slider' ? 'bg-[#eab308] text-black shadow-sm' : viewToggleInactive}`}
       >
         <Monitor size={12} className={compact ? '' : 'md:h-3.5 md:w-3.5'} />
         <span>Slider</span>
       </button>
       <button
         onClick={() => setViewMode('grid')}
-        className={`flex items-center gap-1.5 rounded-lg text-[10px] font-black transition-all duration-300 ${compact ? 'px-2.5 py-1.5' : 'px-3 py-1.5 md:px-4 md:py-2 md:text-xs'} ${viewMode === 'grid' ? 'bg-[#eab308] text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'}`}
+        className={`flex items-center gap-1.5 rounded-lg text-[10px] font-black transition-all duration-300 ${compact ? 'px-2.5 py-1.5' : 'px-3 py-1.5 md:px-4 md:py-2 md:text-xs'} ${viewMode === 'grid' ? 'bg-[#eab308] text-black shadow-sm' : viewToggleInactive}`}
       >
         <LayoutGrid size={12} className={compact ? '' : 'md:h-3.5 md:w-3.5'} />
         <span>Grid</span>

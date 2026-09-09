@@ -195,7 +195,6 @@ async function warmLazyProfileChunks(): Promise<void> {
     import('@/profile-app/components/MeetOurTeamSection'),
     import('@/profile-app/components/MenuSection'),
     import('@/profile-app/components/MissionSection'),
-    import('@/profile-app/components/PostsSection'),
     import('@/profile-app/components/PropertyListingSection'),
     import('@/profile-app/components/PublicCardsSection'),
     import('@/profile-app/components/ResiliencyProductsSection'),
@@ -214,7 +213,6 @@ async function warmLazyProfileChunks(): Promise<void> {
 const STATIC_DYNAMIC_SECTION_BY_CONTENT: Partial<Record<ProfileNavContentKey, string>> = {
   mission: PUBLIC_SECTION_NAMES.mission,
   additional: PUBLIC_SECTION_NAMES.additionalServices,
-  post: PUBLIC_SECTION_NAMES.post,
   'why-choose-us': PUBLIC_SECTION_NAMES.whyChooseUs,
   certificates: PUBLIC_SECTION_NAMES.certificates,
   'join-my-team': PUBLIC_SECTION_NAMES.joinMyTeam,

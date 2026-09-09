@@ -43,8 +43,8 @@ function ClientCardSkeleton({ idx }: { idx: number }) {
       transition={{ duration: 0.6, delay: (idx % 8) * 0.1, ease: 'easeOut' }}
       className="relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50"
     >
-      <div className="h-36 animate-pulse bg-zinc-200 dark:bg-zinc-800" />
-      <div className="relative z-20 -mt-4 flex flex-1 flex-col p-6">
+      <div className="h-56 animate-pulse bg-zinc-200 dark:bg-zinc-800" />
+      <div className="relative z-20 -mt-6 flex flex-1 flex-col p-6">
         <div className="mb-2 h-5 w-3/4 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
         <div className="mb-6 h-3 w-1/3 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
         <div className="mt-auto flex items-center justify-between border-t border-zinc-200 pt-4 dark:border-zinc-800/80">
@@ -132,72 +132,78 @@ export const ClientsSection = () => {
             contentGridClass(clients.length, 'sm:grid-cols-2 lg:grid-cols-3')
           )}
         >
-          {clients.map((client, idx) => (
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-50px' }}
-              transition={{ duration: 0.6, delay: (idx % 8) * 0.1, ease: 'easeOut' }}
-              key={client.id}
-              className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
-            >
-              <div className="relative h-36 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-                {client.logo ? (
-                  <Image
-                    width={400}
-                    height={200}
-                    src={client.logo}
-                    alt={client.name}
-                    className="h-full w-full object-cover opacity-80 grayscale-50 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90 group-hover:grayscale-0"
-                  />
-                ) : (
-                  <div
-                    className="flex h-full w-full items-center justify-center text-4xl font-black"
-                    style={clientPlaceholderStyle(client.name)}
-                    aria-label={`${client.name} logo unavailable`}
-                  >
-                    {clientInitials(client.name)}
-                  </div>
-                )}
-              </div>
+          {clients.map((client, idx) => {
+            const tallImage = clients.length === 1
 
-              <div className="relative z-20 -mt-4 flex flex-1 flex-col p-6">
-                <h3 className="mb-1 text-lg font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
-                  {client.name}
-                </h3>
-                {client.description ? (
-                  <p className="text-yellow-primary mb-4 text-[10px] font-bold tracking-wider uppercase">
-                    {client.description}
-                  </p>
-                ) : (
-                  <div className="mb-4" />
-                )}
-
-                <div className="mt-auto flex items-center justify-between border-t border-zinc-200 pt-4 dark:border-zinc-800/80">
-                  <div className="flex flex-col">
-                    <span className="mb-0.5 text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
-                      Partner Since
-                    </span>
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-300">{client.since || '—'}</span>
-                  </div>
-                  {client.linkUrl && (
-                    <Link
-                      href={client.linkUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`Visit ${client.name}`}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm transition-colors duration-300 hover:bg-zinc-900 hover:text-white dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.6, delay: (idx % 8) * 0.1, ease: 'easeOut' }}
+                key={client.id}
+                className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
+              >
+                <div
+                  className={cn('relative overflow-hidden bg-zinc-100 dark:bg-zinc-950', tallImage ? 'h-80' : 'h-56')}
+                >
+                  {client.logo ? (
+                    <Image
+                      width={400}
+                      height={tallImage ? 320 : 300}
+                      src={client.logo}
+                      alt={client.name}
+                      className="h-full w-full object-cover object-top opacity-80 grayscale-50 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90 group-hover:grayscale-0"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-full w-full items-center justify-center text-4xl font-black"
+                      style={clientPlaceholderStyle(client.name)}
+                      aria-label={`${client.name} logo unavailable`}
                     >
-                      <ExternalLink
-                        size={16}
-                        className="text-zinc-500 transition-colors group-hover:text-white dark:text-zinc-400 dark:group-hover:text-zinc-950"
-                      />
-                    </Link>
+                      {clientInitials(client.name)}
+                    </div>
                   )}
                 </div>
-              </div>
-            </motion.div>
-          ))}
+
+                <div className="relative z-20 -mt-6 flex flex-1 flex-col p-6">
+                  <h3 className="mb-1 text-lg font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
+                    {client.name}
+                  </h3>
+                  {client.description ? (
+                    <p className="text-yellow-primary mb-4 text-[10px] font-bold tracking-wider uppercase">
+                      {client.description}
+                    </p>
+                  ) : (
+                    <div className="mb-4" />
+                  )}
+
+                  <div className="mt-auto flex items-center justify-between border-t border-zinc-200 pt-4 dark:border-zinc-800/80">
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
+                        Partner Since
+                      </span>
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-300">{client.since || '—'}</span>
+                    </div>
+                    {client.linkUrl && (
+                      <Link
+                        href={client.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Visit ${client.name}`}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 shadow-sm transition-colors duration-300 hover:bg-zinc-900 hover:text-white dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+                      >
+                        <ExternalLink
+                          size={16}
+                          className="text-zinc-500 transition-colors group-hover:text-white dark:text-zinc-400 dark:group-hover:text-zinc-950"
+                        />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
         </div>
       ) : null}
     </div>

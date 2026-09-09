@@ -206,7 +206,7 @@ function VideoCard({
       <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
       {!isGallery && videoUrl ? (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/85 text-zinc-900 shadow-lg backdrop-blur-sm transition-transform group-hover:scale-105">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 bg-zinc-950/75 text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-md transition-transform group-hover:scale-105">
             <PlayCircle size={24} />
           </span>
         </div>

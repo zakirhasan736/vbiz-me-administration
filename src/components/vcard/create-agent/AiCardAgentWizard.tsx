@@ -38,6 +38,7 @@ import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplayS
 import type { SettingsTabId } from '@/lib/vcardEditorRoutes'
 import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
 import { getNavItemById, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
+import { getVCardResume } from '@/lib/vcardResume'
 import type { VCardData } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import {
@@ -475,26 +476,10 @@ function displayCustom(data: VCardData, key: string): string {
 }
 
 function getResumeState(data: VCardData): { summary: string; documents: unknown[] } {
-  const block = (data as { sections?: Record<string, unknown> }).sections?.Resume as
-    | {
-        summary?: string
-        body?: string
-        documents?: unknown[]
-        document?: unknown
-        url?: string
-      }
-    | undefined
-  const legacy = (data as { resume?: { url?: string; summary?: string } }).resume
-  const documents = Array.isArray(block?.documents)
-    ? block.documents
-    : block?.document
-      ? [block.document]
-      : block?.url || legacy?.url
-        ? [block?.url || legacy?.url]
-        : []
+  const resume = getVCardResume(data)
   return {
-    summary: String(block?.summary || block?.body || legacy?.summary || ''),
-    documents,
+    summary: resume.summary,
+    documents: resume.documents,
   }
 }
 

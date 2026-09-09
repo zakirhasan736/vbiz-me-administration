@@ -14,9 +14,11 @@ import { isGenericPublicCardImage } from '@/lib/publicCards/publicCardImage'
 import { resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
+import { CONTENT_MEDIA_SETTING_KEY, parseContentMediaJson } from '@/lib/vcardContentMedia'
 import { applyEnabledNavOrderToDisplaySettings } from '@/lib/vcardDisplaySettings'
 import { MY_INFO_SETTING_KEY, parseMyInfoJson } from '@/lib/vcardMyInfo'
 import { createDefaultNavFieldConfig, LOCKED_NAV_ITEM_IDS, NAV_BAR_FIELDS, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
+import { parseResumeJson, RESUME_SETTING_KEY } from '@/lib/vcardResume'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 import type {
@@ -569,6 +571,8 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
     social: mapSocial(card),
     extraFields: mapExtraFields(card),
     myInfo: parseMyInfoJson(card.settings?.[MY_INFO_SETTING_KEY]),
+    resume: parseResumeJson(card.settings?.[RESUME_SETTING_KEY]),
+    contentMedia: parseContentMediaJson(card.settings?.[CONTENT_MEDIA_SETTING_KEY]),
     seo: resolvePublicCardSeo(card, card.profile.slug),
     education: [],
     experience: [],

@@ -5,9 +5,23 @@ import type {
 import { decodeHtmlText } from '@/lib/htmlText'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
 
+const EMPTY_VIDEO_EXPLAINER: VideoExplainerQueryResult = {
+  sectionTitle: '2D Video Explainer',
+  videoUrl: '',
+  videoName: '',
+  externalUrl: null,
+}
+
 export function normalizeVideoExplainerResponse(response: VideoExplainerSectionResponse): VideoExplainerQueryResult {
-  if (!response.success || !response.data) {
+  // Public API returns `{ success: true, data: null }` when the tab is enabled but empty.
+  if (!response.success) {
     throw new Error(response.error || 'Failed to load video explainer')
+  }
+  if (!response.data) {
+    return {
+      ...EMPTY_VIDEO_EXPLAINER,
+      sectionTitle: decodeHtmlText(response.post_type?.title?.trim() || EMPTY_VIDEO_EXPLAINER.sectionTitle),
+    }
   }
 
   const sectionTitle = decodeHtmlText(

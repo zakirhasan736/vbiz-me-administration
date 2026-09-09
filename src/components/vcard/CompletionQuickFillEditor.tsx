@@ -1,6 +1,6 @@
 'use client'
 
-import { DocumentUploadArea, type UploadedDoc } from '@/components/DocumentUploadArea'
+import { DocumentUploadArea } from '@/components/DocumentUploadArea'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
@@ -20,6 +20,7 @@ import { createDefaultExperienceEntry } from '@/lib/vcardExperience'
 import { createDefaultFaqEntry } from '@/lib/vcardFaq'
 import { createDefaultGeneralPost } from '@/lib/vcardGeneralPosts'
 import { createDefaultPortfolioEntry } from '@/lib/vcardPortfolio'
+import { getVCardResume } from '@/lib/vcardResume'
 import { createDefaultReviewEntry } from '@/lib/vcardReviews'
 import { createDefaultSectionPostItem } from '@/lib/vcardSectionSchemas'
 import { createDefaultServiceEntry } from '@/lib/vcardServices'
@@ -581,9 +582,8 @@ function ExtraRowFill() {
 
 function ResumeSummaryFill() {
   const { vCardData, updateData } = useVCard()
-  const sections = (vCardData as { sections?: Record<string, unknown> }).sections || {}
-  const block = (sections.Resume || {}) as { title?: string; summary?: string; documents?: UploadedDoc[] }
-  const initial = block.summary || ''
+  const resume = getVCardResume(vCardData)
+  const initial = resume.summary || ''
   const [draft, setDraft] = useState(initial)
   const trimmed = draft.trim()
   const canApply = Boolean(trimmed) && trimmed !== initial.trim()
@@ -593,12 +593,7 @@ function ResumeSummaryFill() {
       label="Summary"
       stacked
       canApply={canApply}
-      onApply={() =>
-        updateData('sections', {
-          ...sections,
-          Resume: { title: block.title || 'Resume', summary: draft, documents: block.documents || [] },
-        })
-      }
+      onApply={() => updateData('resume', { ...resume, summary: draft })}
     >
       <textarea
         value={draft}
@@ -612,10 +607,9 @@ function ResumeSummaryFill() {
 }
 
 function ResumeDocumentFill() {
-  const { vCardData, updateData } = useVCard()
-  const sections = (vCardData as { sections?: Record<string, unknown> }).sections || {}
-  const block = (sections.Resume || {}) as { title?: string; summary?: string; documents?: UploadedDoc[] }
-  const docs = Array.isArray(block.documents) ? block.documents : []
+  const { vCardData, updateData, cardId } = useVCard()
+  const resume = getVCardResume(vCardData)
+  const docs = resume.documents
 
   return (
     <DocumentUploadArea
@@ -624,10 +618,18 @@ function ResumeDocumentFill() {
       label="Resume document"
       hint="PDF or DOC"
       mediaAssist="image"
+      profileId={cardId}
+      attachmentType="Resume Document"
       onChange={(files) =>
-        updateData('sections', {
-          ...sections,
-          Resume: { title: block.title || 'Resume', summary: block.summary || '', documents: files },
+        updateData('resume', {
+          ...resume,
+          documents: files.map((f) => ({
+            id: f.id,
+            name: f.name,
+            url: f.url,
+            type: f.type,
+            size: f.size,
+          })),
         })
       }
     />
@@ -635,26 +637,46 @@ function ResumeDocumentFill() {
 }
 
 function ContentGalleryFill() {
-  const { vCardData, updateData } = useVCard()
+  const { vCardData, updateData, cardId } = useVCard()
   const cm = {
-    gallery: [] as Array<{ id: string; url: string; name: string }>,
+    gallery: [] as Array<{ id: string; url: string; name: string; type?: string; size?: number }>,
     videos: [] as Array<{ id: string; title: string; url: string }>,
     note: '',
     ...((vCardData as { contentMedia?: Record<string, unknown> }).contentMedia || {}),
   }
-  const gallery = (cm.gallery || []) as Array<{ id: string; url: string; name: string }>
+  const gallery = (cm.gallery || []) as Array<{
+    id: string
+    url: string
+    name: string
+    type?: string
+    size?: number
+  }>
 
   return (
     <DocumentUploadArea
-      files={gallery.map((g) => ({ id: g.id, name: g.name, url: g.url, type: 'image/*', size: 0 }))}
+      files={gallery.map((g) => ({
+        id: g.id,
+        name: g.name,
+        url: g.url,
+        type: g.type || 'image/*',
+        size: typeof g.size === 'number' ? g.size : 0,
+      }))}
       accent="violet"
       label="Gallery images"
       hint="PNG, JPG, WEBP"
       mediaAssist="image"
+      profileId={cardId}
+      attachmentType="Content Media Gallery"
       onChange={(files) =>
         updateData('contentMedia', {
           ...cm,
-          gallery: files.map((f) => ({ id: f.id, url: f.url, name: f.name })),
+          gallery: files.map((f) => ({
+            id: f.id,
+            url: f.url,
+            name: f.name,
+            type: f.type,
+            size: f.size,
+          })),
         })
       }
     />

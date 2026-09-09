@@ -1,7 +1,6 @@
 'use client'
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
-import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { formatGeneralPostDate } from '@/lib/vcardGeneralPosts'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
@@ -77,21 +76,31 @@ export function DynamicPostsSection({
   }
 
   const [featured, ...rest] = posts
+  const showEntriesCard = posts.length > 1
+  const trailingCount = rest.length + (showEntriesCard ? 1 : 0)
 
   return (
     <div className="w-full pb-20">
       <SectionHeader badge={badge} sectionTitle={sectionTitle} />
 
       {featured ? (
+        <div className={cn('vbiz-bento-grid mb-4 w-full items-start', contentGridClass(1, ''))}>
+          <FeaturedPostCard post={featured} onPostClick={onPostClick} single />
+        </div>
+      ) : null}
+
+      {trailingCount > 0 ? (
         <div
           className={cn(
-            'vbiz-bento-grid mb-4 w-full items-start',
-            contentGridClass(posts.length, 'md:grid-cols-3 lg:grid-cols-4')
+            'vbiz-bento-grid items-start',
+            contentGridClass(trailingCount, 'md:grid-cols-2 lg:grid-cols-3')
           )}
         >
-          <FeaturedPostCard post={featured} onPostClick={onPostClick} single={posts.length === 1} />
-          {posts.length > 1 ? (
-            <div className="group relative flex min-h-75 flex-col items-center justify-center overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 backdrop-blur-xl transition-all duration-500 hover:border-zinc-300 md:col-span-3 lg:col-span-1 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700">
+          {rest.map((post, idx) => (
+            <PostCard key={post.id} post={post} delay={idx * 0.08} onPostClick={onPostClick} />
+          ))}
+          {showEntriesCard ? (
+            <div className="group relative flex min-h-75 flex-col items-center justify-center overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 backdrop-blur-xl transition-all duration-500 hover:border-zinc-300 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700">
               <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-center text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100">
                 <BookOpen size={24} className="text-[#eab308]" />
               </div>
@@ -103,16 +112,6 @@ export function DynamicPostsSection({
               </p>
             </div>
           ) : null}
-        </div>
-      ) : null}
-
-      {rest.length > 0 ? (
-        <div
-          className={cn('vbiz-bento-grid items-start', contentGridClass(rest.length, 'md:grid-cols-2 lg:grid-cols-3'))}
-        >
-          {rest.map((post, idx) => (
-            <PostCard key={post.id} post={post} delay={idx * 0.08} onPostClick={onPostClick} />
-          ))}
         </div>
       ) : null}
     </div>
@@ -158,7 +157,8 @@ function FeaturedPostCard({
   const dateLabel = formatGeneralPostDate(post.date)
   const imageUrl = post.featuredImage.trim()
   const isClickable = Boolean(onPostClick)
-  const description = stripHtml(post.description)
+  const description = post.description.trim()
+  const hasHtml = description.length > 0
 
   const inner = (
     <>
@@ -186,7 +186,8 @@ function FeaturedPostCard({
           {post.title}
         </h2>
         <TruncatedClampText
-          plain={description}
+          html={hasHtml ? description : undefined}
+          plain={!hasHtml ? description : undefined}
           className="mb-8 max-w-xl"
           textClassName="vbiz-description text-base leading-normal font-medium lg:text-lg"
           minLength={150}
@@ -241,12 +242,13 @@ function PostCard({
   const imageUrl = post.featuredImage.trim()
   const linkUrl = post.generalInfoUrl.trim()
   const isClickable = Boolean(onPostClick)
-  const description = stripHtml(post.description)
+  const description = post.description.trim()
+  const hasHtml = description.length > 0
 
   const mediaBlock = imageUrl ? (
-    <div className="mb-4 h-28 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80">
+    <div className="relative mb-4 h-48 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt={post.title} className="h-full w-full object-cover" />
+      <img src={imageUrl} alt={post.title} className="absolute inset-0 h-full w-full object-cover object-center" />
     </div>
   ) : linkUrl ? (
     <a
@@ -254,7 +256,7 @@ function PostCard({
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="mb-4 flex h-28 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-100 text-sm font-bold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      className="mb-4 flex h-48 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-100 text-sm font-bold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:bg-zinc-800"
     >
       <ArrowUpRight size={16} className="text-[#eab308]" /> Open link
     </a>
@@ -279,7 +281,8 @@ function PostCard({
       </div>
       <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">{post.title}</h3>
       <TruncatedClampText
-        plain={description}
+        html={hasHtml ? description : undefined}
+        plain={!hasHtml ? description : undefined}
         className="mb-4"
         minLength={150}
         onReadMore={

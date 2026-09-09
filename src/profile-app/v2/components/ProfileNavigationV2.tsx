@@ -3,6 +3,7 @@
 import { PublicAnnouncementOverlay } from '@/components/PublicAnnouncementOverlay'
 import { getNavTabBackgroundColor } from '@/lib/vcardDisplaySettings'
 import { getNavDisplayLabel } from '@/lib/vcardNavbar'
+import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { useProfileNavScroll } from '@/profile-app/hooks/useProfileNavScroll'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useProfileNavigation } from '@/profile-app/providers/ProfileNavigationProvider'
@@ -58,6 +59,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
               {visibleTabs.map((tab, index) => {
                 const isActive = activeSectionId === tab.id
                 const tabBg = getNavTabBackgroundColor(settings, tab.id)
+                const label = getNavDisplayLabel(tab)
                 const tabClassName = `vbiz-nav-tab relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 sm:h-14 sm:w-14 ${
                   isActive ? 'z-10 mx-0.5 shadow-[0_4px_15px_rgba(0,0,0,0.1)] sm:mx-1' : ''
                 }`
@@ -81,9 +83,8 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
                   }
                 }
 
-                return (
+                const button = (
                   <motion.button
-                    key={tab.id}
                     id={`tab-${tab.id}`}
                     type="button"
                     role="tab"
@@ -95,8 +96,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
                     transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                     onClick={() => goToSection(tab.id)}
                     onKeyDown={onKeyDown}
-                    title={getNavDisplayLabel(tab)}
-                    aria-label={getNavDisplayLabel(tab)}
+                    aria-label={label}
                     className={tabClassName}
                     style={tabBg ? { backgroundColor: tabBg } : undefined}
                   >
@@ -114,12 +114,19 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
                         className="vbiz-nav-tab-icon h-4.5 w-4.5 transition-colors duration-300 sm:h-5.5 sm:w-5.5"
                       />
                     </div>
-                    {isActive && !embedded ? (
-                      <span className="pointer-events-none absolute -top-8 left-1/2 z-30 -translate-x-1/2 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[9px] font-black tracking-wide whitespace-nowrap text-zinc-900 shadow-sm dark:border-white/15 dark:bg-[#0b0f19] dark:text-white">
-                        {getNavDisplayLabel(tab)}
-                      </span>
-                    ) : null}
                   </motion.button>
+                )
+
+                return (
+                  <IconHoverTooltip
+                    key={tab.id}
+                    label={label}
+                    placement={embedded ? 'bottom' : 'top'}
+                    portal
+                    className="shrink-0"
+                  >
+                    {button}
+                  </IconHoverTooltip>
                 )
               })}
             </div>

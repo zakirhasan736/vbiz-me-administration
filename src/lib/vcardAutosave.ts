@@ -1,3 +1,4 @@
+import { getVCardResume } from '@/lib/vcardResume'
 import type {
   VCardCustomTab,
   VCardCustomTabItem,
@@ -372,6 +373,8 @@ function persistableBucketSlice(data: VCardData, bucket: string): unknown {
         displaySettings: data.displaySettings,
         extraFields: data.extraFields,
         myInfo: data.myInfo,
+        resume: getVCardResume(data),
+        contentMedia: data.contentMedia,
         seo: data.seo,
         aiAssistanceEnabled: data.aiAssistanceEnabled,
         social: {

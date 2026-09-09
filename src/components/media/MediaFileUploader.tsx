@@ -5,6 +5,7 @@ import {
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
+import { isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
 import { FileAudio, FileIcon, FileText, FileVideo, Image as ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -92,6 +93,41 @@ const accentMap = {
   },
 } as const
 
+/** True when accept is video-only (no image/pdf/audio wildcards). */
+function isVideoOnlyAccept(accept: string): boolean {
+  const tokens = accept
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+  if (tokens.length === 0) return false
+  const allowsNonVideo = tokens.some(
+    (t) =>
+      t === 'image/*' ||
+      t.startsWith('image/') ||
+      t === 'audio/*' ||
+      t.startsWith('audio/') ||
+      t === 'application/pdf' ||
+      t === '.pdf' ||
+      t === '*/*'
+  )
+  if (allowsNonVideo) return false
+  return tokens.every((t) => t === 'video/*' || t.startsWith('video/') || /^\.(mp4|webm|mov|m4v|ogg|ogv)$/i.test(t))
+}
+
+function isLikelyImageUrl(url: string): boolean {
+  const trimmed = url.trim()
+  if (!trimmed) return false
+  if (/^data:image\//i.test(trimmed)) return true
+  const path = trimmed.split('?')[0]?.split('#')[0] || trimmed
+  return /\.(png|jpe?g|gif|webp|avif|svg|bmp)(\?|#|$)/i.test(path)
+}
+
+function isVideoFile(file: File): boolean {
+  const mime = (file.type || '').toLowerCase()
+  if (mime.startsWith('video/')) return true
+  return /\.(mp4|webm|mov|m4v|ogg|ogv)$/i.test(file.name)
+}
+
 function guessKind(url: string, mimeType?: string | null, fileName?: string | null) {
   const mime = (mimeType || '').toLowerCase()
   const name = (fileName || url.split('?')[0] || '').toLowerCase()
@@ -143,6 +179,7 @@ export function MediaFileUploader({
   const [urlDraft, setUrlDraft] = useState('')
 
   const styles = accentMap[accent]
+  const videoOnly = isVideoOnlyAccept(accept)
   const displayUrl = localPreview || value || ''
   const displayName = fileName || (value ? value.split('/').pop()?.split('?')[0] : '') || ''
   const uploadLabel = uploadStage === 'preparing' ? 'Optimizing…' : 'Uploading…'
@@ -174,6 +211,12 @@ export function MediaFileUploader({
   const applyUpload = useCallback(
     async (file: File) => {
       if (disabled) return
+
+      if (videoOnly && !isVideoFile(file)) {
+        setError('Only video files are allowed for this field.')
+        return
+      }
+
       setError(null)
 
       abortRef.current?.abort()
@@ -216,7 +259,7 @@ export function MediaFileUploader({
         setUploadStage(null)
       }
     },
-    [attachmentType, clearLocalPreview, disabled, onChange, profileId]
+    [attachmentType, clearLocalPreview, disabled, onChange, profileId, videoOnly]
   )
 
   const handleFiles = (files: FileList | null) => {
@@ -241,6 +284,14 @@ export function MediaFileUploader({
   const applyUrl = () => {
     const next = urlDraft.trim()
     if (!next) return
+
+    if (videoOnly) {
+      if (isLikelyImageUrl(next) || !isVideoUrl(next)) {
+        setError('Only video URLs are allowed for this field.')
+        return
+      }
+    }
+
     setError(null)
     clearLocalPreview()
     onChange({
@@ -403,7 +454,10 @@ export function MediaFileUploader({
                 </div>
               ) : (
                 <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  {hint || 'Images, video, audio, PDF, and documents • no size limit'}
+                  {hint ||
+                    (videoOnly
+                      ? 'Video files only • no size limit'
+                      : 'Images, video, audio, PDF, and documents • no size limit')}
                 </p>
               )}
             </div>
@@ -417,7 +471,7 @@ export function MediaFileUploader({
             type="url"
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.target.value)}
-            placeholder="Or paste a media URL"
+            placeholder={videoOnly ? 'Or paste a video URL' : 'Or paste a media URL'}
             disabled={disabled || uploading}
             className={cn(
               'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none dark:border-white/10 dark:bg-[#0b0f19] dark:text-white',

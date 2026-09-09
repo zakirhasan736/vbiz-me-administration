@@ -16,10 +16,6 @@ export function TabProfile() {
     updateData(`personal.${field}`, value)
   }
 
-  const setRole = (value: string) => {
-    updateData('personal.designation', value)
-  }
-
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl space-y-6 duration-500">
       <div className="flex items-start gap-3">
@@ -45,11 +41,19 @@ export function TabProfile() {
         </label>
         <label className="block space-y-1.5">
           <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Designation</span>
-          <input className={inputClasses} value={p.designation || ''} onChange={(e) => setRole(e.target.value)} />
+          <input
+            className={inputClasses}
+            value={p.designation || ''}
+            onChange={(e) => setPersonal('designation', e.target.value)}
+          />
         </label>
         <label className="block space-y-1.5">
           <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Profession</span>
-          <input className={inputClasses} value={p.profession || ''} onChange={(e) => setRole(e.target.value)} />
+          <input
+            className={inputClasses}
+            value={p.profession || ''}
+            onChange={(e) => setPersonal('profession', e.target.value)}
+          />
         </label>
       </div>
     </div>

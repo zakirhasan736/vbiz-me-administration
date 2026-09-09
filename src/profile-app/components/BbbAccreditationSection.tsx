@@ -19,7 +19,7 @@ function resolveBbbImage(item: DynamicPostListItem): string {
 function BbbAccreditationSkeleton() {
   return (
     <div className="w-full pb-20">
-      <div className="min-h-[180px] animate-pulse rounded-2xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+      <div className="min-h-45 animate-pulse rounded-2xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
     </div>
   )
 }
@@ -29,15 +29,15 @@ function BbbAccreditationCard({ item, buttonLabel }: { item: DynamicPostListItem
   const verifyUrl = item.generalInfoUrl
 
   const content = (
-    <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:gap-10">
+    <div className="flex flex-col items-start gap-6 md:flex-row md:items-center md:gap-10">
       {imageUrl ? (
-        <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm sm:h-40 sm:w-40 dark:border-zinc-700 dark:bg-zinc-950">
+        <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm md:h-40 md:w-40 dark:border-zinc-700 dark:bg-zinc-950">
           <Image src={imageUrl} alt={item.title} fill className="object-contain p-2" sizes="160px" />
         </div>
       ) : null}
 
       <div className="flex min-w-0 flex-col items-start gap-4">
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-100">{item.title}</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl dark:text-zinc-100">{item.title}</h2>
 
         {verifyUrl ? (
           <span className="inline-flex items-center justify-center rounded-md border border-zinc-900 bg-white px-5 py-2.5 text-xs font-semibold tracking-wide text-zinc-900 uppercase shadow-sm transition-colors group-hover:bg-zinc-50 dark:border-zinc-200 dark:bg-zinc-950 dark:text-zinc-100 dark:group-hover:bg-zinc-900">
@@ -101,7 +101,7 @@ export const BbbAccreditationSection = () => {
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[280px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-70 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <Shield size={24} style={{ color: accent }} />
           </div>
