@@ -850,11 +850,14 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
       const shouldSyncPosts = buckets.has('posts')
       if (shouldSyncPosts) {
+        // Freeze the payload we actually sent so post-save bookkeeping never treats mid-flight
+        // keystrokes as already persisted.
+        const saveTimeData = data
         const synced = await loadAndSyncSectionPosts({
           profileId,
-          blogPosts: data.generalPosts || [],
-          faqs: data.faqs || [],
-          sectionPosts: data.sectionPosts || {},
+          blogPosts: saveTimeData.generalPosts || [],
+          faqs: saveTimeData.faqs || [],
+          sectionPosts: saveTimeData.sectionPosts || {},
           snapshot: postsSnapshotRef.current,
           listPosts,
           createPost,
@@ -872,42 +875,71 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
         const wrotePosts = Boolean(synced.blog || synced.faqs || Object.keys(synced.sectionPosts || {}).length)
         if (wrotePosts) {
-          const generalPosts = synced.blog
+          const savedGeneralPosts = synced.blog
             ? mergeSyncedListPreservingClientKeys(
-                data.generalPosts,
+                saveTimeData.generalPosts,
                 mapApiPostsToGeneralPosts(synced.blog),
                 isEmptyGeneralPost
               )
-            : data.generalPosts || []
+            : saveTimeData.generalPosts || []
+          const savedFaqs = synced.faqs
+            ? mergeSyncedListPreservingClientKeys(saveTimeData.faqs, mapApiPostsToFaqs(synced.faqs), isEmptyFaq)
+            : saveTimeData.faqs || []
+          const savedSectionPosts: Record<string, VCardSectionPostItem[]> = {
+            ...(saveTimeData.sectionPosts || {}),
+          }
+          for (const [postTypeName, apiPosts] of Object.entries(synced.sectionPosts || {})) {
+            savedSectionPosts[postTypeName] = mergeSyncedListPreservingClientKeys(
+              saveTimeData.sectionPosts?.[postTypeName],
+              mapApiPostsToSectionPosts(apiPosts),
+              isEmptySectionPost
+            )
+          }
+
+          // Prefer live editor rows so typing during the request is not wiped; only remap ids.
+          const live = editDataRef.current ?? saveTimeData
+          const generalPosts = synced.blog
+            ? mergeSyncedListPreservingClientKeys(
+                live.generalPosts,
+                mapApiPostsToGeneralPosts(synced.blog),
+                isEmptyGeneralPost
+              )
+            : live.generalPosts || []
           const faqs = synced.faqs
-            ? mergeSyncedListPreservingClientKeys(data.faqs, mapApiPostsToFaqs(synced.faqs), isEmptyFaq)
-            : data.faqs || []
-          const sectionPosts: Record<string, VCardSectionPostItem[]> = { ...(data.sectionPosts || {}) }
+            ? mergeSyncedListPreservingClientKeys(live.faqs, mapApiPostsToFaqs(synced.faqs), isEmptyFaq)
+            : live.faqs || []
+          const sectionPosts: Record<string, VCardSectionPostItem[]> = { ...(live.sectionPosts || {}) }
           for (const [postTypeName, apiPosts] of Object.entries(synced.sectionPosts || {})) {
             sectionPosts[postTypeName] = mergeSyncedListPreservingClientKeys(
-              data.sectionPosts?.[postTypeName],
+              live.sectionPosts?.[postTypeName],
               mapApiPostsToSectionPosts(apiPosts),
               isEmptySectionPost
             )
           }
           postsHydratedForId.current = profileId
 
-          const next = {
-            ...data,
+          const nextLive = {
+            ...live,
             generalPosts,
             faqs,
             sectionPosts,
           }
+          const nextSaved = {
+            ...saveTimeData,
+            generalPosts: savedGeneralPosts,
+            faqs: savedFaqs,
+            sectionPosts: savedSectionPosts,
+          }
           // Only toast when persistable content actually changed (skip empty draft open/close no-ops).
-          if (hasPersistablePostsDelta(next, postsSnapshotRef.current)) {
+          if (hasPersistablePostsDelta(nextSaved, postsSnapshotRef.current)) {
             wroteChanges = true
           }
-          editDataRef.current = next
-          data = next
+          editDataRef.current = nextLive
+          data = nextSaved
           dispatch(
             replaceVCardData({
               id: profileId,
-              data: next,
+              data: nextLive,
             })
           )
         }
