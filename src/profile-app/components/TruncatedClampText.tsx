@@ -1,8 +1,7 @@
 'use client'
 
-import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { ArrowUpRight } from 'lucide-react'
-import { useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode, type Ref } from 'react'
 
 type TruncatedClampTextProps = {
   /** Plain text body (mutually exclusive with `html`). */
@@ -19,7 +18,7 @@ type TruncatedClampTextProps = {
   readLessLabel?: string
   seeMoreLabel?: string
   seeLessLabel?: string
-  /** Minimum plain length before showing toggle (default 200). */
+  /** Kept for call-site compatibility; toggle visibility uses real overflow. */
   minLength?: number
   /** Visible lines before clamping (default 4). */
   maxLines?: number
@@ -35,6 +34,28 @@ function lineClampStyle(maxLines: number, expanded: boolean): CSSProperties | un
   }
 }
 
+function measureNeedsClamp(el: HTMLElement, maxLines: number): boolean {
+  const width = el.clientWidth
+  const parent = el.parentElement
+  if (width <= 0 || !parent) return false
+
+  const base = `position:absolute;visibility:hidden;pointer-events:none;height:auto;width:${width}px`
+
+  const fullClone = el.cloneNode(true) as HTMLElement
+  fullClone.style.cssText = `${base};display:block;max-height:none;-webkit-line-clamp:unset;overflow:visible`
+  parent.appendChild(fullClone)
+  const fullHeight = fullClone.scrollHeight
+  fullClone.remove()
+
+  const clampedClone = el.cloneNode(true) as HTMLElement
+  clampedClone.style.cssText = `${base};display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${maxLines};overflow:hidden`
+  parent.appendChild(clampedClone)
+  const clampedHeight = clampedClone.clientHeight
+  clampedClone.remove()
+
+  return fullHeight > clampedHeight + 1
+}
+
 /** Shared line-clamp with read more / read less (or external read-more handler). */
 export function TruncatedClampText({
   plain,
@@ -48,18 +69,42 @@ export function TruncatedClampText({
   readLessLabel = 'Read less',
   seeMoreLabel = 'See more',
   seeLessLabel = 'See less',
-  minLength = 200,
   maxLines = 4,
 }: TruncatedClampTextProps) {
-  const [expanded, setExpanded] = useState(false)
   const hasHtml = Boolean(html?.trim())
   const plainText = plain?.trim() ?? ''
-  if (!hasHtml && !plainText) return null
+  const hasContent = hasHtml || Boolean(plainText)
+  const contentKey = `${maxLines}:${hasHtml ? html : plainText}`
 
-  const bodyForMeasure = hasHtml ? stripHtml(html!) : plainText
-  const isLong =
-    bodyForMeasure.length > minLength || bodyForMeasure.split('\n').filter((line) => line.trim()).length > maxLines
-  const showToggle = onReadMore ? Boolean(plainText || hasHtml) : isLong
+  const [expanded, setExpanded] = useState(false)
+  const [needsClamp, setNeedsClamp] = useState(false)
+  const [seenContentKey, setSeenContentKey] = useState(contentKey)
+  const contentRef = useRef<HTMLElement | null>(null)
+
+  // Reset expansion when the body changes (adjust state during render — no effect).
+  if (contentKey !== seenContentKey) {
+    setSeenContentKey(contentKey)
+    setExpanded(false)
+  }
+
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el || !hasContent || onReadMore) return
+
+    const measure = () => {
+      const overflows = measureNeedsClamp(el, maxLines)
+      setNeedsClamp(overflows)
+      if (!overflows) setExpanded(false)
+    }
+
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [plain, html, maxLines, onReadMore, hasContent])
+
+  if (!hasContent) return null
+
+  const showToggle = onReadMore ? true : needsClamp
   const clampStyle = lineClampStyle(maxLines, expanded)
 
   const handleToggle = (e: MouseEvent) => {
@@ -86,12 +131,17 @@ export function TruncatedClampText({
     <div className={className}>
       {hasHtml ? (
         <div
+          ref={contentRef as Ref<HTMLDivElement>}
           className={`vcard-rich-html mb-4 max-w-2xl ${textClassName}`}
           style={clampStyle}
           dangerouslySetInnerHTML={{ __html: html! }}
         />
       ) : (
-        <p className={`mb-4 max-w-2xl whitespace-pre-wrap ${textClassName}`} style={clampStyle}>
+        <p
+          ref={contentRef as Ref<HTMLParagraphElement>}
+          className={`mb-4 max-w-2xl whitespace-pre-wrap ${textClassName}`}
+          style={clampStyle}
+        >
           {plainText}
         </p>
       )}

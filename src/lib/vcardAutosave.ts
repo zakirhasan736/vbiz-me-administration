@@ -437,8 +437,9 @@ export function mergeLocalEmptyDrafts<T extends { id: string }>(
 }
 
 /**
- * After posts autosave, rewrite server fields onto local rows while keeping `clientKey`
+ * After posts autosave, adopt server ids onto local rows while keeping `clientKey`
  * so React list keys (and focus) survive draft→server id remaps.
+ * Prefer local field values so typing that landed while the save was in flight is not wiped.
  * Sync returns saved items in the same order as non-empty local rows.
  */
 export function mergeSyncedListPreservingClientKeys<T extends { id: string; clientKey?: string }>(
@@ -454,7 +455,8 @@ export function mergeSyncedListPreservingClientKeys<T extends { id: string; clie
     const saved = savedItems[index]
     if (!saved) return localItem
     const clientKey = localItem.clientKey || localItem.id
-    return { ...saved, clientKey }
+    // Keep editor content; only remap durable identity from the server response.
+    return { ...localItem, id: saved.id, clientKey }
   })
 
   if (savedItems.length > localFilled.length) {
