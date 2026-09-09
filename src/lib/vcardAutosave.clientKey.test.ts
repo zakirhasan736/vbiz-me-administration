@@ -56,4 +56,32 @@ describe('mergeSyncedListPreservingClientKeys', () => {
     expect(merged[1]!.id).toBe(empty.id)
     expect(isEmptySectionPost(merged[1]!)).toBe(true)
   })
+
+  it('keeps newer local typing when the saved row is stale mid-flight', () => {
+    const draft = createDefaultSectionPostItem()
+    draft.title = 'aaaaaaaa'
+    draft.url = 'aaaaaaaa'
+    const draftKey = draft.clientKey || draft.id
+
+    const saved: VCardSectionPostItem = {
+      id: 'server-uuid-3',
+      clientKey: 'server-uuid-3',
+      title: 'aaaa',
+      description: '',
+      url: 'aaaa',
+      featuredImage: '',
+      date: '',
+      rating: '',
+      location: '',
+      active: true,
+    }
+
+    const merged = mergeSyncedListPreservingClientKeys([draft], [saved], isEmptySectionPost)
+
+    expect(merged).toHaveLength(1)
+    expect(merged[0]!.id).toBe('server-uuid-3')
+    expect(merged[0]!.clientKey).toBe(draftKey)
+    expect(merged[0]!.title).toBe('aaaaaaaa')
+    expect(merged[0]!.url).toBe('aaaaaaaa')
+  })
 })
