@@ -1,8 +1,10 @@
 'use client'
 
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetClientsQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { ArrowRight, ExternalLink, Handshake } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -124,7 +126,12 @@ export const ClientsSection = () => {
       ) : null}
 
       {clients.length > 0 ? (
-        <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          className={cn(
+            'vbiz-bento-grid relative z-20 mt-4',
+            contentGridClass(clients.length, 'sm:grid-cols-2 lg:grid-cols-3')
+          )}
+        >
           {clients.map((client, idx) => (
             <motion.div
               initial={{ opacity: 0, y: 40 }}

@@ -93,7 +93,12 @@ export default function CrmWorkspace() {
           icon={ClipboardList}
           label="Notes"
         />
-        <TabButton active={tab === 'events'} onClick={() => setTab('events')} icon={CalendarHeart} label="Events" />
+        <TabButton
+          active={tab === 'events'}
+          onClick={() => setTab('events')}
+          icon={CalendarHeart}
+          label="Wish & Outreach"
+        />
       </div>
 
       {tab === 'dashboard' ? <CrmHomeDashboard onOpenTab={setTab} /> : null}

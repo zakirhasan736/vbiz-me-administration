@@ -31,6 +31,7 @@ export type CrmEvent = {
   time: string
   startsAt: string
   status: CrmEventStatus
+  description?: string | null
   scope: MeetingScope
   profileId: string | null
   groupProfileIds?: string[]
@@ -49,6 +50,7 @@ export type CreateCrmEventPayload = {
   type: string
   date: string
   time: string
+  description: string
   status?: CrmEventStatus
   scope?: MeetingScope
   profileId?: string | null

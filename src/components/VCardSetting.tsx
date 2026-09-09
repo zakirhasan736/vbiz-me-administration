@@ -62,7 +62,12 @@ import {
   setCategoryEnableAll,
   SOCIAL_LINK_FIELDS,
 } from '@/lib/vcardDisplaySettings'
-import { buildEditorSettingsPath, type EditorBasePath, type SettingsTabId } from '@/lib/vcardEditorRoutes'
+import {
+  buildEditorSettingsPath,
+  buildIntegrationSettingsPath,
+  type EditorBasePath,
+  type SettingsTabId,
+} from '@/lib/vcardEditorRoutes'
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId, useCreateAiAssistanceCheckoutMutation } from '@/redux/features/profiles/profiles.api'
 import type { VCardAppearance } from '@/types/vcard'
@@ -81,6 +86,7 @@ import {
   Link2,
   Loader2,
   Menu,
+  Plug,
   Search,
   Settings2,
   Sparkles,
@@ -99,15 +105,15 @@ const settingTabs = [
   { id: 'general', label: 'General Settings', icon: Settings2 },
   { id: 'social', label: 'Social and general Links', icon: Link2 },
   { id: 'home', label: 'Home Page Settings', icon: Home },
+  { id: 'integration', label: 'Integration', icon: Plug },
   { id: 'template', label: 'Template Settings', icon: LayoutTemplate },
   { id: 'seo', label: 'SEO', icon: Search },
-  { id: 'ai-assistance', label: 'AI Assistance', icon: Bot },
 ]
 
 const cardInputClasses =
   'w-full rounded-[.875rem] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[.8125rem] font-medium text-slate-900 shadow-sm outline-none transition-all focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-slate-800 dark:text-white'
 
-const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'seo', 'ai-assistance'])
+const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'seo', 'integration', 'ai-assistance'])
 const FIELD_CARD_TABS = new Set(['info', 'social', 'icons', 'general', 'home'])
 
 const settingTabTourIds: Record<string, string> = {
@@ -290,8 +296,6 @@ function Toggle({
 }
 
 function TemplateDesigner() {
-  const { user } = useAuth()
-  const { allow_canva: canUseCanva, can } = usePackageAccess()
   const canBgVideo = true
   const { vCardData, updateData, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
@@ -424,7 +428,131 @@ function TemplateDesigner() {
     wallpaperStyle === 'image' || !canBgVideo ? 'image/*' : wallpaperStyle === 'video' ? 'video/*' : 'image/*,video/*'
 
   return (
-    <div className="col-span-1 mx-auto flex w-full max-w-2xl flex-col pb-12 lg:col-span-2">
+    <div className="col-span-1 mx-auto flex w-full max-w-4xl flex-col pb-12 lg:col-span-2">
+      <div className="flex flex-col">
+        {/* Profile image / video */}
+        <SettingSection title="Profile image / video">
+          <div className="flex w-full min-w-0 flex-col items-start gap-5 rounded-[20px] border border-slate-200/50 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:gap-6 sm:rounded-3xl sm:p-6 dark:border-white/5 dark:bg-white/2">
+            <input
+              ref={profileImageInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*,video/*"
+              disabled={profileUploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (file) void handleProfileImageUpload(file)
+              }}
+            />
+            <button
+              type="button"
+              onClick={openProfileImagePicker}
+              disabled={profileUploading}
+              className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#0b0f19]"
+            >
+              <CardAvatarThumb
+                src={profileDisplayUrl || null}
+                name={vCardData.personal?.fullName}
+                size={96}
+                forceVideo={Boolean(profileLocalPreview && profileLocalIsVideo)}
+                className="h-24 w-24 rounded-3xl border-0 text-2xl shadow-none"
+              />
+              <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-900/40 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
+                <span className="text-[11px] font-bold tracking-wider text-white uppercase">Change</span>
+              </div>
+            </button>
+            <div className="w-full min-w-0 sm:flex-1">
+              <h4 className="mb-1 text-lg leading-tight font-black tracking-tight text-slate-900 sm:text-[20px] dark:text-white">
+                Profile photo / video
+              </h4>
+              <p className="mb-4 text-[13px] font-medium text-slate-500 sm:text-[14px] dark:text-slate-400">
+                Upload an image or short looping video • shows on your public card and card lists
+                {profileDisplayUrl && (profileLocalIsVideo || isAvatarVideoSrc(profileDisplayUrl))
+                  ? ' • video avatar active'
+                  : ''}
+              </p>
+              <div className="flex flex-wrap gap-2 sm:gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-10 px-4 font-bold sm:px-5"
+                  disabled={profileUploading}
+                  onClick={openProfileImagePicker}
+                >
+                  {profileUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading…
+                    </>
+                  ) : (
+                    'Upload image or video'
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-10 px-4 font-bold text-slate-500 hover:bg-red-50 hover:text-red-600 sm:px-5 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                  disabled={profileUploading || !profilePicUrl}
+                  onClick={handleRemoveProfileImage}
+                >
+                  Remove
+                </Button>
+              </div>
+              <MediaSourceActions
+                mode="both"
+                compact
+                className="mt-3"
+                onSelect={(asset) => {
+                  clearProfileLocalPreview()
+                  applyProfileImage(asset.url)
+                }}
+              />
+              {profileUploading ? (
+                <div className="mt-4 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                    <span>Uploading…</span>
+                    <span>{Math.min(100, Math.max(0, profileUploadProgress))}%</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                    <div
+                      className="bg-primary-500 h-full rounded-full transition-[width] duration-150 ease-out"
+                      style={{ width: `${Math.min(100, Math.max(0, profileUploadProgress))}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {profileUploadError ? (
+                <p className="mt-3 text-[12px] font-medium text-rose-600 dark:text-rose-400">{profileUploadError}</p>
+              ) : null}
+            </div>
+          </div>
+        </SettingSection>
+
+        {/* Identity Section */}
+        <SettingSection title="Identity & URL">
+          <div className="space-y-4">
+            <div className="bg-primary-50 dark:bg-primary-500/5 border-primary-100 dark:border-primary-500/20 rounded-2xl border p-5">
+              <div className="mb-3 flex items-center gap-3">
+                <Globe className="text-primary-600 dark:text-primary-400 h-4 w-4" />
+                <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">
+                  Custom Profile Slug
+                </span>
+              </div>
+              <SlugAvailabilityField
+                value={vCardData.slug}
+                onChange={(slug) => updateData('slug', slug)}
+                excludeId={isCreateMode ? null : cardId}
+                variant="settings"
+                inputClassName="dark:text-primary-400 flex-1 bg-transparent text-[.8125rem] font-semibold text-slate-900 outline-none"
+              />
+            </div>
+          </div>
+        </SettingSection>
+      </div>
+
       <VCardTemplateDesignPanel
         appearance={cardAppearance}
         onAppearanceChange={patchAppearance}
@@ -448,25 +576,6 @@ function TemplateDesigner() {
           </div>
         </SettingSection>
       )}
-
-      {/* Identity Section */}
-      <SettingSection title="Identity & URL">
-        <div className="space-y-4">
-          <div className="bg-primary-50 dark:bg-primary-500/5 border-primary-100 dark:border-primary-500/20 rounded-2xl border p-5">
-            <div className="mb-3 flex items-center gap-3">
-              <Globe className="text-primary-600 dark:text-primary-400 h-4 w-4" />
-              <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">Custom Profile Slug</span>
-            </div>
-            <SlugAvailabilityField
-              value={vCardData.slug}
-              onChange={(slug) => updateData('slug', slug)}
-              excludeId={isCreateMode ? null : cardId}
-              variant="settings"
-              inputClassName="dark:text-primary-400 flex-1 bg-transparent text-[.8125rem] font-semibold text-slate-900 outline-none"
-            />
-          </div>
-        </div>
-      </SettingSection>
 
       {/* Theme Colors */}
       <SettingSection title="Theme Colors">
@@ -492,111 +601,6 @@ function TemplateDesigner() {
               updateData('theme.accentColor', val)
             }}
           />
-        </div>
-      </SettingSection>
-
-      <SettingSection title="Canva Integration">
-        {canUseCanva ? <CanvaConnectRow userId={user?.uid} variant="status" /> : <PackageLockedNote />}
-      </SettingSection>
-
-      {/* Profile image / video */}
-      <SettingSection title="Profile image / video">
-        <div className="flex w-full min-w-0 flex-col items-start gap-5 rounded-[20px] border border-slate-200/50 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:gap-6 sm:rounded-3xl sm:p-6 dark:border-white/5 dark:bg-white/2">
-          <input
-            ref={profileImageInputRef}
-            type="file"
-            className="hidden"
-            accept="image/*,video/*"
-            disabled={profileUploading}
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              if (file) void handleProfileImageUpload(file)
-            }}
-          />
-          <button
-            type="button"
-            onClick={openProfileImagePicker}
-            disabled={profileUploading}
-            className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#0b0f19]"
-          >
-            <CardAvatarThumb
-              src={profileDisplayUrl || null}
-              name={vCardData.personal?.fullName}
-              size={96}
-              forceVideo={Boolean(profileLocalPreview && profileLocalIsVideo)}
-              className="h-24 w-24 rounded-3xl border-0 text-2xl shadow-none"
-            />
-            <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-900/40 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
-              <span className="text-[11px] font-bold tracking-wider text-white uppercase">Change</span>
-            </div>
-          </button>
-          <div className="w-full min-w-0 sm:flex-1">
-            <h4 className="mb-1 text-lg leading-tight font-black tracking-tight text-slate-900 sm:text-[20px] dark:text-white">
-              Profile photo / video
-            </h4>
-            <p className="mb-4 text-[13px] font-medium text-slate-500 sm:text-[14px] dark:text-slate-400">
-              Upload an image or short looping video • shows on your public card and card lists
-              {profileDisplayUrl && (profileLocalIsVideo || isAvatarVideoSrc(profileDisplayUrl))
-                ? ' • video avatar active'
-                : ''}
-            </p>
-            <div className="flex flex-wrap gap-2 sm:gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-10 px-4 font-bold sm:px-5"
-                disabled={profileUploading}
-                onClick={openProfileImagePicker}
-              >
-                {profileUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading…
-                  </>
-                ) : (
-                  'Upload image or video'
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-10 px-4 font-bold text-slate-500 hover:bg-red-50 hover:text-red-600 sm:px-5 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-                disabled={profileUploading || !profilePicUrl}
-                onClick={handleRemoveProfileImage}
-              >
-                Remove
-              </Button>
-            </div>
-            <MediaSourceActions
-              mode="both"
-              compact
-              className="mt-3"
-              onSelect={(asset) => {
-                clearProfileLocalPreview()
-                applyProfileImage(asset.url)
-              }}
-            />
-            {profileUploading ? (
-              <div className="mt-4 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                  <span>Uploading…</span>
-                  <span>{Math.min(100, Math.max(0, profileUploadProgress))}%</span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-                  <div
-                    className="bg-primary-500 h-full rounded-full transition-[width] duration-150 ease-out"
-                    style={{ width: `${Math.min(100, Math.max(0, profileUploadProgress))}%` }}
-                  />
-                </div>
-              </div>
-            ) : null}
-            {profileUploadError ? (
-              <p className="mt-3 text-[12px] font-medium text-rose-600 dark:text-rose-400">{profileUploadError}</p>
-            ) : null}
-          </div>
         </div>
       </SettingSection>
 
@@ -828,6 +832,22 @@ function TemplateDesigner() {
       </SettingSection>
 
       <div className="pt-20"></div>
+    </div>
+  )
+}
+
+function CardIntegrationsPanel() {
+  const { user } = useAuth()
+  const { allow_canva: canUseCanva } = usePackageAccess()
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 pb-12">
+      <SettingSection title="Canva Integration">
+        {canUseCanva ? <CanvaConnectRow userId={user?.uid} variant="status" /> : <PackageLockedNote />}
+      </SettingSection>
+      <SettingSection title="AI Assistance">
+        <CardAiAssistancePanel />
+      </SettingSection>
     </div>
   )
 }
@@ -1409,12 +1429,13 @@ function CardAiAssistancePanel() {
       notify.success('Payment received. Unlocking AI Assistance…')
       // Give the Stripe webhook a moment, then refresh entitlements via a hard reload of access.
       await new Promise((resolve) => window.setTimeout(resolve, 1200))
-      const base = buildEditorSettingsPath(
-        '/vcards/edit',
-        'ai-assistance',
-        cardId && !isLocalTempId(cardId) ? cardId : undefined
+      const scopedCardId = cardId && !isLocalTempId(cardId) ? cardId : undefined
+      window.location.replace(
+        buildIntegrationSettingsPath('/vcards/edit', {
+          cardId: scopedCardId,
+          query: { aiAssistance: 'ready' },
+        })
       )
-      window.location.replace(`${base}${base.includes('?') ? '&' : '?'}aiAssistance=ready`)
     })()
   }, [cardId, searchParams])
 
@@ -1469,9 +1490,14 @@ function CardAiAssistancePanel() {
       return
     }
     try {
-      const base = buildEditorSettingsPath('/vcards/edit', 'ai-assistance', cardId)
-      const successPath = `${base}${base.includes('?') ? '&' : '?'}aiAssistance=success`
-      const cancelPath = `${base}${base.includes('?') ? '&' : '?'}aiAssistance=cancel`
+      const successPath = buildIntegrationSettingsPath('/vcards/edit', {
+        cardId,
+        query: { aiAssistance: 'success' },
+      })
+      const cancelPath = buildIntegrationSettingsPath('/vcards/edit', {
+        cardId,
+        query: { aiAssistance: 'cancel' },
+      })
       const result = await createAiCheckout({ profileId: cardId, successPath, cancelPath }).unwrap()
       if (result.url) {
         window.location.href = result.url
@@ -1724,6 +1750,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const { showAgent } = useCreateAgentUi()
 
   const activeTab = isTourActive && currentStep?.id && editorAssist.settingsTab ? editorAssist.settingsTab : settingsTab
+  const sidebarActiveId = activeTab === 'ai-assistance' ? 'integration' : activeTab
 
   const patchDisplay = (next: VCardDisplaySettings) => updateData('displaySettings', next)
 
@@ -1799,10 +1826,11 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         })
       case 'template':
         return <TemplateDesigner />
+      case 'integration':
+      case 'ai-assistance':
+        return <CardIntegrationsPanel />
       case 'seo':
         return <CardSeoPanel />
-      case 'ai-assistance':
-        return <CardAiAssistancePanel />
       default:
         return null
     }
@@ -1811,8 +1839,8 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const headerSubtitle =
     activeTab === 'seo'
       ? 'Per-card SEO metadata for this public profile.'
-      : activeTab === 'ai-assistance'
-        ? 'Guest-facing assistant for this card — chats with visitors about your business.'
+      : activeTab === 'integration' || activeTab === 'ai-assistance'
+        ? 'Connect Canva and manage AI Assistance for this card.'
         : activeTab === 'template'
           ? 'Choose the public card layout. Tab order and visibility are set from Add Tabs.'
           : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
@@ -1889,7 +1917,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
               data-tour-id={settingTabTourIds[tab.id]}
               className={cn(
                 'group relative flex w-full items-center overflow-hidden rounded-[1.25rem] px-5 py-4 text-left text-[.8438rem] font-bold transition-all duration-300',
-                activeTab === tab.id
+                sidebarActiveId === tab.id
                   ? 'bg-primary-600 border-primary-500/50 dark:bg-primary-500/15 dark:text-primary-400 dark:border-primary-500/30 my-1 scale-[1.02] border text-white shadow-sm'
                   : 'border border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200',
                 isSidebarCollapsed ? 'justify-center px-0' : 'gap-3.5'
@@ -1899,7 +1927,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
               <tab.icon
                 className={cn(
                   'h-4.5 w-4.5 shrink-0',
-                  activeTab === tab.id ? 'dark:text-primary-400 text-white' : 'text-slate-500'
+                  sidebarActiveId === tab.id ? 'dark:text-primary-400 text-white' : 'text-slate-500'
                 )}
               />
               <span
@@ -1945,7 +1973,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
             <div className="relative z-10 flex shrink-0 flex-col justify-between gap-6 p-4 sm:p-8 md:flex-row md:items-start md:p-10">
               <div className="relative z-10 max-w-xl">
                 <h2 className="mb-2 text-2xl font-black text-slate-900 dark:text-white">
-                  {settingTabs.find((t) => t.id === activeTab)?.label}
+                  {settingTabs.find((t) => t.id === sidebarActiveId)?.label}
                 </h2>
                 <p className="text-[.875rem] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
                   {headerSubtitle}
@@ -1977,7 +2005,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
               <div
                 className={cn(
                   'animate-in fade-in slide-in-from-bottom-8 fill-mode-both duration-700',
-                  activeTab === 'template'
+                  activeTab === 'template' || activeTab === 'integration' || activeTab === 'ai-assistance'
                     ? ''
                     : FIELD_CARD_TABS.has(activeTab)
                       ? 'mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-2'

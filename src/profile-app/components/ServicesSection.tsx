@@ -1,10 +1,12 @@
 'use client'
 
 import { ServiceDetail } from '@/profile-app/components/ServiceDetail'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { useGetServicesQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { ArrowUpRight, Layers, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
@@ -91,7 +93,12 @@ export const ServicesSection = () => {
     <div className="w-full pb-20">
       <SectionHeader sectionTitle={sectionTitle} />
 
-      <div className="vbiz-bento-grid relative z-20 grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={cn(
+          'vbiz-bento-grid relative z-20 items-start',
+          contentGridClass(services.length, 'md:grid-cols-2 lg:grid-cols-3')
+        )}
+      >
         {services.map((service, idx) => {
           const imageUrl = service.featuredImage.trim()
           const hasDetail = Boolean(service.htmlDescription.trim() || service.description.trim())

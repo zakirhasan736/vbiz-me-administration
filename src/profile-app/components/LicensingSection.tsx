@@ -3,10 +3,12 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { BadgeCheck } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
@@ -209,7 +211,12 @@ export const LicensingSection = ({ sectionName = 'Licensing' }: LicensingSection
         </div>
       </div>
 
-      <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={cn(
+          'vbiz-bento-grid relative z-20 mt-4',
+          contentGridClass(items.length, 'md:grid-cols-2 lg:grid-cols-3')
+        )}
+      >
         {items.map((item, idx) => (
           <LicenseCard key={item.id} item={item} idx={idx} accent={accent} onOpen={openLicense} />
         ))}

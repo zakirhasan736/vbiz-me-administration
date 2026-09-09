@@ -56,6 +56,7 @@ const accentMap = {
     btn: 'group-hover/drop:text-teal-600 dark:group-hover/drop:text-teal-400',
     borderHover: 'hover:border-teal-400/60 dark:hover:border-teal-500/40',
     bar: 'bg-teal-500',
+    inputFocus: 'focus:border-teal-500 focus:ring-1 focus:ring-teal-500',
   },
   primary: {
     ring: 'focus-within:border-primary-500 focus-within:ring-primary-500',
@@ -63,6 +64,7 @@ const accentMap = {
     btn: 'group-hover/drop:text-primary-600 dark:group-hover/drop:text-primary-400',
     borderHover: 'hover:border-primary-400/60 dark:hover:border-primary-500/40',
     bar: 'bg-primary-500',
+    inputFocus: 'focus:border-primary-500 focus:ring-1 focus:ring-primary-500',
   },
   violet: {
     ring: 'focus-within:border-violet-500 focus-within:ring-violet-500',
@@ -70,6 +72,7 @@ const accentMap = {
     btn: 'group-hover/drop:text-violet-600 dark:group-hover/drop:text-violet-400',
     borderHover: 'hover:border-violet-400/60 dark:hover:border-violet-500/40',
     bar: 'bg-violet-500',
+    inputFocus: 'focus:border-violet-500 focus:ring-1 focus:ring-violet-500',
   },
   sky: {
     ring: 'focus-within:border-sky-500 focus-within:ring-sky-500',
@@ -77,6 +80,7 @@ const accentMap = {
     btn: 'group-hover/drop:text-sky-600 dark:group-hover/drop:text-sky-400',
     borderHover: 'hover:border-sky-400/60 dark:hover:border-sky-500/40',
     bar: 'bg-sky-500',
+    inputFocus: 'focus:border-sky-500 focus:ring-1 focus:ring-sky-500',
   },
   rose: {
     ring: 'focus-within:border-rose-500 focus-within:ring-rose-500',
@@ -84,6 +88,7 @@ const accentMap = {
     btn: 'group-hover/drop:text-rose-600 dark:group-hover/drop:text-rose-400',
     borderHover: 'hover:border-rose-400/60 dark:hover:border-rose-500/40',
     bar: 'bg-rose-500',
+    inputFocus: 'focus:border-rose-500 focus:ring-1 focus:ring-rose-500',
   },
 } as const
 
@@ -414,7 +419,10 @@ export function MediaFileUploader({
             onChange={(e) => setUrlDraft(e.target.value)}
             placeholder="Or paste a media URL"
             disabled={disabled || uploading}
-            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-[13px] font-medium text-slate-900 shadow-sm outline-none focus:border-slate-400 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
+            className={cn(
+              'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none dark:border-white/10 dark:bg-[#0b0f19] dark:text-white',
+              styles.inputFocus
+            )}
           />
           <button
             type="button"

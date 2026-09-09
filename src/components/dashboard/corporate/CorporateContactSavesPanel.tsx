@@ -16,7 +16,6 @@ import {
   IdCard,
   Mail,
   MapPin,
-  MessageCircle,
   Monitor,
   Phone,
   Save,
@@ -45,7 +44,6 @@ type CorporateContactSavesPanelProps = {
   subtitle?: string
   className?: string
   compact?: boolean
-  enableLeadActions?: boolean
   onDelete?: (id: string) => void
 }
 
@@ -78,19 +76,21 @@ function initials(name?: string | null) {
 export function CorporateContactSavesPanel({
   contacts = [],
   title = 'Contact Saves',
-  subtitle = 'Guest submission details, device metadata, and CSV export.',
+  subtitle = 'Guest submission details, device metadata, and CSV export. Guest messages live under Notes.',
   className,
   compact = false,
-  enableLeadActions = false,
   onDelete,
 }: CorporateContactSavesPanelProps) {
   const [records, setRecords] = useState(contacts)
+  const [prevContacts, setPrevContacts] = useState(contacts)
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [replyOpenId, setReplyOpenId] = useState<string | null>(null)
   const [cardFilter, setCardFilter] = useState('all')
-  const [noteMap, setNoteMap] = useState<Record<string, string>>({})
-  const [replyMap, setReplyMap] = useState<Record<string, string>>({})
+
+  if (contacts !== prevContacts) {
+    setPrevContacts(contacts)
+    setRecords(contacts)
+  }
 
   const cardOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -122,8 +122,6 @@ export function CorporateContactSavesPanel({
       'Email Address',
       'Date & Time Submitted',
       'vCard Name',
-      'Private Notes',
-      'Last Reply',
       'Device',
       'Browser',
       'Approx Location',
@@ -134,8 +132,6 @@ export function CorporateContactSavesPanel({
       r.email || '',
       r.createdAt || '',
       r.profile?.name || '',
-      noteMap[r.id] ?? r.privateNotes ?? '',
-      r.lastReply || '',
       r.metadata?.device || '',
       r.metadata?.browser || '',
       r.metadata?.approximateLocation || '',
@@ -224,8 +220,6 @@ export function CorporateContactSavesPanel({
         <div className={cn('max-w-full min-w-0 space-y-3 overflow-x-hidden', compact ? 'p-2 sm:p-3' : 'p-3 sm:p-5')}>
           {filtered.map((r) => {
             const open = expandedId === r.id
-            const replyOpen = replyOpenId === r.id
-            const noteValue = noteMap[r.id] !== undefined ? noteMap[r.id] : r.privateNotes || ''
             const consented = r.consent !== false
 
             return (
@@ -233,7 +227,7 @@ export function CorporateContactSavesPanel({
                 key={r.id}
                 className={cn(
                   'max-w-full min-w-0 overflow-hidden rounded-2xl border transition-all duration-200',
-                  open || replyOpen
+                  open
                     ? 'border-emerald-300/70 bg-emerald-50/30 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/6'
                     : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.12)] dark:border-white/10 dark:bg-white/2 dark:hover:border-white/20'
                 )}
@@ -294,21 +288,11 @@ export function CorporateContactSavesPanel({
                           <Calendar className="h-3 w-3" />
                           {formatWhen(r.createdAt)}
                         </span>
-                        {r.message ? (
-                          <span className="inline-flex shrink-0 items-center gap-1 text-amber-600 dark:text-amber-300">
-                            <MessageCircle className="h-3 w-3" /> Guest note
-                          </span>
-                        ) : null}
                       </div>
                     </div>
                   </div>
 
-                  <div
-                    className={cn(
-                      'grid w-full min-w-0 gap-2',
-                      enableLeadActions ? 'grid-cols-[1fr_1fr_auto]' : 'grid-cols-[1fr_auto]'
-                    )}
-                  >
+                  <div className="grid w-full min-w-0 grid-cols-[1fr_auto] gap-2">
                     <button
                       type="button"
                       onClick={() => setExpandedId(open ? null : r.id)}
@@ -326,21 +310,6 @@ export function CorporateContactSavesPanel({
                       )}
                       {open ? 'Hide' : 'Details'}
                     </button>
-                    {enableLeadActions && (
-                      <button
-                        type="button"
-                        onClick={() => setReplyOpenId(replyOpen ? null : r.id)}
-                        className={cn(
-                          'inline-flex w-full min-w-0 items-center justify-center gap-1 rounded-xl px-2.5 py-2.5 text-[10px] font-black tracking-wider uppercase sm:text-[11px]',
-                          replyOpen
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'
-                        )}
-                      >
-                        <MessageCircle className="h-3.5 w-3.5 shrink-0" />
-                        Reply
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -356,83 +325,24 @@ export function CorporateContactSavesPanel({
                   </div>
                 </div>
 
-                {(open || (replyOpen && enableLeadActions)) && (
+                {open && (
                   <div className="min-w-0 space-y-3 overflow-x-hidden border-t border-emerald-100/60 bg-white/60 px-3.5 pt-0 pb-4 sm:space-y-4 sm:px-5 sm:pb-5 dark:border-emerald-500/15 dark:bg-black/10">
-                    {r.message && open && (
-                      <div className="mt-3 min-w-0 rounded-2xl border border-amber-200/50 bg-amber-50 p-3 sm:mt-4 sm:p-3.5 dark:border-amber-500/20 dark:bg-amber-500/10">
-                        <p className="mb-1 text-[10px] font-black tracking-wider text-amber-600 uppercase">
-                          Guest note
-                        </p>
-                        <p className="text-sm leading-relaxed font-semibold wrap-break-word whitespace-pre-wrap text-slate-800 dark:text-slate-100">
-                          {r.message}
-                        </p>
-                      </div>
-                    )}
+                    <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 sm:mt-4 sm:grid-cols-2 sm:gap-2.5">
+                      <MetaChip icon={Mail} label="Email" value={r.email || '—'} />
+                      <MetaChip icon={Phone} label="Phone" value={r.phone || '—'} />
+                      <MetaChip icon={IdCard} label="Source card" value={r.profile?.name || r.profile?.slug || '—'} />
+                      <MetaChip icon={Calendar} label="Saved at" value={formatWhen(r.createdAt)} />
+                      <MetaChip
+                        icon={Monitor}
+                        label="Device"
+                        value={`${r.metadata?.device || '—'} · ${r.metadata?.browser || '—'}`}
+                      />
+                      <MetaChip icon={MapPin} label="Location" value={r.metadata?.approximateLocation || '—'} />
+                      <MetaChip icon={Globe} label="Referrer" value={r.metadata?.referrer || 'Direct'} />
+                      <MetaChip icon={User} label="Owner" value="Corporate Owner" />
+                    </div>
 
-                    {open && (
-                      <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 sm:mt-4 sm:grid-cols-2 sm:gap-2.5">
-                        <MetaChip icon={Mail} label="Email" value={r.email || '—'} />
-                        <MetaChip icon={Phone} label="Phone" value={r.phone || '—'} />
-                        <MetaChip icon={IdCard} label="Source card" value={r.profile?.name || r.profile?.slug || '—'} />
-                        <MetaChip icon={Calendar} label="Saved at" value={formatWhen(r.createdAt)} />
-                        <MetaChip
-                          icon={Monitor}
-                          label="Device"
-                          value={`${r.metadata?.device || '—'} · ${r.metadata?.browser || '—'}`}
-                        />
-                        <MetaChip icon={MapPin} label="Location" value={r.metadata?.approximateLocation || '—'} />
-                        <MetaChip icon={Globe} label="Referrer" value={r.metadata?.referrer || 'Direct'} />
-                        <MetaChip icon={User} label="Owner" value="Corporate Owner" />
-                      </div>
-                    )}
-
-                    {enableLeadActions && open && (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Private note</p>
-                        <textarea
-                          value={noteValue}
-                          onChange={(e) => setNoteMap((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                          placeholder="Internal note about this lead…"
-                          className="h-20 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-emerald-500/50 dark:border-white/10 dark:bg-slate-900"
-                        />
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            className="rounded-xl bg-slate-900 px-3.5 py-2 text-[11px] font-black text-white uppercase dark:bg-white dark:text-slate-900"
-                          >
-                            Save note
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {replyOpen && enableLeadActions && (
-                      <div className="mt-2 space-y-2 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3.5 dark:border-indigo-500/20 dark:bg-indigo-500/10">
-                        <p className="flex items-center gap-1.5 text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-300">
-                          <MessageCircle className="h-3.5 w-3.5" /> Reply to {r.name}
-                        </p>
-                        {r.lastReply && (
-                          <p className="text-xs font-semibold text-slate-500">Last reply: {r.lastReply}</p>
-                        )}
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          <input
-                            type="text"
-                            value={replyMap[r.id] || ''}
-                            onChange={(e) => setReplyMap((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                            placeholder={`Message for ${r.name}…`}
-                            className="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold outline-none dark:border-white/10 dark:bg-slate-900"
-                          />
-                          <button
-                            type="button"
-                            className="rounded-xl bg-indigo-600 px-4 py-2.5 text-[11px] font-black text-white uppercase hover:bg-indigo-700"
-                          >
-                            Send
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {open && r.profile?.slug && (
+                    {r.profile?.slug && (
                       <a
                         href={getVCardPublicPath(r.profile.slug)}
                         target="_blank"

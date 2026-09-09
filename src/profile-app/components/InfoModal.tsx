@@ -69,8 +69,14 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
             )
 
             if (item.href) {
+              const openInNewTab = item.href.startsWith('https://')
               return (
-                <a key={idx} href={item.href} className="block">
+                <a
+                  key={idx}
+                  href={item.href}
+                  {...(openInNewTab ? { target: '_blank' as const, rel: 'noopener noreferrer' } : {})}
+                  className="block"
+                >
                   {blockContent}
                 </a>
               )

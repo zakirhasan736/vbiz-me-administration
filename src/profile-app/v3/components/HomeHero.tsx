@@ -662,6 +662,9 @@ export const HomeHero: React.FC<{
                         {item.isLink && item.href ? (
                           <a
                             href={item.href}
+                            {...(item.href.startsWith('https://')
+                              ? { target: '_blank' as const, rel: 'noopener noreferrer' }
+                              : {})}
                             className={`truncate text-[13px] font-semibold hover:underline ${theme === 'dark' ? 'text-white' : 'text-zinc-800'}`}
                             style={item.style?.textColor ? { color: item.style.textColor } : undefined}
                           >

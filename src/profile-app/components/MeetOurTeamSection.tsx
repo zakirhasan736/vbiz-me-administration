@@ -2,10 +2,12 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { ExternalLink, UsersRound } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -196,7 +198,12 @@ export const MeetOurTeamSection = ({ sectionName = 'Meet Our Team' }: MeetOurTea
         </div>
       </div>
 
-      <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={cn(
+          'vbiz-bento-grid relative z-20 mt-4',
+          contentGridClass(members.length, 'sm:grid-cols-2 lg:grid-cols-3')
+        )}
+      >
         {members.map((member, idx) => (
           <TeamMemberCard key={member.id} item={member} idx={idx} />
         ))}

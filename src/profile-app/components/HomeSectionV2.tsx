@@ -31,11 +31,12 @@ function ContactBentoCard({ item }: { item: ProfileContactItem }) {
   )
 
   if (item.isLink && item.href) {
+    const openInNewTab = item.label === 'Website' || item.label === 'Address'
     return (
       <a
         href={item.href}
-        target={item.label === 'Website' ? '_blank' : undefined}
-        rel={item.label === 'Website' ? 'noopener noreferrer' : undefined}
+        target={openInNewTab ? '_blank' : undefined}
+        rel={openInNewTab ? 'noopener noreferrer' : undefined}
         className="group/link flex flex-col justify-center rounded-2xl border border-zinc-200/60 bg-zinc-50/80 p-4 backdrop-blur-md transition-all hover:bg-white hover:shadow-lg dark:border-zinc-800/60 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80"
       >
         {content}

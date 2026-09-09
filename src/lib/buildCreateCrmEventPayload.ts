@@ -10,6 +10,7 @@ export type CreateCrmEventSubmitPayload = {
   type: string
   date: string
   time: string
+  description: string
   attachments: CrmEventAttachment[]
   globalHost?: string
 }
@@ -22,12 +23,14 @@ export function buildCreateCrmEventPayload(payload: CreateCrmEventSubmitPayload)
 
   const recipientEmail = payload.owner?.ownerEmails?.[0]?.trim().toLowerCase() || null
   const recipientName = payload.owner?.hostName?.trim() || host
+  const description = payload.description.trim()
 
   const base: CreateCrmEventPayload = {
     host,
     type: payload.type,
     date: payload.date,
     time: payload.time,
+    description,
     status: 'Scheduled',
     scope: payload.scope,
     attachments: payload.attachments,

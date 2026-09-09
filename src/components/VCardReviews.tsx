@@ -136,7 +136,7 @@ export function TabReviews() {
             items={reviews}
             getKey={(r) => r.id}
             onReorder={setReviews}
-            renderItem={(item, idx) => {
+            renderItem={(item, idx, dragHandleProps) => {
               const open = isExpanded(item.id)
               return (
                 <section
@@ -153,6 +153,7 @@ export function TabReviews() {
                     showRemove
                     onRemove={() => removeReview(item.id)}
                     accent={accent}
+                    dragHandleProps={dragHandleProps}
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-3 p-5">
@@ -205,7 +206,7 @@ export function TabReviews() {
             }}
           />
 
-          <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+          <div className="flex flex-col items-center gap-4 pt-6 md:mt-4">
             <button
               type="button"
               onClick={addReview}

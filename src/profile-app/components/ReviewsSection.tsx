@@ -2,10 +2,12 @@
 
 import { AllReviewsView, SliderReviewCard } from '@/profile-app/components/AllReviewsView'
 import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetReviewsQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import {
   ArrowRight,
   ChevronLeft,
@@ -303,9 +305,10 @@ export const ReviewsSection = () => {
 
       {!showInitialLoader && slideCount > 0 && viewMode === 'grid' ? (
         <div
-          className={`vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 ${
-            compact ? '' : 'md:grid-cols-3 lg:grid-cols-4'
-          }`}
+          className={cn(
+            'vbiz-bento-grid relative z-20 mt-4',
+            contentGridClass(slideCount, compact ? '' : 'md:grid-cols-3 lg:grid-cols-4')
+          )}
         >
           {slides.map((item, idx) => {
             const isFeatured = idx === 0 || idx === 3

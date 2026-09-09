@@ -68,13 +68,9 @@ const waitForMetadata = (video: HTMLVideoElement, signal?: AbortSignal) =>
     if (video.readyState >= 1) onLoadedMetadata()
   })
 
-/** Faster playback during capture — re-encode finishes in wall-clock time / rate. */
-export function pickVideoOptimizePlaybackRate(durationSec: number): number {
-  if (!Number.isFinite(durationSec) || durationSec <= 0) return 8
-  if (durationSec > 180) return 16
-  if (durationSec > 60) return 12
-  if (durationSec > 30) return 8
-  return 4
+/** Always 1× — faster playback breaks MediaRecorder timestamps (short / fast-forward output). */
+export function pickVideoOptimizePlaybackRate(): number {
+  return 1
 }
 
 export function shouldSkipVideoOptimize(file: File, durationSec?: number): boolean {
@@ -82,6 +78,8 @@ export function shouldSkipVideoOptimize(file: File, durationSec?: number): boole
   if (file.size < MIN_VIDEO_COMPRESSION_BYTES) return true
   if (file.size > SKIP_VIDEO_OPTIMIZE_BYTES) return true
   if (durationSec != null && durationSec > MAX_VIDEO_OPTIMIZE_DURATION_SEC) return true
+  // In-app MediaRecorder clips are already compressed; re-encoding only adds latency.
+  if (/^wish-(audio|video)-\d+\./i.test(file.name)) return true
   return false
 }
 
@@ -118,8 +116,7 @@ const compressVideo = async (file: File, options?: OptimizeVideoOptions): Promis
       durationSec <= 90
     if (alreadySmall) return file
 
-    const playbackRate = pickVideoOptimizePlaybackRate(durationSec)
-    video.playbackRate = playbackRate
+    video.playbackRate = pickVideoOptimizePlaybackRate()
 
     try {
       await video.play()
@@ -160,8 +157,7 @@ const compressVideo = async (file: File, options?: OptimizeVideoOptions): Promis
       let settled = false
       let timeoutId = 0
 
-      const expectedMs =
-        durationSec > 0 ? Math.min(180_000, Math.max(20_000, (durationSec / playbackRate) * 1000 + 15_000)) : 90_000
+      const expectedMs = durationSec > 0 ? Math.min(300_000, Math.max(20_000, durationSec * 1000 + 20_000)) : 90_000
 
       const stopTracks = () => {
         cancelAnimationFrame(animationFrame)

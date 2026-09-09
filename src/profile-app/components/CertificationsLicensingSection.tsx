@@ -5,10 +5,12 @@ import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { Award, Maximize2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
@@ -89,7 +91,7 @@ function CertificationCard({
         )}
 
         <div className="absolute top-4 right-4 z-20">
-          <div className="flex max-w-48 items-center gap-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-1.5 font-mono text-[10px] tracking-wider text-zinc-600 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80 dark:text-zinc-300">
+          <div className="flex max-w-48 items-center gap-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-1.5 text-[10px] tracking-wider text-zinc-600 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80 dark:text-zinc-300">
             <Award size={12} style={{ color: accent }} />
             <span className="truncate">{credentialLabel}</span>
           </div>
@@ -105,7 +107,7 @@ function CertificationCard({
         </IconHoverTooltip>
       </div>
 
-      <div className="relative z-20 flex flex-1 flex-col p-6 md:p-8">
+      <div className="relative z-20 flex flex-1 flex-col p-6">
         <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
           {item.title}
         </h3>
@@ -218,7 +220,12 @@ export const CertificationsLicensingSection = () => {
         </div>
       </div>
 
-      <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={cn(
+          'vbiz-bento-grid relative z-20 mt-4',
+          contentGridClass(items.length, 'md:grid-cols-2 lg:grid-cols-3')
+        )}
+      >
         {items.map((item, idx) => (
           <CertificationCard key={item.id} item={item} idx={idx} accent={accent} onOpen={openCertificate} />
         ))}

@@ -131,7 +131,7 @@ export function TabCertificates() {
             items={items}
             getKey={(c) => c.id}
             onReorder={persist}
-            renderItem={(item, idx) => {
+            renderItem={(item, idx, dragHandleProps) => {
               const open = isExpanded(item.id)
               return (
                 <section
@@ -148,6 +148,7 @@ export function TabCertificates() {
                     showRemove
                     onRemove={() => removeCert(item.id)}
                     accent={accent}
+                    dragHandleProps={dragHandleProps}
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-4 p-6">
@@ -230,7 +231,7 @@ export function TabCertificates() {
             }}
           />
 
-          <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+          <div className="flex flex-col items-center gap-4 pt-6 md:mt-4">
             <button
               type="button"
               onClick={addCert}

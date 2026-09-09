@@ -1,8 +1,9 @@
 'use client'
 
+import type { DragHandleProps } from '@/components/ReorderList'
 import { cn } from '@/utils/cn'
-import { ChevronDown, Trash2 } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { ChevronDown, GripVertical, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 
 type AccentBadge = {
   border: string
@@ -19,6 +20,8 @@ const defaultAccent: AccentBadge = {
   chevronOpen: 'text-cyan-500',
   cardExpandedBorder: 'border-cyan-200/60 dark:border-cyan-500/20',
 }
+
+const CLICK_DRAG_THRESHOLD_PX = 6
 
 export function expandableCardClassName(isExpanded: boolean, accent: AccentBadge = defaultAccent) {
   return cn(
@@ -39,6 +42,7 @@ type ExpandableEntryHeaderProps = {
   showRemove?: boolean
   accent?: AccentBadge
   trailing?: ReactNode
+  dragHandleProps?: DragHandleProps
 }
 
 export function ExpandableEntryHeader({
@@ -51,21 +55,87 @@ export function ExpandableEntryHeader({
   showRemove = false,
   accent = defaultAccent,
   trailing,
+  dragHandleProps,
 }: ExpandableEntryHeaderProps) {
+  const pointerStart = useRef<{ x: number; y: number } | null>(null)
+  const didDrag = useRef(false)
+
+  const dragClassName = dragHandleProps?.className
+  const restDragProps = dragHandleProps
+    ? {
+        draggable: dragHandleProps.draggable,
+        onDragStart: dragHandleProps.onDragStart,
+        title: dragHandleProps.title,
+      }
+    : {}
+
   return (
-    <div className="flex items-center gap-2 border-b border-slate-200/50 px-2 py-2 sm:px-4 dark:border-white/5">
+    <div className="flex items-center gap-1 border-b border-slate-200/50 px-2 py-2 sm:gap-2 sm:px-4 dark:border-white/5">
+      {dragHandleProps ? (
+        <span
+          {...restDragProps}
+          aria-label={dragHandleProps['aria-label'] ?? 'Drag to reorder'}
+          className={cn(
+            'flex h-9 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300',
+            dragClassName
+          )}
+        >
+          <GripVertical className="h-4 w-4" aria-hidden />
+        </span>
+      ) : null}
+
       <div
-        role="button"
-        tabIndex={0}
-        onClick={onToggle}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onToggle()
-          }
-        }}
-        aria-expanded={isExpanded}
-        className="cursor-inherit flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-3 text-left transition-colors hover:bg-slate-100/70 sm:gap-4 sm:px-4 dark:hover:bg-white/5"
+        {...(dragHandleProps
+          ? {
+              ...restDragProps,
+              className: cn(
+                'flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-3 text-left transition-colors hover:bg-slate-100/70 sm:gap-4 sm:px-4 dark:hover:bg-white/5',
+                dragClassName
+              ),
+              onPointerDown: (e: PointerEvent) => {
+                pointerStart.current = { x: e.clientX, y: e.clientY }
+                didDrag.current = false
+              },
+              onPointerMove: (e: PointerEvent) => {
+                if (!pointerStart.current) return
+                const dx = Math.abs(e.clientX - pointerStart.current.x)
+                const dy = Math.abs(e.clientY - pointerStart.current.y)
+                if (dx > CLICK_DRAG_THRESHOLD_PX || dy > CLICK_DRAG_THRESHOLD_PX) {
+                  didDrag.current = true
+                }
+              },
+              onClick: () => {
+                if (didDrag.current) {
+                  didDrag.current = false
+                  pointerStart.current = null
+                  return
+                }
+                onToggle()
+              },
+              onKeyDown: (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onToggle()
+                }
+              },
+              role: 'button',
+              tabIndex: 0,
+              'aria-expanded': isExpanded,
+            }
+          : {
+              role: 'button',
+              tabIndex: 0,
+              onClick: onToggle,
+              onKeyDown: (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onToggle()
+                }
+              },
+              'aria-expanded': isExpanded,
+              className:
+                'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-2xl px-2 py-3 text-left transition-colors hover:bg-slate-100/70 sm:gap-4 sm:px-4 dark:hover:bg-white/5',
+            })}
       >
         <div
           className={cn(
@@ -83,14 +153,28 @@ export function ExpandableEntryHeader({
             <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500 dark:text-slate-400">{subtitle}</p>
           ) : null}
         </div>
+      </div>
+
+      <button
+        type="button"
+        data-no-dnd
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle()
+        }}
+        aria-expanded={isExpanded}
+        aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
+        className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
+      >
         <ChevronDown
           className={cn(
-            'h-5 w-5 shrink-0 text-slate-400 transition-transform duration-300',
+            'h-5 w-5 shrink-0 transition-transform duration-300',
             isExpanded && cn('rotate-180', accent.chevronOpen ?? 'text-cyan-500')
           )}
           aria-hidden
         />
-      </div>
+      </button>
+
       {trailing}
       {showRemove && onRemove ? (
         <button

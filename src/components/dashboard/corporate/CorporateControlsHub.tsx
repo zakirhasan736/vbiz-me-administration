@@ -174,10 +174,7 @@ export function CorporateControlsHub({
   }, [contacts, filterLeadCardId])
 
   const savesContacts = useMemo(() => filteredContacts.filter((c) => c.source !== 'note'), [filteredContacts])
-  const notesContacts = useMemo(
-    () => filteredContacts.filter((c) => Boolean((c.message || '').trim()) || c.source === 'note'),
-    [filteredContacts]
-  )
+  const notesContacts = useMemo(() => filteredContacts.filter((c) => c.source === 'note'), [filteredContacts])
 
   const aggregatedSocial = useMemo(() => {
     const map: Record<string, number> = {}

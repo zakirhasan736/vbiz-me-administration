@@ -11,6 +11,7 @@ export const SETTINGS_TAB_IDS = [
   'icons',
   'general',
   'home',
+  'integration',
   'template',
   'seo',
   'ai-assistance',
@@ -37,6 +38,8 @@ function defaultSubTabForSection(sectionId: string): number | undefined {
 
 function parseSettingsTab(value: string | undefined): SettingsTabId {
   if (value === 'info' || value === 'icons') return DEFAULT_SETTINGS_TAB
+  // Legacy AI Assistance URL → Integration sidebar tab
+  if (value === 'ai-assistance') return 'integration'
   if (value && (SETTINGS_TAB_IDS as readonly string[]).includes(value)) {
     return value as SettingsTabId
   }
@@ -140,7 +143,29 @@ export function buildEditorSettingsPath(
   settingsTab: SettingsTabId = DEFAULT_SETTINGS_TAB,
   cardId?: string | null
 ): string {
-  return buildEditorPath(basePath, { sectionId: EDITOR_SETTINGS_ID, settingsTab }, cardId)
+  const tab = settingsTab === 'ai-assistance' ? 'integration' : settingsTab
+  return buildEditorPath(basePath, { sectionId: EDITOR_SETTINGS_ID, settingsTab: tab }, cardId)
+}
+
+/** Card Settings → Integration (`/settings/integration`) with optional query flags. */
+export function buildIntegrationSettingsPath(
+  basePath: EditorBasePath,
+  options: {
+    cardId?: string | null
+    query?: Record<string, string | undefined | null>
+  } = {}
+): string {
+  const path = buildEditorSettingsPath(basePath, 'integration', options.cardId)
+  const [pathname, existingQs] = path.split('?')
+  const params = new URLSearchParams(existingQs || '')
+  if (options.query) {
+    for (const [key, value] of Object.entries(options.query)) {
+      if (value == null || value === '') params.delete(key)
+      else params.set(key, value)
+    }
+  }
+  const qs = params.toString()
+  return qs ? `${pathname}?${qs}` : pathname
 }
 
 export function isValidEditorSection(sectionId: string): boolean {

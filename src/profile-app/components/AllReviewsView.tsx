@@ -2,7 +2,9 @@
 
 import type { ReviewListItem } from '@/interfaces/api/reviews.interface'
 import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { cn } from '@/utils/cn'
 import { ArrowLeft, ExternalLink, Quote, Star } from 'lucide-react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
@@ -115,7 +117,12 @@ export function AllReviewsView({ sectionTitle, slides, onBack }: AllReviewsViewP
         </p>
       </div>
 
-      <div className={`vbiz-bento-grid grid grid-cols-1 gap-4 ${compact ? '' : 'md:grid-cols-2 lg:grid-cols-3'}`}>
+      <div
+        className={cn(
+          'vbiz-bento-grid',
+          contentGridClass(slides.length, compact ? '' : 'md:grid-cols-2 lg:grid-cols-3')
+        )}
+      >
         {slides.map((item, idx) => (
           <motion.div
             key={item.id}

@@ -3,10 +3,12 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { ArrowUpRight, CalendarDays, Ticket } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -181,7 +183,7 @@ export const EventsSection = () => {
         </div>
       </div>
 
-      <div className="relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className={cn('relative z-20 mt-4', contentGridClass(items.length, 'md:grid-cols-2'))}>
         {items.map((item, idx) => (
           <EventCard key={item.id} item={item} idx={idx} accent={accent} />
         ))}

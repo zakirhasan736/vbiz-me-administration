@@ -178,6 +178,8 @@ function SingleOwnerDashboardHome() {
   const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
   const [contactsSkip, setContactsSkip] = useState(0)
   const [contactsAccum, setContactsAccum] = useState<DashboardContact[]>([])
+  const [notesSkip, setNotesSkip] = useState(0)
+  const [notesAccum, setNotesAccum] = useState<DashboardContact[]>([])
   const [engagementPage, setEngagementPage] = useState(1)
   const { hasOrder, timeLeft } = useOrderTimer()
 
@@ -191,6 +193,12 @@ function SingleOwnerDashboardHome() {
     { skip: contactsSkip, limit: 50, source: 'guest_save' },
     { skip: !showContactSavesModal }
   )
+  const {
+    data: notesPage,
+    isFetching: notesFetching,
+    isError: notesError,
+    isLoading: notesLoading,
+  } = useGetContactsQuery({ skip: notesSkip, limit: 50, source: 'note' }, { skip: !showContactSavesModal })
   const engagementSkip = (engagementPage - 1) * ENGAGEMENT_PAGE_SIZE
   const { data: pagedEngagement } = useGetRecentEngagementQuery(
     {
@@ -210,22 +218,36 @@ function SingleOwnerDashboardHome() {
     return [...contactsAccum, ...pageItems.filter((row) => !seen.has(row.id))]
   }, [showContactSavesModal, contactsPage, contactsSkip, contactsAccum])
 
-  const contacts = useMemo(
-    () => (modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])),
-    [modalContacts, summary?.contactsPreview]
-  )
+  // When the modal list API has responded, trust it even if empty (do not fall back to preview).
+  const contacts = useMemo(() => {
+    if (!showContactSavesModal) return (summary?.contactsPreview || []) as DashboardContact[]
+    if (contactsPage != null || contactsSkip > 0) return modalContacts
+    return modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])
+  }, [showContactSavesModal, contactsPage, contactsSkip, modalContacts, summary?.contactsPreview])
   const statsReady = Boolean(stats) && !statsLoading
   const savesCount = statsReady ? resolveDashboardContactSaves(stats) + liveKpis.saves : undefined
+  const modalSavesCount = typeof contactsPage?.total === 'number' ? contactsPage.total : (savesCount ?? 0)
   const contactsHasMore = Boolean(
     contactsPage?.hasMore ?? (contactsPage?.total != null && modalContacts.length < contactsPage.total)
   )
+
+  const modalNotes = useMemo(() => {
+    if (!showContactSavesModal) return [] as DashboardContact[]
+    const pageItems = (notesPage?.items ?? []) as DashboardContact[]
+    if (notesSkip === 0) return pageItems
+    const seen = new Set(notesAccum.map((row) => row.id))
+    return [...notesAccum, ...pageItems.filter((row) => !seen.has(row.id))]
+  }, [showContactSavesModal, notesPage, notesSkip, notesAccum])
+
+  const notesHasMore = Boolean(notesPage?.hasMore ?? (notesPage?.total != null && modalNotes.length < notesPage.total))
   const uniqueViews = statsReady ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) + liveKpis.views : undefined
   const shares = statsReady ? (stats?.shares ?? 0) : undefined
   const visitsTotal = statsReady
     ? (stats?.visitsChart?.total ?? stats?.viewsLast30Days ?? 0) + liveKpis.views
     : undefined
   const trendPercent = statsReady ? (stats?.visitsChart?.trendPercent ?? 0) : 0
-  const notesCount = statsReady ? (stats?.notesLast30Days ?? 0) : undefined
+  const notesCount =
+    typeof notesPage?.total === 'number' ? notesPage.total : statsReady ? (stats?.notesLast30Days ?? 0) : 0
   const profileName = stats?.profiles?.[0]?.name || 'Your card'
 
   const { data: upcomingMeetingsPage, isLoading: upcomingMeetingsLoading } = useGetOwnerUpcomingMeetingsQuery({
@@ -235,6 +257,8 @@ function SingleOwnerDashboardHome() {
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
     setContactsSkip(0)
     setContactsAccum([])
+    setNotesSkip(0)
+    setNotesAccum([])
     setContactSavesModalTab(tab)
     setShowContactSavesModal(true)
   }
@@ -243,6 +267,8 @@ function SingleOwnerDashboardHome() {
     setShowContactSavesModal(false)
     setContactsSkip(0)
     setContactsAccum([])
+    setNotesSkip(0)
+    setNotesAccum([])
   }
 
   const loadMoreContacts = () => {
@@ -255,6 +281,18 @@ function SingleOwnerDashboardHome() {
       })
     }
     setContactsSkip((prev) => prev + 50)
+  }
+
+  const loadMoreNotes = () => {
+    if (notesPage?.items?.length) {
+      const pageItems = notesPage.items as DashboardContact[]
+      setNotesAccum((prev) => {
+        if (notesSkip === 0) return pageItems
+        const seen = new Set(prev.map((row) => row.id))
+        return [...prev, ...pageItems.filter((row) => !seen.has(row.id))]
+      })
+    }
+    setNotesSkip((prev) => prev + 50)
   }
 
   const handleExport = async () => {
@@ -341,15 +379,21 @@ function SingleOwnerDashboardHome() {
 
       {showContactSavesModal && (
         <ContactSavesModal
-          count={savesCount ?? contactsPage?.total ?? 0}
+          count={modalSavesCount}
           contacts={contacts}
-          notesCount={notesCount ?? 0}
+          notesContacts={modalNotes}
+          notesCount={notesCount}
           tab={contactSavesModalTab}
           onTabChange={setContactSavesModalTab}
           onClose={closeContactSaves}
           hasMore={contactsHasMore}
           loadingMore={contactsFetching && contactsSkip > 0}
           onLoadMore={loadMoreContacts}
+          notesHasMore={notesHasMore}
+          notesLoadingMore={notesFetching && notesSkip > 0}
+          onLoadMoreNotes={loadMoreNotes}
+          notesLoading={notesLoading || (notesFetching && notesSkip === 0)}
+          notesError={notesError}
         />
       )}
     </div>

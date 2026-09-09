@@ -150,7 +150,7 @@ export function TabPortfolio() {
               items={portfolios}
               getKey={(portfolio) => portfolio.id}
               onReorder={setPortfolios}
-              renderItem={(portfolio, index) => {
+              renderItem={(portfolio, index, dragHandleProps) => {
                 const open = isExpanded(portfolio.id)
                 return (
                   <section
@@ -167,6 +167,7 @@ export function TabPortfolio() {
                       showRemove
                       onRemove={() => removePortfolio(portfolio.id)}
                       accent={accent}
+                      dragHandleProps={dragHandleProps}
                     />
 
                     <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
@@ -208,49 +209,63 @@ export function TabPortfolio() {
                         </div>
                       </div>
 
-                      <div className="mb-8 space-y-3">
-                        <MediaFileUploader
-                          label="Featured media"
-                          accent="teal"
-                          profileId={cardId}
-                          attachmentType="Portfolio Gallery"
-                          value={portfolio.imageUrl}
-                          fileName={portfolio.imageName}
-                          accept={
-                            portfolio.type === 'Video'
-                              ? 'video/*,image/*'
-                              : portfolio.type === 'Audio'
-                                ? 'audio/*,image/*'
-                                : portfolio.type === 'Document'
-                                  ? 'application/pdf,.pdf,.doc,.docx,image/*'
-                                  : 'image/*,video/*,audio/*,application/pdf'
-                          }
-                          hint="Upload image, video, audio, or a document - preview appears below"
-                          onChange={(next) => {
-                            if (!next) {
-                              patchPortfolio(portfolio.id, {
-                                imageUrl: '',
-                                imageName: '',
-                              })
-                              return
+                      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <div className="group order-2 flex min-h-0 flex-col space-y-1.5 md:order-1">
+                          <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                            Description
+                          </label>
+                          <textarea
+                            value={portfolio.description}
+                            onChange={(e) => updatePortfolio(portfolio.id, 'description', e.target.value)}
+                            placeholder="Write a description for your portfolio..."
+                            rows={8}
+                            className={cn(inputClasses.replace('h-min', 'resize-y'), 'min-h-40 flex-1 md:h-full')}
+                          />
+                        </div>
+                        <div className="order-1 space-y-3 md:order-2">
+                          <MediaFileUploader
+                            label="Featured media"
+                            accent="teal"
+                            profileId={cardId}
+                            attachmentType="Portfolio Gallery"
+                            value={portfolio.imageUrl}
+                            fileName={portfolio.imageName}
+                            accept={
+                              portfolio.type === 'Video'
+                                ? 'video/*,image/*'
+                                : portfolio.type === 'Audio'
+                                  ? 'audio/*,image/*'
+                                  : portfolio.type === 'Document'
+                                    ? 'application/pdf,.pdf,.doc,.docx,image/*'
+                                    : 'image/*,video/*,audio/*,application/pdf'
                             }
-                            patchPortfolio(portfolio.id, {
-                              imageUrl: next.url,
-                              imageName: next.fileName,
-                            })
-                          }}
-                        />
-                        <MediaSourceActions
-                          mode="both"
-                          compact
-                          profileId={cardId}
-                          onSelect={(asset) =>
-                            patchPortfolio(portfolio.id, {
-                              imageUrl: asset.url,
-                              imageName: asset.name,
-                            })
-                          }
-                        />
+                            hint="Upload image, video, audio, or a document - preview appears below"
+                            onChange={(next) => {
+                              if (!next) {
+                                patchPortfolio(portfolio.id, {
+                                  imageUrl: '',
+                                  imageName: '',
+                                })
+                                return
+                              }
+                              patchPortfolio(portfolio.id, {
+                                imageUrl: next.url,
+                                imageName: next.fileName,
+                              })
+                            }}
+                          />
+                          <MediaSourceActions
+                            mode="both"
+                            compact
+                            profileId={cardId}
+                            onSelect={(asset) =>
+                              patchPortfolio(portfolio.id, {
+                                imageUrl: asset.url,
+                                imageName: asset.name,
+                              })
+                            }
+                          />
+                        </div>
                       </div>
 
                       <div className="group mb-8 flex flex-col space-y-1.5">
@@ -271,8 +286,11 @@ export function TabPortfolio() {
                         />
                       </div>
 
-                      <div className="mb-8 flex items-center gap-4 pt-2">
+                      <div className="mt-4 flex items-center gap-4 pt-2">
                         <label className="group flex cursor-pointer items-center gap-3">
+                          <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
+                            Active Status
+                          </span>
                           <div className="relative flex items-center justify-center">
                             <input
                               type="checkbox"
@@ -292,23 +310,7 @@ export function TabPortfolio() {
                               />
                             </div>
                           </div>
-                          <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
-                            Active Status
-                          </span>
                         </label>
-                      </div>
-
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                          Description
-                        </label>
-                        <textarea
-                          value={portfolio.description}
-                          onChange={(e) => updatePortfolio(portfolio.id, 'description', e.target.value)}
-                          placeholder="Write a description for your portfolio..."
-                          rows={4}
-                          className={inputClasses.replace('h-min', 'resize-y')}
-                        ></textarea>
                       </div>
                     </ExpandableEntryBody>
                   </section>
@@ -316,7 +318,7 @@ export function TabPortfolio() {
               }}
             />
 
-            <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+            <div className="flex flex-col items-center gap-4 pt-6 md:mt-4">
               <button
                 type="button"
                 onClick={addPortfolio}

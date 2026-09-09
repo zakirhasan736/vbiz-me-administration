@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-const SHALLOW_NAV_EVENT = 'vbiz-editor-shallow-nav'
+export const SHALLOW_NAV_EVENT = 'vbiz-editor-shallow-nav'
 
 /**
  * URL-only section switch for the vCard editor. The shell lives in `layout.tsx`,
