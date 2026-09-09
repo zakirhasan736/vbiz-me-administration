@@ -522,6 +522,17 @@ iframe.goog-te-banner-frame {
   min-width: 0;
 }
 
+/*
+ * Gallery masonry uses columns-2 md:columns-3 xl:columns-4.
+ * Embedded phone preview still matches desktop viewport breakpoints,
+ * so force two columns to mirror a real mobile layout.
+ */
+.vbiz-profile-root[data-embedded] .columns-2,
+.vbiz-profile-root[data-embedded] [class*='md:columns-'],
+.vbiz-profile-root[data-embedded] [class*='xl:columns-'] {
+  column-count: 2 !important;
+}
+
 /* Keep 2×2 social icon grids inside Network cards */
 .vbiz-profile-root[data-embedded]
   .grid.grid-cols-2:not([class*='sm:grid-cols']):not([class*='md:grid-cols']):not([class*='lg:grid-cols']) {

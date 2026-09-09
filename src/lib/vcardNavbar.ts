@@ -38,7 +38,6 @@ import {
   Megaphone,
   Menu,
   Mic,
-  Newspaper,
   Package,
   Phone,
   PlaySquare,
@@ -102,7 +101,6 @@ export type ProfileNavContentKey =
   | 'services'
   | 'additional'
   | 'blog'
-  | 'post'
   | 'videos'
   | 'video-links'
   | 'why-choose-us'
@@ -242,7 +240,6 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     profileContent: 'blog',
     editorPanel: { kind: 'blog' },
   },
-  { id: 'post', label: 'Post', icon: Newspaper, profileContent: 'post', editorPanel: { kind: 'blog' } },
   {
     id: 'profile',
     label: 'Profile',
@@ -726,7 +723,6 @@ const NAV_ITEM_GROUP_BY_ID: Record<string, NavItemGroupId> = {
   services: 'essentials',
   reviews: 'essentials',
   blog: 'essentials',
-  post: 'essentials',
   education: 'profile',
   skills: 'profile',
   work: 'profile',

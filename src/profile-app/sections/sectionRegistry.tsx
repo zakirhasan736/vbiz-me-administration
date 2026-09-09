@@ -12,6 +12,7 @@ import {
   CalendarSection,
   CertificationsLicensingSection,
   ClientsSection,
+  ContentMediaSection,
   DcpSection,
   DinnerSection,
   EducationSection,
@@ -35,10 +36,11 @@ import {
   MenuSection,
   MissionSection,
   MyInfoSection,
-  PostsSection,
+  ProfileSection,
   PropertyListingSection,
   PublicCardsSection,
   ResiliencyProductsSection,
+  ResumeSection,
   ReviewsSection,
   SalesPersonSection,
   SeeProductsSection,
@@ -103,8 +105,6 @@ export function renderProfileSection({
       return <AdditionalServicesSection key={tabId} />
     case 'blog':
       return <BlogSection key={tabId} sectionName={sectionName} />
-    case 'post':
-      return <PostsSection key={tabId} />
     case 'gallery':
       return <ImageGallerySection key={tabId} />
     case 'videos':
@@ -176,6 +176,12 @@ export function renderProfileSection({
       return <LicensingSection key={tabId} sectionName={sectionName} />
     case 'insurance-license':
       return <InsuranceLicenseSection key={tabId} sectionName={sectionName} />
+    case 'profile':
+      return <ProfileSection key={tabId} />
+    case 'resume':
+      return <ResumeSection key={tabId} sectionName={sectionName} />
+    case 'content-media':
+      return <ContentMediaSection key={tabId} sectionName={sectionName} />
     case 'contact-us':
     case 'empty':
     default:

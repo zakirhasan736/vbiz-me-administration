@@ -4,15 +4,18 @@ import { buildProfilePath } from '@/lib/profileRoutes'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesignFromData } from '@/lib/resolvedProfileDesign'
 import type { CardThemeConfig } from '@/lib/theme/cardThemeContract'
+import { getVCardContentMedia } from '@/lib/vcardContentMedia'
 import { getDisplaySettingsFromVCard, getHomeMediaUrls, isFieldVisible } from '@/lib/vcardDisplaySettings'
 import { normalizeFaqList } from '@/lib/vcardFaq'
 import { normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
+import { getVCardResume } from '@/lib/vcardResume'
 import { normalizeServiceList } from '@/lib/vcardServices'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
 import { DEFAULT_LIVE_AGENT_CARD, type LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
 import { resolveGlobalProfession } from '@/profile-app/lib/profileHomeData'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
 import type {
+  VCardContentMedia,
   VCardCustomTab,
   VCardData,
   VCardEducationEntry,
@@ -24,6 +27,7 @@ import type {
   VCardPersonal,
   VCardPortfolioEntry,
   VCardRecord,
+  VCardResume,
   VCardReviewEntry,
   VCardSectionPostItem,
   VCardServiceEntry,
@@ -62,6 +66,8 @@ export type VBizProfileAppProps = {
   social?: VCardSocial
   extraFields?: VCardExtraField[]
   myInfo?: VCardMyInfo
+  resume?: VCardResume
+  contentMedia?: VCardContentMedia
   education?: VCardEducationEntry[]
   experience?: VCardExperienceEntry[]
   services?: VCardServiceEntry[]
@@ -168,6 +174,8 @@ export function vCardDataToProfileProps(
     social: data.social ?? createDefaultVCardSocial(),
     extraFields: data.extraFields ?? [],
     myInfo: data.myInfo,
+    resume: getVCardResume(data),
+    contentMedia: getVCardContentMedia(data),
     education: data.education ?? [],
     experience: data.experience ?? [],
     services: normalizeServiceList(data.services),

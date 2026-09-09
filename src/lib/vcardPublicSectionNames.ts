@@ -18,7 +18,6 @@ export const PUBLIC_SECTION_NAMES = {
   calendar: 'calender',
   faq: 'Faq',
   blog: 'blog',
-  post: 'Post',
   announcement: 'Announcement',
   bbb: 'Better Business Bureau (BBB) Accreditation',
   booking: 'Booking',

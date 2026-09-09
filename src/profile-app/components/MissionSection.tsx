@@ -38,7 +38,7 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.6, delay: idx * 0.1, ease: 'easeOut' }}
-      className="vbiz-page-header-surface group relative flex min-h-60 flex-col justify-between overflow-hidden rounded-3xl border p-5 md:p-6 lg:p-8"
+      className="vbiz-page-header-surface group relative flex min-h-60 flex-col justify-between overflow-hidden rounded-3xl border"
     >
       <div className="pointer-events-none absolute inset-0">
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
@@ -50,49 +50,55 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
       />
       <div className="pointer-events-none absolute bottom-0 left-0 -mb-24 -ml-24 rounded-full bg-black/5 p-24 blur-3xl transition-transform delay-100 duration-1000 group-hover:scale-110 dark:bg-white/5" />
 
-      <div className="relative z-10">
-        {heroImage && (
-          <div className="mb-6 flex justify-center">
-            <div className="relative h-40 w-40 overflow-hidden rounded-4xl border border-zinc-200 bg-white shadow-xl transition-all duration-500 group-hover:-translate-y-2 lg:h-56 lg:w-56 dark:border-zinc-800/80 dark:bg-zinc-950 dark:shadow-2xl">
-              <Image src={heroImage} alt={item.title} width={256} height={256} className="object-cover" />
-            </div>
+      <div className="relative z-10 flex w-full flex-col">
+        {heroImage ? (
+          <div className="relative aspect-21/9 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+            <Image
+              src={heroImage}
+              alt={item.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 1152px) 100vw, 1152px"
+            />
           </div>
-        )}
+        ) : null}
 
-        <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm transition-colors dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
-          <BookOpen size={12} style={{ color: accent }} /> {sectionTitle.trim()}
-        </div>
+        <div className="p-5 md:p-6 lg:p-8">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm transition-colors dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
+            <BookOpen size={12} style={{ color: accent }} /> {sectionTitle.trim()}
+          </div>
 
-        <div className="relative">
-          <Quote size={40} className="absolute -top-4 -left-4 -rotate-12 text-zinc-300 dark:text-zinc-800/50" />
-          <h2 className="relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-            {item.title}
-          </h2>
-        </div>
+          <div className="relative">
+            <Quote size={40} className="absolute -top-4 -left-4 -rotate-12 text-zinc-300 dark:text-zinc-800/50" />
+            <h2 className="relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+              {item.title}
+            </h2>
+          </div>
 
-        <div className="relative z-10 mt-3 lg:mt-8">
-          <TruncatedClampText
-            html={hasHtml ? item.description : undefined}
-            plain={!hasHtml ? plainDescription : undefined}
-            maxLines={5}
-            minLength={180}
-            accentColor={accent}
-            readMoreLabel="Read more"
-            readLessLabel="Read less"
-            textClassName="vbiz-description text-base leading-normal font-medium lg:text-lg"
-          />
+          <div className="relative z-10 mt-3 lg:mt-8">
+            <TruncatedClampText
+              html={hasHtml ? item.description : undefined}
+              plain={!hasHtml ? plainDescription : undefined}
+              maxLines={5}
+              minLength={180}
+              accentColor={accent}
+              readMoreLabel="Read more"
+              readLessLabel="Read less"
+              textClassName="vbiz-description text-base leading-normal font-medium lg:text-lg"
+            />
 
-          {detailUrl ? (
-            <a
-              href={detailUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-zinc-900 transition-opacity hover:opacity-90"
-              style={{ backgroundColor: accent }}
-            >
-              Learn more <ArrowUpRight size={16} />
-            </a>
-          ) : null}
+            {detailUrl ? (
+              <a
+                href={detailUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-zinc-900 transition-opacity hover:opacity-90"
+                style={{ backgroundColor: accent }}
+              >
+                Learn more <ArrowUpRight size={16} />
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
     </motion.div>

@@ -88,7 +88,48 @@ export type VCardMyInfo = {
   email?: string
 }
 
-/** Back office → Education tab entries (shown on profile Resume section). */
+/** Resume tab document (PDF, image, DOC, etc.). */
+export type VCardResumeDocument = {
+  id: string
+  name: string
+  url: string
+  type: string
+  size: number
+}
+
+/** Resume tab: section title, optional summary, and uploaded documents. */
+export type VCardResume = {
+  title: string
+  summary: string
+  documents: VCardResumeDocument[]
+}
+
+/** Content & media gallery image. */
+export type VCardContentMediaGalleryItem = {
+  id: string
+  url: string
+  name: string
+  /** MIME type from upload; optional for legacy / URL-only items. */
+  type?: string
+  /** Byte size from upload; optional for legacy / URL-only items. */
+  size?: number
+}
+
+/** Content & media video entry (uploaded file or external URL). */
+export type VCardContentMediaVideoItem = {
+  id: string
+  title: string
+  url: string
+}
+
+/** Content & media tab: gallery images, videos, and optional note (`content_media_json` setting). */
+export type VCardContentMedia = {
+  gallery: VCardContentMediaGalleryItem[]
+  videos: VCardContentMediaVideoItem[]
+  note: string
+}
+
+/** Back office → Education tab entries (shown on profile Education section). */
 export type VCardEducationEntry = {
   id: string
   institute: string
@@ -247,6 +288,10 @@ export type VCardData = {
   extraFields?: VCardExtraField[]
   /** Call / Text / Email screen on the public My Info tab. */
   myInfo?: VCardMyInfo
+  /** Resume tab: summary + downloadable documents (`resume_json` setting). */
+  resume?: VCardResume
+  /** Content & media tab: gallery + videos (`content_media_json` setting). */
+  contentMedia?: VCardContentMedia
   education?: VCardEducationEntry[]
   experience?: VCardExperienceEntry[]
   /** Card Settings tab: visibility, colors, and overrides per UI element */

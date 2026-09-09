@@ -1,6 +1,7 @@
 'use client'
 
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
+import { DEFAULT_VCARD_CONTENT_MEDIA } from '@/lib/vcardContentMedia'
 import {
   getFieldConfig,
   getHomeMediaUrls,
@@ -11,8 +12,10 @@ import {
   resolveDisplaySettings,
 } from '@/lib/vcardDisplaySettings'
 import { DEFAULT_VCARD_MY_INFO } from '@/lib/vcardMyInfo'
+import { DEFAULT_VCARD_RESUME } from '@/lib/vcardResume'
 import { createDefaultVCardSocial, getSocialHrefForDisplayLabel } from '@/lib/vcardSocial'
 import type {
+  VCardContentMedia,
   VCardCustomTab,
   VCardEducationEntry,
   VCardExperienceEntry,
@@ -21,6 +24,7 @@ import type {
   VCardGeneralPost,
   VCardMyInfo,
   VCardPersonal,
+  VCardResume,
   VCardServiceEntry,
   VCardSocial,
   VCardTabLabelOverrides,
@@ -35,6 +39,8 @@ export type ProfileDisplayContextValue = {
   social: VCardSocial
   extraFields: VCardExtraField[]
   myInfo: VCardMyInfo
+  resume: VCardResume
+  contentMedia: VCardContentMedia
   education: VCardEducationEntry[]
   experience: VCardExperienceEntry[]
   services: VCardServiceEntry[]
@@ -85,6 +91,8 @@ const defaultValue: ProfileDisplayContextValue = {
   social: createDefaultVCardSocial(),
   extraFields: [],
   myInfo: DEFAULT_VCARD_MY_INFO,
+  resume: { ...DEFAULT_VCARD_RESUME, documents: [] },
+  contentMedia: { ...DEFAULT_VCARD_CONTENT_MEDIA, gallery: [], videos: [] },
   education: [],
   experience: [],
   services: [],
@@ -117,6 +125,8 @@ export function ProfileDisplayProvider({
   social,
   extraFields,
   myInfo,
+  resume,
+  contentMedia,
   education,
   experience,
   services,
@@ -141,6 +151,8 @@ export function ProfileDisplayProvider({
   social?: VCardSocial | null
   extraFields?: VCardExtraField[]
   myInfo?: VCardMyInfo
+  resume?: VCardResume
+  contentMedia?: VCardContentMedia
   education?: VCardEducationEntry[]
   experience?: VCardExperienceEntry[]
   services?: VCardServiceEntry[]
@@ -163,6 +175,8 @@ export function ProfileDisplayProvider({
     const soc = social ?? createDefaultVCardSocial()
     const extras = extraFields ?? []
     const info = myInfo ?? DEFAULT_VCARD_MY_INFO
+    const resumeBlock = resume ?? { ...DEFAULT_VCARD_RESUME, documents: [] }
+    const contentMediaBlock = contentMedia ?? { ...DEFAULT_VCARD_CONTENT_MEDIA, gallery: [], videos: [] }
     const edu = education ?? []
     const exp = experience ?? []
     const svc = services ?? []
@@ -176,6 +190,8 @@ export function ProfileDisplayProvider({
       social: soc,
       extraFields: extras,
       myInfo: info,
+      resume: resumeBlock,
+      contentMedia: contentMediaBlock,
       education: edu,
       experience: exp,
       services: svc,
@@ -208,6 +224,8 @@ export function ProfileDisplayProvider({
     social,
     extraFields,
     myInfo,
+    resume,
+    contentMedia,
     education,
     experience,
     services,

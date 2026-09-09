@@ -1054,15 +1054,16 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 
 /* ---------- Gallery overlay pills & icon actions (API corner, not layout cards) ---------- */
+/* Always a light chip — --vbiz-surface/--vbiz-secondary are often both dark in dark themes. */
 .vbiz-card-pill {
-  background-color: color-mix(in srgb, var(--vbiz-surface) 96%, white) !important;
-  color: var(--vbiz-secondary) !important;
-  border: 1px solid color-mix(in srgb, var(--vbiz-accent) 30%, transparent) !important;
+  background-color: color-mix(in srgb, #ffffff 94%, var(--vbiz-accent)) !important;
+  color: #0f172a !important;
+  border: 1px solid color-mix(in srgb, var(--vbiz-accent) 35%, transparent) !important;
   border-radius: var(--vbiz-btn-radius, 9999px) !important;
 }
 .vbiz-card-pill,
 .vbiz-card-pill * {
-  color: var(--vbiz-secondary) !important;
+  color: #0f172a !important;
 }
 .vbiz-card-action {
   background-color: var(--vbiz-accent) !important;

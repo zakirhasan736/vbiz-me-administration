@@ -6,7 +6,7 @@ import { FileText } from 'lucide-react'
 
 const STATIC_LINK_TO_NAV_ID: Record<string, string> = {
   home: 'home',
-  resume: 'education',
+  resume: 'resume',
   education: 'education',
   'public-cards': 'public-cards',
   'public cards': 'public-cards',
@@ -25,7 +25,6 @@ const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
   gallery: 'gallery',
   video: 'videos',
   videos: 'videos',
-  post: 'post',
   blog: 'blog',
   'about me': 'about',
   about: 'about',
@@ -79,7 +78,7 @@ const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
   'work experience': 'work',
   work: 'work',
   experience: 'work',
-  resume: 'education',
+  resume: 'resume',
   education: 'education',
   skills: 'skills',
   skill: 'skills',
@@ -167,6 +166,17 @@ function mapStaticLink(link: StaticNavLink): NavBarNavItem | null {
     resolveNavIdFromLabel(link.title) ??
     resolveNavIdFromLabel(link.post_type)
 
+  // Retired duplicate of Blog — never map into the public/editor nav.
+  if (
+    navId === 'post' ||
+    normalizeKey(link.id) === 'post' ||
+    normalizeKey(link.name) === 'post' ||
+    normalizeKey(link.title) === 'post' ||
+    normalizeKey(link.post_type || '') === 'post'
+  ) {
+    return null
+  }
+
   const def = navId ? NAV_ITEM_BY_ID[navId] : undefined
   if (!def) return null
 
@@ -182,8 +192,15 @@ function mapStaticLink(link: StaticNavLink): NavBarNavItem | null {
   })
 }
 
+/** Redundant with Blog — never surface as its own nav tab. */
+function isRetiredPostNavType(postType: PostTypeNavLink): boolean {
+  const candidates = [postType.key, postType.name, postType.title, postType.slug, postType.type_id, postType.id]
+  return candidates.some((value) => normalizeKey(String(value ?? '')) === 'post')
+}
+
 function mapPostType(postType: PostTypeNavLink): NavBarNavItem | null {
   if (!isEnabledFlag(postType.status)) return null
+  if (isRetiredPostNavType(postType)) return null
   const navId = resolvePostTypeNavId(postType)
   const def = navId ? NAV_ITEM_BY_ID[navId] : undefined
   const apiSectionName = resolveApiSectionName(postType.name, postType.title, postType.slug)

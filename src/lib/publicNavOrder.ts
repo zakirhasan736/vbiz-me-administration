@@ -25,6 +25,9 @@ export const CANONICAL_PUBLIC_NAV_IDS = [
 
 export const PINNED_END_NAV_IDS = ['public-cards', 'my-info'] as const
 
+/** Removed from the product nav — strip from saved/API orders so old cards stop showing them. */
+const RETIRED_NAV_IDS = new Set(['post'])
+
 /** Keep this card's current saved tab order instead of applying the default list. */
 export const PRESERVE_CUSTOM_NAV_SLUGS = new Set(['michaelangelo-casanova-2'])
 
@@ -32,7 +35,9 @@ const CANONICAL_PUBLIC_NAV_SET = new Set<string>(CANONICAL_PUBLIC_NAV_IDS)
 const PINNED_END_NAV_SET = new Set<string>(PINNED_END_NAV_IDS)
 
 function uniqueNavIds(ids: string[]): string[] {
-  return Array.from(new Set(ids.filter((id) => typeof id === 'string' && id.trim())))
+  return Array.from(
+    new Set(ids.filter((id) => typeof id === 'string' && Boolean(id.trim()) && !RETIRED_NAV_IDS.has(id)))
+  )
 }
 
 function ensureRequiredNavIds(ids: string[]): string[] {

@@ -16,7 +16,7 @@ export type VideoExplainerSectionData = {
   external_url: VideoExplainerExternalUrl
 }
 
-export type VideoExplainerSectionResponse = ApiResponse<VideoExplainerSectionData> & {
+export type VideoExplainerSectionResponse = ApiResponse<VideoExplainerSectionData | null> & {
   section_id?: string
   post_type?: {
     name: string

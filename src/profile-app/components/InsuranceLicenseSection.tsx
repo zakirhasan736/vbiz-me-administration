@@ -3,13 +3,14 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
+import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
-import { ShieldCheck } from 'lucide-react'
+import { Maximize2, ShieldCheck } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
 import { useState } from 'react'
@@ -90,6 +91,15 @@ function InsuranceLicenseCard({
             <span className="truncate">{credentialLabel}</span>
           </div>
         </div>
+
+        <IconHoverTooltip label="See full size" placement="left" className="absolute right-4 bottom-4 z-20">
+          <div
+            aria-label={`View full size: ${item.title}`}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white/80 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80"
+          >
+            <Maximize2 size={16} strokeWidth={2.25} className="text-zinc-600 dark:text-zinc-300" />
+          </div>
+        </IconHoverTooltip>
       </div>
 
       <div className="relative z-20 flex flex-1 flex-col p-6 md:p-8">

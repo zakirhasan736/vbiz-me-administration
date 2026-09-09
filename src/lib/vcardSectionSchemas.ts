@@ -4,6 +4,8 @@ import type { VCardSectionPostItem } from '@/types/vcard'
 export type SectionFieldKey =
   'title' | 'description' | 'url' | 'featuredImage' | 'date' | 'rating' | 'location' | 'active'
 
+export type FeaturedMediaMode = 'any' | 'video'
+
 export type VCardSectionSchema = {
   key: string // ProfileNavContentKey
   postTypeName: string // exact PUBLIC_SECTION_NAMES value
@@ -14,6 +16,10 @@ export type VCardSectionSchema = {
   emptyHint: string
   fields: SectionFieldKey[]
   accentClass?: string // tailwind color family hint e.g. 'violet' | 'amber' | 'teal'
+  /** Featured media uploader: video-only sections (e.g. 2D Explainer) vs image/video/PDF. */
+  featuredMediaMode?: FeaturedMediaMode
+  /** When set, the editor hides Add once this many items exist. */
+  maxItems?: number
 }
 
 const DEFAULT_FIELDS: SectionFieldKey[] = ['title', 'description', 'url', 'featuredImage', 'active']
@@ -21,7 +27,17 @@ const DEFAULT_FIELDS: SectionFieldKey[] = ['title', 'description', 'url', 'featu
 function schema(
   partial: Omit<VCardSectionSchema, 'fields' | 'addLabel' | 'emptyTitle' | 'emptyHint' | 'description'> &
     Partial<
-      Pick<VCardSectionSchema, 'fields' | 'addLabel' | 'emptyTitle' | 'emptyHint' | 'description' | 'accentClass'>
+      Pick<
+        VCardSectionSchema,
+        | 'fields'
+        | 'addLabel'
+        | 'emptyTitle'
+        | 'emptyHint'
+        | 'description'
+        | 'accentClass'
+        | 'featuredMediaMode'
+        | 'maxItems'
+      >
     >
 ): VCardSectionSchema {
   const title = partial.title
@@ -32,6 +48,8 @@ function schema(
     emptyHint: partial.emptyHint ?? `Click "Add Item" to create your first ${title.toLowerCase()} entry.`,
     fields: partial.fields ?? DEFAULT_FIELDS,
     accentClass: partial.accentClass ?? 'amber',
+    featuredMediaMode: partial.featuredMediaMode ?? 'any',
+    maxItems: partial.maxItems,
     key: partial.key,
     postTypeName: partial.postTypeName,
     title,
@@ -77,6 +95,7 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     title: '2D Video Explainer',
     addLabel: 'Add Explainer',
     accentClass: 'teal',
+    featuredMediaMode: 'video',
   }),
   certificates: schema({
     key: 'certificates',
@@ -250,8 +269,12 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     key: 'why-choose-us',
     postTypeName: PUBLIC_SECTION_NAMES.whyChooseUs,
     title: 'Why Choose Us',
+    description: 'Manage the Who We Are content shown on your public profile.',
     addLabel: 'Add Reason',
+    emptyTitle: 'No Who We Are content yet',
+    emptyHint: 'Add your Who We Are entry for your public profile. You can update it anytime.',
     accentClass: 'teal',
+    maxItems: 1,
   }),
   'contact-us': schema({
     key: 'contact-us',

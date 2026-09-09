@@ -35,7 +35,6 @@ export const AdditionalServicesSection = lazyNamed(
   'AdditionalServicesSection'
 )
 export const BlogSection = lazyNamed(() => import('@/profile-app/components/BlogSection'), 'BlogSection')
-export const PostsSection = lazyNamed(() => import('@/profile-app/components/PostsSection'), 'PostsSection')
 export const ImageGallerySection = lazyNamed(
   () => import('@/profile-app/components/ImageGallerySection'),
   'ImageGallerySection'
@@ -119,4 +118,10 @@ export const InsuranceLicenseSection = lazyNamed(
   'InsuranceLicenseSection'
 )
 export const EmptyNavSection = lazyNamed(() => import('@/profile-app/components/EmptyNavSection'), 'EmptyNavSection')
+export const ProfileSection = lazyNamed(() => import('@/profile-app/components/ProfileSection'), 'ProfileSection')
+export const ResumeSection = lazyNamed(() => import('@/profile-app/components/ResumeSection'), 'ResumeSection')
+export const ContentMediaSection = lazyNamed(
+  () => import('@/profile-app/components/ContentMediaSection'),
+  'ContentMediaSection'
+)
 export const MyInfoSection = lazyNamed(() => import('@/profile-app/components/MyInfoSection'), 'MyInfoSection')

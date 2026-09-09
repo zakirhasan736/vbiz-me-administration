@@ -145,7 +145,10 @@ export function SectionPostsEditorPanel({
 
   const setPosts = (next: VCardSectionPostItem[]) => onPostsChange(next)
 
+  const canAdd = schema.maxItems == null || posts.length < schema.maxItems
+
   const addPost = () => {
+    if (!canAdd) return
     const next = createDefaultSectionPostItem()
     setPosts([...posts, next])
     expandNew(postEntryKey(next))
@@ -177,24 +180,28 @@ export function SectionPostsEditorPanel({
             </div>
             <h3 className={`text-lg font-black ${a.titleText}`}>{sectionTitle}</h3>
           </div>
-          <button
-            type="button"
-            onClick={addPost}
-            className={`hidden items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold whitespace-nowrap text-white shadow-sm transition-all active:scale-95 sm:flex ${a.btnBg}`}
-          >
-            <Plus className="h-4 w-4" /> {schema.addLabel}
-          </button>
+          {canAdd ? (
+            <button
+              type="button"
+              onClick={addPost}
+              className={`hidden items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold whitespace-nowrap text-white shadow-sm transition-all active:scale-95 sm:flex ${a.btnBg}`}
+            >
+              <Plus className="h-4 w-4" /> {schema.addLabel}
+            </button>
+          ) : null}
         </div>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           {schema.description}
         </p>
-        <button
-          type="button"
-          onClick={addPost}
-          className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[13px] font-bold text-white shadow-sm transition-all active:scale-95 sm:hidden ${a.btnBg}`}
-        >
-          <Plus className="h-4 w-4" /> {schema.addLabel}
-        </button>
+        {canAdd ? (
+          <button
+            type="button"
+            onClick={addPost}
+            className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[13px] font-bold text-white shadow-sm transition-all active:scale-95 sm:hidden ${a.btnBg}`}
+          >
+            <Plus className="h-4 w-4" /> {schema.addLabel}
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-1 flex-col">
@@ -222,6 +229,38 @@ export function SectionPostsEditorPanel({
               renderItem={(post, index, dragHandleProps) => {
                 const key = postEntryKey(post)
                 const open = isExpanded(key)
+                const hasLeftColumn =
+                  fieldSet.has('description') ||
+                  fieldSet.has('date') ||
+                  fieldSet.has('location') ||
+                  fieldSet.has('rating')
+                const renderActiveToggle = (visibilityClass: string) =>
+                  fieldSet.has('active') ? (
+                    <div className={cn('items-center gap-4', visibilityClass)}>
+                      <label className="group flex cursor-pointer items-center gap-3">
+                        <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">Active</span>
+                        <div className="relative flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={post.active}
+                            onChange={(e) => updatePost(post.id, 'active', e.target.checked)}
+                            className="sr-only"
+                          />
+                          <div
+                            className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
+                              post.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
+                            }`}
+                          >
+                            <div
+                              className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
+                                post.active ? 'translate-x-4' : 'translate-x-0'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  ) : null
                 return (
                   <section ref={(el) => setCardRef(key, el)} className={expandableCardClassName(open, cardAccent)}>
                     <ExpandableEntryHeader
@@ -273,126 +312,102 @@ export function SectionPostsEditorPanel({
                       fieldSet.has('date') ||
                       fieldSet.has('rating') ||
                       fieldSet.has('location') ? (
-                        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
-                          {fieldSet.has('description') ? (
-                            <div
-                              className={`group flex flex-col space-y-1.5${
-                                fieldSet.has('featuredImage') ? 'md:col-start-1' : 'md:col-span-2'
-                              }`}
-                            >
-                              <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                Description
-                              </label>
-                              <textarea
-                                value={post.description}
-                                onChange={(e) => updatePost(post.id, 'description', e.target.value)}
-                                placeholder="Write a description..."
-                                rows={4}
-                                className={`min-h-25 w-full resize-y rounded-2xl border border-slate-200/80 bg-white px-5 py-4 text-[13px] font-medium text-slate-900 shadow-sm focus:ring-1 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white ${a.focus}`}
-                              />
+                        <div
+                          className={cn(
+                            'mb-8 grid grid-cols-1 gap-6 md:items-start',
+                            fieldSet.has('featuredImage') && hasLeftColumn ? 'md:grid-cols-2' : null,
+                            fieldSet.has('active') && hasLeftColumn ? 'md:mb-0' : null
+                          )}
+                        >
+                          {hasLeftColumn ? (
+                            <div className="flex min-w-0 flex-col gap-6">
+                              {fieldSet.has('description') ? (
+                                <div className="group flex min-h-0 flex-1 flex-col space-y-1.5">
+                                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                    Description
+                                  </label>
+                                  <textarea
+                                    value={post.description}
+                                    onChange={(e) => updatePost(post.id, 'description', e.target.value)}
+                                    placeholder="Write a description..."
+                                    rows={6}
+                                    className={cn(inputClasses, 'h-full min-h-36 flex-1 resize-y')}
+                                  />
+                                </div>
+                              ) : null}
+                              {fieldSet.has('date') ? (
+                                <div className="group flex flex-col space-y-1.5">
+                                  <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                    <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} /> Date
+                                  </label>
+                                  <VCardDateInput
+                                    value={post.date}
+                                    onChange={(e) => updatePost(post.id, 'date', e.target.value)}
+                                    className={inputClasses}
+                                  />
+                                </div>
+                              ) : null}
+                              {fieldSet.has('location') ? (
+                                <div className="group flex flex-col space-y-1.5">
+                                  <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                    <MapPin className={`h-3.5 w-3.5 ${a.iconText}`} /> Location
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={post.location}
+                                    onChange={(e) => updatePost(post.id, 'location', e.target.value)}
+                                    placeholder="City, venue, or address"
+                                    className={inputClasses}
+                                  />
+                                </div>
+                              ) : null}
+                              {fieldSet.has('rating') ? (
+                                <div className="group flex flex-col space-y-1.5">
+                                  <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                    <Star className={`h-3.5 w-3.5 ${a.iconText}`} /> Rating
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={post.rating}
+                                    onChange={(e) => updatePost(post.id, 'rating', e.target.value)}
+                                    placeholder="e.g. 5"
+                                    className={inputClasses}
+                                  />
+                                </div>
+                              ) : null}
+                              {renderActiveToggle('hidden md:flex')}
                             </div>
                           ) : null}
                           {fieldSet.has('featuredImage') ? (
-                            <div className="space-y-3 md:col-start-2 md:row-span-4 md:row-start-1">
+                            <div className="min-w-0 space-y-3">
                               <MediaFileUploader
-                                label="Featured media"
+                                label={schema.featuredMediaMode === 'video' ? 'Featured video' : 'Featured media'}
                                 accent={uploaderAccent}
                                 profileId={cardId}
                                 attachmentType={schema.title}
                                 value={post.featuredImage}
-                                accept="image/*,video/*,application/pdf"
-                                hint="Upload an image, video, or PDF - preview appears here"
+                                accept={
+                                  schema.featuredMediaMode === 'video' ? 'video/*' : 'image/*,video/*,application/pdf'
+                                }
+                                hint={
+                                  schema.featuredMediaMode === 'video'
+                                    ? 'Upload a video file only - preview appears here'
+                                    : 'Upload an image, video, or PDF - preview appears here'
+                                }
                                 onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
                               />
                               <MediaSourceActions
-                                mode="both"
+                                mode={schema.featuredMediaMode === 'video' ? 'video' : 'both'}
                                 compact
                                 profileId={cardId}
                                 onSelect={(asset) => updatePost(post.id, 'featuredImage', asset.url)}
                               />
                             </div>
                           ) : null}
-                          {fieldSet.has('date') ? (
-                            <div
-                              className={`group flex flex-col space-y-1.5${
-                                fieldSet.has('featuredImage') ? 'md:col-start-1' : ''
-                              }`}
-                            >
-                              <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} /> Date
-                              </label>
-                              <VCardDateInput
-                                value={post.date}
-                                onChange={(e) => updatePost(post.id, 'date', e.target.value)}
-                                className={inputClasses}
-                              />
-                            </div>
-                          ) : null}
-                          {fieldSet.has('location') ? (
-                            <div
-                              className={`group flex flex-col space-y-1.5${
-                                fieldSet.has('featuredImage') ? 'md:col-start-1' : ''
-                              }`}
-                            >
-                              <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                <MapPin className={`h-3.5 w-3.5 ${a.iconText}`} /> Location
-                              </label>
-                              <input
-                                type="text"
-                                value={post.location}
-                                onChange={(e) => updatePost(post.id, 'location', e.target.value)}
-                                placeholder="City, venue, or address"
-                                className={inputClasses}
-                              />
-                            </div>
-                          ) : null}
-                          {fieldSet.has('rating') ? (
-                            <div
-                              className={`group flex flex-col space-y-1.5${
-                                fieldSet.has('featuredImage') ? 'md:col-start-1' : ''
-                              }`}
-                            >
-                              <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                <Star className={`h-3.5 w-3.5 ${a.iconText}`} /> Rating
-                              </label>
-                              <input
-                                type="text"
-                                value={post.rating}
-                                onChange={(e) => updatePost(post.id, 'rating', e.target.value)}
-                                placeholder="e.g. 5"
-                                className={inputClasses}
-                              />
-                            </div>
-                          ) : null}
                         </div>
                       ) : null}
 
-                      {fieldSet.has('active') ? (
-                        <div className="flex items-center gap-4">
-                          <label className="group flex cursor-pointer items-center gap-3">
-                            <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">Active</span>
-                            <div className="relative flex items-center justify-center">
-                              <input
-                                type="checkbox"
-                                checked={post.active}
-                                onChange={(e) => updatePost(post.id, 'active', e.target.checked)}
-                                className="sr-only"
-                              />
-                              <div
-                                className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
-                                  post.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
-                                }`}
-                              >
-                                <div
-                                  className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
-                                    post.active ? 'translate-x-4' : 'translate-x-0'
-                                  }`}
-                                />
-                              </div>
-                            </div>
-                          </label>
-                        </div>
-                      ) : null}
+                      {renderActiveToggle(hasLeftColumn ? 'flex md:hidden' : 'flex')}
                     </ExpandableEntryBody>
                   </section>
                 )
@@ -400,9 +415,11 @@ export function SectionPostsEditorPanel({
             />
 
             <div className="flex flex-col items-center gap-4 pt-6 md:mt-4">
-              <button type="button" onClick={addPost} className={cn(bottomAddButtonClass, a.bottomAddText)}>
-                <Plus className="h-4 w-4" /> {schema.addLabel}
-              </button>
+              {canAdd ? (
+                <button type="button" onClick={addPost} className={cn(bottomAddButtonClass, a.bottomAddText)}>
+                  <Plus className="h-4 w-4" /> {schema.addLabel}
+                </button>
+              ) : null}
             </div>
           </div>
         )}

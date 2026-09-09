@@ -37,7 +37,15 @@ function TeamMemberCardSkeleton({ idx }: { idx: number }) {
   )
 }
 
-function TeamMemberCard({ item, idx }: { item: DynamicPostListItem; idx: number }) {
+function TeamMemberCard({
+  item,
+  idx,
+  tallImage = false,
+}: {
+  item: DynamicPostListItem
+  idx: number
+  tallImage?: boolean
+}) {
   const bio = stripHtml(item.description)
   const imageUrl = resolveTeamMemberImage(item)
   const profileUrl = item.generalInfoUrl
@@ -49,8 +57,8 @@ function TeamMemberCard({ item, idx }: { item: DynamicPostListItem; idx: number 
       transition={{ duration: 0.4, delay: idx * 0.08 }}
       className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
-      <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-        <div className="absolute inset-0 z-10 bg-linear-to-t from-white to-transparent dark:from-zinc-900" />
+      <div className={cn('relative overflow-hidden bg-zinc-100 dark:bg-zinc-950', tallImage ? 'h-80' : 'h-56')}>
+        <div className="absolute inset-x-0 bottom-0 z-10 h-1/3 bg-linear-to-t from-white/40 via-white/10 to-transparent dark:from-zinc-900/40 dark:via-zinc-900/10" />
         {imageUrl ? (
           <Image
             width={400}
@@ -103,7 +111,7 @@ function TeamMemberCard({ item, idx }: { item: DynamicPostListItem; idx: number 
 function MeetOurTeamSkeleton() {
   return (
     <div className="w-full pb-20">
-      <div className="mb-4 min-h-[220px] animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
+      <div className="mb-4 min-h-55 animate-pulse rounded-3xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800/80 dark:bg-zinc-800" />
       <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 3 }, (_, idx) => (
           <TeamMemberCardSkeleton key={idx} idx={idx} />
@@ -150,7 +158,7 @@ export const MeetOurTeamSection = ({ sectionName = 'Meet Our Team' }: MeetOurTea
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <UsersRound size={24} style={{ color: accent }} />
           </div>
@@ -205,7 +213,7 @@ export const MeetOurTeamSection = ({ sectionName = 'Meet Our Team' }: MeetOurTea
         )}
       >
         {members.map((member, idx) => (
-          <TeamMemberCard key={member.id} item={member} idx={idx} />
+          <TeamMemberCard key={member.id} item={member} idx={idx} tallImage={members.length === 1} />
         ))}
       </div>
     </div>

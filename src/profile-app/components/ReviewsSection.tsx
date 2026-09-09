@@ -175,20 +175,12 @@ export const ReviewsSection = () => {
               <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
             </div>
 
-            {/* View toggle — floats over the banner when there is room, in-flow inside the phone preview */}
-            {compact ? null : (
-              <div className="absolute top-6 right-3 z-20 md:top-8 md:right-8 md:bottom-auto lg:top-8 lg:right-10">
-                {viewToggle}
-              </div>
-            )}
-
             {/* Content overlay */}
             <div
               className={`relative z-10 flex h-full w-full grow flex-col justify-end ${
                 compact ? 'gap-3 p-4' : 'p-0 pb-0 sm:p-5 md:p-6 md:pb-6 lg:p-7'
               }`}
             >
-              {compact ? <div className="flex w-full justify-end">{viewToggle}</div> : null}
               <div
                 className={`mt-auto flex w-full max-w-7xl flex-col items-start justify-between ${
                   compact ? 'gap-3' : 'gap-3 md:flex-row md:items-end md:gap-5'
@@ -223,10 +215,11 @@ export const ReviewsSection = () => {
                 </div>
 
                 <div
-                  className={`flex w-full shrink-0 flex-col items-stretch gap-2 ${
-                    compact ? '' : 'md:w-auto md:items-end md:gap-3'
+                  className={`flex w-full shrink-0 flex-col items-stretch gap-3 ${
+                    compact ? '' : 'md:w-auto md:items-end md:gap-4'
                   }`}
                 >
+                  <div className="flex w-full justify-end">{viewToggle}</div>
                   <div
                     className={`flex w-full flex-row items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-black/30 p-2 backdrop-blur-md ${
                       compact ? '' : 'md:w-auto md:flex-col md:items-end md:gap-2 md:rounded-2xl md:p-5'

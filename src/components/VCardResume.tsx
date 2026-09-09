@@ -2,72 +2,11 @@
 
 import { DocumentUploadArea, type UploadedDoc } from '@/components/DocumentUploadArea'
 import { useVCard } from '@/lib/VCardContext'
+import { DEFAULT_VCARD_RESUME, getVCardResume, normalizeVCardResume } from '@/lib/vcardResume'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
+import type { VCardResume } from '@/types/vcard'
 import { FileText } from 'lucide-react'
 import { useState } from 'react'
-
-const SECTION = 'Resume'
-
-type ResumeState = {
-  title: string
-  summary: string
-  documents: UploadedDoc[]
-}
-
-const normalize = (
-  raw: unknown,
-  legacyResume?: { title?: string; summary?: string; url?: string; fileName?: string }
-): ResumeState => {
-  if (!raw || typeof raw !== 'object') {
-    if (legacyResume?.url) {
-      return {
-        title: String(legacyResume.title || 'Resume'),
-        summary: String(legacyResume.summary || ''),
-        documents: [
-          {
-            id: 'resume_link',
-            name: legacyResume.fileName || 'Linked resume',
-            url: String(legacyResume.url),
-            type: 'application/octet-stream',
-            size: 0,
-          },
-        ],
-      }
-    }
-    return { title: 'Resume', summary: '', documents: [] }
-  }
-  const block = raw as Record<string, unknown>
-  const docs: UploadedDoc[] = Array.isArray(block.documents)
-    ? (block.documents as UploadedDoc[])
-    : block.document
-      ? [block.document as UploadedDoc]
-      : block.url
-        ? [
-            {
-              id: 'resume_link',
-              name: 'Linked resume',
-              url: String(block.url),
-              type: 'application/octet-stream',
-              size: 0,
-            },
-          ]
-        : legacyResume?.url
-          ? [
-              {
-                id: 'resume_link',
-                name: legacyResume.fileName || 'Linked resume',
-                url: String(legacyResume.url),
-                type: 'application/octet-stream',
-                size: 0,
-              },
-            ]
-          : []
-  return {
-    title: String(block.title || legacyResume?.title || 'Resume'),
-    summary: String(block.summary || block.body || legacyResume?.summary || ''),
-    documents: docs,
-  }
-}
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 shadow-sm'
@@ -75,27 +14,29 @@ const inputClasses =
 export function TabResume() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Resume')
   const { vCardData, updateData, cardId } = useVCard()
-  const sections = (vCardData as { sections?: Record<string, unknown> }).sections
-  const legacyResume = (vCardData as { resume?: { title?: string; summary?: string; url?: string; fileName?: string } })
-    .resume
 
-  const [state, setState] = useState<ResumeState>(() => normalize(sections?.[SECTION], legacyResume))
+  const [state, setState] = useState<VCardResume>(() => getVCardResume(vCardData))
   const [prevCardId, setPrevCardId] = useState(cardId)
 
   // Re-sync when card identity changes (create → edit / switch cards).
-  // Adjust during render — avoids setState-in-effect cascading renders.
   if (cardId !== prevCardId) {
     setPrevCardId(cardId)
-    setState(normalize(sections?.[SECTION], legacyResume))
+    setState(getVCardResume(vCardData))
   }
 
-  const persist = (next: ResumeState) => {
-    setState(next)
-    updateData('sections', {
-      ...(sections || {}),
-      [SECTION]: next,
-    })
+  const persist = (next: VCardResume) => {
+    const normalized = normalizeVCardResume(next)
+    setState(normalized)
+    updateData('resume', normalized)
   }
+
+  const documents: UploadedDoc[] = state.documents.map((doc) => ({
+    id: doc.id,
+    name: doc.name,
+    url: doc.url,
+    type: doc.type,
+    size: doc.size,
+  }))
 
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col space-y-6 pb-12 duration-500">
@@ -120,7 +61,7 @@ export function TabResume() {
             value={state.title}
             onChange={(e) => persist({ ...state, title: e.target.value })}
             className={inputClasses}
-            placeholder="Resume"
+            placeholder={DEFAULT_VCARD_RESUME.title}
           />
         </label>
 
@@ -136,13 +77,26 @@ export function TabResume() {
         </label>
 
         <DocumentUploadArea
-          files={state.documents}
-          onChange={(documents) => persist({ ...state, documents })}
+          files={documents}
+          onChange={(nextDocs) =>
+            persist({
+              ...state,
+              documents: nextDocs.map((doc) => ({
+                id: doc.id,
+                name: doc.name,
+                url: doc.url,
+                type: doc.type,
+                size: doc.size,
+              })),
+            })
+          }
           multiple
           label="Resume document upload"
           hint="Image, PDF, TXT, DOC / DOCX"
           accent="teal"
           mediaAssist="image"
+          profileId={cardId}
+          attachmentType="Resume Document"
         />
       </div>
     </div>
