@@ -56,6 +56,13 @@ function formatMoney(cents: number | null | undefined) {
   )
 }
 
+function corporateCardLimitFieldError(value: string | number | null | undefined): string | null {
+  if (value === '' || value == null) return 'Card limit is required.'
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n) || n <= 1) return 'Card limit must be greater than 1.'
+  return null
+}
+
 type OwnerRole = 'vcard-owner' | 'corporate-owner'
 type TabId = 'existing' | 'new'
 
@@ -97,6 +104,7 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
   const [newCompany, setNewCompany] = useState('')
   const [newPackageId, setNewPackageId] = useState('')
   const [newCardLimit, setNewCardLimit] = useState('')
+  const [newCardLimitError, setNewCardLimitError] = useState<string | null>(null)
   const [newNegotiatedMonthly, setNewNegotiatedMonthly] = useState('')
   const [newNegotiatedSignup, setNewNegotiatedSignup] = useState('')
   const [newFreePeriodAmount, setNewFreePeriodAmount] = useState('')
@@ -130,6 +138,7 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
     setNewCompany('')
     setNewPackageId('')
     setNewCardLimit('')
+    setNewCardLimitError(null)
     setNewNegotiatedMonthly('')
     setNewNegotiatedSignup('')
     setNewFreePeriodAmount('')
@@ -199,10 +208,12 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
         notify.error('Company / organization is required for Corporate accounts.')
         return
       }
-      if (newCardLimit.trim() === '' || !Number.isFinite(Number(newCardLimit))) {
-        notify.error('Enter a card / person creation limit.')
+      const cardLimitError = corporateCardLimitFieldError(newCardLimit)
+      if (cardLimitError) {
+        setNewCardLimitError(cardLimitError)
         return
       }
+      setNewCardLimitError(null)
     }
 
     try {
@@ -373,8 +384,10 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
                   if (pkg && resolveOwnerMode(pkg) === 'corporate') {
                     const cap = parsePackageMaxCards(pkg.features)
                     setNewCardLimit(cap != null ? String(cap) : '')
+                    setNewCardLimitError(corporateCardLimitFieldError(cap != null ? String(cap) : ''))
                   } else {
                     setNewCardLimit('')
+                    setNewCardLimitError(null)
                   }
                   if (pkg) {
                     setNewNegotiatedMonthly(centsToDollarsInput(pkg.monthlyPrice))
@@ -501,10 +514,21 @@ export default function AssignCardOwnerModal({ open, onClose, onConfirm }: Assig
                       step={1}
                       required
                       value={newCardLimit}
-                      onChange={(e) => setNewCardLimit(e.target.value)}
-                      placeholder={packageCardDefault != null ? String(packageCardDefault) : 'e.g. 25'}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      onChange={(e) => {
+                        setNewCardLimit(e.target.value)
+                        setNewCardLimitError(corporateCardLimitFieldError(e.target.value))
+                      }}
+                      placeholder={packageCardDefault != null ? String(packageCardDefault) : 'e.g. 15'}
+                      aria-invalid={Boolean(newCardLimitError)}
+                      className={`w-full rounded-xl border bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:bg-slate-800 dark:text-white ${
+                        newCardLimitError
+                          ? 'border-rose-400 dark:border-rose-500'
+                          : 'border-slate-200 dark:border-white/15'
+                      }`}
                     />
+                    {newCardLimitError ? (
+                      <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{newCardLimitError}</p>
+                    ) : null}
                   </div>
                 )}
 

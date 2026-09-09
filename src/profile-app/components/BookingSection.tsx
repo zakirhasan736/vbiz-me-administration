@@ -2,10 +2,12 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { CalendarCheck } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -208,7 +210,7 @@ export const BookingSection = () => {
         </div>
       </div>
 
-      <div className="relative z-20 mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className={cn('relative z-20 mt-4', contentGridClass(items.length, 'lg:grid-cols-2'))}>
         {items.map((item, idx) => (
           <BookingCard key={item.id} item={item} idx={idx} accent={accent} primaryColor={primaryColor} />
         ))}

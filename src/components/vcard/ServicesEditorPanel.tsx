@@ -149,7 +149,7 @@ export function ServicesEditorPanel({
             getKey={(s) => s.id}
             onReorder={onServicesChange}
             className="space-y-4"
-            renderItem={(service, index) => {
+            renderItem={(service, index, dragHandleProps) => {
               const open = isExpanded(service.id)
               return (
                 <section
@@ -166,6 +166,7 @@ export function ServicesEditorPanel({
                     showRemove
                     onRemove={() => removeService(service.id)}
                     accent={accent}
+                    dragHandleProps={dragHandleProps}
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="p-8">
@@ -290,6 +291,9 @@ export function ServicesEditorPanel({
 
                     <div className="flex items-center gap-4 pt-2">
                       <label className="group flex cursor-pointer items-center gap-3">
+                        <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
+                          Active Status
+                        </span>
                         <div className="relative flex items-center justify-center">
                           <input
                             type="checkbox"
@@ -311,9 +315,6 @@ export function ServicesEditorPanel({
                             />
                           </div>
                         </div>
-                        <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
-                          Active Status
-                        </span>
                       </label>
                     </div>
                   </ExpandableEntryBody>
@@ -322,7 +323,7 @@ export function ServicesEditorPanel({
             }}
           />
 
-          <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+          <div className="flex flex-col items-center gap-4 pt-6 md:mt-4">
             <button
               type="button"
               onClick={addService}

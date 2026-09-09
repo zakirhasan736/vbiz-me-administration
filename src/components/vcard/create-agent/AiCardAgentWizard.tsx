@@ -262,8 +262,9 @@ function fallbackSeoFromDraft(data: VCardData) {
 }
 
 function featureSettingsLabel(feature: Pick<AcceptedFeature, 'key' | 'settingsSection'>): string {
-  if (feature.key === 'aiAssistance') return 'Settings > AI Assistance'
-  if (feature.key === 'canva') return 'Settings > Canva Integration'
+  if (feature.key === 'aiAssistance' || feature.key === 'canva') {
+    return 'Settings > Integration'
+  }
   if (feature.key === 'seo') return 'Settings > SEO'
   if (feature.key === 'pushNotifications' || feature.key === 'emailNotifications') {
     return 'Settings > General notifications'
@@ -314,14 +315,14 @@ const OPTIONAL_ITEMS: Array<{
     key: 'aiAssistance',
     title: 'AI Assistance (Live Agent)',
     description:
-      'Premium add-on ($10/mo). After create, unlock it on your package, then activate and train it in Settings > AI Assistance.',
+      'Premium add-on ($10/mo). After create, unlock it on your package, then activate and train it in Settings > Integration.',
     settingsSection: 'ai-assistance',
   },
   {
     key: 'canva',
     title: 'Canva',
-    description: 'Connect Canva for design assets on the card.',
-    settingsSection: 'general',
+    description: 'Connect Canva for design assets on the card under Settings > Integration.',
+    settingsSection: 'integration',
   },
   {
     key: 'seo',
@@ -2221,10 +2222,10 @@ export function AiCardAgentWizard({
       try {
         if (item.key === 'aiAssistance') {
           note =
-            'AI Assistance stays off until you unlock the premium add-on ($10 / month) and activate it in Settings > AI Assistance. I can still share setup tips here — go to Settings after create to turn it on, then train it with business instructions, documents, and payment or lead-handling rules.'
+            'AI Assistance stays off until you unlock the premium add-on ($10 / month) and activate it in Settings > Integration. I can still share setup tips here — go to Settings after create to turn it on, then train it with business instructions, documents, and payment or lead-handling rules.'
         } else if (item.key === 'canva') {
           note =
-            'Canva uses secure authorization from Settings > Canva Integration. Connect Canva there, create profile images, backgrounds, gallery assets, or intro media, then import or upload those assets into the empty media fields.'
+            'Canva uses secure authorization from Settings > Integration. Connect Canva there, create profile images, backgrounds, gallery assets, or intro media, then import or upload those assets into the empty media fields.'
         } else if (item.key === 'seo') {
           try {
             const generatedSeo = await generateCardSeo()
@@ -2305,7 +2306,7 @@ export function AiCardAgentWizard({
     if (feature.key === 'aiAssistance') {
       pushMsg(
         'assistant',
-        'AI Assistance is package-locked as a $10 / month add-on. Unlock it on your plan, then open Settings > AI Assistance to activate and train the guest helper. Saying yes here only saves setup guidance — it does not turn the live agent on.'
+        'AI Assistance is package-locked as a $10 / month add-on. Unlock it on your plan, then open Settings > Integration to activate and train the guest helper. Saying yes here only saves setup guidance — it does not turn the live agent on.'
       )
       return
     }

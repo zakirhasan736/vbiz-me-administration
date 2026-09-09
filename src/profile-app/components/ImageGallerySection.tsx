@@ -1,17 +1,30 @@
 'use client'
 
 import type { GalleryListItem } from '@/interfaces/api/gallery.interface'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetGalleryQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { Camera, Image as ImageIcon, Maximize2, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
-const SKELETON_CARD_COUNT = 4
+const SKELETON_CARD_COUNT = 6
+
+/** Equal-width columns; each card keeps its natural height (flexible masonry). */
+const FLEXIBLE_GRID_CLASS = 'w-full columns-2 gap-3 md:columns-3 xl:columns-4'
+
+const SKELETON_ASPECTS = [
+  'aspect-[4/5]',
+  'aspect-video',
+  'aspect-square',
+  'aspect-[3/4]',
+  'aspect-[5/4]',
+  'aspect-[4/3]',
+]
 
 type HoverDirection = 'top' | 'right' | 'bottom' | 'left'
 
@@ -41,14 +54,35 @@ function getHoverDirection(event: React.MouseEvent<HTMLElement>, element: HTMLEl
   return 'right'
 }
 
-function ImageWithPlaceholder({ src, alt, className }: { src: string; alt: string; className?: string }) {
+function ImageWithPlaceholder({
+  src,
+  alt,
+  className,
+  objectFit = 'cover',
+  lockedAspect,
+}: {
+  src: string
+  alt: string
+  className?: string
+  objectFit?: 'contain' | 'cover'
+  /** When set, skip natural-ratio sizing (used for single full-width card). */
+  lockedAspect?: string
+}) {
   const [isLoaded, setIsLoaded] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null)
   const safeSrc = src.trim()
 
+  const showPlaceholder = !safeSrc || (!isLoaded && !hasError)
+
   return (
-    <div className={`relative ${className ?? ''} overflow-hidden`}>
+    <div
+      className={cn('relative w-full overflow-hidden', lockedAspect, className)}
+      style={lockedAspect || aspectRatio == null ? undefined : { aspectRatio }}
+    >
+      {!lockedAspect && aspectRatio == null ? <div className="aspect-4/3 w-full" aria-hidden /> : null}
       <AnimatePresence>
-        {(!safeSrc || !isLoaded) && (
+        {showPlaceholder ? (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -58,29 +92,50 @@ function ImageWithPlaceholder({ src, alt, className }: { src: string; alt: strin
             <div className="absolute inset-0 animate-pulse bg-linear-to-tr from-white/5 to-transparent" />
             <ImageIcon size={32} className="vbiz-pin opacity-40" />
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
-      {safeSrc ? (
-        <Image
-          width={800}
-          height={600}
+      {safeSrc && !hasError ? (
+        // eslint-disable-next-line @next/next/no-img-element -- user S3/media hosts; match ServicesSection reliability
+        <img
           src={safeSrc}
           alt={alt}
-          onLoad={() => setIsLoaded(true)}
-          className={`h-full w-full object-cover transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={(event) => {
+            const img = event.currentTarget
+            if (!lockedAspect && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              setAspectRatio(img.naturalWidth / img.naturalHeight)
+            }
+            setIsLoaded(true)
+          }}
+          onError={() => {
+            setHasError(true)
+            setIsLoaded(false)
+          }}
+          className={cn(
+            'absolute inset-0 h-full w-full transition-opacity duration-700',
+            objectFit === 'cover' ? 'object-cover' : 'object-contain',
+            isLoaded ? 'opacity-100' : 'opacity-0'
+          )}
         />
+      ) : null}
+      {hasError ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20">
+          <ImageIcon size={32} className="vbiz-pin opacity-40" />
+        </div>
       ) : null}
     </div>
   )
 }
 
-function GalleryCardSkeleton({ delay, className }: { delay: number; className?: string }) {
+function GalleryCardSkeleton({ delay, aspectClass }: { delay: number; aspectClass: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, delay }}
-      className={`vbiz-card aspect-4/3 w-full animate-pulse overflow-hidden rounded-xl border ${className ?? ''}`}
+      className={cn(
+        'vbiz-card mb-3 w-full animate-pulse break-inside-avoid overflow-hidden rounded-2xl border',
+        aspectClass
+      )}
     />
   )
 }
@@ -89,10 +144,12 @@ function GalleryCard({
   item,
   idx,
   onOpen,
+  fullWidth,
 }: {
   item: GalleryListItem
   idx: number
   onOpen: (item: GalleryListItem) => void
+  fullWidth?: boolean
 }) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [isHovered, setIsHovered] = useState(false)
@@ -114,17 +171,34 @@ function GalleryCard({
 
   return (
     <motion.div
-      layout
       ref={cardRef}
-      initial={{ opacity: 0, scale: 0.98, y: 10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
+      role="button"
+      tabIndex={0}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, transition: { duration: 0.2 } }}
       transition={{ duration: 0.4, delay: idx * 0.04, ease: [0.32, 0.72, 0, 1] }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="vbiz-card group relative aspect-4/3 w-full overflow-hidden rounded-xl border shadow-sm"
+      onClick={() => onOpen(item)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onOpen(item)
+        }
+      }}
+      className={cn(
+        'vbiz-card group relative w-full cursor-pointer overflow-hidden rounded-2xl border shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308]',
+        fullWidth ? 'h-[min(58dvh,calc(100dvh-18rem))]' : 'mb-3 break-inside-avoid'
+      )}
     >
-      <ImageWithPlaceholder src={item.imageUrl} alt={item.title} className="relative z-0 h-full w-full" />
+      <ImageWithPlaceholder
+        key={item.imageUrl.trim()}
+        src={item.imageUrl}
+        alt={item.title}
+        objectFit="cover"
+        lockedAspect={fullWidth ? 'h-full' : undefined}
+      />
 
       <AnimatePresence>
         {isHovered ? (
@@ -239,6 +313,8 @@ export const ImageGallerySection = () => {
 
   const items = useMemo(() => (data?.items ?? []).filter((item) => Boolean(item.imageUrl?.trim())), [data?.items])
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Gallery')
+  const isSingle = items.length === 1
+  const isFlexible = items.length > 1
 
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0
@@ -249,9 +325,13 @@ export const ImageGallerySection = () => {
     return (
       <div className="w-full pb-20">
         <SectionHeader sectionTitle={sectionTitle} isLoading />
-        <div className="vbiz-bento-grid relative z-20 grid w-full grid-cols-2 gap-3 pt-2">
+        <div className={cn('vbiz-bento-grid relative z-20 pt-2', FLEXIBLE_GRID_CLASS)}>
           {Array.from({ length: SKELETON_CARD_COUNT }, (_, idx) => (
-            <GalleryCardSkeleton key={idx} delay={idx * 0.04} />
+            <GalleryCardSkeleton
+              key={idx}
+              delay={idx * 0.04}
+              aspectClass={SKELETON_ASPECTS[idx % SKELETON_ASPECTS.length]}
+            />
           ))}
         </div>
       </div>
@@ -287,13 +367,24 @@ export const ImageGallerySection = () => {
     <div className="w-full pb-20">
       <SectionHeader sectionTitle={sectionTitle} />
 
-      <motion.div layout className="vbiz-bento-grid relative z-20 grid w-full grid-cols-2 gap-3 pt-2">
-        <AnimatePresence mode="popLayout">
+      <div
+        className={cn(
+          'vbiz-bento-grid relative z-20 w-full pt-2',
+          isFlexible ? FLEXIBLE_GRID_CLASS : contentGridClass(items.length, 'grid-cols-2', 'grid grid-cols-1 gap-3')
+        )}
+      >
+        <AnimatePresence>
           {items.map((item, idx) => (
-            <GalleryCard key={`${item.id}-${item.createdAt}`} item={item} idx={idx} onOpen={setPreviewItem} />
+            <GalleryCard
+              key={`${item.id}-${item.createdAt}`}
+              item={item}
+              idx={idx}
+              onOpen={setPreviewItem}
+              fullWidth={isSingle}
+            />
           ))}
         </AnimatePresence>
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {previewItem ? <GalleryLightbox item={previewItem} onClose={() => setPreviewItem(null)} /> : null}

@@ -5,7 +5,8 @@ import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
 import { useVCard } from '@/lib/VCardContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { Images, Plus, Trash2, Video } from 'lucide-react'
+import { cn } from '@/utils/cn'
+import { GripVertical, Images, Plus, Trash2, Video } from 'lucide-react'
 import { useRef } from 'react'
 
 type GalleryItem = { id: string; url: string; name: string }
@@ -130,12 +131,32 @@ export function TabContentMedia() {
           items={videos}
           getKey={(v) => v.id}
           onReorder={(next) => persist({ ...cm, videos: next })}
-          renderItem={(v) => (
+          renderItem={(v, _index, dragHandleProps) => (
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-black tracking-wider text-slate-400 uppercase">Video</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    {...dragHandleProps}
+                    className={cn(
+                      'flex h-8 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5',
+                      dragHandleProps.className
+                    )}
+                  >
+                    <GripVertical className="h-4 w-4" aria-hidden />
+                  </span>
+                  <p
+                    {...dragHandleProps}
+                    className={cn(
+                      'text-[11px] font-black tracking-wider text-slate-400 uppercase',
+                      dragHandleProps.className
+                    )}
+                  >
+                    Video
+                  </p>
+                </div>
                 <button
                   type="button"
+                  data-no-dnd
                   onClick={() => persist({ ...cm, videos: videos.filter((x) => x.id !== v.id) })}
                   className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
                 >

@@ -95,10 +95,18 @@ export default function CorporateOwnerDashboardHome() {
   const [showContactSavesModal, setShowContactSavesModal] = useState(false)
   const [contactsSkip, setContactsSkip] = useState(0)
   const [contactsAccum, setContactsAccum] = useState<DashboardContact[]>([])
+  const [notesSkip, setNotesSkip] = useState(0)
+  const [notesAccum, setNotesAccum] = useState<DashboardContact[]>([])
   const { data: contactsPage, isFetching: contactsFetching } = useGetContactsQuery(
     { skip: contactsSkip, limit: 50, source: 'guest_save' },
     { skip: !showContactSavesModal }
   )
+  const {
+    data: notesPage,
+    isFetching: notesFetching,
+    isError: notesError,
+    isLoading: notesLoading,
+  } = useGetContactsQuery({ skip: notesSkip, limit: 50, source: 'note' }, { skip: !showContactSavesModal })
   const socialClickRows = summary?.socialClicks ?? []
   const socialClicksByCardRows = useMemo(() => summary?.socialClicksByCard ?? [], [summary?.socialClicksByCard])
   const { data: teamNotices = [] } = useGetTeamNoticesQuery()
@@ -170,13 +178,26 @@ export default function CorporateOwnerDashboardHome() {
     return [...contactsAccum, ...pageItems.filter((row) => !seen.has(row.id))]
   }, [showContactSavesModal, contactsPage, contactsSkip, contactsAccum])
 
-  const contacts = useMemo(
-    () => (modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])),
-    [modalContacts, summary?.contactsPreview]
-  )
+  // When the modal list API has responded, trust it even if empty (do not fall back to preview).
+  const contacts = useMemo(() => {
+    if (!showContactSavesModal) return (summary?.contactsPreview || []) as DashboardContact[]
+    if (contactsPage != null || contactsSkip > 0) return modalContacts
+    return modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])
+  }, [showContactSavesModal, contactsPage, contactsSkip, modalContacts, summary?.contactsPreview])
   const contactsHasMore = Boolean(
     contactsPage?.hasMore ?? (contactsPage?.total != null && modalContacts.length < contactsPage.total)
   )
+
+  const modalNotes = useMemo(() => {
+    if (!showContactSavesModal) return [] as DashboardContact[]
+    const pageItems = (notesPage?.items ?? []) as DashboardContact[]
+    if (notesSkip === 0) return pageItems
+    const seen = new Set(notesAccum.map((row) => row.id))
+    return [...notesAccum, ...pageItems.filter((row) => !seen.has(row.id))]
+  }, [showContactSavesModal, notesPage, notesSkip, notesAccum])
+
+  const notesHasMore = Boolean(notesPage?.hasMore ?? (notesPage?.total != null && modalNotes.length < notesPage.total))
+  const modalNotesCount = typeof notesPage?.total === 'number' ? notesPage.total : (stats?.notesLast30Days ?? 0)
 
   const quotaLimit = headerQuotaLimit ?? null
   const metricQuotaLimit = profilesReady ? (capacity?.limit ?? null) : undefined
@@ -184,6 +205,7 @@ export default function CorporateOwnerDashboardHome() {
   const activeCount = headerActiveCount
   const totalViews = headerTotalViews
   const savesCount = statsReady ? resolveDashboardContactSaves(stats) + liveKpis.saves : undefined
+  const modalSavesCount = typeof contactsPage?.total === 'number' ? contactsPage.total : (savesCount ?? 0)
   const viewsTrend = statsReady ? formatTrendPercent(stats?.visitsChart?.trendPercent) : {}
   const canCreate = headerCanCreate
   const createDisabledReason = headerCreateDisabledReason
@@ -208,6 +230,8 @@ export default function CorporateOwnerDashboardHome() {
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
     setContactsSkip(0)
     setContactsAccum([])
+    setNotesSkip(0)
+    setNotesAccum([])
     setContactSavesModalTab(tab)
     setShowContactSavesModal(true)
   }
@@ -216,6 +240,8 @@ export default function CorporateOwnerDashboardHome() {
     setShowContactSavesModal(false)
     setContactsSkip(0)
     setContactsAccum([])
+    setNotesSkip(0)
+    setNotesAccum([])
   }
 
   const loadMoreContacts = () => {
@@ -228,6 +254,18 @@ export default function CorporateOwnerDashboardHome() {
       })
     }
     setContactsSkip((prev) => prev + 50)
+  }
+
+  const loadMoreNotes = () => {
+    if (notesPage?.items?.length) {
+      const pageItems = notesPage.items as DashboardContact[]
+      setNotesAccum((prev) => {
+        if (notesSkip === 0) return pageItems
+        const seen = new Set(prev.map((row) => row.id))
+        return [...prev, ...pageItems.filter((row) => !seen.has(row.id))]
+      })
+    }
+    setNotesSkip((prev) => prev + 50)
   }
 
   const openQr = (url: string, name?: string, centerImageUrl?: string) => {
@@ -459,15 +497,21 @@ export default function CorporateOwnerDashboardHome() {
 
       {showContactSavesModal && (
         <ContactSavesModal
-          count={savesCount ?? contactsPage?.total ?? 0}
+          count={modalSavesCount}
           contacts={contacts}
-          notesCount={stats?.notesLast30Days ?? 0}
+          notesContacts={modalNotes}
+          notesCount={modalNotesCount}
           tab={contactSavesModalTab}
           onTabChange={setContactSavesModalTab}
           onClose={closeContactSaves}
           hasMore={contactsHasMore}
           loadingMore={contactsFetching && contactsSkip > 0}
           onLoadMore={loadMoreContacts}
+          notesHasMore={notesHasMore}
+          notesLoadingMore={notesFetching && notesSkip > 0}
+          onLoadMoreNotes={loadMoreNotes}
+          notesLoading={notesLoading || (notesFetching && notesSkip === 0)}
+          notesError={notesError}
         />
       )}
 

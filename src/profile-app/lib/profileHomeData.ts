@@ -1,4 +1,4 @@
-import { formatPersonalAddressLine, hasPersonalAddressParts } from '@/lib/personalAddress'
+import { formatPersonalAddressLine, hasPersonalAddressParts, toGoogleMapsSearchUrl } from '@/lib/personalAddress'
 import type { VCardExtraField, VCardPersonal } from '@/types/vcard'
 import type { DisplayFieldConfig } from '@/types/vcardDisplaySettings'
 import { Briefcase, Building2, Globe, Link2, Mail, MapPin, Phone, type LucideIcon } from 'lucide-react'
@@ -201,6 +201,8 @@ export function buildProfileContactItems(
       icon: MapPin,
       label: 'Address',
       value: addressValue,
+      isLink: true,
+      href: toGoogleMapsSearchUrl(personal) ?? undefined,
       detail: 'HQ',
       style: pickStyle(field('MyInfo Address'), iconFor('Address')),
     })

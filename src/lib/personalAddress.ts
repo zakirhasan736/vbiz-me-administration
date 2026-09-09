@@ -11,3 +11,12 @@ export function hasPersonalAddressParts(personal: Pick<VCardPersonal, 'address' 
     personal.address?.trim() || personal.city?.trim() || personal.state?.trim() || personal.zipCode?.trim()
   )
 }
+
+/** Google Maps search URL for My Info address parts; null when nothing to query. */
+export function toGoogleMapsSearchUrl(
+  personal: Pick<VCardPersonal, 'address' | 'city' | 'state' | 'zipCode'>
+): string | null {
+  const query = formatPersonalAddressLine(personal)
+  if (!query) return null
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}

@@ -183,6 +183,7 @@ const ContactDetailItem: React.FC<{ item: ContactDetailItemData }> = ({ item }) 
             <a
               href={item.href}
               onClick={(e) => e.stopPropagation()}
+              {...(item.href?.startsWith('https://') ? { target: '_blank' as const, rel: 'noopener noreferrer' } : {})}
               className="group/link hover:text-yellow-primary flex items-center gap-1 truncate text-xs font-semibold text-gray-900 transition-all lg:text-[14px] dark:text-white/90"
               style={textStyle}
             >

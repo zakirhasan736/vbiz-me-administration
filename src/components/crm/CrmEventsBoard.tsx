@@ -1,6 +1,7 @@
 'use client'
 
 import { CreateCrmEventModal, type CreateCrmEventSubmitPayload } from '@/components/crm/CreateCrmEventModal'
+import { ModalPortal } from '@/components/ModalPortal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { buildCreateCrmEventPayload } from '@/lib/buildCreateCrmEventPayload'
 import { isIdentitySearchReady } from '@/lib/identitySearch'
@@ -15,8 +16,19 @@ import {
 import type { CrmEvent, CrmEventAttachment, CrmEventStatus } from '@/types/crmEvent'
 import type { MeetingScope } from '@/types/meeting'
 import { cn } from '@/utils/cn'
-import { CalendarHeart, Check, Clock, FileAudio, Image as ImageIcon, Plus, Search, Trash2, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import {
+  CalendarHeart,
+  Check,
+  Clock,
+  FileAudio,
+  Image as ImageIcon,
+  Maximize2,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 
 function statusTone(status: string) {
   if (status === 'Completed') return 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200'
@@ -24,7 +36,53 @@ function statusTone(status: string) {
   return 'bg-rose-50 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200'
 }
 
+function ImageAttachmentLightbox({ url, fileName, onClose }: { url: string; fileName: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = prev
+    }
+  }, [onClose])
+
+  return (
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-200 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label={fileName || 'Image preview'}
+      >
+        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px]" onClick={onClose} />
+        <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-white/5">
+            <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{fileName || 'Image'}</p>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close image preview"
+              className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-white/10 dark:hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-50 p-3 dark:bg-black/40">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt={fileName} className="max-h-[min(75vh,720px)] w-auto max-w-full object-contain" />
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
 function AttachmentPreview({ item }: { item: CrmEventAttachment }) {
+  const [imageOpen, setImageOpen] = useState(false)
   const type =
     item.resourceType ||
     (item.mimeType?.startsWith('video/')
@@ -37,15 +95,26 @@ function AttachmentPreview({ item }: { item: CrmEventAttachment }) {
 
   if (type === 'image') {
     return (
-      <a
-        href={item.url}
-        target="_blank"
-        rel="noreferrer"
-        className="block overflow-hidden rounded-xl border border-slate-200 dark:border-white/10"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.url} alt={item.fileName} className="h-28 w-full object-cover" />
-      </a>
+      <>
+        <button
+          type="button"
+          onClick={() => setImageOpen(true)}
+          className="relative block w-full cursor-pointer overflow-hidden rounded-xl border border-slate-200 text-left transition hover:opacity-95 dark:border-white/10"
+          aria-label={`Preview ${item.fileName || 'image'}`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={item.url} alt={item.fileName} className="h-28 w-full object-cover" />
+          <span
+            className="pointer-events-none absolute right-2 bottom-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950/70 text-white shadow-sm backdrop-blur-[1px]"
+            aria-hidden
+          >
+            <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+          </span>
+        </button>
+        {imageOpen ? (
+          <ImageAttachmentLightbox url={item.url} fileName={item.fileName} onClose={() => setImageOpen(false)} />
+        ) : null}
+      </>
     )
   }
 
@@ -111,7 +180,10 @@ export function CrmEventsBoard({
     if (!isIdentitySearchReady(search)) return rows
     const q = search.trim().toLowerCase()
     return rows.filter((row) => {
-      const hay = [row.type, row.host, row.date, row.time, row.status, row.scope].join(' ').toLowerCase()
+      const hay = [row.type, row.host, row.date, row.time, row.status, row.scope, row.description]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
       return hay.includes(q)
     })
   }, [data?.items, search])
@@ -156,7 +228,7 @@ export function CrmEventsBoard({
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-bold tracking-[0.18em] text-rose-500 uppercase">Events</p>
+          <p className="text-[11px] font-bold tracking-[0.18em] text-rose-500 uppercase">Wish & Outreach</p>
           <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">Wish & outreach</h2>
           <p className="mt-1 max-w-xl text-sm font-medium text-slate-500">
             Create birthday wishes, thank-yous, and follow-ups with media. Events also appear on the Schedules calendar.
@@ -167,7 +239,7 @@ export function CrmEventsBoard({
           onClick={() => setCreateOpen(true)}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[11px] font-black tracking-wider text-white uppercase dark:bg-rose-500"
         >
-          <Plus className="h-4 w-4" /> Create event
+          <Plus className="h-4 w-4" /> Create Wish & outreach
         </button>
       </div>
 
@@ -233,6 +305,12 @@ export function CrmEventsBoard({
                   {meetingScopeLabel(row.scope)}
                 </span>
               </div>
+
+              {row.description?.trim() ? (
+                <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-300">
+                  {row.description.trim()}
+                </p>
+              ) : null}
 
               {row.attachments?.length ? (
                 <div className="mt-4 space-y-2">

@@ -7,11 +7,8 @@ import {
 } from './optimizeVideoFile'
 
 describe('pickVideoOptimizePlaybackRate', () => {
-  it('uses faster rates for longer clips', () => {
-    expect(pickVideoOptimizePlaybackRate(20)).toBe(4)
-    expect(pickVideoOptimizePlaybackRate(90)).toBe(12)
-    expect(pickVideoOptimizePlaybackRate(120)).toBe(12)
-    expect(pickVideoOptimizePlaybackRate(300)).toBe(16)
+  it('always uses 1× so MediaRecorder timestamps stay correct', () => {
+    expect(pickVideoOptimizePlaybackRate()).toBe(1)
   })
 })
 
@@ -23,6 +20,13 @@ describe('shouldSkipVideoOptimize', () => {
     expect(shouldSkipVideoOptimize(tiny)).toBe(true)
     expect(shouldSkipVideoOptimize(large)).toBe(true)
     expect(shouldSkipVideoOptimize(large, MAX_VIDEO_OPTIMIZE_DURATION_SEC + 1)).toBe(true)
+  })
+
+  it('skips in-app wish recorder clips', () => {
+    const recorded = new File([new Uint8Array(5 * 1024 * 1024)], 'wish-video-1710000000.webm', {
+      type: 'video/webm',
+    })
+    expect(shouldSkipVideoOptimize(recorded, 45)).toBe(true)
   })
 
   it('optimizes typical explainer-sized uploads', () => {

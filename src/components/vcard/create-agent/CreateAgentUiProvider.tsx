@@ -97,8 +97,10 @@ function CreateAgentWizardHost({ open, onClose }: { open: boolean; onClose: () =
         const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
         params.set('agent', '1')
         if (cardId && !params.get('cardId')) params.set('cardId', cardId)
+        params.delete('panel')
+        const settingsTab = section === 'ai-assistance' ? 'integration' : section
         const qs = params.toString()
-        const path = buildEditorSettingsPath(basePath, section, isEdit ? cardId : null)
+        const path = buildEditorSettingsPath(basePath, settingsTab, isEdit ? cardId : null)
         const [pathname] = path.split('?')
         router.push(`${pathname}${qs ? `?${qs}` : ''}`)
       }}

@@ -6,6 +6,7 @@ import CorporateManageAccessDialog from '@/components/admin/CorporateManageAcces
 import PasswordRulesTags from '@/components/auth/PasswordRulesTags'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
+import { Tooltip } from '@/components/ui'
 import { StatNumber } from '@/components/ui/StatNumber'
 import { CreateCardModeModal } from '@/components/vcard/create-agent/CreateCardModeModal'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
@@ -208,11 +209,35 @@ function formatMoney(cents: number | null | undefined) {
   )
 }
 
+function corporateCardLimitFieldError(value: string | number | null | undefined): string | null {
+  if (value === '' || value == null) return 'Card limit is required.'
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n) || n <= 1) return 'Card limit must be greater than 1.'
+  return null
+}
+
 function billingStatusLabel(status: AdminUserRow['subscriptionStatus'] | undefined) {
   if (status === 'pending_payment') return 'Pending payment'
   if (status === 'active') return 'Paid'
   if (status === 'inactive') return 'Inactive'
   return '—'
+}
+
+/** Effective create quota for admin "Create card". No package → 0 capacity (API still defaults singles to 1). */
+function resolveAdminCreateCardLimit(
+  u: Pick<AdminUserRow, 'cardLimit' | 'packageCardLimit' | 'packageId'>
+): number | null {
+  if (!u.packageId) return 0
+  if (typeof u.cardLimit === 'number') return u.cardLimit
+  if (typeof u.packageCardLimit === 'number') return u.packageCardLimit
+  return null
+}
+
+function adminCreateCardBlockedReason(used: number, limit: number): string {
+  if (limit <= 0) {
+    return 'No active package with card capacity. Assign a package or raise the card limit to create cards.'
+  }
+  return `Card limit reached (${used}/${limit}).`
 }
 
 function rtkErrorMessage(err: unknown, fallback: string) {
@@ -281,18 +306,17 @@ export default function AdminUsers() {
   const [newCompany, setNewCompany] = useState('')
   const [newPackageId, setNewPackageId] = useState('')
   const [newCardLimit, setNewCardLimit] = useState('')
+  const [newCardLimitError, setNewCardLimitError] = useState<string | null>(null)
   const [newNegotiatedMonthly, setNewNegotiatedMonthly] = useState('')
   const [newNegotiatedSignup, setNewNegotiatedSignup] = useState('')
   const [newFreePeriodAmount, setNewFreePeriodAmount] = useState('')
   const [newFreePeriodUnit, setNewFreePeriodUnit] = useState<'days' | 'months' | 'years'>('days')
   const [newFreePeriodLifetime, setNewFreePeriodLifetime] = useState(false)
-  const [newFeatureOverrides, setNewFeatureOverrides] = useState<{ featureKey: string; featureValue: string | null }[]>(
-    []
-  )
   const [isEditAccessOpen, setIsEditAccessOpen] = useState(false)
   const [editNegotiatedMonthly, setEditNegotiatedMonthly] = useState('')
   const [editNegotiatedSignup, setEditNegotiatedSignup] = useState('')
   const [editPackageId, setEditPackageId] = useState('')
+  const [editCardLimitError, setEditCardLimitError] = useState<string | null>(null)
   const [editFreePeriodAmount, setEditFreePeriodAmount] = useState('')
   const [editFreePeriodUnit, setEditFreePeriodUnit] = useState<'days' | 'months' | 'years'>('days')
   const [editFreePeriodLifetime, setEditFreePeriodLifetime] = useState(false)
@@ -342,8 +366,11 @@ export default function AdminUsers() {
   const provisionPackages = useMemo(() => packages.filter((pkg) => pkg.isActive && !isRetiredPackage(pkg)), [packages])
   const selectedPackage = provisionPackages.find((pkg) => pkg.id === newPackageId) || null
   const selectedOwnerMode = selectedPackage ? resolveOwnerMode(selectedPackage) : null
-  const editSelectedPackage =
-    provisionPackages.find((pkg) => pkg.id === (editPackageId || editingUser?.packageId || '')) || null
+  const editPackageKey = editPackageId || editingUser?.packageId || ''
+  const editSelectedPackage = packages.find((pkg) => pkg.id === editPackageKey) || null
+  const editCurrentPackageInProvisionList = Boolean(
+    editingUser?.packageId && provisionPackages.some((pkg) => pkg.id === editingUser.packageId)
+  )
   const editTargetOwnerMode = editSelectedPackage
     ? resolveOwnerMode(editSelectedPackage)
     : (editingUser?.ownerMode ?? (editingUser?.role === 'corporate-owner' ? 'corporate' : 'single'))
@@ -437,12 +464,12 @@ export default function AdminUsers() {
     setNewCompany('')
     setNewPackageId('')
     setNewCardLimit('')
+    setNewCardLimitError(null)
     setNewNegotiatedMonthly('')
     setNewNegotiatedSignup('')
     setNewFreePeriodAmount('')
     setNewFreePeriodUnit('days')
     setNewFreePeriodLifetime(false)
-    setNewFeatureOverrides([])
   }
 
   const launchCreateCardForOwner = (owner: CreateCardOwnerSession) => {
@@ -486,10 +513,12 @@ export default function AdminUsers() {
         notify.error('Company / organization is required for Corporate accounts.')
         return
       }
-      if (newCardLimit.trim() === '' || !Number.isFinite(Number(newCardLimit))) {
-        notify.error('Enter a card / person creation limit.')
+      const cardLimitError = corporateCardLimitFieldError(newCardLimit)
+      if (cardLimitError) {
+        setNewCardLimitError(cardLimitError)
         return
       }
+      setNewCardLimitError(null)
     }
 
     try {
@@ -580,6 +609,7 @@ export default function AdminUsers() {
     setEditNegotiatedMonthly('')
     setEditNegotiatedSignup('')
     setEditPackageId('')
+    setEditCardLimitError(null)
     setEditFreePeriodAmount('')
     setEditFreePeriodUnit('days')
     setEditFreePeriodLifetime(false)
@@ -593,6 +623,7 @@ export default function AdminUsers() {
     setEditNegotiatedMonthly(centsToDollarsInput(user.negotiatedMonthlyCents ?? user.packageMonthlyCents))
     setEditNegotiatedSignup(centsToDollarsInput(user.negotiatedSignupFeeCents ?? user.signupFeeCents))
     setEditPackageId(user.packageId || '')
+    setEditCardLimitError(null)
     setEditFreePeriodAmount('')
     setEditFreePeriodUnit('days')
     setEditFreePeriodLifetime(false)
@@ -609,6 +640,15 @@ export default function AdminUsers() {
     if (editTargetOwnerMode === 'corporate' && !editingUser.companyName?.trim()) {
       notify.error('Company / organization is required for Corporate accounts.')
       return
+    }
+
+    if (editTargetOwnerMode === 'corporate') {
+      const cardLimitError = corporateCardLimitFieldError(editingUser.cardLimit ?? editingUser.packageCardLimit ?? '')
+      if (cardLimitError) {
+        setEditCardLimitError(cardLimitError)
+        return
+      }
+      setEditCardLimitError(null)
     }
 
     if (editPassword || editPasswordConfirm) {
@@ -843,6 +883,11 @@ export default function AdminUsers() {
             const corporate = isCorporateRole(u.role)
             const active = u.accountStatus === 'ACTIVE'
             const displayName = u.name || u.email
+            const createCardLimit = resolveAdminCreateCardLimit(u)
+            const atLimit = createCardLimit != null && u.registeredCards >= createCardLimit
+            const createDisabledReason =
+              createCardLimit != null ? adminCreateCardBlockedReason(u.registeredCards, createCardLimit) : null
+            const createCardLabel = corporate && u.registeredCards === 0 ? 'Create first card' : 'Create card'
             return (
               <div
                 key={u.id}
@@ -916,8 +961,8 @@ export default function AdminUsers() {
                       {
                         label: 'Cards',
                         value:
-                          u.ownerMode === 'corporate' && u.cardLimit != null
-                            ? `${u.registeredCards} / ${u.cardLimit}`
+                          createCardLimit != null
+                            ? `${u.registeredCards} / ${createCardLimit}`
                             : `${u.registeredCards} active`,
                       },
                       { label: 'Monthly', value: formatMoney(u.monthlyCents) },
@@ -940,21 +985,42 @@ export default function AdminUsers() {
 
                   <div className="mt-auto space-y-1.5 border-t border-slate-100 pt-2 dark:border-white/5">
                     {(u.role === 'vcard-owner' || u.role === 'corporate-owner') && active ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          launchCreateCardForOwner({
-                            userId: u.id,
-                            name: displayName,
-                            email: u.email,
-                            role: u.role,
-                          })
-                        }
-                        className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-indigo-600 py-1.5 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700"
-                      >
-                        <Plus className="h-3 w-3" />
-                        {corporate && u.registeredCards === 0 ? 'Create first card' : 'Create card'}
-                      </button>
+                      atLimit ? (
+                        <Tooltip
+                          content={createDisabledReason ?? 'Card limit reached'}
+                          side="bottom"
+                          wrap
+                          className="flex w-full [&>span]:w-full"
+                          contentClassName="md:min-w-48 md:max-w-xl"
+                          tabIndex={0}
+                        >
+                          <button
+                            type="button"
+                            disabled
+                            aria-disabled="true"
+                            className="inline-flex w-full cursor-not-allowed items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-100 py-1.5 text-[10px] font-black tracking-wider text-slate-400 uppercase dark:border-white/10 dark:bg-white/5 dark:text-slate-500"
+                          >
+                            <Plus className="h-3 w-3" />
+                            {createCardLabel}
+                          </button>
+                        </Tooltip>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            launchCreateCardForOwner({
+                              userId: u.id,
+                              name: displayName,
+                              email: u.email,
+                              role: u.role,
+                            })
+                          }
+                          className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-indigo-600 py-1.5 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700"
+                        >
+                          <Plus className="h-3 w-3" />
+                          {createCardLabel}
+                        </button>
+                      )
                     ) : null}
                     {u.subscriptionStatus === 'pending_payment' ? (
                       <button
@@ -1078,18 +1144,40 @@ export default function AdminUsers() {
                       onChange={(e) => {
                         const nextPackageId = e.target.value
                         setEditPackageId(nextPackageId)
-                        const pkg = provisionPackages.find((item) => item.id === nextPackageId)
-                        if (pkg && resolveOwnerMode(pkg) === 'corporate') {
+                        const pkg = packages.find((item) => item.id === nextPackageId)
+                        if (!pkg) {
+                          setEditNegotiatedMonthly(
+                            centsToDollarsInput(editingUser.negotiatedMonthlyCents ?? editingUser.packageMonthlyCents)
+                          )
+                          setEditNegotiatedSignup(
+                            centsToDollarsInput(editingUser.negotiatedSignupFeeCents ?? editingUser.signupFeeCents)
+                          )
+                          return
+                        }
+                        if (resolveOwnerMode(pkg) === 'corporate') {
                           setEditNegotiatedMonthly(centsToDollarsInput(pkg.monthlyPrice))
                           setEditNegotiatedSignup(centsToDollarsInput(pkg.signupFeeCents))
+                          setEditCardLimitError(
+                            corporateCardLimitFieldError(editingUser.cardLimit ?? editingUser.packageCardLimit ?? '')
+                          )
+                        } else {
+                          setEditNegotiatedMonthly('')
+                          setEditNegotiatedSignup('')
+                          setEditCardLimitError(null)
                         }
                       }}
                       className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                     >
-                      <option value="">{editingUser.packageName || 'Current package'}</option>
+                      {!editingUser.packageId ? <option value="">Select a package</option> : null}
+                      {editingUser.packageId && !editCurrentPackageInProvisionList ? (
+                        <option value={editingUser.packageId}>
+                          {editingUser.packageName || 'Current package'} (current)
+                        </option>
+                      ) : null}
                       {provisionPackages.map((pkg) => (
                         <option key={pkg.id} value={pkg.id}>
                           {pkg.name} — {ownerModeLabel(resolveOwnerMode(pkg))}
+                          {pkg.id === editingUser.packageId ? ' (current)' : ''}
                         </option>
                       ))}
                     </select>
@@ -1160,52 +1248,61 @@ export default function AdminUsers() {
                         min={0}
                         step={1}
                         required
-                        value={editingUser.cardLimit ?? editingUser.packageCardLimit ?? 0}
-                        onChange={(e) =>
+                        value={editingUser.cardLimit ?? editingUser.packageCardLimit ?? ''}
+                        onChange={(e) => {
+                          const next = e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value)))
                           setEditingUser({
                             ...editingUser,
-                            cardLimit: e.target.value === '' ? 0 : Math.max(0, Math.round(Number(e.target.value))),
+                            cardLimit: next,
                           })
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                          setEditCardLimitError(corporateCardLimitFieldError(next ?? ''))
+                        }}
+                        aria-invalid={Boolean(editCardLimitError)}
+                        className={`w-full rounded-xl border bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:bg-slate-800 dark:text-white ${
+                          editCardLimitError
+                            ? 'border-rose-400 dark:border-rose-500'
+                            : 'border-slate-200 dark:border-white/15'
+                        }`}
                       />
-                      <p className="text-[11px] font-semibold text-slate-400">
-                        Package default is {editingUser.packageCardLimit ?? 'unset'}. Raising this lets the account
-                        create more cards immediately. Lowering it does not delete existing cards.
-                      </p>
+                      {editCardLimitError ? (
+                        <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                          {editCardLimitError}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] font-semibold text-slate-400">
+                          Package default is {editingUser.packageCardLimit ?? 'unset'}. Raising this lets the account
+                          create more cards immediately. Lowering it does not delete existing cards.
+                        </p>
+                      )}
                     </div>
                   )}
 
                   {editTargetOwnerMode === 'corporate' ? (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="flex flex-col space-y-1.5">
-                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                          One-time card creation fee (USD)
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={editNegotiatedSignup}
-                          onChange={(e) => setEditNegotiatedSignup(e.target.value)}
-                          placeholder={`Package default ${formatMoney(editSelectedPackage?.signupFeeCents ?? editingUser.signupFeeCents)}`}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                        />
-                      </div>
-                      <div className="flex flex-col space-y-1.5">
-                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                          Monthly subscription (USD)
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={editNegotiatedMonthly}
-                          onChange={(e) => setEditNegotiatedMonthly(e.target.value)}
-                          placeholder={`Package default ${formatMoney(editSelectedPackage?.monthlyPrice ?? editingUser.packageMonthlyCents)}`}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                        />
-                      </div>
+                    <div className="grid grid-cols-2 items-start gap-x-3 gap-y-1.5">
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                        One-time card creation fee (USD)
+                      </label>
+                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                        Monthly subscription (USD)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={editNegotiatedSignup}
+                        onChange={(e) => setEditNegotiatedSignup(e.target.value)}
+                        placeholder={`Package default ${formatMoney(editSelectedPackage?.signupFeeCents ?? editingUser.signupFeeCents)}`}
+                        className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={editNegotiatedMonthly}
+                        onChange={(e) => setEditNegotiatedMonthly(e.target.value)}
+                        placeholder={`Package default ${formatMoney(editSelectedPackage?.monthlyPrice ?? editingUser.packageMonthlyCents)}`}
+                        className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                      />
                     </div>
                   ) : (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-700 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200">
@@ -1215,45 +1312,42 @@ export default function AdminUsers() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                        Extend complimentary period
-                      </label>
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,0.7fr)_auto] items-start gap-x-3 gap-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      Extend complimentary period
+                    </label>
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Unit</label>
+                    <span className="text-[10px] font-black tracking-wider uppercase opacity-0" aria-hidden>
+                      &nbsp;
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      disabled={editFreePeriodLifetime}
+                      value={editFreePeriodAmount}
+                      onChange={(e) => setEditFreePeriodAmount(e.target.value)}
+                      placeholder={editingUser.trialEndsAt ? 'New period' : 'Optional'}
+                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    />
+                    <select
+                      disabled={editFreePeriodLifetime}
+                      value={editFreePeriodUnit}
+                      onChange={(e) => setEditFreePeriodUnit(e.target.value as 'days' | 'months' | 'years')}
+                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="days">Days</option>
+                      <option value="months">Months</option>
+                      <option value="years">Years</option>
+                    </select>
+                    <label className="flex h-full min-h-11.5 items-center gap-2 text-xs font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300">
                       <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        disabled={editFreePeriodLifetime}
-                        value={editFreePeriodAmount}
-                        onChange={(e) => setEditFreePeriodAmount(e.target.value)}
-                        placeholder={editingUser.trialEndsAt ? 'New period' : 'Optional'}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                        type="checkbox"
+                        checked={editFreePeriodLifetime}
+                        onChange={(e) => setEditFreePeriodLifetime(e.target.checked)}
                       />
-                    </div>
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Unit</label>
-                      <select
-                        disabled={editFreePeriodLifetime}
-                        value={editFreePeriodUnit}
-                        onChange={(e) => setEditFreePeriodUnit(e.target.value as 'days' | 'months' | 'years')}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                      >
-                        <option value="days">Days</option>
-                        <option value="months">Months</option>
-                        <option value="years">Years</option>
-                      </select>
-                    </div>
-                    <div className="flex items-end">
-                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        <input
-                          type="checkbox"
-                          checked={editFreePeriodLifetime}
-                          onChange={(e) => setEditFreePeriodLifetime(e.target.checked)}
-                        />
-                        Lifetime free
-                      </label>
-                    </div>
+                      Lifetime free
+                    </label>
                   </div>
                   {editingUser.trialEndsAt ? (
                     <p className="text-[11px] font-semibold text-slate-400">
@@ -1355,8 +1449,8 @@ export default function AdminUsers() {
               }}
             />
 
-            <div className="animate-in zoom-in-95 relative max-h-[90vh] w-full max-w-lg overflow-hidden overflow-y-auto rounded-4xl border border-slate-200 bg-white p-8 shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
-              <div className="flex items-start justify-between gap-3">
+            <div className="animate-in zoom-in-95 relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl duration-200 dark:border-white/10 dark:bg-[#0b0f19]">
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-8 pt-8 pb-4 dark:border-white/5">
                 <div>
                   <h2 className="flex items-center gap-2 text-xl font-black text-slate-900 dark:text-white">
                     <UserPlus className="h-5 w-5 text-indigo-600" /> Provision Customer Account
@@ -1378,161 +1472,178 @@ export default function AdminUsers() {
                 </button>
               </div>
 
-              <form onSubmit={handleAddUserSubmit} className="mt-6 space-y-4">
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Package</label>
-                  <select
-                    required
-                    value={newPackageId}
-                    onChange={(e) => {
-                      const id = e.target.value
-                      setNewPackageId(id)
-                      setNewFeatureOverrides([])
-                      const pkg = provisionPackages.find((item) => item.id === id)
-                      if (pkg && resolveOwnerMode(pkg) === 'corporate') {
-                        const cap = parsePackageMaxCards(pkg.features)
-                        setNewCardLimit(cap != null ? String(cap) : '')
-                      } else {
-                        setNewCardLimit('')
-                      }
-                      if (pkg) {
-                        setNewNegotiatedMonthly(centsToDollarsInput(pkg.monthlyPrice))
-                        setNewNegotiatedSignup(centsToDollarsInput(pkg.signupFeeCents))
-                      } else {
-                        setNewNegotiatedMonthly('')
-                        setNewNegotiatedSignup('')
-                      }
-                    }}
-                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  >
-                    <option value="">{isPackagesLoading ? 'Loading packages…' : 'Select a package'}</option>
-                    {provisionPackages.map((pkg) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.name} — {ownerModeLabel(resolveOwnerMode(pkg))}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedOwnerMode && (
-                    <p className="text-[11px] font-semibold text-slate-400">
-                      Back office is {ownerModeLabel(selectedOwnerMode)}. Set the customer&apos;s login password below
-                      to finish provisioning in this window.
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Full Client Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. Richard Hendricks"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    Client Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="e.g. richard@hooli.com"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                    {selectedOwnerMode === 'corporate' ? 'Company / Organization' : 'Organization (optional)'}
-                  </label>
-                  <input
-                    type="text"
-                    required={selectedOwnerMode === 'corporate'}
-                    value={newCompany}
-                    onChange={(e) => setNewCompany(e.target.value)}
-                    placeholder="e.g. Pied Piper Inc"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-900/60">
-                  <div className="mb-3">
-                    <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase dark:text-slate-300">
-                      Login credentials
-                    </p>
-                    <p className="mt-1 text-[11px] font-semibold text-slate-400">
-                      Set the initial password now so no separate configuration step is required.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <AdminPasswordField
-                      id="new-user-password"
-                      label="Password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+              <form onSubmit={handleAddUserSubmit} className="flex min-h-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-8 py-5">
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Package</label>
+                    <select
                       required
-                      minLength={8}
-                      inputClassName="bg-white dark:bg-slate-800"
-                    />
-                    <AdminPasswordField
-                      id="new-user-confirm-password"
-                      label="Confirm Password"
-                      value={newPasswordConfirm}
-                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                      required
-                      minLength={8}
-                      inputClassName="bg-white dark:bg-slate-800"
-                    />
-                  </div>
-                  <PasswordRulesTags password={newPassword} email={newEmail} />
-                  {newPasswordConfirm && newPassword !== newPasswordConfirm ? (
-                    <p className="mt-2 text-[11px] font-semibold text-red-500" role="alert">
-                      Passwords do not match.
-                    </p>
-                  ) : null}
-                </div>
-
-                {selectedPackage && (
-                  <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/5">
-                    <div>
-                      <p className="text-[10px] font-black tracking-wider text-indigo-700 uppercase dark:text-indigo-300">
-                        Billing setup
+                      value={newPackageId}
+                      onChange={(e) => {
+                        const id = e.target.value
+                        setNewPackageId(id)
+                        const pkg = provisionPackages.find((item) => item.id === id)
+                        if (pkg && resolveOwnerMode(pkg) === 'corporate') {
+                          const cap = parsePackageMaxCards(pkg.features)
+                          setNewCardLimit(cap != null ? String(cap) : '')
+                          setNewCardLimitError(corporateCardLimitFieldError(cap != null ? String(cap) : ''))
+                        } else {
+                          setNewCardLimit('')
+                          setNewCardLimitError(null)
+                        }
+                        if (pkg) {
+                          setNewNegotiatedMonthly(centsToDollarsInput(pkg.monthlyPrice))
+                          setNewNegotiatedSignup(centsToDollarsInput(pkg.signupFeeCents))
+                        } else {
+                          setNewNegotiatedMonthly('')
+                          setNewNegotiatedSignup('')
+                        }
+                      }}
+                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">{isPackagesLoading ? 'Loading packages…' : 'Select a package'}</option>
+                      {provisionPackages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>
+                          {pkg.name} — {ownerModeLabel(resolveOwnerMode(pkg))}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedOwnerMode && (
+                      <p className="text-[11px] font-semibold text-slate-400">
+                        Back office is {ownerModeLabel(selectedOwnerMode)}. Set the customer&apos;s login password below
+                        to finish provisioning in this window.
                       </p>
-                      <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                        Set pricing now. Payment is deferred until you generate a payment link or the complimentary
-                        period ends.
+                    )}
+                  </div>
+
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      Full Client Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="e.g. Richard Hendricks"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      Client Email Address
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="e.g. richard@hooli.com"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                      {selectedOwnerMode === 'corporate' ? 'Company / Organization' : 'Organization (optional)'}
+                    </label>
+                    <input
+                      type="text"
+                      required={selectedOwnerMode === 'corporate'}
+                      value={newCompany}
+                      onChange={(e) => setNewCompany(e.target.value)}
+                      placeholder="e.g. Pied Piper Inc"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-900/60">
+                    <div className="mb-3">
+                      <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase dark:text-slate-300">
+                        Login credentials
+                      </p>
+                      <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                        Set the initial password now so no separate configuration step is required.
                       </p>
                     </div>
-
-                    {selectedOwnerMode === 'corporate' && (
-                      <div className="flex flex-col space-y-1.5">
-                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                          Card / person creation limit
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          required
-                          value={newCardLimit}
-                          onChange={(e) => setNewCardLimit(e.target.value)}
-                          placeholder={packageCardDefault != null ? String(packageCardDefault) : 'e.g. 25'}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
-                        />
-                      </div>
-                    )}
-
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="flex flex-col space-y-1.5">
+                      <AdminPasswordField
+                        id="new-user-password"
+                        label="Password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        inputClassName="bg-white dark:bg-slate-800"
+                      />
+                      <AdminPasswordField
+                        id="new-user-confirm-password"
+                        label="Confirm Password"
+                        value={newPasswordConfirm}
+                        onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                        required
+                        minLength={8}
+                        inputClassName="bg-white dark:bg-slate-800"
+                      />
+                    </div>
+                    <PasswordRulesTags password={newPassword} email={newEmail} />
+                    {newPasswordConfirm && newPassword !== newPasswordConfirm ? (
+                      <p className="mt-2 text-[11px] font-semibold text-red-500" role="alert">
+                        Passwords do not match.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {selectedPackage && (
+                    <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/5">
+                      <div>
+                        <p className="text-[10px] font-black tracking-wider text-indigo-700 uppercase dark:text-indigo-300">
+                          Billing setup
+                        </p>
+                        <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                          Set pricing now. Payment is deferred until you generate a payment link or the complimentary
+                          period ends.
+                        </p>
+                      </div>
+
+                      {selectedOwnerMode === 'corporate' && (
+                        <div className="flex flex-col space-y-1.5">
+                          <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                            Card / person creation limit
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            required
+                            value={newCardLimit}
+                            onChange={(e) => {
+                              setNewCardLimit(e.target.value)
+                              setNewCardLimitError(corporateCardLimitFieldError(e.target.value))
+                            }}
+                            placeholder={packageCardDefault != null ? String(packageCardDefault) : 'e.g. 15'}
+                            aria-invalid={Boolean(newCardLimitError)}
+                            className={`w-full rounded-xl border bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:bg-slate-800 dark:text-white ${
+                              newCardLimitError
+                                ? 'border-rose-400 dark:border-rose-500'
+                                : 'border-slate-200 dark:border-white/15'
+                            }`}
+                          />
+                          {newCardLimitError ? (
+                            <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                              {newCardLimitError}
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 items-start gap-x-3 gap-y-1.5">
                         <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
                           One-time card creation fee (USD)
+                        </label>
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                          Monthly subscription (USD)
                         </label>
                         <input
                           type="number"
@@ -1541,13 +1652,8 @@ export default function AdminUsers() {
                           value={newNegotiatedSignup}
                           onChange={(e) => setNewNegotiatedSignup(e.target.value)}
                           placeholder={`Default ${formatMoney(selectedPackage.signupFeeCents)}`}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                          className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                         />
-                      </div>
-                      <div className="flex flex-col space-y-1.5">
-                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                          Monthly subscription (USD)
-                        </label>
                         <input
                           type="number"
                           min={0}
@@ -1555,16 +1661,18 @@ export default function AdminUsers() {
                           value={newNegotiatedMonthly}
                           onChange={(e) => setNewNegotiatedMonthly(e.target.value)}
                           placeholder={`Default ${formatMoney(selectedPackage.monthlyPrice)}`}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                          className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                         />
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <div className="flex flex-col space-y-1.5 sm:col-span-1">
+                      <div className="grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,0.7fr)_auto] items-start gap-x-3 gap-y-1.5">
                         <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
                           Complimentary period
                         </label>
+                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Unit</label>
+                        <span className="text-[10px] font-black tracking-wider uppercase opacity-0" aria-hidden>
+                          &nbsp;
+                        </span>
                         <input
                           type="number"
                           min={0}
@@ -1572,24 +1680,19 @@ export default function AdminUsers() {
                           disabled={newFreePeriodLifetime}
                           value={newFreePeriodAmount}
                           onChange={(e) => setNewFreePeriodAmount(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                          className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
                         />
-                      </div>
-                      <div className="flex flex-col space-y-1.5">
-                        <label className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Unit</label>
                         <select
                           disabled={newFreePeriodLifetime}
                           value={newFreePeriodUnit}
                           onChange={(e) => setNewFreePeriodUnit(e.target.value as 'days' | 'months' | 'years')}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
+                          className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none disabled:opacity-50 dark:border-white/15 dark:bg-slate-800 dark:text-white"
                         >
                           <option value="days">Days</option>
                           <option value="months">Months</option>
                           <option value="years">Years</option>
                         </select>
-                      </div>
-                      <div className="flex items-end">
-                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        <label className="flex h-full min-h-11.5 items-center gap-2 text-xs font-semibold whitespace-nowrap text-slate-600 dark:text-slate-300">
                           <input
                             type="checkbox"
                             checked={newFreePeriodLifetime}
@@ -1598,21 +1701,21 @@ export default function AdminUsers() {
                           Lifetime free
                         </label>
                       </div>
-                    </div>
 
-                    <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-white/10 dark:bg-slate-900/40">
-                      <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                        First invoice preview
-                      </p>
-                      <p className="mt-1 text-sm font-bold text-slate-800 dark:text-white">
-                        {formatMoney(createFirstInvoiceCents)} first payment, then {formatMoney(createMonthlyCents)}
-                        /month
-                      </p>
+                      <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-white/10 dark:bg-slate-900/40">
+                        <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                          First invoice preview
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-slate-800 dark:text-white">
+                          {formatMoney(createFirstInvoiceCents)} first payment, then {formatMoney(createMonthlyCents)}
+                          /month
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
-                <div className="mt-6 flex gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
+                <div className="mt-auto flex shrink-0 gap-3 border-t border-slate-100 bg-white px-8 py-4 dark:border-white/5 dark:bg-[#0b0f19]">
                   <button
                     type="button"
                     onClick={() => {
@@ -1639,7 +1742,7 @@ export default function AdminUsers() {
 
       {provisionedCredentials ? (
         <ModalPortal>
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-300 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
             <div className="animate-in zoom-in-95 relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-4xl border border-emerald-200 bg-white p-7 shadow-2xl duration-200 dark:border-emerald-500/20 dark:bg-[#0b0f19]">
               <button

@@ -89,6 +89,8 @@ export default function AdminDashboard() {
   const [showContactSavesModal, setShowContactSavesModal] = useState(false)
   const [contactsSkip, setContactsSkip] = useState(0)
   const [contactsAccum, setContactsAccum] = useState<DashboardContact[]>([])
+  const [notesSkip, setNotesSkip] = useState(0)
+  const [notesAccum, setNotesAccum] = useState<DashboardContact[]>([])
 
   const { data: summary, isLoading: statsLoading } = useGetDashboardSummaryQuery(
     { period },
@@ -100,6 +102,12 @@ export default function AdminDashboard() {
     { skip: contactsSkip, limit: 50, source: 'guest_save' },
     { skip: !showContactSavesModal }
   )
+  const {
+    data: notesPage,
+    isFetching: notesFetching,
+    isError: notesError,
+    isLoading: notesLoading,
+  } = useGetContactsQuery({ skip: notesSkip, limit: 50, source: 'note' }, { skip: !showContactSavesModal })
 
   const modalContacts = useMemo(() => {
     if (!showContactSavesModal) return [] as DashboardContact[]
@@ -109,17 +117,31 @@ export default function AdminDashboard() {
     return [...contactsAccum, ...pageItems.filter((row) => !seen.has(row.id))]
   }, [showContactSavesModal, contactsPage, contactsSkip, contactsAccum])
 
-  const contacts = useMemo(
-    () => (modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])),
-    [modalContacts, summary?.contactsPreview]
-  )
+  // When the modal list API has responded, trust it even if empty (do not fall back to preview).
+  const contacts = useMemo(() => {
+    if (!showContactSavesModal) return (summary?.contactsPreview || []) as DashboardContact[]
+    if (contactsPage != null || contactsSkip > 0) return modalContacts
+    return modalContacts.length ? modalContacts : ((summary?.contactsPreview || []) as DashboardContact[])
+  }, [showContactSavesModal, contactsPage, contactsSkip, modalContacts, summary?.contactsPreview])
   const statsReady = Boolean(stats) && !statsLoading
-  const contactSavesCount = statsReady ? resolveDashboardContactSaves(stats) : undefined
-  const totalSavedContacts = statsReady ? (contactSavesCount || 0) + liveKpis.saves : undefined
-  const contactsListTotal = contactsPage?.total ?? totalSavedContacts ?? contacts.length
+  const contactSavesCount = statsReady ? resolveDashboardContactSaves(stats) + liveKpis.saves : undefined
+  const totalSavedContacts = typeof contactsPage?.total === 'number' ? contactsPage.total : contactSavesCount
+  const contactsListTotal =
+    typeof contactsPage?.total === 'number' ? contactsPage.total : (totalSavedContacts ?? contacts.length)
   const contactsHasMore = Boolean(
     contactsPage?.hasMore ?? (contactsPage?.total != null && modalContacts.length < contactsPage.total)
   )
+
+  const modalNotes = useMemo(() => {
+    if (!showContactSavesModal) return [] as DashboardContact[]
+    const pageItems = (notesPage?.items ?? []) as DashboardContact[]
+    if (notesSkip === 0) return pageItems
+    const seen = new Set(notesAccum.map((row) => row.id))
+    return [...notesAccum, ...pageItems.filter((row) => !seen.has(row.id))]
+  }, [showContactSavesModal, notesPage, notesSkip, notesAccum])
+
+  const notesHasMore = Boolean(notesPage?.hasMore ?? (notesPage?.total != null && modalNotes.length < notesPage.total))
+  const modalNotesCount = typeof notesPage?.total === 'number' ? notesPage.total : (stats?.notesLast30Days ?? 0)
   const platformUniqueViews = statsReady
     ? (stats?.uniqueViews ?? stats?.viewsLast30Days ?? 0) + liveKpis.views
     : undefined
@@ -177,6 +199,8 @@ export default function AdminDashboard() {
   const openContactSaves = (tab: ContactSavesModalTab = 'saves') => {
     setContactsSkip(0)
     setContactsAccum([])
+    setNotesSkip(0)
+    setNotesAccum([])
     setContactSavesModalTab(tab)
     setShowContactSavesModal(true)
   }
@@ -185,6 +209,8 @@ export default function AdminDashboard() {
     setShowContactSavesModal(false)
     setContactsSkip(0)
     setContactsAccum([])
+    setNotesSkip(0)
+    setNotesAccum([])
   }
 
   const loadMoreContacts = () => {
@@ -197,6 +223,18 @@ export default function AdminDashboard() {
       })
     }
     setContactsSkip((prev) => prev + 50)
+  }
+
+  const loadMoreNotes = () => {
+    if (notesPage?.items?.length) {
+      const pageItems = notesPage.items as DashboardContact[]
+      setNotesAccum((prev) => {
+        if (notesSkip === 0) return pageItems
+        const seen = new Set(prev.map((row) => row.id))
+        return [...prev, ...pageItems.filter((row) => !seen.has(row.id))]
+      })
+    }
+    setNotesSkip((prev) => prev + 50)
   }
 
   return (
@@ -731,13 +769,19 @@ export default function AdminDashboard() {
         <ContactSavesModal
           count={totalSavedContacts ?? contactsListTotal ?? 0}
           contacts={contacts}
-          notesCount={stats?.notesLast30Days ?? 0}
+          notesContacts={modalNotes}
+          notesCount={modalNotesCount}
           tab={contactSavesModalTab}
           onTabChange={setContactSavesModalTab}
           onClose={closeContactSaves}
           hasMore={contactsHasMore}
           loadingMore={contactsFetching && contactsSkip > 0}
           onLoadMore={loadMoreContacts}
+          notesHasMore={notesHasMore}
+          notesLoadingMore={notesFetching && notesSkip > 0}
+          onLoadMoreNotes={loadMoreNotes}
+          notesLoading={notesLoading || (notesFetching && notesSkip === 0)}
+          notesError={notesError}
         />
       )}
 

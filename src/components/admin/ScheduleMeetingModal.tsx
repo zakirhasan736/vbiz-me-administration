@@ -190,239 +190,238 @@ function ScheduleMeetingModalContent({
     <ModalPortal>
       <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="animate-in zoom-in-95 relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-slate-200/80 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]"
-        >
-          <div className="border-b border-slate-100 bg-[linear-gradient(135deg,rgba(13,148,136,0.08),transparent_50%)] px-6 py-5 dark:border-white/5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-teal-700 uppercase dark:text-teal-300">
-                  <Calendar className="h-3.5 w-3.5" /> Schedule
-                </p>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h2>
-                {subtitle ? (
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-white/10"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-4 px-6 py-5">
-            {scopeOptions.length > 1 ? (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
-                  Schedule type
-                </label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {scopeOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => handleScopeChange(option)}
-                      className={cn(
-                        'rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition',
-                        scope === option
-                          ? 'border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-400/40 dark:bg-teal-500/10 dark:text-teal-200'
-                          : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
-                      )}
-                    >
-                      {meetingScopeLabel(option)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {scope === 'global' ? (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Host label</label>
-                <input
-                  value={globalHost}
-                  onChange={(e) => setGlobalHost(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
-                />
-                <p className="text-[11px] text-slate-400">Broadcasts to all card owners on the platform.</p>
-              </div>
-            ) : lockOwner && owner ? (
-              <div className="rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Card</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{owner.hostName}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{owner.identity}</p>
-              </div>
-            ) : personSearch && scope !== 'group' ? (
-              <SchedulePersonPicker
-                value={owner}
-                onChange={setOwner}
-                label="Card or saved guest"
-                defaultProfileId={initialOwner?.profileId}
-                onCreatedLead={(lead) => {
-                  setMeetNotes((prev) =>
-                    prev.trim() ? prev : `Follow-up with ${lead.fullName}${lead.email ? ` (${lead.email})` : ''}.`
-                  )
-                }}
-              />
-            ) : scope === 'group' ? (
-              <ProfileOwnerPicker
-                multiple
-                values={groupOwners}
-                onChangeValues={setGroupOwners}
-                label={resolvedOwnerPickerSource === 'owner' ? 'Group team cards' : 'Group card owners'}
-                listClassName="max-h-40"
-                required
-                source={resolvedOwnerPickerSource}
-              />
-            ) : (
-              <ProfileOwnerPicker
-                value={owner}
-                onChange={setOwner}
-                label={resolvedOwnerPickerSource === 'owner' ? 'Team card / host' : 'Owner / host'}
-                listClassName="max-h-40"
-                required
-                source={resolvedOwnerPickerSource}
-              />
-            )}
-
-            {scope === 'group' && !lockOwner && resolvedGroupCompanyUserId ? (
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <input
-                  type="checkbox"
-                  checked={includeTeamGroup}
-                  onChange={(e) => setIncludeTeamGroup(e.target.checked)}
-                  className="mt-1"
-                />
-                <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                  {useOwnCards
-                    ? 'Include every card on your team in this booking.'
-                    : 'Also include every other card under the selected corporate account.'}
-                </span>
-              </label>
-            ) : null}
-
-            {scope === 'group' && groupOwners.length > 0 ? (
-              <p className="text-[11px] text-slate-400">
-                Group session will notify {groupOwners.length} selected card
-                {groupOwners.length === 1 ? '' : 's'}
-                {includeTeamGroup && resolvedGroupCompanyUserId ? ', plus the full corporate team' : ''}.
+        <div className="animate-in zoom-in-95 relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(13,148,136,0.08),transparent_50%)] px-6 py-5 dark:border-white/5">
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-teal-700 uppercase dark:text-teal-300">
+                <Calendar className="h-3.5 w-3.5" /> Schedule
               </p>
-            ) : null}
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Session type</label>
-                <select
-                  value={meetType}
-                  onChange={(e) => setMeetType(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
-                >
-                  {MEETING_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={meetDate}
-                  onChange={(e) => setMeetDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Time</label>
-                <input
-                  type="text"
-                  required
-                  value={meetTime}
-                  onChange={(e) => setMeetTime(e.target.value)}
-                  placeholder="e.g. 10:00 AM"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
-                />
-              </div>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h2>
+              {subtitle ? (
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>
+              ) : null}
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Notes</label>
-              <textarea
-                value={meetNotes}
-                onChange={(e) => setMeetNotes(e.target.value)}
-                placeholder="Agenda, goals, or context for this session…"
-                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-teal-500 dark:border-white/10 dark:bg-[#101826] dark:text-white"
-              />
-            </div>
-
-            {scope !== 'global' ? (
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <input
-                  type="checkbox"
-                  checked={onlyBackoffice}
-                  onChange={(e) => setOnlyBackoffice(e.target.checked)}
-                  className="mt-1"
-                />
-                <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                  <span className="font-semibold text-slate-800 dark:text-slate-100">Only backoffice</span>
-                  <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
-                    Show in that card owner’s backoffice banner and notification area only. Uncheck to also push this
-                    card’s saved contacts / notification subscribers.
-                  </span>
-                </span>
-              </label>
-            ) : null}
-
-            <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
-              {scope === 'global'
-                ? 'This booking is for everyone — it isn’t tied to one card.'
-                : scope === 'group'
-                  ? onlyBackoffice
-                    ? 'Group sessions notify only the selected card owners in backoffice.'
-                    : 'Group sessions notify the selected card owners and each card’s push subscribers.'
-                  : onlyBackoffice
-                    ? 'One-to-one sessions notify only the selected card owner in backoffice.'
-                    : useOwnCards
-                      ? 'We’ll send a reminder for the card you picked.'
-                      : 'One-to-one sessions notify the selected card owner and that card’s push subscribers.'}
-            </p>
-          </div>
-
-          <div className="flex gap-3 border-t border-slate-100 px-6 py-4 dark:border-white/5">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-semibold tracking-wide text-slate-600 uppercase dark:border-white/10 dark:text-slate-300"
+              className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-white/10"
+              aria-label="Close"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !canSubmit}
-              className={cn(
-                'flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-semibold tracking-wide text-white uppercase disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950'
-              )}
-            >
-              {saved ? (
-                'Scheduled ✓'
-              ) : isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Booking…
-                </>
-              ) : (
-                'Book session'
-              )}
+              <X className="h-4 w-4" />
             </button>
           </div>
-        </form>
+
+          <form onSubmit={(e) => void handleSubmit(e)} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+              {scopeOptions.length > 1 ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                    Schedule type
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {scopeOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handleScopeChange(option)}
+                        className={cn(
+                          'rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition',
+                          scope === option
+                            ? 'border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-400/40 dark:bg-teal-500/10 dark:text-teal-200'
+                            : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
+                        )}
+                      >
+                        {meetingScopeLabel(option)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {scope === 'global' ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Host label</label>
+                  <input
+                    value={globalHost}
+                    onChange={(e) => setGlobalHost(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  />
+                  <p className="text-[11px] text-slate-400">Broadcasts to all card owners on the platform.</p>
+                </div>
+              ) : lockOwner && owner ? (
+                <div className="rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                  <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Card</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{owner.hostName}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{owner.identity}</p>
+                </div>
+              ) : personSearch && scope !== 'group' ? (
+                <SchedulePersonPicker
+                  value={owner}
+                  onChange={setOwner}
+                  label="Card or saved guest"
+                  defaultProfileId={initialOwner?.profileId}
+                  onCreatedLead={(lead) => {
+                    setMeetNotes((prev) =>
+                      prev.trim() ? prev : `Follow-up with ${lead.fullName}${lead.email ? ` (${lead.email})` : ''}.`
+                    )
+                  }}
+                />
+              ) : scope === 'group' ? (
+                <ProfileOwnerPicker
+                  multiple
+                  values={groupOwners}
+                  onChangeValues={setGroupOwners}
+                  label={resolvedOwnerPickerSource === 'owner' ? 'Group team cards' : 'Group card owners'}
+                  listClassName="max-h-40"
+                  required
+                  source={resolvedOwnerPickerSource}
+                />
+              ) : (
+                <ProfileOwnerPicker
+                  value={owner}
+                  onChange={setOwner}
+                  label={resolvedOwnerPickerSource === 'owner' ? 'Team card / host' : 'Owner / host'}
+                  listClassName="max-h-40"
+                  required
+                  source={resolvedOwnerPickerSource}
+                />
+              )}
+
+              {scope === 'group' && !lockOwner && resolvedGroupCompanyUserId ? (
+                <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                  <input
+                    type="checkbox"
+                    checked={includeTeamGroup}
+                    onChange={(e) => setIncludeTeamGroup(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    {useOwnCards
+                      ? 'Include every card on your team in this booking.'
+                      : 'Also include every other card under the selected corporate account.'}
+                  </span>
+                </label>
+              ) : null}
+
+              {scope === 'group' && groupOwners.length > 0 ? (
+                <p className="text-[11px] text-slate-400">
+                  Group session will notify {groupOwners.length} selected card
+                  {groupOwners.length === 1 ? '' : 's'}
+                  {includeTeamGroup && resolvedGroupCompanyUserId ? ', plus the full corporate team' : ''}.
+                </p>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                    Session type
+                  </label>
+                  <select
+                    value={meetType}
+                    onChange={(e) => setMeetType(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  >
+                    {MEETING_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={meetDate}
+                    onChange={(e) => setMeetDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Time</label>
+                  <input
+                    type="text"
+                    required
+                    value={meetTime}
+                    onChange={(e) => setMeetTime(e.target.value)}
+                    placeholder="e.g. 10:00 AM"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Notes</label>
+                <textarea
+                  value={meetNotes}
+                  onChange={(e) => setMeetNotes(e.target.value)}
+                  placeholder="Agenda, goals, or context for this session…"
+                  className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-teal-500 dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                />
+              </div>
+
+              {scope !== 'global' ? (
+                <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                  <input
+                    type="checkbox"
+                    checked={onlyBackoffice}
+                    onChange={(e) => setOnlyBackoffice(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">Only backoffice</span>
+                    <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
+                      Show in that card owner’s backoffice banner and notification area only. Uncheck to also push this
+                      card’s saved contacts / notification subscribers.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
+
+              <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+                {scope === 'global'
+                  ? 'This booking is for everyone — it isn’t tied to one card.'
+                  : scope === 'group'
+                    ? onlyBackoffice
+                      ? 'Group sessions notify only the selected card owners in backoffice.'
+                      : 'Group sessions notify the selected card owners and each card’s push subscribers.'
+                    : onlyBackoffice
+                      ? 'One-to-one sessions notify only the selected card owner in backoffice.'
+                      : useOwnCards
+                        ? 'We’ll send a reminder for the card you picked.'
+                        : 'One-to-one sessions notify the selected card owner and that card’s push subscribers.'}
+              </p>
+            </div>
+
+            <div className="mt-auto flex shrink-0 gap-3 border-t border-slate-100 bg-white px-6 py-4 dark:border-white/5 dark:bg-[#0b1018]">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-semibold tracking-wide text-slate-600 uppercase dark:border-white/10 dark:text-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || !canSubmit}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-semibold tracking-wide text-white uppercase disabled:opacity-60 dark:bg-teal-500 dark:text-slate-950'
+                )}
+              >
+                {saved ? (
+                  'Scheduled ✓'
+                ) : isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Booking…
+                  </>
+                ) : (
+                  'Book session'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </ModalPortal>
   )

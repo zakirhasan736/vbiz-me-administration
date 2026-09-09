@@ -10,7 +10,7 @@ import {
   useScheduleOneOnOneMeetingMutation,
 } from '@/redux/features/oneOnOne/oneOnOne.api'
 import { cn } from '@/utils/cn'
-import { Clock } from 'lucide-react'
+import { ChevronDown, ChevronUp, Clock, Mail, MessageCircle, Phone } from 'lucide-react'
 import { useState } from 'react'
 
 type Props = {
@@ -45,6 +45,7 @@ function statusLabel(request: OneOnOneRequest) {
 export function OneOnOneRequestsPanel({ className }: Props) {
   const { data, isLoading } = useListOpenOneOnOneRequestsQuery(undefined, { refetchOnMountOrArgChange: true })
   const [scheduleRequest, setScheduleRequest] = useState<OneOnOneRequest | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -82,15 +83,32 @@ export function OneOnOneRequestsPanel({ className }: Props) {
   }
 
   const actions = (request: OneOnOneRequest) => {
-    if (request.status === 'open' || request.status === 'awaiting_guest') {
+    const detailsOpen = expandedId === request.id
+    const canPropose = request.status === 'open' || request.status === 'awaiting_guest'
+
+    if (canPropose) {
       return (
         <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
-            onClick={() => setScheduleRequest(request)}
-            className="rounded-lg bg-teal-500/10 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-teal-700 uppercase dark:text-teal-300"
+            onClick={() => setExpandedId(detailsOpen ? null : request.id)}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-bold tracking-wide uppercase',
+              detailsOpen
+                ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900'
+                : 'bg-slate-500/10 text-slate-700 dark:text-slate-300'
+            )}
           >
-            {request.status === 'awaiting_guest' ? 'Update times' : 'Propose times'}
+            {detailsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {detailsOpen ? 'Hide' : 'Details'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setScheduleRequest(request)}
+            className="inline-flex items-center gap-1 rounded-lg bg-teal-500/10 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-teal-700 uppercase dark:text-teal-300"
+          >
+            <MessageCircle className="h-3 w-3" />
+            {request.status === 'awaiting_guest' ? 'Update & reply' : 'Reply & propose'}
           </button>
         </div>
       )
@@ -99,6 +117,19 @@ export function OneOnOneRequestsPanel({ className }: Props) {
     if (request.status === 'scheduled' && request.meeting) {
       return (
         <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setExpandedId(detailsOpen ? null : request.id)}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-bold tracking-wide uppercase',
+              detailsOpen
+                ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900'
+                : 'bg-slate-500/10 text-slate-700 dark:text-slate-300'
+            )}
+          >
+            {detailsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {detailsOpen ? 'Hide' : 'Details'}
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -148,7 +179,8 @@ export function OneOnOneRequestsPanel({ className }: Props) {
           </p>
           <h3 className="mt-1 text-base font-semibold text-slate-950 dark:text-white">Open requests</h3>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Propose multiple times. Guest confirms one — meeting is created automatically.
+            Open Details to read the guest message, then Reply &amp; propose times. They get email and push (if
+            enabled).
           </p>
         </div>
         {isLoading ? <div className="h-8 w-8 animate-pulse rounded-full bg-slate-200 dark:bg-white/10" /> : null}
@@ -165,23 +197,87 @@ export function OneOnOneRequestsPanel({ className }: Props) {
         ) : items.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm font-medium text-slate-400">No open 1-on-1 requests.</p>
         ) : (
-          items.map((request) => (
-            <article key={request.id} className="px-5 py-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                    1-on-1 with {request.guestName}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{request.guestEmail}</p>
-                  <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                    <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                    {statusLabel(request)}
-                  </p>
+          items.map((request) => {
+            const detailsOpen = expandedId === request.id
+            const guestMessage = request.message?.trim() || ''
+            return (
+              <article key={request.id} className="px-5 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                      1-on-1 with {request.guestName}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{request.guestEmail}</p>
+                    <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                      <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                      {statusLabel(request)}
+                    </p>
+                    {guestMessage && !detailsOpen ? (
+                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        <span className="font-semibold text-slate-500 dark:text-slate-400">Message: </span>
+                        {guestMessage}
+                      </p>
+                    ) : null}
+                  </div>
+                  {actions(request)}
                 </div>
-                {actions(request)}
-              </div>
-            </article>
-          ))
+
+                {detailsOpen ? (
+                  <div className="mt-3 space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/3">
+                    {guestMessage ? (
+                      <div className="rounded-xl border border-amber-200/60 bg-amber-50 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+                        <p className="mb-1 text-[10px] font-bold tracking-wide text-amber-700 uppercase dark:text-amber-300">
+                          Guest message
+                        </p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-800 dark:text-slate-100">
+                          {guestMessage}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">No message from the guest.</p>
+                    )}
+
+                    {request.proposedDescription?.trim() ? (
+                      <div className="rounded-xl border border-teal-200/60 bg-teal-50/80 p-3 dark:border-teal-500/20 dark:bg-teal-500/10">
+                        <p className="mb-1 text-[10px] font-bold tracking-wide text-teal-700 uppercase dark:text-teal-300">
+                          Your last reply
+                        </p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-800 dark:text-slate-100">
+                          {request.proposedDescription.trim()}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-2 dark:text-slate-300">
+                      <p className="inline-flex min-w-0 items-center gap-1.5">
+                        <Mail className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400" />
+                        <span className="truncate">{request.guestEmail}</span>
+                      </p>
+                      {request.guestPhone ? (
+                        <p className="inline-flex min-w-0 items-center gap-1.5">
+                          <Phone className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400" />
+                          <span className="truncate">{request.guestPhone}</span>
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {(request.status === 'open' || request.status === 'awaiting_guest') && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setScheduleRequest(request)}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3.5 py-2 text-[11px] font-bold tracking-wide text-white uppercase hover:bg-teal-700"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          Reply &amp; propose times
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </article>
+            )
+          })
         )}
       </div>
 

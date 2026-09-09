@@ -2,6 +2,8 @@
 
 import { ModalPortal } from '@/components/ModalPortal'
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
+import { CrmAudioRecorder } from '@/components/crm/CrmAudioRecorder'
+import { CrmVideoRecorderModal } from '@/components/crm/CrmVideoRecorderModal'
 import { SchedulePersonPicker } from '@/components/crm/SchedulePersonPicker'
 import { useAppSelector } from '@/hooks/redux'
 import type { CreateCrmEventSubmitPayload } from '@/lib/buildCreateCrmEventPayload'
@@ -11,8 +13,18 @@ import { useGetProfilesQuery, type ApiProfile } from '@/redux/features/profiles/
 import { CRM_EVENT_TYPES, type CrmEvent, type CrmEventAttachment, type CrmEventType } from '@/types/crmEvent'
 import { MEETING_SCOPES, type MeetingScope } from '@/types/meeting'
 import { cn } from '@/utils/cn'
-import { CalendarHeart, FileAudio, FileVideo, Image as ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  CalendarHeart,
+  FileAudio,
+  FileVideo,
+  Image as ImageIcon,
+  Loader2,
+  Trash2,
+  Upload,
+  Video,
+  X,
+} from 'lucide-react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 
 export type { CreateCrmEventSubmitPayload }
 
@@ -144,7 +156,7 @@ function CreateCrmEventModalContent({
   initialDate,
   initialTime = '10:00 AM',
   initialType = 'Birthday Wish',
-  title = 'Create event',
+  title = 'Create Wish & outreach',
   subtitle = 'Schedule a wish or outreach message with optional media attachments.',
   cardPicker = 'admin',
   personSearch = false,
@@ -168,52 +180,65 @@ function CreateCrmEventModalContent({
   const [eventType, setEventType] = useState<CrmEventType | string>(initialType)
   const [eventDate, setEventDate] = useState(initialDate || todayIsoDate())
   const [eventTime, setEventTime] = useState(initialTime)
+  const [description, setDescription] = useState('')
   const [attachments, setAttachments] = useState<CrmEventAttachment[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [saved, setSaved] = useState(false)
+  const [audioRecording, setAudioRecording] = useState(false)
+  const [videoRecorderOpen, setVideoRecorderOpen] = useState(false)
+
+  const mediaBusy = uploading || audioRecording || videoRecorderOpen
 
   const handleScopeChange = (option: MeetingScope) => {
     setScope(option)
     if (option === 'one_to_one' && initialOwner) setOwner(initialOwner)
   }
 
+  const hasDescription = description.trim().length > 0
   const canSubmit =
-    scope === 'global'
+    hasDescription &&
+    (scope === 'global'
       ? globalHost.trim().length > 0
       : scope === 'one_to_one'
         ? Boolean(owner)
-        : Boolean(owner) || Boolean(groupProfileIds.length)
+        : Boolean(owner) || Boolean(groupProfileIds.length))
+
+  const uploadAttachmentFile = useCallback(
+    async (file: File) => {
+      const profileId = owner?.profileId ?? null
+      const result = await uploadMediaWithProgress({
+        file,
+        profileId,
+        attachmentType: 'crm_event',
+        onProgress: setUploadProgress,
+      })
+      const attachment: CrmEventAttachment = {
+        url: result.url,
+        fileName: file.name,
+        mimeType: file.type || null,
+        publicId: result.publicId || null,
+        resourceType: guessResourceType(file),
+      }
+      setAttachments((prev) => [...prev, attachment])
+    },
+    [owner?.profileId]
+  )
 
   const handleFiles = async (files: FileList | null) => {
-    if (!files?.length) return
+    if (!files?.length || mediaBusy) return
     setUploadError(null)
     setUploading(true)
     setUploadProgress(0)
     try {
-      const profileId = owner?.profileId ?? null
-      const next: CrmEventAttachment[] = []
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/') && !file.type.startsWith('video/') && !file.type.startsWith('audio/')) {
           setUploadError('Only image, video, or audio files are allowed.')
           continue
         }
-        const result = await uploadMediaWithProgress({
-          file,
-          profileId,
-          attachmentType: 'crm_event',
-          onProgress: setUploadProgress,
-        })
-        next.push({
-          url: result.url,
-          fileName: file.name,
-          mimeType: file.type || null,
-          publicId: result.publicId || null,
-          resourceType: guessResourceType(file),
-        })
+        await uploadAttachmentFile(file)
       }
-      if (next.length) setAttachments((prev) => [...prev, ...next])
     } catch (error) {
       const message =
         error instanceof MediaUploadError ? error.message : error instanceof Error ? error.message : 'Upload failed'
@@ -225,9 +250,26 @@ function CreateCrmEventModalContent({
     }
   }
 
+  const handleRecordedFile = async (file: File) => {
+    setUploadError(null)
+    setUploading(true)
+    setUploadProgress(0)
+    try {
+      await uploadAttachmentFile(file)
+    } catch (error) {
+      const message =
+        error instanceof MediaUploadError ? error.message : error instanceof Error ? error.message : 'Upload failed'
+      setUploadError(message)
+      throw error instanceof Error ? error : new Error(message)
+    } finally {
+      setUploading(false)
+      setUploadProgress(0)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canSubmit || isSubmitting || uploading) return
+    if (!canSubmit || isSubmitting || mediaBusy) return
 
     const created = await onSubmit({
       scope,
@@ -249,6 +291,7 @@ function CreateCrmEventModalContent({
       type: eventType,
       date: eventDate,
       time: eventTime,
+      description: description.trim(),
       attachments,
       globalHost: scope === 'global' ? globalHost.trim() : undefined,
     })
@@ -264,238 +307,285 @@ function CreateCrmEventModalContent({
   return (
     <ModalPortal>
       <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="animate-in zoom-in-95 relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-slate-200/80 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]"
-        >
-          <div className="border-b border-slate-100 bg-[linear-gradient(135deg,rgba(244,63,94,0.08),transparent_50%)] px-6 py-5 dark:border-white/5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-rose-700 uppercase dark:text-rose-300">
-                  <CalendarHeart className="h-3.5 w-3.5" /> Event
-                </p>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h2>
-                {subtitle ? (
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-white/10"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
+        <div
+          className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+          onClick={() => {
+            if (mediaBusy) return
+            onClose()
+          }}
+          aria-hidden
+        />
+        <div className="animate-in zoom-in-95 relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(244,63,94,0.08),transparent_50%)] px-6 py-5 dark:border-white/5">
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-rose-700 uppercase dark:text-rose-300">
+                <CalendarHeart className="h-3.5 w-3.5" /> Event
+              </p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h2>
+              {subtitle ? (
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>
+              ) : null}
             </div>
-          </div>
-
-          <div className="space-y-4 px-6 py-5">
-            {scopeOptions.length > 1 ? (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
-                  Schedule type
-                </label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {scopeOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => handleScopeChange(option)}
-                      className={cn(
-                        'rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition',
-                        scope === option
-                          ? 'border-rose-500 bg-rose-50 text-rose-800 dark:border-rose-400/40 dark:bg-rose-500/10 dark:text-rose-200'
-                          : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
-                      )}
-                    >
-                      {meetingScopeLabel(option)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {scope === 'global' ? (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Host label</label>
-                <input
-                  value={globalHost}
-                  onChange={(e) => setGlobalHost(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
-                />
-              </div>
-            ) : lockOwner && owner ? (
-              <div className="rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Card</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{owner.hostName}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{owner.identity}</p>
-              </div>
-            ) : personSearch ? (
-              <SchedulePersonPicker
-                value={owner}
-                onChange={setOwner}
-                label={scope === 'group' ? 'Primary card / team anchor' : 'Card or saved guest'}
-                defaultProfileId={initialOwner?.profileId}
-              />
-            ) : useOwnCards ? (
-              <OwnCardsPicker value={owner} onChange={setOwner} label="Which card?" />
-            ) : (
-              <ProfileOwnerPicker
-                value={owner}
-                onChange={setOwner}
-                label={scope === 'group' ? 'Primary card / team anchor' : 'Owner / host'}
-                listClassName="max-h-40"
-                required
-              />
-            )}
-
-            {scope === 'group' && !lockOwner ? (
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <input
-                  type="checkbox"
-                  checked={includeTeamGroup}
-                  onChange={(e) => setIncludeTeamGroup(e.target.checked)}
-                  className="mt-1"
-                />
-                <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                  {useOwnCards
-                    ? 'Include every card on your team in this event.'
-                    : 'Include every card under the selected corporate account when a team anchor is chosen.'}
-                </span>
-              </label>
-            ) : null}
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Event type</label>
-                <select
-                  value={eventType}
-                  onChange={(e) => setEventType(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
-                >
-                  {CRM_EVENT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Time</label>
-                <input
-                  type="text"
-                  required
-                  value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                  placeholder="e.g. 10:00 AM"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
-                Attachments (audio, video, or image)
-              </label>
-              <input
-                ref={fileRef}
-                id={inputId}
-                type="file"
-                accept="image/*,video/*,audio/*"
-                multiple
-                className="hidden"
-                onChange={(e) => void handleFiles(e.target.files)}
-              />
-              <button
-                type="button"
-                disabled={uploading}
-                onClick={() => fileRef.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-rose-300 bg-rose-50/60 px-3 py-4 text-xs font-semibold text-rose-800 transition hover:border-rose-400 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Uploading… {uploadProgress}%
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4" /> Add media files
-                  </>
-                )}
-              </button>
-              {uploadError ? <p className="text-[11px] font-medium text-rose-600">{uploadError}</p> : null}
-              {attachments.length ? (
-                <ul className="space-y-2">
-                  {attachments.map((item, index) => (
-                    <li
-                      key={`${item.url}-${index}`}
-                      className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/5"
-                    >
-                      <span className="text-rose-600 dark:text-rose-300">
-                        <AttachmentIcon resourceType={item.resourceType} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">
-                          {item.fileName}
-                        </p>
-                        <p className="truncate text-[10px] text-slate-400">{item.resourceType || 'file'}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-white/10"
-                        aria-label="Remove attachment"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-[11px] text-slate-400">
-                  Optional — attach one or more image, video, or audio files.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex gap-3 border-t border-slate-100 px-6 py-4 dark:border-white/5">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-semibold tracking-wide text-slate-600 uppercase dark:border-white/10 dark:text-slate-300"
+              className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-white/10"
+              aria-label="Close"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || uploading || !canSubmit}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-semibold tracking-wide text-white uppercase disabled:opacity-60 dark:bg-rose-500 dark:text-white"
-            >
-              {saved ? (
-                'Created ✓'
-              ) : isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Creating…
-                </>
-              ) : (
-                'Create event'
-              )}
+              <X className="h-4 w-4" />
             </button>
           </div>
-        </form>
+
+          <form onSubmit={(e) => void handleSubmit(e)} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+              {scopeOptions.length > 1 ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                    Schedule type
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {scopeOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handleScopeChange(option)}
+                        className={cn(
+                          'rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition',
+                          scope === option
+                            ? 'border-rose-500 bg-rose-50 text-rose-800 dark:border-rose-400/40 dark:bg-rose-500/10 dark:text-rose-200'
+                            : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
+                        )}
+                      >
+                        {meetingScopeLabel(option)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {scope === 'global' ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Host label</label>
+                  <input
+                    value={globalHost}
+                    onChange={(e) => setGlobalHost(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  />
+                </div>
+              ) : lockOwner && owner ? (
+                <div className="rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                  <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Card</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{owner.hostName}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{owner.identity}</p>
+                </div>
+              ) : personSearch ? (
+                <SchedulePersonPicker
+                  value={owner}
+                  onChange={setOwner}
+                  label={scope === 'group' ? 'Primary card / team anchor' : 'Card or saved guest'}
+                  defaultProfileId={initialOwner?.profileId}
+                />
+              ) : useOwnCards ? (
+                <OwnCardsPicker value={owner} onChange={setOwner} label="Which card?" />
+              ) : (
+                <ProfileOwnerPicker
+                  value={owner}
+                  onChange={setOwner}
+                  label={scope === 'group' ? 'Primary card / team anchor' : 'Owner / host'}
+                  listClassName="max-h-40"
+                  required
+                />
+              )}
+
+              {scope === 'group' && !lockOwner ? (
+                <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                  <input
+                    type="checkbox"
+                    checked={includeTeamGroup}
+                    onChange={(e) => setIncludeTeamGroup(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    {useOwnCards
+                      ? 'Include every card on your team in this event.'
+                      : 'Include every card under the selected corporate account when a team anchor is chosen.'}
+                  </span>
+                </label>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Event type</label>
+                  <select
+                    value={eventType}
+                    onChange={(e) => setEventType(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  >
+                    {CRM_EVENT_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={eventDate}
+                    onChange={(e) => setEventDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Time</label>
+                  <input
+                    type="text"
+                    required
+                    value={eventTime}
+                    onChange={(e) => setEventTime(e.target.value)}
+                    placeholder="e.g. 10:00 AM"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Description</label>
+                <textarea
+                  required
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  maxLength={5000}
+                  placeholder="Add details for this event…"
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                  Attachments (audio, video, or image)
+                </label>
+                <input
+                  ref={fileRef}
+                  id={inputId}
+                  type="file"
+                  accept="image/*,video/*,audio/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => void handleFiles(e.target.files)}
+                />
+                <button
+                  type="button"
+                  disabled={mediaBusy}
+                  onClick={() => fileRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-rose-300 bg-rose-50/60 px-3 py-4 text-xs font-semibold text-rose-800 transition hover:border-rose-400 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
+                >
+                  {uploading && !audioRecording && !videoRecorderOpen ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Uploading… {uploadProgress}%
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" /> Add media files
+                    </>
+                  )}
+                </button>
+
+                <div className={cn('gap-2', audioRecording ? 'flex flex-col' : 'grid grid-cols-1 sm:grid-cols-2')}>
+                  <CrmAudioRecorder
+                    disabled={uploading || videoRecorderOpen}
+                    busy={uploading}
+                    onRecordingChange={setAudioRecording}
+                    onRecorded={handleRecordedFile}
+                    startLabel="Start recording"
+                  />
+                  {!audioRecording ? (
+                    <button
+                      type="button"
+                      disabled={mediaBusy}
+                      onClick={() => setVideoRecorderOpen(true)}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-rose-300 hover:bg-rose-50/60 hover:text-rose-800 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-rose-500/30 dark:hover:bg-rose-500/10 dark:hover:text-rose-200"
+                    >
+                      <Video className="h-4 w-4" />
+                      Record video
+                    </button>
+                  ) : null}
+                </div>
+
+                {uploadError ? <p className="text-[11px] font-medium text-rose-600">{uploadError}</p> : null}
+                {attachments.length ? (
+                  <ul className="space-y-2">
+                    {attachments.map((item, index) => (
+                      <li
+                        key={`${item.url}-${index}`}
+                        className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/5"
+                      >
+                        <span className="text-rose-600 dark:text-rose-300">
+                          <AttachmentIcon resourceType={item.resourceType} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">
+                            {item.fileName}
+                          </p>
+                          <p className="truncate text-[10px] text-slate-400">{item.resourceType || 'file'}</p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={mediaBusy}
+                          onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-rose-600 disabled:opacity-50 dark:hover:bg-white/10"
+                          aria-label="Remove attachment"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-slate-400">
+                    Optional — upload files or record audio/video in-browser.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-auto flex shrink-0 gap-3 border-t border-slate-100 bg-white px-6 py-4 dark:border-white/5 dark:bg-[#0b1018]">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-semibold tracking-wide text-slate-600 uppercase dark:border-white/10 dark:text-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || mediaBusy || !canSubmit}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-semibold tracking-wide text-white uppercase disabled:opacity-60 dark:bg-rose-500 dark:text-white"
+              >
+                {saved ? (
+                  'Created ✓'
+                ) : isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Creating…
+                  </>
+                ) : (
+                  'Create Wish & outreach'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
+
+      <CrmVideoRecorderModal
+        open={videoRecorderOpen}
+        onClose={() => setVideoRecorderOpen(false)}
+        onRecorded={handleRecordedFile}
+        uploading={uploading}
+      />
     </ModalPortal>
   )
 }

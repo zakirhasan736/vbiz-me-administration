@@ -153,7 +153,7 @@ export function CrmLeadsPanel() {
     try {
       const body = buildCreateCrmEventPayload(payload)
       const created = await createCrmEvent(body).unwrap()
-      notify.info('Event created. It will show on Schedules and Events.')
+      notify.info('Event created. It will show on Schedules and Wish & Outreach.')
       setEventLead(null)
       return created
     } catch (error) {

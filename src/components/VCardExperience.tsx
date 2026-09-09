@@ -220,7 +220,7 @@ export function TabExperience() {
           )
         })}
 
-        <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+        <div className="flex flex-col items-center gap-4 pt-6 md:mt-4">
           <button
             type="button"
             onClick={addExperience}

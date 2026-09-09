@@ -104,9 +104,13 @@ export function ContactSavesPanel({
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-white/5">
               <User className="h-6 w-6 text-slate-400" />
             </div>
-            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No contact saves yet</p>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+              {query.trim() ? 'No matching contact saves' : 'No contact saves yet'}
+            </p>
             <p className="mt-1 max-w-xs text-xs font-medium text-slate-400">
-              When guests save your contact from your public vCard, they will appear here.
+              {query.trim()
+                ? 'Try a different name, email, or phone.'
+                : 'When guests share their details on your public vCard, they will appear here.'}
             </p>
           </div>
         ) : (
@@ -153,11 +157,6 @@ export function ContactSavesPanel({
                         <p className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
                           <Phone className="h-3.5 w-3.5 text-slate-400" />
                           {contact.phone}
-                        </p>
-                      )}
-                      {contact.message && (
-                        <p className="rounded-xl bg-slate-50 p-3 text-xs font-medium text-slate-600 dark:bg-white/5 dark:text-slate-300">
-                          {contact.message}
                         </p>
                       )}
                     </div>

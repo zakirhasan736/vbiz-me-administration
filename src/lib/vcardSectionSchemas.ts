@@ -120,7 +120,7 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     key: 'calendar',
     postTypeName: PUBLIC_SECTION_NAMES.calendar,
     title: 'Calendar',
-    fields: ['title', 'description', 'date', 'url', 'location', 'active'],
+    fields: ['title', 'description', 'url', 'featuredImage', 'date', 'location', 'active'],
     addLabel: 'Add Event',
     emptyTitle: 'No calendar items yet',
     emptyHint: 'Add calendar entries for your public profile.',

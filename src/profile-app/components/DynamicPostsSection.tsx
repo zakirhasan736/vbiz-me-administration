@@ -4,7 +4,9 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { formatGeneralPostDate } from '@/lib/vcardGeneralPosts'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
+import { cn } from '@/utils/cn'
 import { ArrowUpRight, BookOpen, Calendar, FileEdit } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { MouseEvent } from 'react'
@@ -81,24 +83,33 @@ export function DynamicPostsSection({
       <SectionHeader badge={badge} sectionTitle={sectionTitle} />
 
       {featured ? (
-        <div className="vbiz-bento-grid mb-4 grid w-full grid-cols-1 items-start gap-4 md:grid-cols-3 lg:grid-cols-4">
-          <FeaturedPostCard post={featured} onPostClick={onPostClick} />
-          <div className="group relative flex min-h-75 flex-col items-center justify-center overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 backdrop-blur-xl transition-all duration-500 hover:border-zinc-300 md:col-span-3 lg:col-span-1 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700">
-            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-center text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100">
-              <BookOpen size={24} className="text-[#eab308]" />
+        <div
+          className={cn(
+            'vbiz-bento-grid mb-4 w-full items-start',
+            contentGridClass(posts.length, 'md:grid-cols-3 lg:grid-cols-4')
+          )}
+        >
+          <FeaturedPostCard post={featured} onPostClick={onPostClick} single={posts.length === 1} />
+          {posts.length > 1 ? (
+            <div className="group relative flex min-h-75 flex-col items-center justify-center overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 backdrop-blur-xl transition-all duration-500 hover:border-zinc-300 md:col-span-3 lg:col-span-1 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700">
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-center text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100">
+                <BookOpen size={24} className="text-[#eab308]" />
+              </div>
+              <h3 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+                {posts.length} {posts.length === 1 ? 'Entry' : 'Entries'}
+              </h3>
+              <p className="max-w-50 text-center text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
+                {sectionTitle} from your vBiz profile.
+              </p>
             </div>
-            <h3 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-              {posts.length} {posts.length === 1 ? 'Entry' : 'Entries'}
-            </h3>
-            <p className="max-w-50 text-center text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-              {sectionTitle} from your vBiz profile.
-            </p>
-          </div>
+          ) : null}
         </div>
       ) : null}
 
       {rest.length > 0 ? (
-        <div className="vbiz-bento-grid grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          className={cn('vbiz-bento-grid items-start', contentGridClass(rest.length, 'md:grid-cols-2 lg:grid-cols-3'))}
+        >
           {rest.map((post, idx) => (
             <PostCard key={post.id} post={post} delay={idx * 0.08} onPostClick={onPostClick} />
           ))}
@@ -138,9 +149,11 @@ function PostCardSkeleton({ delay }: { delay: number }) {
 function FeaturedPostCard({
   post,
   onPostClick,
+  single = false,
 }: {
   post: DynamicPostListItem
   onPostClick?: (post: DynamicPostListItem) => void
+  single?: boolean
 }) {
   const dateLabel = formatGeneralPostDate(post.date)
   const imageUrl = post.featuredImage.trim()
@@ -198,9 +211,11 @@ function FeaturedPostCard({
     </>
   )
 
-  const className =
-    'group relative flex min-h-100 flex-col justify-end overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100 md:col-span-3 lg:col-span-3 dark:border-zinc-800/80 dark:bg-zinc-900' +
-    (isClickable ? ' cursor-pointer' : '')
+  const className = cn(
+    'group relative flex min-h-100 flex-col justify-end overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900',
+    !single && 'md:col-span-3 lg:col-span-3',
+    isClickable && 'cursor-pointer'
+  )
 
   if (isClickable && onPostClick) {
     return (

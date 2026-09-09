@@ -1,7 +1,7 @@
 'use client'
 
 import { MediaSourceActions, type MediaSourceMode } from '@/components/MediaSourceActions'
-import { ReorderList } from '@/components/ReorderList'
+import { ReorderList, type DragHandleProps } from '@/components/ReorderList'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { cn } from '@/utils/cn'
 import { File, FileText, GripVertical, Image as ImageIcon, Loader2, Trash2, Upload } from 'lucide-react'
@@ -87,13 +87,12 @@ export function DocumentUploadArea({
         ? 'text-violet-600 dark:text-violet-400'
         : 'text-indigo-600 dark:text-indigo-400'
 
-  const renderFile = (file: UploadedDoc, reorderable: boolean) => (
+  const renderFile = (file: UploadedDoc, reorderable: boolean, dragHandleProps?: DragHandleProps) => (
     <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#0b0f19]">
-      {reorderable ? (
+      {reorderable && dragHandleProps ? (
         <span
-          className="flex h-9 w-7 shrink-0 items-center justify-center text-slate-400"
-          title="Drag to reorder"
-          aria-label="Drag to reorder"
+          {...dragHandleProps}
+          className={cn('flex h-9 w-7 shrink-0 items-center justify-center text-slate-400', dragHandleProps.className)}
         >
           <GripVertical className="h-4 w-4" />
         </span>
@@ -264,7 +263,7 @@ export function DocumentUploadArea({
               getKey={(file) => file.id}
               onReorder={onChange}
               className="space-y-2"
-              renderItem={(file) => renderFile(file, true)}
+              renderItem={(file, _index, dragHandleProps) => renderFile(file, true, dragHandleProps)}
             />
           </div>
         ) : (

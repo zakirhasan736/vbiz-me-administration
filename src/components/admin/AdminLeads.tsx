@@ -13,7 +13,6 @@ import {
   useGetAdminLeadsSavesQuery,
   useGetAdminLeadsStatsQuery,
   usePatchAdminLeadNoteMutation,
-  usePatchAdminLeadSaveMutation,
 } from '@/redux/features/adminLeads/adminLeads.api'
 import { cn } from '@/utils/cn'
 import { Building, CheckCircle2, MessageCircle, Save, Users } from 'lucide-react'
@@ -66,7 +65,6 @@ export default function AdminLeads() {
   const { data: notesPage, isLoading: notesLoading, isFetching: notesFetching } = useGetAdminLeadsNotesQuery(notesQuery)
 
   const [deleteSave] = useDeleteAdminLeadSaveMutation()
-  const [patchSave] = usePatchAdminLeadSaveMutation()
   const [patchNote] = usePatchAdminLeadNoteMutation()
 
   const savesRows = useMemo(() => {
@@ -82,11 +80,12 @@ export default function AdminLeads() {
   const saves = useMemo(() => savesRows.map(mapAdminLeadRow), [savesRows])
   const notes = useMemo(() => notesRows.map(mapAdminLeadRow), [notesRows])
 
-  const totalSaves = stats?.totalSaves ?? savesPage?.total ?? saves.length
-  const totalNotes = stats?.totalNotes ?? notesPage?.total ?? notes.length
+  // Prefer loaded list totals so KPI/tab badges cannot disagree with the panel.
+  const listTotalSaves = typeof savesPage?.total === 'number' ? savesPage.total : (stats?.totalSaves ?? saves.length)
+  const listTotalNotes = typeof notesPage?.total === 'number' ? notesPage.total : (stats?.totalNotes ?? notes.length)
+  const totalSaves = listTotalSaves
+  const totalNotes = listTotalNotes
   const sourceCards = stats?.sourceProfiles ?? 0
-  const listTotalSaves = savesPage?.total ?? totalSaves
-  const listTotalNotes = notesPage?.total ?? totalNotes
   const savesHasMore = Boolean(savesPage?.hasMore ?? savesRows.length < listTotalSaves)
   const notesHasMore = Boolean(notesPage?.hasMore ?? notesRows.length < listTotalNotes)
 
@@ -116,12 +115,13 @@ export default function AdminLeads() {
   }
 
   const handleSaveNote = async (leadId: string, text: string, kind?: string) => {
+    // Private notes / replies belong on guest messages (Notes tab), not contact saves.
+    if (kind !== 'guest_message') {
+      notify.error('Private notes are only available on Lead Notes.')
+      return
+    }
     try {
-      if (kind === 'guest_message') {
-        await patchNote({ id: leadId, body: { privateNotes: text } }).unwrap()
-      } else {
-        await patchSave({ id: leadId, body: { privateNotes: text } }).unwrap()
-      }
+      await patchNote({ id: leadId, body: { privateNotes: text } }).unwrap()
       notify.info('Private note saved.')
     } catch {
       notify.error('Failed to save note.')
@@ -132,12 +132,12 @@ export default function AdminLeads() {
     lead: { id: string; kind?: string; fullName?: string; name?: string },
     text: string
   ) => {
+    if (lead.kind !== 'guest_message') {
+      notify.error('Replies are only available on Lead Notes.')
+      return
+    }
     try {
-      if (lead.kind === 'guest_message') {
-        await patchNote({ id: lead.id, body: { lastReply: text } }).unwrap()
-      } else {
-        await patchSave({ id: lead.id, body: { lastReply: text } }).unwrap()
-      }
+      await patchNote({ id: lead.id, body: { lastReply: text } }).unwrap()
       notify.info(`Urgent reply sent to ${lead.fullName || lead.name || 'guest'}.`)
     } catch {
       notify.error('Failed to send reply.')
@@ -152,7 +152,7 @@ export default function AdminLeads() {
           <span className="wrap-break-word">Master Contact Saves</span>
         </h1>
         <p className="mt-1 text-xs font-semibold wrap-break-word text-slate-400 md:text-sm">
-          Platform-wide guest saves — admin note/message replies notify single and corporate owners.
+          Platform-wide guest contact saves. Guest messages and replies live under the Notes tab.
         </p>
       </div>
 

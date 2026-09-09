@@ -11,6 +11,7 @@ export type ContactSavesModalTab = 'saves' | 'notes'
 type ContactSavesModalProps = {
   count: number
   contacts: DashboardContact[]
+  notesContacts?: DashboardContact[]
   notesCount?: number
   tab: ContactSavesModalTab
   onTabChange: (tab: ContactSavesModalTab) => void
@@ -18,11 +19,17 @@ type ContactSavesModalProps = {
   hasMore?: boolean
   loadingMore?: boolean
   onLoadMore?: () => void
+  notesHasMore?: boolean
+  notesLoadingMore?: boolean
+  onLoadMoreNotes?: () => void
+  notesLoading?: boolean
+  notesError?: boolean
 }
 
 export function ContactSavesModal({
   count,
   contacts,
+  notesContacts = [],
   notesCount = 0,
   tab,
   onTabChange,
@@ -30,6 +37,11 @@ export function ContactSavesModal({
   hasMore = false,
   loadingMore = false,
   onLoadMore,
+  notesHasMore = false,
+  notesLoadingMore = false,
+  onLoadMoreNotes,
+  notesLoading = false,
+  notesError = false,
 }: ContactSavesModalProps) {
   return (
     <ModalPortal>
@@ -99,7 +111,15 @@ export function ContactSavesModal({
                 onLoadMore={onLoadMore}
               />
             ) : (
-              <LeadNotesPanel contacts={contacts} notesCount={notesCount} />
+              <LeadNotesPanel
+                contacts={notesContacts}
+                notesCount={notesCount}
+                hasMore={notesHasMore}
+                loadingMore={notesLoadingMore}
+                onLoadMore={onLoadMoreNotes}
+                isLoading={notesLoading}
+                isError={notesError}
+              />
             )}
           </div>
         </div>

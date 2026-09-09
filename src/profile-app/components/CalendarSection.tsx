@@ -3,10 +3,12 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { resolveCalendarItemUrl, stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { ArrowUpRight, Calendar, Clock, Video } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -19,7 +21,7 @@ function CalendarCardSkeleton({ delay }: { delay: number }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="flex min-h-[260px] flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50"
+      className="flex min-h-65 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50"
     >
       <div className="mb-6 h-12 w-12 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
       <div className="mb-2 h-6 w-3/4 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
@@ -45,7 +47,7 @@ function CalendarItemCard({ item, idx }: { item: DynamicPostListItem; idx: numbe
 
       {imageUrl ? (
         <div className="mb-6 h-52 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80">
-          <Image width={300} height={400} src={imageUrl} alt={item.title} className="h-full w-full object-cover" />
+          <Image width={300} height={400} src={imageUrl} alt={item.title} className="h-full w-full object-contain" />
         </div>
       ) : (
         <div className="bg-yellow-primary/10 dark:bg-yellow-primary/5 mb-6 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl">
@@ -132,7 +134,7 @@ export const CalendarSection = () => {
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="text-yellow-primary mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <Calendar size={24} />
           </div>
@@ -155,7 +157,7 @@ export const CalendarSection = () => {
         primaryActionUrl={primaryActionUrl}
       />
 
-      <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className={cn('vbiz-bento-grid relative z-20 mt-4', contentGridClass(items.length, 'md:grid-cols-2'))}>
         {items.map((item, idx) => (
           <CalendarItemCard key={item.id} item={item} idx={idx} />
         ))}

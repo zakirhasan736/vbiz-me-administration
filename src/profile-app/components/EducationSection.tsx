@@ -1,10 +1,12 @@
 'use client'
 
 import type { ProfileAiEducation } from '@/interfaces/api/profileAiData'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetProfileAiDataQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { GraduationCap } from 'lucide-react'
 import { motion } from 'motion/react'
 
@@ -27,10 +29,10 @@ function formatEducationPeriod(entry: ProfileAiEducation): string {
 function ResumeSkeleton() {
   return (
     <div className="w-full pb-20">
-      <div className="vbiz-card mb-4 min-h-[220px] animate-pulse rounded-3xl border" />
+      <div className="vbiz-card mb-4 min-h-55 animate-pulse rounded-3xl border" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="vbiz-card h-[200px] animate-pulse rounded-3xl border" />
-        <div className="vbiz-card h-[200px] animate-pulse rounded-3xl border" />
+        <div className="vbiz-card h-50 animate-pulse rounded-3xl border" />
+        <div className="vbiz-card h-50 animate-pulse rounded-3xl border" />
       </div>
     </div>
   )
@@ -70,7 +72,7 @@ export function EducationSection({ sectionName = 'Resume' }: EducationSectionPro
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
-        <div className="vbiz-card flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed p-10 text-center">
+        <div className="vbiz-card flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed p-10 text-center">
           <div className="vbiz-pill-icon mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border">
             <GraduationCap size={24} />
           </div>
@@ -107,7 +109,7 @@ export function EducationSection({ sectionName = 'Resume' }: EducationSectionPro
         </div>
       </div>
 
-      <div className="vbiz-bento-grid relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className={cn('vbiz-bento-grid relative z-20 mt-4', contentGridClass(entries.length, 'md:grid-cols-2'))}>
         {entries.map((entry, idx) => {
           const period = formatEducationPeriod(entry)
           const degree = entry.title?.trim() ?? ''

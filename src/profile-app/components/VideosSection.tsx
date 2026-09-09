@@ -1,10 +1,12 @@
 'use client'
 
 import type { VideoListItem } from '@/interfaces/api/videos.interface'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetVideosQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import {
   ArrowUpRight,
   CalendarDays,
@@ -366,7 +368,7 @@ export function VideosSection() {
         </div>
       </div>
 
-      <div className="relative z-20 mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className={cn('relative z-20 mt-4', contentGridClass(items.length, 'md:grid-cols-2 lg:grid-cols-3'))}>
         {items.map((item, idx) => (
           <VideoCard key={item.id} item={item} idx={idx} accent={accent} onOpenGallery={openGallery} />
         ))}

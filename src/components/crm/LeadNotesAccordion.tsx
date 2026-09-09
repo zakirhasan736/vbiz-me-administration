@@ -1,6 +1,8 @@
 'use client'
 
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { CrmAudioRecorder } from '@/components/crm/CrmAudioRecorder'
+import { CrmDictationBar } from '@/components/crm/CrmDictationBar'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { notify } from '@/lib/toast/toast'
@@ -13,23 +15,10 @@ import {
   useGetCrmLeadNotesQuery,
 } from '@/redux/features/crm/crm.api'
 import { cn } from '@/utils/cn'
-import { ChevronDown, Keyboard, Loader2, Mic, MicOff, StickyNote, Trash2, Type } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, Keyboard, Loader2, Mic, StickyNote, Trash2, Type } from 'lucide-react'
+import { useCallback, useState } from 'react'
 
 type AddMode = LeadNoteKind | null
-
-type SpeechRecognitionLike = {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onresult:
-    | ((event: { resultIndex: number; results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }> }) => void)
-    | null
-  onerror: ((event: { error?: string }) => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-}
 
 function fromDatetimeLocalValue(value: string) {
   if (!value.trim()) return null
@@ -57,21 +46,6 @@ function kindLabel(kind: LeadNoteKind) {
   return 'Text'
 }
 
-function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
-  if (typeof window === 'undefined') return null
-  const w = window as Window & {
-    SpeechRecognition?: new () => SpeechRecognitionLike
-    webkitSpeechRecognition?: new () => SpeechRecognitionLike
-  }
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null
-}
-
-function pickRecorderMimeType() {
-  if (typeof MediaRecorder === 'undefined') return ''
-  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']
-  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || ''
-}
-
 export function LeadNotesAccordion({
   leadId,
   profileId,
@@ -96,11 +70,7 @@ export function LeadNotesAccordion({
   const [recording, setRecording] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [listening, setListening] = useState(false)
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const streamRef = useRef<MediaStream | null>(null)
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const [dictationKey, setDictationKey] = useState(0)
 
   const resetForm = () => {
     setContent('')
@@ -115,166 +85,54 @@ export function LeadNotesAccordion({
   }
 
   const closeAdd = () => {
-    stopRecording(false)
-    stopListening()
     resetForm()
+    setDictationKey((key) => key + 1)
     setAddMode(null)
   }
 
-  const stopStream = () => {
-    streamRef.current?.getTracks().forEach((track) => track.stop())
-    streamRef.current = null
-  }
-
-  const stopRecording = (keepBlob: boolean) => {
-    const recorder = mediaRecorderRef.current
-    if (recorder && recorder.state !== 'inactive') {
-      try {
-        if (!keepBlob) chunksRef.current = []
-        recorder.stop()
-      } catch {
-        /* ignore */
-      }
-    }
-    mediaRecorderRef.current = null
-    setRecording(false)
-    stopStream()
-  }
-
-  const stopListening = () => {
-    const recognition = recognitionRef.current
-    if (recognition) {
-      try {
-        recognition.onend = null
-        recognition.stop()
-      } catch {
-        /* ignore */
-      }
-      recognitionRef.current = null
-    }
-    setListening(false)
-  }
-
-  useEffect(() => {
-    return () => {
-      stopRecording(false)
-      stopListening()
-      stopStream()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount cleanup only
-  }, [])
-
-  const startRecording = async () => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      notify.error('Microphone recording is not supported in this browser.')
-      return
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
-      const mimeType = pickRecorderMimeType()
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
-      chunksRef.current = []
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data)
-      }
-      recorder.onstop = async () => {
-        stopStream()
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
-        chunksRef.current = []
-        if (!blob.size) {
-          notify.error('No audio captured. Try again.')
-          setRecording(false)
-          return
-        }
-        setUploading(true)
-        try {
-          const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
-          const file = new File([blob], `lead-note-${Date.now()}.${ext}`, {
-            type: blob.type || 'audio/webm',
-          })
-          const result = await uploadMediaWithProgress({
-            file,
-            profileId: profileId ?? null,
-            attachmentType: 'crm_lead_note',
-          })
-          setAudioUrl(result.url)
-          setAudioFileName(file.name)
-          setAudioMimeType(file.type || null)
-        } catch (err) {
-          const message =
-            err instanceof MediaUploadError
-              ? err.message
-              : err instanceof Error
-                ? err.message
-                : 'Couldn’t upload voice note.'
-          notify.error(message)
-        } finally {
-          setUploading(false)
-          setRecording(false)
-        }
-      }
-      mediaRecorderRef.current = recorder
-      recorder.start()
-      setRecording(true)
+  const handleVoiceRecorded = useCallback(
+    async (file: File) => {
+      setUploading(true)
       setAudioUrl(null)
       setAudioFileName(null)
       setAudioMimeType(null)
-    } catch {
-      notify.error('Microphone permission is required to record a voice note.')
-      stopStream()
-      setRecording(false)
-    }
-  }
+      try {
+        const result = await uploadMediaWithProgress({
+          file,
+          profileId: profileId ?? null,
+          attachmentType: 'crm_lead_note',
+        })
+        setAudioUrl(result.url)
+        setAudioFileName(file.name)
+        setAudioMimeType(file.type || null)
+      } catch (err) {
+        const message =
+          err instanceof MediaUploadError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : 'Couldn’t upload voice note.'
+        notify.error(message)
+      } finally {
+        setUploading(false)
+      }
+    },
+    [profileId]
+  )
 
-  const startListening = () => {
-    const Ctor = getSpeechRecognitionCtor()
-    if (!Ctor) {
-      notify.error('Speech recognition is not supported in this browser.')
-      return
-    }
-    stopListening()
-    const recognition = new Ctor()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = typeof navigator !== 'undefined' ? navigator.language || 'en-US' : 'en-US'
-    recognition.onresult = (event) => {
-      let finalChunk = ''
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i]
-        if (result?.isFinal) finalChunk += result[0]?.transcript || ''
-      }
-      const trimmed = finalChunk.trim()
-      if (!trimmed) return
-      setContent((prev) => {
-        const base = prev.trim()
-        return base ? `${base} ${trimmed}` : trimmed
-      })
-    }
-    recognition.onerror = (event) => {
-      if (event.error === 'not-allowed') {
-        notify.error('Microphone permission is required for voice to text.')
-      } else if (event.error && event.error !== 'aborted') {
-        notify.error('Speech recognition failed. Try again.')
-      }
-      setListening(false)
-    }
-    recognition.onend = () => {
-      setListening(false)
-      recognitionRef.current = null
-    }
-    recognitionRef.current = recognition
-    try {
-      recognition.start()
-      setListening(true)
-    } catch {
-      notify.error('Couldn’t start speech recognition.')
-      setListening(false)
-    }
-  }
+  const handleTranscript = useCallback((chunk: string) => {
+    setContent((prev) => {
+      const base = prev.trim()
+      return base ? `${base} ${chunk}` : chunk
+    })
+  }, [])
+
+  const handleDictationError = useCallback((message: string) => {
+    notify.error(message)
+  }, [])
 
   const handleSave = async () => {
-    if (creating || uploading || recording) return
+    if (creating || uploading || recording || listening) return
     const startIso = fromDatetimeLocalValue(startsAt)
     const dueIso = fromDatetimeLocalValue(dueAt)
     if (!startIso || !dueIso) {
@@ -407,6 +265,7 @@ export function LeadNotesAccordion({
               label="Voice to text"
               onClick={() => {
                 resetForm()
+                setDictationKey((key) => key + 1)
                 setAddMode('voice_to_text')
               }}
             />
@@ -429,31 +288,17 @@ export function LeadNotesAccordion({
 
           {addMode === 'voice' ? (
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                {!recording ? (
-                  <button
-                    type="button"
-                    disabled={uploading}
-                    onClick={startRecording}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-black tracking-wider text-rose-800 uppercase dark:bg-rose-500/15 dark:text-rose-200"
-                  >
-                    <Mic className="h-3.5 w-3.5" /> {audioUrl ? 'Re-record' : 'Start recording'}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => stopRecording(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-[10px] font-black tracking-wider text-white uppercase"
-                  >
-                    <MicOff className="h-3.5 w-3.5" /> Stop
-                  </button>
-                )}
-                {uploading ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
-                  </span>
-                ) : null}
-              </div>
+              <CrmAudioRecorder
+                busy={uploading}
+                onRecorded={handleVoiceRecorded}
+                onRecordingChange={setRecording}
+                startLabel={audioUrl ? 'Re-record' : 'Start recording'}
+              />
+              {uploading ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
+                </span>
+              ) : null}
               {audioUrl ? <audio controls src={audioUrl} className="w-full" /> : null}
               <label className="block space-y-1">
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
@@ -469,28 +314,13 @@ export function LeadNotesAccordion({
           ) : (
             <div className="space-y-2">
               {addMode === 'voice_to_text' ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {!listening ? (
-                    <button
-                      type="button"
-                      onClick={startListening}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-2 text-[10px] font-black tracking-wider text-indigo-800 uppercase dark:bg-indigo-500/15 dark:text-indigo-200"
-                    >
-                      <Mic className="h-3.5 w-3.5" /> Start dictation
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={stopListening}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-[10px] font-black tracking-wider text-white uppercase"
-                    >
-                      <MicOff className="h-3.5 w-3.5" /> Stop dictation
-                    </button>
-                  )}
-                  {listening ? (
-                    <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">Listening…</span>
-                  ) : null}
-                </div>
+                <CrmDictationBar
+                  key={dictationKey}
+                  onTranscript={handleTranscript}
+                  onListeningChange={setListening}
+                  onError={handleDictationError}
+                  startLabel="Start dictation"
+                />
               ) : null}
               <label className="block space-y-1">
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Note</span>
@@ -529,7 +359,7 @@ export function LeadNotesAccordion({
 
           <button
             type="button"
-            disabled={creating || uploading || recording || !startsAt.trim() || !dueAt.trim()}
+            disabled={creating || uploading || recording || listening || !startsAt.trim() || !dueAt.trim()}
             onClick={handleSave}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-2.5 text-[11px] font-black tracking-wider text-white uppercase disabled:bg-slate-300 dark:bg-indigo-500"
           >

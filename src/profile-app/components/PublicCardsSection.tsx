@@ -7,8 +7,10 @@
 import { mapPublicCardProfileUrl, type PublicCardListItem } from '@/lib/api/publicCards/mapPublicCards'
 import { PUBLIC_CARDS_SEARCH_DEBOUNCE_MS, PUBLIC_CARDS_SEARCH_MIN_CHARS } from '@/lib/publicCards/publicCardsSearch'
 import { usePublicCardsDirectory } from '@/profile-app/hooks/usePublicCardsDirectory'
+import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { cn } from '@/utils/cn'
 import type { PublicCardId, PublicCardsFilterOption } from '@interfaces/api/publicCards'
 import {
   Briefcase,
@@ -717,9 +719,10 @@ export const PublicCardsSection = () => {
       ) : viewMode === 'grid' ? (
         /* Grid of Connections */
         <div
-          className={`relative z-20 mt-6 grid gap-4 ${
-            compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-          }`}
+          className={cn(
+            'relative z-20 mt-6',
+            contentGridClass(cards.length, compact ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4')
+          )}
         >
           {cards.map((card, idx) => (
             <motion.div
@@ -728,7 +731,7 @@ export const PublicCardsSection = () => {
               viewport={{ once: true, margin: '-50px' }}
               transition={{ duration: 0.6, delay: (idx % 8) * 0.08, ease: 'easeOut' }}
               key={card.id}
-              className={`${CONNECTION_CARD_SHELL} h-[27rem] cursor-pointer hover:border-zinc-700 sm:h-[28.75rem]`}
+              className={`${CONNECTION_CARD_SHELL} h-108 cursor-pointer hover:border-zinc-700 sm:h-115`}
             >
               <ConnectionCardInner card={card} />
             </motion.div>
@@ -738,7 +741,7 @@ export const PublicCardsSection = () => {
         /* Cinematic Unified 3D Slider Area with swipe & drag on both mobile and desktop! */
         <div
           className={`relative z-20 mt-6 flex flex-1 flex-col items-center justify-center perspective-[1600px] ${
-            compact ? 'min-h-[560px]' : 'min-h-[560px] md:min-h-[35rem]'
+            compact ? 'min-h-140' : 'min-h-140 md:min-h-140'
           }`}
         >
           {/* Navigation arrows (floating desktop layout — hidden on phone widths for a cleaner look) */}

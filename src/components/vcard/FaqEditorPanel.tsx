@@ -157,7 +157,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
               items={faqs}
               getKey={(faq) => faq.clientKey || faq.id}
               onReorder={setFaqs}
-              renderItem={(faq, index) => {
+              renderItem={(faq, index, dragHandleProps) => {
                 const key = faq.clientKey || faq.id
                 const open = isExpanded(key)
                 return (
@@ -175,6 +175,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                       showRemove
                       onRemove={() => removeFaq(key)}
                       accent={accent}
+                      dragHandleProps={dragHandleProps}
                     />
 
                     <ExpandableEntryBody isExpanded={open} className="space-y-6 p-4 sm:p-8">
@@ -239,7 +240,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
               }}
             />
 
-            <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+            <div className="flex flex-col items-center gap-4 pt-6 md:mt-4">
               <button
                 type="button"
                 onClick={addFaq}

@@ -218,7 +218,7 @@ export default function LeadNotesRepliesPanel({
   return (
     <div
       className={cn(
-        'w-full max-w-full min-w-0 overflow-hidden rounded-[28px] border border-rose-200/70 bg-gradient-to-br from-rose-50/80 via-white to-amber-50/40 shadow-sm dark:border-rose-500/25 dark:from-rose-500/10 dark:via-[#0b0f19] dark:to-amber-500/5',
+        'w-full max-w-full min-w-0 overflow-hidden rounded-[28px] border border-rose-200/70 bg-linear-to-br from-rose-50/80 via-white to-amber-50/40 shadow-sm dark:border-rose-500/25 dark:from-rose-500/10 dark:via-[#0b0f19] dark:to-amber-500/5',
         className
       )}
     >
@@ -231,10 +231,10 @@ export default function LeadNotesRepliesPanel({
             </span>
             <h3 className="flex min-w-0 items-center gap-2 text-sm font-black text-slate-900 sm:text-base dark:text-white">
               <MessageCircle className="h-5 w-5 shrink-0 text-rose-500" />
-              <span className="break-words">Lead Notes & Replies</span>
+              <span className="wrap-break-word">Lead Notes & Replies</span>
             </h3>
           </div>
-          <p className="text-xs font-semibold break-words text-slate-500 dark:text-slate-400">
+          <p className="text-xs font-semibold wrap-break-word text-slate-500 dark:text-slate-400">
             Guest notes, private manager notes, and urgent replies — including message-only guests.
           </p>
         </div>
@@ -300,7 +300,7 @@ export default function LeadNotesRepliesPanel({
                 <div className="flex min-w-0 flex-col gap-3">
                   <div className="min-w-0 overflow-hidden">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="text-sm font-black break-words text-slate-900 dark:text-white">{name}</p>
+                      <p className="text-sm font-black wrap-break-word text-slate-900 dark:text-white">{name}</p>
                       {messageOnly && (
                         <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[9px] font-black tracking-wider text-amber-700 uppercase dark:text-amber-300">
                           Note only
@@ -324,7 +324,7 @@ export default function LeadNotesRepliesPanel({
                     </div>
                     {guestNote ? (
                       <p
-                        className="mt-2 line-clamp-2 rounded-xl border border-slate-200/70 bg-white/80 px-3 py-2 text-[11px] font-semibold break-words text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
+                        className="mt-2 line-clamp-2 rounded-xl border border-slate-200/70 bg-white/80 px-3 py-2 text-[11px] font-semibold wrap-break-word text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
                         title={guestNote}
                       >
                         <span className="mr-1.5 text-[9px] font-black tracking-wider text-amber-600 uppercase dark:text-amber-300">
@@ -337,7 +337,7 @@ export default function LeadNotesRepliesPanel({
                     )}
                     {lead.lastReply && (
                       <p
-                        className="mt-1 line-clamp-2 text-[10px] font-semibold break-words text-indigo-500"
+                        className="mt-1 line-clamp-2 text-[10px] font-semibold wrap-break-word text-indigo-500"
                         title={lead.lastReply}
                       >
                         Last reply: {lead.lastReply}
@@ -367,7 +367,7 @@ export default function LeadNotesRepliesPanel({
                         <StickyNote className="h-3.5 w-3.5 shrink-0" /> Guest note
                       </p>
                       {guestNote ? (
-                        <p className="text-xs leading-relaxed font-semibold break-words whitespace-pre-wrap text-slate-800 dark:text-slate-100">
+                        <p className="text-xs leading-relaxed font-semibold wrap-break-word whitespace-pre-wrap text-slate-800 dark:text-slate-100">
                           {guestNote}
                         </p>
                       ) : (
@@ -376,7 +376,7 @@ export default function LeadNotesRepliesPanel({
                         </p>
                       )}
                       {messageOnly && (
-                        <p className="mt-2 text-[10px] font-bold break-words text-amber-700/80 dark:text-amber-200/80">
+                        <p className="mt-2 text-[10px] font-bold wrap-break-word text-amber-700/80 dark:text-amber-200/80">
                           Message-only lead (not a full contact save).
                         </p>
                       )}
@@ -406,15 +406,14 @@ export default function LeadNotesRepliesPanel({
                         <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-300">
                           <MessageCircle className="h-3.5 w-3.5" /> Urgent reply
                         </p>
-                        <p className="mb-2 text-[11px] font-semibold break-words text-slate-500 dark:text-slate-400">
+                        <p className="mb-2 text-[11px] font-semibold wrap-break-word text-slate-500 dark:text-slate-400">
                           Shown when {name} revisits your vCard.
                         </p>
-                        <input
-                          type="text"
+                        <textarea
                           value={replyMap[id] || ''}
                           onChange={(e) => setReplyMap((p) => ({ ...p, [id]: e.target.value }))}
                           placeholder={`Reply to ${name}...`}
-                          className="w-full max-w-full min-w-0 rounded-xl border border-rose-200/70 bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:ring-1 focus:ring-rose-500/40 dark:border-rose-500/20 dark:bg-slate-900"
+                          className="h-24 w-full max-w-full min-w-0 resize-none rounded-xl border border-rose-200/70 bg-white p-3 text-xs font-semibold outline-none focus:ring-1 focus:ring-rose-500/40 dark:border-rose-500/20 dark:bg-slate-900"
                         />
                         <button
                           type="button"

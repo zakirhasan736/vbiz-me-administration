@@ -57,11 +57,18 @@ function OneOnOneScheduleForm({
   onSubmit: (payload: ProposeSlotsPayload) => Promise<void>
   isSubmitting?: boolean
 }) {
-  const [title, setTitle] = useState(`1-on-1 with ${request.guestName}`)
-  const [description, setDescription] = useState(request.message?.trim() || '')
-  const [timezone, setTimezone] = useState(detectTimezone())
-  const [duration, setDuration] = useState(30)
-  const [slots, setSlots] = useState<SlotDraft[]>([newSlot(), newSlot({ startTime: '14:00' })])
+  const guestMessage = request.message?.trim() || ''
+  const [title, setTitle] = useState(request.proposedTitle?.trim() || `1-on-1 with ${request.guestName}`)
+  // Owner reply — do not prefill with the guest's request message
+  const [description, setDescription] = useState(request.proposedDescription?.trim() || '')
+  const [timezone, setTimezone] = useState(request.proposedTimezone || detectTimezone())
+  const [duration, setDuration] = useState(request.proposedDurationMinutes || 30)
+  const [slots, setSlots] = useState<SlotDraft[]>(() => {
+    const existing = (request.slots || [])
+      .filter((s) => s.status === 'available')
+      .map((s) => newSlot({ date: s.date, startTime: s.startTime.slice(0, 5) }))
+    return existing.length > 0 ? existing : [newSlot(), newSlot({ startTime: '14:00' })]
+  })
   const [error, setError] = useState<string | null>(null)
 
   const updateSlot = (id: string, patch: Partial<SlotDraft>) => {
@@ -101,7 +108,7 @@ function OneOnOneScheduleForm({
       aria-modal="true"
       aria-labelledby="one-on-one-schedule-title"
     >
-      <div className="shrink-0 border-b border-slate-100 bg-[linear-gradient(135deg,_rgba(13,148,136,0.1),_transparent_55%)] px-6 py-5 dark:border-white/5">
+      <div className="shrink-0 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(13,148,136,0.1),transparent_55%)] px-6 py-5 dark:border-white/5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-teal-700 uppercase dark:text-teal-300">
@@ -132,7 +139,7 @@ function OneOnOneScheduleForm({
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/3">
           <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Guest</p>
           <div className="mt-3 grid gap-2.5 text-sm text-slate-700 dark:text-slate-200">
             <div className="flex items-center gap-2">
@@ -147,6 +154,16 @@ function OneOnOneScheduleForm({
               <div className="flex items-center gap-2">
                 <Phone className="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-300" />
                 <span>{request.guestPhone}</span>
+              </div>
+            ) : null}
+            {guestMessage ? (
+              <div className="mt-1 rounded-xl border border-amber-200/60 bg-amber-50 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+                <p className="mb-1 text-[10px] font-bold tracking-wide text-amber-700 uppercase dark:text-amber-300">
+                  Their message
+                </p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-800 dark:text-slate-100">
+                  {guestMessage}
+                </p>
               </div>
             ) : null}
           </div>
@@ -202,7 +219,7 @@ function OneOnOneScheduleForm({
             {slots.map((slot, index) => (
               <div
                 key={slot.id}
-                className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5 dark:border-white/10 dark:bg-white/[0.03]"
+                className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5 dark:border-white/10 dark:bg-white/3"
               >
                 <label className="block space-y-1">
                   <span className="text-[10px] font-semibold text-slate-400">Date {index + 1}</span>
@@ -242,21 +259,23 @@ function OneOnOneScheduleForm({
         </div>
 
         <label className="block space-y-1.5">
-          <span className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Message to guest</span>
+          <span className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+            Reply message to guest
+          </span>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             disabled={isSubmitting}
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-500 disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white"
-            placeholder="Optional note with the proposed times"
+            placeholder="Write your reply — sent by email and push with the time options"
           />
         </label>
 
         {error ? <p className="text-sm font-medium text-rose-600 dark:text-rose-400">{error}</p> : null}
       </div>
 
-      <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4 dark:border-white/5 dark:bg-white/[0.02]">
+      <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4 dark:border-white/5 dark:bg-white/2">
         <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
           Cancel
         </Button>
@@ -273,7 +292,7 @@ export function OneOnOneScheduleModal({ open, onClose, request, onSubmit, isSubm
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[10050] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-10050 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
         <div className="relative z-10 w-full max-w-lg">
           <OneOnOneScheduleForm

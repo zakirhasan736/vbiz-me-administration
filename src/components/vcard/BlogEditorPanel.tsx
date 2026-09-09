@@ -155,7 +155,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
             items={posts}
             getKey={(p) => p.clientKey || p.id}
             onReorder={setPosts}
-            renderItem={(item, idx) => {
+            renderItem={(item, idx, dragHandleProps) => {
               const key = item.clientKey || item.id
               const open = isExpanded(key)
               return (
@@ -173,6 +173,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                     showRemove
                     onRemove={() => removePost(key)}
                     accent={accent}
+                    dragHandleProps={dragHandleProps}
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-4 p-5">
@@ -254,6 +255,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                       </div>
                       <div className="flex items-center gap-4 pb-1">
                         <label className="group flex cursor-pointer items-center gap-3">
+                          <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">Published</span>
                           <div className="relative flex items-center justify-center">
                             <input
                               type="checkbox"
@@ -273,7 +275,6 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                               />
                             </div>
                           </div>
-                          <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">Published</span>
                         </label>
                       </div>
                     </div>
@@ -283,7 +284,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
             }}
           />
 
-          <div className="mt-8 flex flex-col items-center gap-4 pt-6">
+          <div className="flex flex-col items-center gap-4 pt-6 md:mt-4">
             <button
               type="button"
               onClick={addPost}
