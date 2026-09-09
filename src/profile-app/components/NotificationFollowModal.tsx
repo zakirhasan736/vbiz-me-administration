@@ -1,6 +1,6 @@
 'use client'
 
-import { isPushSupported, mapPushSubscribeError, sendTestNotification, subscribeToCard } from '@/lib/push/config'
+import { isPushSupported, mapPushSubscribeError, subscribeToCard } from '@/lib/push/config'
 import {
   isSubscribedToCard,
   markNotificationDeclined,
@@ -36,7 +36,6 @@ export function NotificationFollowModal({
 }: NotificationFollowModalProps) {
   const [showSuccess, setShowSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Defense: if this browser already follows the card, skip the Enable prompt.
@@ -78,19 +77,6 @@ export function NotificationFollowModal({
       notify.error(message)
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  const handleSendTest = async () => {
-    setTesting(true)
-    try {
-      await sendTestNotification(cardSlug)
-      notify.success('Test notification sent. Check your system tray.')
-    } catch (testError) {
-      const message = testError instanceof Error ? testError.message : 'Could not send test notification.'
-      notify.error(message)
-    } finally {
-      setTesting(false)
     }
   }
 
@@ -209,23 +195,13 @@ export function NotificationFollowModal({
                   <p className="vbiz-description mb-6 text-sm font-medium">
                     We&apos;ll notify you the moment an update is published.
                   </p>
-                  <div className="flex w-full flex-col gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => void handleSendTest()}
-                      disabled={testing}
-                      className="vbiz-modal-btn-primary w-full rounded-full py-3 text-sm font-bold transition-all disabled:opacity-60"
-                    >
-                      {testing ? 'Sending…' : 'Send test notification'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDone}
-                      className="vbiz-modal-btn-secondary w-full rounded-full py-3 text-sm font-bold transition-all"
-                    >
-                      Done
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDone}
+                    className="vbiz-modal-btn-primary w-full rounded-full py-3 text-sm font-bold transition-all"
+                  >
+                    Done
+                  </button>
                 </div>
               )}
             </div>
