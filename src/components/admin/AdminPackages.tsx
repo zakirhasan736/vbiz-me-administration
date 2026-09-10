@@ -635,7 +635,7 @@ export default function AdminPackages() {
                   <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Feature access</p>
                   <p className="text-[10px] font-semibold text-slate-400">
                     Turn features on or off for everyone on this package. Unchecked means owners cannot use that area.
-                    Push notification is included for every package and cannot be turned off.
+                    Push notification and CRM are included for every package and cannot be turned off.
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {configurablePackageAccessFeatures().map((item) => (

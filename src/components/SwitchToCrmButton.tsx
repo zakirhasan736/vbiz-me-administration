@@ -3,7 +3,7 @@
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
 import { usePackageAccess } from '@/hooks/usePackageAccess'
-import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
+import { canShowCrmEntry, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { cn } from '@/utils/cn'
 import { ArrowLeftRight } from 'lucide-react'
 import Link from 'next/link'
@@ -23,12 +23,12 @@ export function SwitchToCrmButton({ variant = 'header', className }: SwitchToCrm
   const onCrm = pathname === '/crm' || pathname.startsWith('/crm/')
   const mayOpenCrm =
     CRM_UI_ENABLED &&
-    canSessionUseCrm({
+    canShowCrmEntry({
       role,
       allowedModules: user?.allowedModules,
       packageAllowsCrm: isStaff ? false : packageAllowsCrm,
-    }) &&
-    (isStaff || !entitlementsLoading)
+      entitlementsLoading: isStaff ? false : entitlementsLoading,
+    })
 
   if (!onCrm && !mayOpenCrm) return null
 

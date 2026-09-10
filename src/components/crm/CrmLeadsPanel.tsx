@@ -38,6 +38,8 @@ import {
   ExternalLink,
   Globe,
   IdCard,
+  ChevronLeft,
+  ChevronRight,
   Mail,
   MapPin,
   MessageSquare,
@@ -52,14 +54,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ElementType } from 'react'
 
-const PAGE_SIZE = 50
-
-function appendUnique(prev: CrmLeadRow[], next: CrmLeadRow[]) {
-  if (!next.length) return prev
-  const seen = new Set(prev.map((row) => row.id))
-  const fresh = next.filter((row) => !seen.has(row.id))
-  return fresh.length ? [...prev, ...fresh] : prev
-}
+const PAGE_SIZE = 10
 
 function digitsPhone(phone: string) {
   return phone.replace(/[^\d+]/g, '')
@@ -117,8 +112,18 @@ export function CrmLeadsPanel({
   onOpenEventItem?: (item: LeadEventRow) => void
 } = {}) {
   const [skip, setSkip] = useState(0)
+function cardsLabel(lead: CrmLeadRow): string {
+  const cards = lead.cards?.filter((card) => card.profileId) ?? []
+  if (cards.length > 1) {
+    return cards.map((card) => card.name || card.slug || 'Card').join(' · ')
+  }
+  if (cards.length === 1) return cards[0].name || cards[0].slug || 'Card'
+  return lead.vCardName || lead.vCardSlug || 'Card'
+}
+
+export function CrmLeadsPanel() {
+  const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
-  const [accum, setAccum] = useState<CrmLeadRow[]>([])
   const [addOpen, setAddOpen] = useState(false)
   const [scheduleLead, setScheduleLead] = useState<CrmLeadRow | null>(null)
   const [eventLead, setEventLead] = useState<CrmLeadRow | null>(null)
@@ -129,6 +134,7 @@ export function CrmLeadsPanel({
   const [pendingDeleteLead, setPendingDeleteLead] = useState<CrmLeadRow | null>(null)
   const expandedPanelRef = useRef<HTMLDivElement>(null)
 
+  const skip = page * PAGE_SIZE
   const listQuery = useMemo(
     () => ({
       skip,
@@ -139,7 +145,7 @@ export function CrmLeadsPanel({
   )
 
   const { data: dashboard } = useGetCrmDashboardQuery()
-  const { data: page, isLoading, isFetching, isError, error } = useGetCrmLeadsQuery(listQuery)
+  const { data: pageData, isLoading, isFetching, isError, error } = useGetCrmLeadsQuery(listQuery)
   const [createLead, { isLoading: isCreating }] = useCreateCrmLeadMutation()
   const [deleteLead, { isLoading: isDeleting }] = useDeleteCrmLeadMutation()
   const [createMeeting, { isLoading: isScheduling }] = useCreateMeetingMutation()
@@ -181,6 +187,11 @@ export function CrmLeadsPanel({
     }
     setSkip((prev) => prev + PAGE_SIZE)
   }
+  const rows = pageData?.items ?? []
+  const total = pageData?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const hasPrev = page > 0
+  const hasNext = skip + rows.length < total
 
   const handleCreate = async (payload: {
     fullName: string
@@ -192,15 +203,14 @@ export function CrmLeadsPanel({
     try {
       await createLead(payload).unwrap()
       notify.info('Lead saved. It stays in CRM only — not on your card dashboard.')
-      setSkip(0)
-      setAccum([])
-    } catch (error) {
+      setPage(0)
+    } catch (createError) {
       const message =
-        error && typeof error === 'object' && 'data' in error
-          ? String((error as { data?: { message?: string } }).data?.message || '')
+        createError && typeof createError === 'object' && 'data' in createError
+          ? String((createError as { data?: { message?: string } }).data?.message || '')
           : ''
       notify.error(message || 'Couldn’t save this lead. Please try again.')
-      throw error
+      throw createError
     }
   }
 
@@ -224,13 +234,13 @@ export function CrmLeadsPanel({
       notify.info('Event created. It will show on Schedules and Wish & Outreach.')
       setEventLead(null)
       return created
-    } catch (error) {
+    } catch (eventError) {
       const message =
-        error && typeof error === 'object' && 'data' in error
-          ? String((error as { data?: { message?: string } }).data?.message || '')
+        eventError && typeof eventError === 'object' && 'data' in eventError
+          ? String((eventError as { data?: { message?: string } }).data?.message || '')
           : ''
       notify.error(message || 'Couldn’t create this event.')
-      throw error
+      throw eventError
     }
   }
 
@@ -277,10 +287,9 @@ export function CrmLeadsPanel({
             value={search}
             onChange={(event) => {
               setSearch(event.target.value)
-              setSkip(0)
-              setAccum([])
+              setPage(0)
             }}
-            placeholder="Search name, email, phone, or card…"
+            placeholder="Search all leads by name, email, phone, or card…"
             className="w-full bg-transparent text-sm font-medium outline-none dark:text-white"
           />
         </label>
@@ -302,7 +311,7 @@ export function CrmLeadsPanel({
                 : 'Couldn’t load CRM leads.'}
             </p>
           </div>
-        ) : isLoading && skip === 0 ? (
+        ) : isLoading ? (
           <div className="space-y-3 p-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-24 w-full rounded-2xl" />
@@ -317,6 +326,7 @@ export function CrmLeadsPanel({
           </div>
         ) : (
           <div className="max-w-full min-w-0 space-y-3 overflow-x-hidden p-3 sm:p-4">
+          <ul className={cn('divide-y divide-slate-100 dark:divide-white/5', isFetching && 'opacity-70')}>
             {rows.map((lead) => {
               const phone = digitsPhone(lead.phoneNumber || '')
               const email = lead.email?.trim()
@@ -530,6 +540,33 @@ export function CrmLeadsPanel({
                           />
                         </button>
                       </div>
+              const multiCards = (lead.cards?.length ?? 0) > 1
+              return (
+                <li key={lead.id} className="px-4 py-4 sm:px-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-black text-slate-900 dark:text-white">{lead.fullName}</p>
+                        {lead.origin === 'crm_external' ? (
+                          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[9px] font-black tracking-wider text-indigo-700 uppercase dark:bg-indigo-500/15 dark:text-indigo-300">
+                            Added by you
+                          </span>
+                        ) : null}
+                        {multiCards ? (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300">
+                            {lead.cards!.length} cards
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        <span className={multiCards ? '' : 'truncate'}>
+                          {multiCards ? `Cards · ${cardsLabel(lead)}` : cardsLabel(lead)}
+                        </span>
+                        <span className="text-slate-400"> · {formatWhen(lead.submittedAt)}</span>
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] font-medium text-slate-400">
+                        {[lead.phoneNumber, lead.email].filter(Boolean).join(' · ') || 'No contact details'}
+                      </p>
                     </div>
 
                     <div className="grid w-full min-w-0 grid-cols-[1fr_auto] gap-2">
@@ -648,16 +685,30 @@ export function CrmLeadsPanel({
             })}
           </div>
         )}
-        {hasMore ? (
-          <div className="border-t border-slate-100 p-4 dark:border-white/5">
-            <button
-              type="button"
-              onClick={loadMore}
-              disabled={isFetching}
-              className="w-full rounded-2xl bg-slate-100 py-2.5 text-[11px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/5 dark:text-slate-300"
-            >
-              {isFetching ? 'Loading…' : 'Load more'}
-            </button>
+
+        {total > 0 ? (
+          <div className="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/5">
+            <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+              Showing {skip + 1}–{skip + rows.length} of {total} · Page {page + 1} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                disabled={!hasPrev || isFetching}
+                className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-black tracking-wider text-slate-600 uppercase disabled:opacity-40 dark:bg-white/5 dark:text-slate-300"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Prev
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((prev) => prev + 1)}
+                disabled={!hasNext || isFetching}
+                className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-black tracking-wider text-slate-600 uppercase disabled:opacity-40 dark:bg-white/5 dark:text-slate-300"
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         ) : null}
       </div>
@@ -732,31 +783,26 @@ export function CrmLeadsPanel({
 
 function MetricCard({ label, value }: { label: string; value?: number }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
+    <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#0d121c]">
       <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{label}</p>
-      <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-        {typeof value === 'number' ? value.toLocaleString() : '—'}
-      </p>
+      <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">{value ?? '—'}</p>
     </div>
   )
 }
 
 function ActionLink({ href, label, icon: Icon }: { href?: string; label: string; icon: typeof Phone }) {
-  const className = cn(
-    'inline-flex items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase',
-    href
-      ? 'bg-slate-100 text-slate-700 dark:bg-white/5 dark:text-slate-200'
-      : 'cursor-not-allowed bg-slate-50 text-slate-300 dark:bg-white/5 dark:text-slate-600'
-  )
   if (!href) {
     return (
-      <span className={className} aria-disabled>
+      <span className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-50 px-2.5 py-2 text-[10px] font-black tracking-wider text-slate-300 uppercase dark:bg-white/5 dark:text-slate-600">
         <Icon className="h-3.5 w-3.5" /> {label}
       </span>
     )
   }
   return (
-    <a href={href} className={className}>
+    <a
+      href={href}
+      className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-50 px-2.5 py-2 text-[10px] font-black tracking-wider text-slate-700 uppercase dark:bg-white/5 dark:text-slate-200"
+    >
       <Icon className="h-3.5 w-3.5" /> {label}
     </a>
   )
