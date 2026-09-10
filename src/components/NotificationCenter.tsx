@@ -33,7 +33,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useMemo, useRef, useState, useSyncExternalStore, type ElementType } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ElementType } from 'react'
 
 const CATEGORY_ICON: Record<NotificationCategory, ElementType> = {
   contact_save: Save,
@@ -116,7 +116,7 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
   const dispatch = useAppDispatch()
   const btnRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const [pos, setPos] = useState({ top: 0, left: 12, width: 320 })
 
   const storedItems = useSyncExternalStore(
     subscribeToNotifications,
@@ -140,14 +140,21 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
     getServerNotificationPermissionSnapshot
   )
 
+  const placeDropdown = () => {
+    if (!btnRef.current || typeof window === 'undefined') return
+    const rect = btnRef.current.getBoundingClientRect()
+    const margin = 12
+    const panelWidth = Math.min(384, Math.max(240, window.innerWidth - margin * 2))
+    // Prefer aligning the panel's right edge with the bell button.
+    let left = rect.right - panelWidth
+    const maxLeft = window.innerWidth - margin - panelWidth
+    left = Math.min(Math.max(margin, left), Math.max(margin, maxLeft))
+    const top = Math.min(rect.bottom + 10, Math.max(margin, window.innerHeight - margin - 120))
+    setPos({ top, left, width: panelWidth })
+  }
+
   const toggle = () => {
-    if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect()
-      setPos({
-        top: rect.bottom + 10,
-        right: Math.max(12, window.innerWidth - rect.right),
-      })
-    }
+    if (!open) placeDropdown()
     setOpen((v) => !v)
   }
 
@@ -182,6 +189,30 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
     setDeletedIds((current) => new Set(current).add(id))
   }
 
+  useEffect(() => {
+    if (!open) return
+
+    const onReposition = () => {
+      if (!btnRef.current || typeof window === 'undefined') return
+      const rect = btnRef.current.getBoundingClientRect()
+      const margin = 12
+      const panelWidth = Math.min(384, Math.max(240, window.innerWidth - margin * 2))
+      let left = rect.right - panelWidth
+      const maxLeft = window.innerWidth - margin - panelWidth
+      left = Math.min(Math.max(margin, left), Math.max(margin, maxLeft))
+      const top = Math.min(rect.bottom + 10, Math.max(margin, window.innerHeight - margin - 120))
+      setPos({ top, left, width: panelWidth })
+    }
+
+    onReposition()
+    window.addEventListener('resize', onReposition)
+    window.addEventListener('scroll', onReposition, true)
+    return () => {
+      window.removeEventListener('resize', onReposition)
+      window.removeEventListener('scroll', onReposition, true)
+    }
+  }, [open])
+
   return (
     <div className={cn('relative isolate z-80', className)}>
       <button
@@ -205,17 +236,17 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
         <ModalPortal>
           <div className="fixed inset-0 z-400" aria-hidden onClick={() => setOpen(false)} />
           <div
-            className="animate-in zoom-in-95 fixed z-410 w-[min(24rem,calc(100vw-1.5rem))] rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-2xl duration-150 dark:border-white/10 dark:bg-[#0d1222]"
-            style={{ top: pos.top, right: pos.right }}
+            className="animate-in zoom-in-95 fixed z-410 max-h-[min(28rem,calc(100dvh-5rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-2xl duration-150 dark:border-white/10 dark:bg-[#0d1222]"
+            style={{ top: pos.top, left: pos.left, width: pos.width }}
             role="dialog"
             aria-label={title}
           >
-            <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3 dark:border-white/5">
-              <h4 className="text-sm font-black text-slate-900 dark:text-white">{title}</h4>
+            <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-100 pb-3 dark:border-white/5">
+              <h4 className="min-w-0 truncate text-sm font-black text-slate-900 dark:text-white">{title}</h4>
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="text-primary-500 inline-flex items-center gap-1 text-[10px] font-black tracking-wider uppercase hover:underline"
+                className="text-primary-500 inline-flex shrink-0 items-center gap-1 text-[10px] font-black tracking-wider uppercase hover:underline"
               >
                 <CheckCheck className="h-3.5 w-3.5" />
                 Mark all read
@@ -240,7 +271,7 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
               </button>
             )}
 
-            <div className="max-h-85 space-y-2.5 overflow-y-auto">
+            <div className="max-h-[min(20rem,calc(100dvh-11rem))] space-y-2.5 overflow-y-auto">
               {items.length === 0 ? (
                 <div className="py-10 text-center">
                   <Bell className="mx-auto mb-2 h-8 w-8 text-slate-300 dark:text-white/10" />
@@ -270,7 +301,7 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
                             <span className="truncate">{n.title}</span>
                             {!n.read && <span className="bg-primary-500 h-1.5 w-1.5 shrink-0 rounded-full" />}
                           </p>
-                          <p className="mt-0.5 text-[11px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+                          <p className="mt-0.5 text-[11px] leading-relaxed font-medium break-words text-slate-500 dark:text-slate-400">
                             {n.body}
                           </p>
                           <span className="mt-1.5 block text-[9px] font-bold text-slate-400">
