@@ -46,17 +46,20 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
   const email = isVisible('MyInfo Email') ? personal.email?.trim() || '' : ''
   const companyIconUrl = field('Company/Office Icon').customValue
   const profileAreaUrl = field('Profile Image/Video').customValue?.trim() || homeMedia.profileMedia || ''
-  const aboutMeMediaUrl = aboutMe?.items?.find((item) => item.featuredImage?.trim())?.featuredImage?.trim() || ''
+  const aboutMeMediaUrl =
+    aboutMe?.items?.find((item) => item.featuredImage?.trim())?.featuredImage?.trim() ||
+    field('About Me').customValue?.trim() ||
+    ''
   const centerSources = useMemo(
     () =>
       resolveShareQrCenterSources({
         avatarUrl: avatarImageUrl,
-        profileMediaUrl: profileAreaUrl,
+        profileMediaUrl: profileAreaUrl || homeMedia.profileMedia,
         aboutMeMediaUrl,
         introVideoUrl: homeMedia.introVideo,
         companyIconUrl,
       }),
-    [avatarImageUrl, profileAreaUrl, aboutMeMediaUrl, homeMedia.introVideo, companyIconUrl]
+    [avatarImageUrl, homeMedia.profileMedia, profileAreaUrl, aboutMeMediaUrl, homeMedia.introVideo, companyIconUrl]
   )
   const shareUrl = useMemo(() => {
     if (!isOpen) return ''
@@ -76,6 +79,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       foregroundColor: '#09090b',
       centerImageUrl: centerSources.imageUrl,
       centerVideoUrl: centerSources.videoUrl,
+      centerImageUrls: centerSources.imageUrls,
+      centerVideoUrls: centerSources.videoUrls,
+      fallbackInitials: personal.fullName || profileName || 'VB',
     })
       .then((url) => {
         if (!cancelled) setQrCodeUrl(url)
@@ -87,7 +93,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     return () => {
       cancelled = true
     }
-  }, [isOpen, shareUrl, centerSources])
+  }, [isOpen, shareUrl, centerSources, personal.fullName, profileName])
 
   const handleCopyLink = async () => {
     try {

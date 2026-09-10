@@ -11,7 +11,16 @@ const EXACT_HOSTS = new Set([
   '127.0.0.1',
 ])
 
-const HOST_SUFFIXES = ['.amazonaws.com', '.cloudfront.net', '.s3.amazonaws.com', '.digitaloceanspaces.com']
+const HOST_SUFFIXES = [
+  '.amazonaws.com',
+  '.cloudfront.net',
+  '.s3.amazonaws.com',
+  '.digitaloceanspaces.com',
+  '.cloudinary.com',
+  '.googleusercontent.com',
+  '.fbcdn.net',
+  '.twimg.com',
+]
 
 function hostFromEnv(raw?: string | null): string | null {
   const value = raw?.trim()
@@ -36,6 +45,7 @@ function isAllowedImageHost(hostname: string, requestHost?: string | null): bool
   const host = hostname.trim().toLowerCase()
   if (!host || isPrivateHostname(host)) return false
   if (EXACT_HOSTS.has(host)) return true
+  if (host.endsWith('.vbizme.com') || host.endsWith('.vbiz.me')) return true
   if (requestHost && host === requestHost.toLowerCase()) return true
   const apiHost = hostFromEnv(process.env.NEXT_PUBLIC_API_URL)
   const appHost = hostFromEnv(process.env.NEXT_PUBLIC_APP_URL)

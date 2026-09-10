@@ -9,7 +9,14 @@ describe('resolveShareQrCenterSources', () => {
         profileMediaUrl: 'https://cdn.example.com/profile.jpg',
         aboutMeMediaUrl: 'https://cdn.example.com/about.jpg',
       })
-    ).toEqual({ imageUrl: 'https://cdn.example.com/avatar.jpg', videoUrl: '' })
+    ).toMatchObject({
+      imageUrl: 'https://cdn.example.com/avatar.jpg',
+      imageUrls: [
+        'https://cdn.example.com/avatar.jpg',
+        'https://cdn.example.com/profile.jpg',
+        'https://cdn.example.com/about.jpg',
+      ],
+    })
 
     expect(
       resolveShareQrCenterSources({
@@ -17,7 +24,7 @@ describe('resolveShareQrCenterSources', () => {
         profileMediaUrl: 'https://cdn.example.com/profile.jpg',
         aboutMeMediaUrl: 'https://cdn.example.com/about.jpg',
       })
-    ).toEqual({ imageUrl: 'https://cdn.example.com/profile.jpg', videoUrl: '' })
+    ).toMatchObject({ imageUrl: 'https://cdn.example.com/profile.jpg' })
 
     expect(
       resolveShareQrCenterSources({
@@ -25,7 +32,10 @@ describe('resolveShareQrCenterSources', () => {
         profileMediaUrl: '',
         aboutMeMediaUrl: 'https://cdn.example.com/about.jpg',
       })
-    ).toEqual({ imageUrl: 'https://cdn.example.com/about.jpg', videoUrl: '' })
+    ).toMatchObject({
+      imageUrl: 'https://cdn.example.com/about.jpg',
+      videoUrls: ['https://cdn.example.com/avatar.mp4'],
+    })
   })
 
   it('falls back to video when no still image is available', () => {
@@ -36,6 +46,10 @@ describe('resolveShareQrCenterSources', () => {
         aboutMeMediaUrl: '',
         introVideoUrl: 'https://cdn.example.com/intro.mp4',
       })
-    ).toEqual({ imageUrl: '', videoUrl: 'https://cdn.example.com/profile.mp4' })
+    ).toMatchObject({
+      imageUrl: '',
+      videoUrl: 'https://cdn.example.com/profile.mp4',
+      videoUrls: ['https://cdn.example.com/profile.mp4', 'https://cdn.example.com/intro.mp4'],
+    })
   })
 })

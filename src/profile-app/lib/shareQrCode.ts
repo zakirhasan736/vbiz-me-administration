@@ -4,6 +4,10 @@ import QRCode from 'qrcode'
 export type ShareQrCenterSources = {
   imageUrl: string
   videoUrl: string
+  /** Still-image candidates in priority order (avatar → profile → About Me → …). */
+  imageUrls: string[]
+  /** Video candidates when no still image loads. */
+  videoUrls: string[]
 }
 
 function loadImageDirect(src: string, useCors: boolean): Promise<HTMLImageElement> {
@@ -23,33 +27,51 @@ async function loadImageViaProxy(httpsUrl: string): Promise<HTMLImageElement> {
   const payload = (await response.json()) as { base64?: string; type?: string }
   if (!payload.base64) throw new Error('Proxy returned no image data')
 
-  const mime = payload.type === 'PNG' ? 'image/png' : 'image/jpeg'
+  const mime =
+    payload.type === 'PNG'
+      ? 'image/png'
+      : payload.type === 'WEBP'
+        ? 'image/webp'
+        : payload.type === 'GIF'
+          ? 'image/gif'
+          : 'image/jpeg'
   return loadImageDirect(`data:${mime};base64,${payload.base64}`, false)
 }
 
-/** Load an image for canvas compositing — uses server proxy for external hosts to avoid CORS taint. */
-async function loadImageForCanvas(src: string): Promise<HTMLImageElement> {
+function toAbsoluteMediaUrl(src: string): string {
   const trimmed = src.trim()
+  if (!trimmed) return ''
+  if (trimmed.startsWith('//')) return `https:${trimmed}`
+  if (trimmed.startsWith('/')) {
+    if (typeof window !== 'undefined' && window.location?.origin) return `${window.location.origin}${trimmed}`
+    return `https://app.vbizme.com${trimmed}`
+  }
+  return trimmed
+}
+
+/** Load an image for canvas compositing — prefer server proxy for remote hosts to avoid CORS taint. */
+async function loadImageForCanvas(src: string): Promise<HTMLImageElement> {
+  const trimmed = toAbsoluteMediaUrl(src)
   if (!trimmed) throw new Error('Empty image URL')
 
   if (trimmed.startsWith('data:')) {
     return loadImageDirect(trimmed, false)
   }
 
-  if (trimmed.startsWith('/')) {
-    return loadImageDirect(trimmed, false)
-  }
-
-  if (trimmed.startsWith('https://app.vbizme.com/')) {
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
     try {
       return await loadImageViaProxy(trimmed)
     } catch {
-      return loadImageDirect(trimmed, true)
+      try {
+        return await loadImageDirect(trimmed, true)
+      } catch {
+        return loadImageDirect(trimmed, false)
+      }
     }
   }
 
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return loadImageDirect(trimmed, true)
+  if (trimmed.startsWith('/')) {
+    return loadImageDirect(trimmed, false)
   }
 
   throw new Error(`Unsupported image URL: ${trimmed}`)
@@ -104,17 +126,25 @@ function captureVideoFrame(videoSrc: string): Promise<HTMLImageElement> {
 
     void (async () => {
       try {
-        if (videoSrc.startsWith('https://app.vbizme.com/')) {
-          const response = await fetch(`/api/proxy-media?url=${encodeURIComponent(videoSrc)}`)
-          if (!response.ok) throw new Error('Proxy media fetch failed')
-          const blob = await response.blob()
-          objectUrl = URL.createObjectURL(blob)
-          video.src = objectUrl
+        const absolute = toAbsoluteMediaUrl(videoSrc)
+        if (absolute.startsWith('http://') || absolute.startsWith('https://')) {
+          try {
+            const response = await fetch(`/api/proxy-media?url=${encodeURIComponent(absolute)}`)
+            if (response.ok) {
+              const blob = await response.blob()
+              objectUrl = URL.createObjectURL(blob)
+              video.src = objectUrl
+              return
+            }
+          } catch {
+            /* fall through to direct */
+          }
+          video.crossOrigin = 'anonymous'
+          video.src = absolute
           return
         }
 
-        video.crossOrigin = 'anonymous'
-        video.src = videoSrc
+        video.src = absolute
       } catch (error) {
         cleanup()
         reject(error)
@@ -123,23 +153,80 @@ function captureVideoFrame(videoSrc: string): Promise<HTMLImageElement> {
   })
 }
 
-async function resolveCenterImage(centerImageUrl?: string, centerVideoUrl?: string): Promise<HTMLImageElement | null> {
-  const imageSrc = centerImageUrl?.trim()
-  if (imageSrc) {
+function createInitialsAvatar(label: string, size = 320): HTMLImageElement | null {
+  const text = label
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('')
+  if (!text) return null
+
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  ctx.fillStyle = '#0f172a'
+  ctx.beginPath()
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.fillStyle = '#f8fafc'
+  ctx.font = `700 ${Math.round(size * 0.38)}px system-ui, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, size / 2, size / 2 + size * 0.03)
+
+  const img = new Image()
+  img.src = canvas.toDataURL('image/png')
+  return img
+}
+
+async function resolveCenterImage(opts: {
+  imageUrls?: string[]
+  videoUrls?: string[]
+  centerImageUrl?: string
+  centerVideoUrl?: string
+  fallbackInitials?: string
+}): Promise<HTMLImageElement | null> {
+  const imageUrls = [...(opts.imageUrls || []), ...(opts.centerImageUrl ? [opts.centerImageUrl] : [])]
+    .map((url) => url.trim())
+    .filter(Boolean)
+
+  const seen = new Set<string>()
+  for (const imageSrc of imageUrls) {
+    if (seen.has(imageSrc)) continue
+    seen.add(imageSrc)
     try {
       return await loadImageForCanvas(imageSrc)
     } catch {
-      /* try video fallback */
+      /* try next candidate */
     }
   }
 
-  const videoSrc = centerVideoUrl?.trim()
-  if (videoSrc && isVideoAvatarSrc(videoSrc)) {
+  const videoUrls = [...(opts.videoUrls || []), ...(opts.centerVideoUrl ? [opts.centerVideoUrl] : [])]
+    .map((url) => url.trim())
+    .filter((url) => url && isVideoAvatarSrc(url))
+
+  for (const videoSrc of videoUrls) {
     try {
       return await captureVideoFrame(videoSrc)
     } catch {
-      /* no center image */
+      /* try next */
     }
+  }
+
+  const initials = createInitialsAvatar(opts.fallbackInitials || '')
+  if (initials) {
+    if (initials.complete) return initials
+    await new Promise<void>((resolve) => {
+      initials.onload = () => resolve()
+      initials.onerror = () => resolve()
+    })
+    return initials
   }
 
   return null
@@ -149,7 +236,20 @@ function isStaticImageUrl(value?: string): value is string {
   const src = value?.trim()
   if (!src) return false
   if (isVideoAvatarSrc(src)) return false
-  return src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/') || src.startsWith('data:')
+  return (
+    src.startsWith('http://') ||
+    src.startsWith('https://') ||
+    src.startsWith('/') ||
+    src.startsWith('data:') ||
+    src.startsWith('//')
+  )
+}
+
+function pushUnique(out: string[], seen: Set<string>, value?: string | null) {
+  const trimmed = value?.trim()
+  if (!trimmed || seen.has(trimmed)) return
+  seen.add(trimmed)
+  out.push(trimmed)
 }
 
 export type ShareQrCenterSourceInput = {
@@ -161,13 +261,13 @@ export type ShareQrCenterSourceInput = {
   aboutMeMediaUrl?: string
   /** Video fallback after still images (intro / profile video) */
   introVideoUrl?: string
-  /** @deprecated Prefer avatarUrl / profileMediaUrl / aboutMeMediaUrl */
+  /** Extra still candidates (company icon, etc.) */
   companyIconUrl?: string
 }
 
 /**
  * Share QR center media priority:
- * avatar → profile area image → About Me image → video (profile/intro) → company icon.
+ * avatar → profile area image → About Me image → company icon → video fallbacks.
  */
 export function resolveShareQrCenterSources(
   companyIconUrlOrInput?: string | ShareQrCenterSourceInput,
@@ -183,22 +283,28 @@ export function resolveShareQrCenterSources(
           introVideoUrl,
         }
 
-  const stillCandidates = [input.avatarUrl, input.profileMediaUrl, input.aboutMeMediaUrl, input.companyIconUrl]
-  for (const candidate of stillCandidates) {
-    if (isStaticImageUrl(candidate)) {
-      return { imageUrl: candidate.trim(), videoUrl: '' }
-    }
+  const imageUrls: string[] = []
+  const videoUrls: string[] = []
+  const seenImages = new Set<string>()
+  const seenVideos = new Set<string>()
+
+  const stillPriority = [input.avatarUrl, input.profileMediaUrl, input.aboutMeMediaUrl, input.companyIconUrl]
+  for (const candidate of stillPriority) {
+    if (isStaticImageUrl(candidate)) pushUnique(imageUrls, seenImages, candidate)
   }
 
-  const videoCandidates = [input.avatarUrl, input.profileMediaUrl, input.aboutMeMediaUrl, input.introVideoUrl]
-  for (const candidate of videoCandidates) {
+  const videoPriority = [input.avatarUrl, input.profileMediaUrl, input.aboutMeMediaUrl, input.introVideoUrl]
+  for (const candidate of videoPriority) {
     const src = candidate?.trim() ?? ''
-    if (src && isVideoAvatarSrc(src)) {
-      return { imageUrl: '', videoUrl: src }
-    }
+    if (src && isVideoAvatarSrc(src)) pushUnique(videoUrls, seenVideos, src)
   }
 
-  return { imageUrl: '', videoUrl: '' }
+  return {
+    imageUrl: imageUrls[0] || '',
+    videoUrl: videoUrls[0] || '',
+    imageUrls,
+    videoUrls,
+  }
 }
 
 /** @deprecated Use resolveShareQrCenterSources */
@@ -214,7 +320,7 @@ function drawImageContained(
   width: number,
   height: number
 ) {
-  const imgRatio = image.naturalWidth / image.naturalHeight
+  const imgRatio = (image.naturalWidth || image.width) / Math.max(1, image.naturalHeight || image.height || 1)
   const boxRatio = width / height
   let drawW = width
   let drawH = height
@@ -230,6 +336,26 @@ function drawImageContained(
   }
 
   ctx.drawImage(image, dx, dy, drawW, drawH)
+}
+
+function drawCenterBadge(ctx: CanvasRenderingContext2D, canvasSize: number, image: HTMLImageElement) {
+  const logoSize = canvasSize * 0.28
+  const x = (canvasSize - logoSize) / 2
+  const y = (canvasSize - logoSize) / 2
+  const pad = logoSize * 0.12
+  const radius = logoSize * 0.22
+
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath()
+  ctx.roundRect(x - pad, y - pad, logoSize + pad * 2, logoSize + pad * 2, radius)
+  ctx.fill()
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.roundRect(x, y, logoSize, logoSize, radius * 0.9)
+  ctx.clip()
+  drawImageContained(ctx, image, x, y, logoSize, logoSize)
+  ctx.restore()
 }
 
 export function formatShareDisplayName(fullName: string): string {
@@ -261,6 +387,10 @@ type GenerateShareQrOptions = {
   foregroundColor: string
   centerImageUrl?: string
   centerVideoUrl?: string
+  centerImageUrls?: string[]
+  centerVideoUrls?: string[]
+  /** Initials drawn when no photo/video can be loaded — guarantees a center mark. */
+  fallbackInitials?: string
   size?: number
 }
 
@@ -269,6 +399,9 @@ export async function generateShareQrDataUrl({
   foregroundColor,
   centerImageUrl,
   centerVideoUrl,
+  centerImageUrls,
+  centerVideoUrls,
+  fallbackInitials,
   size = 600,
 }: GenerateShareQrOptions): Promise<string> {
   const canvas = document.createElement('canvas')
@@ -282,29 +415,23 @@ export async function generateShareQrDataUrl({
     errorCorrectionLevel: 'H',
   })
 
-  const centerImage = await resolveCenterImage(centerImageUrl, centerVideoUrl)
-  if (!centerImage) return canvas.toDataURL('image/png')
+  const centerImage = await resolveCenterImage({
+    imageUrls: centerImageUrls,
+    videoUrls: centerVideoUrls,
+    centerImageUrl,
+    centerVideoUrl,
+    fallbackInitials,
+  })
 
   const ctx = canvas.getContext('2d')
-  if (!ctx) return canvas.toDataURL('image/png')
+  if (!ctx || !centerImage) return canvas.toDataURL('image/png')
 
-  const logoSize = canvas.width * 0.22
-  const x = (canvas.width - logoSize) / 2
-  const y = (canvas.height - logoSize) / 2
-  const pad = logoSize * 0.14
-  const radius = logoSize * 0.18
-
-  ctx.fillStyle = '#ffffff'
-  ctx.beginPath()
-  ctx.roundRect(x - pad, y - pad, logoSize + pad * 2, logoSize + pad * 2, radius)
-  ctx.fill()
-
-  ctx.save()
-  ctx.beginPath()
-  ctx.roundRect(x, y, logoSize, logoSize, radius * 0.85)
-  ctx.clip()
-  drawImageContained(ctx, centerImage, x, y, logoSize, logoSize)
-  ctx.restore()
+  try {
+    drawCenterBadge(ctx, canvas.width, centerImage)
+  } catch {
+    /* tainted canvas — return plain QR rather than failing share */
+    return canvas.toDataURL('image/png')
+  }
 
   return canvas.toDataURL('image/png')
 }
