@@ -63,6 +63,8 @@ export function mapAdminProfileRowToCard(row: AdminProfileRow): AdminCard {
     socialClicks: row.socialClicks || [],
     avatar: row.avatar || undefined,
     avatarImageUrl: row.avatar || undefined,
+    createdAt: row.createdAt || undefined,
+    updatedAt: row.updatedAt || undefined,
     viewCount: views,
     uniqueViewCount: views,
     saveCount: saves,

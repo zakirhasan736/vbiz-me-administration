@@ -5,9 +5,18 @@ import { cn } from '@/utils/cn'
 import { Clock3 } from 'lucide-react'
 
 type VCardCardTimestampsProps = {
-  createdAt?: string | null
-  updatedAt?: string | null
+  createdAt?: string | Date | null
+  updatedAt?: string | Date | null
   className?: string
+}
+
+function toIso(value?: string | Date | null): string {
+  if (!value) return ''
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? '' : value.toISOString()
+  }
+  if (typeof value === 'string') return value.trim()
+  return ''
 }
 
 /**
@@ -15,11 +24,13 @@ type VCardCardTimestampsProps = {
  * Placed under name / company so owners can scan when a card was made and last changed.
  */
 export function VCardCardTimestamps({ createdAt, updatedAt, className }: VCardCardTimestampsProps) {
-  const createdLabel = formatCardTimestampLabel(createdAt)
-  const updatedLabel = formatCardTimestampLabel(updatedAt)
+  const createdIso = toIso(createdAt)
+  const updatedIso = toIso(updatedAt)
+  const createdLabel = formatCardTimestampLabel(createdIso)
+  const updatedLabel = formatCardTimestampLabel(updatedIso)
   if (!createdLabel && !updatedLabel) return null
 
-  const sameMoment = cardTimestampsEqual(createdAt, updatedAt)
+  const sameMoment = cardTimestampsEqual(createdIso, updatedIso)
   const showUpdated = Boolean(updatedLabel && (!sameMoment || !createdLabel))
 
   return (
@@ -29,8 +40,8 @@ export function VCardCardTimestamps({ createdAt, updatedAt, className }: VCardCa
         className
       )}
       title={[
-        createdAt ? `Created ${formatCardDateTime(createdAt)}` : '',
-        updatedAt ? `Updated ${formatCardDateTime(updatedAt)}` : '',
+        createdIso ? `Created ${formatCardDateTime(createdIso)}` : '',
+        updatedIso ? `Updated ${formatCardDateTime(updatedIso)}` : '',
       ]
         .filter(Boolean)
         .join(' · ')}

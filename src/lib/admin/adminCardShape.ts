@@ -88,6 +88,8 @@ export function toAdminCardShape(
     },
     socialClicks: record.socialClicks || [],
     avatar: record.avatarImageUrl,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
     viewCount: views,
     uniqueViewCount: views,
     shareCount: shares,
