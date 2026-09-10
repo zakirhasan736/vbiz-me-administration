@@ -12,7 +12,7 @@ export const PACKAGE_ACCESS_FEATURES = [
 ] as const
 
 /** Always included for every card owner — not sellable or lockable by package. */
-export const MANDATORY_PACKAGE_ACCESS_KEYS = ['allow_push_notification'] as const
+export const MANDATORY_PACKAGE_ACCESS_KEYS = ['allow_push_notification', 'allow_crm'] as const
 
 export type PackageAccessKey = (typeof PACKAGE_ACCESS_FEATURES)[number]['key']
 export type MandatoryPackageAccessKey = (typeof MANDATORY_PACKAGE_ACCESS_KEYS)[number]
@@ -151,14 +151,13 @@ export function entitlementsFromFeatures(
   whenMissing = true
 ): PackageAccessMap {
   const map = whenMissing ? allPackageAccessEnabled() : allPackageAccessDisabled()
-  // Premium add-ons: missing flags stay locked unless explicitly enabled.
+  // Premium add-on: missing AI Assistance stays locked unless explicitly enabled.
   map.allow_ai_assistance = false
-  map.allow_crm = false
   if (!features?.length) return applyMandatoryPackageAccess(map)
   for (const item of PACKAGE_ACCESS_FEATURES) {
     const row = features.find((feature) => feature.featureKey.trim().toLowerCase() === item.key)
     if (!row) continue
-    const defaultWhenMissing = item.key === 'allow_ai_assistance' || item.key === 'allow_crm' ? false : whenMissing
+    const defaultWhenMissing = item.key === 'allow_ai_assistance' ? false : whenMissing
     map[item.key] = parseAccessFlag(row.featureValue, defaultWhenMissing)
   }
   return applyMandatoryPackageAccess(map)
