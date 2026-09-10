@@ -14,7 +14,6 @@ const SECTION_EXPORT_NAMES: Record<ProfileNavContentKey, string> = {
   additional: 'AdditionalServicesSection',
   blog: 'BlogSection',
   videos: 'VideosSection',
-  'video-links': 'VideoLinksSection',
   'why-choose-us': 'WhyChooseUsSection',
   gallery: 'ImageGallerySection',
   explainer: 'ExplainerSection',

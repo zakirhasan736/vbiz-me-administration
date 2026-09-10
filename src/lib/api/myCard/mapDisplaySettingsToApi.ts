@@ -24,7 +24,6 @@ export const LABEL_TO_NAV_CHECKBOX: Record<string, string> = {
   'Insurance License': 'certificationNav_checkbox',
   Licensing: 'licensingNav_checkbox',
   '2D Explainer': '2dNav_checkbox',
-  'Video Links': 'videoLinksNav_checkbox',
   'Meet Our Team': 'meetOurTeamNav_checkbox',
   BBB: 'bbbNav_checkbox',
   'Department of Consumer Protection (DCP)': 'dcpNav_checkbox',
@@ -42,7 +41,7 @@ export const LABEL_TO_NAV_CHECKBOX: Record<string, string> = {
   'Global Connection': 'globalConnectionNav_checkbox',
   'My Info': 'myInfoNav_checkbox',
   'Content & media': 'contentMediaNav_checkbox',
-  Videos: 'videoLinksNav_checkbox',
+  Videos: 'videoNav_checkbox',
   Post: 'blogNav_checkbox',
   'Additional Services': 'serviceNav_checkbox',
   Announcement: 'blogNav_checkbox',
@@ -117,6 +116,7 @@ const CUSTOM_VALUE_SETTING_KEYS: Record<string, string> = {
 }
 
 export const EXTRA_FIELDS_SETTING_KEY = 'extra_fields_json'
+export const GAME_IDS_SETTING_KEY = 'game_ids_json'
 export const DISPLAY_SETTINGS_SETTING_KEY = 'display_settings_json'
 export const THEME_SETTING_KEY = 'theme_json'
 export const CUSTOM_TABS_SETTING_KEY = 'custom_tabs_json'
@@ -168,6 +168,11 @@ export function mapDisplaySettingsToApiSettings(
     settings.portfolioNav_checkbox = settings.galleryNav_checkbox
   }
 
+  // Keep Videos nav keys in sync (legacy videoLinksNav used to mean Video Links)
+  if (settings.videoNav_checkbox !== undefined) {
+    settings.videoLinksNav_checkbox = settings.videoNav_checkbox
+  }
+
   return settings
 }
 
@@ -215,6 +220,35 @@ export function mapExtraFieldsToApiSettings(extraFields: VCardExtraField[] | und
   return { [EXTRA_FIELDS_SETTING_KEY]: JSON.stringify(extraFields) }
 }
 
+const GAME_ID_KEYS = ['steam', 'psn', 'xbox', 'switch', 'epic', 'discord'] as const
+
+/** Parse persisted game IDs from settings JSON. */
+export function parseGameIdsJson(raw?: string | null): Record<string, string> {
+  if (!raw?.trim()) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const record = parsed as Record<string, unknown>
+    const games: Record<string, string> = {}
+    for (const key of GAME_ID_KEYS) {
+      const value = record[key]
+      if (typeof value === 'string' && value.trim()) games[key] = value.trim()
+    }
+    return games
+  } catch {
+    return {}
+  }
+}
+
+export function mapGameIdsToApiSettings(games: Record<string, string> | undefined): Record<string, string> {
+  const normalized: Record<string, string> = {}
+  for (const key of GAME_ID_KEYS) {
+    const value = games?.[key]?.trim() ?? ''
+    if (value) normalized[key] = value
+  }
+  return { [GAME_IDS_SETTING_KEY]: JSON.stringify(normalized) }
+}
+
 export function mapThemeToApiSettings(data: Pick<VCardData, 'theme'>): Record<string, string> {
   if (!data.theme) return {}
   return { [THEME_SETTING_KEY]: JSON.stringify(data.theme) }
@@ -256,6 +290,7 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
   return {
     ...mapDisplaySettingsToApiSettings(data.displaySettings),
     ...mapExtraFieldsToApiSettings(data.extraFields),
+    ...mapGameIdsToApiSettings(data.social?.games),
     ...mapThemeToApiSettings(data),
     ...mapCustomTabsToApiSettings(data),
     ...mapMyInfoToApiSettings(data.myInfo, data.personal),

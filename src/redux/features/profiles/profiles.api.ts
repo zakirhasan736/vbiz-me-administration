@@ -6,8 +6,10 @@ import {
 import {
   CUSTOM_TABS_SETTING_KEY,
   EXTRA_FIELDS_SETTING_KEY,
+  GAME_IDS_SETTING_KEY,
   mapVCardEditorSettingsPayload,
   parseExtraFieldsJson,
+  parseGameIdsJson,
   parseThemeJson,
   TAB_LABEL_OVERRIDES_SETTING_KEY,
   THEME_SETTING_KEY,
@@ -20,6 +22,7 @@ import {
   shouldRemoveFromLifecycleList,
 } from '@/lib/cardLifecycleCache'
 import { resolveCardStatus } from '@/lib/cardStatus'
+import { detectPortfolioType, isVideoUrl } from '@/lib/mediaUrl'
 import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { applyEditorSettingsToThemeConfig, hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
@@ -80,6 +83,7 @@ export type ApiProfile = {
   linkedin?: string | null
   rumble?: string | null
   truth?: string | null
+  pinterest?: string | null
   status?: { id?: string; name?: string | null } | null
   gender?: { id?: string; name?: string | null } | null
   maritalStatus?: { id?: string; name?: string | null } | null
@@ -622,6 +626,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   const savedTheme = parseThemeJson(settingsMap[THEME_SETTING_KEY])
   const customTabs = parseCustomTabs(settingsMap[CUSTOM_TABS_SETTING_KEY])
   const extraFields = parseExtraFieldsJson(settingsMap[EXTRA_FIELDS_SETTING_KEY])
+  const gameIds = parseGameIdsJson(settingsMap[GAME_IDS_SETTING_KEY])
   const tabLabelOverrides = parseTabLabelOverrides(settingsMap[TAB_LABEL_OVERRIDES_SETTING_KEY])
   const theme = {
     primaryColor: savedTheme?.primaryColor || staticTheme.primaryColor,
@@ -679,13 +684,14 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
         linkedin: profile.linkedin || '',
         rumble: profile.rumble || '',
         truth: profile.truth || '',
+        pinterest: profile.pinterest || '',
       },
       customLinks: (profile.socialLinks || []).map((s) => ({
         id: s.id,
         name: s.name || 'Link',
         url: s.url || '',
       })),
-      games: {},
+      games: gameIds,
     },
     education: (profile.education || []).map((e) => ({
       id: e.id,
@@ -745,16 +751,26 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
           : portfolios
       return rows.map((p) => {
         const imageUrl = String(('featuredImage' in p && p.featuredImage) || ('imageUrl' in p && p.imageUrl) || '')
+        const linkUrl = String(p.url || '')
         const status = p.status
         const active = status !== 0 && status !== '0'
+        const detected = imageUrl.trim()
+          ? detectPortfolioType(imageUrl)
+          : linkUrl.trim() && isVideoUrl(linkUrl)
+            ? 'Video'
+            : linkUrl.trim()
+              ? detectPortfolioType(linkUrl)
+              : 'Image'
+        // Gallery / Photos does not use Audio as a portfolio type.
+        const type = detected === 'Audio' ? 'Image' : detected
         return {
           id: p.id,
-          type: 'Image' as const,
+          type,
           title: p.title || '',
           description: p.description || '',
           imageUrl,
           imageName: '',
-          url: p.url || '',
+          url: linkUrl,
           active,
         }
       })
@@ -846,6 +862,9 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     tiktok: data.social?.handles?.tiktok,
     youtube: data.social?.handles?.youtube,
     linkedin: data.social?.handles?.linkedin,
+    rumble: data.social?.handles?.rumble,
+    truth: data.social?.handles?.truth,
+    pinterest: data.social?.handles?.pinterest,
     settings: mapVCardEditorSettingsPayload(data),
     profileSettings: {
       ...(data.appearance

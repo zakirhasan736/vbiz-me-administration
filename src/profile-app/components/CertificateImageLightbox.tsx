@@ -1,17 +1,35 @@
 'use client'
 
-import { Award, ExternalLink, X } from 'lucide-react'
+import { encodeMediaUrl, isDocumentUrl, isUsableImageSrc } from '@/lib/mediaUrl'
+import { Award, ExternalLink, FileText, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 
+export type CertificateMediaKind = 'image' | 'pdf' | 'document'
+
 export type CertificatePreview = {
   title: string
   imageUrl: string
+  /** When omitted, inferred from `imageUrl`. */
+  mediaKind?: CertificateMediaKind
   description: string
   detailUrl: string
   credentialLabel: string
   year: string
+}
+
+export function resolveCertificateMediaKind(url: string): CertificateMediaKind {
+  const trimmed = url.trim()
+  if (!trimmed) return 'image'
+  if (/\.pdf(\?|#|$)/i.test(trimmed) || /^data:application\/pdf/i.test(trimmed)) return 'pdf'
+  if (isDocumentUrl(trimmed) || /\.(txt|docx?|rtf)(\?|#|$)/i.test(trimmed)) return 'document'
+  if (/\.(png|jpe?g|gif|webp|svg|avif|bmp)(\?|#|$)/i.test(trimmed) || /^data:image\//i.test(trimmed)) {
+    return 'image'
+  }
+  // Extensionless CDN URLs are usually images in this product.
+  if (!/\.(pdf|docx?|txt|rtf)(\?|#|$)/i.test(trimmed)) return 'image'
+  return 'document'
 }
 
 function useIsClient() {
@@ -32,6 +50,9 @@ export function CertificateImageLightbox({
   onClose: () => void
 }) {
   const isClient = useIsClient()
+  const mediaUrl = encodeMediaUrl(preview.imageUrl) || preview.imageUrl.trim()
+  const kind = preview.mediaKind ?? resolveCertificateMediaKind(mediaUrl)
+  const openHref = preview.detailUrl.trim() || mediaUrl
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -81,15 +102,30 @@ export function CertificateImageLightbox({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="overflow-hidden rounded-lg bg-white shadow-2xl">
-          {preview.imageUrl ? (
+          {kind === 'image' && mediaUrl && isUsableImageSrc(mediaUrl) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={preview.imageUrl}
-              alt={preview.title}
-              className="max-h-[calc(100dvh-12rem)] w-full object-contain"
-            />
+            <img src={mediaUrl} alt={preview.title} className="max-h-[calc(100dvh-12rem)] w-full object-contain" />
+          ) : kind === 'pdf' && mediaUrl ? (
+            <iframe src={mediaUrl} title={preview.title} className="h-[min(70dvh,720px)] w-full border-0 bg-zinc-100" />
+          ) : mediaUrl ? (
+            <div className="flex min-h-60 flex-col items-center justify-center gap-4 bg-zinc-50 px-6 py-12 text-center">
+              <FileText size={40} style={{ color: accent }} />
+              <p className="text-lg font-bold text-zinc-900">{preview.title}</p>
+              {preview.description ? <p className="max-w-md text-sm text-zinc-600">{preview.description}</p> : null}
+              {openHref ? (
+                <a
+                  href={openHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-zinc-950 transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: accent }}
+                >
+                  Open document <ExternalLink size={14} />
+                </a>
+              ) : null}
+            </div>
           ) : (
-            <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 bg-zinc-50 px-6 py-12 text-center">
+            <div className="flex min-h-60 flex-col items-center justify-center gap-3 bg-zinc-50 px-6 py-12 text-center">
               <Award size={40} style={{ color: accent }} />
               <p className="text-lg font-bold text-zinc-900">{preview.title}</p>
               {preview.description ? <p className="max-w-md text-sm text-zinc-600">{preview.description}</p> : null}
@@ -119,15 +155,15 @@ export function CertificateImageLightbox({
             </div>
           </div>
 
-          {preview.detailUrl ? (
+          {openHref && (kind === 'pdf' || kind === 'document' || preview.detailUrl.trim()) ? (
             <a
-              href={preview.detailUrl}
+              href={openHref}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex w-fit items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-zinc-950 transition-opacity hover:opacity-90"
               style={{ backgroundColor: accent }}
             >
-              View details <ExternalLink size={14} />
+              {kind === 'image' ? 'View details' : 'Open document'} <ExternalLink size={14} />
             </a>
           ) : null}
         </div>

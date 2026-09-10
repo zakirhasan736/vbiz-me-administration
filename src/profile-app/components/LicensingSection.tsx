@@ -2,7 +2,12 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
+import { encodeMediaUrl, isUsableImageSrc } from '@/lib/mediaUrl'
+import {
+  CertificateImageLightbox,
+  resolveCertificateMediaKind,
+  type CertificatePreview,
+} from '@/profile-app/components/CertificateImageLightbox'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -10,7 +15,7 @@ import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
-import { BadgeCheck, Maximize2 } from 'lucide-react'
+import { BadgeCheck, FileText, Maximize2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
 import { useState } from 'react'
@@ -50,9 +55,14 @@ function LicenseCard({
   onOpen: (item: DynamicPostListItem) => void
 }) {
   const imageUrl = resolveLicenseImage(item)
+  const mediaSrc = encodeMediaUrl(imageUrl) || imageUrl
+  const mediaKind = resolveCertificateMediaKind(mediaSrc)
   const preview = stripHtml(item.description)
   const year = item.year?.trim() || formatYear(item.date)
   const credentialLabel = item.attachments[0]?.doc_name?.trim() || `LIC-${item.id}`
+  const showImage = mediaKind === 'image' && Boolean(mediaSrc) && isUsableImageSrc(mediaSrc)
+  const showPdf = mediaKind === 'pdf' && Boolean(mediaSrc)
+  const showDocument = mediaKind === 'document' && Boolean(mediaSrc)
 
   return (
     <motion.article
@@ -72,14 +82,27 @@ function LicenseCard({
     >
       <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
         <div className="absolute inset-0 z-10 bg-linear-to-t from-white to-transparent dark:from-zinc-900" />
-        {imageUrl ? (
+        {showImage ? (
           <Image
             width={500}
             height={500}
-            src={imageUrl}
+            src={mediaSrc}
             alt={item.title}
             className="h-full w-full object-cover opacity-70 grayscale-40 transition-all duration-700 group-hover:scale-105 group-hover:opacity-100 group-hover:grayscale-0"
           />
+        ) : showPdf ? (
+          <iframe
+            src={mediaSrc}
+            title={item.title}
+            className="pointer-events-none relative z-0 h-full w-full border-0 bg-white"
+            tabIndex={-1}
+            aria-hidden
+          />
+        ) : showDocument ? (
+          <div className="relative z-0 flex h-full w-full flex-col items-center justify-center gap-2 bg-zinc-200 px-4 text-center dark:bg-zinc-800">
+            <FileText size={40} className="text-zinc-500 dark:text-zinc-400" />
+            <p className="text-xs font-bold tracking-wider text-zinc-600 uppercase dark:text-zinc-300">Document</p>
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
             <BadgeCheck size={40} className="text-zinc-400 dark:text-zinc-500" />
@@ -159,11 +182,13 @@ export const LicensingSection = ({ sectionName = 'Licensing' }: LicensingSection
   const showEmptyState = !isLoading && !isError && items.length === 0
 
   const openLicense = (item: DynamicPostListItem) => {
+    const imageUrl = resolveLicenseImage(item)
     setPreview({
       title: item.title,
-      imageUrl: resolveLicenseImage(item),
+      imageUrl,
+      mediaKind: resolveCertificateMediaKind(imageUrl),
       description: stripHtml(item.description),
-      detailUrl: item.generalInfoUrl.trim(),
+      detailUrl: item.generalInfoUrl.trim() || imageUrl,
       credentialLabel: item.attachments[0]?.doc_name?.trim() || `LIC-${item.id}`,
       year: item.year?.trim() || formatYear(item.date),
     })

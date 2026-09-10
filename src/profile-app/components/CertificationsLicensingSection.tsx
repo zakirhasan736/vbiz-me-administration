@@ -2,8 +2,13 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { encodeMediaUrl, isUsableImageSrc } from '@/lib/mediaUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
-import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
+import {
+  CertificateImageLightbox,
+  resolveCertificateMediaKind,
+  type CertificatePreview,
+} from '@/profile-app/components/CertificateImageLightbox'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -11,7 +16,7 @@ import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
-import { Award, Maximize2 } from 'lucide-react'
+import { Award, FileText, Maximize2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
 import { useState } from 'react'
@@ -51,13 +56,15 @@ function CertificationCard({
   onOpen: (item: DynamicPostListItem) => void
 }) {
   const imageUrl = resolveCertificateImage(item)
+  const mediaSrc = encodeMediaUrl(imageUrl) || imageUrl
+  const mediaKind = resolveCertificateMediaKind(mediaSrc)
   const preview = stripHtml(item.description)
   const year = item.year?.trim() || formatYear(item.date)
   const issuer = item.issuer?.trim() || ''
   const credentialLabel = item.attachments[0]?.doc_name?.trim() || issuer || `CERT-${item.id}`
-  const isImageDoc =
-    Boolean(imageUrl) &&
-    (/\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(imageUrl) || !/\.(pdf|docx?|txt)(\?|$)/i.test(imageUrl))
+  const showImage = mediaKind === 'image' && Boolean(mediaSrc) && isUsableImageSrc(mediaSrc)
+  const showPdf = mediaKind === 'pdf' && Boolean(mediaSrc)
+  const showDocument = mediaKind === 'document' && Boolean(mediaSrc)
 
   return (
     <motion.article
@@ -76,14 +83,30 @@ function CertificationCard({
       className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308] dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
       <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
-        {imageUrl && isImageDoc ? (
+        {showImage ? (
           <Image
             width={500}
             height={500}
-            src={imageUrl}
+            src={mediaSrc}
             alt={item.title}
             className="h-full w-full object-cover opacity-70 grayscale-40 transition-all duration-700 group-hover:scale-105 group-hover:opacity-100 group-hover:grayscale-0"
           />
+        ) : showPdf ? (
+          <iframe
+            src={mediaSrc}
+            title={item.title}
+            className="pointer-events-none h-full w-full border-0 bg-white"
+            tabIndex={-1}
+            aria-hidden
+          />
+        ) : showDocument ? (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-zinc-200 px-4 text-center dark:bg-zinc-800">
+            <FileText size={40} className="text-zinc-500 dark:text-zinc-400" />
+            <p className="text-xs font-bold tracking-wider text-zinc-600 uppercase dark:text-zinc-300">Document</p>
+            <p className="line-clamp-1 max-w-full text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+              {credentialLabel}
+            </p>
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
             <Award size={40} className="text-zinc-400 dark:text-zinc-500" />
@@ -158,11 +181,14 @@ export const CertificationsLicensingSection = () => {
   const showEmptyState = !isLoading && !isError && items.length === 0
 
   const openCertificate = (item: DynamicPostListItem) => {
+    const imageUrl = resolveCertificateImage(item)
+    const mediaKind = resolveCertificateMediaKind(imageUrl)
     setPreview({
       title: item.title,
-      imageUrl: resolveCertificateImage(item),
+      imageUrl,
+      mediaKind,
       description: stripHtml(item.description),
-      detailUrl: item.generalInfoUrl.trim(),
+      detailUrl: item.generalInfoUrl.trim() || imageUrl,
       credentialLabel: item.attachments[0]?.doc_name?.trim() || item.issuer?.trim() || `CERT-${item.id}`,
       year: item.year?.trim() || formatYear(item.date),
     })

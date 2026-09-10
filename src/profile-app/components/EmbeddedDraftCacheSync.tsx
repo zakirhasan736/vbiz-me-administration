@@ -11,6 +11,7 @@ import type { NavBarLinksData, PostTypeNavLink } from '@/interfaces/navbarLinks.
 import { getAboutMeDraft, hasAboutMeDraftContent, subscribeAboutMeDraft, type AboutMeDraft } from '@/lib/aboutMeDraft'
 import { mapAboutMeItemToListItem } from '@/lib/api/aboutMe/mapAboutMe'
 import { buildReviewsQueryResult } from '@/lib/api/reviews/mapReviews'
+import { detectGalleryMediaKind, isVideoUrl } from '@/lib/mediaUrl'
 import { getEditorNavLabel, getNavDisplayLabel, getNavLabelOverride, NAV_ITEM_BY_ID } from '@/lib/vcardNavbar'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { dynamicSectionApi } from '@/redux/features/dynamicSection/dynamicSection.api'
@@ -441,13 +442,30 @@ export function EmbeddedDraftCacheSync({
       const galleryResult: GalleryQueryResult = {
         sectionTitle: sectionTitleFor('gallery', 'Gallery'),
         items: portfolio
-          .filter((p) => p.active && Boolean(p.imageUrl?.trim()))
-          .map((p) => ({
-            id: p.id,
-            title: p.title,
-            imageUrl: p.imageUrl.trim(),
-            createdAt: '',
-          })),
+          .filter((p) => {
+            if (!p.active) return false
+            const media = p.imageUrl?.trim() || ''
+            const link = p.url?.trim() || ''
+            return Boolean(media || link)
+          })
+          .map((p) => {
+            const media = p.imageUrl?.trim() || ''
+            const link = p.url?.trim() || ''
+            const mediaKind = detectGalleryMediaKind(media || link, {
+              type: p.type,
+              fileName: p.imageName,
+              linkUrl: link,
+            })
+            const imageUrl = media || (isVideoUrl(link) ? link : mediaKind === 'link' ? '' : link)
+            return {
+              id: p.id,
+              title: p.title,
+              imageUrl,
+              createdAt: '',
+              mediaKind: media ? mediaKind : link ? (isVideoUrl(link) ? 'video' : 'link') : mediaKind,
+              linkUrl: link || undefined,
+            }
+          }),
       }
       upsertIfChanged('gallery', galleryResult, (result) =>
         dispatch(galleryApi.util.upsertQueryData('getGallery', profileId, result))
