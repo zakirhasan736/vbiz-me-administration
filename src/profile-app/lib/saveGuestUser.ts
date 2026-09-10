@@ -1,6 +1,7 @@
 import type { SavedGuestUser } from '@/interfaces/api/saveGuestUser'
 import { markContactSaved } from '@/profile-app/lib/contactSaveState'
 import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
+import { collectVisitorClientMeta } from '@/profile-app/lib/visitorClientMeta'
 import { baseUrl } from '@/redux/api/publicApi'
 
 export class SaveGuestUserError extends Error {
@@ -28,27 +29,6 @@ function isDuplicateEmailMessage(message: string): boolean {
   )
 }
 
-function collectClientMeta(cardSlug?: string): Record<string, string | null> {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return { cardSlug: cardSlug?.trim() || null }
-  }
-
-  const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
-  return {
-    guestId: getOrCreateGuestId() || null,
-    userAgent: nav.userAgent || null,
-    language: nav.language || null,
-    platform: nav.userAgentData?.platform || nav.platform || null,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
-    screen:
-      typeof window.screen?.width === 'number' && typeof window.screen?.height === 'number'
-        ? `${window.screen.width}x${window.screen.height}`
-        : null,
-    referrer: document.referrer || null,
-    cardSlug: cardSlug?.trim() || null,
-  }
-}
-
 export type SaveGuestUserInput = {
   fullName: string
   phone: string
@@ -73,7 +53,15 @@ export async function saveGuestUser(input: SaveGuestUserInput): Promise<SavedGue
   body.append('phone', phone)
   body.append('email', email)
   body.append('profile_id', profileId)
-  body.append('meta', JSON.stringify(collectClientMeta(input.cardSlug)))
+  body.append(
+    'meta',
+    JSON.stringify(
+      collectVisitorClientMeta({
+        guestId: getOrCreateGuestId() || null,
+        cardSlug: input.cardSlug,
+      })
+    )
+  )
 
   const response = await fetch(`${baseUrl}/save-guest-user`, {
     method: 'POST',

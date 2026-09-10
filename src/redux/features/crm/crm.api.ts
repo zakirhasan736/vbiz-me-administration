@@ -78,6 +78,15 @@ export type CrmLeadMetadata = {
   referrer: string
 }
 
+export type CrmLeadCardRef = {
+  leadId: string
+  profileId: string
+  slug: string
+  name: string
+  submittedAt: string
+  origin: CrmLeadOrigin
+}
+
 export type CrmLeadRow = {
   id: string
   fullName: string
@@ -101,6 +110,9 @@ export type CrmLeadRow = {
   origin: CrmLeadOrigin
   metadata: CrmLeadMetadata
   notesCount?: number
+  /** Unique cards this email appears on (grouped lead). */
+  cards?: CrmLeadCardRef[]
+  leadIds?: string[]
 }
 
 export type CrmLeadsListQuery = {
