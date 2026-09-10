@@ -2,6 +2,7 @@
 
 import { PromptModal } from '@/components/PromptModal'
 import {
+  DuplicateTeamMemberModal,
   TeamVCardsBulkBar,
   TeamVCardsCreatePlaceholder,
   TeamVCardsEmptyState,
@@ -10,6 +11,7 @@ import {
   TeamVCardsToolbar,
   useCorporateDirectory,
   type CorporateSortOption,
+  type DuplicateTeamMemberInput,
 } from '@/components/dashboard/corporate'
 import {
   NoticeModal,
@@ -62,6 +64,7 @@ export default function TeamVCardsView() {
   const [qrTitle, setQrTitle] = useState('vCard QR Code')
   const [qrCenterImageUrl, setQrCenterImageUrl] = useState('')
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
+  const [duplicateSourceCard, setDuplicateSourceCard] = useState<VCardRecord | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
 
@@ -123,17 +126,28 @@ export default function TeamVCardsView() {
     }
   }
 
-  const handleDuplicate = async (card: VCardRecord) => {
+  const handleDuplicate = (card: VCardRecord) => {
     if (!directory.canCreate) {
       notify.warning(directory.createDisabledReason)
       return
     }
+    if (isOwnerCardLocked(card.status)) {
+      notify.error(SUSPENDED_CARD_MESSAGE)
+      return
+    }
     if (!card.id || duplicatingCardId) return
+    setDuplicateSourceCard(card)
+  }
+
+  const handleConfirmDuplicateMember = async (input: DuplicateTeamMemberInput) => {
+    const card = duplicateSourceCard
+    if (!card?.id || duplicatingCardId) return
     setDuplicatingCardId(card.id)
     try {
-      const newId = await directory.duplicateCard(card)
+      const newId = await directory.duplicateCard(card, input)
       if (newId) {
-        notify.success('Saved as a draft.', {
+        setDuplicateSourceCard(null)
+        notify.success(`Draft created. ${input.email} can sign in to edit this card.`, {
           title: 'Card duplicated',
           action: {
             label: 'View in Draft',
@@ -325,6 +339,17 @@ export default function TeamVCardsView() {
         canDuplicate={directory.canCreate}
         duplicateDisabledReason={directory.createDisabledReason}
         isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
+      />
+
+      <DuplicateTeamMemberModal
+        open={Boolean(duplicateSourceCard)}
+        sourceCardName={duplicateSourceCard?.personal.fullName || duplicateSourceCard?.slug || undefined}
+        isSubmitting={Boolean(duplicateSourceCard?.id && duplicatingCardId === duplicateSourceCard.id)}
+        onCancel={() => {
+          if (duplicatingCardId) return
+          setDuplicateSourceCard(null)
+        }}
+        onConfirm={(input) => void handleConfirmDuplicateMember(input)}
       />
 
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />

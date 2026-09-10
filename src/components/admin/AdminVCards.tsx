@@ -7,6 +7,7 @@ import VCardDetailSidebar, { VCardTrendsPopup } from '@/components/admin/AdminVC
 import VCardQrModal from '@/components/admin/AdminVCardQrModal'
 import type { ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
+import { DuplicateTeamMemberModal, type DuplicateTeamMemberInput } from '@/components/dashboard/corporate'
 import { CardLifecycleTabs } from '@/components/dashboard/vcard/CardLifecycleTabs'
 import { NoticeModal, type NoticeType } from '@/components/dashboard/vcard/NoticeModal'
 import { VCardDirectoryListSkeleton } from '@/components/dashboard/vcard/VCardDirectoryListSkeleton'
@@ -14,7 +15,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
-import { resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
+import { isCorporatePortfolioCard, resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { adminCardAvatarUrl, type AdminCard } from '@/lib/admin/adminCardShape'
 import { ADMIN_VCARDS_PATH, setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
 import { canAdminContactCard } from '@/lib/admin/canAdminContactCard'
@@ -116,6 +117,7 @@ export default function AdminVCards() {
 
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
+  const [duplicateSourceCard, setDuplicateSourceCard] = useState<AdminCard | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
   const [highlightedPausedId, setHighlightedPausedId] = useState<string | null>(null)
@@ -440,23 +442,37 @@ export default function AdminVCards() {
     setNoticeCard(card)
   }
 
-  const handleDuplicateCard = async (card: AdminCard) => {
+  const handleDuplicateCard = (card: AdminCard) => {
+    if (!card.id || duplicatingCardId) return
+    // Corporate / corporate-member cards always require the member login popup
+    // so admin can provision the linked vcard-owner user (same as corporate owner).
+    if (isCorporatePortfolioCard(card) || resolveDirectoryBadge(card)?.label === 'Corporate member') {
+      setDuplicateSourceCard(card)
+      return
+    }
+    void runDuplicateCard(card)
+  }
+
+  const runDuplicateCard = async (card: AdminCard, member?: DuplicateTeamMemberInput) => {
     if (!card.id || duplicatingCardId) return
     setDuplicatingCardId(card.id)
     try {
-      const fullName = personalField(card.personal, 'fullName') || 'Member'
-      const created = await duplicateProfile(card.id).unwrap()
+      const fullName = member?.name || personalField(card.personal, 'fullName') || 'Member'
+      const created = await duplicateProfile(member ? { id: card.id, body: member } : card.id).unwrap()
       const newId = created?.id
       appendAuditLog({
         action: 'Duplicated Card Profile',
-        details: `Admin duplicated ${fullName} as ${created.slug || newId}`,
+        details: member
+          ? `Admin duplicated corporate card for ${fullName} (${member.email}) as ${created.slug || newId}`
+          : `Admin duplicated ${fullName} as ${created.slug || newId}`,
         type: 'create',
       })
       if (lifecycleTab === 'draft') {
         void refreshListFromStart()
       }
       if (newId) {
-        notify.success('Saved as a draft.', {
+        setDuplicateSourceCard(null)
+        notify.success(member ? `Draft created. ${member.email} can sign in to edit this card.` : 'Saved as a draft.', {
           title: 'Card duplicated',
           action: {
             label: 'View in Draft',
@@ -477,6 +493,11 @@ export default function AdminVCards() {
     } finally {
       setDuplicatingCardId(null)
     }
+  }
+
+  const handleConfirmDuplicateMember = (input: DuplicateTeamMemberInput) => {
+    if (!duplicateSourceCard) return
+    void runDuplicateCard(duplicateSourceCard, input)
   }
 
   const exportFilterParams = useMemo(
@@ -1104,6 +1125,21 @@ export default function AdminVCards() {
         onDuplicate={handleDuplicateCard}
         isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
         onToggleStatus={requestToggleStatus}
+      />
+
+      <DuplicateTeamMemberModal
+        open={Boolean(duplicateSourceCard)}
+        sourceCardName={
+          duplicateSourceCard
+            ? personalField(duplicateSourceCard.personal, 'fullName') || duplicateSourceCard.slug || undefined
+            : undefined
+        }
+        isSubmitting={Boolean(duplicateSourceCard?.id && duplicatingCardId === duplicateSourceCard.id)}
+        onCancel={() => {
+          if (duplicatingCardId) return
+          setDuplicateSourceCard(null)
+        }}
+        onConfirm={handleConfirmDuplicateMember}
       />
 
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />

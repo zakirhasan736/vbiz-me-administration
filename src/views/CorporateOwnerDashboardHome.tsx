@@ -10,6 +10,8 @@ import {
   CorporateMetricCards,
   CorporateQuotaWarning,
   CorporateSocialBreakdown,
+  DuplicateTeamMemberModal,
+  type DuplicateTeamMemberInput,
   type HubTab,
 } from '@/components/dashboard/corporate'
 import {
@@ -21,10 +23,10 @@ import {
 } from '@/components/dashboard/home'
 import {
   NoticeModal,
-  type NoticeType,
   QrCodeModal,
   VCardDetailSidebar,
   VCardTrendsPopup,
+  type NoticeType,
 } from '@/components/dashboard/vcard'
 import { UpcomingSchedulesPanel } from '@/components/schedules/UpcomingSchedulesPanel'
 import { useAppSelector } from '@/hooks/redux'
@@ -154,6 +156,7 @@ export default function CorporateOwnerDashboardHome() {
   const [qrCenterImageUrl, setQrCenterImageUrl] = useState('')
   const [upgradeAlert, setUpgradeAlert] = useState(false)
   const [duplicatingCardId, setDuplicatingCardId] = useState<string | null>(null)
+  const [duplicateSourceCard, setDuplicateSourceCard] = useState<VCardRecord | null>(null)
   const [highlightedDuplicatedId, setHighlightedDuplicatedId] = useState<string | null>(null)
   const [highlightedActivatedId, setHighlightedActivatedId] = useState<string | null>(null)
   const {
@@ -296,7 +299,7 @@ export default function CorporateOwnerDashboardHome() {
   }
 
   const handleDuplicate = useCallback(
-    async (card: VCardRecord) => {
+    (card: VCardRecord) => {
       if (!canCreate) {
         notify.warning(createDisabledReason)
         return
@@ -306,13 +309,23 @@ export default function CorporateOwnerDashboardHome() {
         return
       }
       if (!card.id || duplicatingCardId) return
+      setDuplicateSourceCard(card)
+    },
+    [canCreate, createDisabledReason, duplicatingCardId]
+  )
+
+  const handleConfirmDuplicateMember = useCallback(
+    async (input: DuplicateTeamMemberInput) => {
+      const card = duplicateSourceCard
+      if (!card?.id || duplicatingCardId) return
       setDuplicatingCardId(card.id)
       try {
-        const created = await duplicateProfile(card.id).unwrap()
+        const created = await duplicateProfile({ id: card.id, body: input }).unwrap()
         void refetchProfiles()
         const newId = created?.id
         if (newId) {
-          notify.success('Saved as a draft.', {
+          setDuplicateSourceCard(null)
+          notify.success(`Draft created. ${input.email} can sign in to edit this card.`, {
             title: 'Card duplicated',
             action: {
               label: 'View in Draft',
@@ -332,7 +345,7 @@ export default function CorporateOwnerDashboardHome() {
         setDuplicatingCardId(null)
       }
     },
-    [canCreate, createDisabledReason, duplicateProfile, duplicatingCardId, refetchProfiles]
+    [duplicateProfile, duplicateSourceCard, duplicatingCardId, refetchProfiles]
   )
 
   const handleActivatedFromDraft = useCallback((cardId: string) => {
@@ -535,6 +548,17 @@ export default function CorporateOwnerDashboardHome() {
         canDuplicate={canCreate}
         duplicateDisabledReason={createDisabledReason}
         isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
+      />
+
+      <DuplicateTeamMemberModal
+        open={Boolean(duplicateSourceCard)}
+        sourceCardName={duplicateSourceCard?.personal.fullName || duplicateSourceCard?.slug || undefined}
+        isSubmitting={Boolean(duplicateSourceCard?.id && duplicatingCardId === duplicateSourceCard.id)}
+        onCancel={() => {
+          if (duplicatingCardId) return
+          setDuplicateSourceCard(null)
+        }}
+        onConfirm={(input) => void handleConfirmDuplicateMember(input)}
       />
 
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />

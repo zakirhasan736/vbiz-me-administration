@@ -111,14 +111,23 @@ export function useCorporateDirectory(filters: {
   }
 
   const duplicateCard = useCallback(
-    async (card: VCardRecord): Promise<string | null> => {
+    async (
+      card: VCardRecord,
+      member?: {
+        name: string
+        email: string
+        password?: string
+        phone?: string
+        designation?: string
+      }
+    ): Promise<string | null> => {
       if (!canCreate) return null
       if (isOwnerCardLocked(card.status)) {
         notify.error(SUSPENDED_CARD_MESSAGE)
         return null
       }
       try {
-        const created = await duplicateProfile(card.id).unwrap()
+        const created = await duplicateProfile(member ? { id: card.id, body: member } : card.id).unwrap()
         void refetch()
         return created?.id ?? null
       } catch (e) {

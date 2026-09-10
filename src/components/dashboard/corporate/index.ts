@@ -6,6 +6,7 @@ export { CorporateLeadNotesRepliesPanel } from './CorporateLeadNotesRepliesPanel
 export { CorporateMetricCards } from './CorporateMetricCards'
 export { CorporateSocialBreakdown } from './CorporateSocialBreakdown'
 export { CorporateWeeklyEngagement } from './CorporateWeeklyEngagement'
+export { DuplicateTeamMemberModal, type DuplicateTeamMemberInput } from './DuplicateTeamMemberModal'
 export { TeamVCardsBulkBar } from './TeamVCardsBulkBar'
 export {
   TeamVCardsCreatePlaceholder,

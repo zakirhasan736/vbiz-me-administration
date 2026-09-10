@@ -63,15 +63,39 @@ export function isAdminPortfolioCard(card: AdminCard): boolean {
   return isStaffRole(portfolioParentRole(card))
 }
 
-function isCorporateCard(card: AdminCard): boolean {
-  if (isAdminPortfolioCard(card)) return false
-  const parent = portfolioParentRole(card)
-  if (isCorporateRole(parent)) return true
-  // Corporate owner's own card with companyUser pointing at themselves / corp account
-  if (card.companyUserId && isCorporateRole(card.ownerRole) && !isStaffRole(card.ownerRole)) {
+/**
+ * True when the card sits under a corporate owner portfolio (main or member).
+ * Corporate signals win over createdBy staff (admins often create corporate cards).
+ */
+export function isCorporatePortfolioCard(card: AdminCard): boolean {
+  // Explicit corporate company parent
+  if (isCorporateRole(card.companyUserRole)) return true
+
+  // Corporate owner's own main card (no company parent, or self-parent)
+  if (isCorporateRole(card.ownerRole) && !isStaffRole(card.companyUserRole)) {
+    if (!card.companyUserId || card.companyUserId === card.ownerId) return true
+    // Owned by corporate user but parked under a staff company → admin portfolio, not corporate team
+    if (isStaffRole(card.companyUserRole)) return false
     return true
   }
+
+  // Member card linked to a company account: owner is single (vcard-owner), company is not staff
+  if (
+    card.companyUserId &&
+    card.companyUserId !== card.ownerId &&
+    !isStaffRole(card.ownerRole) &&
+    !isStaffRole(card.companyUserRole)
+  ) {
+    // Prefer known corporate company role; if role missing, still treat linked non-staff company as corporate team
+    if (!card.companyUserRole || isCorporateRole(card.companyUserRole)) return true
+    if (normalizeRole(card.ownerRole) === 'vcard-owner') return true
+  }
+
   return false
+}
+
+function isCorporateCard(card: AdminCard): boolean {
+  return isCorporatePortfolioCard(card)
 }
 
 /** Badge for Admin → My Cards portfolio. */
@@ -90,11 +114,12 @@ export function resolveDirectoryBadge(card: AdminCard): AdminCardBadge | null {
   if (isAdminNamedCard(card)) {
     return { label: 'Admin', tone: 'indigo' }
   }
-  if (isAdminPortfolioCard(card)) {
-    return null
-  }
+  // Corporate team cards first — createdBy is often staff when admin provisioned the account
   if (isCorporateCard(card)) {
     return { label: 'Corporate member', tone: 'neutral' }
+  }
+  if (isAdminPortfolioCard(card)) {
+    return null
   }
   return { label: 'Single', tone: 'violet' }
 }

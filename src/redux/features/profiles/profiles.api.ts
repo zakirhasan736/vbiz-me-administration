@@ -1048,8 +1048,25 @@ const profilesApi = api.injectEndpoints({
         'dashboard',
       ],
     }),
-    duplicateProfile: builder.mutation<ApiProfile, string>({
-      query: (id) => ({ url: `/profiles/${id}/duplicate`, method: 'POST' }),
+    duplicateProfile: builder.mutation<
+      ApiProfile,
+      | string
+      | {
+          id: string
+          body?: {
+            name: string
+            email: string
+            password?: string
+            phone?: string
+            designation?: string
+          }
+        }
+    >({
+      query: (arg) => {
+        const id = typeof arg === 'string' ? arg : arg.id
+        const body = typeof arg === 'string' ? undefined : arg.body
+        return { url: `/profiles/${id}/duplicate`, method: 'POST', ...(body ? { body } : {}) }
+      },
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       invalidatesTags: [
         { type: 'profiles', id: 'LIST' },
