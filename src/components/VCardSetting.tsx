@@ -966,13 +966,14 @@ function SeoGenerateButton({ busy, disabled, onClick }: { busy: boolean; disable
 }
 
 function CardSeoPanel() {
-  const { vCardData, updateData } = useVCard()
+  const { vCardData, updateData, cardId, isCreateMode } = useVCard()
   const { allow_seo: canUseSeo } = usePackageAccess()
   const seo = normalizeCardSeo(vCardData.seo)
   const seoRef = useRef(seo)
   const [keywordInput, setKeywordInput] = useState('')
   const [generating, setGenerating] = useState<'title' | 'description' | 'keywords' | null>(null)
   const visibleKeywords = ownerSeoKeywords(seo.metaKeywords)
+  const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
 
   useEffect(() => {
     seoRef.current = seo
@@ -1072,8 +1073,9 @@ function CardSeoPanel() {
   return (
     <div className="max-w-3xl space-y-6">
       <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
-        SEO for this specific card — write or generate a title, description, and keywords. JSON-LD, social tags, reviews
-        markup, and the canonical URL are built automatically from this card.
+        SEO for this specific card — write or generate a title, description, and keywords, and upload an SEO image.
+        JSON-LD, social tags, browser-tab icons, and the canonical URL are built automatically from this card. If no SEO
+        image is set, avatar, profile image, or About Me featured image is used.
       </p>
       <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
         <h4 className="text-sm font-black text-slate-900 dark:text-white">Card metadata</h4>
@@ -1170,6 +1172,32 @@ function CardSeoPanel() {
           {visibleKeywords.length}/{MAX_OWNER_SEO_KEYWORDS} keywords. vBiz Me platform keywords are added automatically
           and stay hidden here.
         </p>
+
+        <div className="space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-300">SEO image</label>
+          <p className="text-[.6875rem] font-semibold text-slate-400">
+            Used for link previews (Open Graph), JSON-LD, and browser tab icons. Fallback: avatar → profile image →
+            About Me featured image.
+          </p>
+          <VCardMediaField
+            variant="inset"
+            value={seo.seoImage}
+            onChange={(url) => updateSeo({ seoImage: url || '' })}
+            profileId={profileId}
+            attachmentType="SEO Image"
+            accept="image/*"
+            selectPlaceholder={isCreateMode ? 'Select SEO image' : 'Upload SEO image'}
+            subtitle="Square or landscape image • recommended 1200×630"
+            previewKind="image"
+            previewClassName="aspect-video max-h-48"
+          >
+            <MediaSourceActions
+              mode="image"
+              profileId={profileId}
+              onSelect={(asset) => updateSeo({ seoImage: asset.url })}
+            />
+          </VCardMediaField>
+        </div>
       </div>
     </div>
   )

@@ -94,6 +94,19 @@ describe('resolvePublicCardSeo', () => {
     )
   })
 
+  it('prefers SEO image over avatar and About Me featured image', () => {
+    const myCard = card({
+      profile_media: { url: 'https://cdn.example.com/avatar.jpg' },
+      settings: {
+        seo_image_url: 'https://cdn.example.com/seo-share.jpg',
+        about_me_featured_media_url: 'https://cdn.example.com/about-hero.jpg',
+      },
+    })
+    expect(resolvePublicCardShareImageUrl(myCard, 'https://app.vbizme.com', 'michaelangelo-casanova-2')).toBe(
+      'https://cdn.example.com/seo-share.jpg'
+    )
+  })
+
   it('prefers server-resolved share preview image when present', () => {
     const myCard = card({
       profile_media: { url: 'https://cdn.example.com/intro.mp4', is_video: true },

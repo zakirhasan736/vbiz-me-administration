@@ -57,13 +57,40 @@ function upsertPropertyMeta(property: string, content: string) {
   metas.slice(1).forEach((duplicate) => duplicate.remove())
 }
 
+function upsertIconLink(rel: string, href: string, sizes?: string) {
+  const selector = sizes ? `link[rel="${rel}"][sizes="${sizes}"]` : `link[rel="${rel}"]`
+  const links = Array.from(document.querySelectorAll<HTMLLinkElement>(selector))
+  if (!href) {
+    links.forEach((link) => {
+      if (link.dataset.vbizSeo === 'card' || link.dataset.pwaAppleIcon === 'card') link.remove()
+    })
+    return
+  }
+  let link = links[0]
+  if (!link) {
+    link = document.createElement('link')
+    link.rel = rel
+    if (sizes) link.setAttribute('sizes', sizes)
+    document.head.appendChild(link)
+  }
+  link.href = href
+  link.dataset.vbizSeo = 'card'
+  if (rel === 'apple-touch-icon') link.dataset.pwaAppleIcon = 'card'
+  links.slice(1).forEach((duplicate) => duplicate.remove())
+}
+
 function shareImageUrl(slug: string, imageUrl?: string | null) {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const trimmed = imageUrl?.trim() || ''
   if (trimmed && !isVideoUrl(trimmed)) return toAbsoluteUrl(origin, trimmed)
   if (!slug.trim() || !origin) return ''
-  if (!slug.trim() || !origin) return ''
   return `${origin.replace(/\/$/, '')}${buildProfileIconPath(slug.trim(), 512)}`
+}
+
+function isGeneratedPwaIconUrl(url: string, slug: string): boolean {
+  const path = buildProfileIconPath(slug.trim(), 512)
+  const path192 = buildProfileIconPath(slug.trim(), 192)
+  return url.includes(path) || url.includes(path192) || /\/vCard\/[^/]+\/icon\/(192|512)/i.test(url)
 }
 
 /** Injects per-card manifest + apple-touch-icon so Chrome / iOS can install this card. */
@@ -77,7 +104,9 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     const title = seo?.metaTitle?.trim() || ownerName?.trim() || trimmed
     const description = seo?.metaDescription?.trim() || `${title}'s digital business card on vBiz Me.`
     const keywords = seo?.metaKeywords?.join(', ') || ''
-    const image = shareImageUrl(trimmed, imageUrl)
+    const image = shareImageUrl(trimmed, imageUrl || seo?.seoImage)
+    const pwaIcon192 = buildProfileIconPath(trimmed, 192)
+    const tabIcon = image && !isGeneratedPwaIconUrl(image, trimmed) ? image : pwaIcon192
 
     const manifestHref = buildPwaManifestUrl(trimmed)
     let manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
@@ -89,15 +118,8 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     manifestLink.href = manifestHref
     manifestLink.dataset.pwaManifest = 'card'
 
-    const iconHref = buildProfileIconPath(trimmed, 192)
-    let appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
-    if (!appleLink) {
-      appleLink = document.createElement('link')
-      appleLink.rel = 'apple-touch-icon'
-      document.head.appendChild(appleLink)
-    }
-    appleLink.href = iconHref
-    appleLink.dataset.pwaAppleIcon = 'card'
+    upsertIconLink('apple-touch-icon', tabIcon)
+    upsertIconLink('icon', tabIcon)
 
     let canonicalLink = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
     if (!canonicalLink) {

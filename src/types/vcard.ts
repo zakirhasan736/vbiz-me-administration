@@ -16,6 +16,8 @@ export type VCardSeo = {
   metaTitle: string
   metaDescription: string
   metaKeywords: string[]
+  /** Share / Open Graph / JSON-LD / browser-tab image for this card. */
+  seoImage: string
 }
 
 /** Per-vCard template & layout snapshot (defaults copied from account profile settings on create). */
@@ -364,6 +366,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
       metaTitle: '',
       metaDescription: '',
       metaKeywords: ['vbizme', 'vbiz me', 'virtual card', 'digital business card', 'online business card'],
+      seoImage: '',
     },
     appearance: { ...DEFAULT_VCARD_APPEARANCE },
     services: [],

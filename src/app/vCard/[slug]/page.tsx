@@ -13,6 +13,7 @@ import {
   resolveRequestOrigin,
   serializeJsonLd,
 } from '@/lib/seo/publicCardSeo'
+import { resolvePublicCardShareImageUrl } from '@/lib/seo/resolvePublicCardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
@@ -44,6 +45,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   )
   const icon192 = buildProfileIconPath(trimmed, 192)
   const icon512 = buildProfileIconPath(trimmed, 512)
+  const shareImage = myCard ? resolvePublicCardShareImageUrl(myCard, requestOrigin, trimmed) : ''
+  const useShareAsTabIcon =
+    Boolean(shareImage) &&
+    !shareImage.includes(icon192) &&
+    !shareImage.includes(icon512) &&
+    !/\/icon\/(192|512)/i.test(shareImage)
+  const tabIcon = useShareAsTabIcon ? shareImage : icon192
   const pwaMeta: Metadata = {
     metadataBase: new URL(requestOrigin),
     applicationName: name,
@@ -53,11 +61,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       statusBarStyle: 'black-translucent',
     },
     icons: {
-      apple: icon192,
-      icon: [
-        { url: icon192, sizes: '192x192', type: 'image/png' },
-        { url: icon512, sizes: '512x512', type: 'image/png' },
-      ],
+      apple: tabIcon,
+      icon: useShareAsTabIcon
+        ? [{ url: tabIcon }]
+        : [
+            { url: icon192, sizes: '192x192', type: 'image/png' },
+            { url: icon512, sizes: '512x512', type: 'image/png' },
+          ],
     },
     manifest: buildPwaManifestUrl(trimmed),
     other: {

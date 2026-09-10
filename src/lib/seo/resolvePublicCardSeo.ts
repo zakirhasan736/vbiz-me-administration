@@ -36,11 +36,12 @@ function pushShareImageCandidate(seen: Set<string>, out: string[], url: unknown)
 }
 
 /**
- * Ordered still-image candidates for Open Graph / JSON-LD / Twitter cards:
- * 1. Card avatar still (skip video avatar URLs)
- * 2. Profile image fields
- * 3. About Me featured image
- * 4. Remaining logo / my-info icon candidates
+ * Ordered still-image candidates for Open Graph / JSON-LD / Twitter / browser-tab icons:
+ * 1. Card Settings → SEO image
+ * 2. Avatar / profile still
+ * 3. Profile image fields
+ * 4. About Me featured image
+ * 5. Remaining logo / my-info icon candidates
  */
 export function collectPublicCardShareImageCandidates(card: MyCardData): string[] {
   const settings = card.settings || {}
@@ -51,6 +52,7 @@ export function collectPublicCardShareImageCandidates(card: MyCardData): string[
   const profileMediaIsVideo =
     profileMedia?.is_video === true || isVideoUrl(profileMedia?.url || '') || isVideoUrl(profileMedia?.video_url || '')
 
+  pushShareImageCandidate(seen, candidates, setting('seo_image_url'))
   pushShareImageCandidate(seen, candidates, setting('share_preview_image_url'))
 
   if (profileMediaIsVideo) {
@@ -111,10 +113,15 @@ export function resolvePublicCardSeo(myCard: MyCardData, slug: string): VCardSeo
     ownerKeywords.length > 0 ? [...ownerKeywords, name, company, role] : [name, company, role]
   )
 
-  return normalizeCardSeo({ metaTitle, metaDescription, metaKeywords })
+  return normalizeCardSeo({
+    metaTitle,
+    metaDescription,
+    metaKeywords,
+    seoImage: parsed.seoImage,
+  })
 }
 
-/** Share-preview image: avatar still, profile image, About Me image, then generated PWA icon. */
+/** Share-preview image: SEO image → avatar → profile → About Me → generated PWA icon. */
 export function resolvePublicCardShareImageUrl(myCard: MyCardData, origin: string, slug: string): string {
   for (const candidate of collectPublicCardShareImageCandidates(myCard)) {
     const absolute = toAbsoluteUrl(origin, candidate)

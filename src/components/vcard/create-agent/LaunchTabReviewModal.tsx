@@ -1,6 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
+import { normalizeCardSeo } from '@/lib/seo/cardSeo'
 import { createDefaultExperienceEntry } from '@/lib/vcardExperience'
 import { createDefaultFaqEntry } from '@/lib/vcardFaq'
 import { createDefaultGeneralPost } from '@/lib/vcardGeneralPosts'
@@ -129,28 +130,27 @@ export function LaunchTabReviewModal({ open, navId, label, data, busy, onClose, 
     if (field.key === 'seoTitle') {
       onApply({
         ...data,
-        seo: { metaTitle: value, metaDescription: seo?.metaDescription || '', metaKeywords: seo?.metaKeywords || [] },
+        seo: normalizeCardSeo({ ...seo, metaTitle: value }),
       })
       return
     }
     if (field.key === 'seoDescription') {
       onApply({
         ...data,
-        seo: { metaTitle: seo?.metaTitle || '', metaDescription: value, metaKeywords: seo?.metaKeywords || [] },
+        seo: normalizeCardSeo({ ...seo, metaDescription: value }),
       })
       return
     }
     if (field.key === 'seoKeywords') {
       onApply({
         ...data,
-        seo: {
-          metaTitle: seo?.metaTitle || '',
-          metaDescription: seo?.metaDescription || '',
+        seo: normalizeCardSeo({
+          ...seo,
           metaKeywords: value
             .split(',')
             .map((item) => item.trim())
             .filter(Boolean),
-        },
+        }),
       })
       return
     }
