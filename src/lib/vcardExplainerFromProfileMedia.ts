@@ -76,12 +76,12 @@ export function patchExplainerSectionMedia(
     metas: previous?.metas,
   }
 
-  const rest = existing.length > 1 ? existing.slice(1) : []
   return {
     ...data,
     sectionPosts: {
       ...(data.sectionPosts || {}),
-      [EXPLAINER_SECTION]: [item, ...rest],
+      // Explainer is single-item: keep only the primary row.
+      [EXPLAINER_SECTION]: [item],
     },
   }
 }

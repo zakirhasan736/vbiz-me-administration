@@ -6,6 +6,7 @@ import VCardCardActions from '@/components/admin/AdminVCardCardActions'
 import { AlertModal } from '@/components/AlertModal'
 import { CardAvatarThumb } from '@/components/CardAvatarThumb'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { VCardCardTimestamps } from '@/components/dashboard/vcard/VCardCardTimestamps'
 import { VCardOverflowMenu } from '@/components/dashboard/vcard/VCardOverflowMenu'
 import { VCardVisibilityToggle } from '@/components/dashboard/vcard/VCardVisibilityToggle'
 import type { AdminCard } from '@/lib/admin/adminCardShape'
@@ -394,6 +395,10 @@ export default function VCardTeamCard({
                 <Building className="h-3 w-3 shrink-0 text-slate-400" />
                 <span className="truncate">{company || department || 'Company'}</span>
               </div>
+              <VCardCardTimestamps
+                createdAt={typeof card.createdAt === 'string' ? card.createdAt : null}
+                updatedAt={typeof card.updatedAt === 'string' ? card.updatedAt : null}
+              />
             </div>
             <VCardVisibilityToggle
               id={cardId ? `admin-vcard-visibility-${cardId}` : 'admin-vcard-visibility-missing'}

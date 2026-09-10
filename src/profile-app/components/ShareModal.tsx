@@ -1,10 +1,12 @@
 'use client'
 
+import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { resolveShareUrl } from '@/profile-app/lib/shareProfile'
 import {
   buildShareProfileTitle,
+  buildShareQrInitialsDataUrl,
   formatShareDisplayName,
   generateShareQrDataUrl,
   resolveShareQrCenterSources,
@@ -24,7 +26,7 @@ import {
   Twitter,
   X,
 } from 'lucide-react'
-import { motion } from 'motion/react'
+import { QRCodeCanvas } from 'qrcode.react'
 import React, { useEffect, useMemo, useState } from 'react'
 
 interface ShareModalProps {
@@ -50,6 +52,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     aboutMe?.items?.find((item) => item.featuredImage?.trim())?.featuredImage?.trim() ||
     field('About Me').customValue?.trim() ||
     ''
+  const ownerLabel = personal.fullName?.trim() || profileName || 'VB'
   const centerSources = useMemo(
     () =>
       resolveShareQrCenterSources({
@@ -66,34 +69,136 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     const url = resolveShareUrl()
     return url.split('?')[0]
   }, [isOpen])
-  const [qrCodeUrl, setQrCodeUrl] = useState('')
+
+  // Same strategy as dashboard QrCodeModal: still image → QRCodeCanvas imageSettings;
+  // video → generated canvas QR; no photo → initials (e.g. Zakir Hosen → ZH).
+  const initialsCenterUrl = useMemo(() => (isOpen ? buildShareQrInitialsDataUrl(ownerLabel) : ''), [isOpen, ownerLabel])
+  const videoCenterUrl = centerSources.videoUrl
+  const stillImageCandidates = useMemo(
+    () => centerSources.imageUrls.filter((url) => url && !isVideoAvatarSrc(url)),
+    [centerSources.imageUrls]
+  )
+  const needsGeneratedQr = Boolean(isOpen && shareUrl && videoCenterUrl && stillImageCandidates.length === 0)
+
+  const [wasOpen, setWasOpen] = useState(isOpen)
+  const [generatedQr, setGeneratedQr] = useState<{ key: string; dataUrl: string } | null>(null)
+  const [proxiedCenter, setProxiedCenter] = useState<{ key: string; url: string } | null>(null)
+  const [videoQrFailed, setVideoQrFailed] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // Reset ephemeral QR state when the modal opens/closes (avoid sync setState in effects).
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen)
+    setCopied(false)
+    setGeneratedQr(null)
+    setProxiedCenter(null)
+    setVideoQrFailed(false)
+  }
+
+  const generationKey =
+    isOpen && needsGeneratedQr && shareUrl && !videoQrFailed
+      ? JSON.stringify([shareUrl, videoCenterUrl, centerSources.videoUrls, ownerLabel])
+      : ''
+  const visibleGeneratedQr = generatedQr?.key === generationKey ? generatedQr.dataUrl : ''
+
+  const centerKey =
+    isOpen && shareUrl && (!needsGeneratedQr || videoQrFailed)
+      ? JSON.stringify([stillImageCandidates, initialsCenterUrl])
+      : ''
+  const visibleStaticCenter = !centerKey
+    ? ''
+    : stillImageCandidates.length === 0
+      ? initialsCenterUrl
+      : proxiedCenter?.key === centerKey
+        ? proxiedCenter.url
+        : ''
+
   useEffect(() => {
-    if (!isOpen || !shareUrl) return
+    if (!generationKey || !shareUrl) return
 
     let cancelled = false
-
     void generateShareQrDataUrl({
       url: shareUrl,
       foregroundColor: '#09090b',
-      centerImageUrl: centerSources.imageUrl,
-      centerVideoUrl: centerSources.videoUrl,
-      centerImageUrls: centerSources.imageUrls,
+      centerVideoUrl: videoCenterUrl,
       centerVideoUrls: centerSources.videoUrls,
-      fallbackInitials: personal.fullName || profileName || 'VB',
+      fallbackInitials: ownerLabel,
     })
       .then((url) => {
-        if (!cancelled) setQrCodeUrl(url)
+        if (!cancelled) setGeneratedQr({ key: generationKey, dataUrl: url })
       })
       .catch(() => {
-        /* ignore */
+        if (!cancelled) {
+          setGeneratedQr(null)
+          setVideoQrFailed(true)
+        }
       })
 
     return () => {
       cancelled = true
     }
-  }, [isOpen, shareUrl, centerSources, personal.fullName, profileName])
+  }, [generationKey, shareUrl, videoCenterUrl, centerSources.videoUrls, ownerLabel])
+
+  useEffect(() => {
+    if (!centerKey || stillImageCandidates.length === 0) return
+
+    let cancelled = false
+
+    const toAbsolute = (src: string) => {
+      const trimmed = src.trim()
+      if (!trimmed) return ''
+      if (trimmed.startsWith('//')) return `https:${trimmed}`
+      if (trimmed.startsWith('/') && typeof window !== 'undefined') return `${window.location.origin}${trimmed}`
+      return trimmed
+    }
+
+    const loadViaProxy = async (httpsUrl: string): Promise<string> => {
+      const response = await fetch(`/api/proxy-image?url=${encodeURIComponent(httpsUrl)}`)
+      if (!response.ok) throw new Error('proxy failed')
+      const payload = (await response.json()) as { base64?: string; type?: string }
+      if (!payload.base64) throw new Error('empty proxy')
+      const mime =
+        payload.type === 'PNG'
+          ? 'image/png'
+          : payload.type === 'WEBP'
+            ? 'image/webp'
+            : payload.type === 'GIF'
+              ? 'image/gif'
+              : 'image/jpeg'
+      return `data:${mime};base64,${payload.base64}`
+    }
+
+    void (async () => {
+      for (const candidate of stillImageCandidates) {
+        const absolute = toAbsolute(candidate)
+        if (!absolute) continue
+        try {
+          if (absolute.startsWith('data:')) {
+            if (!cancelled) setProxiedCenter({ key: centerKey, url: absolute })
+            return
+          }
+          if (absolute.startsWith('http://') || absolute.startsWith('https://')) {
+            const dataUrl = await loadViaProxy(absolute)
+            if (!cancelled) setProxiedCenter({ key: centerKey, url: dataUrl })
+            return
+          }
+          if (!cancelled) setProxiedCenter({ key: centerKey, url: absolute })
+          return
+        } catch {
+          /* try next candidate */
+        }
+      }
+      if (!cancelled) setProxiedCenter({ key: centerKey, url: initialsCenterUrl })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [centerKey, stillImageCandidates, initialsCenterUrl])
+
+  const showVideoSpinner = Boolean(generationKey && !visibleGeneratedQr)
+  const showImageSpinner = Boolean(centerKey && !visibleStaticCenter && !visibleGeneratedQr)
+  const useCanvasQr = Boolean(shareUrl && !visibleGeneratedQr && !showVideoSpinner && visibleStaticCenter)
 
   const handleCopyLink = async () => {
     try {
@@ -221,19 +326,27 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                 ) : null}
               </div>
 
-              <div className="relative flex h-auto w-full max-w-65 items-center justify-center overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50 p-2 shadow-inner sm:rounded-2xl sm:p-3">
-                {qrCodeUrl ? (
-                  <motion.img
-                    key={qrCodeUrl}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    src={qrCodeUrl}
-                    alt="Profile QR Code"
-                    className="pointer-events-none h-full w-full object-contain"
-                  />
-                ) : (
+              <div className="relative flex h-auto w-full max-w-65 items-center justify-center overflow-hidden rounded-xl border border-zinc-100 bg-white p-3 shadow-inner sm:rounded-2xl sm:p-4">
+                {!shareUrl || showVideoSpinner || showImageSpinner ? (
                   <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-300 border-t-[#eab308] sm:h-12 sm:w-12" />
-                )}
+                ) : visibleGeneratedQr ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- generated QR data URL
+                  <img
+                    src={visibleGeneratedQr}
+                    alt="Profile QR Code"
+                    className="pointer-events-none h-full w-full max-w-[260px] object-contain"
+                  />
+                ) : useCanvasQr ? (
+                  <QRCodeCanvas
+                    value={shareUrl}
+                    size={260}
+                    fgColor="#09090b"
+                    bgColor="#ffffff"
+                    level="H"
+                    includeMargin={false}
+                    imageSettings={{ src: visibleStaticCenter, height: 58, width: 58, excavate: true }}
+                  />
+                ) : null}
               </div>
             </div>
           </div>

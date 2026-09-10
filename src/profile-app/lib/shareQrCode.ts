@@ -154,20 +154,34 @@ function captureVideoFrame(videoSrc: string): Promise<HTMLImageElement> {
 }
 
 function createInitialsAvatar(label: string, size = 320): HTMLImageElement | null {
-  const text = label
+  const dataUrl = buildShareQrInitialsDataUrl(label, size)
+  if (!dataUrl) return null
+  const img = new Image()
+  img.src = dataUrl
+  return img
+}
+
+/** Capitals from owner name — e.g. "Zakir Hosen" → "ZH". */
+export function shareQrOwnerInitials(fullName: string): string {
+  return fullName
     .trim()
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || '')
     .join('')
-  if (!text) return null
+}
+
+/** Data-URL avatar used when no photo is available (same idea as dashboard QR center). */
+export function buildShareQrInitialsDataUrl(fullName: string, size = 320): string {
+  const text = shareQrOwnerInitials(fullName)
+  if (!text || typeof document === 'undefined') return ''
 
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
   const ctx = canvas.getContext('2d')
-  if (!ctx) return null
+  if (!ctx) return ''
 
   ctx.fillStyle = '#0f172a'
   ctx.beginPath()
@@ -180,9 +194,7 @@ function createInitialsAvatar(label: string, size = 320): HTMLImageElement | nul
   ctx.textBaseline = 'middle'
   ctx.fillText(text, size / 2, size / 2 + size * 0.03)
 
-  const img = new Image()
-  img.src = canvas.toDataURL('image/png')
-  return img
+  return canvas.toDataURL('image/png')
 }
 
 async function resolveCenterImage(opts: {

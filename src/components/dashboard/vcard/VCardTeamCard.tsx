@@ -20,6 +20,7 @@ import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { ContactSaveChip, ShareCountChip, SocialClickChip } from './SocialClickChip'
 import { TrafficSparkline } from './TrafficSparkline'
 import { VCardCardActions } from './VCardCardActions'
+import { VCardCardTimestamps } from './VCardCardTimestamps'
 import { VCardOverflowMenu } from './VCardOverflowMenu'
 import { VCardVisibilityToggle } from './VCardVisibilityToggle'
 import { getCardSocialClickStats } from './socialStats'
@@ -413,6 +414,7 @@ export function VCardTeamCard({
                 <Building className="h-3 w-3 shrink-0 text-slate-400" />
                 <span className="truncate">{card.personal.company || 'Company'}</span>
               </div>
+              <VCardCardTimestamps createdAt={card.createdAt} updatedAt={card.updatedAt} />
             </div>
             <VCardVisibilityToggle
               id={card.id ? `vcard-visibility-${card.id}` : 'vcard-visibility-missing'}

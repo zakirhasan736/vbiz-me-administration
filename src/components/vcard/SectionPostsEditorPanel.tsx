@@ -20,6 +20,7 @@ import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardSectionPostItem } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Calendar, FileBox, FileText, Layers, Link as LinkIcon, MapPin, Plus, Star } from 'lucide-react'
+import { useEffect } from 'react'
 
 type Accent = 'amber' | 'teal' | 'violet'
 
@@ -145,7 +146,22 @@ export function SectionPostsEditorPanel({
 
   const setPosts = (next: VCardSectionPostItem[]) => onPostsChange(next)
 
-  const canAdd = schema.maxItems == null || posts.length < schema.maxItems
+  const isSingleItem = schema.maxItems === 1
+  const canAdd = !isSingleItem && (schema.maxItems == null || posts.length < schema.maxItems)
+
+  // Single-item sections (e.g. 2D Explainer): always keep one form — no Add button.
+  useEffect(() => {
+    if (!isSingleItem) return
+    if (posts.length === 0) {
+      const next = createDefaultSectionPostItem()
+      onPostsChange([next])
+      expandNew(postEntryKey(next))
+      return
+    }
+    if (posts.length > 1) {
+      onPostsChange(posts.slice(0, 1))
+    }
+  }, [isSingleItem, posts, onPostsChange, expandNew])
 
   const addPost = () => {
     if (!canAdd) return
@@ -206,20 +222,26 @@ export function SectionPostsEditorPanel({
 
       <div className="flex flex-1 flex-col">
         {posts.length === 0 ? (
-          <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
-              <FileBox className="h-8 w-8 text-slate-400" />
+          isSingleItem ? (
+            <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-8 text-center text-sm font-medium text-slate-500 shadow-sm dark:border-white/5 dark:bg-white/2 dark:text-slate-400">
+              Preparing form…
             </div>
-            <h4 className="mb-2 text-[16px] font-black text-slate-900 dark:text-white">{schema.emptyTitle}</h4>
-            <p className="mx-auto mb-6 max-w-md text-[13px] text-slate-500 dark:text-slate-400">{schema.emptyHint}</p>
-            <button
-              type="button"
-              onClick={addPost}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all active:scale-95 ${a.btnBg}`}
-            >
-              <Plus className="h-4 w-4" /> {schema.addLabel}
-            </button>
-          </div>
+          ) : (
+            <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
+                <FileBox className="h-8 w-8 text-slate-400" />
+              </div>
+              <h4 className="mb-2 text-[16px] font-black text-slate-900 dark:text-white">{schema.emptyTitle}</h4>
+              <p className="mx-auto mb-6 max-w-md text-[13px] text-slate-500 dark:text-slate-400">{schema.emptyHint}</p>
+              <button
+                type="button"
+                onClick={addPost}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all active:scale-95 ${a.btnBg}`}
+              >
+                <Plus className="h-4 w-4" /> {schema.addLabel}
+              </button>
+            </div>
+          )
         ) : (
           <div>
             <ReorderList
@@ -270,10 +292,10 @@ export function SectionPostsEditorPanel({
                       mediaUrl={post.featuredImage}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(key)}
-                      showRemove
+                      showRemove={!isSingleItem}
                       onRemove={() => removePost(key)}
                       accent={cardAccent}
-                      dragHandleProps={dragHandleProps}
+                      dragHandleProps={isSingleItem ? undefined : dragHandleProps}
                     />
 
                     <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">

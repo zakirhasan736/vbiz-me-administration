@@ -1,5 +1,13 @@
-import { resolveShareQrCenterSources } from '@/profile-app/lib/shareQrCode'
+import { resolveShareQrCenterSources, shareQrOwnerInitials } from '@/profile-app/lib/shareQrCode'
 import { describe, expect, it } from 'vitest'
+
+describe('shareQrOwnerInitials', () => {
+  it('builds cap letters from owner name', () => {
+    expect(shareQrOwnerInitials('Zakir Hosen')).toBe('ZH')
+    expect(shareQrOwnerInitials('Zakir')).toBe('Z')
+    expect(shareQrOwnerInitials('  Ada  Lovelace  Byron ')).toBe('AL')
+  })
+})
 
 describe('resolveShareQrCenterSources', () => {
   it('prefers avatar, then profile area, then About Me still images', () => {

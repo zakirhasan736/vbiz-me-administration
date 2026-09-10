@@ -93,9 +93,13 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     key: 'explainer',
     postTypeName: PUBLIC_SECTION_NAMES.explainer,
     title: '2D Video Explainer',
+    description: 'Add one 2D explainer video for your public profile tab. Upload a file or paste an external link.',
     addLabel: 'Add Explainer',
+    emptyTitle: '2D Video Explainer',
+    emptyHint: 'Upload or link one explainer video for this card.',
     accentClass: 'teal',
     featuredMediaMode: 'video',
+    maxItems: 1,
   }),
   certificates: schema({
     key: 'certificates',

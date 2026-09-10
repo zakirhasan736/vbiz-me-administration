@@ -53,7 +53,7 @@ describe('patchExplainerSectionMedia', () => {
     expect(cleared.sectionPosts?.[PUBLIC_SECTION_NAMES.explainer] ?? []).toHaveLength(0)
   })
 
-  it('preserves extra explainer rows when updating the primary item', () => {
+  it('keeps a single explainer row when updating (drops extras)', () => {
     const primary = {
       id: 'sec_primary',
       title: 'Primary',
@@ -84,8 +84,8 @@ describe('patchExplainerSectionMedia', () => {
     }
     const next = patchExplainerSectionMedia(withExtra, { fileUrl: 'https://cdn.example.com/primary.mp4' })
     const items = next.sectionPosts?.[EXPLAINER_SECTION] ?? []
-    expect(items).toHaveLength(2)
+    expect(items).toHaveLength(1)
+    expect(items[0]?.id).toBe('sec_primary')
     expect(items[0]?.featuredImage).toBe('https://cdn.example.com/primary.mp4')
-    expect(items[1]?.id).toBe('sec_extra')
   })
 })

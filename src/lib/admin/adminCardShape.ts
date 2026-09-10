@@ -26,6 +26,10 @@ export type AdminCard = Record<string, unknown> & {
   adminPortfolio?: boolean
   avatar?: string
   avatarImageUrl?: string
+  /** Profile create time from API (`mapApiProfileToVCardRecord`). */
+  createdAt?: string
+  /** Profile last update time from API. */
+  updatedAt?: string
 }
 
 export function adminCardAvatarUrl(card: Pick<AdminCard, 'avatar' | 'avatarImageUrl'>): string {

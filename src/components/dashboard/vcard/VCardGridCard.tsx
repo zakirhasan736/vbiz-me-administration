@@ -3,6 +3,7 @@
 import { AlertModal } from '@/components/AlertModal'
 import { CardAvatarThumb } from '@/components/CardAvatarThumb'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { VCardCardTimestamps } from '@/components/dashboard/vcard/VCardCardTimestamps'
 import { Badge, Button, Card, Tooltip } from '@/components/ui'
 import { useAppDispatch } from '@/hooks/redux'
 import { isOwnerCardLocked, resolveCardStatus, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
@@ -245,6 +246,7 @@ export function VCardGridCard({ card, onOpenQr, isPersonal = false }: VCardGridC
           <p className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
             {card.personal.designation || 'Add a title'}
           </p>
+          <VCardCardTimestamps createdAt={card.createdAt} updatedAt={card.updatedAt} />
         </div>
 
         <div
