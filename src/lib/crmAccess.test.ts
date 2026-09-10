@@ -13,10 +13,10 @@ describe('CRM session gate', () => {
     expect(canSessionUseCrm({ role: 'admin', allowedModules: [], packageAllowsCrm: false })).toBe(false)
   })
 
-  it('uses package entitlement for owners, not staff modules', () => {
+  it('does not package-gate CRM for owners', () => {
+    expect(canSessionUseCrm({ role: 'vcard-owner', packageAllowsCrm: false })).toBe(true)
     expect(canSessionUseCrm({ role: 'vcard-owner', packageAllowsCrm: true })).toBe(true)
-    expect(canSessionUseCrm({ role: 'vcard-owner', packageAllowsCrm: false })).toBe(false)
-    expect(canSessionUseCrm({ role: 'corporate-owner', packageAllowsCrm: true })).toBe(true)
+    expect(canSessionUseCrm({ role: 'corporate-owner', packageAllowsCrm: false })).toBe(true)
   })
 
   it('always shows CRM nav/button for single and corporate back office', () => {
