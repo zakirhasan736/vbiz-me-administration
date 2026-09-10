@@ -5,10 +5,12 @@ import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
+import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButtons'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
+import { RumbleIcon, WhatsAppIcon } from '@/profile-app/components/socialBrandIcons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
@@ -33,7 +35,6 @@ import {
   Globe,
   Instagram,
   Linkedin,
-  MessageCircle,
   Moon,
   Share2,
   Sun,
@@ -69,11 +70,11 @@ const V3_SOCIAL_ITEMS: V3SocialItem[] = [
   { label: 'FaceBook', title: 'Facebook', icon: Facebook },
   { label: 'Instagram', title: 'Instagram', icon: Instagram },
   { label: 'LinkedIn', title: 'LinkedIn', icon: Linkedin },
-  { label: 'Whatsapp', title: 'WhatsApp', icon: MessageCircle },
+  { label: 'Whatsapp', title: 'WhatsApp', icon: WhatsAppIcon, isSvg: true },
   { label: 'TikTok', title: 'TikTok', icon: TikTokIcon, isSvg: true },
   { label: 'Youtube', title: 'YouTube', icon: Youtube },
   { label: 'Pinterest', title: 'Pinterest', icon: Globe },
-  { label: 'Rumble', title: 'Rumble', icon: Globe },
+  { label: 'Rumble', title: 'Rumble', icon: RumbleIcon, isSvg: true },
   { label: 'Truth', title: 'Truth Social', icon: Globe },
   { label: 'Website', title: 'Website', icon: Globe },
 ]
@@ -99,6 +100,7 @@ export const HomeHero: React.FC<{
   const { t } = useTranslation()
   const {
     personal,
+    social,
     isVisible,
     field,
     homeMedia,
@@ -155,6 +157,14 @@ export const HomeHero: React.FC<{
       ),
     [socialHref, personal.whatsapp, isVisible]
   )
+  const hasGameIds = Boolean(social.games && Object.values(social.games).some((v) => v?.trim()))
+  const showSocialRail = visibleSocials.length > 0 || hasGameIds
+
+  const socialMobileBtnClass = `vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 hover:scale-[1.12] hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] ${
+    compact ? '' : 'md:h-10 md:w-10'
+  }`
+  const socialDesktopBtnClass =
+    'vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110'
 
   const viewCountLabel = formatProfileViewCount(actionButtons?.view_counter?.count ?? profileViews)
 
@@ -345,7 +355,7 @@ export const HomeHero: React.FC<{
             compact ? 'flex-1 pt-16 pb-5' : 'flex-1 pt-6.25 pb-2 sm:pb-17.5 md:hidden'
           }`}
         >
-          {visibleSocials.length > 0 && (
+          {showSocialRail && (
             <div className={`absolute z-30 flex flex-col gap-2 ${compact ? 'top-24 left-0' : 'top-8 left-2'}`}>
               {visibleSocials.map((item) => {
                 const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
@@ -360,9 +370,7 @@ export const HomeHero: React.FC<{
                         triggerHaptic(10)
                         onTrackedSocialClick(item.label, cardOwnerId, cardSlug)
                       }}
-                      className={`vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 hover:scale-[1.12] hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] ${
-                        compact ? '' : 'md:h-10 md:w-10'
-                      }`}
+                      className={socialMobileBtnClass}
                       style={socialInlineStyle(item.label)}
                     >
                       {renderSocialIcon(item, HOME_ICON_SIZE)}
@@ -370,6 +378,7 @@ export const HomeHero: React.FC<{
                   </IconHoverTooltip>
                 )
               })}
+              <GameIdsRail games={social.games} buttonClassName={socialMobileBtnClass} tooltipPlacement="right" />
             </div>
           )}
 
@@ -600,26 +609,36 @@ export const HomeHero: React.FC<{
                   </IconHoverTooltip>
                 </div>
 
-                {visibleSocials.length > 0 && (
-                  <div className="ml-1 flex gap-3">
-                    {visibleSocials.map((item) => {
-                      const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
-                      return (
-                        <IconHoverTooltip key={item.label} label={item.title}>
-                          <a
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={item.title}
-                            onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
-                            className="vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-110"
-                            style={socialInlineStyle(item.label)}
-                          >
-                            {renderSocialIcon(item, HOME_ICON_SIZE)}
-                          </a>
-                        </IconHoverTooltip>
-                      )
-                    })}
+                {showSocialRail && (
+                  <div className="ml-1 flex max-w-full flex-col items-start gap-2">
+                    {visibleSocials.length > 0 && (
+                      <div className="flex max-w-full flex-wrap gap-2 sm:gap-3">
+                        {visibleSocials.map((item) => {
+                          const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
+                          return (
+                            <IconHoverTooltip key={item.label} label={item.title}>
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={item.title}
+                                onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
+                                className={socialDesktopBtnClass}
+                                style={socialInlineStyle(item.label)}
+                              >
+                                {renderSocialIcon(item, HOME_ICON_SIZE)}
+                              </a>
+                            </IconHoverTooltip>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <GameIdsRail
+                      games={social.games}
+                      buttonClassName={socialDesktopBtnClass}
+                      tooltipPlacement="top"
+                      wrapperClassName="flex max-w-full flex-wrap gap-2 sm:gap-3"
+                    />
                   </div>
                 )}
               </div>

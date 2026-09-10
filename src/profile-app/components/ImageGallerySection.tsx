@@ -1,13 +1,14 @@
 'use client'
 
-import type { GalleryListItem } from '@/interfaces/api/gallery.interface'
+import type { GalleryListItem, GalleryMediaKind } from '@/interfaces/api/gallery.interface'
+import { detectGalleryMediaKind, encodeMediaUrl, isDocumentUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetGalleryQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
-import { Camera, Image as ImageIcon, Maximize2, X } from 'lucide-react'
+import { Camera, ExternalLink, FileText, Image as ImageIcon, Maximize2, Music, Play, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
@@ -52,6 +53,45 @@ function getHoverDirection(event: React.MouseEvent<HTMLElement>, element: HTMLEl
   if (min === bottom) return 'bottom'
   if (min === left) return 'left'
   return 'right'
+}
+
+function youtubeEmbedSrc(url: string): string | null {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{6,})/i)
+  return match ? `https://www.youtube.com/embed/${match[1]}` : null
+}
+
+function vimeoEmbedSrc(url: string): string | null {
+  const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i)
+  return match ? `https://player.vimeo.com/video/${match[1]}` : null
+}
+
+function resolveItemKind(item: GalleryListItem): GalleryMediaKind {
+  return detectGalleryMediaKind(item.imageUrl, {
+    type: item.mediaKind,
+    linkUrl: item.linkUrl,
+  })
+}
+
+function resolveMediaSrc(item: GalleryListItem): string {
+  const primary = item.imageUrl.trim()
+  if (primary) return primary
+  return (item.linkUrl || '').trim()
+}
+
+function MediaShell({
+  lockedAspect,
+  className,
+  children,
+  aspectFallback = 'aspect-video',
+}: {
+  lockedAspect?: string
+  className?: string
+  children: React.ReactNode
+  aspectFallback?: string
+}) {
+  return (
+    <div className={cn('relative w-full overflow-hidden', lockedAspect ?? aspectFallback, className)}>{children}</div>
+  )
 }
 
 function ImageWithPlaceholder({
@@ -126,6 +166,197 @@ function ImageWithPlaceholder({
   )
 }
 
+function GalleryMediaPreview({ item, lockedAspect }: { item: GalleryListItem; lockedAspect?: string }) {
+  const kind = resolveItemKind(item)
+  const rawSrc = resolveMediaSrc(item)
+  const encoded = encodeMediaUrl(rawSrc)
+  const youtube = youtubeEmbedSrc(rawSrc)
+  const vimeo = vimeoEmbedSrc(rawSrc)
+
+  if (kind === 'video' || isVideoUrl(rawSrc)) {
+    if (youtube || vimeo) {
+      return (
+        <MediaShell lockedAspect={lockedAspect} aspectFallback="aspect-video">
+          <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white">
+              <Play size={22} fill="currentColor" />
+            </span>
+          </div>
+        </MediaShell>
+      )
+    }
+    if (encoded) {
+      return (
+        <MediaShell lockedAspect={lockedAspect} aspectFallback="aspect-video">
+          <video
+            src={encoded}
+            muted
+            playsInline
+            preload="metadata"
+            className="absolute inset-0 h-full w-full object-cover"
+            aria-label={item.title}
+          />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white">
+              <Play size={18} fill="currentColor" />
+            </span>
+          </div>
+        </MediaShell>
+      )
+    }
+  }
+
+  if (kind === 'audio') {
+    return (
+      <MediaShell lockedAspect={lockedAspect} aspectFallback="aspect-[4/3]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900/80 p-4">
+          <Music size={32} className="text-white/70" />
+          <audio
+            src={encoded || rawSrc}
+            controls
+            preload="metadata"
+            className="w-full max-w-[90%]"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </MediaShell>
+    )
+  }
+
+  if (kind === 'document') {
+    return (
+      <MediaShell lockedAspect={lockedAspect} aspectFallback="aspect-[4/3]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-900/70 p-4 text-center">
+          <FileText size={36} className="text-white/70" />
+          <p className="text-xs font-bold tracking-wider text-white/80 uppercase">Document</p>
+        </div>
+      </MediaShell>
+    )
+  }
+
+  if (kind === 'link') {
+    return (
+      <MediaShell lockedAspect={lockedAspect} aspectFallback="aspect-[4/3]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-900/70 p-4 text-center">
+          <ExternalLink size={32} className="text-white/70" />
+          <p className="line-clamp-2 max-w-[90%] text-xs font-medium text-white/80">{item.linkUrl || rawSrc}</p>
+        </div>
+      </MediaShell>
+    )
+  }
+
+  return (
+    <ImageWithPlaceholder
+      key={rawSrc}
+      src={encoded || rawSrc}
+      alt={item.title}
+      objectFit="cover"
+      lockedAspect={lockedAspect}
+    />
+  )
+}
+
+function GalleryLightboxMedia({ item }: { item: GalleryListItem }) {
+  const kind = resolveItemKind(item)
+  const rawSrc = resolveMediaSrc(item)
+  const encoded = encodeMediaUrl(rawSrc)
+  const youtube = youtubeEmbedSrc(rawSrc)
+  const vimeo = vimeoEmbedSrc(rawSrc)
+  const openHref = (item.linkUrl || rawSrc).trim()
+
+  if (kind === 'video' || isVideoUrl(rawSrc)) {
+    if (youtube || vimeo) {
+      return (
+        <div className="aspect-video w-[min(900px,90vw)] bg-black">
+          <iframe
+            src={youtube || vimeo || undefined}
+            title={item.title}
+            className="h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )
+    }
+    if (encoded) {
+      return (
+        <video
+          src={encoded}
+          controls
+          playsInline
+          preload="metadata"
+          className="max-h-[calc(100dvh-11rem)] w-full bg-black object-contain"
+          aria-label={item.title}
+        />
+      )
+    }
+  }
+
+  if (kind === 'audio') {
+    return (
+      <div className="flex min-h-48 w-[min(560px,90vw)] flex-col items-center justify-center gap-4 bg-zinc-950 px-6 py-10">
+        <Music size={40} className="text-white/70" />
+        <audio src={encoded || rawSrc} controls preload="metadata" className="w-full" />
+      </div>
+    )
+  }
+
+  if (kind === 'document') {
+    const isPdf = isDocumentUrl(rawSrc) && /\.pdf(\?|#|$)/i.test(rawSrc)
+    if (isPdf && (encoded || rawSrc)) {
+      return (
+        <iframe
+          src={encoded || rawSrc}
+          title={item.title}
+          className="h-[min(70dvh,720px)] w-[min(900px,90vw)] bg-white"
+        />
+      )
+    }
+    return (
+      <div className="flex min-h-48 w-[min(560px,90vw)] flex-col items-center justify-center gap-4 bg-zinc-950 px-6 py-10">
+        <FileText size={40} className="text-white/70" />
+        {openHref ? (
+          <a
+            href={openHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-zinc-900"
+          >
+            <ExternalLink size={16} /> Open document
+          </a>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (kind === 'link') {
+    return (
+      <div className="flex min-h-48 w-[min(560px,90vw)] flex-col items-center justify-center gap-4 bg-zinc-950 px-6 py-10">
+        <ExternalLink size={40} className="text-white/70" />
+        {openHref ? (
+          <a
+            href={openHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-zinc-900"
+          >
+            Open link
+          </a>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (encoded || rawSrc) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={encoded || rawSrc} alt={item.title} className="max-h-[calc(100dvh-11rem)] w-full object-contain" />
+    )
+  }
+
+  return null
+}
+
 function GalleryCardSkeleton({ delay, aspectClass }: { delay: number; aspectClass: string }) {
   return (
     <motion.div
@@ -154,6 +385,7 @@ function GalleryCard({
   const cardRef = useRef<HTMLDivElement>(null)
   const [isHovered, setIsHovered] = useState(false)
   const [direction, setDirection] = useState<HoverDirection>('top')
+  const kind = resolveItemKind(item)
 
   const handleMouseEnter = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return
@@ -192,13 +424,7 @@ function GalleryCard({
         fullWidth ? 'h-[min(58dvh,calc(100dvh-18rem))]' : 'mb-3 break-inside-avoid'
       )}
     >
-      <ImageWithPlaceholder
-        key={item.imageUrl.trim()}
-        src={item.imageUrl}
-        alt={item.title}
-        objectFit="cover"
-        lockedAspect={fullWidth ? 'h-full' : undefined}
-      />
+      <GalleryMediaPreview item={item} lockedAspect={fullWidth ? 'h-full' : undefined} />
 
       <AnimatePresence>
         {isHovered ? (
@@ -217,7 +443,7 @@ function GalleryCard({
             <div className="mt-auto flex justify-end">
               <button
                 type="button"
-                aria-label={`View full size image: ${item.title}`}
+                aria-label={`View ${kind}: ${item.title}`}
                 onClick={(event) => {
                   event.stopPropagation()
                   onOpen(item)
@@ -291,10 +517,7 @@ function GalleryLightbox({ item, onClose }: { item: GalleryListItem; onClose: ()
         className="vbiz-modal-panel relative flex max-h-[calc(100dvh-9rem)] max-w-[min(900px,90vw)] flex-col overflow-hidden rounded-lg shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        {item.imageUrl.trim() ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.imageUrl} alt={item.title} className="max-h-[calc(100dvh-11rem)] w-full object-contain" />
-        ) : null}
+        <GalleryLightboxMedia item={item} />
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-5 py-4">
           <p className="vbiz-title text-base font-bold text-white">{item.title}</p>
         </div>
@@ -311,7 +534,10 @@ export const ImageGallerySection = () => {
 
   const { data, isLoading, isError } = useGetGalleryQuery(profileId, { skip: !profileId })
 
-  const items = useMemo(() => (data?.items ?? []).filter((item) => Boolean(item.imageUrl?.trim())), [data?.items])
+  const items = useMemo(
+    () => (data?.items ?? []).filter((item) => Boolean(item.imageUrl?.trim()) || Boolean(item.linkUrl?.trim())),
+    [data?.items]
+  )
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Gallery')
   const isSingle = items.length === 1
   const isFlexible = items.length > 1

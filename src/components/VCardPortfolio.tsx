@@ -13,6 +13,7 @@ import {
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapPortfolioFromPayload } from '@/lib/ai/applyCardDraft'
+import { detectPortfolioType, isAudioUrl, isVideoUrl, type PortfolioMediaType } from '@/lib/mediaUrl'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultPortfolioEntry, normalizePortfolioList } from '@/lib/vcardPortfolio'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -20,6 +21,26 @@ import type { VCardPortfolioEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { FileText, FolderOpen, LayoutGrid, Link as LinkIcon, Plus, Youtube } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+
+/** Gallery / Photos does not accept audio — use Background Audio or other sections for that. */
+const PORTFOLIO_MEDIA_ACCEPT = 'image/*,video/*,application/pdf,.pdf,.doc,.docx'
+
+type GalleryPortfolioType = Exclude<PortfolioMediaType, 'Audio'>
+
+function isRejectedPortfolioAudio(url: string, mimeType?: string | null, fileName?: string | null): boolean {
+  const mime = (mimeType || '').toLowerCase()
+  if (mime.startsWith('audio/')) return true
+  return isAudioUrl(url, fileName) || detectPortfolioType(url, mimeType, fileName) === 'Audio'
+}
+
+function detectGalleryPortfolioType(
+  url: string,
+  mimeType?: string | null,
+  fileName?: string | null
+): GalleryPortfolioType {
+  const detected = detectPortfolioType(url, mimeType, fileName)
+  return detected === 'Audio' ? 'Image' : detected
+}
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 shadow-sm'
@@ -185,7 +206,6 @@ export function TabPortfolio() {
                             >
                               <option value="Image">Image</option>
                               <option value="Video">Video</option>
-                              <option value="Audio">Audio</option>
                               <option value="Link">Link</option>
                               <option value="Document">Document</option>
                             </select>
@@ -231,16 +251,8 @@ export function TabPortfolio() {
                             attachmentType="Portfolio Gallery"
                             value={portfolio.imageUrl}
                             fileName={portfolio.imageName}
-                            accept={
-                              portfolio.type === 'Video'
-                                ? 'video/*,image/*'
-                                : portfolio.type === 'Audio'
-                                  ? 'audio/*,image/*'
-                                  : portfolio.type === 'Document'
-                                    ? 'application/pdf,.pdf,.doc,.docx,image/*'
-                                    : 'image/*,video/*,audio/*,application/pdf'
-                            }
-                            hint="Upload image, video, audio, or a document - preview appears below"
+                            accept={PORTFOLIO_MEDIA_ACCEPT}
+                            hint="Upload image, video, or a document - type is detected automatically (audio not allowed)"
                             onChange={(next) => {
                               if (!next) {
                                 patchPortfolio(portfolio.id, {
@@ -249,9 +261,13 @@ export function TabPortfolio() {
                                 })
                                 return
                               }
+                              if (isRejectedPortfolioAudio(next.url, next.mimeType, next.fileName)) {
+                                return
+                              }
                               patchPortfolio(portfolio.id, {
                                 imageUrl: next.url,
                                 imageName: next.fileName,
+                                type: detectGalleryPortfolioType(next.url, next.mimeType, next.fileName),
                               })
                             }}
                           />
@@ -259,12 +275,14 @@ export function TabPortfolio() {
                             mode="both"
                             compact
                             profileId={cardId}
-                            onSelect={(asset) =>
+                            onSelect={(asset) => {
+                              if (isRejectedPortfolioAudio(asset.url, null, asset.name)) return
                               patchPortfolio(portfolio.id, {
                                 imageUrl: asset.url,
                                 imageName: asset.name,
+                                type: detectGalleryPortfolioType(asset.url, null, asset.name),
                               })
-                            }
+                            }}
                           />
                         </div>
                       </div>
@@ -281,7 +299,26 @@ export function TabPortfolio() {
                         <input
                           type="text"
                           value={portfolio.url}
-                          onChange={(e) => updatePortfolio(portfolio.id, 'url', e.target.value)}
+                          onChange={(e) => {
+                            const nextUrl = e.target.value
+                            const hasFeatured = Boolean(portfolio.imageUrl?.trim())
+                            if (!hasFeatured && nextUrl.trim()) {
+                              if (isRejectedPortfolioAudio(nextUrl)) {
+                                updatePortfolio(portfolio.id, 'url', nextUrl)
+                                return
+                              }
+                              const detected = detectGalleryPortfolioType(nextUrl)
+                              const type: GalleryPortfolioType =
+                                detected === 'Video' || isVideoUrl(nextUrl)
+                                  ? 'Video'
+                                  : detected === 'Link' || /^https?:\/\//i.test(nextUrl.trim())
+                                    ? 'Link'
+                                    : detected
+                              patchPortfolio(portfolio.id, { url: nextUrl, type })
+                              return
+                            }
+                            updatePortfolio(portfolio.id, 'url', nextUrl)
+                          }}
                           placeholder={portfolio.type === 'Video' ? 'Enter YouTube video URL' : 'https://…'}
                           className={inputClasses}
                         />

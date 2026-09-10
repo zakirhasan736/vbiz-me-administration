@@ -16,7 +16,6 @@ import {
   Globe,
   Instagram,
   Linkedin,
-  MessageCircle,
   Moon,
   PlaySquare,
   Share2,
@@ -26,7 +25,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { useProfileDisplay } from '../lib/profileDisplayContext'
 import { openVbizmeLogin } from '../lib/profileExternalLinks'
 import {
@@ -38,24 +37,32 @@ import {
 import { filterSocialItemsWithLinks, onTrackedSocialClick, resolveSocialLinkHref } from '../lib/profileSocialLinks'
 import { resolveProfileAvatarSrc } from '../profilePublicProps'
 import { CustomVideoPlayer } from './CustomVideoPlayer'
+import { GameIdsRail } from './GameIdsRail'
 import { IconHoverTooltip } from './IconHoverTooltip'
 import { LeaveMessageModal } from './LeaveMessageModal'
 import { ProfileActionButtons } from './ProfileActionButtons'
 import { SectionContainer } from './SectionContainer'
+import { RumbleIcon, WhatsAppIcon } from './socialBrandIcons'
 
-const V1_SOCIAL_GRID = [
+type V1SocialItem = {
+  label: string
+  icon: LucideIcon | ((props: { size?: number }) => ReactElement)
+  isSvg?: boolean
+}
+
+const V1_SOCIAL_GRID: V1SocialItem[] = [
   { label: 'Twitter', icon: Twitter },
   { label: 'FaceBook', icon: Facebook },
   { label: 'Instagram', icon: Instagram },
   { label: 'LinkedIn', icon: Linkedin },
-  { label: 'Whatsapp', icon: MessageCircle },
+  { label: 'Whatsapp', icon: WhatsAppIcon, isSvg: true },
   { label: 'TikTok', icon: Globe },
   { label: 'Youtube', icon: PlaySquare },
   { label: 'Pinterest', icon: Globe },
-  { label: 'Rumble', icon: Globe },
+  { label: 'Rumble', icon: RumbleIcon, isSvg: true },
   { label: 'Truth', icon: Globe },
   { label: 'Website', icon: Globe },
-] as const
+]
 
 const V1_SOCIAL_TOOLTIP: Record<string, string> = {
   Twitter: 'X',
@@ -247,8 +254,19 @@ type HomeSectionProps = {
 }
 
 export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
-  const { personal, isVisible, field, homeMedia, design, socialHref, embedded, cardOwnerId, cardSlug, profileViews } =
-    useProfileDisplay()
+  const {
+    personal,
+    social,
+    isVisible,
+    field,
+    homeMedia,
+    design,
+    socialHref,
+    embedded,
+    cardOwnerId,
+    cardSlug,
+    profileViews,
+  } = useProfileDisplay()
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showLanguage = isVisible('Language')
   const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
@@ -283,6 +301,18 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const visibleSocials = filterSocialItemsWithLinks(V1_SOCIAL_GRID, socialHref, personal.whatsapp, isVisible).filter(
     (item) => item.label !== 'Website'
   )
+
+  const renderSocialIcon = (item: V1SocialItem, size = 22) => {
+    if (item.isSvg) {
+      const Icon = item.icon as (props: { size?: number }) => ReactElement
+      return <Icon size={size} />
+    }
+    const Icon = item.icon as LucideIcon
+    return <Icon size={size} fill="currentColor" className="opacity-90 transition-none" />
+  }
+
+  const gameBtnClass =
+    'vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl'
 
   const [messageModalOpen, setMessageModalOpen] = useState(false)
   const messageOwnerName = personal.fullName?.trim() || 'the card owner'
@@ -438,29 +468,30 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               className="relative z-10 flex w-full flex-col items-center justify-between gap-6 sm:flex-row sm:items-end"
             >
               {/* Mobile social icons (left column) */}
-              {visibleSocials.length > 0 ? (
+              {visibleSocials.length > 0 || (social.games && Object.values(social.games).some((v) => v?.trim())) ? (
                 <div className="absolute top-0 left-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
-                  {visibleSocials.slice(0, 5).map((item, idx) => {
+                  {visibleSocials.map((item, idx) => {
                     const socialInlineStyle = displaySocialChromeStyle(field(item.label))
                     const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
                     return (
                       <IconHoverTooltip key={`${item.label}-${idx}`} label={tip} placement="right">
                         <motion.a
-                          href={socialHref(item.label)}
+                          href={resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)}
                           target="_blank"
                           rel="noopener noreferrer"
                           aria-label={tip}
                           onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl"
+                          className={gameBtnClass}
                           style={socialInlineStyle}
                         >
-                          <item.icon size={22} fill="currentColor" />
+                          {renderSocialIcon(item)}
                         </motion.a>
                       </IconHoverTooltip>
                     )
                   })}
+                  <GameIdsRail games={social.games} buttonClassName={gameBtnClass} tooltipPlacement="right" />
                 </div>
               ) : null}
 
@@ -755,34 +786,44 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
             </div>
 
             {/* Social Links Card */}
-            {visibleSocials.length > 0 && (
+            {(visibleSocials.length > 0 || (social.games && Object.values(social.games).some((v) => v?.trim()))) && (
               <div className="group relative hidden flex-1 flex-col justify-center gap-6 overflow-hidden rounded-3xl border border-black/5 bg-white p-8 shadow-2xl backdrop-blur-xl md:flex dark:border-white/10 dark:bg-gray-900/50">
                 <div className="from-yellow-primary/5 pointer-events-none absolute -inset-3 bg-linear-to-b to-transparent opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
                 <div className="flex flex-col gap-4">
                   <h3 className="text-xs font-semibold tracking-widest text-gray-500 uppercase dark:text-white/60">
                     Connect
                   </h3>
-                  <div className="grid grid-cols-5 gap-1">
-                    {visibleSocials.map((item, idx) => {
-                      const socialInlineStyle = displaySocialChromeStyle(field(item.label))
-                      const href = socialHref(item.label)
-                      const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
-                      return (
-                        <IconHoverTooltip key={idx} label={tip}>
-                          <a
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={tip}
-                            onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
-                            className="vbiz-social flex h-10 w-10 items-center justify-center justify-self-center rounded-full shadow-xl transition-all duration-300 hover:-translate-y-1"
-                            style={socialInlineStyle}
-                          >
-                            <item.icon size={22} fill="currentColor" className="opacity-90 transition-none" />
-                          </a>
-                        </IconHoverTooltip>
-                      )
-                    })}
+                  <div className="flex flex-col gap-2">
+                    {visibleSocials.length > 0 && (
+                      <div className="grid grid-cols-5 gap-1">
+                        {visibleSocials.map((item, idx) => {
+                          const socialInlineStyle = displaySocialChromeStyle(field(item.label))
+                          const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
+                          const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
+                          return (
+                            <IconHoverTooltip key={idx} label={tip}>
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={tip}
+                                onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
+                                className="vbiz-social flex h-10 w-10 items-center justify-center justify-self-center rounded-full shadow-xl transition-all duration-300 hover:-translate-y-1"
+                                style={socialInlineStyle}
+                              >
+                                {renderSocialIcon(item)}
+                              </a>
+                            </IconHoverTooltip>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <GameIdsRail
+                      games={social.games}
+                      buttonClassName="vbiz-social flex h-10 w-10 items-center justify-center rounded-full shadow-xl transition-all duration-300 hover:-translate-y-1"
+                      tooltipPlacement="top"
+                      wrapperClassName="flex flex-wrap gap-1"
+                    />
                   </div>
                 </div>
 

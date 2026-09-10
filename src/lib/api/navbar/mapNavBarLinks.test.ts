@@ -34,4 +34,16 @@ describe('mapNavBarLinks', () => {
 
     expect(items.map((item) => item.id)).toEqual(['faq', 'videos', 'home', 'reviews', 'services'])
   })
+
+  it('retires Video Links tabs that duplicate Videos', () => {
+    const items = mapNavBarLinks({
+      post_types: [
+        { id: 'videos', name: 'video', title: 'Videos', status: '1', type_id: 'video' },
+        { id: 'video-links', name: 'Video Links', title: 'Video Links', status: '1', type_id: 'video_links' },
+        { id: 'home', name: 'Home', title: 'Home', status: '1', type_id: 'home' },
+      ],
+    })
+
+    expect(items.map((item) => item.id)).toEqual(['videos', 'home'])
+  })
 })

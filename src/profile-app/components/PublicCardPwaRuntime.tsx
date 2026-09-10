@@ -203,7 +203,6 @@ async function warmLazyProfileChunks(): Promise<void> {
     import('@/profile-app/components/SeeProductsSection'),
     import('@/profile-app/components/ServicesSection'),
     import('@/profile-app/components/SkillsSection'),
-    import('@/profile-app/components/VideoLinksSection'),
     import('@/profile-app/components/VideosSection'),
     import('@/profile-app/components/WhyChooseUsSection'),
     import('@/profile-app/v3/components/HomeHero'),
@@ -242,7 +241,6 @@ function dynamicSectionNameForNavItem(item: NavBarNavItem): string | null {
   if (
     contentKey === 'blog' ||
     contentKey === 'faq' ||
-    contentKey === 'video-links' ||
     contentKey === 'licensing' ||
     contentKey === 'insurance-license' ||
     contentKey === 'meet-team' ||

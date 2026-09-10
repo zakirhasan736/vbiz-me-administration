@@ -53,7 +53,6 @@ import {
   UsersRound,
   Utensils,
   UtensilsCrossed,
-  Video,
   Wand2,
   Wrench,
 } from 'lucide-react'
@@ -85,7 +84,6 @@ export const MERGED_PROFILE_NAV_LABELS = [
   'Meet Our Team',
   'Calender',
   'Work Experience',
-  'Video Links',
   'Profile',
   'Resume',
   'Content & media',
@@ -102,7 +100,6 @@ export type ProfileNavContentKey =
   | 'additional'
   | 'blog'
   | 'videos'
-  | 'video-links'
   | 'why-choose-us'
   | 'gallery'
   | 'explainer'
@@ -361,13 +358,6 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
     icon: Briefcase,
     profileContent: 'work',
     editorPanel: { kind: 'experience' },
-  },
-  {
-    id: 'video-links',
-    label: 'Video Links',
-    icon: Video,
-    profileContent: 'video-links',
-    editorPanel: { kind: 'section-posts', schemaKey: 'video-links' },
   },
   {
     id: 'announcement',
@@ -740,7 +730,6 @@ const NAV_ITEM_GROUP_BY_ID: Record<string, NavItemGroupId> = {
   additional: 'content',
   explainer: 'content',
   faq: 'content',
-  'video-links': 'content',
   announcement: 'content',
   breakfast: 'content',
   dinner: 'content',

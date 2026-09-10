@@ -31,7 +31,6 @@ export type DirectSectionStorage =
   | 'join_my_team'
   | 'booking'
   | 'additional_service'
-  | 'video_link'
   | 'inventory'
   | 'home_solar'
   | 'resiliency_product'
@@ -170,7 +169,6 @@ export const TAB_REGISTRY: Record<string, TabRegistryEntry> = {
     26,
     'additional_service'
   ),
-  video_links: list('video_links', 'Video Links', 'video-links', 'Video Links', 27, 'video_link'),
   inventory: list('inventory', 'Inventory', 'inventory', 'Inventory', 28, 'inventory'),
   home_solar: list('home_solar', 'Home Solar', 'home-solar', 'Home Solar', 29, 'home_solar'),
   resiliency_products: list(

@@ -40,10 +40,6 @@ export const ImageGallerySection = lazyNamed(
   'ImageGallerySection'
 )
 export const VideosSection = lazyNamed(() => import('@/profile-app/components/VideosSection'), 'VideosSection')
-export const VideoLinksSection = lazyNamed(
-  () => import('@/profile-app/components/VideoLinksSection'),
-  'VideoLinksSection'
-)
 export const WhyChooseUsSection = lazyNamed(
   () => import('@/profile-app/components/WhyChooseUsSection'),
   'WhyChooseUsSection'

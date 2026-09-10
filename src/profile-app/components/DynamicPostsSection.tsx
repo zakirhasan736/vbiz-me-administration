@@ -156,6 +156,7 @@ function FeaturedPostCard({
 }) {
   const dateLabel = formatGeneralPostDate(post.date)
   const imageUrl = post.featuredImage.trim()
+  const linkUrl = post.generalInfoUrl.trim()
   const isClickable = Boolean(onPostClick)
   const description = post.description.trim()
   const hasHtml = description.length > 0
@@ -201,6 +202,17 @@ function FeaturedPostCard({
               : undefined
           }
         />
+        {linkUrl ? (
+          <a
+            href={linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-[#eab308] transition-opacity hover:opacity-80"
+          >
+            Open link <ArrowUpRight size={15} />
+          </a>
+        ) : null}
         {isClickable ? (
           <div className="mt-auto flex w-full items-center justify-end border-t border-zinc-200 pt-6 md:max-w-xl dark:border-zinc-800/80">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 text-white shadow-lg transition-transform duration-300 group-hover:scale-110 dark:bg-zinc-100 dark:text-zinc-950">
