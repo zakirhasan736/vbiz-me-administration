@@ -154,7 +154,7 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
           getKey={(item) => item.id}
           onReorder={setItems}
           className="space-y-8"
-          renderItem={(item, index, dragHandleProps) => (
+          renderItem={(item, _index, dragHandleProps) => (
             <section className="group/card overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2">
               <div className="flex items-center justify-between gap-2 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
                 <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
@@ -171,9 +171,6 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                     {...dragHandleProps}
                     className={cn('flex min-w-0 flex-1 items-center gap-4', dragHandleProps.className)}
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-teal-100 bg-teal-50 font-black text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300">
-                      {items.length - index}
-                    </div>
                     <EntryAttachmentThumb url={item.mediaUrl} />
                     <div className="min-w-0 flex-1">
                       <h4 className="truncate text-[16px] font-black text-slate-900 dark:text-white">

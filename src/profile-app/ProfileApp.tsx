@@ -47,6 +47,7 @@ export function ProfileApp(props: VBizProfileAppProps) {
       tabLabelOverrides={props.tabLabelOverrides}
       design={props.design ?? null}
       avatarMediaUrl={props.avatarVideoUrl}
+      avatarImageUrl={props.avatarImageUrl}
       embedded={props.embedded}
       previewActive={props.previewActive}
       cardOwnerId={props.cardOwnerId}

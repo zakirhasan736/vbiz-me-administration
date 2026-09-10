@@ -55,6 +55,8 @@ export type VBizProfileAppProps = {
   ownerName?: string
   tagline?: string
   coverVideoUrl?: string
+  /** Dedicated card avatar (meta). Prefer over Profile Image/Video for share QR center. */
+  avatarImageUrl?: string
   avatarVideoUrl?: string
   liveAgentCardData?: LiveAgentCardData
   /** Pre-built on the server from `GET /profile-ai-data/{profile_id}`. */
@@ -132,7 +134,8 @@ export function vCardDataToProfileProps(
   const homeMedia = getHomeMediaUrls(display)
   const introUrl = homeMedia.introVideo || undefined
   const coverUrl = homeMedia.bgMedia || undefined
-  const avatarOnly = homeMedia.profileMedia || meta?.avatarImageUrl?.trim() || undefined
+  const avatarImageUrl = meta?.avatarImageUrl?.trim() || undefined
+  const homeAvatarFallback = homeMedia.profileMedia || avatarImageUrl
 
   const showName = isFieldVisible(display, 'MyInfo section Name')
   const showTagline =
@@ -165,7 +168,8 @@ export function vCardDataToProfileProps(
     ownerName,
     tagline,
     coverVideoUrl: coverUrl,
-    avatarVideoUrl: avatarOnly,
+    avatarImageUrl,
+    avatarVideoUrl: homeAvatarFallback,
     design: resolveProfileDesignFromData(data, designSettings, {
       themeConfig,
       appearance,

@@ -27,7 +27,6 @@ import {
   FileEdit,
   Globe,
   Instagram,
-  Kanban,
   Linkedin,
   MessageCircle,
   Share2,
@@ -324,17 +323,16 @@ export function ProfileHeaderV2({
           </IconHoverTooltip>
         )}
         {showCrm && (
-          <IconHoverTooltip label="CRM" placement="left">
-            <button
-              type="button"
-              onClick={() => openVbizmeCrm()}
-              className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-              style={crmChrome}
-              aria-label="Open CRM"
-            >
-              <Kanban size={HOME_ICON_SIZE} />
-            </button>
-          </IconHoverTooltip>
+          <button
+            type="button"
+            onClick={() => openVbizmeCrm()}
+            className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-[9px] font-black tracking-wide text-zinc-600 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 md:text-[10px] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+            style={crmChrome}
+            title="CRM"
+            aria-label="Open CRM"
+          >
+            CRM
+          </button>
         )}
         {showShare && (
           <IconHoverTooltip label="Share" placement="left">

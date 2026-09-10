@@ -1,9 +1,10 @@
 'use client'
 
+import { ModalPortal } from '@/components/ModalPortal'
 import type { DragHandleProps } from '@/components/ReorderList'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
-import { ChevronDown, Film, GripVertical, Play, Trash2 } from 'lucide-react'
+import { ChevronDown, Film, GripVertical, Maximize2, Play, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 
 type AccentBadge = {
@@ -33,8 +34,110 @@ export function expandableCardClassName(isExpanded: boolean, accent: AccentBadge
   )
 }
 
-/** Compact image/video preview for collapsed accordion rows. */
+function toEmbedUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname.replace(/^www\./, '')
+    if (host === 'youtu.be') {
+      const id = parsed.pathname.replace(/^\//, '').split('/')[0]
+      return id ? `https://www.youtube.com/embed/${id}` : null
+    }
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      const id = parsed.searchParams.get('v') || parsed.pathname.match(/\/embed\/([^/?#]+)/)?.[1]
+      return id ? `https://www.youtube.com/embed/${id}` : null
+    }
+    if (host === 'vimeo.com') {
+      const id = parsed.pathname.split('/').filter(Boolean)[0]
+      return id ? `https://player.vimeo.com/video/${id}` : null
+    }
+    if (host.includes('dailymotion.com')) {
+      const id = parsed.pathname.split('/').filter(Boolean).pop()
+      return id ? `https://www.dailymotion.com/embed/video/${id}` : null
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+function EntryAttachmentLightbox({ url, onClose }: { url: string; onClose: () => void }) {
+  const src = encodeMediaUrl(url) || url
+  const video = isVideoUrl(src)
+  const embed = video ? toEmbedUrl(src) : null
+
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = prev
+    }
+  }, [onClose])
+
+  return (
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-200 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Attachment preview"
+      >
+        <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px]" onClick={onClose} />
+        <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-white/5">
+            <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {video ? 'Video attachment' : 'Image attachment'}
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close attachment preview"
+              className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-white/10 dark:hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-950/5 p-3 dark:bg-black/40">
+            {embed ? (
+              <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
+                <iframe
+                  src={embed}
+                  title="Video preview"
+                  className="h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : video ? (
+              <video
+                src={src}
+                controls
+                autoPlay
+                playsInline
+                className="max-h-[min(80vh,820px)] w-auto max-w-full rounded-2xl bg-black"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- editor lightbox for arbitrary remote URLs
+              <img
+                src={src}
+                alt="Attachment preview"
+                className="max-h-[min(80vh,820px)] w-auto max-w-full rounded-2xl object-contain"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
+  )
+}
+
+/** Image/video preview for collapsed accordion rows — click opens lightbox. */
 export function EntryAttachmentThumb({ url, className }: { url?: string | null; className?: string }) {
+  const [open, setOpen] = useState(false)
   const trimmed = url?.trim() ?? ''
   if (!trimmed) return null
   const src = encodeMediaUrl(trimmed)
@@ -45,38 +148,56 @@ export function EntryAttachmentThumb({ url, className }: { url?: string | null; 
   const canShowImage = !video && isUsableImageSrc(src)
 
   return (
-    <span
-      className={cn(
-        'relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-slate-200/90 bg-slate-100 shadow-sm dark:border-white/10 dark:bg-white/5',
-        className
-      )}
-      aria-hidden
-    >
-      {video && embedHost ? (
-        <span className="flex h-full w-full items-center justify-center text-slate-500 dark:text-slate-300">
-          <Film className="h-4 w-4" />
-        </span>
-      ) : video ? (
-        <video src={src} muted playsInline preload="metadata" className="h-full w-full object-cover" />
-      ) : canShowImage ? (
-        // eslint-disable-next-line @next/next/no-img-element -- tiny editor preview; arbitrary remote URLs
-        <img src={src} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center text-slate-400">
-          <Film className="h-4 w-4" />
-        </span>
-      )}
-      {video ? (
-        <span className="absolute inset-0 flex items-center justify-center bg-black/25">
-          <Play className="h-3.5 w-3.5 fill-white text-white" />
-        </span>
-      ) : null}
-    </span>
+    <>
+      <button
+        type="button"
+        data-no-dnd
+        title="Preview attachment"
+        aria-label="Preview attachment"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setOpen(true)
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        className={cn(
+          'relative h-16 w-16 shrink-0 cursor-zoom-in overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-100 shadow-sm transition hover:ring-2 hover:ring-slate-300/80 sm:h-20 sm:w-20 dark:border-white/10 dark:bg-white/5 dark:hover:ring-white/20',
+          className
+        )}
+      >
+        {video && embedHost ? (
+          <span className="flex h-full w-full items-center justify-center text-slate-500 dark:text-slate-300">
+            <Film className="h-6 w-6" />
+          </span>
+        ) : video ? (
+          <video src={src} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+        ) : canShowImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- editor preview; arbitrary remote URLs
+          <img src={src} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-slate-400">
+            <Film className="h-6 w-6" />
+          </span>
+        )}
+        {video ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <Play className="h-5 w-5 fill-white text-white" />
+          </span>
+        ) : (
+          <span className="pointer-events-none absolute right-1.5 bottom-1.5 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-slate-950/65 text-white shadow-sm backdrop-blur-[1px]">
+            <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+          </span>
+        )}
+      </button>
+      {open ? <EntryAttachmentLightbox url={trimmed} onClose={() => setOpen(false)} /> : null}
+    </>
   )
 }
 
 type ExpandableEntryHeaderProps = {
-  indexLabel: number | string
+  /** @deprecated Number badge removed from accordion rows; kept optional for call-site compatibility. */
+  indexLabel?: number | string
   title: string
   subtitle?: string | null
   /** Featured image or video URL shown beside title on the closed row. */
@@ -91,7 +212,6 @@ type ExpandableEntryHeaderProps = {
 }
 
 export function ExpandableEntryHeader({
-  indexLabel,
   title,
   subtitle,
   mediaUrl,
@@ -183,16 +303,6 @@ export function ExpandableEntryHeader({
                 'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-2xl px-2 py-3 text-left transition-colors hover:bg-slate-100/70 sm:gap-4 sm:px-4 dark:hover:bg-white/5',
             })}
       >
-        <div
-          className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border font-black shadow-sm',
-            accent.border,
-            accent.bg,
-            accent.text
-          )}
-        >
-          {indexLabel}
-        </div>
         <EntryAttachmentThumb url={mediaUrl} />
         <div className="min-w-0 flex-1">
           <h4 className="truncate text-[16px] font-black text-slate-900 dark:text-white">{title}</h4>

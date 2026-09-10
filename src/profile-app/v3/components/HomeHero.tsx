@@ -32,7 +32,6 @@ import {
   FileText,
   Globe,
   Instagram,
-  Kanban,
   Linkedin,
   MessageCircle,
   Moon,
@@ -297,20 +296,19 @@ export const HomeHero: React.FC<{
                 </div>
               </IconHoverTooltip>
               {showCrm && (
-                <IconHoverTooltip label="CRM" placement="left">
-                  <button
-                    type="button"
-                    aria-label="Open CRM"
-                    className={railButtonClass}
-                    style={crmChrome}
-                    onClick={() => {
-                      triggerHaptic(10)
-                      openVbizmeCrm()
-                    }}
-                  >
-                    <Kanban size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                  </button>
-                </IconHoverTooltip>
+                <button
+                  type="button"
+                  title="CRM"
+                  aria-label="Open CRM"
+                  className={`${railButtonClass} text-[10px] font-black tracking-wide ${compact ? '' : 'md:text-[11px]'}`}
+                  style={crmChrome}
+                  onClick={() => {
+                    triggerHaptic(10)
+                    openVbizmeCrm()
+                  }}
+                >
+                  CRM
+                </button>
               )}
               <IconHoverTooltip label="Toggle Theme" placement="left">
                 <div

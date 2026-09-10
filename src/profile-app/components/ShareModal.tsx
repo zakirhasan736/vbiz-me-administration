@@ -9,6 +9,7 @@ import {
   generateShareQrDataUrl,
   resolveShareQrCenterSources,
 } from '@/profile-app/lib/shareQrCode'
+import { useGetAboutMeQuery } from '@/redux/features/sections/aboutMe.api'
 import {
   Check,
   Copy,
@@ -32,17 +33,30 @@ interface ShareModalProps {
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
-  const { design, personal, homeMedia, field, isVisible } = useProfileDisplay()
+  const { design, personal, homeMedia, field, isVisible, avatarImageUrl, cardOwnerId } = useProfileDisplay()
   const accentColor = design?.accentColor ?? '#eab308'
+  const profileId = cardOwnerId?.trim() || ''
+  const { data: aboutMe } = useGetAboutMeQuery(profileId, {
+    skip: !isOpen || !profileId,
+  })
 
   const profileName = formatShareDisplayName(isVisible('MyInfo section Name') ? personal.fullName?.trim() || '' : '')
   const profileTitle = buildShareProfileTitle(personal, isVisible)
   const phone = isVisible('MyInfo Phone') ? personal.phone?.trim() || '' : ''
   const email = isVisible('MyInfo Email') ? personal.email?.trim() || '' : ''
   const companyIconUrl = field('Company/Office Icon').customValue
+  const profileAreaUrl = field('Profile Image/Video').customValue?.trim() || homeMedia.profileMedia || ''
+  const aboutMeMediaUrl = aboutMe?.items?.find((item) => item.featuredImage?.trim())?.featuredImage?.trim() || ''
   const centerSources = useMemo(
-    () => resolveShareQrCenterSources(companyIconUrl, homeMedia.profileMedia, homeMedia.introVideo),
-    [companyIconUrl, homeMedia.profileMedia, homeMedia.introVideo]
+    () =>
+      resolveShareQrCenterSources({
+        avatarUrl: avatarImageUrl,
+        profileMediaUrl: profileAreaUrl,
+        aboutMeMediaUrl,
+        introVideoUrl: homeMedia.introVideo,
+        companyIconUrl,
+      }),
+    [avatarImageUrl, profileAreaUrl, aboutMeMediaUrl, homeMedia.introVideo, companyIconUrl]
   )
   const shareUrl = useMemo(() => {
     if (!isOpen) return ''

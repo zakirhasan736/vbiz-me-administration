@@ -152,27 +152,50 @@ function isStaticImageUrl(value?: string): value is string {
   return src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/') || src.startsWith('data:')
 }
 
-/** Owner avatar / profile first, then intro video, then company logo. */
+export type ShareQrCenterSourceInput = {
+  /** 1) Dedicated avatar image */
+  avatarUrl?: string
+  /** 2) Home Profile Image/Video */
+  profileMediaUrl?: string
+  /** 3) About Me featured media */
+  aboutMeMediaUrl?: string
+  /** Video fallback after still images (intro / profile video) */
+  introVideoUrl?: string
+  /** @deprecated Prefer avatarUrl / profileMediaUrl / aboutMeMediaUrl */
+  companyIconUrl?: string
+}
+
+/**
+ * Share QR center media priority:
+ * avatar → profile area image → About Me image → video (profile/intro) → company icon.
+ */
 export function resolveShareQrCenterSources(
-  companyIconUrl?: string,
+  companyIconUrlOrInput?: string | ShareQrCenterSourceInput,
   profileMediaUrl?: string,
   introVideoUrl?: string
 ): ShareQrCenterSources {
-  const profile = profileMediaUrl?.trim() ?? ''
-  if (isStaticImageUrl(profile)) {
-    return { imageUrl: profile, videoUrl: '' }
-  }
-  if (profile && isVideoAvatarSrc(profile)) {
-    return { imageUrl: '', videoUrl: profile }
+  const input: ShareQrCenterSourceInput =
+    typeof companyIconUrlOrInput === 'object' && companyIconUrlOrInput !== null
+      ? companyIconUrlOrInput
+      : {
+          companyIconUrl: companyIconUrlOrInput,
+          profileMediaUrl,
+          introVideoUrl,
+        }
+
+  const stillCandidates = [input.avatarUrl, input.profileMediaUrl, input.aboutMeMediaUrl, input.companyIconUrl]
+  for (const candidate of stillCandidates) {
+    if (isStaticImageUrl(candidate)) {
+      return { imageUrl: candidate.trim(), videoUrl: '' }
+    }
   }
 
-  const intro = introVideoUrl?.trim() ?? ''
-  if (intro && isVideoAvatarSrc(intro)) {
-    return { imageUrl: '', videoUrl: intro }
-  }
-
-  if (isStaticImageUrl(companyIconUrl)) {
-    return { imageUrl: companyIconUrl.trim(), videoUrl: '' }
+  const videoCandidates = [input.avatarUrl, input.profileMediaUrl, input.aboutMeMediaUrl, input.introVideoUrl]
+  for (const candidate of videoCandidates) {
+    const src = candidate?.trim() ?? ''
+    if (src && isVideoAvatarSrc(src)) {
+      return { imageUrl: '', videoUrl: src }
+    }
   }
 
   return { imageUrl: '', videoUrl: '' }
@@ -180,7 +203,7 @@ export function resolveShareQrCenterSources(
 
 /** @deprecated Use resolveShareQrCenterSources */
 export function resolveShareQrCenterImage(companyIconUrl?: string, profileMediaUrl?: string): string {
-  return resolveShareQrCenterSources(companyIconUrl, profileMediaUrl).imageUrl
+  return resolveShareQrCenterSources({ companyIconUrl, profileMediaUrl }).imageUrl
 }
 
 function drawImageContained(

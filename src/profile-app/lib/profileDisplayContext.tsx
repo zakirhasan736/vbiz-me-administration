@@ -57,6 +57,8 @@ export type ProfileDisplayContextValue = {
   socialHref: (displayLabel: string) => string
   pageColors: ReturnType<typeof getPageColors>
   homeMedia: ReturnType<typeof getHomeMediaUrls>
+  /** Dedicated avatar meta URL (preferred for share QR before Profile Image/Video). */
+  avatarImageUrl: string
   embedded: boolean
   /** False while an embedded preview is closed or minimized (background media pauses). */
   previewActive: boolean
@@ -108,6 +110,7 @@ const defaultValue: ProfileDisplayContextValue = {
   socialHref: () => '',
   pageColors: getPageColors(resolveDisplaySettings()),
   homeMedia: getHomeMediaUrls(resolveDisplaySettings()),
+  avatarImageUrl: '',
   embedded: false,
   previewActive: true,
   cardOwnerId: undefined,
@@ -137,6 +140,8 @@ export function ProfileDisplayProvider({
   design,
   /** Explicit avatar from card meta (merged into homeMedia.profileMedia). */
   avatarMediaUrl,
+  /** Dedicated avatar image for share QR priority (before Profile Image/Video). */
+  avatarImageUrl,
   /** Editor phone preview: show all sections regardless of Card Settings visibility. */
   embedded = false,
   previewActive = true,
@@ -162,6 +167,7 @@ export function ProfileDisplayProvider({
   tabLabelOverrides?: VCardTabLabelOverrides
   design?: ResolvedProfileDesign | null
   avatarMediaUrl?: string
+  avatarImageUrl?: string
   embedded?: boolean
   previewActive?: boolean
   cardOwnerId?: string
@@ -211,6 +217,7 @@ export function ProfileDisplayProvider({
         const avatar = media.profileMedia || avatarMediaUrl?.trim() || ''
         return avatar === media.profileMedia ? media : { ...media, profileMedia: avatar }
       })(),
+      avatarImageUrl: avatarImageUrl?.trim() || '',
       embedded,
       previewActive,
       cardOwnerId,
@@ -235,6 +242,7 @@ export function ProfileDisplayProvider({
     tabLabelOverrides,
     design,
     avatarMediaUrl,
+    avatarImageUrl,
     embedded,
     previewActive,
     cardOwnerId,
