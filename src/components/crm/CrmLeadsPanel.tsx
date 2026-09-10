@@ -325,7 +325,7 @@ export function CrmLeadsPanel({
             </p>
           </div>
         ) : (
-          <div className="max-w-full min-w-0 space-y-3 overflow-x-hidden p-3 sm:p-4">
+          <div className={cn('max-w-full min-w-0 space-y-3 overflow-x-hidden p-3 sm:p-4', isFetching && 'opacity-70')}>
             {rows.map((lead) => {
               const phone = digitsPhone(lead.phoneNumber || '')
               const email = lead.email?.trim()
@@ -333,6 +333,7 @@ export function CrmLeadsPanel({
               const schedulesOpen = schedulesLeadId === lead.id
               const eventsOpen = eventsLeadId === lead.id
               const detailsOpen = detailsLeadId === lead.id
+              const multiCards = (lead.cards?.length ?? 0) > 1
               return (
                 <article
                   key={lead.id}
@@ -377,7 +378,7 @@ export function CrmLeadsPanel({
                                 Added by you
                               </span>
                             ) : null}
-                            {(lead.cards?.length ?? 0) > 1 ? (
+                            {multiCards ? (
                               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300">
                                 {lead.cards!.length} cards
                               </span>
@@ -418,8 +419,8 @@ export function CrmLeadsPanel({
                           <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-400">
                             <span className="inline-flex min-w-0 items-center gap-1">
                               <Building2 className="h-3 w-3 shrink-0" />
-                              <span className={(lead.cards?.length ?? 0) > 1 ? '' : 'truncate'}>
-                                {(lead.cards?.length ?? 0) > 1 ? `Cards · ${cardsLabel(lead)}` : cardsLabel(lead)}
+                              <span className={multiCards ? '' : 'truncate'}>
+                                {multiCards ? `Cards · ${cardsLabel(lead)}` : cardsLabel(lead)}
                               </span>
                             </span>
                             <span className="inline-flex shrink-0 items-center gap-1">
