@@ -13,6 +13,8 @@ export type CreateCrmEventSubmitPayload = {
   description: string
   attachments: CrmEventAttachment[]
   globalHost?: string
+  /** Optional CRM lead this event was created from. */
+  guestUserDataId?: string | null
 }
 
 export function buildCreateCrmEventPayload(payload: CreateCrmEventSubmitPayload): CreateCrmEventPayload {
@@ -36,6 +38,7 @@ export function buildCreateCrmEventPayload(payload: CreateCrmEventSubmitPayload)
     attachments: payload.attachments,
     recipientEmail,
     recipientName,
+    ...(payload.guestUserDataId ? { guestUserDataId: payload.guestUserDataId } : {}),
   }
 
   if (payload.scope === 'global') {

@@ -160,6 +160,8 @@ export type CrmEventsBoardProps = {
   personSearch?: boolean
   allowedScopes?: MeetingScope[]
   defaultScope?: MeetingScope
+  focusEventId?: string | null
+  onFocusConsumed?: () => void
 }
 
 export function CrmEventsBoard({
@@ -167,13 +169,40 @@ export function CrmEventsBoard({
   personSearch = true,
   allowedScopes,
   defaultScope = 'one_to_one',
+  focusEventId = null,
+  onFocusConsumed,
 }: CrmEventsBoardProps) {
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null)
+  const [appliedFocusEventId, setAppliedFocusEventId] = useState<string | null>(null)
   const { data, isLoading, isError, error } = useGetCrmEventsQuery({ limit: 100 })
   const [createEvent, { isLoading: isCreating }] = useCreateCrmEventMutation()
   const [updateEvent, { isLoading: isUpdating }] = useUpdateCrmEventMutation()
   const [deleteEvent, { isLoading: isDeleting }] = useDeleteCrmEventMutation()
+
+  if (focusEventId !== appliedFocusEventId) {
+    setAppliedFocusEventId(focusEventId)
+    if (focusEventId) setHighlightedEventId(focusEventId)
+  }
+
+  useEffect(() => {
+    if (!focusEventId) return
+    onFocusConsumed?.()
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`crm-event-${focusEventId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [focusEventId]) // eslint-disable-line react-hooks/exhaustive-deps -- consume once per focus id
+
+  useEffect(() => {
+    if (!highlightedEventId) return
+    const timer = window.setTimeout(() => setHighlightedEventId(null), 4000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedEventId])
 
   const items = useMemo(() => {
     const rows = data?.items ?? []
@@ -278,8 +307,13 @@ export function CrmEventsBoard({
         <div className="grid gap-4 sm:grid-cols-2">
           {items.map((row) => (
             <article
+              id={`crm-event-${row.id}`}
               key={row.id}
-              className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0b0f15]"
+              className={cn(
+                'rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0b0f15]',
+                highlightedEventId === row.id &&
+                  'ring-2 ring-rose-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0b0f15]'
+              )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

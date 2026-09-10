@@ -15,6 +15,7 @@ export function buildCreateMeetingPayload(payload: ScheduleMeetingSubmitPayload)
     notes: payload.notes,
     status: 'Scheduled',
     scope: payload.scope,
+    ...(payload.guestUserDataId ? { guestUserDataId: payload.guestUserDataId } : {}),
   }
 
   if (payload.scope === 'global') {

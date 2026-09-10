@@ -15,6 +15,8 @@ import { useState } from 'react'
 
 type CrmTab = 'dashboard' | 'leads' | 'calendar' | 'work_notes' | 'events'
 
+type FocusTarget = { tab: 'calendar'; id: string; date: string } | { tab: 'events'; id: string }
+
 export default function CrmWorkspace() {
   const role = useAppSelector((state) => state.user.user?.role)
   const allowedModules = useAppSelector((state) => state.user.user?.allowedModules)
@@ -22,6 +24,7 @@ export default function CrmWorkspace() {
   const isStaff = isStaffRole(role)
   const allowed = CRM_UI_ENABLED && canSessionUseCrm({ role, allowedModules })
   const [tab, setTab] = useState<CrmTab>('dashboard')
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null)
 
   if (!allowed) {
     return (
@@ -84,7 +87,18 @@ export default function CrmWorkspace() {
       </div>
 
       {tab === 'dashboard' ? <CrmHomeDashboard onOpenTab={setTab} /> : null}
-      {tab === 'leads' ? <CrmLeadsPanel /> : null}
+      {tab === 'leads' ? (
+        <CrmLeadsPanel
+          onOpenScheduleItem={(item) => {
+            setFocusTarget({ tab: 'calendar', id: item.id, date: item.date })
+            setTab('calendar')
+          }}
+          onOpenEventItem={(item) => {
+            setFocusTarget({ tab: 'events', id: item.id })
+            setTab('events')
+          }}
+        />
+      ) : null}
       {tab === 'calendar' ? (
         <ScheduleCalendarView
           compact
@@ -98,6 +112,9 @@ export default function CrmWorkspace() {
           title="Schedule"
           subtitle="Meetings load from your database for speed. Booking still syncs to Zoho Calendar."
           upcomingSubtitle="What’s coming up next on your calendar."
+          focusMeetingId={focusTarget?.tab === 'calendar' ? focusTarget.id : null}
+          focusMeetingDate={focusTarget?.tab === 'calendar' ? focusTarget.date : null}
+          onFocusConsumed={() => setFocusTarget(null)}
         />
       ) : null}
       {tab === 'work_notes' ? <CrmWorkNotesBoard /> : null}
@@ -107,6 +124,8 @@ export default function CrmWorkspace() {
           personSearch
           allowedScopes={eventScopes ? [...eventScopes] : undefined}
           defaultScope="one_to_one"
+          focusEventId={focusTarget?.tab === 'events' ? focusTarget.id : null}
+          onFocusConsumed={() => setFocusTarget(null)}
         />
       ) : null}
     </div>

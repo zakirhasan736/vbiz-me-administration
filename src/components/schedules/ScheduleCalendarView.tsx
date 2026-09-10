@@ -37,7 +37,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 
@@ -206,6 +206,10 @@ export type ScheduleCalendarViewProps = {
   cardPicker?: 'admin' | 'own'
   /** Role-scoped host search (cards + saved guests) + inline create lead. */
   personSearch?: boolean
+  /** Highlight a meeting opened from a lead accordion. */
+  focusMeetingId?: string | null
+  focusMeetingDate?: string | null
+  onFocusConsumed?: () => void
 }
 
 export function ScheduleCalendarView({
@@ -220,6 +224,9 @@ export function ScheduleCalendarView({
   compact = false,
   cardPicker,
   personSearch = false,
+  focusMeetingId = null,
+  focusMeetingDate = null,
+  onFocusConsumed,
 }: ScheduleCalendarViewProps) {
   const now = new Date()
   const [viewYear, setViewYear] = useState(now.getFullYear())
@@ -293,6 +300,8 @@ export function ScheduleCalendarView({
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [highlightedMeetingId, setHighlightedMeetingId] = useState<string | null>(null)
+  const [appliedFocusMeetingId, setAppliedFocusMeetingId] = useState<string | null>(null)
 
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [bookDate, setBookDate] = useState(todayIsoDate())
@@ -302,6 +311,33 @@ export function ScheduleCalendarView({
     description: string
     onConfirm: () => void
   } | null>(null)
+
+  // Adjust calendar focus during render when a lead accordion opens a meeting.
+  if (focusMeetingId !== appliedFocusMeetingId) {
+    setAppliedFocusMeetingId(focusMeetingId)
+    if (focusMeetingId && focusMeetingDate) {
+      const parts = focusMeetingDate.split('-').map(Number)
+      const year = parts[0]
+      const month = parts[1]
+      if (year && month) {
+        setViewYear(year)
+        setViewMonth(month - 1)
+      }
+      setSelectedDay(focusMeetingDate)
+      setHighlightedMeetingId(focusMeetingId)
+    }
+  }
+
+  useEffect(() => {
+    if (!focusMeetingId || !focusMeetingDate) return
+    onFocusConsumed?.()
+  }, [focusMeetingId, focusMeetingDate]) // eslint-disable-line react-hooks/exhaustive-deps -- consume once per focus id
+
+  useEffect(() => {
+    if (!highlightedMeetingId) return
+    const timer = window.setTimeout(() => setHighlightedMeetingId(null), 4000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedMeetingId])
 
   const filteredEntries = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
@@ -725,7 +761,12 @@ export function ScheduleCalendarView({
                   selectedMeetings.map((mtg) => (
                     <article
                       key={`${mtg.kind}-${mtg.id}`}
-                      className="space-y-3 rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,#f8fafc,#ffffff)] p-4 dark:border-white/10 dark:bg-white/3"
+                      className={cn(
+                        'space-y-3 rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,#f8fafc,#ffffff)] p-4 dark:border-white/10 dark:bg-white/3',
+                        highlightedMeetingId === mtg.id &&
+                          mtg.kind === 'meeting' &&
+                          'ring-2 ring-teal-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0b1018]'
+                      )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>

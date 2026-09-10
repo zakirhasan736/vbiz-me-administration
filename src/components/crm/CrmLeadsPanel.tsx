@@ -3,38 +3,56 @@
 import type { ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import type { ScheduleMeetingSubmitPayload } from '@/components/admin/ScheduleMeetingModal'
 import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
+import { ConfirmModal } from '@/components/ConfirmModal'
 import { AddCrmLeadModal } from '@/components/crm/AddCrmLeadModal'
 import { CreateCrmEventModal, type CreateCrmEventSubmitPayload } from '@/components/crm/CreateCrmEventModal'
+import { LeadEventsAccordion } from '@/components/crm/LeadEventsAccordion'
 import { LeadNotesAccordion } from '@/components/crm/LeadNotesAccordion'
+import { LeadSchedulesAccordion } from '@/components/crm/LeadSchedulesAccordion'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { buildCreateCrmEventPayload } from '@/lib/buildCreateCrmEventPayload'
 import { isIdentitySearchReady } from '@/lib/identitySearch'
 import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
 import { notify } from '@/lib/toast/toast'
 import {
-  type CrmLeadRow,
   useCreateCrmEventMutation,
   useCreateCrmLeadMutation,
+  useDeleteCrmLeadMutation,
   useGetCrmDashboardQuery,
   useGetCrmLeadsQuery,
+  type CrmLeadRow,
+  type LeadEventRow,
+  type LeadScheduleRow,
 } from '@/redux/features/crm/crm.api'
 import { useCreateMeetingMutation } from '@/redux/features/meetings/meetings.api'
 import { cn } from '@/utils/cn'
+import { getVCardPublicPath } from '@/utils/vcard'
 import {
+  AlertCircle,
+  Building2,
   Calendar,
   CalendarHeart,
+  CheckCircle2,
   ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Globe,
+  IdCard,
   ChevronLeft,
   ChevronRight,
   Mail,
+  MapPin,
   MessageSquare,
+  Monitor,
   Phone,
   Plus,
   Search,
   StickyNote,
+  Trash2,
+  User,
   UserPlus,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ElementType } from 'react'
 
 const PAGE_SIZE = 10
 
@@ -53,6 +71,17 @@ function formatWhen(iso: string) {
   } catch {
     return iso
   }
+}
+
+function initials(name: string) {
+  return (
+    name
+      ?.split(' ')
+      .map((n) => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase() || '?'
+  )
 }
 
 function ownerFromLead(lead: CrmLeadRow): ProfileOwnerSelection {
@@ -75,6 +104,14 @@ function eventRecipientFromLead(lead: CrmLeadRow): ProfileOwnerSelection {
   }
 }
 
+export function CrmLeadsPanel({
+  onOpenScheduleItem,
+  onOpenEventItem,
+}: {
+  onOpenScheduleItem?: (item: LeadScheduleRow) => void
+  onOpenEventItem?: (item: LeadEventRow) => void
+} = {}) {
+  const [skip, setSkip] = useState(0)
 function cardsLabel(lead: CrmLeadRow): string {
   const cards = lead.cards?.filter((card) => card.profileId) ?? []
   if (cards.length > 1) {
@@ -91,6 +128,11 @@ export function CrmLeadsPanel() {
   const [scheduleLead, setScheduleLead] = useState<CrmLeadRow | null>(null)
   const [eventLead, setEventLead] = useState<CrmLeadRow | null>(null)
   const [notesLeadId, setNotesLeadId] = useState<string | null>(null)
+  const [schedulesLeadId, setSchedulesLeadId] = useState<string | null>(null)
+  const [eventsLeadId, setEventsLeadId] = useState<string | null>(null)
+  const [detailsLeadId, setDetailsLeadId] = useState<string | null>(null)
+  const [pendingDeleteLead, setPendingDeleteLead] = useState<CrmLeadRow | null>(null)
+  const expandedPanelRef = useRef<HTMLDivElement>(null)
 
   const skip = page * PAGE_SIZE
   const listQuery = useMemo(
@@ -105,9 +147,46 @@ export function CrmLeadsPanel() {
   const { data: dashboard } = useGetCrmDashboardQuery()
   const { data: pageData, isLoading, isFetching, isError, error } = useGetCrmLeadsQuery(listQuery)
   const [createLead, { isLoading: isCreating }] = useCreateCrmLeadMutation()
+  const [deleteLead, { isLoading: isDeleting }] = useDeleteCrmLeadMutation()
   const [createMeeting, { isLoading: isScheduling }] = useCreateMeetingMutation()
   const [createCrmEvent, { isLoading: isCreatingEvent }] = useCreateCrmEventMutation()
 
+  const expandedLeadId = notesLeadId || schedulesLeadId || eventsLeadId || detailsLeadId
+
+  useEffect(() => {
+    if (!expandedLeadId) return
+
+    const scrollExpandedIntoView = () => {
+      expandedPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' })
+    }
+
+    // After layout paint, then once more in case async accordion content grows.
+    const frame = window.requestAnimationFrame(() => {
+      scrollExpandedIntoView()
+    })
+    const retry = window.setTimeout(scrollExpandedIntoView, 180)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(retry)
+    }
+  }, [expandedLeadId])
+
+  const rows = useMemo(() => {
+    const items = page?.items ?? []
+    if (skip === 0) return items
+    return appendUnique(accum, items)
+  }, [skip, accum, page?.items])
+
+  const total = page?.total ?? dashboard?.metrics.openLeads ?? rows.length
+  const hasMore = Boolean(page?.hasMore ?? rows.length < total)
+
+  const loadMore = () => {
+    if (page?.items?.length) {
+      setAccum((prev) => (skip === 0 ? page.items : appendUnique(prev, page.items)))
+    }
+    setSkip((prev) => prev + PAGE_SIZE)
+  }
   const rows = pageData?.items ?? []
   const total = pageData?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -136,7 +215,10 @@ export function CrmLeadsPanel() {
   }
 
   const handleSchedule = async (payload: ScheduleMeetingSubmitPayload) => {
-    const created = await submitScheduleMeeting(createMeeting, payload)
+    const created = await submitScheduleMeeting(createMeeting, {
+      ...payload,
+      guestUserDataId: scheduleLead?.id ?? payload.guestUserDataId ?? null,
+    })
     notify.info('You’re booked. A meeting link will be included when it’s ready.')
     setScheduleLead(null)
     return created
@@ -144,7 +226,10 @@ export function CrmLeadsPanel() {
 
   const handleCreateEvent = async (payload: CreateCrmEventSubmitPayload) => {
     try {
-      const body = buildCreateCrmEventPayload(payload)
+      const body = buildCreateCrmEventPayload({
+        ...payload,
+        guestUserDataId: eventLead?.id ?? payload.guestUserDataId ?? null,
+      })
       const created = await createCrmEvent(body).unwrap()
       notify.info('Event created. It will show on Schedules and Wish & Outreach.')
       setEventLead(null)
@@ -156,6 +241,34 @@ export function CrmLeadsPanel() {
           : ''
       notify.error(message || 'Couldn’t create this event.')
       throw eventError
+    }
+  }
+
+  const closeAccordions = () => {
+    setNotesLeadId(null)
+    setSchedulesLeadId(null)
+    setEventsLeadId(null)
+    setDetailsLeadId(null)
+  }
+
+  const handleDeleteLead = async () => {
+    if (!pendingDeleteLead) return
+    try {
+      await deleteLead(pendingDeleteLead.id).unwrap()
+      notify.info('Lead deleted.')
+      if (detailsLeadId === pendingDeleteLead.id) setDetailsLeadId(null)
+      if (notesLeadId === pendingDeleteLead.id) setNotesLeadId(null)
+      if (schedulesLeadId === pendingDeleteLead.id) setSchedulesLeadId(null)
+      if (eventsLeadId === pendingDeleteLead.id) setEventsLeadId(null)
+      setPendingDeleteLead(null)
+      setSkip(0)
+      setAccum([])
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'data' in error
+          ? String((error as { data?: { message?: string } }).data?.message || '')
+          : ''
+      notify.error(message || 'Couldn’t delete this lead.')
     }
   }
 
@@ -212,11 +325,221 @@ export function CrmLeadsPanel() {
             </p>
           </div>
         ) : (
+          <div className="max-w-full min-w-0 space-y-3 overflow-x-hidden p-3 sm:p-4">
           <ul className={cn('divide-y divide-slate-100 dark:divide-white/5', isFetching && 'opacity-70')}>
             {rows.map((lead) => {
               const phone = digitsPhone(lead.phoneNumber || '')
               const email = lead.email?.trim()
               const notesOpen = notesLeadId === lead.id
+              const schedulesOpen = schedulesLeadId === lead.id
+              const eventsOpen = eventsLeadId === lead.id
+              const detailsOpen = detailsLeadId === lead.id
+              return (
+                <article
+                  key={lead.id}
+                  className={cn(
+                    'max-w-full min-w-0 overflow-hidden rounded-2xl border transition-all duration-200',
+                    detailsOpen
+                      ? 'border-emerald-300/70 bg-emerald-50/30 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/6'
+                      : 'border-slate-200/80 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-white/2 dark:hover:border-white/20'
+                  )}
+                >
+                  <div className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-5">
+                    <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+                      <div className="flex min-w-0 flex-1 items-start gap-3 lg:max-w-[min(100%,22rem)] lg:flex-none">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-sm shadow-emerald-600/20 sm:h-12 sm:w-12">
+                          {initials(lead.fullName)}
+                        </div>
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <div className="flex flex-wrap items-center gap-1.5 gap-y-1">
+                            <h4 className="max-w-full text-[14px] font-black tracking-tight wrap-break-word text-slate-900 sm:text-[15px] dark:text-white">
+                              {lead.fullName}
+                            </h4>
+                            <span
+                              className={cn(
+                                'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                                lead.consent
+                                  ? 'border-emerald-200/70 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                  : 'border-amber-200/70 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
+                              )}
+                            >
+                              {lead.consent ? (
+                                <>
+                                  <CheckCircle2 className="h-3 w-3" /> Consented
+                                </>
+                              ) : (
+                                <>
+                                  <AlertCircle className="h-3 w-3" /> No consent
+                                </>
+                              )}
+                            </span>
+                            {lead.origin === 'crm_external' ? (
+                              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[9px] font-black tracking-wider text-indigo-700 uppercase dark:bg-indigo-500/15 dark:text-indigo-300">
+                                Added by you
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                            {email ? (
+                              <a
+                                href={`mailto:${email}`}
+                                className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-600 hover:text-indigo-600 sm:text-[12.5px] dark:text-slate-300 dark:hover:text-indigo-400"
+                              >
+                                <Mail className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
+                                <span className="truncate">{email}</span>
+                              </a>
+                            ) : (
+                              <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-400 sm:text-[12.5px]">
+                                <Mail className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
+                                <span className="truncate">No email</span>
+                              </span>
+                            )}
+                            {phone ? (
+                              <a
+                                href={`tel:${phone}`}
+                                className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-600 hover:text-emerald-600 sm:text-[12.5px] dark:text-slate-300 dark:hover:text-emerald-400"
+                              >
+                                <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                                <span className="whitespace-nowrap">{lead.phoneNumber}</span>
+                              </a>
+                            ) : (
+                              <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-400 sm:text-[12.5px]">
+                                <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                                <span className="whitespace-nowrap">No phone</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-400">
+                            <span className="inline-flex min-w-0 items-center gap-1">
+                              <Building2 className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{lead.vCardName || lead.vCardSlug || 'vCard'}</span>
+                            </span>
+                            <span className="inline-flex shrink-0 items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {formatWhen(lead.submittedAt)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid w-full min-w-0 grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-start lg:min-w-0 lg:flex-1 lg:justify-end">
+                        <ActionLink href={phone ? `tel:${phone}` : undefined} label="Call" icon={Phone} />
+                        <ActionLink href={email ? `mailto:${email}` : undefined} label="Email" icon={Mail} />
+                        <ActionLink href={phone ? `sms:${phone}` : undefined} label="Text" icon={MessageSquare} />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (schedulesOpen) {
+                              setSchedulesLeadId(null)
+                              return
+                            }
+                            closeAccordions()
+                            setSchedulesLeadId(lead.id)
+                          }}
+                          aria-expanded={schedulesOpen}
+                          aria-label={
+                            schedulesOpen
+                              ? 'Collapse schedules'
+                              : `Expand schedules${(lead.schedulesCount ?? 0) > 0 ? `, ${lead.schedulesCount} schedules` : ''}`
+                          }
+                          className={cn(
+                            'relative inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase transition',
+                            schedulesOpen
+                              ? 'bg-teal-100 text-teal-900 dark:bg-teal-500/25 dark:text-teal-100'
+                              : 'bg-teal-50 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200'
+                          )}
+                        >
+                          {(lead.schedulesCount ?? 0) > 0 ? (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[9px] leading-none font-black text-white dark:bg-teal-400 dark:text-teal-950">
+                              {(lead.schedulesCount ?? 0) > 99 ? '99+' : lead.schedulesCount}
+                            </span>
+                          ) : null}
+                          <Calendar className="h-3.5 w-3.5" /> Schedule
+                          <ChevronDown
+                            className={cn(
+                              'h-3.5 w-3.5 origin-center transition-transform duration-300 ease-in-out will-change-transform',
+                              schedulesOpen && 'rotate-180'
+                            )}
+                            aria-hidden
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (eventsOpen) {
+                              setEventsLeadId(null)
+                              return
+                            }
+                            closeAccordions()
+                            setEventsLeadId(lead.id)
+                          }}
+                          aria-expanded={eventsOpen}
+                          aria-label={
+                            eventsOpen
+                              ? 'Collapse wish and outreach'
+                              : `Expand wish and outreach${(lead.eventsCount ?? 0) > 0 ? `, ${lead.eventsCount} items` : ''}`
+                          }
+                          className={cn(
+                            'relative inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase transition',
+                            eventsOpen
+                              ? 'bg-rose-100 text-rose-900 dark:bg-rose-500/25 dark:text-rose-100'
+                              : 'bg-rose-50 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200'
+                          )}
+                        >
+                          {(lead.eventsCount ?? 0) > 0 ? (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] leading-none font-black text-white dark:bg-rose-400 dark:text-rose-950">
+                              {(lead.eventsCount ?? 0) > 99 ? '99+' : lead.eventsCount}
+                            </span>
+                          ) : null}
+                          <CalendarHeart className="h-3.5 w-3.5 shrink-0" /> Wish & Outreach
+                          <ChevronDown
+                            className={cn(
+                              'h-3.5 w-3.5 origin-center transition-transform duration-300 ease-in-out will-change-transform',
+                              eventsOpen && 'rotate-180'
+                            )}
+                            aria-hidden
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (notesOpen) {
+                              setNotesLeadId(null)
+                              return
+                            }
+                            closeAccordions()
+                            setNotesLeadId(lead.id)
+                          }}
+                          aria-expanded={notesOpen}
+                          aria-label={
+                            notesOpen
+                              ? 'Collapse notes'
+                              : `Expand notes${(lead.notesCount ?? 0) > 0 ? `, ${lead.notesCount} notes` : ''}`
+                          }
+                          className={cn(
+                            'relative inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase transition',
+                            notesOpen
+                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-500/25 dark:text-amber-100'
+                              : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'
+                          )}
+                        >
+                          {(lead.notesCount ?? 0) > 0 ? (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-600 px-1 text-[9px] leading-none font-black text-white dark:bg-amber-400 dark:text-amber-950">
+                              {(lead.notesCount ?? 0) > 99 ? '99+' : lead.notesCount}
+                            </span>
+                          ) : null}
+                          <StickyNote className="h-3.5 w-3.5" /> Notes
+                          <ChevronDown
+                            className={cn(
+                              'h-3.5 w-3.5 origin-center transition-transform duration-300 ease-in-out will-change-transform',
+                              notesOpen && 'rotate-180'
+                            )}
+                            aria-hidden
+                          />
+                        </button>
+                      </div>
               const multiCards = (lead.cards?.length ?? 0) > 1
               return (
                 <li key={lead.id} className="px-4 py-4 sm:px-5">
@@ -245,58 +568,83 @@ export function CrmLeadsPanel() {
                         {[lead.phoneNumber, lead.email].filter(Boolean).join(' · ') || 'No contact details'}
                       </p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 sm:flex sm:shrink-0 sm:flex-wrap">
-                      <ActionLink href={phone ? `tel:${phone}` : undefined} label="Call" icon={Phone} />
-                      <ActionLink href={email ? `mailto:${email}` : undefined} label="Email" icon={Mail} />
-                      <ActionLink href={phone ? `sms:${phone}` : undefined} label="Text" icon={MessageSquare} />
+
+                    <div className="grid w-full min-w-0 grid-cols-[1fr_auto] gap-2">
                       <button
                         type="button"
-                        onClick={() => setScheduleLead(lead)}
-                        className="inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl bg-teal-50 px-2.5 py-2 text-[10px] font-black tracking-wider text-teal-800 uppercase dark:bg-teal-500/15 dark:text-teal-200"
-                      >
-                        <Calendar className="h-3.5 w-3.5" /> Schedule
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEventLead(lead)}
-                        className="inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl bg-rose-50 px-2.5 py-2 text-[10px] font-black tracking-wider text-rose-800 uppercase dark:bg-rose-500/15 dark:text-rose-200"
-                      >
-                        <CalendarHeart className="h-3.5 w-3.5" /> Event
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNotesLeadId(notesOpen ? null : lead.id)}
-                        aria-expanded={notesOpen}
-                        aria-label={
-                          notesOpen
-                            ? 'Collapse notes'
-                            : `Expand notes${(lead.notesCount ?? 0) > 0 ? `, ${lead.notesCount} notes` : ''}`
-                        }
+                        onClick={() => {
+                          if (detailsOpen) {
+                            setDetailsLeadId(null)
+                            return
+                          }
+                          closeAccordions()
+                          setDetailsLeadId(lead.id)
+                        }}
+                        aria-expanded={detailsOpen}
+                        aria-label={detailsOpen ? 'Hide lead details' : 'Show lead details'}
                         className={cn(
-                          'relative inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase transition',
-                          notesOpen
-                            ? 'bg-amber-100 text-amber-900 dark:bg-amber-500/25 dark:text-amber-100'
-                            : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'
+                          'inline-flex w-full min-w-0 cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2.5 text-[10px] font-black tracking-wider uppercase transition-colors sm:text-[11px]',
+                          detailsOpen
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
                         )}
                       >
-                        {(lead.notesCount ?? 0) > 0 ? (
-                          <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-600 px-1 text-[9px] leading-none font-black text-white dark:bg-amber-400 dark:text-amber-950">
-                            {(lead.notesCount ?? 0) > 99 ? '99+' : lead.notesCount}
-                          </span>
-                        ) : null}
-                        <StickyNote className="h-3.5 w-3.5" /> Notes
-                        <ChevronDown
-                          className={cn(
-                            'h-3.5 w-3.5 origin-center transition-transform duration-300 ease-in-out will-change-transform',
-                            notesOpen && 'rotate-180'
-                          )}
-                          aria-hidden
-                        />
+                        {detailsOpen ? (
+                          <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        )}
+                        {detailsOpen ? 'Hide' : 'Details'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeleteLead(lead)}
+                        className="shrink-0 rounded-xl p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+                        title="Delete lead"
+                        aria-label="Delete lead"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
+
+                  {detailsOpen ? (
+                    <div
+                      ref={expandedPanelRef}
+                      className="animate-in fade-in slide-in-from-top-2 min-w-0 space-y-3 overflow-x-hidden border-t border-emerald-100/60 bg-white/60 px-3.5 pt-0 pb-4 sm:space-y-4 sm:px-5 sm:pb-5 dark:border-emerald-500/15 dark:bg-black/10"
+                    >
+                      <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 sm:mt-4 sm:grid-cols-2 sm:gap-2.5">
+                        <MetaChip icon={Mail} label="Email" value={lead.email} />
+                        <MetaChip icon={Phone} label="Phone" value={lead.phoneNumber} />
+                        <MetaChip icon={IdCard} label="Source card" value={lead.vCardName || lead.vCardSlug} />
+                        <MetaChip icon={Calendar} label="Saved at" value={formatWhen(lead.submittedAt)} />
+                        <MetaChip
+                          icon={Monitor}
+                          label="Device"
+                          value={`${lead.metadata?.device || '—'} · ${lead.metadata?.browser || '—'}`}
+                        />
+                        <MetaChip icon={MapPin} label="Location" value={lead.metadata?.approximateLocation || '—'} />
+                        <MetaChip icon={Globe} label="Referrer" value={lead.metadata?.referrer || 'Direct'} />
+                        <MetaChip icon={User} label="Owner" value={lead.ownerName || lead.ownerId} />
+                      </div>
+                      {lead.vCardSlug ? (
+                        <a
+                          href={getVCardPublicPath(lead.vCardSlug)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[11px] font-black tracking-wider text-emerald-600 uppercase dark:text-emerald-400"
+                        >
+                          Open source card <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {notesOpen ? (
-                    <div className="animate-in fade-in slide-in-from-top-2 origin-top duration-300 ease-in-out">
+                    <div
+                      ref={expandedPanelRef}
+                      className="animate-in fade-in slide-in-from-top-2 origin-top px-3.5 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5"
+                    >
                       <LeadNotesAccordion
                         leadId={lead.id}
                         profileId={lead.vCardId}
@@ -304,10 +652,38 @@ export function CrmLeadsPanel() {
                       />
                     </div>
                   ) : null}
-                </li>
+
+                  {schedulesOpen ? (
+                    <div
+                      ref={expandedPanelRef}
+                      className="animate-in fade-in slide-in-from-top-2 origin-top px-3.5 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5"
+                    >
+                      <LeadSchedulesAccordion
+                        leadId={lead.id}
+                        onCollapse={() => setSchedulesLeadId(null)}
+                        onCreate={() => setScheduleLead(lead)}
+                        onOpenItem={(item) => onOpenScheduleItem?.(item)}
+                      />
+                    </div>
+                  ) : null}
+
+                  {eventsOpen ? (
+                    <div
+                      ref={expandedPanelRef}
+                      className="animate-in fade-in slide-in-from-top-2 origin-top px-3.5 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5"
+                    >
+                      <LeadEventsAccordion
+                        leadId={lead.id}
+                        onCollapse={() => setEventsLeadId(null)}
+                        onCreate={() => setEventLead(lead)}
+                        onOpenItem={(item) => onOpenEventItem?.(item)}
+                      />
+                    </div>
+                  ) : null}
+                </article>
               )
             })}
-          </ul>
+          </div>
         )}
 
         {total > 0 ? (
@@ -383,6 +759,24 @@ export function CrmLeadsPanel() {
           }
         }}
       />
+
+      <ConfirmModal
+        open={Boolean(pendingDeleteLead)}
+        title="Delete this lead?"
+        description={
+          pendingDeleteLead
+            ? `Permanently delete “${pendingDeleteLead.fullName}”? This cannot be undone.`
+            : 'Permanently delete this lead? This cannot be undone.'
+        }
+        confirmLabel="Delete"
+        variant="danger"
+        icon={Trash2}
+        isLoading={isDeleting}
+        onConfirm={() => void handleDeleteLead()}
+        onCancel={() => {
+          if (!isDeleting) setPendingDeleteLead(null)
+        }}
+      />
     </div>
   )
 }
@@ -411,5 +805,16 @@ function ActionLink({ href, label, icon: Icon }: { href?: string; label: string;
     >
       <Icon className="h-3.5 w-3.5" /> {label}
     </a>
+  )
+}
+
+function MetaChip({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string }) {
+  return (
+    <div className="max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/4">
+      <p className="mb-1 flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
+        <Icon className="h-3 w-3 shrink-0" /> {label}
+      </p>
+      <p className="text-sm leading-snug font-bold break-all text-slate-800 dark:text-slate-100">{value || '—'}</p>
+    </div>
   )
 }
