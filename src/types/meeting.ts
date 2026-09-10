@@ -30,6 +30,7 @@ export type Meeting = {
   scope: MeetingScope
   profileId: string | null
   groupProfileIds?: string[]
+  guestUserDataId?: string | null
   googleEventId?: string | null
   meetLink?: string | null
   createdById: string | null
@@ -49,6 +50,7 @@ export type CreateMeetingPayload = {
   profileId?: string | null
   groupProfileIds?: string[]
   companyUserId?: string | null
+  guestUserDataId?: string | null
   /** Owner backoffice + in-app only — skip public-card / saver push. */
   onlyBackoffice?: boolean
 }

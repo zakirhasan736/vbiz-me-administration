@@ -80,12 +80,14 @@ const meetingsApi = api.injectEndpoints({
     createMeeting: builder.mutation<Meeting, CreateMeetingPayload>({
       query: (body) => ({ url: '/meetings', method: 'POST', body }),
       transformResponse: (res: Envelope<Meeting>) => res.data,
-      invalidatesTags: [
+      invalidatesTags: (_r, _e, arg) => [
         { type: 'meetings', id: 'LIST' },
         { type: 'meetings', id: 'OWNER_UPCOMING' },
         { type: 'meetings', id: 'OWNER_LIST' },
         { type: 'crm', id: 'SCHEDULE_CALENDAR' },
         { type: 'crm', id: 'DASHBOARD' },
+        { type: 'crm', id: 'LEADS' },
+        ...(arg.guestUserDataId ? [{ type: 'crm' as const, id: `lead-schedules-${arg.guestUserDataId}` }] : []),
         { type: 'activity', id: 'FEED' },
         { type: 'activity', id: 'AUDIT' },
         { type: 'adminAnnouncements', id: 'LIST' },

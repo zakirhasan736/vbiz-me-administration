@@ -23,6 +23,8 @@ export type ScheduleMeetingSubmitPayload = {
   time: string
   notes: string
   globalHost?: string
+  /** Optional CRM lead this meeting was booked from. */
+  guestUserDataId?: string | null
   /** Owner backoffice + in-app only — skip public-card / saver push. */
   onlyBackoffice?: boolean
 }

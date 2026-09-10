@@ -38,6 +38,7 @@ export type CrmEvent = {
   attachments: CrmEventAttachment[]
   recipientEmail?: string | null
   recipientName?: string | null
+  guestUserDataId?: string | null
   googleEventId?: string | null
   meetLink?: string | null
   createdById: string | null
@@ -59,6 +60,7 @@ export type CreateCrmEventPayload = {
   attachments?: CrmEventAttachment[]
   recipientEmail?: string | null
   recipientName?: string | null
+  guestUserDataId?: string | null
 }
 
 export type UpdateCrmEventPayload = Partial<CreateCrmEventPayload>

@@ -101,6 +101,8 @@ export type CrmLeadRow = {
   origin: CrmLeadOrigin
   metadata: CrmLeadMetadata
   notesCount?: number
+  schedulesCount?: number
+  eventsCount?: number
 }
 
 export type CrmLeadsListQuery = {
@@ -168,6 +170,30 @@ export type UpdateLeadNoteBody = Partial<{
   startsAt: string | null
   dueAt: string | null
 }>
+
+export type LeadScheduleRow = {
+  id: string
+  host: string
+  type: string
+  date: string
+  time: string
+  startsAt: string
+  status: string
+  meetLink: string | null
+  notes: string | null
+}
+
+export type LeadEventRow = {
+  id: string
+  host: string
+  type: string
+  date: string
+  time: string
+  startsAt: string
+  status: string
+  description: string | null
+  recipientName: string | null
+}
 
 export type SchedulePerson = {
   id: string
@@ -407,6 +433,16 @@ const crmApi = api.injectEndpoints({
         { type: 'crm', id: `lead-${arg.leadId}` },
       ],
     }),
+    getCrmLeadSchedules: builder.query<LeadScheduleRow[], string>({
+      query: (leadId) => `/crm/leads/${encodeURIComponent(leadId)}/schedules`,
+      transformResponse: (res: Envelope<LeadScheduleRow[]>) => res.data ?? [],
+      providesTags: (_r, _e, leadId) => [{ type: 'crm', id: `lead-schedules-${leadId}` }],
+    }),
+    getCrmLeadEvents: builder.query<LeadEventRow[], string>({
+      query: (leadId) => `/crm/leads/${encodeURIComponent(leadId)}/events`,
+      transformResponse: (res: Envelope<LeadEventRow[]>) => res.data ?? [],
+      providesTags: (_r, _e, leadId) => [{ type: 'crm', id: `lead-events-${leadId}` }],
+    }),
     searchCrmSchedulePeople: builder.query<SchedulePerson[], { q?: string; limit?: number } | void>({
       query: (params) => {
         const search = new URLSearchParams()
@@ -505,10 +541,12 @@ const crmApi = api.injectEndpoints({
     createCrmEvent: builder.mutation<CrmEvent, CreateCrmEventPayload>({
       query: (body) => ({ url: '/crm/events', method: 'POST', body }),
       transformResponse: (res: Envelope<CrmEvent>) => res.data,
-      invalidatesTags: [
+      invalidatesTags: (_r, _e, arg) => [
         { type: 'crm', id: 'CRM_EVENTS' },
         { type: 'crm', id: 'SCHEDULE_CALENDAR' },
         { type: 'crm', id: 'DASHBOARD' },
+        { type: 'crm', id: 'LEADS' },
+        ...(arg.guestUserDataId ? [{ type: 'crm' as const, id: `lead-events-${arg.guestUserDataId}` }] : []),
       ],
     }),
     updateCrmEvent: builder.mutation<CrmEvent, { id: string; body: UpdateCrmEventPayload }>({
@@ -550,6 +588,8 @@ export const {
   useCreateCrmLeadNoteMutation,
   useUpdateCrmLeadNoteMutation,
   useDeleteCrmLeadNoteMutation,
+  useGetCrmLeadSchedulesQuery,
+  useGetCrmLeadEventsQuery,
   useSearchCrmSchedulePeopleQuery,
   useLazySearchCrmSchedulePeopleQuery,
   useGetCrmScheduleCalendarQuery,

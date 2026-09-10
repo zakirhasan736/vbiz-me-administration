@@ -16,7 +16,7 @@ import {
 } from '@/redux/features/crm/crm.api'
 import { cn } from '@/utils/cn'
 import { ChevronDown, Keyboard, Loader2, Mic, StickyNote, Trash2, Type } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 type AddMode = LeadNoteKind | null
 
@@ -71,6 +71,15 @@ export function LeadNotesAccordion({
   const [uploading, setUploading] = useState(false)
   const [listening, setListening] = useState(false)
   const [dictationKey, setDictationKey] = useState(0)
+  const addFormRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!addMode) return
+    const frame = window.requestAnimationFrame(() => {
+      addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [addMode])
 
   const resetForm = () => {
     setContent('')
@@ -252,27 +261,15 @@ export function LeadNotesAccordion({
                 setAddMode('text')
               }}
             />
-            <ModeButton
-              icon={Mic}
-              label="Voice"
-              onClick={() => {
-                resetForm()
-                setAddMode('voice')
-              }}
-            />
-            <ModeButton
-              icon={Keyboard}
-              label="Voice to text"
-              onClick={() => {
-                resetForm()
-                setDictationKey((key) => key + 1)
-                setAddMode('voice_to_text')
-              }}
-            />
+            <ModeButton icon={Mic} label="Voice" disabled comingSoon onClick={() => undefined} />
+            <ModeButton icon={Keyboard} label="Voice to text" disabled comingSoon onClick={() => undefined} />
           </div>
         </div>
       ) : (
-        <div className="mt-3 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-[#0b1018]">
+        <div
+          ref={addFormRef}
+          className="mt-3 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-[#0b1018]"
+        >
           <div className="flex items-center justify-between gap-2">
             <p className="text-[10px] font-black tracking-wider text-amber-700 uppercase dark:text-amber-300">
               New {kindLabel(addMode)} note
@@ -392,14 +389,38 @@ export function LeadNotesAccordion({
   )
 }
 
-function ModeButton({ icon: Icon, label, onClick }: { icon: typeof Type; label: string; onClick: () => void }) {
+function ModeButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+  comingSoon = false,
+}: {
+  icon: typeof Type
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  comingSoon?: boolean
+}) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-white px-2.5 py-2 text-[10px] font-black tracking-wider text-slate-700 uppercase ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10"
+      title={comingSoon ? 'Coming soon…' : undefined}
+      className={cn(
+        'inline-flex flex-col items-center justify-center gap-0.5 rounded-xl bg-white px-2.5 py-2 text-[10px] font-black tracking-wider text-slate-700 uppercase ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10',
+        disabled ? 'cursor-not-allowed opacity-50 dark:opacity-40' : 'cursor-pointer'
+      )}
     >
-      <Icon className="h-3.5 w-3.5" /> {label}
+      <span className="inline-flex items-center justify-center gap-1.5">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </span>
+      {comingSoon ? (
+        <span className="text-[8px] font-bold tracking-wider text-amber-600 normal-case dark:text-amber-400">
+          Coming soon…
+        </span>
+      ) : null}
     </button>
   )
 }
