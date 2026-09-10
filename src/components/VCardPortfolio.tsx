@@ -162,6 +162,7 @@ export function TabPortfolio() {
                       indexLabel={index + 1}
                       title={portfolio.title || 'New Portfolio Entry'}
                       subtitle={portfolio.type || portfolio.description?.slice(0, 48) || null}
+                      mediaUrl={portfolio.imageUrl}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(portfolio.id)}
                       showRemove

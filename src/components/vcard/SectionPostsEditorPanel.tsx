@@ -267,6 +267,7 @@ export function SectionPostsEditorPanel({
                       indexLabel={index + 1}
                       title={post.title || 'New Item'}
                       subtitle={post.description || post.url || null}
+                      mediaUrl={post.featuredImage}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(key)}
                       showRemove

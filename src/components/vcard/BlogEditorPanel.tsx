@@ -168,6 +168,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                     indexLabel={idx + 1}
                     title={item.title || 'New Post'}
                     subtitle={item.category || stripHtml(item.description || '').slice(0, 48) || null}
+                    mediaUrl={item.featuredImage}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(key)}
                     showRemove

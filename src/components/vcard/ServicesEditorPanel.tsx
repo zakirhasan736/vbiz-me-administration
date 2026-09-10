@@ -161,6 +161,7 @@ export function ServicesEditorPanel({
                     indexLabel={index + 1}
                     title={service.title || 'New Service'}
                     subtitle={service.type || service.description?.slice(0, 48) || null}
+                    mediaUrl={service.featuredImage}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(service.id)}
                     showRemove

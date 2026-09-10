@@ -5,6 +5,7 @@ import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import type { MediaAsset } from '@/components/MediaSourceActions'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
+import { EntryAttachmentThumb } from '@/components/vcard/ExpandableEntryChrome'
 import type { VCardCustomTab, VCardCustomTabItem } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { GripVertical, Image as ImageIcon, Layers, Link2, Plus, Trash2, Type } from 'lucide-react'
@@ -173,9 +174,17 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-teal-100 bg-teal-50 font-black text-teal-700 shadow-sm dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300">
                       {items.length - index}
                     </div>
-                    <h4 className="min-w-0 truncate text-[16px] font-black text-slate-900 dark:text-white">
-                      {item.title || 'New content'}
-                    </h4>
+                    <EntryAttachmentThumb url={item.mediaUrl} />
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate text-[16px] font-black text-slate-900 dark:text-white">
+                        {item.title || 'New content'}
+                      </h4>
+                      {item.description ? (
+                        <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                          {item.description.replace(/<[^>]+>/g, '').slice(0, 64)}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 <button

@@ -1,8 +1,9 @@
 'use client'
 
 import type { DragHandleProps } from '@/components/ReorderList'
+import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
-import { ChevronDown, GripVertical, Trash2 } from 'lucide-react'
+import { ChevronDown, Film, GripVertical, Play, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 
 type AccentBadge = {
@@ -32,10 +33,54 @@ export function expandableCardClassName(isExpanded: boolean, accent: AccentBadge
   )
 }
 
+/** Compact image/video preview for collapsed accordion rows. */
+export function EntryAttachmentThumb({ url, className }: { url?: string | null; className?: string }) {
+  const trimmed = url?.trim() ?? ''
+  if (!trimmed) return null
+  const src = encodeMediaUrl(trimmed)
+  if (!src) return null
+
+  const video = isVideoUrl(src)
+  const embedHost = /(?:youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com)/i.test(src)
+  const canShowImage = !video && isUsableImageSrc(src)
+
+  return (
+    <span
+      className={cn(
+        'relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-slate-200/90 bg-slate-100 shadow-sm dark:border-white/10 dark:bg-white/5',
+        className
+      )}
+      aria-hidden
+    >
+      {video && embedHost ? (
+        <span className="flex h-full w-full items-center justify-center text-slate-500 dark:text-slate-300">
+          <Film className="h-4 w-4" />
+        </span>
+      ) : video ? (
+        <video src={src} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+      ) : canShowImage ? (
+        // eslint-disable-next-line @next/next/no-img-element -- tiny editor preview; arbitrary remote URLs
+        <img src={src} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center text-slate-400">
+          <Film className="h-4 w-4" />
+        </span>
+      )}
+      {video ? (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/25">
+          <Play className="h-3.5 w-3.5 fill-white text-white" />
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
 type ExpandableEntryHeaderProps = {
   indexLabel: number | string
   title: string
   subtitle?: string | null
+  /** Featured image or video URL shown beside title on the closed row. */
+  mediaUrl?: string | null
   isExpanded: boolean
   onToggle: () => void
   onRemove?: () => void
@@ -49,6 +94,7 @@ export function ExpandableEntryHeader({
   indexLabel,
   title,
   subtitle,
+  mediaUrl,
   isExpanded,
   onToggle,
   onRemove,
@@ -147,6 +193,7 @@ export function ExpandableEntryHeader({
         >
           {indexLabel}
         </div>
+        <EntryAttachmentThumb url={mediaUrl} />
         <div className="min-w-0 flex-1">
           <h4 className="truncate text-[16px] font-black text-slate-900 dark:text-white">{title}</h4>
           {!isExpanded && subtitle ? (

@@ -10,6 +10,7 @@ import {
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { isVideoUrl } from '@/lib/mediaUrl'
 import {
   CERTIFICATES_POST_TYPE,
   certItemsToSectionPosts,
@@ -133,6 +134,13 @@ export function TabCertificates() {
             onReorder={persist}
             renderItem={(item, idx, dragHandleProps) => {
               const open = isExpanded(item.id)
+              const previewDoc = item.documents.find(
+                (doc) =>
+                  doc.type.startsWith('image/') ||
+                  doc.type.startsWith('video/') ||
+                  isVideoUrl(doc.url) ||
+                  /\.(png|jpe?g|gif|webp|svg|mp4|webm|mov|m4v)$/i.test(doc.name || doc.url)
+              )
               return (
                 <section
                   id={`entry-${item.id}`}
@@ -143,6 +151,7 @@ export function TabCertificates() {
                     indexLabel={idx + 1}
                     title={item.name || 'New Certificate'}
                     subtitle={item.issuer || item.year || null}
+                    mediaUrl={previewDoc?.url}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(item.id)}
                     showRemove

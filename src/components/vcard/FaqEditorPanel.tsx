@@ -170,6 +170,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                       indexLabel={index + 1}
                       title={faq.question || 'New Question'}
                       subtitle={faq.answer?.slice(0, 64) || null}
+                      mediaUrl={faq.featuredImage}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(key)}
                       showRemove

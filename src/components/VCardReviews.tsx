@@ -148,6 +148,7 @@ export function TabReviews() {
                     indexLabel={idx + 1}
                     title={item.author || 'New Review'}
                     subtitle={item.text?.slice(0, 48) || null}
+                    mediaUrl={item.imageUrl}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(item.id)}
                     showRemove
