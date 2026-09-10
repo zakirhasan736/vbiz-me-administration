@@ -50,9 +50,9 @@ export function useProfile(slug: string = DEFAULT_PROFILE_SLUG, options?: UsePro
     skip,
     refetchOnReconnect: true,
     refetchOnFocus: !hasPrefetched,
-    // SSR already loaded the card; rely on settings-saved broadcast + slow poll instead of hammering GET /v/:slug.
+    // SSR already loaded the card; skip an immediate duplicate GET. Polling + reconnect stay live.
     refetchOnMountOrArgChange: hasPrefetched ? false : true,
-    pollingInterval: !skip && visible && !hasPrefetched ? PUBLIC_CARD_LIVE_POLL_MS : 0,
+    pollingInterval: !skip && visible ? PUBLIC_CARD_LIVE_POLL_MS : 0,
   })
 
   useEffect(() => {

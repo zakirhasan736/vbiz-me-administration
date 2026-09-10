@@ -34,8 +34,6 @@ import {
   CalendarHeart,
   CheckCircle2,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ChevronUp,
   ExternalLink,
   Globe,
@@ -54,7 +52,14 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ElementType } from 'react'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 50
+
+function appendUnique(prev: CrmLeadRow[], next: CrmLeadRow[]) {
+  if (!next.length) return prev
+  const seen = new Set(prev.map((row) => row.id))
+  const fresh = next.filter((row) => !seen.has(row.id))
+  return fresh.length ? [...prev, ...fresh] : prev
+}
 
 function digitsPhone(phone: string) {
   return phone.replace(/[^\d+]/g, '')
@@ -120,8 +125,9 @@ export function CrmLeadsPanel({
   onOpenScheduleItem?: (item: LeadScheduleRow) => void
   onOpenEventItem?: (item: LeadEventRow) => void
 } = {}) {
-  const [page, setPage] = useState(0)
+  const [skip, setSkip] = useState(0)
   const [search, setSearch] = useState('')
+  const [accum, setAccum] = useState<CrmLeadRow[]>([])
   const [addOpen, setAddOpen] = useState(false)
   const [scheduleLead, setScheduleLead] = useState<CrmLeadRow | null>(null)
   const [eventLead, setEventLead] = useState<CrmLeadRow | null>(null)
@@ -132,7 +138,6 @@ export function CrmLeadsPanel({
   const [pendingDeleteLead, setPendingDeleteLead] = useState<CrmLeadRow | null>(null)
   const expandedPanelRef = useRef<HTMLDivElement>(null)
 
-  const skip = page * PAGE_SIZE
   const listQuery = useMemo(
     () => ({
       skip,
@@ -143,7 +148,7 @@ export function CrmLeadsPanel({
   )
 
   const { data: dashboard } = useGetCrmDashboardQuery()
-  const { data: pageData, isLoading, isFetching, isError, error } = useGetCrmLeadsQuery(listQuery)
+  const { data: page, isLoading, isFetching, isError, error } = useGetCrmLeadsQuery(listQuery)
   const [createLead, { isLoading: isCreating }] = useCreateCrmLeadMutation()
   const [deleteLead, { isLoading: isDeleting }] = useDeleteCrmLeadMutation()
   const [createMeeting, { isLoading: isScheduling }] = useCreateMeetingMutation()
@@ -170,11 +175,21 @@ export function CrmLeadsPanel({
     }
   }, [expandedLeadId])
 
-  const rows = pageData?.items ?? []
-  const total = pageData?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const hasPrev = page > 0
-  const hasNext = skip + rows.length < total
+  const rows = useMemo(() => {
+    const items = page?.items ?? []
+    if (skip === 0) return items
+    return appendUnique(accum, items)
+  }, [skip, accum, page?.items])
+
+  const total = page?.total ?? dashboard?.metrics.openLeads ?? rows.length
+  const hasMore = Boolean(page?.hasMore ?? rows.length < total)
+
+  const loadMore = () => {
+    if (page?.items?.length) {
+      setAccum((prev) => (skip === 0 ? page.items : appendUnique(prev, page.items)))
+    }
+    setSkip((prev) => prev + PAGE_SIZE)
+  }
 
   const handleCreate = async (payload: {
     fullName: string
@@ -186,14 +201,15 @@ export function CrmLeadsPanel({
     try {
       await createLead(payload).unwrap()
       notify.info('Lead saved. It stays in CRM only — not on your card dashboard.')
-      setPage(0)
-    } catch (createError) {
+      setSkip(0)
+      setAccum([])
+    } catch (error) {
       const message =
-        createError && typeof createError === 'object' && 'data' in createError
-          ? String((createError as { data?: { message?: string } }).data?.message || '')
+        error && typeof error === 'object' && 'data' in error
+          ? String((error as { data?: { message?: string } }).data?.message || '')
           : ''
       notify.error(message || 'Couldn’t save this lead. Please try again.')
-      throw createError
+      throw error
     }
   }
 
@@ -244,7 +260,8 @@ export function CrmLeadsPanel({
       if (schedulesLeadId === pendingDeleteLead.id) setSchedulesLeadId(null)
       if (eventsLeadId === pendingDeleteLead.id) setEventsLeadId(null)
       setPendingDeleteLead(null)
-      setPage(0)
+      setSkip(0)
+      setAccum([])
     } catch (error) {
       const message =
         error && typeof error === 'object' && 'data' in error
@@ -269,9 +286,10 @@ export function CrmLeadsPanel({
             value={search}
             onChange={(event) => {
               setSearch(event.target.value)
-              setPage(0)
+              setSkip(0)
+              setAccum([])
             }}
-            placeholder="Search all leads by name, email, phone, or card…"
+            placeholder="Search name, email, phone, or card…"
             className="w-full bg-transparent text-sm font-medium outline-none dark:text-white"
           />
         </label>
@@ -293,7 +311,7 @@ export function CrmLeadsPanel({
                 : 'Couldn’t load CRM leads.'}
             </p>
           </div>
-        ) : isLoading ? (
+        ) : isLoading && skip === 0 ? (
           <div className="space-y-3 p-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-24 w-full rounded-2xl" />
@@ -647,30 +665,16 @@ export function CrmLeadsPanel({
             })}
           </div>
         )}
-
-        {total > 0 ? (
-          <div className="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/5">
-            <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-              Showing {skip + 1}–{skip + rows.length} of {total} · Page {page + 1} of {totalPages}
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.max(0, prev - 1))}
-                disabled={!hasPrev || isFetching}
-                className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-black tracking-wider text-slate-600 uppercase disabled:opacity-40 dark:bg-white/5 dark:text-slate-300"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" /> Prev
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((prev) => prev + 1)}
-                disabled={!hasNext || isFetching}
-                className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-black tracking-wider text-slate-600 uppercase disabled:opacity-40 dark:bg-white/5 dark:text-slate-300"
-              >
-                Next <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
+        {hasMore ? (
+          <div className="border-t border-slate-100 p-4 dark:border-white/5">
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={isFetching}
+              className="w-full rounded-2xl bg-slate-100 py-2.5 text-[11px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/5 dark:text-slate-300"
+            >
+              {isFetching ? 'Loading…' : 'Load more'}
+            </button>
           </div>
         ) : null}
       </div>

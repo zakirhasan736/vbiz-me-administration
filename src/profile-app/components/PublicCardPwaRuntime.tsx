@@ -509,8 +509,19 @@ export function PublicCardPwaRuntime({
     const unsubscribeSettings = subscribePublicCardSettingsSaved(onSettingsSaved)
 
     void warmLazyProfileChunks().finally(cacheShell)
-    // Soft warm only: RTK cache + section components already fetch when the user opens a tab.
-    prefetchSectionData()
+    // Soft warm on idle: RTK cache + section components still fetch when the user opens a tab.
+    const scheduleIdlePrefetch = () => {
+      const run = () => {
+        if (cancelled) return
+        prefetchSectionData()
+      }
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(run, { timeout: 5000 })
+      } else {
+        window.setTimeout(run, 2500)
+      }
+    }
+    scheduleIdlePrefetch()
     const cacheTimer = window.setTimeout(cacheShell, 4000)
 
     return () => {

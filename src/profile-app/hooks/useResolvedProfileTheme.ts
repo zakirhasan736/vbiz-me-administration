@@ -41,10 +41,10 @@ export function useResolvedProfileTheme({
     { profileId: id, template },
     {
       skip: !id,
-      refetchOnMountOrArgChange: !hasPrefetched,
+      refetchOnMountOrArgChange: hasPrefetched ? false : true,
       refetchOnFocus: !hasPrefetched,
       refetchOnReconnect: true,
-      pollingInterval: id && visible && !hasPrefetched ? PUBLIC_CARD_LIVE_POLL_MS : 0,
+      pollingInterval: id && visible ? PUBLIC_CARD_LIVE_POLL_MS : 0,
     }
   )
 
