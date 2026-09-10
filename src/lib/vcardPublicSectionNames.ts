@@ -7,7 +7,6 @@ export const PUBLIC_SECTION_NAMES = {
   mission: 'Mission Statement',
   additionalServices: 'Additional Services',
   videos: 'video',
-  videoLinks: 'Video Links',
   explainer: '2D Video Explainer',
   reviews: 'reviews',
   certificates: 'Certificates Licenses',

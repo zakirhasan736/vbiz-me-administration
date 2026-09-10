@@ -11,10 +11,14 @@ import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3EmptyState, V3SectionHeader, V3SectionShell } from '@/profile-app/sections'
 import type { VCardContentMediaGalleryItem, VCardContentMediaVideoItem } from '@/types/vcard'
+import { cn } from '@/utils/cn'
 import { ArrowUpRight, Images, PlayCircle, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
+
+/** Keeps a lone full-width media tile from dominating the section height. */
+const SINGLE_MEDIA_FRAME = 'mx-auto aspect-video max-h-52 w-full max-w-md'
 
 type ContentMediaSectionProps = {
   sectionName?: string
@@ -104,6 +108,8 @@ function GalleryGrid({
   items: Array<{ item: VCardContentMediaGalleryItem; src: string }>
   onOpen: (index: number) => void
 }) {
+  const isSingle = items.length === 1
+
   return (
     <div className={contentGridClass(items.length, 'sm:grid-cols-2 lg:grid-cols-3')}>
       {items.map(({ item, src }, index) => (
@@ -111,10 +117,17 @@ function GalleryGrid({
           key={item.id || src}
           type="button"
           onClick={() => onOpen(index)}
-          className="group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white/60 shadow-sm backdrop-blur-xl transition hover:border-zinc-300 dark:border-zinc-800/80 dark:bg-zinc-900/50"
+          className={cn(
+            'group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white/60 shadow-sm backdrop-blur-xl transition hover:border-zinc-300 dark:border-zinc-800/80 dark:bg-zinc-900/50',
+            isSingle && cn(SINGLE_MEDIA_FRAME, 'justify-self-center')
+          )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt={item.name || 'Gallery image'} className="aspect-4/3 w-full object-cover" />
+          <img
+            src={src}
+            alt={item.name || 'Gallery image'}
+            className={cn('w-full object-cover', isSingle ? 'h-full' : 'aspect-4/3')}
+          />
           <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/10" />
         </button>
       ))}
@@ -122,16 +135,21 @@ function GalleryGrid({
   )
 }
 
-function VideoCard({ item }: { item: VCardContentMediaVideoItem }) {
+function VideoCard({ item, compact }: { item: VCardContentMediaVideoItem; compact?: boolean }) {
   const href = encodeMediaUrl(item.url.trim()) || item.url.trim()
   const youtube = youtubeEmbedSrc(item.url)
   const displayTitle = getContentMediaVideoDisplayTitle(item.title)
   const a11yTitle = displayTitle || 'Video'
+  const cardClass = cn(
+    'overflow-hidden rounded-3xl border border-zinc-200 bg-white/60 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50',
+    compact && 'mx-auto w-full max-w-md justify-self-center'
+  )
+  const mediaFrameClass = cn('aspect-video w-full overflow-hidden bg-black', compact && 'max-h-52')
 
   if (youtube) {
     return (
-      <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/60 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
-        <div className="aspect-video w-full overflow-hidden bg-black">
+      <div className={cardClass}>
+        <div className={mediaFrameClass}>
           <iframe
             src={youtube}
             title={a11yTitle}
@@ -149,8 +167,8 @@ function VideoCard({ item }: { item: VCardContentMediaVideoItem }) {
 
   if (isVideoUrl(item.url) || isVideoUrl(href)) {
     return (
-      <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/60 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
-        <div className="aspect-video w-full overflow-hidden bg-black">
+      <div className={cardClass}>
+        <div className={mediaFrameClass}>
           <video
             src={href}
             className="h-full w-full object-contain"
@@ -247,7 +265,7 @@ export function ContentMediaSection({ sectionName = 'Content & media' }: Content
             </p>
             <div className={contentGridClass(videos.length, 'lg:grid-cols-2')}>
               {videos.map((item) => (
-                <VideoCard key={item.id || item.url} item={item} />
+                <VideoCard key={item.id || item.url} item={item} compact={videos.length === 1} />
               ))}
             </div>
           </div>

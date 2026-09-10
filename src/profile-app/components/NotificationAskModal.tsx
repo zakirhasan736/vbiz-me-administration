@@ -2,14 +2,32 @@
 
 import { isPushSupported, subscribeToCard } from '@/lib/push/config'
 import {
+  canShowBrowserNotificationPrompt,
+  clearIosPushIntent,
+  isIosChrome,
+  markIosPushIntent,
+  shouldShowAndroidHomeScreenBackupGuide,
+  shouldShowIosHomeScreenPushGuide,
+} from '@/lib/push/iosPushGuidance'
+import {
   BACKEND_NOTIFICATION_PREFERENCE_OPTIONS,
   DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
   type BackendNotificationPreferenceKey,
   type BackendNotificationPreferences,
 } from '@/lib/push/preferenceMapping'
+import { IosPushHomeScreenSteps } from '@/profile-app/components/IosPushHomeScreenSteps'
 import { Bell, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
+
+function readPushGuideFlags() {
+  return {
+    iosGuide: shouldShowIosHomeScreenPushGuide(),
+    iosChrome: isIosChrome(),
+    androidBackup: shouldShowAndroidHomeScreenBackupGuide(),
+    canPromptAllow: canShowBrowserNotificationPrompt(),
+  }
+}
 
 /** Post-contact notification preference modal — same 9 categories as Settings. */
 export const NotificationAskModal = ({
@@ -32,29 +50,64 @@ export const NotificationAskModal = ({
   }))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [iosGuide, setIosGuide] = useState(() => shouldShowIosHomeScreenPushGuide())
+  const [iosChrome, setIosChrome] = useState(() => isIosChrome())
+  const [androidBackup, setAndroidBackup] = useState(() => shouldShowAndroidHomeScreenBackupGuide())
+  const [canPromptAllow, setCanPromptAllow] = useState(() => canShowBrowserNotificationPrompt())
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) {
+      const flags = readPushGuideFlags()
+      setError(null)
+      setSubmitting(false)
+      setPreferences({ ...DEFAULT_BACKEND_NOTIFICATION_PREFERENCES })
+      setIosGuide(flags.iosGuide)
+      setIosChrome(flags.iosChrome)
+      setAndroidBackup(flags.androidBackup)
+      setCanPromptAllow(flags.canPromptAllow)
+    }
+  }
 
   const togglePreference = (pref: BackendNotificationPreferenceKey) => {
     setPreferences((prev) => ({ ...prev, [pref]: !prev[pref] }))
   }
 
   const handleAccept = async () => {
-    if (!isPushSupported()) {
-      setError('Push notifications are not supported in this browser.')
-      return
-    }
-
     setSubmitting(true)
     setError(null)
 
     try {
-      await subscribeToCard({
-        cardSlug,
-        cardOwnerId,
-        preferences,
-      })
+      if (shouldShowIosHomeScreenPushGuide()) {
+        markIosPushIntent(cardSlug)
+        setIosGuide(true)
+        await subscribeToCard({
+          cardSlug,
+          cardOwnerId,
+          preferences,
+        })
+      } else {
+        if (!isPushSupported()) {
+          setError('Push notifications are not supported in this browser.')
+          return
+        }
+        await subscribeToCard({
+          cardSlug,
+          cardOwnerId,
+          preferences,
+        })
+      }
+
+      clearIosPushIntent(cardSlug)
       onAccept(preferences)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not subscribe to notifications.')
+      const message = e instanceof Error ? e.message : 'Could not subscribe to notifications.'
+      setError(message)
+      if (shouldShowIosHomeScreenPushGuide() || message.toLowerCase().includes('home screen')) {
+        setIosGuide(true)
+        markIosPushIntent(cardSlug)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -82,22 +135,53 @@ export const NotificationAskModal = ({
                 <Bell size={32} />
               </div>
 
-              <h2 className="mb-2 text-xl font-bold text-zinc-100">Stay in the loop with {ownerName}</h2>
-              <p className="mb-6 text-sm text-zinc-400">Choose what to get notified about:</p>
+              <h2 className="mb-2 text-xl font-bold text-zinc-100">
+                {iosGuide
+                  ? iosChrome
+                    ? 'Enable Chrome notifications'
+                    : 'Enable iPhone notifications'
+                  : `Stay in the loop with ${ownerName}`}
+              </h2>
+              <p className="mb-6 text-sm text-zinc-400">
+                {iosGuide
+                  ? iosChrome
+                    ? 'Tap below to Allow in Chrome, then Add to Home Screen so push keeps working.'
+                    : canPromptAllow
+                      ? 'Allow may appear — still add to Home Screen so push keeps working.'
+                      : 'If Allow does not appear in the tab, add to Home Screen first, then Allow from the icon.'
+                  : 'Choose what to get notified about:'}
+              </p>
 
-              <div className="mb-6 max-h-[40vh] w-full space-y-2 overflow-y-auto rounded-xl bg-zinc-950/50 p-4 text-left text-sm text-zinc-300">
-                {BACKEND_NOTIFICATION_PREFERENCE_OPTIONS.map((p) => (
-                  <label key={p.id} className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={preferences[p.id]}
-                      onChange={() => togglePreference(p.id)}
-                      className="rounded"
+              {iosGuide ? (
+                <IosPushHomeScreenSteps
+                  className="mb-6 w-full border-zinc-700 bg-zinc-950/60"
+                  variant={iosChrome ? 'ios-chrome' : 'ios'}
+                />
+              ) : null}
+
+              {!iosGuide ? (
+                <>
+                  <div className="mb-6 max-h-[40vh] w-full space-y-2 overflow-y-auto rounded-xl bg-zinc-950/50 p-4 text-left text-sm text-zinc-300">
+                    {BACKEND_NOTIFICATION_PREFERENCE_OPTIONS.map((p) => (
+                      <label key={p.id} className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={preferences[p.id]}
+                          onChange={() => togglePreference(p.id)}
+                          className="rounded"
+                        />
+                        {p.label}
+                      </label>
+                    ))}
+                  </div>
+                  {androidBackup ? (
+                    <IosPushHomeScreenSteps
+                      className="mb-6 w-full border-zinc-700 bg-zinc-950/60"
+                      variant="android-backup"
                     />
-                    {p.label}
-                  </label>
-                ))}
-              </div>
+                  ) : null}
+                </>
+              ) : null}
 
               {error ? (
                 <p className="mb-4 text-xs text-red-400" role="alert">
@@ -105,15 +189,31 @@ export const NotificationAskModal = ({
                 </p>
               ) : null}
 
-              <p className="mb-6 text-xs text-zinc-500">No app needed. Cancel anytime.</p>
+              <p className="mb-6 text-xs text-zinc-500">
+                {iosGuide
+                  ? 'If Allow does not appear in the tab, add to Home Screen first, then Allow from the icon.'
+                  : androidBackup
+                    ? 'Tap Yes to Allow in Chrome. Home Screen below is an optional backup.'
+                    : 'No app store download needed. Cancel anytime.'}
+              </p>
 
               <div className="flex w-full flex-col gap-3">
                 <button
-                  onClick={() => void handleAccept()}
+                  onClick={() => {
+                    if (iosGuide) markIosPushIntent(cardSlug)
+                    void handleAccept()
+                  }}
                   disabled={submitting}
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3 text-sm font-bold text-zinc-950 transition-all hover:bg-zinc-200 disabled:opacity-60"
                 >
-                  <Bell size={16} /> {submitting ? 'Subscribing…' : 'Yes, Keep Me Updated'}
+                  <Bell size={16} />{' '}
+                  {submitting
+                    ? 'Subscribing…'
+                    : iosGuide
+                      ? iosChrome || canPromptAllow
+                        ? 'Allow in Chrome / browser'
+                        : "I've added it — Enable"
+                      : 'Yes, Keep Me Updated'}
                 </button>
                 <button
                   onClick={onClose}

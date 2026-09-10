@@ -72,7 +72,6 @@ const POST_TYPE_NAME_TO_NAV_ID: Record<string, string> = {
   '24/h salesperson': 'sales-24h',
   'see products': 'see-product',
   'see product': 'see-product',
-  'video links': 'video-links',
   'why choose us': 'who-we-are',
   'who we are': 'who-we-are',
   'work experience': 'work',
@@ -177,6 +176,18 @@ function mapStaticLink(link: StaticNavLink): NavBarNavItem | null {
     return null
   }
 
+  // Retired duplicate of Videos — never map into the public/editor nav.
+  const videoLinksKeys = new Set(['video links', 'video link', 'videolinks', 'video-links'])
+  if (
+    navId === 'video-links' ||
+    videoLinksKeys.has(normalizeKey(link.id)) ||
+    videoLinksKeys.has(normalizeKey(link.name)) ||
+    videoLinksKeys.has(normalizeKey(link.title)) ||
+    videoLinksKeys.has(normalizeKey(link.post_type || ''))
+  ) {
+    return null
+  }
+
   const def = navId ? NAV_ITEM_BY_ID[navId] : undefined
   if (!def) return null
 
@@ -198,9 +209,19 @@ function isRetiredPostNavType(postType: PostTypeNavLink): boolean {
   return candidates.some((value) => normalizeKey(String(value ?? '')) === 'post')
 }
 
+/** Redundant with Videos — never surface as its own nav tab. */
+function isRetiredVideoLinksNavType(postType: PostTypeNavLink): boolean {
+  const candidates = [postType.key, postType.name, postType.title, postType.slug, postType.type_id, postType.id]
+  return candidates.some((value) => {
+    const key = normalizeKey(String(value ?? ''))
+    return key === 'video links' || key === 'video link' || key === 'videolinks' || key === 'video-links'
+  })
+}
+
 function mapPostType(postType: PostTypeNavLink): NavBarNavItem | null {
   if (!isEnabledFlag(postType.status)) return null
   if (isRetiredPostNavType(postType)) return null
+  if (isRetiredVideoLinksNavType(postType)) return null
   const navId = resolvePostTypeNavId(postType)
   const def = navId ? NAV_ITEM_BY_ID[navId] : undefined
   const apiSectionName = resolveApiSectionName(postType.name, postType.title, postType.slug)

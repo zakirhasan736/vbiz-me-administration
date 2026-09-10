@@ -46,7 +46,6 @@ import {
   SeeProductsSection,
   ServicesSection,
   SkillsSection,
-  VideoLinksSection,
   VideosSection,
   WhyChooseUsSection,
 } from '@/profile-app/sections/sectionLazyComponents'
@@ -109,8 +108,6 @@ export function renderProfileSection({
       return <ImageGallerySection key={tabId} />
     case 'videos':
       return <VideosSection key={tabId} />
-    case 'video-links':
-      return <VideoLinksSection key={tabId} sectionName={sectionName} />
     case 'why-choose-us':
       return <WhyChooseUsSection key={tabId} />
     case 'explainer':

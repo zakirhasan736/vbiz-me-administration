@@ -5,7 +5,7 @@ import {
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
-import { isVideoUrl } from '@/lib/mediaUrl'
+import { isAudioUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
 import { FileAudio, FileIcon, FileText, FileVideo, Image as ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -128,6 +128,19 @@ function isVideoFile(file: File): boolean {
   return /\.(mp4|webm|mov|m4v|ogg|ogv)$/i.test(file.name)
 }
 
+function acceptAllowsAudio(accept: string): boolean {
+  return accept
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .some((t) => t === 'audio/*' || t.startsWith('audio/') || t === '*/*' || /^\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(t))
+}
+
+function isAudioFile(file: File): boolean {
+  const mime = (file.type || '').toLowerCase()
+  if (mime.startsWith('audio/')) return true
+  return /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name)
+}
+
 function guessKind(url: string, mimeType?: string | null, fileName?: string | null) {
   const mime = (mimeType || '').toLowerCase()
   const name = (fileName || url.split('?')[0] || '').toLowerCase()
@@ -217,6 +230,11 @@ export function MediaFileUploader({
         return
       }
 
+      if (!acceptAllowsAudio(accept) && isAudioFile(file)) {
+        setError('Audio files are not allowed for this field.')
+        return
+      }
+
       setError(null)
 
       abortRef.current?.abort()
@@ -259,7 +277,7 @@ export function MediaFileUploader({
         setUploadStage(null)
       }
     },
-    [attachmentType, clearLocalPreview, disabled, onChange, profileId, videoOnly]
+    [accept, attachmentType, clearLocalPreview, disabled, onChange, profileId, videoOnly]
   )
 
   const handleFiles = (files: FileList | null) => {
@@ -290,6 +308,11 @@ export function MediaFileUploader({
         setError('Only video URLs are allowed for this field.')
         return
       }
+    }
+
+    if (!acceptAllowsAudio(accept) && isAudioUrl(next)) {
+      setError('Audio URLs are not allowed for this field.')
+      return
     }
 
     setError(null)

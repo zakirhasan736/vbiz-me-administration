@@ -1,5 +1,6 @@
 'use client'
 
+import { hasIosPushIntent, isIosDevice, isPwaStandalone } from '@/lib/push/iosPushGuidance'
 import {
   FORCE_NOTIFICATION_DELAY_MS,
   isProfileExperienceSettled,
@@ -61,9 +62,12 @@ export function NotificationModal({
         return
       }
 
-      timer = window.setTimeout(() => {
-        if (!cancelled) setIsOpen(true)
-      }, FORCE_NOTIFICATION_DELAY_MS)
+      timer = window.setTimeout(
+        () => {
+          if (!cancelled) setIsOpen(true)
+        },
+        hasIosPushIntent(cardSlug) && isIosDevice() && isPwaStandalone() ? 400 : FORCE_NOTIFICATION_DELAY_MS
+      )
     }
 
     void schedule()

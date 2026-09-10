@@ -13,6 +13,8 @@ export type GalleryItem = {
   type?: string
   featured_image: GalleryImageAsset | GalleryImageAsset[] | string | null
   gallery?: GalleryImageAsset[] | null
+  general_info_url?: string | null
+  url?: string | null
 }
 
 export type GallerySectionPostType = {
@@ -35,11 +37,15 @@ export type GallerySectionResponse = ApiResponse<GallerySectionData> & {
   }
 }
 
+export type GalleryMediaKind = 'image' | 'video' | 'audio' | 'document' | 'link'
+
 export type GalleryListItem = {
   id: string | number
   title: string
   imageUrl: string
   createdAt: string
+  mediaKind?: GalleryMediaKind
+  linkUrl?: string
 }
 
 export type GalleryQueryResult = {

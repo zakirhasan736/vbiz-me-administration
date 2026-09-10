@@ -1,3 +1,11 @@
+import {
+  canShowBrowserNotificationPrompt,
+  IOS_CHROME_ALLOW_THEN_HOME_MESSAGE,
+  IOS_PUSH_AFTER_ALLOW_MESSAGE,
+  IOS_PUSH_HOME_SCREEN_MESSAGE,
+  isIosChrome,
+  shouldShowIosHomeScreenPushGuide,
+} from '@/lib/push/iosPushGuidance'
 import { clearNotificationDeclinedForCard } from '@/lib/push/notificationExperience'
 import type { BackendNotificationPreferences } from '@/lib/push/preferenceMapping'
 import {
@@ -270,9 +278,13 @@ export function mapPushSubscribeError(error: unknown): Error {
   const message = error.message || ''
   const lower = message.toLowerCase()
 
+  if (lower.includes('home screen') || lower.includes('iphone') || lower.includes('chrome on iphone')) {
+    return error
+  }
+
   if (name === 'NotAllowedError' || lower.includes('permission')) {
     return new Error(
-      'Notifications are blocked for this site. Tap the lock icon in your browser address bar, allow Notifications, then try again.'
+      'Notifications are blocked for this site. Open Settings → Notifications (or the lock icon in the address bar), allow Notifications, then try again.'
     )
   }
 
@@ -384,8 +396,10 @@ export async function resolvePushEndpoint(): Promise<string | null> {
 function detectBrowser(): string {
   if (typeof navigator === 'undefined') return 'Unknown'
   const ua = navigator.userAgent
-  if (ua.includes('Edg/')) return 'Edge'
-  if (ua.includes('Chrome')) return 'Chrome'
+  if (ua.includes('CriOS')) return 'Chrome'
+  if (ua.includes('FxiOS')) return 'Firefox'
+  if (ua.includes('EdgiOS') || ua.includes('Edg/')) return 'Edge'
+  if (ua.includes('Chrome') && !ua.includes('CriOS')) return 'Chrome'
   if (ua.includes('Firefox')) return 'Firefox'
   if (ua.includes('Safari')) return 'Safari'
   return 'Unknown'
@@ -395,9 +409,15 @@ function detectPlatform(): string {
   if (typeof navigator === 'undefined') return 'Unknown'
   const ua = navigator.userAgent
   if (ua.includes('Win')) return 'Windows'
-  if (ua.includes('Mac')) return 'macOS'
   if (ua.includes('Android')) return 'Android'
-  if (ua.includes('iPhone') || ua.includes('iPad')) return 'iOS'
+  if (
+    ua.includes('iPhone') ||
+    ua.includes('iPad') ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  ) {
+    return 'iOS'
+  }
+  if (ua.includes('Mac')) return 'macOS'
   if (ua.includes('Linux')) return 'Linux'
   return 'Unknown'
 }
@@ -455,6 +475,26 @@ export async function subscribeToCard(options: {
   preferences?: Partial<NotificationPreferences> | Partial<BackendNotificationPreferences>
 }) {
   try {
+    // iPhone Safari/Chrome tab: try Allow when possible; Home Screen still required for push.
+    if (shouldShowIosHomeScreenPushGuide()) {
+      if (canShowBrowserNotificationPrompt() && Notification.permission !== 'granted') {
+        const permission = await Notification.requestPermission()
+        if (permission === 'granted') {
+          throw new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_AFTER_ALLOW_MESSAGE)
+        }
+        if (permission === 'denied') {
+          throw new Error(
+            'Notifications are blocked. After you Add to Home Screen and open the icon, allow notifications in Settings if needed.'
+          )
+        }
+        throw new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_HOME_SCREEN_MESSAGE)
+      }
+      if (Notification.permission === 'granted') {
+        throw new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_AFTER_ALLOW_MESSAGE)
+      }
+      throw new Error(IOS_PUSH_HOME_SCREEN_MESSAGE)
+    }
+
     if (!isPushSupported()) {
       throw new Error('Push notifications are not supported in this browser.')
     }

@@ -33,11 +33,11 @@ import React, { ReactNode, useEffect, useState } from 'react'
 
 function FieldGroup({ label, children, icon }: { label: string; children: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="group flex flex-col space-y-1.5">
+    <div className="group flex w-full flex-col space-y-1.5">
       <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
         {label}
       </label>
-      <div className="relative flex items-center">
+      <div className="relative flex w-full items-center">
         {icon && (
           <div className="pointer-events-none absolute top-1/2 left-3.5 z-10 flex -translate-y-1/2 items-center text-slate-500/70">
             {icon}
@@ -558,13 +558,13 @@ export function Tab4HomeMedia() {
 
             <div className="space-y-6">
               <FieldGroup label="YouTube Video Link">
-                <div className="flex gap-2">
+                <div className="flex w-full gap-2">
                   <input
                     type="text"
                     value={introYoutubeUrl}
                     onChange={(e) => setCustomValue(FIELD_INTRO_YT, e.target.value)}
                     placeholder="https://youtube.com/..."
-                    className={inputClasses}
+                    className={`${inputClasses} min-w-0 flex-1`}
                   />
                   {introYoutubeUrl.trim() ? (
                     <button
@@ -632,14 +632,14 @@ export function Tab4HomeMedia() {
 
             <div className="space-y-6">
               <FieldGroup label="YouTube Music Link">
-                <div className="flex gap-2">
+                <div className="flex w-full gap-2">
                   <input
                     type="text"
                     value={musicYoutubeUrl}
                     onChange={(e) => setCustomValue(FIELD_MUSIC_YT, e.target.value)}
                     placeholder="https://youtube.com/..."
                     disabled={!canYtMusic}
-                    className={inputClasses}
+                    className={`${inputClasses} min-w-0 flex-1`}
                   />
                   {musicYoutubeUrl.trim() ? (
                     <button

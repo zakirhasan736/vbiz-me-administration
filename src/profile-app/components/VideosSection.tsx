@@ -1,6 +1,7 @@
 'use client'
 
 import type { VideoListItem } from '@/interfaces/api/videos.interface'
+import { isVideoUrl } from '@/lib/mediaUrl'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -181,14 +182,27 @@ function VideoCard({
   const isGallery = item.type === 'gallery'
   const hasGalleryImages = item.galleryImages.length > 0
   const videoUrl = item.videoUrl.trim()
-  const hasFeatured = Boolean(item.featuredImage.trim())
+  const featuredImage = item.featuredImage.trim()
+  const hasFeatured = Boolean(featuredImage)
+  const featuredIsVideo = hasFeatured && isVideoUrl(featuredImage)
   const description = item.description.trim()
 
   const mediaInner = (
     <>
-      {hasFeatured ? (
+      {featuredIsVideo ? (
+        <video
+          src={featuredImage}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          aria-hidden
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+      ) : hasFeatured ? (
         <Image
-          src={item.featuredImage}
+          src={featuredImage}
           alt={item.title}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"

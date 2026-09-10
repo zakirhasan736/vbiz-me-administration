@@ -1,4 +1,11 @@
 import {
+  canOfferPushExperience,
+  hasIosPushIntent,
+  isIosDevice,
+  isPwaStandalone,
+  shouldShowIosHomeScreenPushGuide,
+} from '@/lib/push/iosPushGuidance'
+import {
   clearNotificationDeclinedForCard,
   hasDeclinedNotificationPrompt,
   markNotificationDeclinedForCard,
@@ -63,7 +70,19 @@ export async function resolveNotificationModalTarget(cardSlug: string): Promise<
 export async function shouldAutoShowNotificationPrompt(cardSlug: string): Promise<boolean> {
   if (!cardSlug.trim()) return false
   if (hasDeclinedNotificationPrompt(cardSlug)) return false
-  if (!isPushSupported()) return false
+
+  // iPhone Safari tab: still show so we can guide Add to Home Screen.
+  if (!isPushSupported()) {
+    if (!canOfferPushExperience()) return false
+    if (hasIosPushIntent(cardSlug) && isIosDevice() && isPwaStandalone()) return true
+    return shouldShowIosHomeScreenPushGuide()
+  }
+
+  // User started setup in Safari and reopened from Home Screen — finish enable.
+  if (hasIosPushIntent(cardSlug) && isIosDevice() && isPwaStandalone()) {
+    if (readFollowState(cardSlug)?.following) return false
+    return true
+  }
 
   // Already enabled for this card in this browser — never re-ask on reload/new tab.
   if (readFollowState(cardSlug)?.following) return false

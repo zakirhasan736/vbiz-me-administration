@@ -2,7 +2,9 @@ import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssist
 import {
   CUSTOM_TABS_SETTING_KEY,
   EXTRA_FIELDS_SETTING_KEY,
+  GAME_IDS_SETTING_KEY,
   parseExtraFieldsJson,
+  parseGameIdsJson,
   parseThemeJson,
   TAB_LABEL_OVERRIDES_SETTING_KEY,
   THEME_SETTING_KEY,
@@ -60,7 +62,9 @@ const API_NAV_TO_LABELS: Record<string, string[]> = {
   certificationNav_checkbox: ['Certifications/Licenses', 'Insurance License'],
   licensingNav_checkbox: ['Licensing'],
   '2dNav_checkbox': ['2D Explainer'],
-  videoLinksNav_checkbox: ['Video Links'],
+  videoNav_checkbox: ['Videos'],
+  // Legacy checkbox — older cards stored Videos under videoLinksNav.
+  videoLinksNav_checkbox: ['Videos'],
   meetOurTeamNav_checkbox: ['Meet Our Team'],
   bbbNav_checkbox: ['BBB'],
   dcpNav_checkbox: ['Department of Consumer Protection (DCP)'],
@@ -511,7 +515,7 @@ function mapSocial(card: MyCardData): VCardSocial {
       url: field.value,
     })) ?? []
 
-  return { ...base, handles, customLinks }
+  return { ...base, handles, customLinks, games: parseGameIdsJson(card.settings?.[GAME_IDS_SETTING_KEY]) }
 }
 
 function mapExtraFields(card: MyCardData): VCardExtraField[] {

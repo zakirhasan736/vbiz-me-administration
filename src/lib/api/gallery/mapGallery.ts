@@ -6,6 +6,7 @@ import type {
   GallerySectionResponse,
 } from '@/interfaces/api/gallery.interface'
 import { decodeHtmlText } from '@/lib/htmlText'
+import { detectGalleryMediaKind, isVideoUrl } from '@/lib/mediaUrl'
 
 function assetFromUnknown(value: unknown): GalleryImageAsset | null {
   if (typeof value === 'string') {
@@ -51,17 +52,34 @@ function resolveFeaturedImage(item: GalleryItem): GalleryImageAsset | null {
   return null
 }
 
+function resolveLinkUrl(item: GalleryItem): string {
+  return String(item.general_info_url || item.url || '').trim()
+}
+
 export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryListItem | null {
   const featured = resolveFeaturedImage(item)
-  if (!featured?.url?.trim()) return null
+  const linkUrl = resolveLinkUrl(item)
+  const featuredUrl = featured?.url?.trim() || ''
 
+  // Allow YouTube/link-only rows when there is no featured media file.
+  if (!featuredUrl && !linkUrl) return null
+  if (!featuredUrl && linkUrl && !isVideoUrl(linkUrl) && !/^https?:\/\//i.test(linkUrl)) return null
+
+  const mediaUrl = featuredUrl || (isVideoUrl(linkUrl) ? linkUrl : '')
   const rawTitle = item.title?.trim() || ''
 
+  const mediaKind = detectGalleryMediaKind(mediaUrl || linkUrl, {
+    type: item.type,
+    linkUrl,
+  })
+
   return {
-    id: item.id ?? featured.id ?? index + 1,
-    title: decodeHtmlText(rawTitle || featured.doc_name || 'Gallery'),
-    imageUrl: featured.url.trim(),
+    id: item.id ?? featured?.id ?? index + 1,
+    title: decodeHtmlText(rawTitle || featured?.doc_name || 'Gallery'),
+    imageUrl: mediaUrl || (mediaKind === 'link' ? '' : linkUrl),
     createdAt: item.created_at ?? '',
+    mediaKind: mediaUrl ? mediaKind : linkUrl ? (isVideoUrl(linkUrl) ? 'video' : 'link') : mediaKind,
+    linkUrl: linkUrl || undefined,
   }
 }
 

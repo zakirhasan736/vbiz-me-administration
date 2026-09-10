@@ -3,8 +3,10 @@
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
+import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
+import { RumbleIcon, WhatsAppIcon } from '@/profile-app/components/socialBrandIcons'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
@@ -28,7 +30,6 @@ import {
   Globe,
   Instagram,
   Linkedin,
-  MessageCircle,
   Share2,
   Star,
   Youtube,
@@ -62,11 +63,11 @@ const V2_SOCIAL_ITEMS: V2SocialItem[] = [
   { label: 'FaceBook', icon: Facebook },
   { label: 'Instagram', icon: Instagram },
   { label: 'LinkedIn', icon: Linkedin },
-  { label: 'Whatsapp', icon: MessageCircle },
+  { label: 'Whatsapp', icon: WhatsAppIcon, isSvg: true },
   { label: 'TikTok', icon: TikTokIcon, isSvg: true },
   { label: 'Youtube', icon: Youtube },
   { label: 'Pinterest', icon: Globe },
-  { label: 'Rumble', icon: Globe },
+  { label: 'Rumble', icon: RumbleIcon, isSvg: true },
   { label: 'Truth', icon: Globe },
   { label: 'Website', icon: Globe },
 ]
@@ -110,7 +111,7 @@ export function ProfileHeaderV2({
   onLanguage,
   embedded,
 }: ProfileHeaderV2Props) {
-  const { personal, isVisible, field, socialHref, profileViews, actionButtons, cardOwnerId, cardSlug } =
+  const { personal, social, isVisible, field, socialHref, profileViews, actionButtons, cardOwnerId, cardSlug } =
     useProfileDisplay()
   const avatarDisplaySrc = useMemo(
     () => resolveProfileAvatarSrc(avatarVideoUrl, explainerVideoUrl),
@@ -156,6 +157,10 @@ export function ProfileHeaderV2({
 
   const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label))
 
+  const socialBtnClass =
+    'vbiz-social flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10'
+  const desktopSocialBtnClass = 'vbiz-social flex h-10 w-10 items-center justify-center rounded-full transition-colors'
+
   const nameStyle = headerTextColor
     ? { color: headerTextColor }
     : field('MyInfo section Name').textColor
@@ -168,31 +173,35 @@ export function ProfileHeaderV2({
       ? { color: field('MyInfo Designation').textColor }
       : undefined
 
+  const hasGameIds = Boolean(social.games && Object.values(social.games).some((v) => v?.trim()))
+  const showSocialRail = visibleSocials.length > 0 || hasGameIds
+
   return (
     <header
       className={`relative mb-4 flex w-full flex-col items-center gap-6 px-12 md:flex-row md:items-start md:justify-center md:px-16 lg:gap-10 lg:px-20 ${embedded ? 'mb-8' : 'sm:mb-10'}`}
     >
-      {visibleSocials.length > 0 && (
+      {showSocialRail && (
         <div className="absolute top-0 left-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:hidden dark:border-zinc-700/50 dark:bg-zinc-900/50">
-          {visibleSocials.map((social) => {
-            const href = resolveSocialLinkHref(social.label, socialHref, personal.whatsapp)
-            const tip = V2_SOCIAL_TOOLTIP[social.label] ?? social.label
+          {visibleSocials.map((socialItem) => {
+            const href = resolveSocialLinkHref(socialItem.label, socialHref, personal.whatsapp)
+            const tip = V2_SOCIAL_TOOLTIP[socialItem.label] ?? socialItem.label
             return (
-              <IconHoverTooltip key={social.label} label={tip} placement="right">
+              <IconHoverTooltip key={socialItem.label} label={tip} placement="right">
                 <a
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
-                  className="vbiz-social flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10"
+                  onClick={() => onTrackedSocialClick(socialItem.label, cardOwnerId, cardSlug)}
+                  className={socialBtnClass}
                   aria-label={tip}
-                  style={socialInlineStyle(social.label)}
+                  style={socialInlineStyle(socialItem.label)}
                 >
-                  {renderSocialIcon(social)}
+                  {renderSocialIcon(socialItem)}
                 </a>
               </IconHoverTooltip>
             )
           })}
+          <GameIdsRail games={social.games} buttonClassName={socialBtnClass} tooltipPlacement="right" />
         </div>
       )}
 
@@ -242,29 +251,39 @@ export function ProfileHeaderV2({
           </p>
         ) : null}
 
-        {visibleSocials.length > 0 && (
+        {showSocialRail && (
           <div
-            className={cn('mb-6 hidden flex-wrap items-center justify-start gap-2 md:flex', embedded ? 'mb-2' : 'mb-6')}
+            className={cn('mb-6 hidden w-full max-w-md flex-col items-start gap-2 md:flex', embedded ? 'mb-2' : 'mb-6')}
           >
-            {visibleSocials.map((social) => {
-              const href = resolveSocialLinkHref(social.label, socialHref, personal.whatsapp)
-              const tip = V2_SOCIAL_TOOLTIP[social.label] ?? social.label
-              return (
-                <IconHoverTooltip key={social.label} label={tip}>
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => onTrackedSocialClick(social.label, cardOwnerId, cardSlug)}
-                    className="vbiz-social flex h-10 w-10 items-center justify-center rounded-full transition-colors"
-                    aria-label={tip}
-                    style={socialInlineStyle(social.label)}
-                  >
-                    {itemIcon(social)}
-                  </a>
-                </IconHoverTooltip>
-              )
-            })}
+            {visibleSocials.length > 0 && (
+              <div className="flex max-w-full flex-wrap items-center justify-start gap-2">
+                {visibleSocials.map((socialItem) => {
+                  const href = resolveSocialLinkHref(socialItem.label, socialHref, personal.whatsapp)
+                  const tip = V2_SOCIAL_TOOLTIP[socialItem.label] ?? socialItem.label
+                  return (
+                    <IconHoverTooltip key={socialItem.label} label={tip}>
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => onTrackedSocialClick(socialItem.label, cardOwnerId, cardSlug)}
+                        className={desktopSocialBtnClass}
+                        aria-label={tip}
+                        style={socialInlineStyle(socialItem.label)}
+                      >
+                        {renderSocialIcon(socialItem)}
+                      </a>
+                    </IconHoverTooltip>
+                  )
+                })}
+              </div>
+            )}
+            <GameIdsRail
+              games={social.games}
+              buttonClassName={desktopSocialBtnClass}
+              tooltipPlacement="top"
+              wrapperClassName="flex max-w-full flex-wrap items-center justify-start gap-2"
+            />
           </div>
         )}
       </div>
@@ -374,13 +393,4 @@ export function ProfileHeaderV2({
       </div>
     </header>
   )
-}
-
-function itemIcon(item: V2SocialItem) {
-  if (item.isSvg) {
-    const Icon = item.icon as (props: { size?: number }) => ReactElement
-    return <Icon size={HOME_ICON_SIZE} />
-  }
-  const Icon = item.icon as LucideIcon
-  return <Icon size={HOME_ICON_SIZE} />
 }

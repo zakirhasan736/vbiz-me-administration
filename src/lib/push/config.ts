@@ -111,6 +111,22 @@ export function isVapidConfigured(): boolean {
 }
 
 export {
+  canOfferPushExperience,
+  canShowBrowserNotificationPrompt,
+  clearIosPushIntent,
+  hasIosPushIntent,
+  isAndroidDevice,
+  isIosChrome,
+  isIosDevice,
+  isIosSafari,
+  isPwaStandalone,
+  markIosPushIntent,
+  needsIosHomeScreenForPush,
+  shouldShowAndroidHomeScreenBackupGuide,
+  shouldShowIosHomeScreenPushGuide,
+} from '@/lib/push/iosPushGuidance'
+
+export {
   getCardNotificationPreferences,
   isSubscribedToCard,
   markNotificationDeclined,
