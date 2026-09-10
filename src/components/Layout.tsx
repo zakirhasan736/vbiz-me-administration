@@ -13,7 +13,7 @@ import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { ACCOUNT_SUSPENDED_MESSAGE } from '@/lib/accountStatus'
-import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
+import { canShowCrmEntry, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { requestTourRemeasure } from '@/lib/dashboardTour'
 import { roleToAudience } from '@/lib/notifications'
 import { ownerOfficeRedirectPath } from '@/lib/packageOwnerMode'
@@ -54,12 +54,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const isStaff = isStaffRole(role)
   const canUseCrm =
     CRM_UI_ENABLED &&
-    canSessionUseCrm({
+    canShowCrmEntry({
       role,
       allowedModules,
       packageAllowsCrm: isStaff ? false : packageAllowsCrm,
-    }) &&
-    (isStaff || !entitlementsLoading)
+      entitlementsLoading: isStaff ? false : entitlementsLoading,
+    })
   const { ownerMode, isCorporateBackOffice } = useOwnerMode()
   const { isSuspended, isPaused } = useAccountStatus()
   const audience = roleToAudience(role, ownerMode)
