@@ -144,6 +144,94 @@ const adminProfilesApi = api.injectEndpoints({
       }),
       transformResponse: (res: Envelope<AdminProfileEmailResult>) => res.data,
     }),
+    ensureCorporateMemberLogins: builder.mutation<
+      {
+        defaultPassword: string
+        memberLogins: {
+          apply: boolean
+          resetPasswords?: boolean
+          totals?: {
+            corporates: number
+            ready: number
+            needsUser: number
+            fixed: number
+            linked: number
+            passwordReset: number
+            errors: number
+            skipped: number
+          }
+          results: Array<{
+            corporate: { id: string; name: string | null; email: string; companyName: string | null }
+            summary: {
+              ready: number
+              needsUser: number
+              fixed: number
+              linked: number
+              passwordReset: number
+              errors: number
+              skipped: number
+            }
+          }>
+        }
+        ownerPasswords: {
+          password: string
+          summary: { reset: number; skipped: number; errors: number; total: number }
+        } | null
+      },
+      {
+        apply?: boolean
+        all?: boolean
+        q?: string
+        corporateUserId?: string
+        resetPasswords?: boolean
+        resetAllOwnerPasswords?: boolean
+      }
+    >({
+      query: (body) => ({
+        url: '/admin/corporate-member-logins/ensure',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: Envelope<unknown>) =>
+        res.data as {
+          defaultPassword: string
+          memberLogins: {
+            apply: boolean
+            resetPasswords?: boolean
+            totals?: {
+              corporates: number
+              ready: number
+              needsUser: number
+              fixed: number
+              linked: number
+              passwordReset: number
+              errors: number
+              skipped: number
+            }
+            results: Array<{
+              corporate: { id: string; name: string | null; email: string; companyName: string | null }
+              summary: {
+                ready: number
+                needsUser: number
+                fixed: number
+                linked: number
+                passwordReset: number
+                errors: number
+                skipped: number
+              }
+            }>
+          }
+          ownerPasswords: {
+            password: string
+            summary: { reset: number; skipped: number; errors: number; total: number }
+          } | null
+        },
+      invalidatesTags: [
+        { type: 'adminUsers', id: 'LIST' },
+        { type: 'adminUsers', id: 'STATS' },
+        { type: 'adminProfiles', id: 'LIST' },
+      ],
+    }),
   }),
 })
 
@@ -184,6 +272,7 @@ export const {
   useGetAdminProfileFiltersQuery,
   useGetPortfolioMembersQuery,
   useSendAdminProfileEmailMutation,
+  useEnsureCorporateMemberLoginsMutation,
 } = adminProfilesApi
 
 export default adminProfilesApi

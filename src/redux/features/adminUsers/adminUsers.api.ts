@@ -18,6 +18,12 @@ export type AdminUserRow = {
   role: AdminUserRole | string
   companyName: string | null
   registeredCards: number
+  linkedCorporate?: {
+    id: string
+    name: string | null
+    email: string
+    companyName: string | null
+  } | null
   ownerMode?: 'single' | 'corporate' | null
   packageId?: string | null
   packageName?: string | null

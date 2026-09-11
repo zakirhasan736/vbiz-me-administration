@@ -18,6 +18,7 @@ import { compactFeatureOverrides } from '@/lib/packageFeatureUi'
 import { ownerModeLabel, parsePackageMaxCards, resolveOwnerMode } from '@/lib/packageOwnerMode'
 import { notify } from '@/lib/toast/toast'
 import { useGetAdminPackagesQuery } from '@/redux/features/adminPackages/adminPackages.api'
+import { useEnsureCorporateMemberLoginsMutation } from '@/redux/features/adminProfiles/adminProfiles.api'
 import {
   useCreateAdminUserMutation,
   useCreateAdminUserPaymentLinkMutation,
@@ -167,7 +168,8 @@ function downloadCredentialsImage(credentials: ProvisionedCredentials) {
   anchor.click()
 }
 
-function roleLabel(role: string) {
+function roleLabel(role: string, linkedCorporate?: AdminUserRow['linkedCorporate']) {
+  if (linkedCorporate) return 'Corporate Team Member'
   if (role === 'corporate-owner') return 'Corporate Card Owner'
   if (role === 'super-admin') return 'Super Admin'
   if (role === 'admin') return 'Admin'
@@ -386,6 +388,7 @@ export default function AdminUsers() {
   const packageCardDefault = selectedPackage ? parsePackageMaxCards(selectedPackage.features) : null
 
   const [createUser, { isLoading: isCreating }] = useCreateAdminUserMutation()
+  const [ensureCorporateMemberLogins, { isLoading: isEnsuringMembers }] = useEnsureCorporateMemberLoginsMutation()
   const [createPaymentLink, { isLoading: isCreatingPaymentLink }] = useCreateAdminUserPaymentLinkMutation()
   const [updateUser, { isLoading: isUpdating }] = useUpdateAdminUserMutation()
   const [setUserStatus, { isLoading: isSettingStatus }] = useSetAdminUserStatusMutation()
@@ -718,16 +721,63 @@ export default function AdminUsers() {
             <Users className="h-7 w-7 text-indigo-600 dark:text-indigo-400" /> Users & Account Directory
           </h1>
           <p className="mt-1 text-xs font-semibold text-slate-400 md:text-sm">
-            Displaying registered Single Card Owners, Corporate Accounts, and administrative staff members.
+            Single owners, corporate accounts, corporate team-card logins, and staff. Team members appear under Single
+            Card Owners after you create their logins.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsAddUserOpen(true)}
-          className="flex items-center gap-2 self-start rounded-2xl bg-indigo-600 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm shadow-indigo-600/10 transition-all hover:bg-indigo-700 active:scale-[0.98] md:self-auto"
-        >
-          <UserPlus className="h-4 w-4" /> Provision User Account
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+          <button
+            type="button"
+            disabled={isEnsuringMembers}
+            onClick={() => {
+              setConfirmState({
+                open: true,
+                title: 'Create corporate team logins?',
+                description:
+                  'Creates a single-card backoffice user for every corporate-linked card that is missing one (email + default password Secret@vbizme123//). Existing member passwords are also set to that default. Corporate owners keep corporate backoffice.',
+                onConfirm: () => {
+                  void (async () => {
+                    try {
+                      const data = await ensureCorporateMemberLogins({
+                        apply: true,
+                        all: true,
+                        resetPasswords: true,
+                        resetAllOwnerPasswords: false,
+                      }).unwrap()
+                      const totals = data.memberLogins.totals
+                      const fixed = totals?.fixed ?? 0
+                      const linked = totals?.linked ?? 0
+                      const passwordReset = totals?.passwordReset ?? 0
+                      const errors = totals?.errors ?? 0
+                      const corporates = totals?.corporates ?? data.memberLogins.results.length
+                      notify.success(
+                        `Team logins updated across ${corporates} corporate account(s): ${fixed} created, ${linked} linked, ${passwordReset} passwords set. Default: ${data.defaultPassword}`
+                      )
+                      if (errors) {
+                        notify.error(`${errors} card(s) could not be provisioned. Check emails already registered.`)
+                      }
+                      resetListToStart()
+                      void refetchList()
+                    } catch (err) {
+                      notify.error(rtkErrorMessage(err, 'Failed to create corporate team logins.'))
+                    }
+                  })()
+                },
+              })
+            }}
+            className="flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3.5 text-xs font-black tracking-wider text-indigo-700 uppercase transition-all hover:bg-indigo-100 disabled:opacity-60 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300 dark:hover:bg-indigo-500/20"
+          >
+            <Link2 className="h-4 w-4" />
+            {isEnsuringMembers ? 'Creating logins…' : 'Create team card logins'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsAddUserOpen(true)}
+            className="flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm shadow-indigo-600/10 transition-all hover:bg-indigo-700 active:scale-[0.98]"
+          >
+            <UserPlus className="h-4 w-4" /> Provision User Account
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -881,6 +931,7 @@ export default function AdminUsers() {
         >
           {users.map((u) => {
             const corporate = isCorporateRole(u.role)
+            const teamMember = Boolean(u.linkedCorporate)
             const active = u.accountStatus === 'ACTIVE'
             const displayName = u.name || u.email
             const createCardLimit = resolveAdminCreateCardLimit(u)
@@ -906,17 +957,21 @@ export default function AdminUsers() {
                           'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
                           corporate
                             ? 'border-indigo-500/15 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
-                            : 'border-violet-500/15 bg-violet-500/10 text-violet-600 dark:text-violet-300'
+                            : teamMember
+                              ? 'border-teal-500/15 bg-teal-500/10 text-teal-700 dark:text-teal-300'
+                              : 'border-violet-500/15 bg-violet-500/10 text-violet-600 dark:text-violet-300'
                         )}
                       >
                         {corporate ? <Building className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
                         {corporate
                           ? 'Corporate'
-                          : u.role === 'super-admin'
-                            ? 'Super Admin'
-                            : u.role === 'admin'
-                              ? 'Admin'
-                              : 'Single'}
+                          : teamMember
+                            ? 'Team member'
+                            : u.role === 'super-admin'
+                              ? 'Super Admin'
+                              : u.role === 'admin'
+                                ? 'Admin'
+                                : 'Single'}
                       </span>
                       <span
                         className={cn(
@@ -949,7 +1004,15 @@ export default function AdminUsers() {
                         >
                           {displayName}
                         </h3>
-                        <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">{roleLabel(u.role)}</p>
+                        <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
+                          {roleLabel(u.role, u.linkedCorporate)}
+                        </p>
+                        {u.linkedCorporate ? (
+                          <p className="mt-0.5 truncate text-[10px] font-medium text-teal-600/90 dark:text-teal-400/90">
+                            Linked to{' '}
+                            {u.linkedCorporate.companyName || u.linkedCorporate.name || u.linkedCorporate.email}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
