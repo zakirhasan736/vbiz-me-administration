@@ -275,6 +275,12 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const languageChrome = displayIconChromeStyle(field('Language'), cardTheme)
   const websiteChrome = displayIconChromeStyle(field('Website'), cardTheme)
   const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), cardTheme)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), cardTheme)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), cardTheme)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), cardTheme)
+  const showNotifications = isVisible('Notifications')
+  const showNotepad = isVisible('Notepad')
+  const showOneOnOne = isVisible('1-on-1')
   const accent = design?.accentColor ?? '#dcc969'
   const identityColors = resolveHomeIdentityColors({
     mode: cardTheme,
@@ -650,33 +656,49 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               hover: 'hover:bg-blue-500 hover:border-blue-500 hover:text-white text-blue-500',
                               onClick: () => triggerAction('share'),
                               className: 'h-10 w-10',
+                              chrome: shareChrome,
                             },
                           ]
                         : []),
-                      {
-                        icon: Bell,
-                        tip: 'Notifications',
-                        label: null as string | null,
-                        hover: 'hover:bg-amber-500 hover:border-amber-500 hover:text-white text-amber-500',
-                        onClick: () => triggerAction('settings'),
-                        className: 'h-10 w-10',
-                      },
-                      {
-                        icon: FileText,
-                        tip: 'Notes',
-                        label: null as string | null,
-                        hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white text-emerald-500',
-                        onClick: () => triggerAction('notepad'),
-                        className: 'h-10 w-10',
-                      },
-                      {
-                        icon: CalendarDays,
-                        tip: '1-on-1',
-                        label: '1-ON-1',
-                        hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white text-teal-600',
-                        onClick: () => triggerAction('one_on_one'),
-                        className: 'h-10 gap-1.5 px-2.5',
-                      },
+                      ...(showNotifications
+                        ? [
+                            {
+                              icon: Bell,
+                              tip: 'Notifications',
+                              label: null as string | null,
+                              hover: 'hover:bg-amber-500 hover:border-amber-500 hover:text-white text-amber-500',
+                              onClick: () => triggerAction('settings'),
+                              className: 'h-10 w-10',
+                              chrome: notificationsChrome,
+                            },
+                          ]
+                        : []),
+                      ...(showNotepad
+                        ? [
+                            {
+                              icon: FileText,
+                              tip: 'Notes',
+                              label: null as string | null,
+                              hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white text-emerald-500',
+                              onClick: () => triggerAction('notepad'),
+                              className: 'h-10 w-10',
+                              chrome: notepadChrome,
+                            },
+                          ]
+                        : []),
+                      ...(showOneOnOne
+                        ? [
+                            {
+                              icon: CalendarDays,
+                              tip: '1-on-1',
+                              label: '1-ON-1',
+                              hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white text-teal-600',
+                              onClick: () => triggerAction('one_on_one'),
+                              className: 'h-10 gap-1.5 px-2.5',
+                              chrome: oneOnOneChrome,
+                            },
+                          ]
+                        : []),
                     ].map((item, idx) => (
                       <IconHoverTooltip key={idx} label={item.tip}>
                         <button
@@ -684,7 +706,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           onClick={item.onClick}
                           aria-label={item.tip}
                           className={`vbiz-icon-btn flex items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover} ${item.className}`}
-                          style={idx === 0 && showShare ? shareChrome : undefined}
+                          style={item.chrome}
                         >
                           <item.icon size={22} />
                           {item.label ? (
@@ -843,34 +865,50 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               label: 'Share',
                               hover: 'hover:bg-blue-500 hover:border-blue-500 hover:text-white',
                               onClick: () => triggerAction('share'),
+                              chrome: shareChrome,
                             },
                           ]
                         : []),
-                      {
-                        icon: Bell,
-                        label: 'Alerts',
-                        hover: 'hover:bg-amber-500 hover:border-amber-500 hover:text-white',
-                        onClick: () => triggerAction('settings'),
-                      },
-                      {
-                        icon: FileText,
-                        label: 'Notes',
-                        hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white',
-                        onClick: () => triggerAction('notepad'),
-                      },
-                      {
-                        icon: CalendarDays,
-                        label: '1-ON-1',
-                        hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white',
-                        onClick: () => triggerAction('one_on_one'),
-                      },
+                      ...(showNotifications
+                        ? [
+                            {
+                              icon: Bell,
+                              label: 'Alerts',
+                              hover: 'hover:bg-amber-500 hover:border-amber-500 hover:text-white',
+                              onClick: () => triggerAction('settings'),
+                              chrome: notificationsChrome,
+                            },
+                          ]
+                        : []),
+                      ...(showNotepad
+                        ? [
+                            {
+                              icon: FileText,
+                              label: 'Notes',
+                              hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white',
+                              onClick: () => triggerAction('notepad'),
+                              chrome: notepadChrome,
+                            },
+                          ]
+                        : []),
+                      ...(showOneOnOne
+                        ? [
+                            {
+                              icon: CalendarDays,
+                              label: '1-ON-1',
+                              hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white',
+                              onClick: () => triggerAction('one_on_one'),
+                              chrome: oneOnOneChrome,
+                            },
+                          ]
+                        : []),
                     ].map((item, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={item.onClick}
                         className={`vbiz-icon-btn flex flex-col items-center justify-center gap-1.5 rounded-xl border border-black/5 bg-gray-50 py-3 text-gray-500 shadow-sm transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] dark:border-white/10 dark:bg-white/5 dark:text-white/80 ${item.hover}`}
-                        style={item.label === 'Share' ? shareChrome : undefined}
+                        style={item.chrome}
                       >
                         <item.icon size={22} />
                         <span className="text-[10px] leading-none font-extrabold tracking-widest uppercase">

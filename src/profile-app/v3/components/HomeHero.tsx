@@ -139,6 +139,12 @@ export const HomeHero: React.FC<{
   const languageChrome = displayIconChromeStyle(field('Language'), mode)
   const websiteChrome = displayIconChromeStyle(field('Website'), mode)
   const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), mode)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), mode)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), mode)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), mode)
+  const showNotifications = isVisible('Notifications')
+  const showNotepad = isVisible('Notepad')
+  const showOneOnOne = isVisible('1-on-1')
 
   const designationLine = resolveGlobalProfession(personal, isVisible)
   const identityColors = resolveHomeIdentityColors({
@@ -419,45 +425,54 @@ export const HomeHero: React.FC<{
                   </button>
                 </IconHoverTooltip>
               )}
-              <IconHoverTooltip label="Notifications">
-                <button
-                  aria-label="Notifications"
-                  className={`group relative flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
-                  onClick={() => {
-                    triggerHaptic(10)
-                    onAction?.('settings')
-                  }}
-                >
-                  <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                  <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
-                </button>
-              </IconHoverTooltip>
-              <IconHoverTooltip label="Notes">
-                <button
-                  aria-label="Notes"
-                  className={`group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
-                  onClick={() => {
-                    triggerHaptic(10)
-                    onAction?.('notepad')
-                  }}
-                >
-                  <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                </button>
-              </IconHoverTooltip>
-              <IconHoverTooltip label="1-on-1">
-                <button
-                  type="button"
-                  aria-label="Request 1-on-1"
-                  className={`group flex items-center gap-1.5 rounded-xl border px-2.5 py-2 transition-all duration-300 hover:scale-110 hover:shadow-[0_0_16px_rgba(238,214,119,0.75)] ${theme === 'dark' ? 'border-gold/45 bg-ocean-dark/60 hover:border-gold hover:bg-ocean-light/60 text-white' : 'border-gold/50 hover:border-gold hover:bg-gold/20 bg-white text-zinc-950'}`}
-                  onClick={() => {
-                    triggerHaptic(10)
-                    onAction?.('one_on_one')
-                  }}
-                >
-                  <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                  <span className="text-[10px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
-                </button>
-              </IconHoverTooltip>
+              {showNotifications ? (
+                <IconHoverTooltip label="Notifications">
+                  <button
+                    aria-label="Notifications"
+                    className="vbiz-icon-btn group relative flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110"
+                    style={notificationsChrome}
+                    onClick={() => {
+                      triggerHaptic(10)
+                      onAction?.('settings')
+                    }}
+                  >
+                    <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                    <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
+                  </button>
+                </IconHoverTooltip>
+              ) : null}
+              {showNotepad ? (
+                <IconHoverTooltip label="Notes">
+                  <button
+                    aria-label="Notes"
+                    className="vbiz-icon-btn group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 hover:scale-110"
+                    style={notepadChrome}
+                    onClick={() => {
+                      triggerHaptic(10)
+                      onAction?.('notepad')
+                    }}
+                  >
+                    <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                  </button>
+                </IconHoverTooltip>
+              ) : null}
+              {showOneOnOne ? (
+                <IconHoverTooltip label="1-on-1">
+                  <button
+                    type="button"
+                    aria-label="Request 1-on-1"
+                    className="vbiz-icon-btn group flex items-center gap-1.5 rounded-xl border px-2.5 py-2 transition-all duration-300 hover:scale-110"
+                    style={oneOnOneChrome}
+                    onClick={() => {
+                      triggerHaptic(10)
+                      onAction?.('one_on_one')
+                    }}
+                  >
+                    <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                    <span className="text-[10px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
+                  </button>
+                </IconHoverTooltip>
+              ) : null}
             </div>
 
             {showName && (
@@ -536,47 +551,56 @@ export const HomeHero: React.FC<{
                       </button>
                     </IconHoverTooltip>
                   )}
-                  <IconHoverTooltip label="Notifications">
-                    <button
-                      type="button"
-                      aria-label="Notifications"
-                      className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
-                      onClick={() => {
-                        triggerHaptic(10)
-                        onAction?.('settings')
-                      }}
-                    >
-                      <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                      <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
-                    </button>
-                  </IconHoverTooltip>
-                  <IconHoverTooltip label="Notes">
-                    <button
-                      type="button"
-                      aria-label="Notes"
-                      className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
-                      onClick={() => {
-                        triggerHaptic(10)
-                        onAction?.('notepad')
-                      }}
-                    >
-                      <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                    </button>
-                  </IconHoverTooltip>
-                  <IconHoverTooltip label="1-on-1">
-                    <button
-                      type="button"
-                      aria-label="Request 1-on-1"
-                      className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12"
-                      onClick={() => {
-                        triggerHaptic(10)
-                        onAction?.('one_on_one')
-                      }}
-                    >
-                      <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                      <span className="text-[11px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
-                    </button>
-                  </IconHoverTooltip>
+                  {showNotifications ? (
+                    <IconHoverTooltip label="Notifications">
+                      <button
+                        type="button"
+                        aria-label="Notifications"
+                        className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                        style={notificationsChrome}
+                        onClick={() => {
+                          triggerHaptic(10)
+                          onAction?.('settings')
+                        }}
+                      >
+                        <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                        <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
+                      </button>
+                    </IconHoverTooltip>
+                  ) : null}
+                  {showNotepad ? (
+                    <IconHoverTooltip label="Notes">
+                      <button
+                        type="button"
+                        aria-label="Notes"
+                        className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12 md:w-12"
+                        style={notepadChrome}
+                        onClick={() => {
+                          triggerHaptic(10)
+                          onAction?.('notepad')
+                        }}
+                      >
+                        <FileText size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                      </button>
+                    </IconHoverTooltip>
+                  ) : null}
+                  {showOneOnOne ? (
+                    <IconHoverTooltip label="1-on-1">
+                      <button
+                        type="button"
+                        aria-label="Request 1-on-1"
+                        className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 md:h-12"
+                        style={oneOnOneChrome}
+                        onClick={() => {
+                          triggerHaptic(10)
+                          onAction?.('one_on_one')
+                        }}
+                      >
+                        <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                        <span className="text-[11px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
+                      </button>
+                    </IconHoverTooltip>
+                  ) : null}
                 </div>
 
                 {showSocialRail && (

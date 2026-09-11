@@ -25,6 +25,7 @@ import { resolveProfileAvatarSrc } from '@/profile-app/profilePublicProps'
 import { cn } from '@/utils/cn'
 import {
   Bell,
+  CalendarDays,
   Eye,
   Facebook,
   FileEdit,
@@ -137,6 +138,12 @@ export function ProfileHeaderV2({
   const languageChrome = displayIconChromeStyle(field('Language'), theme)
   const websiteChrome = displayIconChromeStyle(field('Website'), theme)
   const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), theme)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), theme)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), theme)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), theme)
+  const showNotifications = isVisible('Notifications')
+  const showNotepad = isVisible('Notepad')
+  const showOneOnOne = isVisible('1-on-1')
 
   const websiteHref = useMemo(() => resolveSocialLinkHref('Website', socialHref).trim(), [socialHref])
   const showWebsite = Boolean(websiteHref) && isVisible('Website')
@@ -365,30 +372,52 @@ export function ProfileHeaderV2({
             </button>
           </IconHoverTooltip>
         )}
-        <IconHoverTooltip label="Notifications" placement="left">
-          <button
-            type="button"
-            onClick={onNotificationSettings}
-            className="relative flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-            aria-label="Notifications"
-          >
-            <Bell size={HOME_ICON_SIZE} className="text-[#eab308]" />
-            <span className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-red-500 md:top-1 md:right-1" />
-          </button>
-        </IconHoverTooltip>
-        <IconHoverTooltip label="Notes" placement="left">
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-            aria-label="Notes"
-            onClick={() => {
-              onOpenNotepad?.()
-              window.dispatchEvent(new CustomEvent('openNotepadAction'))
-            }}
-          >
-            <FileEdit size={HOME_ICON_SIZE} className="text-[#eab308]" />
-          </button>
-        </IconHoverTooltip>
+        {showNotifications ? (
+          <IconHoverTooltip label="Notifications" placement="left">
+            <button
+              type="button"
+              onClick={onNotificationSettings}
+              className="vbiz-icon-btn relative flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              style={notificationsChrome}
+              aria-label="Notifications"
+            >
+              <Bell size={HOME_ICON_SIZE} />
+              <span className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full bg-red-500 md:top-1 md:right-1" />
+            </button>
+          </IconHoverTooltip>
+        ) : null}
+        {showNotepad ? (
+          <IconHoverTooltip label="Notes" placement="left">
+            <button
+              type="button"
+              className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              style={notepadChrome}
+              aria-label="Notes"
+              onClick={() => {
+                onOpenNotepad?.()
+                window.dispatchEvent(new CustomEvent('openNotepadAction'))
+              }}
+            >
+              <FileEdit size={HOME_ICON_SIZE} />
+            </button>
+          </IconHoverTooltip>
+        ) : null}
+        {showOneOnOne ? (
+          <IconHoverTooltip label="1-on-1" placement="left">
+            <button
+              type="button"
+              className="vbiz-icon-btn flex h-8 items-center gap-1 rounded-full border border-zinc-200 bg-white px-2 text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:px-2.5 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              style={oneOnOneChrome}
+              aria-label="Request 1-on-1"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('openOneOnOneModal'))
+              }}
+            >
+              <CalendarDays size={HOME_ICON_SIZE} />
+              <span className="text-[9px] font-black tracking-wide whitespace-nowrap md:text-[10px]">1-ON-1</span>
+            </button>
+          </IconHoverTooltip>
+        ) : null}
       </div>
     </header>
   )
