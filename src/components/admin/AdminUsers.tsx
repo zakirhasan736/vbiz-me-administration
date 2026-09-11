@@ -760,13 +760,20 @@ export default function AdminUsers() {
                       const errors = totals?.errors ?? results.reduce((n, r) => n + (r.summary?.errors || 0), 0)
                       const corporates = totals?.corporates ?? results.length
                       const created = fixed + linked
+                      const corpLines = results
+                        .filter((r) => (r.summary?.fixed || 0) + (r.summary?.linked || 0) > 0)
+                        .slice(0, 8)
+                        .map(
+                          (r) =>
+                            `${r.corporate?.name || r.corporate?.email}: +${(r.summary?.fixed || 0) + (r.summary?.linked || 0)}`
+                        )
                       if (created === 0 && passwordReset === 0 && errors === 0) {
                         notify.success(
                           `Checked ${corporates} corporate account(s). No missing team logins found (cards may already be linked, or card emails are empty / same as corporate).`
                         )
                       } else {
                         notify.success(
-                          `Created/linked ${created} team login(s) across ${corporates} corporate account(s). ${passwordReset} password(s) set to ${data.defaultPassword}. Filter: Single Card Owners — search the card email.`
+                          `All corporates checked (${corporates}). Created/linked ${created} team login(s). ${passwordReset} password(s) set to ${data.defaultPassword}.${corpLines.length ? ` Examples: ${corpLines.join('; ')}` : ''} Filter: Single Card Owners.`
                         )
                       }
                       if (errors) {
