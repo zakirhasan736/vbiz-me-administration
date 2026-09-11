@@ -292,6 +292,8 @@ export default function AdminUsers() {
     open: boolean
     title: string
     description: string
+    confirmLabel?: string
+    variant?: 'danger' | 'default'
     onConfirm: () => void
   } | null>(null)
 
@@ -361,7 +363,7 @@ export default function AdminUsers() {
     refetch: refetchList,
   } = useGetAdminUsersQuery(listQuery)
 
-  const { data: statsData, isLoading: isStatsLoading } = useGetAdminUserStatsQuery()
+  const { data: statsData, isLoading: isStatsLoading, refetch: refetchStats } = useGetAdminUserStatsQuery()
   const { data: packages = [], isLoading: isPackagesLoading } = useGetAdminPackagesQuery(undefined, {
     skip: !isAddUserOpen && !editingUser,
   })
@@ -735,8 +737,11 @@ export default function AdminUsers() {
                 title: 'Create corporate team logins?',
                 description:
                   'Creates a single-card backoffice user for every corporate-linked card that is missing one (email + default password Secret@vbizme123//). Existing member passwords are also set to that default. Corporate owners keep corporate backoffice.',
+                confirmLabel: 'Create logins',
+                variant: 'default',
                 onConfirm: () => {
                   void (async () => {
+                    setConfirmState(null)
                     try {
                       const data = await ensureCorporateMemberLogins({
                         apply: true,
@@ -745,19 +750,34 @@ export default function AdminUsers() {
                         resetAllOwnerPasswords: false,
                       }).unwrap()
                       const totals = data.memberLogins.totals
-                      const fixed = totals?.fixed ?? 0
-                      const linked = totals?.linked ?? 0
-                      const passwordReset = totals?.passwordReset ?? 0
-                      const errors = totals?.errors ?? 0
-                      const corporates = totals?.corporates ?? data.memberLogins.results.length
-                      notify.success(
-                        `Team logins updated across ${corporates} corporate account(s): ${fixed} created, ${linked} linked, ${passwordReset} passwords set. Default: ${data.defaultPassword}`
-                      )
-                      if (errors) {
-                        notify.error(`${errors} card(s) could not be provisioned. Check emails already registered.`)
+                      const results = data.memberLogins.results || []
+                      const fixed = totals?.fixed ?? results.reduce((n, r) => n + (r.summary?.fixed || 0), 0)
+                      const linked = totals?.linked ?? results.reduce((n, r) => n + (r.summary?.linked || 0), 0)
+                      const passwordReset =
+                        totals?.passwordReset ?? results.reduce((n, r) => n + (r.summary?.passwordReset || 0), 0)
+                      const needsUser =
+                        totals?.needsUser ?? results.reduce((n, r) => n + (r.summary?.needsUser || 0), 0)
+                      const errors = totals?.errors ?? results.reduce((n, r) => n + (r.summary?.errors || 0), 0)
+                      const corporates = totals?.corporates ?? results.length
+                      const created = fixed + linked
+                      if (created === 0 && passwordReset === 0 && errors === 0) {
+                        notify.success(
+                          `Checked ${corporates} corporate account(s). No missing team logins found (cards may already be linked, or card emails are empty / same as corporate).`
+                        )
+                      } else {
+                        notify.success(
+                          `Created/linked ${created} team login(s) across ${corporates} corporate account(s). ${passwordReset} password(s) set to ${data.defaultPassword}. Filter: Single Card Owners — search the card email.`
+                        )
                       }
+                      if (errors) {
+                        notify.error(
+                          `${errors} card(s) failed (often email already registered to another account). ${needsUser ? `${needsUser} still need a login.` : ''}`
+                        )
+                      }
+                      dispatch(setRoleFilter('vcard-owner'))
                       resetListToStart()
                       void refetchList()
+                      void refetchStats()
                     } catch (err) {
                       notify.error(rtkErrorMessage(err, 'Failed to create corporate team logins.'))
                     }
@@ -1967,8 +1987,10 @@ export default function AdminUsers() {
           open
           title={confirmState.title}
           description={confirmState.description}
-          confirmLabel="Delete"
-          variant="danger"
+          confirmLabel={confirmState.confirmLabel || 'Delete'}
+          variant={confirmState.variant || 'danger'}
+          isLoading={isEnsuringMembers}
+          loadingLabel="Creating logins…"
           onConfirm={confirmState.onConfirm}
           onCancel={() => setConfirmState(null)}
         />
