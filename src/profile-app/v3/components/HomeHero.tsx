@@ -11,6 +11,7 @@ import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButt
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { RumbleIcon, WhatsAppIcon } from '@/profile-app/components/socialBrandIcons'
+import { resolveHomeIdentityColors } from '@/profile-app/lib/homeIdentityColors'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
 import {
@@ -132,13 +133,20 @@ export const HomeHero: React.FC<{
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showCrm = isVisible('CRM')
-  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
-  const crmChrome = displayIconChromeStyle(field('CRM'))
-  const languageChrome = displayIconChromeStyle(field('Language'))
-  const websiteChrome = displayIconChromeStyle(field('Website'))
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'))
+  const mode = (theme === 'dark' ? 'dark' : 'light') as 'light' | 'dark'
+  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), mode)
+  const crmChrome = displayIconChromeStyle(field('CRM'), mode)
+  const languageChrome = displayIconChromeStyle(field('Language'), mode)
+  const websiteChrome = displayIconChromeStyle(field('Website'), mode)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), mode)
 
   const designationLine = resolveGlobalProfession(personal, isVisible)
+  const identityColors = resolveHomeIdentityColors({
+    mode,
+    nameField: field('MyInfo section Name'),
+    professionField: field('MyInfo Profession'),
+    designationField: field('MyInfo Designation'),
+  })
 
   const contactItems = useMemo(
     () =>
@@ -188,7 +196,7 @@ export const HomeHero: React.FC<{
     return <Icon size={size} strokeWidth={2.5} />
   }
 
-  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label))
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), mode)
 
   return (
     <div
@@ -454,33 +462,16 @@ export const HomeHero: React.FC<{
 
             {showName && (
               <h1
-                className={`notranslate mt-4 mb-0.5 px-4 text-center text-[22px] leading-tight font-bold tracking-tight drop-shadow-md ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
-                style={{
-                  ...(field('MyInfo section Name').textColor ? { color: field('MyInfo section Name').textColor } : {}),
-                  ...(field('MyInfo section Name').backgroundColor
-                    ? { backgroundColor: field('MyInfo section Name').backgroundColor }
-                    : {}),
-                }}
+                className={`notranslate mt-4 mb-0.5 px-4 text-center text-[22px] leading-tight font-bold tracking-tight ${identityColors.nameClassName}`}
+                style={identityColors.nameStyle}
               >
                 {personal.fullName}
               </h1>
             )}
             {designationLine && (
               <p
-                className={`notranslate mb-2 text-[16px] font-medium opacity-90 drop-shadow-sm ${theme === 'dark' ? 'text-white/90' : 'text-zinc-700'}`}
-                style={{
-                  ...(field('MyInfo Profession').textColor || field('MyInfo Designation').textColor
-                    ? {
-                        color: field('MyInfo Profession').textColor || field('MyInfo Designation').textColor,
-                      }
-                    : {}),
-                  ...(field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor
-                    ? {
-                        backgroundColor:
-                          field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor,
-                      }
-                    : {}),
-                }}
+                className={`notranslate mb-2 text-[16px] font-medium opacity-90 ${identityColors.professionClassName}`}
+                style={identityColors.professionStyle}
               >
                 {designationLine}
               </p>
@@ -513,37 +504,16 @@ export const HomeHero: React.FC<{
               <div className="flex flex-1 flex-col pt-8 drop-shadow-2xl xl:pt-12">
                 {showName && (
                   <h1
-                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight drop-shadow-md xl:text-[46px] ${theme === 'dark' ? 'text-white' : 'text-zinc-950'}`}
-                    style={{
-                      ...(field('MyInfo section Name').textColor
-                        ? { color: field('MyInfo section Name').textColor }
-                        : {}),
-                      ...(field('MyInfo section Name').backgroundColor
-                        ? { backgroundColor: field('MyInfo section Name').backgroundColor }
-                        : {}),
-                    }}
+                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight xl:text-[46px] ${identityColors.nameClassName}`}
+                    style={identityColors.nameStyle}
                   >
                     {personal.fullName}
                   </h1>
                 )}
                 {designationLine && (
                   <p
-                    className={`notranslate mb-5 ml-1 w-fit overflow-hidden bg-linear-to-r bg-clip-text text-[20px] font-bold text-transparent drop-shadow-lg xl:text-[24px] ${theme === 'dark' ? 'from-gold to-yellow-400' : 'from-amber-700 to-amber-950'}`}
-                    style={{
-                      ...(field('MyInfo Profession').textColor || field('MyInfo Designation').textColor
-                        ? {
-                            color: field('MyInfo Profession').textColor || field('MyInfo Designation').textColor,
-                            backgroundImage: 'none',
-                            WebkitTextFillColor: 'unset',
-                          }
-                        : {}),
-                      ...(field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor
-                        ? {
-                            backgroundColor:
-                              field('MyInfo Profession').backgroundColor || field('MyInfo Designation').backgroundColor,
-                          }
-                        : {}),
-                    }}
+                    className={`notranslate mb-5 ml-1 w-fit text-[20px] font-bold xl:text-[24px] ${identityColors.professionClassName}`}
+                    style={identityColors.professionStyle}
                   >
                     {designationLine}
                   </p>

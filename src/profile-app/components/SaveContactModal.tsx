@@ -198,39 +198,36 @@ export const SaveContactModal = ({
               <div className="mb-1 pr-8">
                 <h3 className="vbiz-title text-xl font-bold tracking-tight">Download Contact Info</h3>
                 <p className="vbiz-description mt-2 text-sm leading-relaxed">
-                  You&apos;re about to receive {contactOwnerLabel}&apos;s contact file. First, tell us who you are —
-                  your full name, phone number, and email — so we know who&apos;s saving this contact.
+                  You&apos;re about to receive {contactOwnerLabel}&apos;s contact file. Your details below are optional
+                  — you can download without sharing them.
                 </p>
               </div>
               <input
                 type="text"
-                placeholder="Your full name"
-                aria-label="Your full name"
+                placeholder="Your full name (optional)"
+                aria-label="Your full name (optional)"
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                required
                 disabled={submitting}
                 autoComplete="name"
                 className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
               />
               <input
                 type="tel"
-                placeholder="Your phone number"
-                aria-label="Your phone number"
+                placeholder="Your phone number (optional)"
+                aria-label="Your phone number (optional)"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                required
                 disabled={submitting}
                 autoComplete="tel"
                 className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
               />
               <input
                 type="email"
-                placeholder="Your email address"
-                aria-label="Your email address"
+                placeholder="Your email address (optional)"
+                aria-label="Your email address (optional)"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
                 disabled={submitting}
                 autoComplete="email"
                 className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"

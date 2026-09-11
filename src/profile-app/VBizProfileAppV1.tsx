@@ -129,7 +129,7 @@ export function VBizProfileAppV1({
 
   const rootStyle = {
     ...v3DesignToCssVars(design),
-    ...displayGeneralRootStyle(settings),
+    ...displayGeneralRootStyle(settings, theme),
   }
 
   const homeHeroProps = {

@@ -2,6 +2,7 @@
 
 import { useTranslation } from '@/lib/i18n/translationData'
 import { displayCtaChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import {
   buildHomeCtaInlineStyle,
   filterHomeCtaLayout,
@@ -92,18 +93,23 @@ function CtaButtonGrid({
   layout,
   template,
   isDesktop,
+  themeMode,
   onClick,
 }: {
   layout: HomeCtaLayout
   template: ProfileTemplateId
   isDesktop: boolean
+  themeMode: 'light' | 'dark'
   onClick: (button: ResolvedHomeCtaButton) => void
 }) {
   const { field } = useProfileDisplay()
   const gap = isDesktop ? (template === 'v1' ? 'gap-4' : 'gap-3') : 'gap-2'
   const rowGap = isDesktop ? 'gap-3' : 'gap-2'
   const chromeFor = (button: ResolvedHomeCtaButton) =>
-    displayCtaChromeStyle(mergeDisplayFieldConfigs(...HOME_CTA_SETTING_KEYS[button.key].map((key) => field(key))))
+    displayCtaChromeStyle(
+      mergeDisplayFieldConfigs(...HOME_CTA_SETTING_KEYS[button.key].map((key) => field(key))),
+      themeMode
+    )
 
   return (
     <div className={`flex flex-col ${gap}`}>
@@ -140,6 +146,7 @@ function CtaButtonGrid({
 
 /** Shared home CTA grid for v1, v2, and v3 — mobile [2,2,1]; desktop [2,1,1]. */
 export function ProfileActionButtons({
+  theme,
   onAction,
   className,
   mobileClassName,
@@ -147,6 +154,8 @@ export function ProfileActionButtons({
 }: ProfileActionButtonsProps) {
   const { t } = useTranslation()
   const { actionButtons, design, cardSlug, isVisible, embedded } = useProfileDisplay()
+  const documentMode = useDocumentThemeMode('light')
+  const themeMode = theme === 'dark' || theme === 'light' ? theme : documentMode
   const accentColor = design?.accentColor ?? '#eab308'
   const template = (design?.profileTemplate ?? 'v3') as ProfileTemplateId
 
@@ -187,12 +196,24 @@ export function ProfileActionButtons({
     <>
       {showMobile ? (
         <div className={visibleOn === 'both' ? `md:hidden ${mobileWrapperClass}` : mobileWrapperClass}>
-          <CtaButtonGrid layout={mobileLayout} template={template} isDesktop={false} onClick={click} />
+          <CtaButtonGrid
+            layout={mobileLayout}
+            template={template}
+            isDesktop={false}
+            themeMode={themeMode}
+            onClick={click}
+          />
         </div>
       ) : null}
       {showDesktop ? (
         <div className={desktopWrapperClass || undefined}>
-          <CtaButtonGrid layout={desktopLayout} template={template} isDesktop={!embedded} onClick={click} />
+          <CtaButtonGrid
+            layout={desktopLayout}
+            template={template}
+            isDesktop={!embedded}
+            themeMode={themeMode}
+            onClick={click}
+          />
         </div>
       ) : null}
     </>

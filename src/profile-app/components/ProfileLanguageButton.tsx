@@ -1,6 +1,7 @@
 'use client'
 
 import { displayIconChromeStyle } from '@/lib/vcardDisplaySettings'
+import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useOptionalTranslationUi } from '@/profile-app/providers/TranslationProvider'
@@ -8,6 +9,7 @@ import { useOptionalTranslationUi } from '@/profile-app/providers/TranslationPro
 type ProfileLanguageButtonProps = {
   className?: string
   label?: string
+  theme?: 'light' | 'dark'
   /** Called when no TranslationProvider is mounted (fallback). */
   onFallbackClick?: () => void
 }
@@ -16,10 +18,13 @@ type ProfileLanguageButtonProps = {
 export function ProfileLanguageButton({
   className = '',
   label = 'Language',
+  theme,
   onFallbackClick,
 }: ProfileLanguageButtonProps) {
   const translationUi = useOptionalTranslationUi()
   const { isVisible, field } = useProfileDisplay()
+  const documentMode = useDocumentThemeMode('light')
+  const mode = theme ?? documentMode
 
   if (!isVisible('Language')) return null
 
@@ -37,7 +42,7 @@ export function ProfileLanguageButton({
       onClick={handleClick}
       aria-label={label}
       className={`vbiz-icon-btn inline-flex items-center justify-center gap-1.5 transition-all active:scale-95 ${className}`}
-      style={displayIconChromeStyle(field('Language'))}
+      style={displayIconChromeStyle(field('Language'), mode)}
     >
       <SelectedLanguageMark
         showName={false}

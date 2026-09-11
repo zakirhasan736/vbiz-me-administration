@@ -1,5 +1,6 @@
 'use client'
 
+import { VBIZ_DEFAULT_FAVICON_PATH } from '@/components/brand/VbizBrandMark'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl } from '@/lib/pwa/resolvePublicCardPwa'
@@ -87,10 +88,10 @@ function shareImageUrl(slug: string, imageUrl?: string | null) {
   return `${origin.replace(/\/$/, '')}${buildProfileIconPath(slug.trim(), 512)}`
 }
 
-function isGeneratedPwaIconUrl(url: string, slug: string): boolean {
-  const path = buildProfileIconPath(slug.trim(), 512)
-  const path192 = buildProfileIconPath(slug.trim(), 192)
-  return url.includes(path) || url.includes(path192) || /\/vCard\/[^/]+\/icon\/(192|512)/i.test(url)
+function resolveTabFavicon(origin: string, seo?: VCardSeo): string {
+  const custom = seo?.faviconUrl?.trim() || ''
+  if (custom && !isVideoUrl(custom)) return toAbsoluteUrl(origin, custom)
+  return toAbsoluteUrl(origin, VBIZ_DEFAULT_FAVICON_PATH)
 }
 
 /** Injects per-card manifest + apple-touch-icon so Chrome / iOS can install this card. */
@@ -105,8 +106,7 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     const description = seo?.metaDescription?.trim() || `${title}'s digital business card on vBiz Me.`
     const keywords = seo?.metaKeywords?.join(', ') || ''
     const image = shareImageUrl(trimmed, imageUrl || seo?.seoImage)
-    const pwaIcon192 = buildProfileIconPath(trimmed, 192)
-    const tabIcon = image && !isGeneratedPwaIconUrl(image, trimmed) ? image : pwaIcon192
+    const tabIcon = resolveTabFavicon(origin, seo)
 
     const manifestHref = buildPwaManifestUrl(trimmed)
     let manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
@@ -120,6 +120,7 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
 
     upsertIconLink('apple-touch-icon', tabIcon)
     upsertIconLink('icon', tabIcon)
+    upsertIconLink('shortcut icon', tabIcon)
 
     let canonicalLink = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
     if (!canonicalLink) {

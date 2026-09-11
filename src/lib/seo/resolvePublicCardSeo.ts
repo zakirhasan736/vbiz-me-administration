@@ -1,3 +1,4 @@
+import { VBIZ_DEFAULT_FAVICON_PATH } from '@/components/brand/VbizBrandMark'
 import type { MyCardData } from '@/interfaces/api/myCard'
 import { isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { isGenericPublicCardImage } from '@/lib/publicCards/publicCardImage'
@@ -118,7 +119,18 @@ export function resolvePublicCardSeo(myCard: MyCardData, slug: string): VCardSeo
     metaDescription,
     metaKeywords,
     seoImage: parsed.seoImage,
+    faviconUrl: parsed.faviconUrl,
   })
+}
+
+/** Browser-tab favicon: Card Settings favicon → vBiz Me brand icon (never Next.js default). */
+export function resolvePublicCardFaviconUrl(myCard: MyCardData | null | undefined, origin: string): string {
+  const settings = myCard?.settings || {}
+  const custom = typeof settings.seo_favicon_url === 'string' ? settings.seo_favicon_url.trim() : ''
+  if (custom && isUsableShareImage(custom)) {
+    return toAbsoluteUrl(origin, custom)
+  }
+  return toAbsoluteUrl(origin, VBIZ_DEFAULT_FAVICON_PATH)
 }
 
 /** Share-preview image: SEO image → avatar → profile → About Me → generated PWA icon. */

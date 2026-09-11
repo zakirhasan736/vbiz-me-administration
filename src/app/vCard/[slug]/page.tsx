@@ -13,7 +13,7 @@ import {
   resolveRequestOrigin,
   serializeJsonLd,
 } from '@/lib/seo/publicCardSeo'
-import { resolvePublicCardShareImageUrl } from '@/lib/seo/resolvePublicCardSeo'
+import { resolvePublicCardFaviconUrl } from '@/lib/seo/resolvePublicCardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
@@ -45,13 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   )
   const icon192 = buildProfileIconPath(trimmed, 192)
   const icon512 = buildProfileIconPath(trimmed, 512)
-  const shareImage = myCard ? resolvePublicCardShareImageUrl(myCard, requestOrigin, trimmed) : ''
-  const useShareAsTabIcon =
-    Boolean(shareImage) &&
-    !shareImage.includes(icon192) &&
-    !shareImage.includes(icon512) &&
-    !/\/icon\/(192|512)/i.test(shareImage)
-  const tabIcon = useShareAsTabIcon ? shareImage : icon192
+  const tabIcon = resolvePublicCardFaviconUrl(myCard, requestOrigin)
   const pwaMeta: Metadata = {
     metadataBase: new URL(requestOrigin),
     applicationName: name,
@@ -62,12 +56,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     icons: {
       apple: tabIcon,
-      icon: useShareAsTabIcon
-        ? [{ url: tabIcon }]
-        : [
-            { url: icon192, sizes: '192x192', type: 'image/png' },
-            { url: icon512, sizes: '512x512', type: 'image/png' },
-          ],
+      icon: [
+        { url: tabIcon },
+        { url: icon192, sizes: '192x192', type: 'image/png' },
+        { url: icon512, sizes: '512x512', type: 'image/png' },
+      ],
     },
     manifest: buildPwaManifestUrl(trimmed),
     other: {
@@ -139,11 +132,13 @@ export default async function PublicProfilePage({ params }: Props) {
     myCard,
     reviews,
   })
+  const tabIcon = resolvePublicCardFaviconUrl(myCard, origin)
 
   return (
     <>
       <link rel="manifest" href={buildPwaManifestUrl(trimmed)} />
-      <link rel="apple-touch-icon" href={`${cardPath}/icon/192`} />
+      <link rel="icon" href={tabIcon} />
+      <link rel="apple-touch-icon" href={tabIcon} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <PublicProfileLayout
         slug={trimmed}

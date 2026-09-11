@@ -7,6 +7,7 @@ import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { RumbleIcon, WhatsAppIcon } from '@/profile-app/components/socialBrandIcons'
+import { resolveHomeIdentityColors } from '@/profile-app/lib/homeIdentityColors'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
@@ -92,6 +93,7 @@ type ProfileHeaderV2Props = {
   ownerName?: string
   tagline?: string
   headerTextColor?: string
+  theme?: 'light' | 'dark'
   onShare?: () => void
   onNotificationSettings?: () => void
   onOpenNotepad?: () => void
@@ -105,6 +107,7 @@ export function ProfileHeaderV2({
   ownerName,
   tagline,
   headerTextColor,
+  theme = 'light',
   onShare,
   onNotificationSettings,
   onOpenNotepad,
@@ -129,11 +132,11 @@ export function ProfileHeaderV2({
   const showViewCounter = isProfileActionButtonEnabled('view_counter', actionButtons, isVisible)
   const showLanguage = isProfileActionButtonEnabled('language', actionButtons, isVisible)
   const viewCounterCount = actionButtons?.view_counter?.count ?? profileViews
-  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
-  const crmChrome = displayIconChromeStyle(field('CRM'))
-  const languageChrome = displayIconChromeStyle(field('Language'))
-  const websiteChrome = displayIconChromeStyle(field('Website'))
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'))
+  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), theme)
+  const crmChrome = displayIconChromeStyle(field('CRM'), theme)
+  const languageChrome = displayIconChromeStyle(field('Language'), theme)
+  const websiteChrome = displayIconChromeStyle(field('Website'), theme)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), theme)
 
   const websiteHref = useMemo(() => resolveSocialLinkHref('Website', socialHref).trim(), [socialHref])
   const showWebsite = Boolean(websiteHref) && isVisible('Website')
@@ -155,23 +158,19 @@ export function ProfileHeaderV2({
     return <Icon size={HOME_ICON_SIZE} />
   }
 
-  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label))
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), theme)
 
   const socialBtnClass =
     'vbiz-social flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10'
   const desktopSocialBtnClass = 'vbiz-social flex h-10 w-10 items-center justify-center rounded-full transition-colors'
 
-  const nameStyle = headerTextColor
-    ? { color: headerTextColor }
-    : field('MyInfo section Name').textColor
-      ? { color: field('MyInfo section Name').textColor }
-      : undefined
-
-  const professionStyle = field('MyInfo Profession').textColor
-    ? { color: field('MyInfo Profession').textColor }
-    : field('MyInfo Designation').textColor
-      ? { color: field('MyInfo Designation').textColor }
-      : undefined
+  const identityColors = resolveHomeIdentityColors({
+    mode: theme,
+    nameField: field('MyInfo section Name'),
+    professionField: field('MyInfo Profession'),
+    designationField: field('MyInfo Designation'),
+    headerTextColor,
+  })
 
   const hasGameIds = Boolean(social.games && Object.values(social.games).some((v) => v?.trim()))
   const showSocialRail = visibleSocials.length > 0 || hasGameIds
@@ -236,16 +235,16 @@ export function ProfileHeaderV2({
       <div className="mt-2 flex w-full flex-1 flex-col items-center text-center md:mt-4 md:items-start md:text-left">
         {displayName ? (
           <h1
-            className={`mb-0 leading-tight font-bold tracking-tight text-zinc-900 [text-shadow:0_1px_3px_rgba(255,255,255,0.85),0_0_22px_rgba(255,255,255,0.6)] sm:mb-2 dark:text-zinc-100 dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.9),0_0_22px_rgba(0,0,0,0.7)] ${embedded ? 'text-2xl' : 'text-3xl md:text-5xl'}`}
-            style={nameStyle}
+            className={`mb-0 leading-tight font-bold tracking-tight sm:mb-2 ${identityColors.nameClassName} ${embedded ? 'text-2xl' : 'text-3xl md:text-5xl'}`}
+            style={identityColors.nameStyle}
           >
             {displayName}
           </h1>
         ) : null}
         {designation ? (
           <p
-            className="mb-0 text-base font-bold text-[#d97706] [text-shadow:0_1px_2px_rgba(255,255,255,0.8)] sm:mb-4 md:text-lg dark:text-[#f59e0b] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.85)]"
-            style={professionStyle}
+            className={`mb-0 text-base font-bold sm:mb-4 md:text-lg ${identityColors.professionClassName}`}
+            style={identityColors.professionStyle}
           >
             {designation}
           </p>

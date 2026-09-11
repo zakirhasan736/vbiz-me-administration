@@ -51,6 +51,7 @@ describe('card SEO normalization', () => {
       metaDescription: 'd'.repeat(MAX_SEO_DESCRIPTION_LENGTH + 10),
       metaKeywords: ['web design'],
       seoImage: 'https://cdn.example.com/seo.jpg',
+      faviconUrl: 'https://cdn.example.com/favicon.png',
     })
     const parsed = parseSeoSettings(seoToApiSettings(seo))
 
@@ -60,6 +61,7 @@ describe('card SEO normalization', () => {
     expect(parsed.metaKeywords.slice(0, SEO_FIXED_KEYWORDS.length)).toEqual([...SEO_FIXED_KEYWORDS])
     expect(ownerSeoKeywords(parsed.metaKeywords)).toEqual(['web design'])
     expect(parsed.seoImage).toBe('https://cdn.example.com/seo.jpg')
+    expect(parsed.faviconUrl).toBe('https://cdn.example.com/favicon.png')
   })
 
   it('maps backend AI keywords into the editor SEO shape', () => {

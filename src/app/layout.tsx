@@ -1,4 +1,9 @@
-import { VBIZ_LOGO_PATH } from '@/components/brand/VbizBrandMark'
+import {
+  VBIZ_APPLE_TOUCH_ICON_PATH,
+  VBIZ_DEFAULT_FAVICON_PATH,
+  VBIZ_FAVICON_32_PATH,
+  VBIZ_LOGO_PATH,
+} from '@/components/brand/VbizBrandMark'
 import { ToastViewport } from '@/components/feedback/ToastViewport'
 import { TranslationEarlyBootstrap } from '@/components/i18n/TranslationEarlyBootstrap'
 import { IframeEmbedBootstrap } from '@/components/IframeEmbedBootstrap'
@@ -13,9 +18,13 @@ export const metadata: Metadata = {
   title: 'Vbiz - Backoffice',
   description: 'Manage your vCards and digital business presence',
   icons: {
-    icon: VBIZ_LOGO_PATH,
-    shortcut: VBIZ_LOGO_PATH,
-    apple: VBIZ_LOGO_PATH,
+    icon: [
+      { url: VBIZ_FAVICON_32_PATH, sizes: '32x32', type: 'image/png' },
+      { url: VBIZ_DEFAULT_FAVICON_PATH, sizes: '192x192', type: 'image/png' },
+      { url: VBIZ_LOGO_PATH, type: 'image/webp' },
+    ],
+    shortcut: VBIZ_FAVICON_32_PATH,
+    apple: VBIZ_APPLE_TOUCH_ICON_PATH,
   },
 }
 

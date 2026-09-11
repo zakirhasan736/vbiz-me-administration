@@ -119,7 +119,7 @@ export function VBizProfileApp({
 
   const rootStyle = {
     ...designToCssVars(design),
-    ...displayGeneralRootStyle(settings),
+    ...displayGeneralRootStyle(settings, theme),
   }
 
   return (
@@ -140,7 +140,10 @@ export function VBizProfileApp({
       )}
       {!embedded && (
         <div className="absolute top-4 right-4 z-100 flex items-center gap-2 sm:fixed">
-          <ProfileLanguageButton className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700" />
+          <ProfileLanguageButton
+            theme={theme}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          />
           <IconHoverTooltip label={theme === 'dark' ? 'Light mode' : 'Dark mode'} placement="left">
             <motion.button
               type="button"
@@ -199,6 +202,7 @@ export function VBizProfileApp({
           ownerName={ownerName}
           tagline={tagline}
           headerTextColor={headerTextColor ?? undefined}
+          theme={theme}
           embedded={embedded}
           onShare={() => (isVisible('Share Btn') ? setActiveModal('share') : void handleShare())}
           onNotificationSettings={() => {

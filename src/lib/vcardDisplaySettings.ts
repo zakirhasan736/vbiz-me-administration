@@ -1,4 +1,6 @@
 import { normalizeNavOrderWithPinnedEnds, normalizeNavOrderWithRequiredTabs } from '@/lib/createCardTabs'
+import type { ThemeMode } from '@/lib/theme/cardThemeContract'
+import { readableForeground } from '@/lib/theme/resolveCardTheme'
 import {
   LOCKED_NAV_ITEM_IDS,
   NAV_BAR_FIELDS,
@@ -8,10 +10,14 @@ import {
 } from '@/lib/vcardNavbar'
 import type { VCardData, VCardPersonal } from '@/types/vcard'
 import {
+  clearFieldDisplayColors,
   createDefaultDisplaySettings,
   createDefaultFieldConfig,
+  fieldHasColorOverrides,
+  fieldModeHasColors,
   normalizeFieldConfig,
   type DisplayFieldConfig,
+  type DisplayFieldModeColors,
   type VCardDisplaySettings,
 } from '@/types/vcardDisplaySettings'
 import type { CSSProperties } from 'react'
@@ -23,10 +29,189 @@ type CSSPropertiesWithVariables = CSSProperties & {
 export { NAV_BAR_FIELDS } from '@/lib/vcardNavbar'
 
 export {
+  clearFieldDisplayColors,
   createDefaultDisplaySettings,
   createDefaultFieldConfig,
+  fieldHasColorOverrides,
+  fieldModeHasColors,
   normalizeFieldConfig,
 } from '@/types/vcardDisplaySettings'
+
+export type { DisplayFieldModeColors }
+
+type ThemeBrandColors = {
+  primaryColor?: string
+  secondaryColor?: string
+  accentColor?: string
+}
+
+/** Defaults shown in Card Settings pickers — from Template primary / secondary / accent. */
+export function getFieldThemeColorDefaults(
+  theme?: ThemeBrandColors,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): { light: { text: string; bg: string; icon: string }; dark: { text: string; bg: string; icon: string } } {
+  const primary = theme?.primaryColor?.trim() || (profileTemplate === 'v1' ? '#dcc969' : '#eab308')
+  const secondary = theme?.secondaryColor?.trim() || primary
+  const accent = theme?.accentColor?.trim() || primary
+  const lightFg = readableForeground(primary)
+  const darkFill = accent || primary
+  const darkFg = readableForeground(darkFill)
+  return {
+    light: {
+      bg: primary,
+      text: contrastSafeForeground(primary, secondary, lightFg),
+      icon: contrastSafeForeground(primary, secondary, lightFg),
+    },
+    dark: {
+      bg: darkFill,
+      text: contrastSafeForeground(darkFill, secondary, darkFg),
+      icon: contrastSafeForeground(darkFill, secondary, darkFg),
+    },
+  }
+}
+
+/** Prefer brand secondary when it stays readable on the fill; otherwise WCAG pair. */
+function contrastSafeForeground(fill: string, preferred: string, fallback: string): string {
+  if (!preferred?.trim() || preferred.trim().toLowerCase() === fill.trim().toLowerCase()) return fallback
+  const preferredLum = luminanceOrNull(preferred)
+  const fillLum = luminanceOrNull(fill)
+  if (preferredLum == null || fillLum == null) return fallback
+  if (fillLum > 0.55 && preferredLum > 0.75) return fallback
+  if (fillLum <= 0.55 && preferredLum < 0.2) return fallback
+  return preferred.trim()
+}
+
+function luminanceOrNull(hex: string): number | null {
+  const raw = hex.trim()
+  if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) return null
+  let h = raw.slice(1)
+  if (h.length === 3) {
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('')
+  }
+  const r = parseInt(h.slice(0, 2), 16) / 255
+  const g = parseInt(h.slice(2, 4), 16) / 255
+  const b = parseInt(h.slice(4, 6), 16) / 255
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+function firstColor(...values: Array<string | undefined>): string | undefined {
+  for (const value of values) {
+    const trimmed = value?.trim()
+    if (trimmed) return trimmed
+  }
+  return undefined
+}
+
+/**
+ * Resolve owner colors for the active theme mode.
+ * Legacy flat colors apply to light only so dark mode keeps Template theme tokens.
+ */
+export function resolveFieldModeColors(
+  config: DisplayFieldConfig | undefined,
+  mode: ThemeMode,
+  options?: { preferText?: boolean }
+): { fill?: string; fg?: string } {
+  if (!config) return {}
+  const nested = mode === 'dark' ? config.dark : config.light
+  const preferText = options?.preferText === true
+  if (fieldModeHasColors(nested)) {
+    return {
+      fill: firstColor(nested?.backgroundColor),
+      fg: preferText
+        ? firstColor(nested?.textColor, nested?.iconColor)
+        : firstColor(nested?.iconColor, nested?.textColor),
+    }
+  }
+  if (mode === 'light') {
+    return {
+      fill: firstColor(config.backgroundColor),
+      fg: preferText ? firstColor(config.textColor, config.iconColor) : firstColor(config.iconColor, config.textColor),
+    }
+  }
+  return {}
+}
+
+/** Values shown in light/dark pickers (saved override or Template brand default). */
+export function getFieldModePickerValues(
+  config: DisplayFieldConfig,
+  mode: ThemeMode,
+  defaults: { text: string; bg: string; icon: string }
+): { text: string; bg: string; icon: string } {
+  const nested = mode === 'dark' ? config.dark : config.light
+  if (fieldModeHasColors(nested)) {
+    return {
+      text: firstColor(nested?.textColor, nested?.iconColor) || defaults.text,
+      bg: firstColor(nested?.backgroundColor) || defaults.bg,
+      icon: firstColor(nested?.iconColor, nested?.textColor) || defaults.icon,
+    }
+  }
+  if (mode === 'light') {
+    return {
+      text: firstColor(config.textColor, config.iconColor) || defaults.text,
+      bg: firstColor(config.backgroundColor) || defaults.bg,
+      icon: firstColor(config.iconColor, config.textColor) || defaults.icon,
+    }
+  }
+  return defaults
+}
+
+/** Patch light or dark colors; auto-fills readable text when only bg is set. */
+export function buildModeColorPatch(
+  config: DisplayFieldConfig,
+  mode: ThemeMode,
+  patch: Partial<DisplayFieldModeColors>
+): Partial<DisplayFieldConfig> {
+  const current = { ...(mode === 'dark' ? config.dark : config.light) }
+  const next: DisplayFieldModeColors = { ...current, ...patch }
+
+  if (patch.backgroundColor?.trim()) {
+    const fill = patch.backgroundColor.trim()
+    if (!next.textColor?.trim() && !next.iconColor?.trim()) {
+      next.textColor = readableForeground(fill)
+    } else {
+      const fg = (next.iconColor || next.textColor || '').trim()
+      const fillLum = luminanceOrNull(fill)
+      const fgLum = luminanceOrNull(fg)
+      if (fillLum != null && fgLum != null) {
+        if (fillLum > 0.55 && fgLum > 0.85) next.textColor = readableForeground(fill)
+        if (fillLum <= 0.45 && fgLum < 0.15) next.textColor = readableForeground(fill)
+      }
+    }
+  }
+
+  const cleanedMode = normalizeFieldConfig({
+    visible: config.visible,
+    [mode]: next,
+  })[mode]
+
+  return {
+    light: mode === 'light' ? cleanedMode : config.light,
+    dark: mode === 'dark' ? cleanedMode : config.dark,
+    textColor: undefined,
+    backgroundColor: undefined,
+    iconColor: undefined,
+  }
+}
+
+export function setCategoryResetColors(settings: VCardDisplaySettings, keys: readonly string[]): VCardDisplaySettings {
+  let next = settings
+  for (const key of keys) {
+    const current = getFieldConfig(next, key)
+    if (!fieldHasColorOverrides(current)) continue
+    next = {
+      ...next,
+      fields: {
+        ...next.fields,
+        [key]: clearFieldDisplayColors(current),
+      },
+    }
+  }
+  return next
+}
 
 export const MY_INFO_FIELDS = [
   'MyInfo section Name',
@@ -221,11 +406,23 @@ export function patchDisplayField(
   patch: Partial<DisplayFieldConfig>
 ): VCardDisplaySettings {
   const current = getFieldConfig(settings, key)
+  const merged: DisplayFieldConfig = {
+    ...current,
+    ...patch,
+    visible: patch.visible ?? current.visible,
+  }
+  // Explicit undefined from mode patches means "clear legacy flat colors".
+  if ('textColor' in patch && patch.textColor === undefined) delete merged.textColor
+  if ('backgroundColor' in patch && patch.backgroundColor === undefined) delete merged.backgroundColor
+  if ('iconColor' in patch && patch.iconColor === undefined) delete merged.iconColor
+  if ('light' in patch && patch.light === undefined) delete merged.light
+  if ('dark' in patch && patch.dark === undefined) delete merged.dark
+
   return {
     ...settings,
     fields: {
       ...settings.fields,
-      [key]: { ...current, ...patch },
+      [key]: normalizeFieldConfig(merged),
     },
     ...(settings.editorNavOrder?.length ? { editorNavOrder: settings.editorNavOrder } : {}),
     ...(settings.navOrderCustomized ? { navOrderCustomized: true } : {}),
@@ -352,22 +549,43 @@ export function getPageColors(settings: VCardDisplaySettings) {
   }
 }
 
-function firstColor(...values: Array<string | undefined>): string | undefined {
-  for (const value of values) {
-    const trimmed = value?.trim()
-    if (trimmed) return trimmed
-  }
-  return undefined
-}
-
 /** First non-empty color from several Card Settings fields (e.g. Share + Share Btn). */
 export function mergeDisplayFieldConfigs(...configs: Array<DisplayFieldConfig | undefined>): DisplayFieldConfig {
-  return {
+  const lightBg = firstColor(...configs.map((config) => config?.light?.backgroundColor))
+  const lightFg = firstColor(
+    ...configs.map((config) => config?.light?.iconColor),
+    ...configs.map((config) => config?.light?.textColor)
+  )
+  const darkBg = firstColor(...configs.map((config) => config?.dark?.backgroundColor))
+  const darkFg = firstColor(
+    ...configs.map((config) => config?.dark?.iconColor),
+    ...configs.map((config) => config?.dark?.textColor)
+  )
+
+  return normalizeFieldConfig({
     visible: configs.some((config) => config?.visible !== false),
     textColor: firstColor(...configs.map((config) => config?.textColor)),
     backgroundColor: firstColor(...configs.map((config) => config?.backgroundColor)),
     iconColor: firstColor(...configs.map((config) => config?.iconColor)),
-  }
+    ...(lightBg || lightFg
+      ? {
+          light: {
+            backgroundColor: lightBg,
+            textColor: lightFg,
+            iconColor: lightFg,
+          },
+        }
+      : {}),
+    ...(darkBg || darkFg
+      ? {
+          dark: {
+            backgroundColor: darkBg,
+            textColor: darkFg,
+            iconColor: darkFg,
+          },
+        }
+      : {}),
+  })
 }
 
 /**
@@ -376,9 +594,11 @@ export function mergeDisplayFieldConfigs(...configs: Array<DisplayFieldConfig | 
  * `!important` theme tokens still apply — but use the owner's color when set.
  * Unset fields keep light/dark theme tokens.
  */
-export function displaySocialChromeStyle(config?: DisplayFieldConfig): CSSProperties | undefined {
-  const fill = firstColor(config?.backgroundColor)
-  const fg = firstColor(config?.iconColor, config?.textColor)
+export function displaySocialChromeStyle(
+  config?: DisplayFieldConfig,
+  mode: ThemeMode = 'light'
+): CSSProperties | undefined {
+  const { fill, fg } = resolveFieldModeColors(config, mode)
   if (!fill && !fg) return undefined
   const style: CSSPropertiesWithVariables = {}
   if (fill) {
@@ -393,9 +613,11 @@ export function displaySocialChromeStyle(config?: DisplayFieldConfig): CSSProper
   return style
 }
 
-export function displayIconChromeStyle(config?: DisplayFieldConfig): CSSProperties | undefined {
-  const fill = firstColor(config?.backgroundColor)
-  const fg = firstColor(config?.iconColor, config?.textColor)
+export function displayIconChromeStyle(
+  config?: DisplayFieldConfig,
+  mode: ThemeMode = 'light'
+): CSSProperties | undefined {
+  const { fill, fg } = resolveFieldModeColors(config, mode)
   if (!fill && !fg) return undefined
   const style: CSSPropertiesWithVariables = {}
   if (fill) {
@@ -410,9 +632,11 @@ export function displayIconChromeStyle(config?: DisplayFieldConfig): CSSProperti
   return style
 }
 
-export function displayCtaChromeStyle(config?: DisplayFieldConfig): CSSProperties | undefined {
-  const fill = firstColor(config?.backgroundColor)
-  const fg = firstColor(config?.textColor, config?.iconColor)
+export function displayCtaChromeStyle(
+  config?: DisplayFieldConfig,
+  mode: ThemeMode = 'light'
+): CSSProperties | undefined {
+  const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
   if (!fill && !fg) return undefined
   const style: CSSPropertiesWithVariables = {}
   if (fill) {
@@ -430,9 +654,11 @@ export function displayCtaChromeStyle(config?: DisplayFieldConfig): CSSPropertie
   return style
 }
 
-export function displayLiveAgentChromeStyle(config?: DisplayFieldConfig): CSSProperties | undefined {
-  const fill = firstColor(config?.backgroundColor)
-  const fg = firstColor(config?.iconColor, config?.textColor)
+export function displayLiveAgentChromeStyle(
+  config?: DisplayFieldConfig,
+  mode: ThemeMode = 'light'
+): CSSProperties | undefined {
+  const { fill, fg } = resolveFieldModeColors(config, mode)
   if (!fill && !fg) return undefined
   const style: CSSPropertiesWithVariables = {}
   if (fill) style['--vbiz-live-agent-fill'] = fill
@@ -445,13 +671,15 @@ export function displayLiveAgentChromeStyle(config?: DisplayFieldConfig): CSSPro
  * Pages Header colors apply only to section headers; `--vbiz-bg` / `--vbiz-surface`
  * still swap with dark/light. Home BG/banner come from Template → Wallpaper.
  */
-export function displayGeneralRootStyle(settings: VCardDisplaySettings): CSSProperties | undefined {
+export function displayGeneralRootStyle(
+  settings: VCardDisplaySettings,
+  mode: ThemeMode = 'light'
+): CSSProperties | undefined {
   const style: CSSPropertiesWithVariables = {}
   const pagesHeader = getFieldConfig(settings, 'Pages Header')
 
   if (pagesHeader.visible !== false) {
-    const fg = firstColor(pagesHeader.textColor, pagesHeader.iconColor)
-    const fill = firstColor(pagesHeader.backgroundColor)
+    const { fill, fg } = resolveFieldModeColors(pagesHeader, mode)
     if (fg) style['--vbiz-page-header-fg'] = fg
     if (fill) style['--vbiz-page-header-fill'] = fill
   }

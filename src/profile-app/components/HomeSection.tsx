@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react'
 import React, { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
+import { resolveHomeIdentityColors } from '../lib/homeIdentityColors'
 import { useProfileDisplay } from '../lib/profileDisplayContext'
 import { openVbizmeLogin } from '../lib/profileExternalLinks'
 import {
@@ -269,12 +270,18 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   } = useProfileDisplay()
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showLanguage = isVisible('Language')
-  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')))
-  const languageChrome = displayIconChromeStyle(field('Language'))
-  const websiteChrome = displayIconChromeStyle(field('Website'))
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'))
-  const nameStyle = field('MyInfo section Name')
+  const cardTheme = homeHeroProps?.theme ?? 'light'
+  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), cardTheme)
+  const languageChrome = displayIconChromeStyle(field('Language'), cardTheme)
+  const websiteChrome = displayIconChromeStyle(field('Website'), cardTheme)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), cardTheme)
   const accent = design?.accentColor ?? '#dcc969'
+  const identityColors = resolveHomeIdentityColors({
+    mode: cardTheme,
+    nameField: field('MyInfo section Name'),
+    professionField: field('MyInfo Profession'),
+    designationField: field('MyInfo Designation'),
+  })
 
   const theme = useProfileTheme()
   const wallpaper = resolveWallpaperConfig(theme?.themeConfig, homeMedia.bgMedia)
@@ -471,7 +478,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               {visibleSocials.length > 0 || (social.games && Object.values(social.games).some((v) => v?.trim())) ? (
                 <div className="absolute top-0 left-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
                   {visibleSocials.map((item, idx) => {
-                    const socialInlineStyle = displaySocialChromeStyle(field(item.label))
+                    const socialInlineStyle = displaySocialChromeStyle(field(item.label), cardTheme)
                     const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
                     return (
                       <IconHoverTooltip key={`${item.label}-${idx}`} label={tip} placement="right">
@@ -601,35 +608,31 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                 </div>
                 {isVisible('MyInfo section Name') && personal.fullName ? (
                   <h1
-                    className="font-heading mb-2 text-3xl leading-[1.05] font-bold tracking-tight text-gray-900 drop-shadow-xl sm:mb-3 sm:text-5xl lg:text-7xl dark:text-white"
-                    style={nameStyle.textColor ? { color: nameStyle.textColor } : undefined}
+                    className={`font-heading mb-2 text-3xl leading-[1.05] font-bold tracking-tight sm:mb-3 sm:text-5xl lg:text-7xl ${identityColors.nameClassName}`}
+                    style={identityColors.nameStyle}
                   >
                     {nameFirst}
                     {nameRest ? (
                       <>
                         <br />
-                        <span
-                          className="text-yellow-primary drop-shadow-[0_0_15px_rgba(234,179,8,0.3)]"
-                          style={nameStyle.textColor ? { color: nameStyle.textColor } : undefined}
-                        >
-                          {nameRest}
-                        </span>
+                        <span style={identityColors.nameStyle}>{nameRest}</span>
                       </>
                     ) : null}
                   </h1>
                 ) : (
-                  <h1 className="font-heading mb-2 text-3xl leading-[1.05] font-bold tracking-tight text-gray-900 drop-shadow-xl sm:mb-3 sm:text-5xl lg:text-7xl dark:text-white">
+                  <h1
+                    className={`font-heading mb-2 text-3xl leading-[1.05] font-bold tracking-tight sm:mb-3 sm:text-5xl lg:text-7xl ${identityColors.nameClassName}`}
+                    style={identityColors.nameStyle}
+                  >
                     Michaelangelo
                     <br />
-                    <span className="text-yellow-primary drop-shadow-[0_0_15px_rgba(234,179,8,0.3)]">Casanova</span>
+                    <span style={identityColors.nameStyle}>Casanova</span>
                   </h1>
                 )}
                 {professionLine ? (
                   <p
-                    className="text-yellow-primary mx-auto flex w-fit items-center rounded-full border border-black/5 bg-gray-50 px-3 py-1.5 text-[9px] font-bold tracking-[0.25em] uppercase drop-shadow-md backdrop-blur-xl sm:mx-0 sm:px-4 sm:py-2 sm:text-xs dark:border-white/10 dark:bg-white/5"
-                    style={
-                      field('MyInfo Profession').textColor ? { color: field('MyInfo Profession').textColor } : undefined
-                    }
+                    className={`mx-auto flex w-fit items-center rounded-full border border-black/5 bg-gray-50/80 px-3 py-1.5 text-[9px] font-bold tracking-[0.25em] uppercase backdrop-blur-xl sm:mx-0 sm:px-4 sm:py-2 sm:text-xs dark:border-white/10 dark:bg-white/5 ${identityColors.professionClassName}`}
+                    style={identityColors.professionStyle}
                   >
                     <TypewriterText text={professionLine} delay={500} speed={120} />
                   </p>
@@ -797,7 +800,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                     {visibleSocials.length > 0 && (
                       <div className="grid grid-cols-5 gap-1">
                         {visibleSocials.map((item, idx) => {
-                          const socialInlineStyle = displaySocialChromeStyle(field(item.label))
+                          const socialInlineStyle = displaySocialChromeStyle(field(item.label), cardTheme)
                           const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
                           const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
                           return (

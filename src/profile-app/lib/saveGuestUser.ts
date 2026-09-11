@@ -43,9 +43,6 @@ export async function saveGuestUser(input: SaveGuestUserInput): Promise<SavedGue
   const email = input.email.trim()
   const profileId = input.profileId.trim()
 
-  if (!fullName) throw new SaveGuestUserError('Full name is required')
-  if (!phone) throw new SaveGuestUserError('Phone number is required')
-  if (!email) throw new SaveGuestUserError('Email is required')
   if (!profileId) throw new SaveGuestUserError('Profile ID is required')
 
   const body = new FormData()

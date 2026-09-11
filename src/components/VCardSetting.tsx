@@ -51,15 +51,19 @@ import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
 import {
+  buildModeColorPatch,
+  fieldHasColorOverrides,
   GENERAL_SETTINGS_FIELDS,
   getDisplaySettingsFromVCard,
-  getFieldColorPreview,
+  getFieldModePickerValues,
+  getFieldThemeColorDefaults,
   HOME_PAGE_FIELDS,
   HOME_PAGE_URL_FIELDS,
   ICON_FIELDS,
   MY_INFO_FIELDS,
   patchDisplayField,
   setCategoryEnableAll,
+  setCategoryResetColors,
   SOCIAL_LINK_FIELDS,
 } from '@/lib/vcardDisplaySettings'
 import {
@@ -71,7 +75,7 @@ import {
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId, useCreateAiAssistanceCheckoutMutation } from '@/redux/features/profiles/profiles.api'
 import type { VCardAppearance } from '@/types/vcard'
-import type { DisplayFieldConfig, VCardDisplaySettings } from '@/types/vcardDisplaySettings'
+import type { DisplayFieldConfig, DisplayFieldModeColors, VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { cn } from '@/utils/cn'
 import {
   Bot,
@@ -87,6 +91,7 @@ import {
   Loader2,
   Menu,
   Plug,
+  RotateCcw,
   Search,
   Settings2,
   Sparkles,
@@ -856,7 +861,10 @@ const FieldCard: React.FC<{
   title: string
   config: DisplayFieldConfig
   onPatch: (patch: Partial<DisplayFieldConfig>) => void
-  colorPreview: { text: string; bg: string; icon: string }
+  themeDefaults: {
+    light: { text: string; bg: string; icon: string }
+    dark: { text: string; bg: string; icon: string }
+  }
   showTextCol?: boolean
   showBgCol?: boolean
   iconColLabel?: string
@@ -866,13 +874,22 @@ const FieldCard: React.FC<{
   title,
   config,
   onPatch,
-  colorPreview,
+  themeDefaults,
   showTextCol = false,
   showBgCol = false,
   iconColLabel = '',
   showInput = false,
   toggleLabel = '',
 }) => {
+  const showColors = showTextCol || showBgCol || Boolean(iconColLabel)
+  const lightValues = getFieldModePickerValues(config, 'light', themeDefaults.light)
+  const darkValues = getFieldModePickerValues(config, 'dark', themeDefaults.dark)
+  const hasOverrides = fieldHasColorOverrides(config)
+
+  const patchMode = (mode: 'light' | 'dark', patch: Partial<DisplayFieldModeColors>) => {
+    onPatch(buildModeColorPatch(config, mode, patch))
+  }
+
   return (
     <div className="relative flex h-full min-w-0 flex-col rounded-[1.25rem] border border-black/5 bg-white p-5 shadow-sm transition-all hover:border-black/10 hover:shadow-md dark:border-white/5 dark:bg-[#0b0f19] dark:hover:border-white/10">
       <div className="flex items-center justify-between gap-3">
@@ -882,14 +899,14 @@ const FieldCard: React.FC<{
             <p className="mt-0.5 text-[.75rem] font-medium text-slate-500 dark:text-slate-400">{toggleLabel}</p>
           ) : (
             <p className="mt-0.5 text-[.75rem] font-medium text-slate-500 dark:text-slate-400">
-              Manage visibility and styling
+              Manage visibility and light/dark colors
             </p>
           )}
         </div>
         <Toggle checked={config.visible} onChange={(visible) => onPatch({ visible })} />
       </div>
 
-      {(showInput || showTextCol || showBgCol || iconColLabel) && (
+      {(showInput || showColors) && (
         <div className="mt-5 flex flex-col gap-3">
           {showInput && (
             <input
@@ -901,29 +918,75 @@ const FieldCard: React.FC<{
             />
           )}
 
-          {(showTextCol || showBgCol || iconColLabel) && (
-            <div className="mt-1 flex flex-col gap-3">
-              {showTextCol && (
-                <ColorPicker
-                  label="Text color"
-                  value={config.textColor ?? colorPreview.text}
-                  onChange={(textColor) => onPatch({ textColor })}
-                />
-              )}
-              {showBgCol && (
-                <ColorPicker
-                  label="Background color"
-                  value={config.backgroundColor ?? colorPreview.bg}
-                  onChange={(backgroundColor) => onPatch({ backgroundColor })}
-                />
-              )}
-              {iconColLabel && (
-                <ColorPicker
-                  label={iconColLabel}
-                  value={config.iconColor ?? colorPreview.icon}
-                  onChange={(iconColor) => onPatch({ iconColor })}
-                />
-              )}
+          {showColors && (
+            <div className="mt-1 flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[.6875rem] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                    Light theme
+                  </p>
+                  <span className="text-[.625rem] font-medium text-slate-400 dark:text-slate-500">
+                    Defaults from Template colors
+                  </span>
+                </div>
+                {showBgCol && (
+                  <ColorPicker
+                    label="Background color"
+                    value={lightValues.bg}
+                    onChange={(backgroundColor) => patchMode('light', { backgroundColor })}
+                  />
+                )}
+                {(showTextCol || iconColLabel) && (
+                  <ColorPicker
+                    label={iconColLabel || 'Text / icon color'}
+                    value={iconColLabel ? lightValues.icon : lightValues.text}
+                    onChange={(color) =>
+                      patchMode('light', iconColLabel ? { iconColor: color, textColor: color } : { textColor: color })
+                    }
+                  />
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 dark:border-white/5">
+                <p className="text-[.6875rem] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                  Dark theme
+                </p>
+                {showBgCol && (
+                  <ColorPicker
+                    label="Background color"
+                    value={darkValues.bg}
+                    onChange={(backgroundColor) => patchMode('dark', { backgroundColor })}
+                  />
+                )}
+                {(showTextCol || iconColLabel) && (
+                  <ColorPicker
+                    label={iconColLabel || 'Text / icon color'}
+                    value={iconColLabel ? darkValues.icon : darkValues.text}
+                    onChange={(color) =>
+                      patchMode('dark', iconColLabel ? { iconColor: color, textColor: color } : { textColor: color })
+                    }
+                  />
+                )}
+              </div>
+
+              {hasOverrides ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onPatch({
+                      textColor: undefined,
+                      backgroundColor: undefined,
+                      iconColor: undefined,
+                      light: undefined,
+                      dark: undefined,
+                    })
+                  }
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-3 text-[.75rem] font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset to Template colors
+                </button>
+              ) : null}
             </div>
           )}
         </div>
@@ -1073,9 +1136,9 @@ function CardSeoPanel() {
   return (
     <div className="max-w-3xl space-y-6">
       <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
-        SEO for this specific card — write or generate a title, description, and keywords, and upload an SEO image.
-        JSON-LD, social tags, browser-tab icons, and the canonical URL are built automatically from this card. If no SEO
-        image is set, avatar, profile image, or About Me featured image is used.
+        SEO for this card — meta title, description, keywords, Open Graph / JSON-LD share image, and browser-tab
+        favicon. Social tags and structured data are built automatically. Without a custom favicon, the vBiz Me icon is
+        used in the browser tab.
       </p>
       <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
         <h4 className="text-sm font-black text-slate-900 dark:text-white">Card metadata</h4>
@@ -1174,10 +1237,10 @@ function CardSeoPanel() {
         </p>
 
         <div className="space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
-          <label className="text-xs font-bold text-slate-600 dark:text-slate-300">SEO image</label>
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-300">SEO / Open Graph image</label>
           <p className="text-[.6875rem] font-semibold text-slate-400">
-            Used for link previews (Open Graph), JSON-LD, and browser tab icons. Fallback: avatar → profile image →
-            About Me featured image.
+            Used for link previews (Open Graph, Twitter) and JSON-LD. Fallback: avatar → profile image → About Me
+            featured image.
           </p>
           <VCardMediaField
             variant="inset"
@@ -1195,6 +1258,31 @@ function CardSeoPanel() {
               mode="image"
               profileId={profileId}
               onSelect={(asset) => updateSeo({ seoImage: asset.url })}
+            />
+          </VCardMediaField>
+        </div>
+
+        <div className="space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Browser tab favicon</label>
+          <p className="text-[.6875rem] font-semibold text-slate-400">
+            Square icon shown in the browser tab for this public card. Leave empty to use the default vBiz Me icon.
+          </p>
+          <VCardMediaField
+            variant="inset"
+            value={seo.faviconUrl}
+            onChange={(url) => updateSeo({ faviconUrl: url || '' })}
+            profileId={profileId}
+            attachmentType="SEO Favicon"
+            accept="image/*"
+            selectPlaceholder={isCreateMode ? 'Select favicon' : 'Upload favicon'}
+            subtitle="Square PNG or WebP • recommended 192×192 or 512×512"
+            previewKind="image"
+            previewClassName="aspect-square max-h-28 max-w-28"
+          >
+            <MediaSourceActions
+              mode="image"
+              profileId={profileId}
+              onSelect={(asset) => updateSeo({ faviconUrl: asset.url })}
             />
           </VCardMediaField>
         </div>
@@ -1791,12 +1879,8 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
     categoryKeys.length > 0 && categoryKeys.every((key) => display.fields[key]?.visible !== false)
   const contentTourId = settingContentTourIds[activeTab]
 
-  const profileTemplate = (vCardData.appearance?.profileTemplate ?? 'v2') as 'v1' | 'v2'
-  const colorPreview = {
-    text: getFieldColorPreview('text', vCardData.theme, profileTemplate),
-    bg: getFieldColorPreview('bg', vCardData.theme, profileTemplate),
-    icon: getFieldColorPreview('icon', vCardData.theme, profileTemplate),
-  }
+  const profileTemplate = (vCardData.appearance?.profileTemplate ?? 'v2') as 'v1' | 'v2' | 'v3'
+  const themeDefaults = getFieldThemeColorDefaults(vCardData.theme, profileTemplate)
 
   const renderFieldCards = (
     keys: readonly string[],
@@ -1808,7 +1892,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         title={key}
         config={display.fields[key] ?? { visible: true }}
         onPatch={(patch) => patchField(key, patch)}
-        colorPreview={colorPreview}
+        themeDefaults={themeDefaults}
         {...options}
       />
     ))
@@ -1838,7 +1922,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
               title={key}
               config={display.fields[key] ?? { visible: true }}
               onPatch={(patch) => patchField(key, patch)}
-              colorPreview={colorPreview}
+              themeDefaults={themeDefaults}
               showInput={showInput}
               showTextCol={isHeaderColor}
               showBgCol={isHeaderColor}
@@ -2008,22 +2092,39 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
                 </p>
               </div>
               {showEnableAll && (
-                <div className="relative z-10 flex items-center gap-4 self-start rounded-3xl border border-slate-200 bg-white px-6 py-4 shadow-sm dark:border-white/5 dark:bg-[#070a13]">
-                  <span className="text-[.8125rem] font-bold text-slate-900 dark:text-white">Enable All</span>
-                  <Toggle
-                    checked={activeTab === 'info' ? display.globalEnabled : categoryAllEnabled}
-                    onChange={(enabled) => {
-                      if (activeTab === 'info') {
-                        patchDisplay(
-                          setCategoryEnableAll({ ...display, globalEnabled: enabled }, MY_INFO_FIELDS, enabled)
-                        )
-                        return
-                      }
-                      const keys = CATEGORY_FIELDS[activeTab]
-                      if (!keys) return
-                      patchDisplay(setCategoryEnableAll(display, keys, enabled))
-                    }}
-                  />
+                <div className="relative z-10 flex flex-wrap items-center gap-3 self-start">
+                  <div className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-4 shadow-sm dark:border-white/5 dark:bg-[#070a13]">
+                    <span className="text-[.8125rem] font-bold text-slate-900 dark:text-white">Enable All</span>
+                    <Toggle
+                      checked={activeTab === 'info' ? display.globalEnabled : categoryAllEnabled}
+                      onChange={(enabled) => {
+                        if (activeTab === 'info') {
+                          patchDisplay(
+                            setCategoryEnableAll({ ...display, globalEnabled: enabled }, MY_INFO_FIELDS, enabled)
+                          )
+                          return
+                        }
+                        const keys = CATEGORY_FIELDS[activeTab]
+                        if (!keys) return
+                        patchDisplay(setCategoryEnableAll(display, keys, enabled))
+                      }}
+                    />
+                  </div>
+                  {CATEGORY_FIELDS[activeTab]?.length ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const keys = CATEGORY_FIELDS[activeTab]
+                        if (!keys) return
+                        patchDisplay(setCategoryResetColors(display, keys))
+                        notify.info('Colors reset to Template primary / secondary / accent defaults.')
+                      }}
+                      className="inline-flex items-center gap-2 rounded-3xl border border-slate-200 bg-white px-5 py-4 text-[.8125rem] font-bold text-slate-900 shadow-sm transition-colors hover:bg-slate-50 dark:border-white/5 dark:bg-[#070a13] dark:text-white dark:hover:bg-white/5"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Reset colors
+                    </button>
+                  ) : null}
                 </div>
               )}
             </div>

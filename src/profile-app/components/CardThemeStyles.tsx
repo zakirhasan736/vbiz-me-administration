@@ -25,6 +25,15 @@ function subscribeNoop() {
   return () => {}
 }
 
+/** Live light/dark mode from `<html class="dark">` — re-renders when the visitor toggles theme. */
+export function useDocumentThemeMode(fallback: ThemeMode = 'dark'): ThemeMode {
+  return useSyncExternalStore(
+    subscribeToDocumentTheme,
+    () => readDocumentThemeMode(fallback),
+    () => fallback
+  )
+}
+
 /**
  * Injects dynamic theme CSS variables (primary/secondary/accent, light+dark,
  * button & social styles) scoped to `.vbiz-profile-root`.

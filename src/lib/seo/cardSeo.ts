@@ -4,6 +4,7 @@ export const SEO_META_TITLE_SETTING_KEY = 'seo_meta_title'
 export const SEO_META_DESCRIPTION_SETTING_KEY = 'seo_meta_description'
 export const SEO_META_KEYWORDS_SETTING_KEY = 'seo_meta_keywords_json'
 export const SEO_IMAGE_SETTING_KEY = 'seo_image_url'
+export const SEO_FAVICON_SETTING_KEY = 'seo_favicon_url'
 export const MAX_OWNER_SEO_KEYWORDS = 10
 export const MAX_SEO_TITLE_LENGTH = 70
 export const MAX_SEO_DESCRIPTION_LENGTH = 160
@@ -75,6 +76,7 @@ export function normalizeCardSeo(input?: Partial<VCardSeo> | null): VCardSeo {
       .slice(0, MAX_SEO_DESCRIPTION_LENGTH),
     metaKeywords: normalizeSeoKeywords(input?.metaKeywords),
     seoImage: normalizeSeoImage(input?.seoImage),
+    faviconUrl: normalizeSeoImage(input?.faviconUrl),
   }
 }
 
@@ -88,6 +90,8 @@ export function normalizeCardSeoPayload(input: unknown): VCardSeo {
     keywords?: unknown
     seoImage?: unknown
     seoImageUrl?: unknown
+    faviconUrl?: unknown
+    favicon?: unknown
   }
   const rawKeywords = raw.metaKeywords ?? raw.keywords
   return normalizeCardSeo({
@@ -98,6 +102,8 @@ export function normalizeCardSeoPayload(input: unknown): VCardSeo {
       : [],
     seoImage:
       typeof raw.seoImage === 'string' ? raw.seoImage : typeof raw.seoImageUrl === 'string' ? raw.seoImageUrl : '',
+    faviconUrl:
+      typeof raw.faviconUrl === 'string' ? raw.faviconUrl : typeof raw.favicon === 'string' ? raw.favicon : '',
   })
 }
 
@@ -117,6 +123,7 @@ export function parseSeoSettings(settings: Record<string, string | undefined>): 
     metaDescription: settings[SEO_META_DESCRIPTION_SETTING_KEY],
     metaKeywords: Array.isArray(metaKeywords) ? metaKeywords : [],
     seoImage: settings[SEO_IMAGE_SETTING_KEY],
+    faviconUrl: settings[SEO_FAVICON_SETTING_KEY],
   })
 }
 
@@ -127,9 +134,12 @@ export function seoToApiSettings(seo?: VCardSeo): Record<string, string> {
     [SEO_META_DESCRIPTION_SETTING_KEY]: normalized.metaDescription,
     [SEO_META_KEYWORDS_SETTING_KEY]: JSON.stringify(normalized.metaKeywords),
     [SEO_IMAGE_SETTING_KEY]: normalized.seoImage,
+    [SEO_FAVICON_SETTING_KEY]: normalized.faviconUrl,
   }
 }
 
 export function hasSeoContent(seo?: VCardSeo): boolean {
-  return Boolean(seo?.metaTitle?.trim() || seo?.metaDescription?.trim() || seo?.seoImage?.trim())
+  return Boolean(
+    seo?.metaTitle?.trim() || seo?.metaDescription?.trim() || seo?.seoImage?.trim() || seo?.faviconUrl?.trim()
+  )
 }

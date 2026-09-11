@@ -125,7 +125,7 @@ export function VBizProfileAppV3({
 
   const rootStyle = {
     ...v3DesignToCssVars(design),
-    ...displayGeneralRootStyle(settings),
+    ...displayGeneralRootStyle(settings, theme),
     color: 'var(--vbiz-text)',
   }
   const homeHeroProps = {
