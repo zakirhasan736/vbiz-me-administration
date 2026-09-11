@@ -185,7 +185,8 @@ export function DuplicateTeamMemberModal({
             autoComplete="new-password"
           />
           <p className="mt-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-            Prefilled with a default password. Change it now or the member can reset later.
+            Prefilled with the default password ({CORPORATE_MEMBER_DEFAULT_PASSWORD}). Clear the field to keep that
+            default, or set a custom password. The member can change it later in Settings.
           </p>
           <PasswordRulesTags password={password} email={email} />
         </div>
