@@ -5,6 +5,7 @@ import { EditorBootSkeleton } from '@/components/vcard/EditorBootSkeleton'
 import { LivePreviewProvider } from '@/components/vcard/LivePreviewProvider'
 import { VCardLivePreview } from '@/components/VCardLivePreview'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
+import { clearAiCardWizardSession } from '@/lib/ai/aiCardWizardSession'
 import { CardScopeProvider } from '@/lib/card-scope'
 import { useEditorPathname } from '@/lib/editorShallowRoute'
 import { notify } from '@/lib/toast/toast'
@@ -50,7 +51,7 @@ function CreateVCardShell({ children }: { children: ReactNode }) {
   const blockedByLimit = blockedByPersonalLimit || blockedByCorporateLimit
   const toastShown = useRef(false)
 
-  // Clear draft nav only when a new create session starts (reset token changes)
+  // Clear draft nav + prior AI builder session when a new create session starts (reset token changes)
   useEffect(() => {
     if (!resetKey || resetKey === 'default') return
     try {
@@ -58,6 +59,7 @@ function CreateVCardShell({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    clearAiCardWizardSession()
   }, [resetKey])
 
   useEffect(() => {

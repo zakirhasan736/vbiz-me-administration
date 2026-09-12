@@ -203,6 +203,10 @@ export type VCardSectionPostItem = {
   date: string
   rating: string
   location: string
+  /** Regular / seller list price (shown struck through when offerPrice is set). */
+  price?: string
+  /** Discounted / offer price shown as the active selling price. */
+  offerPrice?: string
   active: boolean
   metas?: Record<string, string>
 }

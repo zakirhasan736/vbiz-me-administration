@@ -4,6 +4,11 @@ import { Modal } from '@/components/ui/Modal'
 import { LaunchTabReviewModal } from '@/components/vcard/create-agent/LaunchTabReviewModal'
 import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
 import {
+  AI_CARD_DRAFT_STORAGE_KEY,
+  AI_CARD_JOB_STORAGE_KEY,
+  clearAiCardWizardSession,
+} from '@/lib/ai/aiCardWizardSession'
+import {
   applyAnalyzeToDraft,
   draftFieldWrites,
   mergeSectionPayload,
@@ -20,6 +25,7 @@ import {
 import { TAB_NAV_MAP } from '@/lib/ai/cardBlueprint'
 import { gapFieldToSection, type GapItem } from '@/lib/ai/gapReport'
 import { mergeParsedPersonal, parseOwnerPersonalFromText, patchDraftFromFieldKey } from '@/lib/ai/ownerPersonalParse'
+import { looksLikeStorefrontUrl } from '@/lib/ai/websiteCrawlMode'
 import { SESSION_FLUSH_DRAFT_EVENT } from '@/lib/auth/sessionPolicy'
 import {
   CREATE_CARD_TAB_BY_NAME,
@@ -103,8 +109,15 @@ type StoredSourceContext = {
 type PipelineStepStatus = 'pending' | 'active' | 'done' | 'skipped' | 'failed'
 type PipelineStep = { id: string; label: string; status: PipelineStepStatus; detail?: string }
 
-const JOB_STORAGE_KEY = 'vbiz-ai-card-job-id'
-const DRAFT_STORAGE_KEY = 'vbiz-ai-card-wizard-draft'
+const CARD_BUILD_PIPELINE: PipelineStep[] = [
+  { id: 'website', label: 'Reading your website', status: 'pending' },
+  { id: 'documents', label: 'Reading your documents', status: 'pending' },
+  { id: 'understand', label: 'Understanding your business', status: 'pending' },
+  { id: 'services', label: 'Finding your services', status: 'pending' },
+  { id: 'build', label: 'Building your vBiz Me card', status: 'pending' },
+  { id: 'write', label: 'Writing your content', status: 'pending' },
+  { id: 'check', label: 'Checking your information', status: 'pending' },
+]
 
 type CardPlanTab = {
   tabId: string
@@ -182,16 +195,6 @@ async function waitForCardAgentJob(
   }
   return current
 }
-
-const CARD_BUILD_PIPELINE: PipelineStep[] = [
-  { id: 'website', label: 'Reading your website', status: 'pending' },
-  { id: 'documents', label: 'Reading your documents', status: 'pending' },
-  { id: 'understand', label: 'Understanding your business', status: 'pending' },
-  { id: 'services', label: 'Finding your services', status: 'pending' },
-  { id: 'build', label: 'Building your vBiz Me card', status: 'pending' },
-  { id: 'write', label: 'Writing your content', status: 'pending' },
-  { id: 'check', label: 'Checking your information', status: 'pending' },
-]
 
 function setStep(steps: PipelineStep[], id: string, status: PipelineStepStatus, detail?: string): PipelineStep[] {
   return steps.map((step) => (step.id === id ? { ...step, status, detail: detail ?? step.detail } : step))
@@ -787,7 +790,7 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
 
 function persistStoredJobId(jobId: string) {
   try {
-    window.localStorage.setItem(JOB_STORAGE_KEY, jobId)
+    window.localStorage.setItem(AI_CARD_JOB_STORAGE_KEY, jobId)
   } catch {
     /* ignore */
   }
@@ -804,7 +807,7 @@ function isVCardDraft(value: unknown): value is VCardData {
 function persistLocalWizardDraft(input: { jobId: string; draft: VCardData; navIds: string[] }) {
   try {
     window.localStorage.setItem(
-      DRAFT_STORAGE_KEY,
+      AI_CARD_DRAFT_STORAGE_KEY,
       JSON.stringify({ jobId: input.jobId, draft: input.draft, navIds: input.navIds })
     )
   } catch {
@@ -814,7 +817,7 @@ function persistLocalWizardDraft(input: { jobId: string; draft: VCardData; navId
 
 function readLocalWizardDraft(): { jobId: string; draft: VCardData; navIds: string[] } | null {
   try {
-    const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY)
+    const raw = window.localStorage.getItem(AI_CARD_DRAFT_STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as { jobId?: unknown; draft?: unknown; navIds?: unknown }
     if (!isVCardDraft(parsed.draft)) return null
@@ -829,16 +832,12 @@ function readLocalWizardDraft(): { jobId: string; draft: VCardData; navIds: stri
 }
 
 function clearStoredJobId() {
-  try {
-    window.localStorage.removeItem(JOB_STORAGE_KEY)
-  } catch {
-    /* ignore */
-  }
+  clearAiCardWizardSession()
 }
 
 function readStoredJobId() {
   try {
-    return window.localStorage.getItem(JOB_STORAGE_KEY) || ''
+    return window.localStorage.getItem(AI_CARD_JOB_STORAGE_KEY) || ''
   } catch {
     return ''
   }
@@ -889,6 +888,7 @@ export function AiCardAgentWizard({
   const [phase, setPhase] = useState<Phase>('intake')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [websiteUrl, setWebsiteUrl] = useState('')
+  const [storefrontMode, setStorefrontMode] = useState(false)
   const [composer, setComposer] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [error, setError] = useState('')
@@ -949,7 +949,13 @@ export function AiCardAgentWizard({
     editorUnlockedRef.current = !isEdit
     setAnalysisFailed(false)
     setPhase('intake')
-    const existingWebsite = vCardData.personal?.website?.trim() || ''
+    // New create sessions must never resume a prior card's AI job / website crawl.
+    if (!isEdit) {
+      clearAiCardWizardSession()
+      sessionIdRef.current = ''
+      sourceContextRef.current = { websiteUrl: '', businessText: '', files: [] }
+    }
+    const existingWebsite = isEdit ? vCardData.personal?.website?.trim() || '' : ''
     const status = existingCardStatusMessage(vCardData, enabledNavIds)
     setMessages([
       {
@@ -961,6 +967,7 @@ export function AiCardAgentWizard({
       },
     ])
     setWebsiteUrl(existingWebsite)
+    setStorefrontMode(looksLikeStorefrontUrl(existingWebsite))
     setComposer('')
     setFiles([])
     setError('')
@@ -979,10 +986,18 @@ export function AiCardAgentWizard({
     setGateGap(null)
     setSkippedGapIds([])
     skippedGapIdsRef.current = []
-    sourceContextRef.current = { websiteUrl: '', businessText: '', files: [] }
-    sessionIdRef.current = ''
+    if (isEdit) {
+      sourceContextRef.current = { websiteUrl: '', businessText: '', files: [] }
+      sessionIdRef.current = ''
+    }
     setRecommendedAdds([])
     setPipelineSteps(CARD_BUILD_PIPELINE)
+    setCardPlan([])
+    setNextField(null)
+    setFieldDraft('')
+    setAiPreview('')
+    setCardPercent(0)
+    setReviewNavId(null)
     setDragNavId(null)
     setDragOverNavId(null)
     setOpenLaunchTabs([])
@@ -1289,6 +1304,7 @@ export function AiCardAgentWizard({
     const url = (opts?.url ?? websiteUrl).trim()
     const text = (opts?.text ?? composer).trim()
     const uploadFiles = opts?.files ?? files
+    const effectiveStorefront = storefrontMode || looksLikeStorefrontUrl(url)
     if (!url && !text && uploadFiles.length === 0) {
       if (isEdit) {
         await resumeExistingCard()
@@ -1339,13 +1355,16 @@ export function AiCardAgentWizard({
       'assistant',
       isEdit
         ? 'I’m analyzing your sources and comparing them with your current card. I’ll identify what’s missing, what’s new, and which sections I can improve. Nothing on your existing card will change until you approve the updates.'
-        : 'I’m reading your website (including inner pages, blogs, and portfolio), OCR documents, and pasted notes so I can understand the business more fully. This can take extra time on a large site.'
+        : effectiveStorefront
+          ? 'I’m reading this seller/vendor storefront URL for the seller’s info, products, and services — not the whole marketplace site. Paste extra product notes if the shop blocks automated access.'
+          : 'I’m reading your website (including inner pages, blogs, and portfolio), OCR documents, and pasted notes so I can understand the business more fully. This can take extra time on a large site.'
     )
 
     try {
       const extractForm = new FormData()
       if (url) extractForm.set('websiteUrl', url)
       if (text) extractForm.set('businessText', text)
+      if (effectiveStorefront) extractForm.set('crawlMode', 'storefront')
       for (const file of uploadFiles) extractForm.append('files', file)
       extractForm.set('existingCard', JSON.stringify(draftRef.current || {}))
       extractForm.set('builderMode', isEdit ? 'update' : 'create')
@@ -1740,7 +1759,9 @@ export function AiCardAgentWizard({
 
   useEffect(() => {
     if (!open) return
-    if (isEdit && cardLoading) return
+    // Create always starts at website intake. Only edit mode may resume a saved job.
+    if (!isEdit) return
+    if (cardLoading) return
     if (resumeAttemptedRef.current) return
     resumeAttemptedRef.current = true
     void resumeStoredJob()
@@ -2376,6 +2397,7 @@ export function AiCardAgentWizard({
       setCreateProgress(100)
       setCreatedCardId(typeof createdId === 'string' ? createdId : null)
       setPhase('celebrate')
+      if (!isEdit) clearAiCardWizardSession()
       pushMsg(
         'assistant',
         isEdit
@@ -3886,13 +3908,31 @@ export function AiCardAgentWizard({
                   <Globe className="pointer-events-none absolute top-3 left-3 h-3.5 w-3.5 text-slate-400" />
                   <input
                     value={websiteUrl}
-                    onChange={(e) => setWebsiteUrl(e.target.value)}
-                    placeholder="https://yourbusiness.com"
+                    onChange={(e) => {
+                      const next = e.target.value
+                      setWebsiteUrl(next)
+                      if (looksLikeStorefrontUrl(next)) setStorefrontMode(true)
+                    }}
+                    placeholder="https://yourbusiness.com or seller/MyShop URL"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-3 pl-9 text-xs font-semibold outline-none dark:border-white/15 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
+                <label className="mt-2 flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 dark:border-white/10 dark:bg-white/5">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={storefrontMode || looksLikeStorefrontUrl(websiteUrl)}
+                    onChange={(e) => setStorefrontMode(e.target.checked)}
+                  />
+                  <span className="text-[11px] leading-snug font-medium text-slate-600 dark:text-slate-300">
+                    Seller / vendor / storefront page — read this URL for seller info, products &amp; services (not the
+                    whole marketplace site).
+                  </span>
+                </label>
                 <p className="text-[11px] font-medium text-slate-400">
-                  We read the live pages (About, Services, Contact). Photos of a website are not needed.
+                  {storefrontMode || looksLikeStorefrontUrl(websiteUrl)
+                    ? 'Best for Amway MyShop, independent sellers, and affiliate storefronts. Paste product notes if the shop blocks bots.'
+                    : 'We read the live pages (About, Services, Contact). Photos of a website are not needed.'}
                 </p>
               </div>
             ) : null}

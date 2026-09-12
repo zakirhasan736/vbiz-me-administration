@@ -2,7 +2,7 @@ import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import type { VCardSectionPostItem } from '@/types/vcard'
 
 export type SectionFieldKey =
-  'title' | 'description' | 'url' | 'featuredImage' | 'date' | 'rating' | 'location' | 'active'
+  'title' | 'description' | 'url' | 'featuredImage' | 'date' | 'rating' | 'location' | 'price' | 'offerPrice' | 'active'
 
 export type FeaturedMediaMode = 'any' | 'video'
 
@@ -254,6 +254,7 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     title: 'See Products',
     addLabel: 'Add Product',
     accentClass: 'violet',
+    fields: ['title', 'description', 'url', 'featuredImage', 'price', 'offerPrice', 'active'],
   }),
   'sales-person': schema({
     key: 'sales-person',
@@ -301,6 +302,8 @@ export function createDefaultSectionPostItem(): VCardSectionPostItem {
     date: '',
     rating: '',
     location: '',
+    price: '',
+    offerPrice: '',
     active: true,
   }
 }
@@ -319,6 +322,8 @@ export function normalizeSectionPostList(items: VCardSectionPostItem[] | null | 
       date: entry.date ?? '',
       rating: entry.rating ?? '',
       location: entry.location ?? '',
+      price: entry.price ?? '',
+      offerPrice: entry.offerPrice ?? '',
       active: entry.active !== false,
       ...(entry.metas ? { metas: entry.metas } : {}),
     }

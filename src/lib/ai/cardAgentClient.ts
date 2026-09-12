@@ -41,7 +41,7 @@ export class CardAgentError extends Error {
 const PRODUCT_MESSAGES: Record<string, string> = {
   NETWORK_ERROR: "I couldn't reach the vBiz Me AI service. Your existing card is safe. Try again.",
   WEBSITE_FETCH_FAILED:
-    "I couldn't read that website. Your existing card is safe. Try the URL again, paste the information, or upload a document.",
+    "I couldn't read that website or seller/storefront page. Your existing card is safe. Try the URL again, paste the seller/product details, or upload a document.",
   DOCUMENT_READ_FAILED: "I couldn't finish reading that document. Try uploading it again or use another file.",
   OCR_FAILED: "I couldn't finish reading that document. Try uploading it again or use another file.",
   AI_PLANNING_FAILED:

@@ -29,4 +29,15 @@ describe('mapDynamicPostItemToListItem', () => {
 
     expect(item.generalInfoUrl).toBe('https://youtu.be/abc123DEF45')
   })
+
+  it('maps price and offer price from metas', () => {
+    const item = mapDynamicPostItemToListItem({
+      id: 1,
+      title: 'Widget',
+      metas: { price: '$49.99', offer_price: '$39.99' },
+    })
+
+    expect(item.price).toBe('$49.99')
+    expect(item.offerPrice).toBe('$39.99')
+  })
 })

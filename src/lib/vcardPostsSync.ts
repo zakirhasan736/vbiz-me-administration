@@ -93,6 +93,7 @@ function syncItemSignature(item: SyncItem) {
 }
 
 function unchangedSavedPost(item: SyncItem): ApiPost {
+  const metas = item.metas || {}
   return {
     id: item.id,
     title: item.title,
@@ -101,7 +102,18 @@ function unchangedSavedPost(item: SyncItem): ApiPost {
     featuredImage: item.featuredImage,
     status: item.status,
     sortOrder: item.sortOrder,
+    metas: Object.entries(metas).map(([metaKey, metaValue]) => ({
+      metaKey,
+      metaValue: metaValue ?? null,
+    })),
   } as ApiPost
+}
+
+function syncItemHasContent(item: SyncItem): boolean {
+  if (item.title?.trim() || item.description?.trim() || item.url?.trim() || item.featuredImage?.trim()) {
+    return true
+  }
+  return Object.values(item.metas || {}).some((value) => String(value || '').trim().length > 0)
 }
 
 function idsAsExisting(items: Array<{ id: string }> | undefined): ApiPost[] {
@@ -143,10 +155,7 @@ export async function syncProfilePosts(options: {
 
   const saved: ApiPost[] = []
   for (const item of items) {
-    const hasContent = Boolean(
-      item.title?.trim() || item.description?.trim() || item.url?.trim() || item.featuredImage?.trim()
-    )
-    if (!hasContent && (isLocalTempId(item.id) || !existingById.has(item.id))) continue
+    if (!syncItemHasContent(item) && (isLocalTempId(item.id) || !existingById.has(item.id))) continue
     const payload = {
       title: item.title,
       description: item.description,
@@ -211,10 +220,7 @@ async function syncDirectBlogs(options: {
 
   const saved: ApiPost[] = []
   for (const item of items) {
-    const hasContent = Boolean(
-      item.title?.trim() || item.description?.trim() || item.url?.trim() || item.featuredImage?.trim()
-    )
-    if (!hasContent && (isLocalTempId(item.id) || !existingById.has(item.id))) continue
+    if (!syncItemHasContent(item) && (isLocalTempId(item.id) || !existingById.has(item.id))) continue
     const body = {
       title: item.title,
       description: item.description,
@@ -263,10 +269,7 @@ async function syncDirectTabItems(options: {
 
   const saved: ApiPost[] = []
   for (const item of items) {
-    const hasContent = Boolean(
-      item.title?.trim() || item.description?.trim() || item.url?.trim() || item.featuredImage?.trim()
-    )
-    if (!hasContent && (isLocalTempId(item.id) || !existingById.has(item.id))) continue
+    if (!syncItemHasContent(item) && (isLocalTempId(item.id) || !existingById.has(item.id))) continue
     const body = {
       title: item.title,
       description: item.description,
@@ -364,10 +367,12 @@ export function sectionPostsToSyncItems(items: VCardSectionPostItem[]): SyncItem
       featuredImage: p.featuredImage || documents?.[0]?.url || undefined,
       status: p.active ? '1' : '0',
       metas: {
+        ...metas,
         date: p.date || '',
         rating: p.rating || '',
         location: p.location || '',
-        ...metas,
+        price: p.price || '',
+        offer_price: p.offerPrice || '',
       },
       documents,
       sortOrder: index,
@@ -424,7 +429,15 @@ function attachmentsToDocumentsJson(post: ApiPost): string | undefined {
 export function mapApiPostsToSectionPosts(posts: ApiPost[]): VCardSectionPostItem[] {
   return posts.map((p) => {
     const metas = metaMap(p.metas)
-    const { date = '', rating = '', location = '', ...rest } = metas
+    const {
+      date = '',
+      rating = '',
+      location = '',
+      price = '',
+      offer_price: offerPriceMeta = '',
+      offerPrice: offerPriceCamel = '',
+      ...rest
+    } = metas
     const documentsJson = attachmentsToDocumentsJson(p)
     if (documentsJson && !rest.documents) {
       rest.documents = documentsJson
@@ -439,6 +452,8 @@ export function mapApiPostsToSectionPosts(posts: ApiPost[]): VCardSectionPostIte
       date: toDateInputValue(date),
       rating,
       location,
+      price,
+      offerPrice: offerPriceMeta || offerPriceCamel || '',
       active: p.status !== '0' && p.status !== 'false',
       ...(Object.keys(rest).length ? { metas: rest } : {}),
     }

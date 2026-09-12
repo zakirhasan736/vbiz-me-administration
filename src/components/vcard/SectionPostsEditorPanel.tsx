@@ -19,7 +19,18 @@ import {
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardSectionPostItem } from '@/types/vcard'
 import { cn } from '@/utils/cn'
-import { Calendar, FileBox, FileText, Layers, Link as LinkIcon, MapPin, Plus, Star } from 'lucide-react'
+import {
+  Calendar,
+  DollarSign,
+  FileBox,
+  FileText,
+  Layers,
+  Link as LinkIcon,
+  MapPin,
+  Plus,
+  Star,
+  Tag,
+} from 'lucide-react'
 import { useEffect } from 'react'
 
 type Accent = 'amber' | 'teal' | 'violet'
@@ -255,7 +266,9 @@ export function SectionPostsEditorPanel({
                   fieldSet.has('description') ||
                   fieldSet.has('date') ||
                   fieldSet.has('location') ||
-                  fieldSet.has('rating')
+                  fieldSet.has('rating') ||
+                  fieldSet.has('price') ||
+                  fieldSet.has('offerPrice')
                 const renderActiveToggle = (visibilityClass: string) =>
                   fieldSet.has('active') ? (
                     <div className={cn('items-center gap-4', visibilityClass)}>
@@ -288,7 +301,10 @@ export function SectionPostsEditorPanel({
                     <ExpandableEntryHeader
                       indexLabel={index + 1}
                       title={post.title || 'New Item'}
-                      subtitle={post.description || post.url || null}
+                      subtitle={
+                        [post.offerPrice || post.price, post.description || post.url].filter(Boolean).join(' · ') ||
+                        null
+                      }
                       mediaUrl={post.featuredImage}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(key)}
@@ -334,7 +350,9 @@ export function SectionPostsEditorPanel({
                       fieldSet.has('featuredImage') ||
                       fieldSet.has('date') ||
                       fieldSet.has('rating') ||
-                      fieldSet.has('location') ? (
+                      fieldSet.has('location') ||
+                      fieldSet.has('price') ||
+                      fieldSet.has('offerPrice') ? (
                         <div
                           className={cn(
                             'mb-8 grid grid-cols-1 gap-6 md:items-start',
@@ -356,6 +374,46 @@ export function SectionPostsEditorPanel({
                                     rows={6}
                                     className={cn(inputClasses, 'h-full min-h-36 flex-1 resize-y')}
                                   />
+                                </div>
+                              ) : null}
+                              {fieldSet.has('price') || fieldSet.has('offerPrice') ? (
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                  {fieldSet.has('price') ? (
+                                    <div className="group flex flex-col space-y-1.5">
+                                      <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                        <DollarSign className={`h-3.5 w-3.5 ${a.iconText}`} /> Price
+                                      </label>
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={post.price || ''}
+                                        onChange={(e) => updatePost(post.id, 'price', e.target.value)}
+                                        placeholder="e.g. $49.99"
+                                        className={inputClasses}
+                                      />
+                                      <p className="pl-1 text-[10px] font-medium text-slate-400">
+                                        Regular / seller list price (struck through when an offer price is set).
+                                      </p>
+                                    </div>
+                                  ) : null}
+                                  {fieldSet.has('offerPrice') ? (
+                                    <div className="group flex flex-col space-y-1.5">
+                                      <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                        <Tag className={`h-3.5 w-3.5 ${a.iconText}`} /> Offer price
+                                      </label>
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={post.offerPrice || ''}
+                                        onChange={(e) => updatePost(post.id, 'offerPrice', e.target.value)}
+                                        placeholder="e.g. $39.99"
+                                        className={inputClasses}
+                                      />
+                                      <p className="pl-1 text-[10px] font-medium text-slate-400">
+                                        Sale / offer price shown as the active price on the public card.
+                                      </p>
+                                    </div>
+                                  ) : null}
                                 </div>
                               ) : null}
                               {fieldSet.has('date') ? (

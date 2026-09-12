@@ -212,6 +212,8 @@ export function isEmptySectionPost(item: VCardSectionPostItem): boolean {
     blank(item.date) &&
     blank(item.location) &&
     blank(item.rating) &&
+    blank(item.price) &&
+    blank(item.offerPrice) &&
     Object.values(metas).every((value) => blankMetaValue(value))
   )
 }

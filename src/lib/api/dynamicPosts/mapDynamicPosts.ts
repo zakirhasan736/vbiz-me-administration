@@ -118,6 +118,16 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
   const yearRaw =
     (item.year != null && String(item.year).trim()) || (typeof metas.year === 'string' && metas.year.trim()) || ''
   const year = /^\d{4}/.test(yearRaw) ? yearRaw.slice(0, 4) : yearRaw
+  const price =
+    (typeof item.price === 'string' && item.price.trim()) ||
+    (typeof metas.price === 'string' && metas.price.trim()) ||
+    ''
+  const offerPrice =
+    (typeof item.offerPrice === 'string' && item.offerPrice.trim()) ||
+    (typeof item.offer_price === 'string' && item.offer_price.trim()) ||
+    (typeof metas.offer_price === 'string' && metas.offer_price.trim()) ||
+    (typeof metas.offerPrice === 'string' && metas.offerPrice.trim()) ||
+    ''
 
   return {
     id,
@@ -128,6 +138,8 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
     date: year || item.created_at || item.updated_at || '',
     issuer: decodeHtmlText(issuer),
     year,
+    price,
+    offerPrice,
     attachments,
   }
 }

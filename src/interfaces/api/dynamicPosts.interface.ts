@@ -27,6 +27,9 @@ export type DynamicPostItem = {
   updated_at?: string
   issuer?: string | null
   year?: string | number | null
+  price?: string | null
+  offerPrice?: string | null
+  offer_price?: string | null
   featured_image?: DynamicPostFeaturedImage
   general_info_url?: string | null
   url?: string | null
@@ -69,6 +72,8 @@ export type DynamicPostListItem = {
   date: string
   issuer: string
   year: string
+  price: string
+  offerPrice: string
   attachments: DynamicPostAttachment[]
 }
 

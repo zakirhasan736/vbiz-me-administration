@@ -195,6 +195,8 @@ function toDynamicResult(sectionName: string, items: VCardSectionPostItem[]): Dy
           date: year || p.date || '',
           issuer,
           year,
+          price: p.price || '',
+          offerPrice: p.offerPrice || '',
           attachments,
         }
       }),
@@ -215,6 +217,8 @@ function generalPostsToDynamic(posts: VCardGeneralPost[], sectionTitle: string):
         date: p.date || '',
         issuer: '',
         year: '',
+        price: '',
+        offerPrice: '',
         attachments: [],
       })),
   }
@@ -234,6 +238,8 @@ function faqsToDynamic(faqs: VCardFaqEntry[], sectionTitle: string): DynamicPost
         date: '',
         issuer: '',
         year: '',
+        price: '',
+        offerPrice: '',
         attachments: [],
       })),
   }
@@ -370,6 +376,8 @@ export function EmbeddedDraftCacheSync({
             date: '',
             issuer: '',
             year: '',
+            price: '',
+            offerPrice: '',
             attachments: item.mediaUrl
               ? [
                   {
