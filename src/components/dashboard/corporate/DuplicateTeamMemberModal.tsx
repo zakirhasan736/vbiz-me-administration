@@ -68,7 +68,7 @@ export function DuplicateTeamMemberModal({
       return
     }
     if (!nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
-      setError('A valid email is required for the member login.')
+      setError('A valid card email is required.')
       return
     }
     const unmet = getPasswordRules(nextPassword).find((rule) => !rule.met)
@@ -125,8 +125,8 @@ export function DuplicateTeamMemberModal({
         className="mb-5 text-center text-[13px] leading-relaxed font-medium text-slate-500 dark:text-slate-400"
       >
         {sourceCardName
-          ? `Duplicate “${sourceCardName}” and create a login for this member. They get their own backoffice for this card; you keep corporate management.`
-          : 'Create a login for this member. They get their own backoffice for this card; you keep corporate management.'}
+          ? `Duplicate “${sourceCardName}” into a new team member card. Name, card email, title, and phone are saved on that card. The card email is also their backoffice login; you keep corporate management.`
+          : 'Create a new team member card. Name, card email, title, and phone are saved on that card. The card email is also their backoffice login; you keep corporate management.'}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -154,7 +154,7 @@ export function DuplicateTeamMemberModal({
             htmlFor="duplicate-member-email"
             className="mb-1.5 block text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
           >
-            Login email
+            Card email
           </label>
           <input
             id="duplicate-member-email"
@@ -166,6 +166,9 @@ export function DuplicateTeamMemberModal({
             disabled={isSubmitting}
             autoComplete="email"
           />
+          <p className="mt-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            Used as this card’s email and as the member’s backoffice login.
+          </p>
         </div>
 
         <div>
