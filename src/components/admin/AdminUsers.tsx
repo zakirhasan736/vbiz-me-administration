@@ -1098,12 +1098,24 @@ export default function AdminUsers() {
                         <button
                           type="button"
                           onClick={() =>
-                            launchCreateCardForOwner({
-                              userId: u.id,
-                              name: displayName,
-                              email: u.email,
-                              role: u.role,
-                            })
+                            launchCreateCardForOwner(
+                              teamMember && u.linkedCorporate
+                                ? {
+                                    userId: u.linkedCorporate.id,
+                                    name:
+                                      u.linkedCorporate.companyName ||
+                                      u.linkedCorporate.name ||
+                                      u.linkedCorporate.email,
+                                    email: u.linkedCorporate.email,
+                                    role: 'corporate-owner',
+                                  }
+                                : {
+                                    userId: u.id,
+                                    name: displayName,
+                                    email: u.email,
+                                    role: u.role,
+                                  }
+                            )
                           }
                           className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-indigo-600 py-1.5 text-[10px] font-black tracking-wider text-white uppercase hover:bg-indigo-700"
                         >
