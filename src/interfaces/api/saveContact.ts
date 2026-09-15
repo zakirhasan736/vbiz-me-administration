@@ -10,6 +10,10 @@ export type SaveContactCardData = {
   profileUrl: string
   imageUrl: string
   imageUrls?: string[]
+  /** Free-form note / about text from the card owner. */
+  note?: string
+  /** Formatted location / address for ADR. */
+  address?: string
 }
 
 export type SaveContactResponse = {

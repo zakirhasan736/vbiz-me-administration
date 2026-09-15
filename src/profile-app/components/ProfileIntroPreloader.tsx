@@ -2,14 +2,14 @@
 
 import { Loader2, Volume2, VolumeX } from 'lucide-react'
 import { motion } from 'motion/react'
-import { type MouseEvent, useEffect, useRef, useState } from 'react'
+import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { ProfileIntroVideo } from './ProfileIntroVideo'
 
 const DEFAULT_UNMUTE_VOLUME = 0.5
-/** Require nearly full buffer before revealing (smooth playback, no mid-stream stalls). */
-const READY_BUFFER_FRACTION = 0.98
-/** Safety net for very slow networks only — prefer full buffer / canplaythrough. */
-const READY_MAX_WAIT_MS = 12000
+const READY_BUFFER_FRACTION = 0.08
+/** Fail open quickly so Apple devices never stick on "Loading intro…". */
+const READY_MAX_WAIT_MS = 4000
+const TAP_HINT_MS = 1200
 
 const SPLIT_COUNT = 3
 const SPLIT_STAGGER_S = 0.14
@@ -25,11 +25,40 @@ type Props = {
 export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intro' }: Props) {
   const src = videoUrl.trim()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [srcKey, setSrcKey] = useState(src)
   const [isMuted, setIsMuted] = useState(true)
   const [volume, setVolume] = useState(0)
   const [ready, setReady] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [curtainsDone, setCurtainsDone] = useState(false)
+  const [needsTap, setNeedsTap] = useState(false)
+
+  if (src !== srcKey) {
+    setSrcKey(src)
+    setReady(false)
+    setRevealed(false)
+    setCurtainsDone(false)
+    setNeedsTap(false)
+  }
+
+  const kickPlay = useCallback(() => {
+    const el = videoRef.current
+    if (!el) return
+    el.muted = true
+    el.defaultMuted = true
+    el.playsInline = true
+    const result = el.play()
+    if (result && typeof result.then === 'function') {
+      void result
+        .then(() => {
+          setReady(true)
+          setNeedsTap(false)
+        })
+        .catch(() => {
+          setNeedsTap(true)
+        })
+    }
+  }, [])
 
   useEffect(() => {
     const html = document.documentElement
@@ -47,16 +76,6 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
   }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setReady(false)
-      setRevealed(false)
-      setCurtainsDone(false)
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [src])
-
-  // Buffer fully, then reveal and play — avoids flicker from partial loads.
-  useEffect(() => {
     const el = videoRef.current
     if (!el) return
 
@@ -65,11 +84,12 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       if (done) return
       done = true
       setReady(true)
+      setNeedsTap(false)
     }
 
     const onProgress = () => {
       try {
-        if (el.duration > 0 && el.buffered.length > 0) {
+        if (el.duration > 0 && Number.isFinite(el.duration) && el.buffered.length > 0) {
           const bufferedEnd = el.buffered.end(el.buffered.length - 1)
           if (bufferedEnd / el.duration >= READY_BUFFER_FRACTION) markReady()
         }
@@ -78,28 +98,62 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       }
     }
 
-    el.addEventListener('canplaythrough', markReady)
+    const onLoadedData = () => {
+      kickPlay()
+      markReady()
+    }
+    const onCanPlay = () => {
+      kickPlay()
+      markReady()
+    }
+    const onError = () => setNeedsTap(true)
+
+    kickPlay()
+    el.addEventListener('loadedmetadata', kickPlay)
+    el.addEventListener('loadeddata', onLoadedData)
+    el.addEventListener('canplay', onCanPlay)
+    el.addEventListener('playing', markReady)
     el.addEventListener('progress', onProgress)
-    el.addEventListener('loadeddata', onProgress)
-    const timer = window.setTimeout(markReady, READY_MAX_WAIT_MS)
+    el.addEventListener('canplaythrough', markReady)
+    el.addEventListener('error', onError)
+    const readyTimer = window.setTimeout(markReady, READY_MAX_WAIT_MS)
+    const tapTimer = window.setTimeout(() => {
+      if (el.paused) setNeedsTap(true)
+    }, TAP_HINT_MS)
 
     return () => {
-      el.removeEventListener('canplaythrough', markReady)
+      el.removeEventListener('loadedmetadata', kickPlay)
+      el.removeEventListener('loadeddata', onLoadedData)
+      el.removeEventListener('canplay', onCanPlay)
+      el.removeEventListener('playing', markReady)
       el.removeEventListener('progress', onProgress)
-      el.removeEventListener('loadeddata', onProgress)
-      window.clearTimeout(timer)
+      el.removeEventListener('canplaythrough', markReady)
+      el.removeEventListener('error', onError)
+      window.clearTimeout(readyTimer)
+      window.clearTimeout(tapTimer)
     }
-  }, [src])
+  }, [src, kickPlay])
 
   useEffect(() => {
     if (!ready) return
+    kickPlay()
+    const revealTimer = window.setTimeout(() => setRevealed(true), 40)
+    return () => window.clearTimeout(revealTimer)
+  }, [ready, kickPlay])
+
+  const handleUserPlay = () => {
     const el = videoRef.current
     if (!el) return
-
-    void el.play().catch(() => undefined)
-    const revealTimer = window.setTimeout(() => setRevealed(true), 50)
-    return () => window.clearTimeout(revealTimer)
-  }, [ready])
+    el.muted = true
+    void el
+      .play()
+      .then(() => {
+        setReady(true)
+        setRevealed(true)
+        setNeedsTap(false)
+      })
+      .catch(() => onSkip())
+  }
 
   const applyVolume = (nextVolume: number) => {
     const el = videoRef.current
@@ -152,14 +206,19 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       <ProfileIntroVideo
         ref={videoRef}
         src={src}
-        shouldPlay={ready}
+        shouldPlay
         className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 md:object-contain ${
-          revealed ? 'opacity-100' : 'opacity-0'
+          revealed ? 'opacity-100' : 'opacity-[0.02]'
         }`}
         onEnded={onSkip}
+        onCanPlay={() => setReady(true)}
+        onPlaying={() => {
+          setReady(true)
+          setNeedsTap(false)
+        }}
+        onPlayError={() => setNeedsTap(true)}
       />
 
-      {/* Three vertical splits — each curtain drops top→bottom (100% → 0% height) with stagger */}
       {!curtainsDone ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex">
           {Array.from({ length: SPLIT_COUNT }, (_, index) => (
@@ -183,10 +242,16 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       ) : null}
 
       {!revealed ? (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80">
+        <button
+          type="button"
+          onClick={handleUserPlay}
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80"
+        >
           <Loader2 size={32} className="vbiz-pin animate-spin opacity-70" />
-          <p className="vbiz-description mt-3 text-xs font-medium tracking-wide">Loading intro…</p>
-        </div>
+          <p className="vbiz-description mt-3 text-xs font-medium tracking-wide">
+            {needsTap ? 'Tap to play intro' : 'Loading intro…'}
+          </p>
+        </button>
       ) : null}
 
       <div className="absolute right-4 bottom-4 z-30 flex items-center gap-3 sm:right-6 sm:bottom-6">

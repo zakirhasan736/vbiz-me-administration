@@ -3,6 +3,7 @@ import {
   buildContactVcf,
   contactPhotoCandidateUrls,
   foldVcfLine,
+  serializeContactVcf,
 } from '@/profile-app/lib/contactVcf'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -38,6 +39,38 @@ describe('contact VCF photo', () => {
     expect(folded).toContain('\r\n ')
   })
 
+  it('serializes Apple-safe vCard 3.0 fields without CHARSET params', () => {
+    const vcf = serializeContactVcf(
+      {
+        name: 'Ada Lovelace',
+        email: 'ada@example.com',
+        phone: '+15555550100',
+        company: 'Analytical',
+        profession: 'Mathematician',
+        gender: '',
+        website: 'https://analytical.example',
+        slug: 'ada',
+        profileUrl: 'https://vbiz.me/v/ada',
+        imageUrl: '',
+        address: 'London, UK',
+        note: 'First computer programmer',
+      },
+      { base64: 'abc123', type: 'JPEG' }
+    )
+
+    expect(vcf).toContain('BEGIN:VCARD')
+    expect(vcf).toContain('VERSION:3.0')
+    expect(vcf).toContain('FN:Ada Lovelace')
+    expect(vcf).toContain('ORG:Analytical')
+    expect(vcf).toContain('TEL;TYPE=CELL:+15555550100')
+    expect(vcf).toContain('EMAIL;TYPE=INTERNET:ada@example.com')
+    expect(vcf).toContain('ADR;TYPE=WORK:;;London\\, UK;;;;')
+    expect(vcf).toContain('NOTE:First computer programmer\\nProfile: https://vbiz.me/v/ada')
+    expect(vcf).toContain('PHOTO;ENCODING=b;TYPE=JPEG:abc123')
+    expect(vcf).not.toContain('CHARSET=UTF-8')
+    expect(vcf.startsWith('BEGIN:VCARD\r\nVERSION:3.0')).toBe(true)
+  })
+
   it('embeds the first reachable still image into the vCard', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ base64: 'abc123', type: 'JPEG' }), {
@@ -54,11 +87,13 @@ describe('contact VCF photo', () => {
       company: 'Analytical',
       profession: 'Mathematician',
       gender: '',
-      website: '',
+      website: 'https://analytical.example',
       slug: 'ada',
       profileUrl: 'https://vbiz.me/v/ada',
       imageUrl: 'https://app.vbizme.com/storage/avatar.jpg',
       imageUrls: ['https://app.vbizme.com/storage/avatar.jpg', 'https://app.vbizme.com/storage/about.jpg'],
+      address: 'London, UK',
+      note: 'First computer programmer',
     })
 
     expect(vcf).toContain('PHOTO;ENCODING=b;TYPE=JPEG:abc123')
@@ -68,7 +103,7 @@ describe('contact VCF photo', () => {
     )
   })
 
-  it('writes a URI photo when the image cannot be inlined', async () => {
+  it('omits URI photo fallback (iOS will not fetch remote photos into Contacts)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('nope', { status: 403 })))
     const vcf = await buildContactVcf({
       name: 'Ada Lovelace',
@@ -82,7 +117,8 @@ describe('contact VCF photo', () => {
       profileUrl: '',
       imageUrl: 'https://app.vbizme.com/storage/about.jpg',
     })
-    expect(vcf).toContain('PHOTO;VALUE=URI:https://app.vbizme.com/storage/about.jpg')
+    expect(vcf).not.toContain('PHOTO;VALUE=URI:')
+    expect(vcf).not.toContain('PHOTO;ENCODING=b')
   })
 
   it('absolutizes root-relative photo URLs', () => {

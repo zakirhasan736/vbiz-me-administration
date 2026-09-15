@@ -2,6 +2,7 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { resolveProductPricing } from '@/lib/productPricing'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -17,6 +18,35 @@ function resolveProductImage(item: DynamicPostListItem): string {
   const featured = item.featuredImage.trim()
   if (featured) return featured
   return item.attachments.find((attachment) => attachment.url?.trim())?.url?.trim() ?? ''
+}
+
+function ProductPriceRow({ item, accent }: { item: DynamicPostListItem; accent: string }) {
+  const { listPrice, salePrice, hasOffer } = resolveProductPricing({
+    price: item.price,
+    offerPrice: item.offerPrice,
+  })
+  if (!listPrice && !salePrice) return null
+
+  if (hasOffer) {
+    return (
+      <div className="mt-4 flex flex-wrap items-baseline gap-2" data-testid="product-price">
+        <span className="text-lg font-bold tracking-tight" style={{ color: accent }}>
+          {salePrice}
+        </span>
+        {listPrice ? (
+          <span className="text-sm font-medium text-zinc-500 line-through dark:text-zinc-400">{listPrice}</span>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4" data-testid="product-price">
+      <span className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+        {listPrice || salePrice}
+      </span>
+    </div>
+  )
 }
 
 function SeeProductsSkeleton() {
@@ -76,12 +106,14 @@ function SeeProductsCard({ item, idx, accent }: { item: DynamicPostListItem; idx
           <p className="line-clamp-4 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">{preview}</p>
         ) : null}
 
+        <ProductPriceRow item={item} accent={accent} />
+
         {detailUrl ? (
           <a
             href={detailUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-5 inline-flex items-center gap-2 text-sm font-bold transition-opacity hover:opacity-80"
+            className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-bold transition-opacity hover:opacity-80"
             style={{ color: accent }}
           >
             View product <ArrowUpRight size={15} />

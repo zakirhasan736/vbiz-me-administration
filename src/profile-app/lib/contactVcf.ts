@@ -2,8 +2,9 @@ import type { SaveContactCardData, SaveContactResponse } from '@/interfaces/api/
 import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
 import { baseUrl } from '@/redux/api/publicApi'
 
-const MAX_VCF_PHOTO_BYTES = 1_500_000
+const MAX_VCF_PHOTO_BYTES = 1_200_000
 const VCF_LINE_LIMIT = 75
+const APPLE_SAFE_PHOTO_TYPES = new Set(['JPEG', 'PNG'])
 
 export class SaveContactError extends Error {
   status?: number
@@ -48,7 +49,7 @@ export async function fetchSaveContactData(profileId: string): Promise<SaveConta
 }
 
 function escapeVcfValue(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
+  return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 }
 
 function splitFullName(name: string): { first: string; last: string } {
@@ -59,10 +60,10 @@ function splitFullName(name: string): { first: string; last: string } {
 }
 
 function normalizeWebsite(url: string): string {
-  return url
-    .trim()
-    .replace(/^https?:\/\//i, '')
-    .replace(/\/$/, '')
+  const trimmed = url.trim()
+  if (!trimmed) return ''
+  if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/$/, '')
+  return `https://${trimmed.replace(/\/$/, '')}`
 }
 
 export function foldVcfLine(line: string, limit = VCF_LINE_LIMIT): string {
@@ -107,11 +108,67 @@ export function contactPhotoCandidateUrls(contact: Pick<SaveContactCardData, 'im
   return out
 }
 
-function vcfPhotoType(type?: string | null): 'JPEG' | 'PNG' {
-  return String(type || '').toUpperCase() === 'PNG' ? 'PNG' : 'JPEG'
+export type VcfPhoto = { base64: string; type: 'JPEG' | 'PNG' }
+
+function vcfPhotoType(type?: string | null): 'JPEG' | 'PNG' | 'GIF' | 'WEBP' {
+  const upper = String(type || '').toUpperCase()
+  if (upper === 'PNG') return 'PNG'
+  if (upper === 'GIF') return 'GIF'
+  if (upper === 'WEBP') return 'WEBP'
+  return 'JPEG'
 }
 
-async function fetchImageAsBase64(imageUrl: string): Promise<{ base64: string; type: 'JPEG' | 'PNG' } | null> {
+/** iPhone, iPad, iPod, and iPadOS (MacIntel + touch). Mac Safari also needs a real .vcf URL. */
+export function looksLikeAppleDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  if (/iPhone|iPad|iPod/i.test(ua)) return true
+  if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true
+  return /Macintosh|Mac OS X/i.test(ua) && /Safari/i.test(ua) && !/Chrome|Chromium|Edg|Firefox/i.test(ua)
+}
+
+export function looksLikeAppleMobile(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  if (/iPhone|iPad|iPod/i.test(ua)) return true
+  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+}
+
+async function decodeImageToJpegBase64(base64: string, sourceType: string): Promise<string | null> {
+  if (typeof document === 'undefined') return null
+  try {
+    const mime =
+      sourceType === 'PNG'
+        ? 'image/png'
+        : sourceType === 'GIF'
+          ? 'image/gif'
+          : sourceType === 'WEBP'
+            ? 'image/webp'
+            : 'image/jpeg'
+    const blob = await (await fetch(`data:${mime};base64,${base64}`)).blob()
+    const bitmap = await createImageBitmap(blob)
+    const maxEdge = 720
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height))
+    const width = Math.max(1, Math.round(bitmap.width * scale))
+    const height = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(bitmap, 0, 0, width, height)
+    bitmap.close()
+    const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85)
+    const marker = 'base64,'
+    const idx = jpegDataUrl.indexOf(marker)
+    if (idx < 0) return null
+    return jpegDataUrl.slice(idx + marker.length).replace(/\s+/g, '')
+  } catch {
+    return null
+  }
+}
+
+async function fetchImageAsBase64(imageUrl: string): Promise<VcfPhoto | null> {
   try {
     const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`
     const response = await fetch(proxyUrl, { headers: { Accept: 'application/json' } })
@@ -119,71 +176,88 @@ async function fetchImageAsBase64(imageUrl: string): Promise<{ base64: string; t
 
     const data = (await response.json()) as { base64?: string; type?: string }
     if (!data.base64) return null
-    const bytes = Math.ceil((data.base64.length * 3) / 4)
-    if (bytes > MAX_VCF_PHOTO_BYTES) return null
+    let type = vcfPhotoType(data.type)
+    let base64 = data.base64.replace(/\s+/g, '')
 
-    return { base64: data.base64.replace(/\s+/g, ''), type: vcfPhotoType(data.type) }
+    if (!APPLE_SAFE_PHOTO_TYPES.has(type)) {
+      const jpeg = await decodeImageToJpegBase64(base64, type)
+      if (!jpeg) return null
+      base64 = jpeg
+      type = 'JPEG'
+    }
+
+    let bytes = Math.ceil((base64.length * 3) / 4)
+    if (bytes > MAX_VCF_PHOTO_BYTES) {
+      const jpeg = await decodeImageToJpegBase64(base64, type)
+      if (!jpeg) return null
+      base64 = jpeg
+      type = 'JPEG'
+      bytes = Math.ceil((base64.length * 3) / 4)
+      if (bytes > MAX_VCF_PHOTO_BYTES) return null
+    }
+
+    return { base64, type: type === 'PNG' ? 'PNG' : 'JPEG' }
   } catch {
     return null
   }
 }
 
-async function embedContactPhoto(urls: string[]): Promise<string | null> {
-  for (const url of urls) {
-    const photo = await fetchImageAsBase64(url)
-    if (!photo) continue
-    return foldVcfLine(`PHOTO;ENCODING=b;TYPE=${photo.type}:${photo.base64}`)
-  }
-  if (urls[0]) {
-    return foldVcfLine(`PHOTO;VALUE=URI:${escapeVcfValue(urls[0])}`)
-  }
-  return null
+function buildNote(contact: SaveContactCardData): string {
+  const parts: string[] = []
+  if (contact.note?.trim()) parts.push(contact.note.trim())
+  if (contact.profileUrl?.trim()) parts.push(`Profile: ${contact.profileUrl.trim()}`)
+  return parts.join('\n')
 }
 
-export async function buildContactVcf(contact: SaveContactCardData): Promise<string> {
+/**
+ * Apple Contacts is picky: no CHARSET params, no blank lines, vCard 3.0.
+ * Android imports the same file.
+ */
+export function serializeContactVcf(contact: SaveContactCardData, photo?: VcfPhoto | null): string {
   const { first, last } = splitFullName(contact.name)
-  const lines: string[] = ['BEGIN:VCARD', '', 'VERSION:3.0', '']
+  const lines: string[] = ['BEGIN:VCARD', 'VERSION:3.0', 'PRODID:-//vBiz Me//Save Contact//EN']
 
-  lines.push(`N:${escapeVcfValue(last)};${escapeVcfValue(first)};;;`, '')
-  lines.push(`FN:${escapeVcfValue(contact.name)}`, '')
+  lines.push(`N:${escapeVcfValue(last)};${escapeVcfValue(first)};;;`)
+  lines.push(`FN:${escapeVcfValue(contact.name)}`)
 
-  if (contact.company?.trim()) {
-    lines.push(`ORG:${escapeVcfValue(contact.company)}`, '')
+  if (contact.company?.trim()) lines.push(`ORG:${escapeVcfValue(contact.company.trim())}`)
+  if (contact.profession?.trim()) lines.push(`TITLE:${escapeVcfValue(contact.profession.trim())}`)
+  if (contact.phone?.trim()) lines.push(`TEL;TYPE=CELL:${escapeVcfValue(contact.phone.trim())}`)
+  if (contact.email?.trim()) lines.push(`EMAIL;TYPE=INTERNET:${escapeVcfValue(contact.email.trim())}`)
+  if (contact.website?.trim()) lines.push(`URL:${escapeVcfValue(normalizeWebsite(contact.website))}`)
+  if (contact.profileUrl?.trim()) lines.push(`URL:${escapeVcfValue(contact.profileUrl.trim())}`)
+  if (contact.address?.trim()) {
+    lines.push(`ADR;TYPE=WORK:;;${escapeVcfValue(contact.address.trim())};;;;`)
   }
 
-  if (contact.profession?.trim()) {
-    lines.push(`TITLE:${escapeVcfValue(contact.profession)}`, '')
-  } else {
-    lines.push('TITLE:', '')
+  const note = buildNote(contact)
+  if (note) lines.push(`NOTE:${escapeVcfValue(note)}`)
+  if (contact.gender?.trim()) lines.push(`X-GENDER:${escapeVcfValue(contact.gender.trim())}`)
+
+  if (photo?.base64) {
+    lines.push(foldVcfLine(`PHOTO;ENCODING=b;TYPE=${photo.type}:${photo.base64.replace(/\s+/g, '')}`))
   }
 
-  if (contact.phone?.trim()) {
-    lines.push(`TEL;TYPE=CELL:${escapeVcfValue(contact.phone)}`, '')
-  }
-
-  if (contact.email?.trim()) {
-    lines.push(`EMAIL:${escapeVcfValue(contact.email)}`, '')
-  }
-
-  if (contact.profileUrl?.trim()) {
-    lines.push(`NOTE:Profile: ${escapeVcfValue(contact.profileUrl)}`, '')
-  }
-
-  if (contact.website?.trim()) {
-    lines.push(`URL;TYPE=website:${escapeVcfValue(normalizeWebsite(contact.website))}`, '')
-  }
-
-  if (contact.profileUrl?.trim()) {
-    lines.push(`URL;TYPE=vCard:${escapeVcfValue(contact.profileUrl)}`, '')
-  }
-
-  const photoLine = await embedContactPhoto(contactPhotoCandidateUrls(contact))
-  if (photoLine) {
-    lines.push(photoLine, '')
-  }
-
+  lines.push(
+    `REV:${new Date()
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace(/\.\d{3}/, '')}`
+  )
   lines.push('END:VCARD')
-  return lines.join('\r\n')
+  return `${lines.join('\r\n')}\r\n`
+}
+
+export async function buildContactVcf(
+  contact: SaveContactCardData,
+  photoFetcher: (url: string) => Promise<VcfPhoto | null> = fetchImageAsBase64
+): Promise<string> {
+  let photo: VcfPhoto | null = null
+  for (const url of contactPhotoCandidateUrls(contact)) {
+    photo = await photoFetcher(url)
+    if (photo) break
+  }
+  return serializeContactVcf(contact, photo)
 }
 
 export function vcfFilenameFromName(name?: string | null): string {
@@ -194,28 +268,79 @@ export function vcfFilenameFromName(name?: string | null): string {
   return `${safe || 'contact'}.vcf`
 }
 
-export function downloadContactVcf(vcfContent: string, filename = 'contact.vcf'): void {
-  const blob = new Blob([vcfContent], { type: 'text/vcard;charset=utf-8' })
-  const nav = window.navigator as Navigator & { msSaveOrOpenBlob?: (file: Blob, fileName: string) => void }
+export function contactVcfApiUrl(profileId: string, filename?: string): string {
+  const params = new URLSearchParams()
+  const guestId = getOrCreateGuestId()
+  if (guestId) params.set('visitor_id', guestId)
+  if (filename?.trim()) params.set('filename', filename.trim())
+  const query = params.toString()
+  return `/api/save-contact-vcf/${encodeURIComponent(profileId.trim())}${query ? `?${query}` : ''}`
+}
+
+/**
+ * iOS/macOS Safari ignore `<a download>` on blob URLs and also drop delayed
+ * downloads after `await`. Navigate to a same-origin .vcf response instead —
+ * iPhone opens Add to Contacts; Android/desktop download the file.
+ */
+export function openContactVcfFromApi(profileId: string, filename?: string): void {
+  const url = contactVcfApiUrl(profileId, filename)
+  window.location.assign(url)
+}
+
+export async function downloadContactVcf(vcfContent: string, filename = 'contact.vcf'): Promise<void> {
+  const safeName = filename.endsWith('.vcf') ? filename : `${filename}.vcf`
+  const mime = looksLikeAppleDevice() ? 'text/x-vcard;charset=utf-8' : 'text/vcard;charset=utf-8'
+  const blob = new Blob([vcfContent], { type: mime })
+  const file = new File([blob], safeName, { type: looksLikeAppleDevice() ? 'text/x-vcard' : 'text/vcard' })
+
+  const nav = window.navigator as Navigator & {
+    msSaveOrOpenBlob?: (file: Blob, fileName: string) => void
+    canShare?: (data?: ShareData) => boolean
+  }
+
+  if (looksLikeAppleMobile() && typeof nav.share === 'function' && typeof nav.canShare === 'function') {
+    try {
+      if (nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file], title: file.name })
+        return
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+    }
+  }
+
   if (typeof nav.msSaveOrOpenBlob === 'function') {
-    nav.msSaveOrOpenBlob(blob, filename)
+    nav.msSaveOrOpenBlob(blob, file.name)
     return
   }
 
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = filename
+  anchor.download = file.name
   anchor.rel = 'noopener'
   anchor.style.display = 'none'
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 2500)
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 export async function downloadProfileContactVcf(profileId: string, filename?: string): Promise<void> {
-  const contact = await fetchSaveContactData(profileId)
-  const vcf = await buildContactVcf(contact)
-  downloadContactVcf(vcf, filename || vcfFilenameFromName(contact.name))
+  const trimmed = profileId.trim()
+  if (!trimmed) throw new SaveContactError('Profile ID is required')
+
+  // Apple: must navigate in the click turn. Blob downloads fail on iOS/Safari.
+  if (looksLikeAppleDevice()) {
+    openContactVcfFromApi(trimmed, filename)
+    return
+  }
+
+  try {
+    const contact = await fetchSaveContactData(trimmed)
+    const vcf = await buildContactVcf(contact)
+    await downloadContactVcf(vcf, filename || vcfFilenameFromName(contact.name))
+  } catch {
+    openContactVcfFromApi(trimmed, filename)
+  }
 }

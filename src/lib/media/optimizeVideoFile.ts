@@ -26,12 +26,21 @@ type VideoWithCaptureStream = HTMLVideoElement & {
 const supportedMimeType = () => {
   if (typeof MediaRecorder === 'undefined') return ''
 
+  // Prefer MP4/H.264 for public-card intro playback on iPhone / iOS Safari.
+  // WebM (VP8/VP9) often fails or stalls forever on Apple mobile browsers.
   return (
-    ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find((mimeType) =>
-      MediaRecorder.isTypeSupported(mimeType)
-    ) || ''
+    [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || ''
   )
 }
+
+const isAppleFriendlyVideo = (file: File) =>
+  /^(video\/mp4|video\/quicktime|video\/x-m4v)/i.test(file.type) || /\.(mp4|mov|m4v)$/i.test(file.name)
 
 const scaledDimensions = (width: number, height: number) => {
   const scale = Math.min(1, MAX_VIDEO_WIDTH / width, MAX_VIDEO_HEIGHT / height)
@@ -91,6 +100,9 @@ const compressVideo = async (file: File, options?: OptimizeVideoOptions): Promis
 
   const mimeType = supportedMimeType()
   if (!mimeType || !HTMLCanvasElement.prototype.captureStream) return file
+
+  // Never re-encode an iOS-playable MP4/MOV into WebM — that breaks iPhone intro playback.
+  if (mimeType.includes('webm') && isAppleFriendlyVideo(file)) return file
 
   const objectUrl = URL.createObjectURL(file)
   const video = document.createElement('video')

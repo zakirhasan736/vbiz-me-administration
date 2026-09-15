@@ -33,4 +33,11 @@ describe('shouldSkipVideoOptimize', () => {
     const file = new File([new Uint8Array(5 * 1024 * 1024)], 'explainer.mp4', { type: 'video/mp4' })
     expect(shouldSkipVideoOptimize(file, 90)).toBe(false)
   })
+
+  it('treats mp4/mov as apple-friendly container candidates', () => {
+    const mp4 = new File([new Uint8Array(5 * 1024 * 1024)], 'intro.mp4', { type: 'video/mp4' })
+    const mov = new File([new Uint8Array(5 * 1024 * 1024)], 'intro.mov', { type: 'video/quicktime' })
+    expect(shouldSkipVideoOptimize(mp4, 60)).toBe(false)
+    expect(shouldSkipVideoOptimize(mov, 60)).toBe(false)
+  })
 })

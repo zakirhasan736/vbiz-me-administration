@@ -3,7 +3,12 @@
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { hasSavedContact } from '@/profile-app/lib/contactSaveState'
-import { downloadProfileContactVcf, vcfFilenameFromName } from '@/profile-app/lib/contactVcf'
+import {
+  downloadProfileContactVcf,
+  looksLikeAppleDevice,
+  openContactVcfFromApi,
+  vcfFilenameFromName,
+} from '@/profile-app/lib/contactVcf'
 import { saveGuestUser, SaveGuestUserError } from '@/profile-app/lib/saveGuestUser'
 import { Check, Download, X } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -90,6 +95,9 @@ export const SaveContactModal = ({
     try {
       if (!trimmedId || trimmedId === 'preview') {
         await new Promise((resolve) => setTimeout(resolve, 400))
+      } else if (looksLikeAppleDevice()) {
+        // Must stay in the tap turn — iOS Safari blocks delayed blob downloads.
+        openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName))
       } else {
         await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
       }
@@ -114,6 +122,15 @@ export const SaveContactModal = ({
     try {
       if (!trimmedId || trimmedId === 'preview') {
         await new Promise((resolve) => setTimeout(resolve, 400))
+      } else if (looksLikeAppleDevice()) {
+        void saveGuestUser({
+          fullName: formData.fullName,
+          phone: formData.phone,
+          email: formData.email,
+          profileId: trimmedId,
+          cardSlug,
+        }).catch(() => undefined)
+        openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName))
       } else {
         await saveGuestUser({
           fullName: formData.fullName,
@@ -136,7 +153,11 @@ export const SaveContactModal = ({
         setAlreadySaved(true)
         try {
           if (trimmedId && trimmedId !== 'preview') {
-            await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
+            if (looksLikeAppleDevice()) {
+              openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName))
+            } else {
+              await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
+            }
           }
         } catch {
           /* ignore secondary download errors */
@@ -198,8 +219,8 @@ export const SaveContactModal = ({
               <div className="mb-1 pr-8">
                 <h3 className="vbiz-title text-xl font-bold tracking-tight">Download Contact Info</h3>
                 <p className="vbiz-description mt-2 text-sm leading-relaxed">
-                  You&apos;re about to receive {contactOwnerLabel}&apos;s contact file. Your details below are optional
-                  — you can download without sharing them.
+                  You&apos;re about to receive {contactOwnerLabel}&apos;s contact file (.vcf). It works on iPhone and
+                  Android — open it to Add to Contacts with their photo and details. Your info below is optional.
                 </p>
               </div>
               <input
