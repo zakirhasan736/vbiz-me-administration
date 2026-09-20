@@ -11,6 +11,8 @@ import { useEffect, useMemo, useState } from 'react'
 
 /** Minimum time the brand splash stays up, so it never flickers on fast loads. */
 const MIN_VISIBLE_MS = 650
+/** Never stick on the splash if nav APIs hang (Playwright, slow 3G, iOS). */
+const MAX_VISIBLE_MS = 3500
 
 function resolveBrandName(fullName: string, company: string): string {
   const brand = company.trim() || fullName.trim()
@@ -42,12 +44,20 @@ export function ProfileBrandPreloader() {
   }, [])
 
   useEffect(() => {
-    if (embedded || !navReady || !minElapsed) return
-    const timer = window.setTimeout(() => {
+    if (embedded) return
+
+    const hide = () => {
       setVisible(false)
       notifyProfileExperienceSettled()
-    }, 0)
-    return () => window.clearTimeout(timer)
+    }
+
+    if (navReady && minElapsed) {
+      const timer = window.setTimeout(hide, 0)
+      return () => window.clearTimeout(timer)
+    }
+
+    const failsafe = window.setTimeout(hide, MAX_VISIBLE_MS)
+    return () => window.clearTimeout(failsafe)
   }, [embedded, navReady, minElapsed])
 
   const brandName = useMemo(

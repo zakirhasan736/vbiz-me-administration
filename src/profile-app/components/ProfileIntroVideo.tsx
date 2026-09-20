@@ -9,7 +9,10 @@ type Props = {
   shouldPlay?: boolean
   onCanPlay?: () => void
   onPlaying?: () => void
+  onWaiting?: () => void
+  onError?: () => void
   onPlayError?: () => void
+  qualityLabel?: string
 }
 
 function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
@@ -37,7 +40,7 @@ function applyIosVideoFlags(el: HTMLVideoElement) {
  * (including Low Power Mode, which often needs a later tap to start).
  */
 export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function ProfileIntroVideo(
-  { src, className, onEnded, shouldPlay = false, onCanPlay, onPlaying, onPlayError },
+  { src, className, onEnded, shouldPlay = false, onCanPlay, onPlaying, onWaiting, onError, onPlayError, qualityLabel },
   forwardedRef
 ) {
   const internalRef = useRef<HTMLVideoElement>(null)
@@ -81,15 +84,19 @@ export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function Pr
     <video
       ref={mergeRefs(internalRef, forwardedRef)}
       className={className}
+      src={src}
       muted
       autoPlay
       playsInline
       preload="auto"
       controls={false}
       disablePictureInPicture
+      data-intro-quality={qualityLabel}
       onEnded={onEnded}
       onCanPlay={onCanPlay}
       onPlaying={onPlaying}
+      onWaiting={onWaiting}
+      onError={onError}
       // Older WebKit / iOS Safari still look for these attributes.
       {...{
         'webkit-playsinline': 'true',

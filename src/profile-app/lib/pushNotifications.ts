@@ -1,7 +1,6 @@
 import {
   canShowBrowserNotificationPrompt,
   IOS_CHROME_ALLOW_THEN_HOME_MESSAGE,
-  IOS_PUSH_AFTER_ALLOW_MESSAGE,
   IOS_PUSH_HOME_SCREEN_MESSAGE,
   isIosChrome,
   shouldShowIosHomeScreenPushGuide,
@@ -40,6 +39,9 @@ export type FollowState = {
 export const SERVICE_WORKER_PATH = '/sw.js'
 
 function getPushApiBase() {
+  if (typeof window !== 'undefined') {
+    return '/api'
+  }
   return process.env.NEXT_PUBLIC_PUSH_API_URL?.replace(/\/$/, '') || publicApiBaseUrl.replace(/\/$/, '')
 }
 
@@ -236,6 +238,36 @@ export const urlBase64ToUint8Array = (base64String: string) => {
 }
 
 /** Uncompressed P-256 VAPID public keys decode to 65 bytes (0x04 || x || y). */
+export function vapidKeyToArrayBuffer(keyBytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(keyBytes.byteLength)
+  copy.set(keyBytes)
+  return copy.buffer
+}
+
+export async function requestNotificationPermission(): Promise<NotificationPermission> {
+  if (typeof window === 'undefined' || !('Notification' in window)) return 'denied'
+  if (Notification.permission !== 'default') return Notification.permission
+
+  try {
+    const result = Notification.requestPermission()
+    if (typeof result === 'string') return result
+    if (result && typeof (result as Promise<NotificationPermission>).then === 'function') {
+      return await result
+    }
+  } catch {
+    /* older Safari used a callback */
+  }
+
+  return await new Promise((resolve) => {
+    try {
+      Notification.requestPermission((permission) => resolve(permission))
+    } catch {
+      resolve(Notification.permission)
+    }
+  })
+}
+
+/** Uncompressed P-256 VAPID public keys decode to 65 bytes (0x04 || x || y). */
 export function assertValidVapidPublicKey(base64String: string): Uint8Array {
   const trimmed = base64String.trim()
   if (!trimmed) {
@@ -282,6 +314,10 @@ export function mapPushSubscribeError(error: unknown): Error {
     return error
   }
 
+  if (shouldShowIosHomeScreenPushGuide() && (name === 'AbortError' || name === 'NotSupportedError')) {
+    return new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_HOME_SCREEN_MESSAGE)
+  }
+
   if (name === 'NotAllowedError' || lower.includes('permission')) {
     return new Error(
       'Notifications are blocked for this site. Open Settings → Notifications (or the lock icon in the address bar), allow Notifications, then try again.'
@@ -323,13 +359,27 @@ export async function resolveVapidPublicKey(): Promise<string> {
   return envKey
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      window.setTimeout(() => resolve(fallback), ms)
+    }),
+  ])
+}
+
 export async function registerServiceWorker() {
   if (!isPushSupported()) return null
   try {
-    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_PATH, {
-      scope: '/',
-      updateViaCache: 'none',
-    })
+    const registration = await withTimeout<ServiceWorkerRegistration | null>(
+      navigator.serviceWorker.register(SERVICE_WORKER_PATH, {
+        scope: '/',
+        updateViaCache: 'none',
+      }),
+      4000,
+      null
+    )
+    if (!registration) return null
     // Pick up a newer sw.js as soon as it is deployed (storage/blocked SW must not surface as unhandledRejection).
     void registration.update().catch(() => null)
     // Activate updated worker immediately so notification icons are not stuck on next.svg.
@@ -347,7 +397,8 @@ export async function getReadyRegistration() {
   const registration = await registerServiceWorker()
   if (!registration) return null
 
-  const ready = await navigator.serviceWorker.ready
+  const ready = await withTimeout<ServiceWorkerRegistration | null>(navigator.serviceWorker.ready, 4000, null)
+  if (!ready) return registration.active ? registration : null
 
   // Ensure an active worker controls the page before PushManager.subscribe.
   if (!ready.active) {
@@ -367,11 +418,10 @@ export async function getReadyRegistration() {
     })
   }
 
-  if (!ready.active && !(await navigator.serviceWorker.ready).active) {
-    return null
-  }
+  const again = await withTimeout<ServiceWorkerRegistration | null>(navigator.serviceWorker.ready, 2000, ready)
+  if (!again?.active) return null
 
-  return navigator.serviceWorker.ready
+  return again
 }
 
 export async function getExistingSubscription() {
@@ -426,7 +476,10 @@ export async function fetchPushStatus(
   cardSlug: string,
   options?: { endpoint?: string | null; forceRefresh?: boolean }
 ): Promise<PushStatusResponse> {
-  const resolvedEndpoint = options?.endpoint ?? (await resolvePushSubscriptionPayload())?.endpoint ?? null
+  let resolvedEndpoint = options?.endpoint ?? null
+  if (!resolvedEndpoint && getNotificationPermission() === 'granted') {
+    resolvedEndpoint = (await resolvePushSubscriptionPayload())?.endpoint ?? null
+  }
 
   if (!resolvedEndpoint) {
     return {
@@ -475,13 +528,12 @@ export async function subscribeToCard(options: {
   preferences?: Partial<NotificationPreferences> | Partial<BackendNotificationPreferences>
 }) {
   try {
-    // iPhone Safari/Chrome tab: try Allow when possible; Home Screen still required for push.
-    if (shouldShowIosHomeScreenPushGuide()) {
-      if (canShowBrowserNotificationPrompt() && Notification.permission !== 'granted') {
-        const permission = await Notification.requestPermission()
-        if (permission === 'granted') {
-          throw new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_AFTER_ALLOW_MESSAGE)
-        }
+    const iosTabNeedsHomeScreen = shouldShowIosHomeScreenPushGuide()
+    const pushReady = isPushSupported()
+
+    if (!pushReady) {
+      if (iosTabNeedsHomeScreen && canShowBrowserNotificationPrompt()) {
+        const permission = await requestNotificationPermission()
         if (permission === 'denied') {
           throw new Error(
             'Notifications are blocked. After you Add to Home Screen and open the icon, allow notifications in Settings if needed.'
@@ -489,26 +541,24 @@ export async function subscribeToCard(options: {
         }
         throw new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_HOME_SCREEN_MESSAGE)
       }
-      if (Notification.permission === 'granted') {
-        throw new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_AFTER_ALLOW_MESSAGE)
+      if (iosTabNeedsHomeScreen) {
+        throw new Error(IOS_PUSH_HOME_SCREEN_MESSAGE)
       }
-      throw new Error(IOS_PUSH_HOME_SCREEN_MESSAGE)
+      throw new Error(
+        'Push notifications are not supported in this browser. Use Chrome, Edge, Firefox, or Safari 16.4+ over https.'
+      )
     }
 
-    if (!isPushSupported()) {
-      throw new Error('Push notifications are not supported in this browser.')
-    }
-
-    // Always (re)ask the browser when the user clicks Enable. If it was previously
-    // denied the browser will not re-prompt, so guide the user to re-enable it.
     let permission: NotificationPermission = Notification.permission
     if (permission !== 'granted') {
-      permission = await Notification.requestPermission()
+      permission = await requestNotificationPermission()
     }
 
     if (permission === 'denied') {
       throw new Error(
-        'Notifications are blocked for this site. Tap the lock icon in your browser address bar, allow Notifications, then try again.'
+        iosTabNeedsHomeScreen
+          ? 'Notifications are blocked. After you Add to Home Screen and open the icon, allow notifications in Settings if needed.'
+          : 'Notifications are blocked for this site. Tap the lock icon in your browser address bar (Safari: Settings → Websites → Notifications), allow Notifications, then try again.'
       )
     }
 
@@ -521,7 +571,10 @@ export async function subscribeToCard(options: {
 
     const registration = await getReadyRegistration()
     if (!registration?.active) {
-      throw new Error('Could not register the service worker.')
+      if (iosTabNeedsHomeScreen) {
+        throw new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_HOME_SCREEN_MESSAGE)
+      }
+      throw new Error('Could not register the service worker. Refresh and try again.')
     }
 
     let subscription: PushSubscription | null = await registration.pushManager.getSubscription()
@@ -534,8 +587,7 @@ export async function subscribeToCard(options: {
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        // Copy into a plain ArrayBuffer-backed view for DOM BufferSource typing.
-        applicationServerKey: vapidKeyBytes.slice().buffer as ArrayBuffer,
+        applicationServerKey: vapidKeyToArrayBuffer(vapidKeyBytes),
       })
     }
 

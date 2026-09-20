@@ -50,6 +50,14 @@ export function shouldShowAndroidHomeScreenBackupGuide(): boolean {
   return isAndroidDevice() && !isPwaStandalone()
 }
 
+/** Safari on Mac (not iPhone/iPad). Web Push works in Safari 16.4+ without installing. */
+export function isDesktopSafari(): boolean {
+  if (typeof window === 'undefined') return false
+  if (isIosDevice() || isAndroidDevice()) return false
+  const ua = window.navigator.userAgent || ''
+  return /Safari/i.test(ua) && !/Chrome|Chromium|Edg|Firefox|OPR|CriOS|FxiOS|EdgiOS/i.test(ua)
+}
+
 /** @deprecated Prefer shouldShowIosHomeScreenPushGuide */
 export function needsIosHomeScreenForPush(): boolean {
   return shouldShowIosHomeScreenPushGuide()

@@ -4,6 +4,7 @@ import { isPushSupported, mapPushSubscribeError, subscribeToCard } from '@/lib/p
 import {
   canShowBrowserNotificationPrompt,
   clearIosPushIntent,
+  isDesktopSafari,
   isIosChrome,
   markIosPushIntent,
   shouldShowAndroidHomeScreenBackupGuide,
@@ -40,6 +41,7 @@ function readPushGuideFlags() {
     iosChrome: isIosChrome(),
     androidBackup: shouldShowAndroidHomeScreenBackupGuide(),
     canPromptAllow: canShowBrowserNotificationPrompt(),
+    desktopSafari: isDesktopSafari(),
   }
 }
 
@@ -59,6 +61,7 @@ export function NotificationFollowModal({
   const [iosChrome, setIosChrome] = useState(() => isIosChrome())
   const [androidBackup, setAndroidBackup] = useState(() => shouldShowAndroidHomeScreenBackupGuide())
   const [canPromptAllow, setCanPromptAllow] = useState(() => canShowBrowserNotificationPrompt())
+  const [desktopSafari, setDesktopSafari] = useState(() => isDesktopSafari())
   const [prevOpen, setPrevOpen] = useState(isOpen)
 
   if (isOpen !== prevOpen) {
@@ -72,6 +75,7 @@ export function NotificationFollowModal({
       setIosChrome(flags.iosChrome)
       setAndroidBackup(flags.androidBackup)
       setCanPromptAllow(flags.canPromptAllow)
+      setDesktopSafari(flags.desktopSafari)
     }
   }
 
@@ -79,6 +83,9 @@ export function NotificationFollowModal({
   useEffect(() => {
     if (!isOpen || !cardSlug.trim()) return
     let cancelled = false
+    const timeout = window.setTimeout(() => {
+      cancelled = true
+    }, 2500)
     void isSubscribedToCard(cardSlug).then((subscribed) => {
       if (cancelled || !subscribed) return
       clearIosPushIntent(cardSlug)
@@ -86,6 +93,7 @@ export function NotificationFollowModal({
     })
     return () => {
       cancelled = true
+      window.clearTimeout(timeout)
     }
   }, [isOpen, cardSlug, onClose])
 
@@ -204,6 +212,11 @@ export function NotificationFollowModal({
                             open the icon.
                           </>
                         )
+                      ) : desktopSafari ? (
+                        <>
+                          Tap Enable, then choose <strong>Allow</strong> in Safari. If nothing appears, open Safari →
+                          Settings → Websites → Notifications and allow this site.
+                        </>
                       ) : (
                         <>
                           Be the first to know when <span className="notranslate">{ownerName}</span>&apos;s card is
@@ -282,7 +295,9 @@ export function NotificationFollowModal({
                         : 'iPhone: Home Screen required'
                       : androidBackup
                         ? 'Tap Enable to Allow • Home Screen optional backup'
-                        : 'One-click opt in • Works in Chrome & Android'}
+                        : desktopSafari
+                          ? 'Safari 16.4+ • Choose Allow when asked'
+                          : 'Works in Chrome, Edge, Firefox, Safari, Android & desktop'}
                   </p>
                 </>
               ) : (

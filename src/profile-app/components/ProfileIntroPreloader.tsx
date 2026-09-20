@@ -1,15 +1,23 @@
 'use client'
 
+import { isIosDevice } from '@/lib/pwa/pwaInstallEnv'
+import {
+  buildAdaptiveIntroUrl,
+  lowerIntroQuality,
+  pickIntroQuality,
+  readNetworkHints,
+  type IntroQuality,
+} from '@/profile-app/lib/introVideoAdaptive'
 import { Loader2, Volume2, VolumeX } from 'lucide-react'
 import { motion } from 'motion/react'
-import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { ProfileIntroVideo } from './ProfileIntroVideo'
 
 const DEFAULT_UNMUTE_VOLUME = 0.5
-const READY_BUFFER_FRACTION = 0.08
-/** Fail open quickly so Apple devices never stick on "Loading intro…". */
-const READY_MAX_WAIT_MS = 4000
+/** Keep trying autoplay; never hide the loader until playback actually starts. */
 const TAP_HINT_MS = 1200
+const STALL_DOWNGRADE_MS = 2500
+const PLAY_RETRY_MS = 700
 
 const SPLIT_COUNT = 3
 const SPLIT_STAGGER_S = 0.14
@@ -22,19 +30,38 @@ type Props = {
   skipLabel?: string
 }
 
+function isCoarsePointerDevice() {
+  if (typeof window === 'undefined') return false
+  if (isIosDevice()) return true
+  if (/Android/i.test(navigator.userAgent || '')) return true
+  return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1
+}
+
 export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intro' }: Props) {
-  const src = videoUrl.trim()
+  const originalSrc = videoUrl.trim()
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [srcKey, setSrcKey] = useState(src)
+  const [srcKey, setSrcKey] = useState(originalSrc)
+  const [quality, setQuality] = useState<IntroQuality>(() =>
+    pickIntroQuality(readNetworkHints(), { isMobile: isCoarsePointerDevice() })
+  )
+  const [useOriginal, setUseOriginal] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
   const [volume, setVolume] = useState(0)
   const [ready, setReady] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [curtainsDone, setCurtainsDone] = useState(false)
   const [needsTap, setNeedsTap] = useState(false)
+  const lastDropAtRef = useRef(0)
 
-  if (src !== srcKey) {
-    setSrcKey(src)
+  const playbackSrc = useMemo(() => {
+    if (useOriginal) return originalSrc
+    return buildAdaptiveIntroUrl(originalSrc, quality)
+  }, [originalSrc, quality, useOriginal])
+
+  if (originalSrc !== srcKey) {
+    setSrcKey(originalSrc)
+    setQuality(pickIntroQuality(readNetworkHints(), { isMobile: isCoarsePointerDevice() }))
+    setUseOriginal(false)
     setReady(false)
     setRevealed(false)
     setCurtainsDone(false)
@@ -60,6 +87,23 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
     }
   }, [])
 
+  const dropQualityOrOriginal = useCallback(() => {
+    const now = Date.now()
+    if (now - lastDropAtRef.current < 400) return
+    lastDropAtRef.current = now
+
+    const next = lowerIntroQuality(quality)
+    if (!useOriginal && playbackSrc !== originalSrc && next) {
+      setQuality(next)
+      setReady(false)
+      return
+    }
+    if (!useOriginal && playbackSrc !== originalSrc) {
+      setUseOriginal(true)
+      setReady(false)
+    }
+  }, [originalSrc, playbackSrc, quality, useOriginal])
+
   useEffect(() => {
     const html = document.documentElement
     const body = document.body
@@ -79,60 +123,46 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
     const el = videoRef.current
     if (!el) return
 
-    let done = false
-    const markReady = () => {
-      if (done) return
-      done = true
+    let playing = false
+    const markPlaying = () => {
+      if (playing) return
+      playing = true
       setReady(true)
       setNeedsTap(false)
     }
 
-    const onProgress = () => {
-      try {
-        if (el.duration > 0 && Number.isFinite(el.duration) && el.buffered.length > 0) {
-          const bufferedEnd = el.buffered.end(el.buffered.length - 1)
-          if (bufferedEnd / el.duration >= READY_BUFFER_FRACTION) markReady()
-        }
-      } catch {
-        /* buffered ranges not ready yet */
-      }
-    }
-
-    const onLoadedData = () => {
-      kickPlay()
-      markReady()
-    }
     const onCanPlay = () => {
       kickPlay()
-      markReady()
     }
-    const onError = () => setNeedsTap(true)
 
     kickPlay()
     el.addEventListener('loadedmetadata', kickPlay)
-    el.addEventListener('loadeddata', onLoadedData)
+    el.addEventListener('loadeddata', kickPlay)
     el.addEventListener('canplay', onCanPlay)
-    el.addEventListener('playing', markReady)
-    el.addEventListener('progress', onProgress)
-    el.addEventListener('canplaythrough', markReady)
-    el.addEventListener('error', onError)
-    const readyTimer = window.setTimeout(markReady, READY_MAX_WAIT_MS)
+    el.addEventListener('playing', markPlaying)
+
     const tapTimer = window.setTimeout(() => {
       if (el.paused) setNeedsTap(true)
     }, TAP_HINT_MS)
 
+    const stallTimer = window.setTimeout(() => {
+      if (!playing) dropQualityOrOriginal()
+    }, STALL_DOWNGRADE_MS)
+
+    const retryTimer = window.setInterval(() => {
+      if (!playing) kickPlay()
+    }, PLAY_RETRY_MS)
+
     return () => {
       el.removeEventListener('loadedmetadata', kickPlay)
-      el.removeEventListener('loadeddata', onLoadedData)
+      el.removeEventListener('loadeddata', kickPlay)
       el.removeEventListener('canplay', onCanPlay)
-      el.removeEventListener('playing', markReady)
-      el.removeEventListener('progress', onProgress)
-      el.removeEventListener('canplaythrough', markReady)
-      el.removeEventListener('error', onError)
-      window.clearTimeout(readyTimer)
+      el.removeEventListener('playing', markPlaying)
       window.clearTimeout(tapTimer)
+      window.clearTimeout(stallTimer)
+      window.clearInterval(retryTimer)
     }
-  }, [src, kickPlay])
+  }, [playbackSrc, kickPlay, dropQualityOrOriginal])
 
   useEffect(() => {
     if (!ready) return
@@ -152,7 +182,10 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
         setRevealed(true)
         setNeedsTap(false)
       })
-      .catch(() => onSkip())
+      .catch(() => {
+        dropQualityOrOriginal()
+        setNeedsTap(true)
+      })
   }
 
   const applyVolume = (nextVolume: number) => {
@@ -194,7 +227,7 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
     applyVolume(nextVolume)
   }
 
-  if (!src) return null
+  if (!originalSrc) return null
 
   const volumePercent = Math.round(volume * 100)
 
@@ -204,17 +237,26 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       style={{ width: '100dvw', height: '100dvh' }}
     >
       <ProfileIntroVideo
+        key={playbackSrc}
         ref={videoRef}
-        src={src}
+        src={playbackSrc}
         shouldPlay
+        qualityLabel={`${quality}p`}
         className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 md:object-contain ${
           revealed ? 'opacity-100' : 'opacity-[0.02]'
         }`}
         onEnded={onSkip}
-        onCanPlay={() => setReady(true)}
+        onCanPlay={kickPlay}
         onPlaying={() => {
           setReady(true)
           setNeedsTap(false)
+        }}
+        onWaiting={() => {
+          if (!revealed) setNeedsTap(false)
+        }}
+        onError={() => {
+          dropQualityOrOriginal()
+          setNeedsTap(true)
         }}
         onPlayError={() => setNeedsTap(true)}
       />

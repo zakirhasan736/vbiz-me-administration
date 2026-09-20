@@ -116,6 +116,7 @@ export {
   clearIosPushIntent,
   hasIosPushIntent,
   isAndroidDevice,
+  isDesktopSafari,
   isIosChrome,
   isIosDevice,
   isIosSafari,

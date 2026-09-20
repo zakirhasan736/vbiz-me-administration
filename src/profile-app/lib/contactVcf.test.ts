@@ -2,7 +2,9 @@ import {
   absoluteContactImageUrl,
   buildContactVcf,
   contactPhotoCandidateUrls,
+  contactVcfApiUrl,
   foldVcfLine,
+  looksLikeAppleDevice,
   serializeContactVcf,
 } from '@/profile-app/lib/contactVcf'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -125,5 +127,48 @@ describe('contact VCF photo', () => {
     expect(absoluteContactImageUrl('/storage/ecard/profileimages/1/a.jpg')).toMatch(
       /\/storage\/ecard\/profileimages\/1\/a\.jpg$/
     )
+  })
+
+  it('builds a same-origin VCF URL with visitor and optional lead fields', () => {
+    window.localStorage.setItem('vbiz_guest_id', 'guest-test-id')
+    const url = contactVcfApiUrl('profile-1', 'Ada Lovelace.vcf', {
+      fullName: 'Visitor Name',
+      phone: '+1555',
+      email: 'v@example.com',
+      cardSlug: 'ada',
+    })
+    expect(url.startsWith('/api/save-contact-vcf/profile-1?')).toBe(true)
+    expect(url).toContain('visitor_id=guest-test-id')
+    expect(url).toContain('filename=Ada+Lovelace.vcf')
+    expect(url).toContain('full_name=Visitor+Name')
+    expect(url).toContain('card_slug=ada')
+  })
+
+  it('treats iPhone and Mac Safari as Apple devices for .vcf navigation', () => {
+    const original = globalThis.navigator
+    const stub = (ua: string, extras: { platform?: string; maxTouchPoints?: number } = {}) => {
+      vi.stubGlobal('navigator', {
+        ...original,
+        userAgent: ua,
+        platform: extras.platform ?? 'Win32',
+        maxTouchPoints: extras.maxTouchPoints ?? 0,
+      })
+    }
+
+    stub(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+    )
+    expect(looksLikeAppleDevice()).toBe(true)
+
+    stub(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+      { platform: 'MacIntel' }
+    )
+    expect(looksLikeAppleDevice()).toBe(true)
+
+    stub(
+      'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
+    )
+    expect(looksLikeAppleDevice()).toBe(false)
   })
 })

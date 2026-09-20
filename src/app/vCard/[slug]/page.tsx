@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       statusBarStyle: 'black-translucent',
     },
     icons: {
-      apple: tabIcon,
+      apple: [{ url: icon192, sizes: '192x192', type: 'image/png' }],
       icon: [
         { url: tabIcon },
         { url: icon192, sizes: '192x192', type: 'image/png' },
@@ -133,12 +133,13 @@ export default async function PublicProfilePage({ params }: Props) {
     reviews,
   })
   const tabIcon = resolvePublicCardFaviconUrl(myCard, origin)
+  const icon192 = buildProfileIconPath(trimmed, 192)
 
   return (
     <>
       <link rel="manifest" href={buildPwaManifestUrl(trimmed)} />
       <link rel="icon" href={tabIcon} />
-      <link rel="apple-touch-icon" href={tabIcon} />
+      <link rel="apple-touch-icon" href={icon192} sizes="192x192" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <PublicProfileLayout
         slug={trimmed}

@@ -2,14 +2,8 @@
 
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
-import { hasSavedContact } from '@/profile-app/lib/contactSaveState'
-import {
-  downloadProfileContactVcf,
-  looksLikeAppleDevice,
-  openContactVcfFromApi,
-  vcfFilenameFromName,
-} from '@/profile-app/lib/contactVcf'
-import { saveGuestUser, SaveGuestUserError } from '@/profile-app/lib/saveGuestUser'
+import { hasSavedContact, markContactSaved } from '@/profile-app/lib/contactSaveState'
+import { openContactVcfFromApi, vcfFilenameFromName } from '@/profile-app/lib/contactVcf'
 import { Check, Download, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
@@ -88,21 +82,32 @@ export const SaveContactModal = ({
     }, 1000)
   }
 
-  const handleDownloadOnly = async () => {
+  const startContactDownload = (continueFlow: boolean) => {
     const trimmedId = profileId?.trim()
     setSubmitting(true)
     setSubmitError(null)
+
     try {
       if (!trimmedId || trimmedId === 'preview') {
-        await new Promise((resolve) => setTimeout(resolve, 400))
-      } else if (looksLikeAppleDevice()) {
-        // Must stay in the tap turn — iOS Safari blocks delayed blob downloads.
-        openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName))
-      } else {
-        await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
+        notify.success('Contact file ready.')
+        finishSuccess({ continueFlow })
+        return
       }
-      notify.success('Contact file downloading.')
-      finishSuccess({ continueFlow: false })
+
+      openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName), {
+        fullName: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        cardSlug,
+      })
+      markContactSaved(trimmedId, {
+        email: formData.email,
+        fullName: formData.fullName,
+        phone: formData.phone,
+      })
+      setAlreadySaved(true)
+      notify.success(continueFlow ? 'Contact saved — your card is downloading.' : 'Contact file downloading.')
+      finishSuccess({ continueFlow })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to download contact. Please try again.'
       setSubmitError(message)
@@ -112,66 +117,13 @@ export const SaveContactModal = ({
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleDownloadOnly = () => {
+    startContactDownload(false)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitting(true)
-    setSubmitError(null)
-
-    const trimmedId = profileId?.trim()
-
-    try {
-      if (!trimmedId || trimmedId === 'preview') {
-        await new Promise((resolve) => setTimeout(resolve, 400))
-      } else if (looksLikeAppleDevice()) {
-        void saveGuestUser({
-          fullName: formData.fullName,
-          phone: formData.phone,
-          email: formData.email,
-          profileId: trimmedId,
-          cardSlug,
-        }).catch(() => undefined)
-        openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName))
-      } else {
-        await saveGuestUser({
-          fullName: formData.fullName,
-          phone: formData.phone,
-          email: formData.email,
-          profileId: trimmedId,
-          cardSlug,
-        })
-        await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
-      }
-
-      notify.success('Contact saved — your card is downloading.')
-      setAlreadySaved(true)
-      finishSuccess({ continueFlow: true })
-    } catch (error) {
-      // Duplicate email isn't a real failure: the visitor already exists, so just
-      // hand them the contact file again and continue the flow with a friendly note.
-      if (error instanceof SaveGuestUserError && error.isDuplicate) {
-        notify.info('You have already saved this contact.')
-        setAlreadySaved(true)
-        try {
-          if (trimmedId && trimmedId !== 'preview') {
-            if (looksLikeAppleDevice()) {
-              openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName))
-            } else {
-              await downloadProfileContactVcf(trimmedId, vcfFilenameFromName(ownerName))
-            }
-          }
-        } catch {
-          /* ignore secondary download errors */
-        }
-        finishSuccess({ continueFlow: false })
-        return
-      }
-
-      const message = error instanceof Error ? error.message : 'Failed to save contact. Please try again.'
-      setSubmitError(message)
-      notify.error(message)
-    } finally {
-      setSubmitting(false)
-    }
+    startContactDownload(true)
   }
 
   const trimmedOwnerName = ownerName?.trim()
@@ -206,7 +158,7 @@ export const SaveContactModal = ({
               ) : null}
               <button
                 type="button"
-                onClick={() => void handleDownloadOnly()}
+                onClick={handleDownloadOnly}
                 disabled={submitting}
                 className="vbiz-btn vbiz-modal-btn-primary flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >

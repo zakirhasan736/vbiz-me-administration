@@ -268,23 +268,46 @@ export function vcfFilenameFromName(name?: string | null): string {
   return `${safe || 'contact'}.vcf`
 }
 
-export function contactVcfApiUrl(profileId: string, filename?: string): string {
+export type ContactVcfGuestFields = {
+  fullName?: string
+  phone?: string
+  email?: string
+  cardSlug?: string
+}
+
+export function contactVcfApiUrl(profileId: string, filename?: string, guest?: ContactVcfGuestFields): string {
   const params = new URLSearchParams()
   const guestId = getOrCreateGuestId()
   if (guestId) params.set('visitor_id', guestId)
   if (filename?.trim()) params.set('filename', filename.trim())
+  if (guest?.fullName?.trim()) params.set('full_name', guest.fullName.trim().slice(0, 200))
+  if (guest?.phone?.trim()) params.set('phone', guest.phone.trim().slice(0, 40))
+  if (guest?.email?.trim()) params.set('email', guest.email.trim().slice(0, 200))
+  if (guest?.cardSlug?.trim()) params.set('card_slug', guest.cardSlug.trim().slice(0, 120))
   const query = params.toString()
   return `/api/save-contact-vcf/${encodeURIComponent(profileId.trim())}${query ? `?${query}` : ''}`
 }
 
 /**
- * iOS/macOS Safari ignore `<a download>` on blob URLs and also drop delayed
- * downloads after `await`. Navigate to a same-origin .vcf response instead —
- * iPhone opens Add to Contacts; Android/desktop download the file.
+ * Same-origin .vcf in the tap turn — no cross-origin fetch (avoids CORS
+ * "Failed to fetch"). iPhone/Safari navigate so Contacts can open the file;
+ * Android/Chrome use a same-origin download attribute.
  */
-export function openContactVcfFromApi(profileId: string, filename?: string): void {
-  const url = contactVcfApiUrl(profileId, filename)
-  window.location.assign(url)
+export function openContactVcfFromApi(profileId: string, filename?: string, guest?: ContactVcfGuestFields): void {
+  const url = contactVcfApiUrl(profileId, filename, guest)
+  if (looksLikeAppleDevice()) {
+    window.location.assign(url)
+    return
+  }
+
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename?.trim() || 'contact.vcf'
+  anchor.rel = 'noopener'
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
 }
 
 export async function downloadContactVcf(vcfContent: string, filename = 'contact.vcf'): Promise<void> {
@@ -326,21 +349,12 @@ export async function downloadContactVcf(vcfContent: string, filename = 'contact
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
-export async function downloadProfileContactVcf(profileId: string, filename?: string): Promise<void> {
+export async function downloadProfileContactVcf(
+  profileId: string,
+  filename?: string,
+  guest?: ContactVcfGuestFields
+): Promise<void> {
   const trimmed = profileId.trim()
   if (!trimmed) throw new SaveContactError('Profile ID is required')
-
-  // Apple: must navigate in the click turn. Blob downloads fail on iOS/Safari.
-  if (looksLikeAppleDevice()) {
-    openContactVcfFromApi(trimmed, filename)
-    return
-  }
-
-  try {
-    const contact = await fetchSaveContactData(trimmed)
-    const vcf = await buildContactVcf(contact)
-    await downloadContactVcf(vcf, filename || vcfFilenameFromName(contact.name))
-  } catch {
-    openContactVcfFromApi(trimmed, filename)
-  }
+  openContactVcfFromApi(trimmed, filename, guest)
 }

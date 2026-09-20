@@ -107,6 +107,7 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     const keywords = seo?.metaKeywords?.join(', ') || ''
     const image = shareImageUrl(trimmed, imageUrl || seo?.seoImage)
     const tabIcon = resolveTabFavicon(origin, seo)
+    const appleIcon = `${origin.replace(/\/$/, '')}${buildProfileIconPath(trimmed, 192)}`
 
     const manifestHref = buildPwaManifestUrl(trimmed)
     let manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
@@ -118,7 +119,9 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     manifestLink.href = manifestHref
     manifestLink.dataset.pwaManifest = 'card'
 
-    upsertIconLink('apple-touch-icon', tabIcon)
+    upsertIconLink('apple-touch-icon', appleIcon, '180x180')
+    upsertIconLink('apple-touch-icon', appleIcon, '192x192')
+    upsertIconLink('apple-touch-icon', appleIcon)
     upsertIconLink('icon', tabIcon)
     upsertIconLink('shortcut icon', tabIcon)
 
@@ -136,6 +139,9 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     const appName = ownerName?.trim() || title
     upsertNamedMeta('application-name', appName)
     upsertNamedMeta('apple-mobile-web-app-title', appName)
+    upsertNamedMeta('apple-mobile-web-app-capable', 'yes')
+    upsertNamedMeta('apple-mobile-web-app-status-bar-style', 'black-translucent')
+    upsertNamedMeta('mobile-web-app-capable', 'yes')
     upsertNamedMeta('description', description)
     upsertNamedMeta('keywords', keywords)
     upsertNamedMeta('twitter:card', image ? 'summary_large_image' : 'summary')

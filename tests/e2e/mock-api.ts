@@ -90,6 +90,20 @@ const publicNotes: MockPublicNote[] = []
 /** Counts bootstrap + legacy profile GETs so e2e can measure duplicate SSR fetches. */
 const publicVHits: Record<string, number> = {}
 
+type GuestLead = {
+  profile_id: string
+  full_name: string
+  phone: string
+  email: string
+  meta?: unknown
+}
+
+const guestLeads: GuestLead[] = []
+const pushSubscriptions: Array<{ profile_slug: string; endpoint: string }> = []
+
+/** 65-byte uncompressed EC point (0x04…) as URL-safe base64 — valid enough for VAPID decode. */
+const E2E_VAPID_PUBLIC_KEY = Buffer.concat([Buffer.from([0x04]), Buffer.alloc(64, 0x11)]).toString('base64url')
+
 function publicBootstrapPayload(myCard: ReturnType<typeof publicCard>) {
   return {
     myCard,
@@ -147,6 +161,7 @@ const publicCard = () => ({
       'online business card',
       'public test card',
     ]),
+    profile_video_checkbox: '1',
   },
   features: { is_public: true, is_draft: false },
   template: 'v2',
@@ -161,6 +176,16 @@ const publicCard = () => ({
     language: { enabled: true },
   },
   my_info: { actions: { showCall: true, showText: true, showEmail: true }, additional_fields: [] },
+})
+
+const introPublicCard = () => ({
+  ...publicCard(),
+  profile: {
+    ...publicCard().profile,
+    slug: 'e2e-intro-card',
+    name: 'Intro Test Card',
+  },
+  intro_video: { url: '/e2e/intro.mp4', regular_video: { url: '/e2e/intro.mp4' } },
 })
 
 function envelope<T>(data: T, message = 'OK', statusCode = 200) {
@@ -181,16 +206,53 @@ function sendJson(res: ServerResponse, statusCode: number, body: unknown, extraH
   res.end(payload)
 }
 
-async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+async function readRawBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = []
   for await (const chunk of req) chunks.push(Buffer.from(chunk))
-  if (!chunks.length) return {}
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+function parseMultipartFields(raw: string, contentType: string): Record<string, unknown> {
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i)
+  const boundary = (boundaryMatch?.[1] || boundaryMatch?.[2] || '').trim()
+  if (!boundary) return {}
+
+  const fields: Record<string, unknown> = {}
+  for (const part of raw.split(`--${boundary}`)) {
+    const headerEnd = part.indexOf('\r\n\r\n')
+    if (headerEnd < 0) continue
+    const headers = part.slice(0, headerEnd)
+    const nameMatch = headers.match(/name="([^"]+)"/i)
+    if (!nameMatch || /filename=/i.test(headers)) continue
+    let value = part.slice(headerEnd + 4)
+    if (value.endsWith('\r\n')) value = value.slice(0, -2)
+    if (value === '--') continue
+    fields[nameMatch[1]] = value
+  }
+  return fields
+}
+
+async function readRequestBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const contentType = String(req.headers['content-type'] || '')
+  const raw = await readRawBody(req)
+  if (!raw.trim()) return {}
+
+  if (contentType.includes('multipart/form-data')) {
+    return parseMultipartFields(raw, contentType)
+  }
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    return Object.fromEntries(new URLSearchParams(raw))
+  }
   try {
-    const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    const parsed = JSON.parse(raw)
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
   } catch {
     return {}
   }
+}
+
+async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+  return readRequestBody(req)
 }
 
 function isAuthenticated(req: IncomingMessage) {
@@ -242,6 +304,17 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
 
   if (path === '/__e2e/public-v-hits' && (method === 'DELETE' || method === 'POST')) {
     for (const key of Object.keys(publicVHits)) delete publicVHits[key]
+    sendJson(res, 200, { ok: true })
+    return
+  }
+
+  if (path === '/__e2e/guest-leads' && method === 'GET') {
+    sendJson(res, 200, { leads: guestLeads.slice() })
+    return
+  }
+
+  if (path === '/__e2e/guest-leads' && (method === 'DELETE' || method === 'POST')) {
+    guestLeads.length = 0
     sendJson(res, 200, { ok: true })
     return
   }
@@ -299,6 +372,10 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
         sendJson(res, 200, envelope(publicBootstrapPayload(publicCard())))
         return
       }
+      if (slug === 'e2e-intro-card') {
+        sendJson(res, 200, envelope(publicBootstrapPayload(introPublicCard())))
+        return
+      }
       if (slug === 'e2e-missing-card') {
         sendJson(res, 404, envelope(null, 'Profile not found', 404), failHeaders)
         return
@@ -346,6 +423,10 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
         sendJson(res, 200, envelope(publicCard()))
         return
       }
+      if (slug === 'e2e-intro-card') {
+        sendJson(res, 200, envelope(introPublicCard()))
+        return
+      }
       if (slug === 'e2e-missing-card') {
         sendJson(res, 404, envelope(null, 'Profile not found', 404), failHeaders)
         return
@@ -381,6 +462,75 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       sendJson(res, 404, envelope(null, 'Profile not found', 404), failHeaders)
       return
     }
+
+    const cardsBootstrapMatch = path.match(/^\/api\/v1\/public\/cards\/([^/]+)\/bootstrap$/)
+    if (cardsBootstrapMatch && method === 'GET') {
+      const slug = decodeURIComponent(cardsBootstrapMatch[1])
+      if (slug === 'e2e-public-card') {
+        sendJson(res, 200, envelope(publicBootstrapPayload(publicCard())))
+        return
+      }
+      if (slug === 'e2e-intro-card') {
+        sendJson(res, 200, envelope(publicBootstrapPayload(introPublicCard())))
+        return
+      }
+      sendJson(res, 404, envelope(null, 'Profile not found', 404))
+      return
+    }
+
+    if (path === '/api/v1/public/track-event' && method === 'POST') {
+      sendJson(res, 200, envelope({ recorded: true }))
+      return
+    }
+
+    if (path === '/api/v1/public/public-cards' && method === 'GET') {
+      sendJson(res, 200, envelope({ items: [publicCard()], total: 1 }))
+      return
+    }
+
+    if (path === '/api/v1/public/landing/demo-cards' && method === 'GET') {
+      sendJson(res, 200, envelope({ items: [publicCard()], total: 1 }))
+      return
+    }
+
+    const walletMatch = path.match(/^\/api\/v1\/public\/profiles\/([^/]+)\/(google-wallet|apple-wallet)$/)
+    if (walletMatch && method === 'GET') {
+      sendJson(
+        res,
+        200,
+        envelope({
+          provider: walletMatch[2],
+          slug: decodeURIComponent(walletMatch[1]),
+          url: `https://example.com/${walletMatch[2]}`,
+        })
+      )
+      return
+    }
+
+    const teamNoticeMatch = path.match(/^\/api\/v1\/public\/profiles\/([^/]+)\/team-notices\/active$/)
+    if (teamNoticeMatch && method === 'GET') {
+      sendJson(res, 200, envelope(null))
+      return
+    }
+
+    const aiDataMatch = path.match(/^\/api\/v1\/public\/profile-ai-data\/([^/]+)$/)
+    if (aiDataMatch && method === 'GET') {
+      sendJson(res, 200, envelope({ profile_id: decodeURIComponent(aiDataMatch[1]), fields: [] }))
+      return
+    }
+
+    const dynamicSectionMatch = path.match(/^\/api\/v1\/public\/dynamic-section\/([^/]+)$/)
+    if (dynamicSectionMatch && method === 'GET') {
+      sendJson(res, 200, envelope({ name: decodeURIComponent(dynamicSectionMatch[1]), items: [] }))
+      return
+    }
+
+    const dismissAnnouncementMatch = path.match(/^\/api\/v1\/public\/profiles\/([^/]+)\/announcement\/dismiss$/)
+    if (dismissAnnouncementMatch && method === 'POST') {
+      sendJson(res, 200, envelope({ dismissed: true }))
+      return
+    }
+
     if (path === '/api/v1/public/notes' && method === 'GET') {
       const profileId = requestUrl.searchParams.get('profile_id') || ''
       const visitorId = requestUrl.searchParams.get('visitor_id') || ''
@@ -433,6 +583,112 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       sendJson(res, 200, envelope(null))
       return
     }
+
+    const saveContactMatch = path.match(/^\/api\/v1\/public\/save-contact\/([^/]+)$/)
+    if (saveContactMatch && method === 'GET') {
+      const card = publicCard()
+      sendJson(
+        res,
+        200,
+        envelope({
+          action_buttons: {
+            save_contact: {
+              enabled: true,
+              label: 'Save Contact',
+              icon: 'fa-download',
+              data: {
+                name: card.profile.name,
+                email: card.profile.email,
+                phone: card.profile.phone,
+                company: card.profile.company_name,
+                profession: card.profile.profession,
+                gender: '',
+                website: card.profile.website,
+                slug: card.profile.slug,
+                profileUrl: `http://127.0.0.1:3101/vCard/${card.profile.slug}`,
+                imageUrl: '',
+                imageUrls: [],
+                note: card.profile.description,
+                address: card.profile.address,
+              },
+              background_color: '',
+              text_color: '',
+            },
+          },
+        })
+      )
+      return
+    }
+
+    if (path === '/api/v1/public/save-guest-user' && method === 'POST') {
+      const body = await readJson(req)
+      const profileId = String(body.profile_id || '').trim()
+      if (!profileId) {
+        sendJson(res, 400, envelope(null, 'profile_id is required', 400))
+        return
+      }
+      const lead: GuestLead = {
+        profile_id: profileId,
+        full_name: String(body.full_name || body.name || 'Visitor').trim() || 'Visitor',
+        phone: String(body.phone || '').trim(),
+        email: String(body.email || '').trim(),
+        meta: body.meta,
+      }
+      guestLeads.unshift(lead)
+      sendJson(res, 200, envelope(lead, 'Guest saved'))
+      return
+    }
+
+    if (path === '/api/v1/public/push/vapid-public-key' && method === 'GET') {
+      sendJson(res, 200, envelope({ publicKey: E2E_VAPID_PUBLIC_KEY }))
+      return
+    }
+
+    const pushStatusMatch = path.match(/^\/api\/v1\/public\/push\/subscription-status\/([^/]+)$/)
+    if (pushStatusMatch && method === 'GET') {
+      const slug = decodeURIComponent(pushStatusMatch[1])
+      const endpoint = requestUrl.searchParams.get('endpoint') || ''
+      const subscribed = pushSubscriptions.some(
+        (row) => row.profile_slug === slug && (!endpoint || row.endpoint === endpoint)
+      )
+      sendJson(res, 200, envelope({ subscribed, preferences: null }))
+      return
+    }
+
+    if (path === '/api/v1/public/push/subscribe' && method === 'POST') {
+      const body = await readJson(req)
+      const profileSlug = String(body.profile_slug || body.cardSlug || '').trim()
+      const endpoint = String(body.endpoint || '').trim()
+      if (!profileSlug || !endpoint) {
+        sendJson(res, 400, envelope(null, 'profile_slug and endpoint are required', 400))
+        return
+      }
+      pushSubscriptions.push({ profile_slug: profileSlug, endpoint })
+      sendJson(res, 200, envelope({ subscribed: true, preferences: body.preferences || null }))
+      return
+    }
+
+    if (path === '/api/v1/public/push/preferences' && method === 'POST') {
+      const body = await readJson(req)
+      sendJson(res, 200, envelope({ success: true, preferences: body.preferences || null }))
+      return
+    }
+
+    if (path === '/api/v1/public/push/unsubscribe' && method === 'POST') {
+      const body = await readJson(req)
+      const endpoint = String(body.endpoint || '')
+      for (let i = pushSubscriptions.length - 1; i >= 0; i -= 1) {
+        if (pushSubscriptions[i].endpoint === endpoint) pushSubscriptions.splice(i, 1)
+      }
+      sendJson(res, 200, envelope({ ok: true }))
+      return
+    }
+
+    if (path === '/api/v1/public/push/test' && method === 'POST') {
+      sendJson(res, 200, envelope({ ok: true }))
+      return
+    }
+
     sendJson(res, 200, envelope([]))
     return
   }

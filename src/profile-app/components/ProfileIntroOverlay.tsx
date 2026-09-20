@@ -24,6 +24,12 @@ export function ProfileIntroOverlay({ explainerVideoUrl }: Props) {
     return () => window.removeEventListener(PROFILE_EXPERIENCE_SETTLED_EVENT, onSettled)
   }, [settled])
 
+  useEffect(() => {
+    if (settled) return
+    const failsafe = window.setTimeout(() => setSettled(true), 4000)
+    return () => window.clearTimeout(failsafe)
+  }, [settled])
+
   const src = explainerVideoUrl?.trim()
   if (!settled || !showPreloader || !hasVideo || !src || /youtu\.?be/i.test(src)) return null
 

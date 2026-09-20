@@ -121,10 +121,12 @@ export function buildPublicCardManifest(card: MyCardData | null | undefined, slu
     name: meta.name,
     short_name: meta.shortName,
     description: `${meta.name}'s digital business card`,
+    // No trailing slash: Next.js serves `/vCard/{slug}` and Chrome's default
+    // scope (`/vCard/{slug}/`) would treat that start URL as out of scope.
     start_url: path,
     scope: path,
     display: 'standalone',
-    display_override: ['standalone', 'minimal-ui'],
+    display_override: ['standalone', 'minimal-ui', 'browser'],
     orientation: 'any',
     prefer_related_applications: false,
     background_color: meta.backgroundColor,

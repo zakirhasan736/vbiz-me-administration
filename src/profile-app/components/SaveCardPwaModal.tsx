@@ -35,7 +35,7 @@ export function SaveCardPwaModal({
   cardSlug,
   contactJustSaved = false,
 }: SaveCardPwaModalProps) {
-  const { canNativeInstall, isInstalled, isIos, isAndroid, installing, promptInstall } = usePwaInstall()
+  const { canNativeInstall, isInstalled, isIos, surface, installing, promptInstall } = usePwaInstall()
   const [installMessage, setInstallMessage] = useState<string | null>(null)
   const [nativeAdded, setNativeAdded] = useState(false)
   const [offlineReady, setOfflineReady] = useState(false)
@@ -79,25 +79,41 @@ export function SaveCardPwaModal({
   const handleInstall = async () => {
     setInstallMessage(null)
     if (isInstalled || added) {
-      setInstallMessage('This card is already installed.')
+      setInstallMessage('This card is already on your Home Screen. Open it from the icon.')
       return
     }
-    if (canNativeInstall) {
-      const result = await promptInstall()
-      if (result.ok) {
-        setNativeAdded(true)
-        setInstallMessage('Added. Open once online so the offline cache finishes preparing.')
-        return
+    if (isIos) {
+      if (surface === 'ios-inapp') {
+        setInstallMessage('Open this card in Safari (not Instagram/Facebook), then tap Share → Add to Home Screen.')
+      } else if (surface === 'ios-safari') {
+        setInstallMessage(
+          'On iPhone, tap Share, then Add to Home Screen. Safari does not allow this button to add the icon by itself.'
+        )
+      } else if (surface === 'ios-chrome') {
+        setInstallMessage('On iPhone Chrome, tap the menu (or Share) and choose Add to Home Screen.')
+      } else {
+        setInstallMessage('Use Share or the browser menu → Add to Home Screen. Safari is the most reliable on iPhone.')
       }
-      if (result.reason === 'dismissed') {
-        setInstallMessage('Install cancelled. You can try again or use the manual steps below.')
-        return
-      }
+      return
+    }
+    const result = await promptInstall()
+    if (result.ok) {
+      setNativeAdded(true)
+      setInstallMessage('Added. Open the new icon once so offline mode can finish.')
+      return
+    }
+    if (result.reason === 'dismissed') {
+      setInstallMessage('Install cancelled. You can try again or use the manual steps below.')
+      return
     }
     setInstallMessage(
-      isIos
-        ? 'Safari needs manual install. Follow the steps below, then tap Complete.'
-        : 'Use the browser install option, then tap Complete.'
+      surface === 'android'
+        ? 'If Install did not open, use the browser menu → Add to Home screen / Install app (Chrome, Edge, or Samsung).'
+        : surface === 'mac-safari'
+          ? 'On Mac Safari: File → Add to Dock, or Share → Add to Dock.'
+          : surface === 'firefox'
+            ? 'Firefox desktop cannot install this as an app. Use Chrome or Edge, or bookmark the card.'
+            : 'Use the install icon in the address bar, or the browser menu → Install app.'
     )
   }
 
@@ -166,7 +182,13 @@ export function SaveCardPwaModal({
             data-role="primary"
           >
             {installing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Home className="h-4 w-4" />}
-            {isInstalled || added ? 'Already added' : 'Add to Home Screen'}
+            {isInstalled || added
+              ? 'Already added'
+              : surface === 'ios-inapp'
+                ? 'Open in Safari'
+                : canNativeInstall || !isIos
+                  ? 'Add to Home Screen'
+                  : 'How to add'}
           </button>
 
           <div className="vbiz-description space-y-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-[12px] leading-relaxed">
@@ -174,33 +196,75 @@ export function SaveCardPwaModal({
               <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
               How to add this card
             </p>
-            {isIos ? (
+            {surface === 'ios-inapp' ? (
+              <ol className="list-decimal space-y-1.5 pl-5">
+                <li>
+                  Tap the browser menu and choose <strong>Open in Safari</strong> (or copy the link into Safari)
+                </li>
+                <li className="flex flex-wrap items-center gap-1">
+                  In Safari, tap <Share className="inline h-3.5 w-3.5" /> <strong>Share</strong>
+                </li>
+                <li>
+                  Tap <strong>Add to Home Screen</strong>, then Add
+                </li>
+              </ol>
+            ) : surface === 'ios-safari' ? (
               <ol className="list-decimal space-y-1.5 pl-5">
                 <li className="flex flex-wrap items-center gap-1">
-                  Tap <Share className="inline h-3.5 w-3.5" /> <strong>Share</strong> in Safari
+                  Tap <Share className="inline h-3.5 w-3.5" /> <strong>Share</strong>
                 </li>
                 <li>
-                  Scroll and tap <strong>Add to Home Screen</strong>
+                  Scroll and tap <strong>Add to Home Screen</strong>, then Add
                 </li>
-                <li>Confirm with this card&apos;s photo and name</li>
+                <li>Open the new Home Screen icon (not the Safari tab)</li>
               </ol>
-            ) : isAndroid ? (
+            ) : surface === 'ios-chrome' || surface === 'ios-other' ? (
               <ol className="list-decimal space-y-1.5 pl-5">
-                <li>Open your browser menu</li>
                 <li>
-                  Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>
+                  Tap <strong>Share</strong> or the browser menu
                 </li>
-                <li>Confirm to add this card to your phone</li>
+                <li>
+                  Choose <strong>Add to Home Screen</strong>
+                </li>
+                <li>
+                  For the most reliable icon, open this card in <strong>Safari</strong> and add it from there
+                </li>
+              </ol>
+            ) : surface === 'android' ? (
+              <ol className="list-decimal space-y-1.5 pl-5">
+                <li>
+                  Tap <strong>Add to Home Screen</strong> above and accept Install (Chrome, Edge, Samsung)
+                </li>
+                <li>
+                  Or open the browser menu → <strong>Add to Home screen</strong> / <strong>Install app</strong>
+                </li>
+                <li>Confirm, then open the new icon on your phone</li>
+              </ol>
+            ) : surface === 'mac-safari' ? (
+              <ol className="list-decimal space-y-1.5 pl-5">
+                <li>
+                  Mac Safari: <strong>File → Add to Dock</strong> (or Share → Add to Dock)
+                </li>
+                <li>Keep this card tab open while you add it</li>
+                <li>Open the Dock icon once so offline mode can finish</li>
+              </ol>
+            ) : surface === 'firefox' ? (
+              <ol className="list-decimal space-y-1.5 pl-5">
+                <li>Firefox desktop cannot install a Home Screen app for this card</li>
+                <li>
+                  Use <strong>Chrome</strong> or <strong>Edge</strong> and click Add to Home Screen / Install app
+                </li>
+                <li>Or bookmark this tab in Firefox</li>
               </ol>
             ) : (
               <ol className="list-decimal space-y-1.5 pl-5">
                 <li>
-                  Use the install icon in your browser&apos;s <strong>address bar</strong>
+                  Click <strong>Add to Home Screen</strong> above, or the install icon in the address bar
                 </li>
                 <li>
-                  Or open the browser menu and choose <strong>Install app</strong> or <strong>Add to Dock</strong>
+                  Or use the browser menu → <strong>Install app</strong>
                 </li>
-                <li>Open once online so offline mode finishes preparing</li>
+                <li>Open the installed app once so offline mode can finish</li>
               </ol>
             )}
           </div>

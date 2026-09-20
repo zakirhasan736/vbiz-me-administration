@@ -60,7 +60,7 @@ export function ProfileModalShell({
         <div id={backdropId} className={backdropClassName}>
           <div className="absolute inset-0" onClick={onClose} aria-hidden />
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}

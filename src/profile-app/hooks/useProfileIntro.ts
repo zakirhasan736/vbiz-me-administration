@@ -1,5 +1,6 @@
 'use client'
 
+import { isProfileExperienceSettled, PROFILE_EXPERIENCE_SETTLED_EVENT } from '@/lib/push/notificationExperience'
 import { hasSeenProfileIntro, markProfileIntroSeen } from '@/profile-app/lib/profileIntroSession'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -25,7 +26,7 @@ function resolveIntroState(embedded: boolean, slug: string, isClient: boolean): 
   if (!slug) {
     return { showPreloader: true, introAllowed: false }
   }
-  if (hasSeenProfileIntro(slug)) {
+  if (hasSeenProfileIntro(slug) || isProfileExperienceSettled()) {
     return { showPreloader: false, introAllowed: true }
   }
   return { showPreloader: true, introAllowed: false }
@@ -62,10 +63,17 @@ export function useProfileIntro({ embedded = false, profileSlug, shareSlug, expl
   }, [slug])
 
   useEffect(() => {
-    if (embedded || !slug || hasSeenProfileIntro(slug) || hasVideo) return
-    const t = window.setTimeout(() => endPreloader(), 900)
-    return () => window.clearTimeout(t)
-  }, [embedded, slug, hasVideo, endPreloader])
+    if (embedded || !slug || hasVideo) return
+    if (!introState.showPreloader) return
+
+    const onSettled = () => endPreloader()
+    window.addEventListener(PROFILE_EXPERIENCE_SETTLED_EVENT, onSettled)
+    const failsafe = window.setTimeout(onSettled, 4000)
+    return () => {
+      window.removeEventListener(PROFILE_EXPERIENCE_SETTLED_EVENT, onSettled)
+      window.clearTimeout(failsafe)
+    }
+  }, [embedded, slug, hasVideo, introState.showPreloader, endPreloader])
 
   return {
     showPreloader: clientReady && introState.showPreloader,

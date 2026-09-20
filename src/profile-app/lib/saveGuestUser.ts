@@ -2,7 +2,6 @@ import type { SavedGuestUser } from '@/interfaces/api/saveGuestUser'
 import { markContactSaved } from '@/profile-app/lib/contactSaveState'
 import { getOrCreateGuestId } from '@/profile-app/lib/guestId'
 import { collectVisitorClientMeta } from '@/profile-app/lib/visitorClientMeta'
-import { baseUrl } from '@/redux/api/publicApi'
 
 export class SaveGuestUserError extends Error {
   status?: number
@@ -60,7 +59,7 @@ export async function saveGuestUser(input: SaveGuestUserInput): Promise<SavedGue
     )
   )
 
-  const response = await fetch(`${baseUrl}/save-guest-user`, {
+  const response = await fetch('/api/save-guest-user', {
     method: 'POST',
     headers: { Accept: 'application/json' },
     body,

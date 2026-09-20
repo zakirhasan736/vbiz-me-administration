@@ -23,12 +23,12 @@ export function useProfileHomeModalEvents(
     const handleOpenWallet = () => setActiveModal('wallet')
     const handleOpenPwa = () => setActiveModal('pwa')
     const handleOpenFollow = () => {
-      if (!cardSlug) {
-        setActiveModal('follow')
-        return
-      }
-      // Already subscribed → open settings instead of the Enable Notifications prompt.
-      void resolveNotificationModalTarget(cardSlug).then(setActiveModal)
+      // Open immediately so Safari/WebKit never wait on a stuck service worker.
+      setActiveModal('follow')
+      if (!cardSlug) return
+      void resolveNotificationModalTarget(cardSlug).then((target) => {
+        if (target === 'settings') setActiveModal('settings')
+      })
     }
     const handleOpenOneOnOne = () => setActiveModal('one_on_one')
 

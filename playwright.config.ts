@@ -16,7 +16,7 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:3101',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'off',
   },
   webServer: [
     {
@@ -36,6 +36,21 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'iphone',
+      testMatch: '**/public-card-{visitor-flows,api-responses}.spec.ts',
+      use: { ...devices['iPhone 13'] },
+    },
+    {
+      name: 'pixel',
+      testMatch: '**/public-card-{visitor-flows,api-responses}.spec.ts',
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'webkit',
+      testMatch: '**/public-card-{visitor-flows,api-responses}.spec.ts',
+      use: { ...devices['Desktop Safari'] },
     },
   ],
 })

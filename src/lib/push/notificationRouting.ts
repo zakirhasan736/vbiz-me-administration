@@ -63,7 +63,17 @@ export async function isSubscribedToCard(cardSlug: string, options?: { forceRefr
 
 /** Route alert / bell clicks: settings when API says subscribed, follow popup otherwise. */
 export async function resolveNotificationModalTarget(cardSlug: string): Promise<NotificationModalTarget> {
-  return (await isSubscribedToCard(cardSlug)) ? 'settings' : 'follow'
+  try {
+    const subscribed = await Promise.race([
+      isSubscribedToCard(cardSlug),
+      new Promise<boolean>((resolve) => {
+        setTimeout(() => resolve(false), 2500)
+      }),
+    ])
+    return subscribed ? 'settings' : 'follow'
+  } catch {
+    return 'follow'
+  }
 }
 
 /** Whether the auto first-visit follow prompt should appear for this card. */
