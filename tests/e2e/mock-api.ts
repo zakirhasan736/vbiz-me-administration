@@ -737,6 +737,32 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       return
     }
 
+    const teamNoticeDismissMatch = path.match(/^\/api\/v1\/public\/profiles\/([^/]+)\/team-notices\/([^/]+)\/dismiss$/)
+    if (teamNoticeDismissMatch && method === 'POST') {
+      sendJson(res, 200, envelope({ dismissed: true, noticeId: decodeURIComponent(teamNoticeDismissMatch[2]) }))
+      return
+    }
+
+    const profileLiveToken = path.match(/^\/api\/v1\/public\/profiles\/([^/]+)\/assistant\/live-token$/)
+    const landingLiveToken = path === '/api/v1/public/landing/assistant/live-token'
+    if (profileLiveToken || landingLiveToken) {
+      if (method !== 'POST') {
+        sendJson(res, 404, envelope(null, 'Not found', 404))
+        return
+      }
+      sendJson(
+        res,
+        200,
+        envelope({
+          token: 'e2e-ephemeral-token',
+          model: 'e2e-live',
+          expiresAt: '2099-01-01T00:00:00.000Z',
+          newSessionExpiresAt: '2099-01-01T00:01:00.000Z',
+        })
+      )
+      return
+    }
+
     sendJson(res, 200, envelope([]))
     return
   }

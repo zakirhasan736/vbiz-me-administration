@@ -246,7 +246,7 @@ test.describe('Public card API responses across devices', () => {
     expect(body).toContain('VERSION:3.0')
     expect(body).toContain('FN:Public Test Card')
     expect(body).toContain('TEL;TYPE=CELL:+15550002222')
-    if (project === 'iphone') {
+    if (project.startsWith('iphone')) {
       expect(disposition).toMatch(/^inline/i)
     } else {
       expect(disposition).toMatch(/^attachment/i)

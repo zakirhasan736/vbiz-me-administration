@@ -34,7 +34,7 @@ test.describe('Public card visitor flows', () => {
         .catch(() => false))
     ) {
       const project = test.info().project.name
-      if (project === 'iphone') {
+      if (project.startsWith('iphone')) {
         await expect(page.getByText(/Home Screen/i).first()).toBeVisible()
       }
       await enable
@@ -142,7 +142,7 @@ test.describe('Public card visitor flows', () => {
     await expect(installCta).toBeVisible()
 
     const project = test.info().project.name
-    if (project === 'iphone') {
+    if (project.startsWith('iphone')) {
       await expect(installCta).toHaveText(/Add to Home Screen|Open in Safari/i)
       await expect(
         page

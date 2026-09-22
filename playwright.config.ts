@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { IPHONE_E2E_DEVICES, IPHONE_E2E_FILES } from './tests/e2e/iphoneDevices'
 
 process.env.NEXT_PUBLIC_API_URL ||= 'http://127.0.0.1:5101/api/v1'
 
@@ -37,11 +38,11 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'iphone',
-      testMatch: '**/public-card-{visitor-flows,api-responses}.spec.ts',
-      use: { ...devices['iPhone 13'] },
-    },
+    ...IPHONE_E2E_DEVICES.map((entry) => ({
+      name: entry.project,
+      testMatch: [...IPHONE_E2E_FILES],
+      use: { ...devices[entry.device] },
+    })),
     {
       name: 'pixel',
       testMatch: '**/public-card-{visitor-flows,api-responses}.spec.ts',
@@ -49,7 +50,7 @@ export default defineConfig({
     },
     {
       name: 'webkit',
-      testMatch: '**/public-card-{visitor-flows,api-responses}.spec.ts',
+      testMatch: ['**/public-card-{visitor-flows,api-responses}.spec.ts', '**/iphone-safari.spec.ts'],
       use: { ...devices['Desktop Safari'] },
     },
   ],
