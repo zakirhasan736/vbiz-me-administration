@@ -249,9 +249,10 @@ export function ResumeSection({ sectionName = 'Resume' }: ResumeSectionProps) {
         {summary ? (
           <div className="vbiz-card rounded-3xl border border-zinc-200 bg-white/60 p-6 shadow-sm backdrop-blur-xl md:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50">
             <p className="mb-3 text-[11px] font-bold tracking-wider text-zinc-500 uppercase">Summary</p>
-            <p className="text-sm leading-relaxed font-medium whitespace-pre-wrap text-zinc-700 md:text-base dark:text-zinc-300">
-              {summary}
-            </p>
+            <div
+              className="vcard-rich-html prose prose-zinc dark:prose-invert max-w-none text-sm leading-relaxed font-medium text-zinc-700 md:text-base dark:text-zinc-300"
+              dangerouslySetInnerHTML={{ __html: summary }}
+            />
           </div>
         ) : null}
 

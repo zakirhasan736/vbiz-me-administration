@@ -1,6 +1,7 @@
 'use client'
 
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
@@ -13,6 +14,7 @@ import {
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapServicesFromPayload } from '@/lib/ai/applyCardDraft'
+import { stripHtml } from '@/lib/htmlText'
 import { createDefaultServiceEntry, normalizeServiceList } from '@/lib/vcardServices'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardServiceEntry } from '@/types/vcard'
@@ -121,7 +123,7 @@ export function ServicesEditorPanel({
         items={services.map((s) => ({
           id: s.id,
           title: s.title || 'Untitled',
-          detail: s.type || s.description?.slice(0, 36),
+          detail: s.type || stripHtml(s.description || '').slice(0, 36),
         }))}
       />
 
@@ -160,7 +162,7 @@ export function ServicesEditorPanel({
                   <ExpandableEntryHeader
                     indexLabel={index + 1}
                     title={service.title || 'New Service'}
-                    subtitle={service.type || service.description?.slice(0, 48) || null}
+                    subtitle={service.type || stripHtml(service.description || '').slice(0, 48) || null}
                     mediaUrl={service.featuredImage}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(service.id)}
@@ -216,46 +218,12 @@ export function ServicesEditorPanel({
                       <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
                         Service Description
                       </label>
-                      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 dark:border-white/10 dark:bg-[#0b0f19]">
-                        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/50 bg-slate-50/50 px-4 py-3 dark:border-white/5 dark:bg-white/2">
-                          <span className="mr-2 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                            Format
-                          </span>
-                          <div className="h-4 w-px bg-slate-200 dark:bg-white/10" />
-                          <button
-                            type="button"
-                            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-white/10"
-                          >
-                            <strong className="text-[13px] leading-none font-black">B</strong>
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-white/10"
-                          >
-                            <em className="font-serif text-[13px] leading-none italic">I</em>
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-white/10"
-                          >
-                            <u className="text-[13px] leading-none font-medium underline">U</u>
-                          </button>
-                          <div className="mx-1 h-4 w-px bg-slate-200 dark:bg-white/10" />
-                          <button
-                            type="button"
-                            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-white/10"
-                          >
-                            <LinkIcon className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <textarea
-                          value={service.description}
-                          onChange={(e) => updateService(service.id, 'description', e.target.value)}
-                          placeholder="Write your service description here..."
-                          rows={5}
-                          className="min-h-30 w-full resize-y bg-transparent px-5 py-4 text-[13px] font-medium text-slate-900 focus:outline-none dark:text-white"
-                        />
-                      </div>
+                      <RichTextEditor
+                        value={service.description}
+                        onChange={(html) => updateService(service.id, 'description', html)}
+                        placeholder="Write your service description here..."
+                        minHeightClassName="min-h-36"
+                      />
                     </div>
 
                     <div className="group mb-8 flex flex-col space-y-1.5">

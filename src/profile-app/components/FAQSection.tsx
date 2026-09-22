@@ -188,7 +188,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.25 }}
                         >
-                          <div className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-200 px-4 pt-1 pb-4 text-[11px] leading-relaxed font-medium text-zinc-600 **:text-inherit! sm:text-xs dark:border-zinc-800/40 dark:text-zinc-300">
+                          <div className="vcard-rich-html prose prose-sm dark:prose-invert max-w-none border-t border-zinc-200 px-4 pt-1 pb-4 text-[11px] leading-relaxed font-medium text-zinc-600 sm:text-xs dark:border-zinc-800/40 dark:text-zinc-300">
                             <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
                             <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
                           </div>
@@ -266,7 +266,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <div className="prose prose-sm dark:prose-invert max-w-none border-t border-zinc-200 px-6 pt-6 pb-8 text-sm leading-relaxed font-medium text-zinc-600 **:text-inherit! md:text-base lg:px-8 dark:border-zinc-800/50 dark:text-zinc-300">
+                        <div className="vcard-rich-html prose prose-sm dark:prose-invert max-w-none border-t border-zinc-200 px-6 pt-6 pb-8 text-sm leading-relaxed font-medium text-zinc-600 md:text-base lg:px-8 dark:border-zinc-800/50 dark:text-zinc-300">
                           <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
                           <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
                         </div>

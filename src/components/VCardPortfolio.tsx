@@ -1,6 +1,7 @@
 'use client'
 
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
@@ -13,6 +14,7 @@ import {
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapPortfolioFromPayload } from '@/lib/ai/applyCardDraft'
+import { stripHtml } from '@/lib/htmlText'
 import { detectPortfolioType, isAudioUrl, isVideoUrl, type PortfolioMediaType } from '@/lib/mediaUrl'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultPortfolioEntry, normalizePortfolioList } from '@/lib/vcardPortfolio'
@@ -145,7 +147,7 @@ export function TabPortfolio() {
         items={portfolios.map((p) => ({
           id: p.id,
           title: p.title || 'Project',
-          detail: p.description?.slice(0, 40),
+          detail: stripHtml(p.description || '').slice(0, 40),
         }))}
       />
 
@@ -182,7 +184,7 @@ export function TabPortfolio() {
                     <ExpandableEntryHeader
                       indexLabel={index + 1}
                       title={portfolio.title || 'New Portfolio Entry'}
-                      subtitle={portfolio.type || portfolio.description?.slice(0, 48) || null}
+                      subtitle={portfolio.type || stripHtml(portfolio.description || '').slice(0, 48) || null}
                       mediaUrl={portfolio.imageUrl}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(portfolio.id)}
@@ -235,12 +237,11 @@ export function TabPortfolio() {
                           <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
                             Description
                           </label>
-                          <textarea
+                          <RichTextEditor
                             value={portfolio.description}
-                            onChange={(e) => updatePortfolio(portfolio.id, 'description', e.target.value)}
+                            onChange={(html) => updatePortfolio(portfolio.id, 'description', html)}
                             placeholder="Write a description for your portfolio..."
-                            rows={8}
-                            className={cn(inputClasses.replace('h-min', 'resize-y'), 'min-h-40 flex-1 md:h-full')}
+                            minHeightClassName="min-h-40"
                           />
                         </div>
                         <div className="order-1 space-y-3 md:order-2">

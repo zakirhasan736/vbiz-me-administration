@@ -105,6 +105,16 @@ function parseAboutMeDescription(html: string): {
     contentBlocks.push(inner)
   }
 
+  // Ordinary editor HTML (h1–h6, lists, links) is not the pillar layout.
+  if (pillars.length === 0) {
+    return {
+      introHtml: html.trim(),
+      pillars: [],
+      highlight: null,
+      footer: null,
+    }
+  }
+
   const introHtml = contentBlocks[0]?.trim() ?? ''
   const highlight = contentBlocks[1] ? parseHighlightBlock(contentBlocks[1]) : null
   const footer = parseFooterBlocks(contentBlocks.slice(2))

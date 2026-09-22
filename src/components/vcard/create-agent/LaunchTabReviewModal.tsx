@@ -1,6 +1,8 @@
 'use client'
 
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { Modal } from '@/components/ui/Modal'
+import { stripHtml } from '@/lib/htmlText'
 import { normalizeCardSeo } from '@/lib/seo/cardSeo'
 import { createDefaultExperienceEntry } from '@/lib/vcardExperience'
 import { createDefaultFaqEntry } from '@/lib/vcardFaq'
@@ -221,14 +223,22 @@ export function LaunchTabReviewModal({ open, navId, label, data, busy, onClose, 
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold dark:border-white/10 dark:bg-slate-950"
             />
           )
-          const area = (
-            <textarea
-              value={value}
-              onChange={(event) => setScalar(field, event.target.value)}
-              rows={4}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold dark:border-white/10 dark:bg-slate-950"
-            />
-          )
+          const area =
+            field.key === 'seoDescription' ? (
+              <textarea
+                value={value}
+                onChange={(event) => setScalar(field, event.target.value)}
+                rows={4}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold dark:border-white/10 dark:bg-slate-950"
+              />
+            ) : (
+              <RichTextEditor
+                value={value}
+                onChange={(html) => setScalar(field, html)}
+                minHeightClassName="min-h-28"
+                placeholder={field.label}
+              />
+            )
           return (
             <FieldRow
               key={field.key}
@@ -238,7 +248,7 @@ export function LaunchTabReviewModal({ open, navId, label, data, busy, onClose, 
               onEdit={() => setEditing((prev) => ({ ...prev, [field.key]: true }))}
               onAdd={() => setEditing((prev) => ({ ...prev, [field.key]: true }))}
             >
-              {isEditing ? (field.type === 'textarea' ? area : input) : value}
+              {isEditing ? (field.type === 'textarea' ? area : input) : stripHtml(value)}
             </FieldRow>
           )
         })}
@@ -451,11 +461,11 @@ function StructuredListEditor({
               <label key={field.key} className="block space-y-1">
                 <span className="text-[10px] font-black tracking-wide text-slate-500 uppercase">{field.label}</span>
                 {field.type === 'textarea' ? (
-                  <textarea
+                  <RichTextEditor
                     value={String(value ?? '')}
-                    onChange={(event) => onChange(item.id, field.key, event.target.value)}
-                    rows={3}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:bg-slate-950"
+                    onChange={(html) => onChange(item.id, field.key, html)}
+                    minHeightClassName="min-h-28"
+                    placeholder={field.label}
                   />
                 ) : field.type === 'checkbox' ? (
                   <input
@@ -542,18 +552,17 @@ function ListEditor({
                   placeholder="Title"
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:bg-slate-950"
                 />
-                <textarea
+                <RichTextEditor
                   value={item.body}
-                  onChange={(event) => onChange(item.id, item.title, event.target.value)}
+                  onChange={(html) => onChange(item.id, item.title, html)}
                   placeholder="Details"
-                  rows={3}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:bg-slate-950"
+                  minHeightClassName="min-h-28"
                 />
               </div>
             ) : (
               <div>
                 <p className="text-xs font-black text-slate-800 dark:text-slate-100">{item.title || 'Untitled'}</p>
-                <p className="mt-1 text-[11px] font-semibold text-slate-500">{item.body}</p>
+                <p className="mt-1 text-[11px] font-semibold text-slate-500">{stripHtml(item.body)}</p>
               </div>
             )}
           </div>

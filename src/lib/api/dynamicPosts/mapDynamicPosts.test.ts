@@ -14,6 +14,23 @@ describe('mapDynamicPostItemToListItem', () => {
       }).title
     ).toBe('Sales & Marketing Guide')
   })
+  it('keeps rich-text HTML from the public section API', () => {
+    const item = mapDynamicPostItemToListItem({
+      id: 1,
+      title: 'FAQ',
+      description:
+        '<h1>Heading One</h1><p>A <strong>bold</strong> <em>italic</em> line &amp; <a href="https://example.com">link</a></p><ul><li>Bullet</li></ul><pre><code>code</code></pre>',
+      status: '1',
+    })
+
+    expect(item.description).toContain('<h1>Heading One</h1>')
+    expect(item.description).toContain('<strong>bold</strong>')
+    expect(item.description).toContain('<em>italic</em>')
+    expect(item.description).toContain('<ul><li>Bullet</li></ul>')
+    expect(item.description).toContain('<code>code</code>')
+    expect(item.description).toContain('line & ')
+  })
+
   it('preserves a legacy top-level video URL alias', () => {
     const item = mapDynamicPostItemToListItem({ id: 1, title: 'Video', url: 'https://example.com/video' })
 

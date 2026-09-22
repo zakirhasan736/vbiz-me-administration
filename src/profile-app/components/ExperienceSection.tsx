@@ -128,7 +128,12 @@ export function ExperienceSection({ sectionName = 'Work Experience' }: Experienc
               </div>
               <h3 className="vbiz-title mb-2 text-xl leading-tight font-bold transition-colors">{company}</h3>
               {jobTitle ? <p className="vbiz-description mb-4 text-sm font-medium">{jobTitle}</p> : null}
-              {detail ? <p className="vbiz-description mb-4 text-sm leading-relaxed">{detail}</p> : null}
+              {detail ? (
+                <div
+                  className="vcard-rich-html vbiz-description prose prose-sm mb-4 max-w-none text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: detail }}
+                />
+              ) : null}
               {period ? (
                 <div className="mt-auto border-t border-zinc-200 pt-4 dark:border-zinc-800/80">
                   <span className="vbiz-description text-[10px] font-bold tracking-wider uppercase">Period</span>

@@ -188,6 +188,20 @@ const introPublicCard = () => ({
   intro_video: { url: '/e2e/intro.mp4', regular_video: { url: '/e2e/intro.mp4' } },
 })
 
+const RICH_TEXT_DESCRIPTION = [
+  '<h1>Heading One</h1>',
+  '<h2>Heading Two</h2>',
+  '<h3>Heading Three</h3>',
+  '<h4>Heading Four</h4>',
+  '<h5>Heading Five</h5>',
+  '<h6>Heading Six</h6>',
+  '<p>A <strong>bold</strong> <em>italic</em> <u>underline</u> line.</p>',
+  '<ul><li>Bullet item</li></ul>',
+  '<ol><li>Numbered item</li></ol>',
+  '<p><a href="https://example.com/rich">Rich link</a> and <code>inlineCode</code></p>',
+  '<pre><code>code block</code></pre>',
+].join('')
+
 function envelope<T>(data: T, message = 'OK', statusCode = 200) {
   return { success: statusCode < 400, statusCode, message, data }
 }
@@ -521,7 +535,26 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
 
     const dynamicSectionMatch = path.match(/^\/api\/v1\/public\/dynamic-section\/([^/]+)$/)
     if (dynamicSectionMatch && method === 'GET') {
-      sendJson(res, 200, envelope({ name: decodeURIComponent(dynamicSectionMatch[1]), items: [] }))
+      const sectionName = decodeURIComponent(dynamicSectionMatch[1])
+      const isRich = /^faqs?$/i.test(sectionName) || /about/i.test(sectionName)
+      sendJson(
+        res,
+        200,
+        envelope({
+          name: sectionName,
+          postType: { name: sectionName, title: isRich ? 'Rich text' : sectionName },
+          items: isRich
+            ? [
+                {
+                  id: 'rich-faq-1',
+                  title: 'Rich text sample',
+                  description: RICH_TEXT_DESCRIPTION,
+                  status: '1',
+                },
+              ]
+            : [],
+        })
+      )
       return
     }
 
@@ -572,6 +605,21 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       return
     }
     if (path === '/api/v1/public/post-types' && method === 'GET') {
+      const profileId = requestUrl.searchParams.get('profile_id') || ''
+      if (profileId === 'public-card-1') {
+        sendJson(
+          res,
+          200,
+          envelope({
+            StaticLink: [],
+            post_types: [
+              { id: 'home', key: 'home', name: 'Home', title: 'Home', status: '1', type_id: 'home' },
+              { id: 'faq', key: 'faq', name: 'Faq', title: 'FAQs', status: '1', type_id: 'faq' },
+            ],
+          })
+        )
+        return
+      }
       sendJson(res, 200, envelope([]))
       return
     }

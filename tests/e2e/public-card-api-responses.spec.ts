@@ -63,6 +63,19 @@ test.describe('Public card API responses across devices', () => {
     await getJson(api, `${MOCK_API}/api/v1/public/profiles/public-card-1/team-notices/active`)
     await getJson(api, `${MOCK_API}/api/v1/public/profile-ai-data/public-card-1`)
     await getJson(api, `${MOCK_API}/api/v1/public/dynamic-section/about`)
+    const faq = await getJson(api, `${MOCK_API}/api/v1/public/dynamic-section/Faq?profile_id=public-card-1`)
+    const faqItems = (faq.data as { items?: Array<{ description?: string }> }).items || []
+    const faqHtml = faqItems[0]?.description || ''
+    expect(faqHtml).toContain('<h1>Heading One</h1>')
+    expect(faqHtml).toContain('<h6>Heading Six</h6>')
+    expect(faqHtml).toContain('<strong>bold</strong>')
+    expect(faqHtml).toContain('<em>italic</em>')
+    expect(faqHtml).toContain('<u>underline</u>')
+    expect(faqHtml).toContain('<ul><li>Bullet item</li></ul>')
+    expect(faqHtml).toContain('<ol><li>Numbered item</li></ol>')
+    expect(faqHtml).toContain('href="https://example.com/rich"')
+    expect(faqHtml).toContain('<code>inlineCode</code>')
+    expect(faqHtml).toContain('<pre><code>code block</code></pre>')
     await getJson(api, `${MOCK_API}/api/v1/public/public-cards`)
     await getJson(api, `${MOCK_API}/api/v1/public/landing/demo-cards`)
 

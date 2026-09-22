@@ -1,5 +1,6 @@
 'use client'
 
+import { isCardOnHomeScreen, markHomeScreenPromptAfterContact } from '@/lib/pwa/pwaInstallEnv'
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { hasSavedContact, markContactSaved } from '@/profile-app/lib/contactSaveState'
@@ -68,7 +69,6 @@ export const SaveContactModal = ({
   }
 
   const finishSuccess = (options?: { continueFlow?: boolean }) => {
-    // Returning visitors who only re-download should not get the install / follow funnel again.
     if (onSuccess && options?.continueFlow !== false) {
       resetTransientState()
       onSuccess()
@@ -82,18 +82,20 @@ export const SaveContactModal = ({
     }, 1000)
   }
 
-  const startContactDownload = (continueFlow: boolean) => {
+  const startContactDownload = () => {
     const trimmedId = profileId?.trim()
     setSubmitting(true)
     setSubmitError(null)
+    const showHomeScreen = !isCardOnHomeScreen()
 
     try {
       if (!trimmedId || trimmedId === 'preview') {
         notify.success('Contact file ready.')
-        finishSuccess({ continueFlow })
+        finishSuccess({ continueFlow: showHomeScreen })
         return
       }
 
+      if (showHomeScreen) markHomeScreenPromptAfterContact()
       openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName), {
         fullName: formData.fullName,
         phone: formData.phone,
@@ -106,8 +108,8 @@ export const SaveContactModal = ({
         phone: formData.phone,
       })
       setAlreadySaved(true)
-      notify.success(continueFlow ? 'Contact saved — your card is downloading.' : 'Contact file downloading.')
-      finishSuccess({ continueFlow })
+      notify.success('Contact file downloading.')
+      finishSuccess({ continueFlow: showHomeScreen })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to download contact. Please try again.'
       setSubmitError(message)
@@ -118,12 +120,12 @@ export const SaveContactModal = ({
   }
 
   const handleDownloadOnly = () => {
-    startContactDownload(false)
+    startContactDownload()
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    startContactDownload(true)
+    startContactDownload()
   }
 
   const trimmedOwnerName = ownerName?.trim()

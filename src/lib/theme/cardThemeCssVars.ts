@@ -776,14 +776,14 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vcard-rich-html.vbiz-description {
   color: var(--vbiz-description, var(--vbiz-text-muted)) !important;
 }
-.vbiz-profile-root .vbiz-description.vcard-rich-html :where(*:not(a):not(code):not(pre)),
-.vbiz-profile-root .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre)) {
+.vbiz-profile-root .vbiz-description.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html {
   color: var(--vbiz-description, var(--vbiz-text-muted)) !important;
 }
-.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre)) {
+.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
 .vbiz-profile-root .vbiz-description.vcard-rich-html a,
@@ -796,8 +796,135 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html {
   color: var(--vbiz-text) !important;
 }
-.vbiz-profile-root .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre)) {
+.vbiz-profile-root .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
+}
+.vbiz-profile-root .vcard-rich-html h1,
+.vbiz-profile-root .prose h1 {
+  font-size: 1.875rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  margin: 0.6em 0 0.3em !important;
+}
+.vbiz-profile-root .vcard-rich-html h2,
+.vbiz-profile-root .prose h2 {
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  margin: 0.55em 0 0.25em !important;
+}
+.vbiz-profile-root .vcard-rich-html h3,
+.vbiz-profile-root .prose h3 {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  margin: 0.5em 0 0.25em !important;
+}
+.vbiz-profile-root .vcard-rich-html h4,
+.vbiz-profile-root .prose h4 {
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  margin: 0.45em 0 0.2em !important;
+}
+.vbiz-profile-root .vcard-rich-html h5,
+.vbiz-profile-root .prose h5 {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  margin: 0.4em 0 0.2em !important;
+}
+.vbiz-profile-root .vcard-rich-html h6,
+.vbiz-profile-root .prose h6 {
+  font-size: 0.875rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  margin: 0.35em 0 0.2em !important;
+}
+.vbiz-profile-root .vcard-rich-html p,
+.vbiz-profile-root .prose p {
+  margin: 0.35em 0;
+}
+.vbiz-profile-root .vcard-rich-html strong,
+.vbiz-profile-root .vcard-rich-html b,
+.vbiz-profile-root .prose strong,
+.vbiz-profile-root .prose b {
+  color: var(--vbiz-accent) !important;
+  font-weight: 700 !important;
+}
+.vbiz-profile-root .vcard-rich-html em,
+.vbiz-profile-root .vcard-rich-html i,
+.vbiz-profile-root .prose em,
+.vbiz-profile-root .prose i {
+  font-style: italic !important;
+}
+.vbiz-profile-root .vcard-rich-html u,
+.vbiz-profile-root .prose u {
+  text-decoration: underline;
+}
+.vbiz-profile-root .vcard-rich-html s,
+.vbiz-profile-root .vcard-rich-html strike,
+.vbiz-profile-root .vcard-rich-html del,
+.vbiz-profile-root .prose s,
+.vbiz-profile-root .prose del {
+  text-decoration: line-through;
+}
+.vbiz-profile-root .vcard-rich-html mark,
+.vbiz-profile-root .prose mark {
+  background-color: color-mix(in srgb, var(--vbiz-accent) 42%, transparent) !important;
+  color: inherit !important;
+}
+.vbiz-profile-root .vcard-rich-html a,
+.vbiz-profile-root .prose a {
+  color: var(--vbiz-accent) !important;
+  text-decoration: underline;
+}
+.vbiz-profile-root .vcard-rich-html ul,
+.vbiz-profile-root .prose ul {
+  list-style: disc !important;
+  padding-left: 1.25rem !important;
+  margin: 0.4em 0 !important;
+}
+.vbiz-profile-root .vcard-rich-html ol,
+.vbiz-profile-root .prose ol {
+  list-style: decimal !important;
+  padding-left: 1.25rem !important;
+  margin: 0.4em 0 !important;
+}
+.vbiz-profile-root .vcard-rich-html blockquote,
+.vbiz-profile-root .prose blockquote {
+  border-left: 3px solid var(--vbiz-accent) !important;
+  padding-left: 0.75rem !important;
+  margin: 0.6em 0 !important;
+}
+.vbiz-profile-root .vcard-rich-html code,
+.vbiz-profile-root .prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: 0.92em !important;
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+  background: color-mix(in srgb, var(--vbiz-text) 8%, transparent);
+}
+.vbiz-profile-root .vcard-rich-html pre,
+.vbiz-profile-root .prose pre {
+  margin: 0.6em 0 !important;
+  padding: 0.75rem 1rem !important;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+.vbiz-profile-root .vcard-rich-html pre code,
+.vbiz-profile-root .prose pre code {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+}
+.vbiz-profile-root .vcard-rich-html img,
+.vbiz-profile-root .prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
 }
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html a {
   color: var(--vbiz-accent) !important;

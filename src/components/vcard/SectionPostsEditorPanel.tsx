@@ -1,5 +1,6 @@
 'use client'
 
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
@@ -11,6 +12,7 @@ import {
 } from '@/components/vcard/ExpandableEntryChrome'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { stripHtml } from '@/lib/htmlText'
 import {
   createDefaultSectionPostItem,
   normalizeSectionPostList,
@@ -302,8 +304,9 @@ export function SectionPostsEditorPanel({
                       indexLabel={index + 1}
                       title={post.title || 'New Item'}
                       subtitle={
-                        [post.offerPrice || post.price, post.description || post.url].filter(Boolean).join(' · ') ||
-                        null
+                        [post.offerPrice || post.price, stripHtml(post.description || '') || post.url]
+                          .filter(Boolean)
+                          .join(' · ') || null
                       }
                       mediaUrl={post.featuredImage}
                       isExpanded={open}
@@ -367,12 +370,11 @@ export function SectionPostsEditorPanel({
                                   <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                                     Description
                                   </label>
-                                  <textarea
+                                  <RichTextEditor
                                     value={post.description}
-                                    onChange={(e) => updatePost(post.id, 'description', e.target.value)}
+                                    onChange={(html) => updatePost(post.id, 'description', html)}
                                     placeholder="Write a description..."
-                                    rows={6}
-                                    className={cn(inputClasses, 'h-full min-h-36 flex-1 resize-y')}
+                                    minHeightClassName="min-h-36"
                                   />
                                 </div>
                               ) : null}

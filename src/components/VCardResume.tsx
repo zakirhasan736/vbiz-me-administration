@@ -1,6 +1,7 @@
 'use client'
 
 import { DocumentUploadArea, type UploadedDoc } from '@/components/DocumentUploadArea'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { DEFAULT_VCARD_RESUME, getVCardResume, normalizeVCardResume } from '@/lib/vcardResume'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -67,12 +68,11 @@ export function TabResume() {
 
         <label className="block space-y-1.5">
           <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Summary (optional)</span>
-          <textarea
+          <RichTextEditor
             value={state.summary}
-            onChange={(e) => persist({ ...state, summary: e.target.value })}
-            rows={4}
+            onChange={(html) => persist({ ...state, summary: html })}
             placeholder="Short summary shown with your resume…"
-            className={`${inputClasses} resize-y`}
+            minHeightClassName="min-h-32"
           />
         </label>
 

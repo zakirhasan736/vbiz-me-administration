@@ -1,6 +1,7 @@
 'use client'
 
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
@@ -13,6 +14,7 @@ import {
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapFaqsFromPayload } from '@/lib/ai/applyCardDraft'
+import { stripHtml } from '@/lib/htmlText'
 import { createDefaultFaqEntry, normalizeFaqList } from '@/lib/vcardFaq'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardFaqEntry } from '@/types/vcard'
@@ -22,8 +24,6 @@ import { useEffect, useRef } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-sm'
-const textareaClasses =
-  'w-full min-h-[120px] resize-y bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-sm'
 
 const accent = {
   border: 'border-amber-100 dark:border-amber-500/20',
@@ -169,7 +169,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                     <ExpandableEntryHeader
                       indexLabel={index + 1}
                       title={faq.question || 'New Question'}
-                      subtitle={faq.answer?.slice(0, 64) || null}
+                      subtitle={stripHtml(faq.answer || '').slice(0, 64) || null}
                       mediaUrl={faq.featuredImage}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(key)}
@@ -197,11 +197,11 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                         <label className="mb-2 block text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
                           Answer
                         </label>
-                        <textarea
+                        <RichTextEditor
                           value={faq.answer}
-                          onChange={(e) => updateFaq(faq.id, 'answer', e.target.value)}
+                          onChange={(html) => updateFaq(faq.id, 'answer', html)}
                           placeholder="Write a clear, helpful answer..."
-                          className={textareaClasses}
+                          minHeightClassName="min-h-32"
                         />
                       </div>
 

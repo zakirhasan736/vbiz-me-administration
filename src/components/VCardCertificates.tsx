@@ -1,6 +1,7 @@
 'use client'
 
 import { DocumentUploadArea } from '@/components/DocumentUploadArea'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
 import {
@@ -26,9 +27,6 @@ import { useEffect, useRef } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm'
-
-const textareaClasses =
-  'w-full min-h-[96px] resize-y bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm'
 
 const accent = {
   border: 'border-indigo-100 dark:border-indigo-500/20',
@@ -181,17 +179,13 @@ export function TabCertificates() {
                         <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
                           Description
                         </span>
-                        <textarea
+                        <RichTextEditor
                           value={item.description}
-                          onChange={(e) =>
-                            persist(
-                              itemsRef.current.map((c) =>
-                                c.id === item.id ? { ...c, description: e.target.value } : c
-                              )
-                            )
+                          onChange={(html) =>
+                            persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, description: html } : c)))
                           }
                           placeholder="Short summary of this credential"
-                          className={textareaClasses}
+                          minHeightClassName="min-h-32"
                         />
                       </label>
                       <label className="block space-y-1.5">

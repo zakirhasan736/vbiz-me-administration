@@ -1,6 +1,7 @@
 'use client'
 
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
@@ -12,6 +13,7 @@ import {
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapReviewsFromPayload } from '@/lib/ai/applyCardDraft'
+import { stripHtml } from '@/lib/htmlText'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultReviewEntry, normalizeReviewList } from '@/lib/vcardReviews'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -22,8 +24,6 @@ import { useEffect, useRef } from 'react'
 
 const inputClasses =
   'w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0b0f19] px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-amber-500'
-const textareaClasses =
-  'w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0b0f19] px-4 py-3 text-sm font-medium text-slate-900 dark:text-white outline-none focus:border-amber-500 resize-none'
 
 const accent = {
   border: 'border-amber-100 dark:border-amber-500/20',
@@ -147,7 +147,7 @@ export function TabReviews() {
                   <ExpandableEntryHeader
                     indexLabel={idx + 1}
                     title={item.author || 'New Review'}
-                    subtitle={item.text?.slice(0, 48) || null}
+                    subtitle={stripHtml(item.text || '').slice(0, 48) || null}
                     mediaUrl={item.imageUrl}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(item.id)}
@@ -188,12 +188,11 @@ export function TabReviews() {
                         </button>
                       ))}
                     </div>
-                    <textarea
+                    <RichTextEditor
                       value={item.text}
-                      onChange={(e) => updateReview(item.id, { text: e.target.value })}
-                      rows={3}
+                      onChange={(html) => updateReview(item.id, { text: html })}
                       placeholder="What they said…"
-                      className={textareaClasses}
+                      minHeightClassName="min-h-32"
                     />
                     <input
                       value={item.url || ''}

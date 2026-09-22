@@ -96,12 +96,13 @@ function resolveGeneralInfoUrl(item: DynamicPostItem, metas: Record<string, stri
 export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): DynamicPostListItem {
   const featured = resolveFeaturedImage(item.featured_image)
   const attachments = resolveAttachments(item)
-  const description =
+  const description = decodeHtmlText(
     typeof item.description === 'string'
       ? item.description.trim()
       : item.description == null
         ? ''
         : String(item.description)
+  )
 
   const rawId = item.id
   const id =

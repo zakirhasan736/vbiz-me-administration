@@ -280,9 +280,10 @@ function VideoCard({
           {item.title}
         </h3>
         {description ? (
-          <p className="mb-4 line-clamp-3 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-            {description}
-          </p>
+          <div
+            className="vcard-rich-html prose prose-zinc dark:prose-invert mb-4 line-clamp-3 max-w-none text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"
+            dangerouslySetInnerHTML={{ __html: description }}
+          />
         ) : null}
         <div className="mt-auto flex items-center justify-between gap-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
           <span className="inline-flex items-center gap-1.5">

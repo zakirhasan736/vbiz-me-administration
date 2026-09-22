@@ -175,12 +175,11 @@ function ScalarControl({
 
   if (control === 'textarea') {
     return (
-      <textarea
+      <RichTextEditor
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={4}
-        className={`${inputClasses} resize-y`}
-        placeholder={label ? `Enter ${label.toLowerCase()}` : undefined}
+        onChange={onChange}
+        minHeightClassName="min-h-32"
+        placeholder={label ? `Enter ${label.toLowerCase()}` : 'Write a detailed description…'}
       />
     )
   }
@@ -595,11 +594,10 @@ function ResumeSummaryFill() {
       canApply={canApply}
       onApply={() => updateData('resume', { ...resume, summary: draft })}
     >
-      <textarea
+      <RichTextEditor
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={4}
-        className={`${inputClasses} resize-y`}
+        onChange={setDraft}
+        minHeightClassName="min-h-32"
         placeholder="Short resume summary"
       />
     </DeferredApplyRow>

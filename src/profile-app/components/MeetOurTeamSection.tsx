@@ -46,7 +46,8 @@ function TeamMemberCard({
   idx: number
   tallImage?: boolean
 }) {
-  const bio = stripHtml(item.description)
+  const bioHtml = item.description.trim()
+  const bio = stripHtml(bioHtml)
   const imageUrl = resolveTeamMemberImage(item)
   const profileUrl = item.generalInfoUrl
 
@@ -80,7 +81,10 @@ function TeamMemberCard({
         </h3>
 
         {bio ? (
-          <p className="mb-6 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">{bio}</p>
+          <div
+            className="vcard-rich-html prose prose-zinc dark:prose-invert mb-6 max-w-none text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"
+            dangerouslySetInnerHTML={{ __html: bioHtml }}
+          />
         ) : null}
 
         {profileUrl ? (

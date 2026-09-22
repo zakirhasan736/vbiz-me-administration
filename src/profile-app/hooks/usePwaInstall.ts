@@ -5,6 +5,7 @@ import {
   isIosDevice,
   isSafariBrowser,
   isStandaloneDisplay,
+  markCardOnHomeScreen,
   resolvePwaInstallSurface,
   type PwaInstallSurface,
 } from '@/lib/pwa/pwaInstallEnv'
@@ -173,6 +174,7 @@ export function usePwaInstall() {
       setDeferredPrompt(null)
       storePrompt(null)
       if (window.__vbizPwa) window.__vbizPwa.installed = true
+      markCardOnHomeScreen()
     }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstall)

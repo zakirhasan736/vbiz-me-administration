@@ -1,5 +1,6 @@
 'use client'
 
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
 import {
   ExpandableEntryBody,
@@ -150,12 +151,11 @@ export function TabExperience() {
                   <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
                     Description
                   </label>
-                  <textarea
+                  <RichTextEditor
                     value={exp.description}
-                    onChange={(e) => updateExperience(exp.id, 'description', e.target.value)}
+                    onChange={(html) => updateExperience(exp.id, 'description', html)}
                     placeholder="Describe your responsibilities and achievements..."
-                    rows={3}
-                    className={inputClasses.replace('h-min', 'resize-y')}
+                    minHeightClassName="min-h-32"
                   />
                 </div>
                 <div className="group flex flex-col space-y-1.5">

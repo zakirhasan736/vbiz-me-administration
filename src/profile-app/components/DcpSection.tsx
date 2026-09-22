@@ -27,7 +27,8 @@ function DcpSkeleton() {
 }
 
 function DcpCard({ item, accent }: { item: DynamicPostListItem; accent: string }) {
-  const description = stripHtml(item.description)
+  const descriptionHtml = item.description.trim()
+  const description = stripHtml(descriptionHtml)
   const infoUrl = item.generalInfoUrl
   const imageUrl = resolveDcpImage(item)
 
@@ -55,9 +56,10 @@ function DcpCard({ item, accent }: { item: DynamicPostListItem; accent: string }
         </h2>
 
         {description ? (
-          <p className="mb-5 max-w-2xl text-sm leading-relaxed font-medium text-zinc-600 sm:text-base dark:text-zinc-400">
-            {description}
-          </p>
+          <div
+            className="vcard-rich-html prose prose-zinc dark:prose-invert mb-5 max-w-2xl text-sm leading-relaxed font-medium text-zinc-600 sm:text-base dark:text-zinc-400"
+            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+          />
         ) : null}
 
         {infoUrl ? (

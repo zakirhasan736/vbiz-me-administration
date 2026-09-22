@@ -124,10 +124,11 @@ export const ServicesSection = () => {
                 </div>
               )}
               <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">{service.title}</h3>
-              {service.description ? (
-                <p className="mb-4 line-clamp-4 flex-1 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-                  {service.description}
-                </p>
+              {service.htmlDescription || service.description ? (
+                <div
+                  className="vcard-rich-html prose prose-zinc dark:prose-invert mb-4 line-clamp-4 max-w-none flex-1 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"
+                  dangerouslySetInnerHTML={{ __html: service.htmlDescription || service.description }}
+                />
               ) : null}
               {service.url ? (
                 <a

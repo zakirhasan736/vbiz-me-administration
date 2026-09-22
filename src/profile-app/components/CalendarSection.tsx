@@ -33,7 +33,8 @@ function CalendarCardSkeleton({ delay }: { delay: number }) {
 
 function CalendarItemCard({ item, idx }: { item: DynamicPostListItem; idx: number }) {
   const actionUrl = resolveCalendarItemUrl(item)
-  const description = stripHtml(item.description)
+  const descriptionHtml = item.description.trim()
+  const description = stripHtml(descriptionHtml)
   const imageUrl = item.featuredImage.trim() || item.attachments[0]?.url?.trim() || ''
 
   const card = (
@@ -59,9 +60,10 @@ function CalendarItemCard({ item, idx }: { item: DynamicPostListItem; idx: numbe
         {item.title}
       </h3>
       {description && (
-        <p className="mb-8 line-clamp-4 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-          {description}
-        </p>
+        <div
+          className="vcard-rich-html prose prose-zinc dark:prose-invert mb-8 line-clamp-4 max-w-none text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"
+          dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+        />
       )}
 
       <div className="relative z-10 mt-auto flex items-center justify-between border-t border-zinc-200 pt-5 dark:border-zinc-800/80">

@@ -50,6 +50,59 @@ export function isStandaloneDisplay() {
   return media || iosStandalone
 }
 
+const HOME_SCREEN_ADDED_KEY = 'vbiz_home_screen_added'
+const HOME_SCREEN_AFTER_CONTACT_KEY = 'vbiz_home_screen_after_contact'
+
+export function markCardOnHomeScreen(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(HOME_SCREEN_ADDED_KEY, '1')
+  } catch {
+    /* private mode */
+  }
+}
+
+/** True once this browser has opened the card from the Home Screen icon, or finished Install. */
+export function isCardOnHomeScreen(): boolean {
+  if (typeof window === 'undefined') return false
+  if (isStandaloneDisplay() || window.__vbizPwa?.installed === true) {
+    markCardOnHomeScreen()
+    return true
+  }
+  try {
+    return window.localStorage.getItem(HOME_SCREEN_ADDED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function markHomeScreenPromptAfterContact(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(HOME_SCREEN_AFTER_CONTACT_KEY, '1')
+  } catch {
+    /* private mode */
+  }
+}
+
+export function homeScreenPromptAfterContactPending(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.sessionStorage.getItem(HOME_SCREEN_AFTER_CONTACT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function clearHomeScreenPromptAfterContact(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(HOME_SCREEN_AFTER_CONTACT_KEY)
+  } catch {
+    /* private mode */
+  }
+}
+
 export type PwaInstallSurface =
   'ios-inapp' | 'ios-safari' | 'ios-chrome' | 'ios-other' | 'android' | 'mac-safari' | 'firefox' | 'chromium'
 

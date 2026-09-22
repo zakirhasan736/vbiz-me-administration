@@ -38,4 +38,24 @@ describe('mapAboutMeItemToListItem', () => {
 
     expect(item.featuredMediaFocusY).toBe(68)
   })
+
+  it('keeps ordinary rich-text headings, lists, and marks as the intro', () => {
+    const html =
+      '<h1>Heading One</h1><h3>Heading Three</h3><p><strong>bold</strong> <em>italic</em></p><ul><li>Bullet</li></ul>'
+    const item = mapAboutMeItemToListItem({
+      id: 3,
+      title: 'About',
+      description: html,
+      profile_id: 10,
+      post_type_id: 2,
+      status: 1,
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+      featured_image: null,
+    })
+
+    expect(item.introHtml).toBe(html)
+    expect(item.pillars).toEqual([])
+    expect(item.highlight).toBeNull()
+  })
 })

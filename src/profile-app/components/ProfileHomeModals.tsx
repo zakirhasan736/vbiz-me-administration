@@ -3,6 +3,11 @@
 import { RequestOneOnOneModal } from '@/components/public/RequestOneOnOneModal'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { writeContactFlowAsked } from '@/lib/push/config'
+import {
+  clearHomeScreenPromptAfterContact,
+  homeScreenPromptAfterContactPending,
+  isCardOnHomeScreen,
+} from '@/lib/pwa/pwaInstallEnv'
 import { DoneModal } from '@/profile-app/components/DoneModal'
 import { InfoModal } from '@/profile-app/components/InfoModal'
 import { NotificationAskModal } from '@/profile-app/components/NotificationAskModal'
@@ -13,7 +18,7 @@ import { SaveContactModal } from '@/profile-app/components/SaveContactModal'
 import { SaveToWalletModal } from '@/profile-app/components/SaveToWalletModal'
 import { ShareModal } from '@/profile-app/components/ShareModal'
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const NotepadModal = dynamic(
   () => import('@/profile-app/v3/components/NotepadModal').then((m) => ({ default: m.NotepadModal })),
@@ -59,8 +64,27 @@ export function ProfileHomeModals({
   const ownerId = cardOwnerId ?? '91'
   const stillAvatar = avatarUrl && !isVideoUrl(avatarUrl) ? avatarUrl : null
   const [pwaOpenedAfterContactSave, setPwaOpenedAfterContactSave] = useState(false)
+  const [returnTick, setReturnTick] = useState(0)
+  const promptPending = homeScreenPromptAfterContactPending()
+  const alreadyOnHomeScreen = isCardOnHomeScreen()
+
+  if (promptPending && alreadyOnHomeScreen) {
+    clearHomeScreenPromptAfterContact()
+  }
+
+  const offerAfterDownload = promptPending && !alreadyOnHomeScreen && returnTick >= 0
+  if (offerAfterDownload && !pwaOpenedAfterContactSave) {
+    setPwaOpenedAfterContactSave(true)
+  }
+
+  useEffect(() => {
+    const onPageShow = () => setReturnTick((tick) => tick + 1)
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [])
 
   const closePwaModal = () => {
+    clearHomeScreenPromptAfterContact()
     setPwaOpenedAfterContactSave(false)
     onClose()
   }
@@ -77,6 +101,11 @@ export function ProfileHomeModals({
         isOpen={activeModal === 'contact'}
         onClose={onClose}
         onSuccess={() => {
+          if (isCardOnHomeScreen()) {
+            clearHomeScreenPromptAfterContact()
+            onClose()
+            return
+          }
           setPwaOpenedAfterContactSave(true)
           onSetModal('pwa')
         }}
@@ -91,7 +120,7 @@ export function ProfileHomeModals({
         cardName={ownerName}
       />
       <SaveCardPwaModal
-        isOpen={activeModal === 'pwa'}
+        isOpen={activeModal === 'pwa' || pwaOpenedAfterContactSave}
         onClose={closePwaModal}
         ownerName={ownerName}
         avatarUrl={stillAvatar}

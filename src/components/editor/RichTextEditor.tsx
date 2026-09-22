@@ -1,5 +1,6 @@
 'use client'
 
+import { useVCard } from '@/lib/VCardContext'
 import { cn } from '@/utils/cn'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Image } from '@tiptap/extension-image'
@@ -16,8 +17,10 @@ import StarterKit from '@tiptap/starter-kit'
 import {
   AlignLeft,
   Bold,
+  Braces,
   ChevronDown,
   Code2,
+  FileCode,
   Heading3,
   Highlighter,
   Image as ImageIcon,
@@ -45,6 +48,8 @@ export type RichTextEditorProps = {
   className?: string
   minHeightClassName?: string
   disabled?: boolean
+  /** Bold text and highlight follow this color. Defaults to the card accent. */
+  accentColor?: string
 }
 
 type ToolbarBtnProps = {
@@ -80,16 +85,49 @@ function ToolbarDivider() {
   return <div className="mx-0.5 hidden h-5 w-px bg-slate-200 sm:block dark:bg-white/10" aria-hidden />
 }
 
-const HEADING_OPTIONS: { label: string; level: 0 | 1 | 2 | 3 | 4 }[] = [
+const HEADING_OPTIONS: { label: string; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 }[] = [
   { label: 'Paragraph', level: 0 },
   { label: 'Heading 1', level: 1 },
   { label: 'Heading 2', level: 2 },
   { label: 'Heading 3', level: 3 },
   { label: 'Heading 4', level: 4 },
+  { label: 'Heading 5', level: 5 },
+  { label: 'Heading 6', level: 6 },
 ]
 
 const TEXT_COLORS = ['#0f172a', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
-const HIGHLIGHT_COLORS = ['#fef08a', '#bbf7d0', '#a5f3fc', '#ddd6fe', '#fecdd3', '#e2e8f0']
+const ALIGN_OPTIONS: { label: string; value: 'left' | 'center' | 'right' | 'justify' }[] = [
+  { label: 'Align left', value: 'left' },
+  { label: 'Align center', value: 'center' },
+  { label: 'Align right', value: 'right' },
+  { label: 'Justify', value: 'justify' },
+]
+
+const EDITOR_ACCENT_CSS = `
+.vcard-rich-editor h1 { font-size: 1.875rem; font-weight: 800; line-height: 1.2; margin: 0.6em 0 0.3em; }
+.vcard-rich-editor h2 { font-size: 1.5rem; font-weight: 800; line-height: 1.25; margin: 0.6em 0 0.3em; }
+.vcard-rich-editor h3 { font-size: 1.25rem; font-weight: 700; line-height: 1.3; margin: 0.55em 0 0.25em; }
+.vcard-rich-editor h4 { font-size: 1.125rem; font-weight: 700; line-height: 1.35; margin: 0.5em 0 0.25em; }
+.vcard-rich-editor h5 { font-size: 1rem; font-weight: 700; line-height: 1.4; margin: 0.45em 0 0.2em; }
+.vcard-rich-editor h6 { font-size: 0.875rem; font-weight: 700; line-height: 1.4; margin: 0.4em 0 0.2em; letter-spacing: 0.02em; }
+.vcard-rich-editor p { margin: 0.35em 0; }
+.vcard-rich-editor strong, .vcard-rich-editor b { color: var(--rte-accent, #eab308); font-weight: 700; }
+.vcard-rich-editor em, .vcard-rich-editor i { font-style: italic; }
+.vcard-rich-editor u { text-decoration: underline; }
+.vcard-rich-editor s, .vcard-rich-editor strike, .vcard-rich-editor del { text-decoration: line-through; }
+.vcard-rich-editor mark { background-color: color-mix(in srgb, var(--rte-accent, #eab308) 42%, white); color: inherit; }
+.vcard-rich-editor a { color: var(--rte-accent, #eab308); text-decoration: underline; }
+.vcard-rich-editor ul { list-style: disc; padding-left: 1.25rem; margin: 0.4em 0; }
+.vcard-rich-editor ol { list-style: decimal; padding-left: 1.25rem; margin: 0.4em 0; }
+.vcard-rich-editor li { margin: 0.15em 0; }
+.vcard-rich-editor blockquote { border-left: 3px solid var(--rte-accent, #eab308); padding-left: 0.75rem; margin: 0.6em 0; }
+.vcard-rich-editor code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: #f1f5f9; border-radius: 0.25rem; padding: 0.1em 0.35em; }
+.vcard-rich-editor pre { margin: 0.6em 0; padding: 0.75rem 1rem; border-radius: 0.75rem; background: #0f172a; color: #e2e8f0; overflow-x: auto; }
+.vcard-rich-editor pre code { background: transparent; color: inherit; padding: 0; }
+.vcard-rich-editor img { max-width: 100%; height: auto; border-radius: 0.75rem; }
+.vcard-rich-editor sub { font-size: 0.75em; vertical-align: sub; }
+.vcard-rich-editor sup { font-size: 0.75em; vertical-align: super; }
+`
 
 function currentHeadingLabel(editor: Editor): string {
   for (const opt of HEADING_OPTIONS) {
@@ -102,14 +140,22 @@ function currentHeadingLabel(editor: Editor): string {
   return 'Paragraph'
 }
 
-function RichTextToolbar({ editor }: { editor: Editor }) {
+function RichTextToolbar({
+  editor,
+  sourceMode,
+  onToggleSource,
+}: {
+  editor: Editor
+  sourceMode: boolean
+  onToggleSource: () => void
+}) {
   const [, setTick] = useState(0)
   const [headingOpen, setHeadingOpen] = useState(false)
   const [colorOpen, setColorOpen] = useState(false)
-  const [highlightOpen, setHighlightOpen] = useState(false)
+  const [alignOpen, setAlignOpen] = useState(false)
   const headingRef = useRef<HTMLDivElement>(null)
   const colorRef = useRef<HTMLDivElement>(null)
-  const highlightRef = useRef<HTMLDivElement>(null)
+  const alignRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const rerender = () => setTick((n) => n + 1)
@@ -126,7 +172,7 @@ function RichTextToolbar({ editor }: { editor: Editor }) {
       const t = e.target as Node
       if (headingRef.current && !headingRef.current.contains(t)) setHeadingOpen(false)
       if (colorRef.current && !colorRef.current.contains(t)) setColorOpen(false)
-      if (highlightRef.current && !highlightRef.current.contains(t)) setHighlightOpen(false)
+      if (alignRef.current && !alignRef.current.contains(t)) setAlignOpen(false)
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
@@ -167,18 +213,6 @@ function RichTextToolbar({ editor }: { editor: Editor }) {
       .run()
   }, [editor])
 
-  const cycleAlign = useCallback(() => {
-    if (editor.isActive({ textAlign: 'left' }) || !editor.isActive('textAlign')) {
-      editor.chain().focus().setTextAlign('center').run()
-    } else if (editor.isActive({ textAlign: 'center' })) {
-      editor.chain().focus().setTextAlign('right').run()
-    } else if (editor.isActive({ textAlign: 'right' })) {
-      editor.chain().focus().setTextAlign('justify').run()
-    } else {
-      editor.chain().focus().setTextAlign('left').run()
-    }
-  }, [editor])
-
   return (
     <div className="flex flex-col gap-1.5 border-b border-slate-200/80 bg-slate-50/80 px-2 py-2 dark:border-white/10 dark:bg-white/3">
       <div className="flex flex-wrap items-center gap-0.5">
@@ -196,7 +230,7 @@ function RichTextToolbar({ editor }: { editor: Editor }) {
             <ChevronDown className="h-3.5 w-3.5 opacity-60" />
           </button>
           {headingOpen ? (
-            <div className="absolute top-full left-0 z-30 mt-1 min-w-36 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
+            <div className="absolute top-full left-0 z-30 mt-1 max-h-72 min-w-36 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
               {HEADING_OPTIONS.map((opt) => (
                 <button
                   key={opt.label}
@@ -262,11 +296,18 @@ function RichTextToolbar({ editor }: { editor: Editor }) {
           <Quote className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
-          title="Code"
+          title="Inline code"
           active={editor.isActive('code')}
           onClick={() => editor.chain().focus().toggleCode().run()}
         >
           <Code2 className="h-4 w-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          title="Code block"
+          active={editor.isActive('codeBlock')}
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        >
+          <FileCode className="h-4 w-4" />
         </ToolbarBtn>
 
         <ToolbarDivider />
@@ -325,9 +366,32 @@ function RichTextToolbar({ editor }: { editor: Editor }) {
 
         <ToolbarDivider />
 
-        <ToolbarBtn title="Text alignment" onClick={cycleAlign}>
-          <AlignLeft className="h-4 w-4" />
-        </ToolbarBtn>
+        <div className="relative" ref={alignRef}>
+          <ToolbarBtn title="Text alignment" active={alignOpen} onClick={() => setAlignOpen((open) => !open)}>
+            <AlignLeft className="h-4 w-4" />
+          </ToolbarBtn>
+          {alignOpen ? (
+            <div className="absolute top-full left-0 z-30 mt-1 min-w-36 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
+              {ALIGN_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    editor.chain().focus().setTextAlign(opt.value).run()
+                    setAlignOpen(false)
+                  }}
+                  className={cn(
+                    'block w-full px-3 py-1.5 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
+                    editor.isActive({ textAlign: opt.value }) && 'bg-slate-100 dark:bg-white/10'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         <div className="relative" ref={colorRef}>
           <ToolbarBtn title="Text color" active={colorOpen} onClick={() => setColorOpen((o) => !o)}>
@@ -365,45 +429,13 @@ function RichTextToolbar({ editor }: { editor: Editor }) {
           ) : null}
         </div>
 
-        <div className="relative" ref={highlightRef}>
-          <ToolbarBtn
-            title="Highlight"
-            active={editor.isActive('highlight') || highlightOpen}
-            onClick={() => setHighlightOpen((o) => !o)}
-          >
-            <Highlighter className="h-4 w-4" />
-          </ToolbarBtn>
-          {highlightOpen ? (
-            <div className="absolute top-full left-0 z-30 mt-1 flex gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
-              {HIGHLIGHT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    editor.chain().focus().toggleHighlight({ color: c }).run()
-                    setHighlightOpen(false)
-                  }}
-                  className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-              <button
-                type="button"
-                title="Clear highlight"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  editor.chain().focus().unsetHighlight().run()
-                  setHighlightOpen(false)
-                }}
-                className="px-1 text-[10px] font-bold text-slate-500"
-              >
-                Clear
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <ToolbarBtn
+          title="Highlight"
+          active={editor.isActive('highlight')}
+          onClick={() => editor.chain().focus().toggleHighlight().run()}
+        >
+          <Highlighter className="h-4 w-4" />
+        </ToolbarBtn>
       </div>
 
       <div className="flex flex-wrap items-center gap-0.5">
@@ -417,6 +449,9 @@ function RichTextToolbar({ editor }: { editor: Editor }) {
           <Video className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarDivider />
+        <ToolbarBtn title="Code view" active={sourceMode} onClick={onToggleSource}>
+          <Braces className="h-4 w-4" />
+        </ToolbarBtn>
         <ToolbarBtn title="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
           <RemoveFormatting className="h-4 w-4" />
         </ToolbarBtn>
@@ -432,8 +467,14 @@ export function RichTextEditor({
   className,
   minHeightClassName = 'min-h-48',
   disabled = false,
+  accentColor,
 }: RichTextEditorProps) {
+  const { vCardData } = useVCard()
+  const accent =
+    accentColor?.trim() || vCardData.theme?.accentColor?.trim() || vCardData.theme?.primaryColor?.trim() || '#eab308'
   const onChangeRef = useRef(onChange)
+  const [sourceMode, setSourceMode] = useState(false)
+  const [sourceDraft, setSourceDraft] = useState(value || '')
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
@@ -443,7 +484,7 @@ export function RichTextEditor({
     editable: !disabled,
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4] },
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
         link: false,
         underline: false,
       }),
@@ -480,7 +521,7 @@ export function RichTextEditor({
   })
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor || sourceMode) return
     const current = editor.getHTML()
     const next = value || ''
     if (next !== current && next !== '<p></p>') {
@@ -489,7 +530,7 @@ export function RichTextEditor({
         editor.commands.setContent(next, { emitUpdate: false })
       }
     }
-  }, [editor, value])
+  }, [editor, sourceMode, value])
 
   useEffect(() => {
     if (!editor) return
@@ -516,9 +557,39 @@ export function RichTextEditor({
         disabled && 'pointer-events-none opacity-60',
         className
       )}
+      style={{ ['--rte-accent' as string]: accent }}
     >
-      <RichTextToolbar editor={editor} />
-      <EditorContent editor={editor} />
+      <style>{EDITOR_ACCENT_CSS}</style>
+      <RichTextToolbar
+        editor={editor}
+        sourceMode={sourceMode}
+        onToggleSource={() => {
+          if (sourceMode) {
+            editor.commands.setContent(sourceDraft || '', { emitUpdate: true })
+            setSourceMode(false)
+            return
+          }
+          setSourceDraft(editor.getHTML())
+          setSourceMode(true)
+        }}
+      />
+      {sourceMode ? (
+        <textarea
+          value={sourceDraft}
+          onChange={(event) => {
+            setSourceDraft(event.target.value)
+            onChangeRef.current?.(event.target.value)
+          }}
+          spellCheck={false}
+          aria-label="HTML code view"
+          className={cn(
+            'w-full resize-y bg-slate-950 px-4 py-3 font-mono text-[12px] leading-relaxed text-slate-100 focus:outline-none',
+            minHeightClassName
+          )}
+        />
+      ) : (
+        <EditorContent editor={editor} />
+      )}
     </div>
   )
 }
