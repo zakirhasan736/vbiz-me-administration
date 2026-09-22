@@ -9,9 +9,13 @@ describe('AI Assistance premium lock', () => {
     expect(isAiAssistanceEnabled('1')).toBe(true)
   })
 
-  it('defaults michaelangelo-casanova-2 to enabled', () => {
+  it('defaults michaelangelo-casanova-2 to enabled until the owner turns it off', () => {
     expect(isAiAssistanceDefaultEnabledSlug('Michaelangelo-Casanova-2')).toBe(true)
-    expect(isAiAssistanceEnabled('0', 'michaelangelo-casanova-2')).toBe(true)
+    expect(isAiAssistanceEnabled(undefined, 'michaelangelo-casanova-2')).toBe(true)
+    expect(isAiAssistanceEnabled('', 'michaelangelo-casanova-2')).toBe(true)
+    expect(isAiAssistanceEnabled('1', 'michaelangelo-casanova-2')).toBe(true)
+    expect(isAiAssistanceEnabled('0', 'michaelangelo-casanova-2')).toBe(false)
+    expect(isAiAssistanceEnabled(false, 'michaelangelo-casanova-2')).toBe(false)
     expect(isAiAssistanceEnabled(false, 'other-card')).toBe(false)
   })
 

@@ -11,8 +11,8 @@ export function aiAssistanceLockedMessage(priceUsd = AI_ASSISTANCE_ADDON_PRICE_U
 }
 
 /**
- * Public card slugs that ship with guest AI Assistance already active.
- * Everyone else must unlock the package add-on, then enable it in Settings.
+ * Public card slugs that start with guest AI Assistance on.
+ * An explicit off in Settings is kept. Everyone else must unlock the add-on, then enable it.
  */
 export const AI_ASSISTANCE_DEFAULT_ENABLED_SLUGS = ['michaelangelo-casanova-2'] as const
 
@@ -27,12 +27,18 @@ export function isAiAssistanceDefaultEnabledSlug(slug?: string | null): boolean 
   return (AI_ASSISTANCE_DEFAULT_ENABLED_SLUGS as readonly string[]).includes(normalized)
 }
 
+function hasExplicitAiAssistanceFlag(flag?: boolean | string | number | null): boolean {
+  if (flag === null || flag === undefined) return false
+  if (typeof flag === 'string' && flag.trim() === '') return false
+  return true
+}
+
 /**
- * Guest-facing AI Assistance is off unless explicitly enabled on the card,
- * or the card is in the default-enabled slug allowlist.
+ * Guest-facing AI Assistance is off unless explicitly enabled on the card.
+ * Allowlisted slugs start enabled only when the card has no saved choice yet.
  */
 export function isAiAssistanceEnabled(flag?: boolean | string | number | null, slug?: string | null): boolean {
-  if (isAiAssistanceDefaultEnabledSlug(slug)) return true
+  if (!hasExplicitAiAssistanceFlag(flag) && isAiAssistanceDefaultEnabledSlug(slug)) return true
   if (flag === true || flag === 1) return true
   if (typeof flag === 'string') {
     const trimmed = flag.trim().toLowerCase()
