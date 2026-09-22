@@ -137,13 +137,13 @@ test.describe('Public card visitor flows', () => {
     )
 
     const installCta = page.getByRole('button', {
-      name: /^(Add to Home Screen|How to add|Open in Safari)$/i,
+      name: /^(Add to Home Screen|Add to Dock|How to add|Open in Safari)$/i,
     })
     await expect(installCta).toBeVisible()
 
     const project = test.info().project.name
     if (project === 'iphone') {
-      await expect(installCta).toHaveText(/How to add|Open in Safari/i)
+      await expect(installCta).toHaveText(/Add to Home Screen|Open in Safari/i)
       await expect(
         page
           .locator('ol')

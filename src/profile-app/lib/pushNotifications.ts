@@ -1,8 +1,11 @@
 import {
   canShowBrowserNotificationPrompt,
+  hasNotificationApi,
   IOS_CHROME_ALLOW_THEN_HOME_MESSAGE,
   IOS_PUSH_HOME_SCREEN_MESSAGE,
   isIosChrome,
+  isIosDevice,
+  readNotificationPermission,
   shouldShowIosHomeScreenPushGuide,
 } from '@/lib/push/iosPushGuidance'
 import { clearNotificationDeclinedForCard } from '@/lib/push/notificationExperience'
@@ -105,14 +108,16 @@ export const NOTIFICATION_PREFERENCE_OPTIONS: Array<{ id: NotificationPreference
 ]
 
 export function isPushSupported() {
-  return (
-    typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
-  )
+  if (typeof window === 'undefined') return false
+  try {
+    return 'serviceWorker' in navigator && 'PushManager' in window && hasNotificationApi()
+  } catch {
+    return false
+  }
 }
 
 export function getNotificationPermission(): NotificationPermission | 'unsupported' {
-  if (!isPushSupported()) return 'unsupported'
-  return Notification.permission
+  return readNotificationPermission()
 }
 
 export function followStorageKey(cardSlug: string) {
@@ -245,24 +250,27 @@ export function vapidKeyToArrayBuffer(keyBytes: Uint8Array): ArrayBuffer {
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (typeof window === 'undefined' || !('Notification' in window)) return 'denied'
-  if (Notification.permission !== 'default') return Notification.permission
+  if (!hasNotificationApi()) return 'denied'
+  const current = readNotificationPermission()
+  if (current === 'unsupported') return 'denied'
+  if (current !== 'default') return current
 
   try {
-    const result = Notification.requestPermission()
+    const result = window.Notification.requestPermission()
     if (typeof result === 'string') return result
     if (result && typeof (result as Promise<NotificationPermission>).then === 'function') {
       return await result
     }
   } catch {
-    /* older Safari used a callback */
+    /* older Safari used a callback, or iOS threw while resolving Notification */
   }
 
   return await new Promise((resolve) => {
     try {
-      Notification.requestPermission((permission) => resolve(permission))
+      window.Notification.requestPermission((permission) => resolve(permission))
     } catch {
-      resolve(Notification.permission)
+      const fallback = readNotificationPermission()
+      resolve(fallback === 'unsupported' ? 'denied' : fallback)
     }
   })
 }
@@ -309,6 +317,17 @@ export function mapPushSubscribeError(error: unknown): Error {
   const name = 'name' in error ? String((error as { name?: string }).name) : ''
   const message = error.message || ''
   const lower = message.toLowerCase()
+
+  if (
+    name === 'ReferenceError' ||
+    lower.includes("can't find variable: notification") ||
+    lower.includes('notification is not defined')
+  ) {
+    if (isIosDevice() || shouldShowIosHomeScreenPushGuide()) {
+      return new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_HOME_SCREEN_MESSAGE)
+    }
+    return new Error('This browser cannot show the Allow prompt. Use Chrome, Edge, Firefox, or Safari 16.4+.')
+  }
 
   if (lower.includes('home screen') || lower.includes('iphone') || lower.includes('chrome on iphone')) {
     return error
@@ -549,7 +568,15 @@ export async function subscribeToCard(options: {
       )
     }
 
-    let permission: NotificationPermission = Notification.permission
+    let permission = readNotificationPermission()
+    if (permission === 'unsupported') {
+      if (iosTabNeedsHomeScreen) {
+        throw new Error(isIosChrome() ? IOS_CHROME_ALLOW_THEN_HOME_MESSAGE : IOS_PUSH_HOME_SCREEN_MESSAGE)
+      }
+      throw new Error(
+        'Push notifications are not supported in this browser. Use Chrome, Edge, Firefox, or Safari 16.4+ over https.'
+      )
+    }
     if (permission !== 'granted') {
       permission = await requestNotificationPermission()
     }
@@ -633,7 +660,9 @@ export async function subscribeToCard(options: {
     // Fallback if older servers ignore preferences on subscribe.
     if (!savedBackendPreferences) {
       try {
-        const result = await updateCardBackendPreferences(options.cardSlug, backendPreferences)
+        const result = await updateCardBackendPreferences(options.cardSlug, backendPreferences, {
+          allowResubscribe: false,
+        })
         savedBackendPreferences = result.preferences
       } catch {
         savedBackendPreferences = backendPreferences
@@ -663,9 +692,22 @@ export async function subscribeToCard(options: {
 
 export async function updateCardBackendPreferences(
   cardSlug: string,
-  preferences: BackendNotificationPreferences
+  preferences: BackendNotificationPreferences,
+  options?: { allowResubscribe?: boolean }
 ): Promise<UpdatePreferencesResult> {
+  const allowResubscribe = options?.allowResubscribe !== false
   const stored = await resolvePushSubscriptionPayload()
+
+  // Permission can be Allow while this browser still has no PushSubscription.
+  // Create it and save these preferences instead of telling the user to enable again.
+  if (!stored && allowResubscribe && getNotificationPermission() === 'granted') {
+    const created = await subscribeToCard({ cardSlug, preferences })
+    return {
+      message: 'Your notification preferences were updated.',
+      preferences: created.backendPreferences,
+    }
+  }
+
   if (!stored) {
     throw new Error('No browser push subscription found. Enable notifications first.')
   }
@@ -685,6 +727,19 @@ export async function updateCardBackendPreferences(
     payload = unwrapPublicPayload<PushPreferencesUpdateResponse>(await response.json())
   } catch {
     /* ignore parse errors */
+  }
+
+  if (
+    !response.ok &&
+    allowResubscribe &&
+    /subscription not found/i.test(payload.message || '') &&
+    getNotificationPermission() === 'granted'
+  ) {
+    const created = await subscribeToCard({ cardSlug, preferences })
+    return {
+      message: 'Your notification preferences were updated.',
+      preferences: created.backendPreferences,
+    }
   }
 
   if (!response.ok || payload.success === false) {

@@ -4,6 +4,8 @@ import { isPushSupported, mapPushSubscribeError, subscribeToCard } from '@/lib/p
 import {
   canShowBrowserNotificationPrompt,
   clearIosPushIntent,
+  IOS_CHROME_ALLOW_THEN_HOME_MESSAGE,
+  IOS_PUSH_HOME_SCREEN_MESSAGE,
   isDesktopSafari,
   isIosChrome,
   markIosPushIntent,
@@ -131,11 +133,14 @@ export function NotificationFollowModal({
     } catch (subscribeError) {
       const mapped = mapPushSubscribeError(subscribeError)
       const message = mapped.message || 'Could not enable notifications.'
-      setError(message)
-      if (shouldShowIosHomeScreenPushGuide() || message.toLowerCase().includes('home screen')) {
+      const guideAlreadyShown =
+        message === IOS_PUSH_HOME_SCREEN_MESSAGE || message === IOS_CHROME_ALLOW_THEN_HOME_MESSAGE
+      if (guideAlreadyShown || shouldShowIosHomeScreenPushGuide()) {
         setIosGuide(true)
         markIosPushIntent(cardSlug)
+        setError(guideAlreadyShown ? null : message)
       } else {
+        setError(message)
         notify.error(message)
       }
     } finally {

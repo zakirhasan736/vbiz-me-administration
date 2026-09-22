@@ -27,6 +27,19 @@ function resolveCertificateImage(item: DynamicPostListItem): string {
   return item.attachments.find((attachment) => attachment.url?.trim())?.url?.trim() ?? ''
 }
 
+function usEnglishCertificatesTitle(title: string): string {
+  const trimmed = title.trim()
+  if (
+    /^certificats?$/i.test(trimmed) ||
+    /^certifications\/licen[cs](e|ing)$/i.test(trimmed) ||
+    /^certificates\/licen[cs]es$/i.test(trimmed) ||
+    /^certificates licenses$/i.test(trimmed)
+  ) {
+    return 'Certificates'
+  }
+  return trimmed || 'Certificates'
+}
+
 function formatYear(date: string): string {
   const parsed = new Date(date)
   return Number.isNaN(parsed.getTime()) ? '' : String(parsed.getFullYear())
@@ -175,7 +188,8 @@ export const CertificationsLicensingSection = () => {
     { skip: !profileId }
   )
 
-  const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Certifications/Licensing')
+  const resolvedTitle = useResolvedSectionTitle(data?.sectionTitle, 'Certificates')
+  const sectionTitle = usEnglishCertificatesTitle(resolvedTitle)
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0
@@ -212,7 +226,10 @@ export const CertificationsLicensingSection = () => {
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
             <Award size={24} style={{ color: accent }} />
           </div>
-          <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+          <h2
+            className="vbiz-title notranslate mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100"
+            translate="no"
+          >
             {sectionTitle}
           </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
@@ -234,9 +251,15 @@ export const CertificationsLicensingSection = () => {
           />
           <div className="relative z-10 w-full md:w-auto">
             <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
-              <Award size={12} style={{ color: accent }} /> Licenses & Certifications
+              <Award size={12} style={{ color: accent }} />{' '}
+              <span className="notranslate" translate="no">
+                Licenses & Certifications
+              </span>
             </div>
-            <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight wrap-break-word hyphens-auto text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+            <h2
+              className="notranslate mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight wrap-break-word hyphens-auto text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100"
+              translate="no"
+            >
               {sectionTitle}
             </h2>
             <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400">

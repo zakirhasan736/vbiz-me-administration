@@ -14,6 +14,7 @@ import { DEFAULT_BACKEND_NOTIFICATION_PREFERENCES, fromBackendPreferences } from
 import { getCachedCardPushStatus, invalidateCardPushStatus, setCachedCardPushStatus } from '@/lib/push/pushStatusCache'
 import type { NotificationPreferences } from '@/lib/push/types'
 import {
+  clearFollowState,
   fetchPushStatus,
   getExistingSubscription,
   getNotificationPermission,
@@ -24,50 +25,67 @@ import {
 
 export type NotificationModalTarget = 'settings' | 'follow'
 
-/** True when this browser already opted in for the card (local or backend). */
+function forgetLocalFollow(cardSlug: string) {
+  clearFollowState(cardSlug)
+  invalidateCardPushStatus(cardSlug)
+}
+
+/** True only when this browser is still allowed and the card has a live push subscription. */
 export async function isSubscribedToCard(cardSlug: string, options?: { forceRefresh?: boolean }): Promise<boolean> {
   if (!cardSlug.trim()) return false
 
-  // Durable local opt-in — survives hard reload / new tab.
-  if (readFollowState(cardSlug)?.following) {
-    if (!options?.forceRefresh) return true
+  const permission = getNotificationPermission()
+  if (permission !== 'granted') {
+    if (readFollowState(cardSlug)?.following) forgetLocalFollow(cardSlug)
+    return false
+  }
+
+  const subscription = await getExistingSubscription()
+  if (!subscription?.endpoint) {
+    if (readFollowState(cardSlug)?.following) forgetLocalFollow(cardSlug)
+    return false
   }
 
   if (!options?.forceRefresh) {
     const cached = getCachedCardPushStatus(cardSlug)
-    if (cached) return cached.following
+    if (cached && !cached.following) return false
   }
 
   if (!isPushSupported()) return false
 
   try {
-    const status = await fetchPushStatus(cardSlug, { forceRefresh: options?.forceRefresh })
-    if (status.following) {
-      // Keep local follow in sync so future reloads don't wait on the API.
-      const existing = readFollowState(cardSlug)
-      const backendPreferences =
-        status.backendPreferences ?? existing?.backendPreferences ?? DEFAULT_BACKEND_NOTIFICATION_PREFERENCES
-      writeFollowState(cardSlug, {
-        following: true,
-        preferences: status.preferences ?? fromBackendPreferences(backendPreferences),
-        backendPreferences,
-        subscribedAt: existing?.subscribedAt ?? new Date().toISOString(),
-      })
+    const status = await fetchPushStatus(cardSlug, {
+      endpoint: subscription.endpoint,
+      forceRefresh: options?.forceRefresh ?? true,
+    })
+    if (!status.following) {
+      forgetLocalFollow(cardSlug)
+      return false
     }
-    return status.following
+
+    const existing = readFollowState(cardSlug)
+    const backendPreferences =
+      status.backendPreferences ?? existing?.backendPreferences ?? DEFAULT_BACKEND_NOTIFICATION_PREFERENCES
+    writeFollowState(cardSlug, {
+      following: true,
+      preferences: status.preferences ?? fromBackendPreferences(backendPreferences),
+      backendPreferences,
+      subscribedAt: existing?.subscribedAt ?? new Date().toISOString(),
+    })
+    return true
   } catch {
-    // If the API fails but the user already followed locally, treat as subscribed.
     return Boolean(readFollowState(cardSlug)?.following)
   }
 }
 
-/** Route alert / bell clicks: settings when API says subscribed, follow popup otherwise. */
+/** Settings when this browser still has an active subscription; Allow popup otherwise. */
 export async function resolveNotificationModalTarget(cardSlug: string): Promise<NotificationModalTarget> {
+  if (getNotificationPermission() !== 'granted') return 'follow'
   try {
     const subscribed = await Promise.race([
-      isSubscribedToCard(cardSlug),
+      isSubscribedToCard(cardSlug, { forceRefresh: true }),
       new Promise<boolean>((resolve) => {
-        setTimeout(() => resolve(false), 2500)
+        setTimeout(() => resolve(false), 4000)
       }),
     ])
     return subscribed ? 'settings' : 'follow'
@@ -95,7 +113,7 @@ export async function shouldAutoShowNotificationPrompt(cardSlug: string): Promis
   }
 
   // Already enabled for this card in this browser — never re-ask on reload/new tab.
-  if (readFollowState(cardSlug)?.following) return false
+  if (readFollowState(cardSlug)?.following && getNotificationPermission() === 'granted') return false
 
   const permission = getNotificationPermission()
   if (permission === 'granted') {

@@ -1,4 +1,6 @@
 import {
+  canShowBrowserNotificationPrompt,
+  hasNotificationApi,
   isAndroidDevice,
   isDesktopSafari,
   isIosDevice,
@@ -60,5 +62,21 @@ describe('iOS / Android / Mac push guidance', () => {
     expect(isIosDevice()).toBe(false)
     expect(isDesktopSafari()).toBe(true)
     expect(shouldShowIosHomeScreenPushGuide()).toBe(false)
+  })
+
+  it('does not throw when iPhone Safari hides Notification', () => {
+    stubWindowNavigator(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+    )
+    Object.defineProperty(window, 'Notification', {
+      configurable: true,
+      get() {
+        throw new ReferenceError("Can't find variable: Notification")
+      },
+    })
+    expect(() => hasNotificationApi()).not.toThrow()
+    expect(hasNotificationApi()).toBe(false)
+    expect(() => canShowBrowserNotificationPrompt()).not.toThrow()
+    expect(canShowBrowserNotificationPrompt()).toBe(false)
   })
 })

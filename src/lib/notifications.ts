@@ -1,3 +1,5 @@
+import { hasNotificationApi, readNotificationPermission } from '@/lib/push/iosPushGuidance'
+
 export type NotificationAudience = 'single' | 'corporate' | 'admin'
 
 export type NotificationCategory =
@@ -221,12 +223,15 @@ export function markAllNotificationsRead(audience: NotificationAudience) {
 }
 
 export async function ensureNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
-  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported'
-  if (Notification.permission === 'granted') return 'granted'
+  const current = readNotificationPermission()
+  if (current === 'unsupported') return 'unsupported'
+  if (current === 'granted') return 'granted'
+  if (!hasNotificationApi()) return 'unsupported'
   try {
-    return await Notification.requestPermission()
+    return await window.Notification.requestPermission()
   } catch {
-    return Notification.permission
+    const fallback = readNotificationPermission()
+    return fallback === 'unsupported' ? 'denied' : fallback
   }
 }
 
@@ -313,10 +318,9 @@ function categoryAllowed(category: NotificationCategory, prefs: NotificationPref
 
 function maybeBrowserNotify(n: AppNotification, prefs: NotificationPrefs) {
   if (!prefs.browserPush) return
-  if (typeof window === 'undefined' || !('Notification' in window)) return
-  if (Notification.permission !== 'granted') return
+  if (readNotificationPermission() !== 'granted' || !hasNotificationApi()) return
   try {
-    const note = new Notification(n.title, {
+    const note = new window.Notification(n.title, {
       body: n.body,
       tag: n.id,
       icon: '/logo-vbizme.webp',

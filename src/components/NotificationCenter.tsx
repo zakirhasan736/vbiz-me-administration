@@ -14,6 +14,7 @@ import {
   type NotificationAudience,
   type NotificationCategory,
 } from '@/lib/notifications'
+import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
 import { clearActiveAnnouncementBannerCache } from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
 import { cn } from '@/utils/cn'
 import {
@@ -103,8 +104,7 @@ function subscribeToNotificationPermission(onStoreChange: () => void) {
 }
 
 function getNotificationPermissionSnapshot(): NotificationPermission | 'unsupported' {
-  if (!('Notification' in window)) return 'unsupported'
-  return Notification.permission
+  return readNotificationPermission()
 }
 
 function getServerNotificationPermissionSnapshot(): NotificationPermission | 'unsupported' {

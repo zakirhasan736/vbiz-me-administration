@@ -46,18 +46,54 @@ function capturePrompt(event: Event) {
   return promptEvent
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise.then((value) => value).catch(() => null),
+    new Promise<null>((resolve) => {
+      window.setTimeout(() => resolve(null), ms)
+    }),
+  ])
+}
+
 async function ensurePublicCardServiceWorker() {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
   const path = window.location.pathname
   if (!path.startsWith('/vCard/') && !path.startsWith('/v/')) return
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+    const registration = await withTimeout(
+      navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' }),
+      2500
+    )
+    if (!registration) return
     if (registration.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' })
     }
-    await navigator.serviceWorker.ready
+    await withTimeout(navigator.serviceWorker.ready, 2500)
   } catch {
     /* install UI still works with manual browser steps */
+  }
+}
+
+/** Apple has no install prompt. Share must run inside the tap, before any await. */
+export async function shareCurrentCard(title: string): Promise<'shared' | 'cancelled' | 'unavailable'> {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return 'unavailable'
+  try {
+    await navigator.share({ title: title.trim() || 'vBiz card', url: window.location.href })
+    return 'shared'
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled'
+    return 'unavailable'
+  }
+}
+
+export function openCardInSafari(url = typeof window === 'undefined' ? '' : window.location.href): boolean {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false
+    window.location.href = `x-safari-${parsed.href}`
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -100,15 +136,28 @@ function listenStandaloneChange(onChange: () => void) {
 }
 
 export function usePwaInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(readStoredPrompt)
-  const [isInstalled, setIsInstalled] = useState(
-    () => isStandaloneDisplay() || (typeof window !== 'undefined' && window.__vbizPwa?.installed === true)
-  )
-  const [isIos] = useState(() => isIosDevice())
-  const [isAndroid] = useState(() => isAndroidDevice())
-  const [isSafari] = useState(() => isSafariBrowser())
-  const [surface] = useState<PwaInstallSurface>(() => resolvePwaInstallSurface())
+  const onClient = typeof window !== 'undefined'
+  const detectedSurface: PwaInstallSurface = onClient ? resolvePwaInstallSurface() : 'chromium'
+  const detectedIos = onClient && isIosDevice()
+  const detectedAndroid = onClient && isAndroidDevice()
+  const detectedSafari = onClient && isSafariBrowser()
+  const detectedInstalled = onClient && (isStandaloneDisplay() || window.__vbizPwa?.installed === true)
+
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [isInstalled, setIsInstalled] = useState(false)
+  const [isIos, setIsIos] = useState(false)
+  const [isAndroid, setIsAndroid] = useState(false)
+  const [isSafari, setIsSafari] = useState(false)
+  const [surface, setSurface] = useState<PwaInstallSurface>('chromium')
   const [installing, setInstalling] = useState(false)
+
+  // Server HTML cannot see the device. Correct it on the client before the tap,
+  // otherwise iPhone/Mac Safari wait on a Chrome install prompt that never fires.
+  if (surface !== detectedSurface) setSurface(detectedSurface)
+  if (isIos !== detectedIos) setIsIos(detectedIos)
+  if (isAndroid !== detectedAndroid) setIsAndroid(detectedAndroid)
+  if (isSafari !== detectedSafari) setIsSafari(detectedSafari)
+  if (detectedInstalled && !isInstalled) setIsInstalled(true)
 
   useEffect(() => {
     const onBeforeInstall = (event: Event) => {
@@ -149,11 +198,13 @@ export function usePwaInstall() {
   const canNativeInstall = Boolean(deferredPrompt || readStoredPrompt()) && !isInstalled && !isIos
 
   const promptInstall = useCallback(async () => {
-    if (isIosDevice()) return { ok: false as const, reason: 'manual' as const }
+    if (isIosDevice() || resolvePwaInstallSurface() === 'mac-safari') {
+      return { ok: false as const, reason: 'manual' as const }
+    }
     setInstalling(true)
     try {
       await ensurePublicCardServiceWorker()
-      const event = deferredPrompt ?? readStoredPrompt() ?? (await waitForInstallPrompt(4000))
+      const event = deferredPrompt ?? readStoredPrompt() ?? (await waitForInstallPrompt(2500))
       if (!event?.prompt) return { ok: false as const, reason: 'unavailable' as const }
       setDeferredPrompt(event)
       await event.prompt()

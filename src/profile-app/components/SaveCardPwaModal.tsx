@@ -2,7 +2,7 @@
 
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
-import { usePwaInstall } from '@/profile-app/hooks/usePwaInstall'
+import { openCardInSafari, shareCurrentCard, usePwaInstall } from '@/profile-app/hooks/usePwaInstall'
 import {
   Check,
   Cloud,
@@ -35,7 +35,7 @@ export function SaveCardPwaModal({
   cardSlug,
   contactJustSaved = false,
 }: SaveCardPwaModalProps) {
-  const { canNativeInstall, isInstalled, isIos, surface, installing, promptInstall } = usePwaInstall()
+  const { isInstalled, isIos, surface, installing, promptInstall } = usePwaInstall()
   const [installMessage, setInstallMessage] = useState<string | null>(null)
   const [nativeAdded, setNativeAdded] = useState(false)
   const [offlineReady, setOfflineReady] = useState(false)
@@ -82,18 +82,31 @@ export function SaveCardPwaModal({
       setInstallMessage('This card is already on your Home Screen. Open it from the icon.')
       return
     }
-    if (isIos) {
-      if (surface === 'ios-inapp') {
+    if (surface === 'ios-inapp') {
+      if (!openCardInSafari()) {
         setInstallMessage('Open this card in Safari (not Instagram/Facebook), then tap Share → Add to Home Screen.')
-      } else if (surface === 'ios-safari') {
-        setInstallMessage(
-          'On iPhone, tap Share, then Add to Home Screen. Safari does not allow this button to add the icon by itself.'
-        )
-      } else if (surface === 'ios-chrome') {
-        setInstallMessage('On iPhone Chrome, tap the menu (or Share) and choose Add to Home Screen.')
-      } else {
-        setInstallMessage('Use Share or the browser menu → Add to Home Screen. Safari is the most reliable on iPhone.')
       }
+      return
+    }
+
+    if (isIos || surface === 'mac-safari') {
+      const shared = await shareCurrentCard(label)
+      if (shared === 'cancelled') return
+      if (shared === 'shared') {
+        setInstallMessage(
+          surface === 'mac-safari'
+            ? 'In the share menu, choose Add to Dock.'
+            : 'In the share sheet, tap Add to Home Screen, then Add.'
+        )
+        return
+      }
+      setInstallMessage(
+        surface === 'mac-safari'
+          ? 'On Mac Safari: File → Add to Dock, or Share → Add to Dock.'
+          : surface === 'ios-chrome'
+            ? 'On iPhone Chrome, tap Share or the menu, then Add to Home Screen. Safari is more reliable.'
+            : 'Tap Share in Safari, then Add to Home Screen, then Add.'
+      )
       return
     }
     const result = await promptInstall()
@@ -109,11 +122,9 @@ export function SaveCardPwaModal({
     setInstallMessage(
       surface === 'android'
         ? 'If Install did not open, use the browser menu → Add to Home screen / Install app (Chrome, Edge, or Samsung).'
-        : surface === 'mac-safari'
-          ? 'On Mac Safari: File → Add to Dock, or Share → Add to Dock.'
-          : surface === 'firefox'
-            ? 'Firefox desktop cannot install this as an app. Use Chrome or Edge, or bookmark the card.'
-            : 'Use the install icon in the address bar, or the browser menu → Install app.'
+        : surface === 'firefox'
+          ? 'Firefox desktop cannot install this as an app. Use Chrome or Edge, or bookmark the card.'
+          : 'Use the install icon in the address bar, or the browser menu → Install app.'
     )
   }
 
@@ -186,9 +197,9 @@ export function SaveCardPwaModal({
               ? 'Already added'
               : surface === 'ios-inapp'
                 ? 'Open in Safari'
-                : canNativeInstall || !isIos
-                  ? 'Add to Home Screen'
-                  : 'How to add'}
+                : surface === 'mac-safari'
+                  ? 'Add to Dock'
+                  : 'Add to Home Screen'}
           </button>
 
           <div className="vbiz-description space-y-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-[12px] leading-relaxed">

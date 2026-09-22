@@ -1,16 +1,33 @@
 'use client'
 
-import { fetchPushStatus, unsubscribeFromCard, updateCardBackendPreferences } from '@/lib/push/config'
+import {
+  fetchPushStatus,
+  getNotificationPermission,
+  unsubscribeFromCard,
+  updateCardBackendPreferences,
+} from '@/lib/push/config'
 import {
   BACKEND_NOTIFICATION_PREFERENCE_OPTIONS,
   DEFAULT_BACKEND_NOTIFICATION_PREFERENCES,
   type BackendNotificationPreferenceKey,
   type BackendNotificationPreferences,
 } from '@/lib/push/preferenceMapping'
+import { invalidateCardPushStatus } from '@/lib/push/pushStatusCache'
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
+import { clearFollowState } from '@/profile-app/lib/pushNotifications'
 import { Bell, BellOff, BellRing, Loader2, Save, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+
+function missingPushSubscription(message: string) {
+  return /subscription not found|no browser push subscription|enable notifications first/i.test(message)
+}
+
+function openAllowPopup(cardSlug: string, onReEnable?: () => void) {
+  clearFollowState(cardSlug)
+  invalidateCardPushStatus(cardSlug)
+  onReEnable?.()
+}
 
 export const NotificationSettingsModal = ({
   isOpen,
@@ -43,6 +60,10 @@ export const NotificationSettingsModal = ({
     let cancelled = false
 
     const load = async () => {
+      if (getNotificationPermission() !== 'granted') {
+        openAllowPopup(cardSlug, onReEnable)
+        return
+      }
       setUnfollowed(false)
       setLoading(true)
       setError(null)
@@ -67,7 +88,7 @@ export const NotificationSettingsModal = ({
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [isOpen, cardSlug])
+  }, [isOpen, cardSlug, onReEnable])
 
   const handleSave = async () => {
     setSaving(true)
@@ -81,6 +102,10 @@ export const NotificationSettingsModal = ({
       notify.success(successMessage)
     } catch (e) {
       const failureMessage = e instanceof Error ? e.message : 'Could not save your notification preferences.'
+      if (missingPushSubscription(failureMessage) && getNotificationPermission() !== 'granted') {
+        openAllowPopup(cardSlug, onReEnable)
+        return
+      }
       setError(failureMessage)
       notify.error(failureMessage)
     } finally {

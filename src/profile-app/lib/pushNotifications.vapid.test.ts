@@ -27,6 +27,19 @@ describe('mapPushSubscribeError', () => {
     expect(mapPushSubscribeError(blocked).message).toMatch(/blocked/i)
   })
 
+  it('maps the iPhone missing Notification variable to Home Screen steps', () => {
+    Object.defineProperty(window.navigator, 'userAgent', {
+      configurable: true,
+      get: () =>
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+    })
+    Object.defineProperty(window.navigator, 'platform', { configurable: true, get: () => 'iPhone' })
+    Object.defineProperty(window.navigator, 'maxTouchPoints', { configurable: true, get: () => 5 })
+    const missing = new ReferenceError("Can't find variable: Notification")
+    expect(mapPushSubscribeError(missing).message).toMatch(/Home Screen/i)
+    expect(mapPushSubscribeError(missing).message).not.toMatch(/Can't find variable/i)
+  })
+
   it('maps AbortError on iPhone tabs to Home Screen steps', () => {
     Object.defineProperty(window.navigator, 'userAgent', {
       configurable: true,

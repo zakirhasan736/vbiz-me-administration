@@ -202,6 +202,23 @@ async function fetchImageAsBase64(imageUrl: string): Promise<VcfPhoto | null> {
   }
 }
 
+export type ContactVcfPlatform = 'apple' | 'android'
+
+/**
+ * iPhone and Mac Contacts show the group label from X-ABLabel.
+ * Android Contacts ignores that label and saves every URL row as Website.
+ * Android only keeps a custom name from X-ANDROID-CUSTOM (type 0 = custom label).
+ */
+function pushAppleLabeledUrl(lines: string[], item: number, url: string, label: string) {
+  lines.push(`item${item}.URL:${escapeVcfValue(url)}`)
+  lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
+}
+
+function pushAndroidCustomUrl(lines: string[], url: string, label: string) {
+  const fields = ['vnd.android.cursor.item/website', url, '0', label].map(escapeVcfValue)
+  lines.push(`X-ANDROID-CUSTOM:${fields.join(';')}`)
+}
+
 function buildNote(contact: SaveContactCardData): string {
   const parts: string[] = []
   if (contact.note?.trim()) parts.push(contact.note.trim())
@@ -213,7 +230,11 @@ function buildNote(contact: SaveContactCardData): string {
  * Apple Contacts is picky: no CHARSET params, no blank lines, vCard 3.0.
  * Android imports the same file.
  */
-export function serializeContactVcf(contact: SaveContactCardData, photo?: VcfPhoto | null): string {
+export function serializeContactVcf(
+  contact: SaveContactCardData,
+  photo?: VcfPhoto | null,
+  options?: { platform?: ContactVcfPlatform }
+): string {
   const { first, last } = splitFullName(contact.name)
   const lines: string[] = ['BEGIN:VCARD', 'VERSION:3.0', 'PRODID:-//vBiz Me//Save Contact//EN']
 
@@ -224,8 +245,18 @@ export function serializeContactVcf(contact: SaveContactCardData, photo?: VcfPho
   if (contact.profession?.trim()) lines.push(`TITLE:${escapeVcfValue(contact.profession.trim())}`)
   if (contact.phone?.trim()) lines.push(`TEL;TYPE=CELL:${escapeVcfValue(contact.phone.trim())}`)
   if (contact.email?.trim()) lines.push(`EMAIL;TYPE=INTERNET:${escapeVcfValue(contact.email.trim())}`)
-  if (contact.website?.trim()) lines.push(`URL:${escapeVcfValue(normalizeWebsite(contact.website))}`)
-  if (contact.profileUrl?.trim()) lines.push(`URL:${escapeVcfValue(contact.profileUrl.trim())}`)
+  const platform = options?.platform === 'android' ? 'android' : 'apple'
+  const website = contact.website?.trim() ? normalizeWebsite(contact.website) : ''
+  const profileUrl = contact.profileUrl?.trim() || ''
+  const cardLink = profileUrl && profileUrl.replace(/\/$/, '') !== website ? profileUrl : ''
+  if (platform === 'android') {
+    if (website) lines.push(`URL:${escapeVcfValue(website)}`)
+    if (cardLink) pushAndroidCustomUrl(lines, cardLink, 'vCard URL')
+  } else {
+    let urlItem = 1
+    if (website) pushAppleLabeledUrl(lines, urlItem++, website, 'Website')
+    if (cardLink) pushAppleLabeledUrl(lines, urlItem, cardLink, 'vCard URL')
+  }
   if (contact.address?.trim()) {
     lines.push(`ADR;TYPE=WORK:;;${escapeVcfValue(contact.address.trim())};;;;`)
   }

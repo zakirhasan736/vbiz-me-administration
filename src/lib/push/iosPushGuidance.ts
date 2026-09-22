@@ -63,9 +63,32 @@ export function needsIosHomeScreenForPush(): boolean {
   return shouldShowIosHomeScreenPushGuide()
 }
 
+/**
+ * iPhone Safari throws ReferenceError ("Can't find variable: Notification")
+ * when the Notification constructor is missing from a normal browser tab.
+ * Never touch the bare `Notification` identifier.
+ */
+export function hasNotificationApi(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return typeof window.Notification === 'function'
+  } catch {
+    return false
+  }
+}
+
+export function readNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (!hasNotificationApi()) return 'unsupported'
+  try {
+    return window.Notification.permission
+  } catch {
+    return 'unsupported'
+  }
+}
+
 /** True when this browser can show the system Allow / Don’t Allow dialog. */
 export function canShowBrowserNotificationPrompt(): boolean {
-  return typeof window !== 'undefined' && 'Notification' in window
+  return hasNotificationApi()
 }
 
 /**
@@ -74,10 +97,13 @@ export function canShowBrowserNotificationPrompt(): boolean {
  */
 export function canOfferPushExperience(): boolean {
   if (typeof window === 'undefined') return false
-  if (isAndroidDevice()) {
-    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+  try {
+    const pushReady = 'serviceWorker' in navigator && 'PushManager' in window && hasNotificationApi()
+    if (isAndroidDevice()) return pushReady
+    if (pushReady) return true
+  } catch {
+    /* iOS Safari throws while probing Notification */
   }
-  if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) return true
   return shouldShowIosHomeScreenPushGuide()
 }
 

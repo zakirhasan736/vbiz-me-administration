@@ -8,6 +8,7 @@ import {
   markDashboardPushPromptSeenThisSession,
   NOTIFICATIONS_EVENT,
 } from '@/lib/notifications'
+import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
 import { Bell, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -27,11 +28,11 @@ export function DashboardPushPrompt() {
   }, [])
 
   const maybeOpen = useCallback(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
+    const permission = readNotificationPermission()
+    if (permission === 'unsupported' || permission === 'granted') return
     if (!getNotificationPrefs().browserPush) return
-    if (Notification.permission === 'granted') return
     setHint(
-      Notification.permission === 'denied'
+      permission === 'denied'
         ? 'Notifications are blocked for this site. Use Allow below, or tap the lock icon in the address bar and set Notifications to Allow.'
         : null
     )
@@ -39,14 +40,14 @@ export function DashboardPushPrompt() {
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
+    const permission = readNotificationPermission()
+    if (permission === 'unsupported' || permission === 'granted') return
     if (!getNotificationPrefs().browserPush) return
-    if (Notification.permission === 'granted') return
     if (dashboardPushPromptSeenThisSession()) return
 
     const timer = window.setTimeout(() => {
       maybeOpen()
-      if (Notification.permission === 'default') {
+      if (readNotificationPermission() === 'default') {
         void ensureNotificationPermission().then((permission) => {
           window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
           if (permission === 'granted') {

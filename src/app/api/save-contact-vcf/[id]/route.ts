@@ -161,9 +161,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       if (photo) break
     }
 
-    const vcf = serializeContactVcf(contact, photo)
-    const filename = vcfFilenameFromName(requestedName || contact.name)
     const ua = request.headers.get('user-agent') || ''
+    const vcf = serializeContactVcf(contact, photo, {
+      platform: /Android/i.test(ua) ? 'android' : 'apple',
+    })
+    const filename = vcfFilenameFromName(requestedName || contact.name)
     const dispositionType = looksLikeAppleMobile(ua) ? 'inline' : 'attachment'
 
     return new NextResponse(vcf, {

@@ -206,8 +206,8 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
           <div className={`group relative mb-4 overflow-hidden p-5 md:mb-4 md:p-6 lg:p-8 ${headerClass}`}>
             <div className="bg-gold/10 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
             <div className="relative z-10">
-              <div className="vbiz-eyebrow mb-2">
-                <MessageCircle size={12} /> {sectionTitle}
+              <div className="vbiz-eyebrow mb-2" style={{ fontSize: 16 }}>
+                <MessageCircle size={16} /> {sectionTitle}
               </div>
               <h2 className="mb-2 text-2xl leading-[1.1] font-black tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
                 Frequently Asked{' '}
