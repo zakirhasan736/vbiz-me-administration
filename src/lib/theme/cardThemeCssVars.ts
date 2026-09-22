@@ -503,6 +503,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-hero-banner [class*='text-white'] {
   color: #ffffff !important;
 }
+/* Service detail title sits on the photo scrim — stay white in light theme too. */
+.vbiz-profile-root .vbiz-media-hero .vbiz-media-title,
+.vbiz-profile-root .vbiz-media-hero h1 {
+  color: #ffffff !important;
+}
 /* Pillar cards on hero keep dark text on white panels */
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-card h4,
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-card .text-zinc-900 {
@@ -928,6 +933,23 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html a {
   color: var(--vbiz-accent) !important;
+}
+/* FAQ answers: black in light, white in dark. Bold and highlight stay accent. */
+.vbiz-profile-root .vcard-faq-answer,
+.vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(mark):not(a):not(code):not(pre)) {
+  color: #000000 !important;
+}
+html.dark .vbiz-profile-root .vcard-faq-answer,
+html.dark .vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(mark):not(a):not(code):not(pre)) {
+  color: #ffffff !important;
+}
+.vbiz-profile-root .vcard-faq-answer strong,
+.vbiz-profile-root .vcard-faq-answer b,
+.vbiz-profile-root .vcard-faq-answer mark {
+  color: var(--vbiz-accent) !important;
+}
+.vbiz-profile-root .vcard-faq-answer mark {
+  background-color: color-mix(in srgb, var(--vbiz-accent) 42%, transparent) !important;
 }
 
 /* ========== Preloader (brand splash + intro controls) ========== */
