@@ -501,7 +501,12 @@ export function ScheduleCalendarView({
           <p className="text-[11px] font-semibold tracking-[0.18em] text-teal-700 uppercase dark:text-teal-300">
             {eyebrow}
           </p>
-          <h1 className="mt-1.5 font-(family-name:--font-geist-sans,ui-sans-serif) text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
+          <h1
+            className={cn(
+              'mt-1.5 font-(family-name:--font-geist-sans,ui-sans-serif) font-semibold tracking-tight text-slate-950 dark:text-white',
+              compact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'
+            )}
+          >
             {title}
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>

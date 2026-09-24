@@ -355,7 +355,7 @@ export function CrmWorkNotesBoard() {
           onDragEnd={(e) => void onDragEnd(e)}
           onDragCancel={onDragCancel}
         >
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="no-scrollbar -mx-3 flex gap-3 overflow-x-auto overscroll-x-contain px-3 pb-1 [-webkit-overflow-scrolling:touch] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
             {COLUMNS.map((column) => (
               <KanbanColumn
                 key={column.id}
@@ -410,7 +410,7 @@ function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex min-h-80 flex-col rounded-3xl border bg-slate-50/80 p-3 dark:bg-white/5',
+        'flex w-[min(100%,18.5rem)] shrink-0 flex-col rounded-3xl border bg-slate-50/80 p-3 md:min-h-80 md:w-auto dark:bg-white/5',
         isOver ? 'border-indigo-400 dark:border-indigo-400' : 'border-slate-200/80 dark:border-white/10'
       )}
     >

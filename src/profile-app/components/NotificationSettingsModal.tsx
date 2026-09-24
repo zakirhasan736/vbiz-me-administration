@@ -143,8 +143,8 @@ export const NotificationSettingsModal = ({
       key={cardSlug}
       isOpen={isOpen}
       onClose={onClose}
-      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-100 flex items-end justify-center p-0 backdrop-blur-md sm:items-center sm:p-4"
-      panelClassName="relative flex h-[calc(100dvh-30px)] max-h-[calc(100dvh-30px)] w-full flex-col overflow-hidden rounded-t-2xl border shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-2xl"
+      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-100 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
+      panelClassName="relative flex max-h-[80dvh] w-full flex-col overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border shadow-2xl sm:max-w-sm"
     >
       <div className="relative flex min-h-0 w-full max-w-sm flex-1 flex-col overflow-y-auto p-5 sm:max-w-none sm:p-6">
         <button

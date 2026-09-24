@@ -78,7 +78,7 @@ export function CertificateImageLightbox({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
-      className="fixed inset-0 z-200 flex items-center justify-center bg-zinc-950/75 px-3 pt-14 pb-24 backdrop-blur-sm sm:px-6 sm:pt-20 sm:pb-28"
+      className="vbiz-modal-backdrop fixed inset-0 z-200 flex items-center justify-center bg-zinc-950/75 pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] backdrop-blur-sm sm:px-6"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -104,7 +104,7 @@ export function CertificateImageLightbox({
         <div className="overflow-hidden rounded-lg bg-white shadow-2xl">
           {kind === 'image' && mediaUrl && isUsableImageSrc(mediaUrl) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={mediaUrl} alt={preview.title} className="max-h-[calc(100dvh-12rem)] w-full object-contain" />
+            <img src={mediaUrl} alt={preview.title} className="max-h-[80dvh] w-full object-contain" />
           ) : kind === 'pdf' && mediaUrl ? (
             <iframe src={mediaUrl} title={preview.title} className="h-[min(70dvh,720px)] w-full border-0 bg-zinc-100" />
           ) : mediaUrl ? (

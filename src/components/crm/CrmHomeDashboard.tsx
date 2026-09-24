@@ -202,7 +202,10 @@ export function CrmHomeDashboard({ onOpenTab }: CrmHomeDashboardProps) {
                     : 'border-slate-100 bg-slate-50/80 hover:border-slate-200 dark:border-white/5 dark:bg-white/3 dark:hover:border-white/10'
                 )}
               >
-                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">{day.weekday}</span>
+                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">
+                  <span className="sm:hidden">{day.weekday.slice(0, 1)}</span>
+                  <span className="hidden sm:inline">{day.weekday}</span>
+                </span>
                 <span
                   className={cn(
                     'mt-1 text-sm font-black',

@@ -91,7 +91,7 @@ function ResumeDocLightbox({ preview, onClose }: { preview: PreviewDoc; onClose:
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
-      className="vbiz-modal-backdrop fixed inset-0 z-200 flex items-center justify-center px-3 pt-14 pb-24 backdrop-blur-sm sm:px-6 sm:pt-20 sm:pb-28"
+      className="vbiz-modal-backdrop fixed inset-0 z-200 flex items-center justify-center pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] backdrop-blur-sm sm:px-6"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

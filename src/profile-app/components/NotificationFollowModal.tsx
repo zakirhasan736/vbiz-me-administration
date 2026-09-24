@@ -163,12 +163,12 @@ export function NotificationFollowModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="vbiz-modal-backdrop fixed inset-0 z-210 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="vbiz-modal-backdrop fixed inset-0 z-210 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="vbiz-modal-panel relative w-full max-w-sm overflow-hidden rounded-2xl border shadow-xl"
+            className="vbiz-modal-panel relative max-h-[80dvh] w-full max-w-sm overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border shadow-xl"
           >
             <div className="relative z-10 p-6">
               <button

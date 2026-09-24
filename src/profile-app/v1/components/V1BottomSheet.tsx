@@ -1,5 +1,6 @@
 'use client'
 
+import { PUBLIC_MODAL_INSET_X, PUBLIC_MODAL_INSET_Y } from '@/profile-app/lib/publicModalLayout'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -21,7 +22,7 @@ type V1BottomSheetProps = {
   panelClassName?: string
 }
 
-/** v1-only popup shell — slides up from the bottom and sits above all profile UI. */
+/** v1 popup shell — centered with ~10% top/bottom safe space above all profile UI. */
 export function V1BottomSheet({ isOpen, onClose, children, panelClassName }: V1BottomSheetProps) {
   const portalTarget = useSyncExternalStore(subscribePortalTarget, getPortalTarget, () => null)
 
@@ -49,14 +50,16 @@ export function V1BottomSheet({ isOpen, onClose, children, panelClassName }: V1B
             className="pointer-events-auto fixed inset-0 z-9998 bg-black/75 backdrop-blur-md"
             aria-hidden
           />
-          <div className="pointer-events-none fixed inset-0 z-9999 flex items-end justify-center p-0 sm:items-center sm:p-4">
+          <div
+            className={`pointer-events-none fixed inset-0 z-9999 flex items-center justify-center ${PUBLIC_MODAL_INSET_X} ${PUBLIC_MODAL_INSET_Y}`}
+          >
             <motion.div
-              initial={{ y: '100%', opacity: 0.5 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '100%', opacity: 0.5 }}
+              initial={{ opacity: 0, scale: 0.96, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 24 }}
               transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
               onClick={(e) => e.stopPropagation()}
-              className={`pointer-events-auto w-full sm:max-w-[440px] ${panelClassName ?? ''}`}
+              className={`pointer-events-auto max-h-[80dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain sm:max-w-[440px] ${panelClassName ?? ''}`}
             >
               {children}
             </motion.div>

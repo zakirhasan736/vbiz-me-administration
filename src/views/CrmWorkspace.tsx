@@ -49,16 +49,20 @@ export default function CrmWorkspace() {
       : (['one_to_one'] as MeetingScopeTuple)
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6">
-      <div className="mb-6">
+    <div className="mx-auto w-full max-w-6xl min-w-0 overflow-x-hidden px-3 py-5 sm:px-4 sm:py-8 md:px-6">
+      <div className="mb-5 sm:mb-6">
         <p className="text-[11px] font-bold tracking-[0.18em] text-indigo-500 uppercase">vBiz Me</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">CRM</h1>
+        <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl dark:text-white">CRM</h1>
         <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500">
           Follow up with leads, schedule conversations, and track notes with reminders.
         </p>
       </div>
 
-      <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 dark:bg-white/5">
+      <div
+        role="tablist"
+        aria-label="CRM sections"
+        className="no-scrollbar mb-5 flex w-full snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain rounded-2xl bg-slate-100 p-1 [-webkit-overflow-scrolling:touch] sm:mb-6 dark:bg-white/5"
+      >
         <TabButton
           active={tab === 'dashboard'}
           onClick={() => setTab('dashboard')}
@@ -82,7 +86,8 @@ export default function CrmWorkspace() {
           active={tab === 'events'}
           onClick={() => setTab('events')}
           icon={CalendarHeart}
-          label="Wish & Outreach"
+          label="Wish"
+          longLabel="Wish & Outreach"
         />
       </div>
 
@@ -139,22 +144,32 @@ function TabButton({
   onClick,
   icon: Icon,
   label,
+  longLabel,
 }: {
   active: boolean
   onClick: () => void
   icon: typeof CalendarDays
   label: string
+  longLabel?: string
 }) {
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
+      aria-label={longLabel || label}
+      title={longLabel || label}
       onClick={onClick}
       className={cn(
-        'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[11px] font-black tracking-wider uppercase transition-all',
-        active ? 'bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300' : 'text-slate-500'
+        'inline-flex shrink-0 snap-start items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[11px] font-black tracking-wider whitespace-nowrap uppercase transition-all lg:min-w-0 lg:flex-1 lg:px-3',
+        active
+          ? 'bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300'
+          : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
       )}
     >
-      <Icon className="h-3.5 w-3.5" /> {label}
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="md:hidden">{label}</span>
+      <span className="hidden md:inline">{longLabel || label}</span>
     </button>
   )
 }

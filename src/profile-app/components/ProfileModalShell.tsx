@@ -1,6 +1,7 @@
 'use client'
 
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { PUBLIC_MODAL_BACKDROP, PUBLIC_MODAL_PANEL } from '@/profile-app/lib/publicModalLayout'
 import { V1BottomSheet } from '@/profile-app/v1/components/V1BottomSheet'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, type ReactNode } from 'react'
@@ -16,26 +17,22 @@ type ProfileModalShellProps = {
   backdropId?: string
 }
 
-const DEFAULT_BACKDROP =
-  'vbiz-modal-backdrop fixed inset-0 z-100 flex items-end justify-center p-0 backdrop-blur-md sm:items-center sm:p-4'
-
-const DEFAULT_PANEL = 'flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-2xl border shadow-2xl sm:rounded-2xl'
-
 /**
  * Shared popup shell for all profile templates.
- * v1 → bottom sheet on mobile, centered on desktop (V1BottomSheet).
- * v2/v3 → responsive modal (bottom on mobile, centered on desktop).
+ * Always middle-aligned with ~10% top/bottom safe space (max height 80dvh).
  */
 export function ProfileModalShell({
   isOpen,
   onClose,
   children,
-  panelClassName = DEFAULT_PANEL,
-  backdropClassName = DEFAULT_BACKDROP,
+  panelClassName,
+  backdropClassName,
   backdropId,
 }: ProfileModalShellProps) {
   const { design } = useProfileDisplay()
   const isV1 = design?.profileTemplate === 'v1'
+  const backdrop = backdropClassName || PUBLIC_MODAL_BACKDROP
+  const panel = `${PUBLIC_MODAL_PANEL}${panelClassName ? ` ${panelClassName}` : ''}`
 
   useEffect(() => {
     if (!isOpen || isV1) return
@@ -49,7 +46,7 @@ export function ProfileModalShell({
   if (isV1) {
     return (
       <V1BottomSheet isOpen={isOpen} onClose={onClose}>
-        <div className={`vbiz-modal-panel ${panelClassName || DEFAULT_PANEL}`}>{children}</div>
+        <div className={`vbiz-modal-panel ${panel}`}>{children}</div>
       </V1BottomSheet>
     )
   }
@@ -57,15 +54,15 @@ export function ProfileModalShell({
   return (
     <AnimatePresence>
       {isOpen ? (
-        <div id={backdropId} className={backdropClassName}>
+        <div id={backdropId} className={backdrop}>
           <div className="absolute inset-0" onClick={onClose} aria-hidden />
           <motion.div
             initial={false}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
+            exit={{ opacity: 0, y: 24 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
             onClick={(e) => e.stopPropagation()}
-            className={`vbiz-modal-panel relative z-10 w-full ${panelClassName || DEFAULT_PANEL}`}
+            className={`vbiz-modal-panel relative z-10 w-full ${panel}`}
           >
             {children}
           </motion.div>

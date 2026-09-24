@@ -48,8 +48,8 @@ export function CardNoticeModal({ open, notice, ownerName, onClose }: Props) {
     <ProfileModalShell
       isOpen={open}
       onClose={onClose}
-      backdropClassName="fixed inset-0 z-250 flex items-end justify-center bg-black/60 p-0 backdrop-blur-md sm:items-center sm:p-4"
-      panelClassName="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-transparent bg-transparent shadow-none sm:rounded-2xl"
+      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-250 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
+      panelClassName="flex max-h-[80dvh] w-full max-w-md flex-col overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-transparent bg-transparent shadow-none"
     >
       <div className={cn('overflow-hidden rounded-2xl border shadow-sm', tone.wrap)}>
         <div className="flex items-start gap-3 p-5">
