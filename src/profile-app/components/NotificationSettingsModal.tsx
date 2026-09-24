@@ -143,35 +143,35 @@ export const NotificationSettingsModal = ({
       key={cardSlug}
       isOpen={isOpen}
       onClose={onClose}
-      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-100 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
-      panelClassName="relative flex max-h-[80dvh] w-full flex-col overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border shadow-2xl sm:max-w-sm"
+      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-100 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(5dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(5dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
+      panelClassName="relative flex max-h-[90dvh] w-full flex-col overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border shadow-2xl sm:max-w-sm"
     >
-      <div className="relative flex min-h-0 w-full max-w-sm flex-1 flex-col overflow-y-auto p-5 sm:max-w-none sm:p-6">
+      <div className="relative flex min-h-0 w-full max-w-sm flex-1 flex-col overflow-y-auto p-4 sm:max-w-none sm:p-[1.2rem]">
         <button
           type="button"
           onClick={onClose}
-          className="vbiz-modal-close absolute top-5 right-5 z-10 flex h-8 w-8 items-center justify-center rounded-full border transition-all active:scale-95"
+          className="vbiz-modal-close absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border transition-all active:scale-95"
           aria-label="Close notification settings"
         >
           <X size={16} />
         </button>
 
         {unfollowed ? (
-          <div className="flex min-h-full flex-col items-center justify-center gap-5 text-center">
+          <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
             <div className="vbiz-modal-icon-chip flex h-14 w-14 items-center justify-center rounded-full">
               <BellOff size={24} />
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <h2 className="vbiz-title text-xl font-bold">Notifications turned off</h2>
               <p className="vbiz-description text-sm">
                 You won&apos;t get updates for this card anymore. You can re-enable them anytime.
               </p>
             </div>
-            <div className="flex w-full flex-col gap-5">
+            <div className="flex w-full flex-col gap-2.5">
               <button
                 type="button"
                 onClick={handleReEnable}
-                className="vbiz-modal-btn-primary vbiz-btn flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold transition-all active:scale-[0.98]"
+                className="vbiz-modal-btn-primary vbiz-btn flex w-full items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-bold transition-all active:scale-[0.98]"
                 data-role="primary"
               >
                 <BellRing size={16} /> Re-enable Notifications
@@ -179,7 +179,7 @@ export const NotificationSettingsModal = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="vbiz-modal-btn-secondary vbiz-btn w-full rounded-full py-3 text-sm font-medium transition-all active:scale-[0.98]"
+                className="vbiz-modal-btn-secondary vbiz-btn w-full rounded-full py-2.5 text-sm font-medium transition-all active:scale-[0.98]"
                 data-role="secondary"
               >
                 Close
@@ -187,9 +187,9 @@ export const NotificationSettingsModal = ({
             </div>
           </div>
         ) : (
-          <div className="flex min-h-full flex-col gap-5 sm:min-h-0">
-            <div className="flex shrink-0 flex-col gap-2 pr-10">
-              <div className="flex items-center gap-3">
+          <div className="flex min-h-full flex-col gap-4 sm:min-h-0">
+            <div className="flex shrink-0 flex-col gap-1.5 pr-10">
+              <div className="flex items-center gap-2.5">
                 <div className="vbiz-modal-icon-chip flex h-8 w-8 items-center justify-center rounded-full">
                   <Bell size={16} />
                 </div>
@@ -198,14 +198,14 @@ export const NotificationSettingsModal = ({
               <p className="vbiz-description text-md">Choose what to get notified about:</p>
             </div>
 
-            <div className="vbiz-modal-row text-md flex min-h-0 w-full flex-1 flex-col justify-between gap-0 rounded-xl p-4 font-medium">
+            <div className="vbiz-modal-row text-md flex min-h-0 w-full flex-1 flex-col justify-between gap-0 rounded-xl p-3 font-medium">
               {loading ? (
-                <div className="vbiz-description flex flex-1 items-center justify-center py-6">
+                <div className="vbiz-description flex flex-1 items-center justify-center py-5">
                   <Loader2 size={20} className="vbiz-pin animate-spin" />
                 </div>
               ) : (
                 BACKEND_NOTIFICATION_PREFERENCE_OPTIONS.map((p) => (
-                  <label key={p.id} className="flex min-h-9 cursor-pointer items-center gap-3 py-1">
+                  <label key={p.id} className="flex min-h-9 cursor-pointer items-center gap-2.5 py-0.5">
                     <input
                       type="checkbox"
                       checked={preferences[p.id]}
@@ -219,7 +219,7 @@ export const NotificationSettingsModal = ({
             </div>
 
             {(message || error) && (
-              <div className="flex shrink-0 flex-col gap-2">
+              <div className="flex shrink-0 flex-col gap-1.5">
                 {message ? <p className="text-xs text-green-500">{message}</p> : null}
                 {error ? (
                   <p className="text-xs text-red-400" role="alert">
@@ -229,12 +229,12 @@ export const NotificationSettingsModal = ({
               </div>
             )}
 
-            <div className="mt-auto flex shrink-0 flex-col gap-5">
+            <div className="mt-auto flex shrink-0 flex-col gap-2.5">
               <button
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                className="vbiz-modal-btn-primary vbiz-btn flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-60"
+                className="vbiz-modal-btn-primary vbiz-btn flex w-full items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-60"
                 data-role="primary"
               >
                 <Save size={16} /> {saving ? 'Saving…' : 'Save Preferences'}
@@ -243,7 +243,7 @@ export const NotificationSettingsModal = ({
                 type="button"
                 onClick={() => void handleUnfollow()}
                 disabled={unfollowing}
-                className="w-full rounded-full border border-red-500/30 bg-red-500/10 py-3 text-sm font-medium text-red-300 transition-all hover:bg-red-500/20 disabled:opacity-60"
+                className="w-full rounded-full border border-red-500/30 bg-red-500/10 py-2.5 text-sm font-medium text-red-300 transition-all hover:bg-red-500/20 disabled:opacity-60"
               >
                 {unfollowing ? 'Unfollowing…' : 'Unfollow This Card'}
               </button>

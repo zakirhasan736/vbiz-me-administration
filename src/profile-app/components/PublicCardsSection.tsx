@@ -560,7 +560,7 @@ export const PublicCardsSection = () => {
         createPortal(
           <AnimatePresence>
             {isFilterOpen && (
-              <div className="fixed inset-0 z-9999 flex items-center justify-center pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))]">
+              <div className="fixed inset-0 z-9999 flex items-center justify-center pt-[max(5dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(5dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))]">
                 {/* Backdrop Blur */}
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -576,7 +576,7 @@ export const PublicCardsSection = () => {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 24 }}
                   transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                  className="relative z-10 flex max-h-[80dvh] w-full flex-col gap-4 overflow-hidden overflow-y-auto overscroll-contain rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl sm:max-w-md"
+                  className="relative z-10 flex max-h-[90dvh] w-full flex-col gap-4 overflow-hidden overflow-y-auto overscroll-contain rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl sm:max-w-md"
                 >
                   {/* Drag indicator bar */}
                   <div className="mx-auto -mt-2 mb-2 h-1 w-12 shrink-0 rounded-full bg-zinc-800" />

@@ -71,7 +71,7 @@ export function ExternalIntentPrompt() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="pointer-events-auto fixed inset-0 z-300 flex items-center justify-center bg-black/55 pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] backdrop-blur-sm"
+          className="pointer-events-auto fixed inset-0 z-300 flex items-center justify-center bg-black/55 pt-[max(5dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(5dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="vbiz-external-intent-title"
@@ -80,7 +80,7 @@ export function ExternalIntentPrompt() {
             initial={{ opacity: 0, y: 28, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16 }}
-            className="relative max-h-[80dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-zinc-700 bg-zinc-950 p-5 shadow-2xl"
+            className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-zinc-700 bg-zinc-950 p-5 shadow-2xl"
           >
             <button
               type="button"

@@ -494,7 +494,7 @@ function GalleryLightbox({ item, onClose }: { item: GalleryListItem; onClose: ()
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
-      className="vbiz-modal-backdrop fixed inset-0 z-200 flex items-center justify-center pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] backdrop-blur-sm sm:px-6"
+      className="vbiz-modal-backdrop fixed inset-0 z-200 flex items-center justify-center pt-[max(5dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(5dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] backdrop-blur-sm sm:px-6"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -514,7 +514,7 @@ function GalleryLightbox({ item, onClose }: { item: GalleryListItem; onClose: ()
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
-        className="vbiz-modal-panel relative flex max-h-[80dvh] max-w-[min(900px,90vw)] flex-col overflow-hidden rounded-lg shadow-2xl"
+        className="vbiz-modal-panel relative flex max-h-[90dvh] max-w-[min(900px,90vw)] flex-col overflow-hidden rounded-lg shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <GalleryLightboxMedia item={item} />

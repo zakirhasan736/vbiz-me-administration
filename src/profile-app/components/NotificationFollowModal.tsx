@@ -163,25 +163,25 @@ export function NotificationFollowModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="vbiz-modal-backdrop fixed inset-0 z-210 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-sm">
+        <div className="vbiz-modal-backdrop fixed inset-0 z-210 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(5dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(5dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="vbiz-modal-panel relative max-h-[80dvh] w-full max-w-sm overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border shadow-xl"
+            className="vbiz-modal-panel relative max-h-[90dvh] w-full max-w-sm overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border shadow-xl"
           >
-            <div className="relative z-10 p-6">
+            <div className="relative z-10 p-[1.2rem]">
               <button
                 type="button"
                 onClick={showSuccess ? handleDone : handleDecline}
-                className="vbiz-modal-close absolute top-4 right-4 rounded-full border p-1.5 transition-all focus:outline-none"
+                className="vbiz-modal-close absolute top-3 right-3 rounded-full border p-1.5 transition-all focus:outline-none"
               >
                 <X size={16} />
               </button>
 
               {!showSuccess ? (
                 <>
-                  <div className="mt-2 mb-6 flex justify-center">
+                  <div className="mt-1.5 mb-3 flex justify-center">
                     <div className="relative">
                       <div className="vbiz-pill-icon flex h-16 w-16 items-center justify-center rounded-2xl border shadow-sm">
                         <Bell size={28} className="animate-bounce" />
@@ -192,8 +192,8 @@ export function NotificationFollowModal({
                     </div>
                   </div>
 
-                  <div className="mb-6 text-center">
-                    <h3 className="vbiz-title notranslate mb-2 text-xl font-bold tracking-tight">
+                  <div className="mb-3 text-center">
+                    <h3 className="vbiz-title notranslate mb-1 text-xl font-bold tracking-tight">
                       {iosGuide
                         ? iosChrome
                           ? 'Enable Chrome notifications'
@@ -232,29 +232,29 @@ export function NotificationFollowModal({
                   </div>
 
                   {iosGuide ? (
-                    <IosPushHomeScreenSteps className="mb-6" variant={iosChrome ? 'ios-chrome' : 'ios'} />
+                    <IosPushHomeScreenSteps className="mb-3" variant={iosChrome ? 'ios-chrome' : 'ios'} />
                   ) : (
                     <>
-                      <div className="mb-6 space-y-2">
-                        <div className="vbiz-modal-row flex items-center gap-2.5 rounded-xl border p-2.5">
+                      <div className="mb-3 space-y-1.5">
+                        <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
                           <div className="vbiz-pill-icon flex h-6 w-6 items-center justify-center rounded-md border">
                             <ShieldCheck size={14} />
                           </div>
                           <span className="vbiz-description text-xs font-medium">Privacy Focused & Spam Free</span>
                         </div>
-                        <div className="vbiz-modal-row flex items-center gap-2.5 rounded-xl border p-2.5">
+                        <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
                           <div className="vbiz-pill-icon flex h-6 w-6 items-center justify-center rounded-md border">
                             <Sparkles size={14} />
                           </div>
                           <span className="vbiz-description text-xs font-medium">Real-time Platform Updates</span>
                         </div>
                       </div>
-                      {androidBackup ? <IosPushHomeScreenSteps className="mb-6" variant="android-backup" /> : null}
+                      {androidBackup ? <IosPushHomeScreenSteps className="mb-3" variant="android-backup" /> : null}
                     </>
                   )}
 
                   {error ? (
-                    <div className="mb-4 space-y-1.5 text-center" role="alert">
+                    <div className="mb-2 space-y-1 text-center" role="alert">
                       <p className="text-xs text-red-400">{error}</p>
                       {isPushServiceGuidance(error) ? (
                         <p className="vbiz-description text-[10px] leading-relaxed opacity-80">
@@ -265,7 +265,7 @@ export function NotificationFollowModal({
                     </div>
                   ) : null}
 
-                  <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -273,7 +273,7 @@ export function NotificationFollowModal({
                         void handleSubscribe()
                       }}
                       disabled={submitting}
-                      className="vbiz-btn vbiz-modal-btn-primary group flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:opacity-60"
+                      className="vbiz-btn vbiz-modal-btn-primary group flex w-full items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:opacity-60"
                     >
                       {submitting
                         ? 'Enabling…'
@@ -287,13 +287,13 @@ export function NotificationFollowModal({
                     <button
                       type="button"
                       onClick={handleDecline}
-                      className="vbiz-modal-btn-secondary w-full rounded-full py-3 text-sm font-bold transition-all"
+                      className="vbiz-modal-btn-secondary w-full rounded-full py-2.5 text-sm font-bold transition-all"
                     >
                       Not Now
                     </button>
                   </div>
 
-                  <p className="vbiz-pin mt-5 text-center text-[10px] font-semibold tracking-wider uppercase opacity-80">
+                  <p className="vbiz-pin mt-2.5 text-center text-[10px] font-semibold tracking-wider uppercase opacity-80">
                     {iosGuide
                       ? iosChrome
                         ? 'Try Allow in Chrome • Then Home Screen required'
@@ -306,23 +306,23 @@ export function NotificationFollowModal({
                   </p>
                 </>
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="flex flex-col items-center justify-center py-[1.6rem] text-center">
                   <motion.div
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-green-500/20 bg-green-500/10 text-green-500"
+                    className="mb-3 flex h-20 w-20 items-center justify-center rounded-full border border-green-500/20 bg-green-500/10 text-green-500"
                   >
                     <Check size={36} strokeWidth={3} />
                   </motion.div>
-                  <h3 className="vbiz-title mb-2 text-xl font-bold">You&apos;re All Set!</h3>
-                  <p className="vbiz-description mb-6 text-sm font-medium">
+                  <h3 className="vbiz-title mb-1 text-xl font-bold">You&apos;re All Set!</h3>
+                  <p className="vbiz-description mb-3 text-sm font-medium">
                     We&apos;ll notify you the moment an update is published.
                   </p>
-                  {androidBackup ? <IosPushHomeScreenSteps className="mb-6 w-full" variant="android-backup" /> : null}
+                  {androidBackup ? <IosPushHomeScreenSteps className="mb-3 w-full" variant="android-backup" /> : null}
                   <button
                     type="button"
                     onClick={handleDone}
-                    className="vbiz-modal-btn-primary w-full rounded-full py-3 text-sm font-bold transition-all"
+                    className="vbiz-modal-btn-primary w-full rounded-full py-2.5 text-sm font-bold transition-all"
                   >
                     Done
                   </button>

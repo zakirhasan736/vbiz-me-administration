@@ -59,7 +59,7 @@ export function V1BottomSheet({ isOpen, onClose, children, panelClassName }: V1B
               exit={{ opacity: 0, scale: 0.96, y: 24 }}
               transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
               onClick={(e) => e.stopPropagation()}
-              className={`pointer-events-auto max-h-[80dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain sm:max-w-[440px] ${panelClassName ?? ''}`}
+              className={`pointer-events-auto max-h-[90dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain sm:max-w-[440px] ${panelClassName ?? ''}`}
             >
               {children}
             </motion.div>

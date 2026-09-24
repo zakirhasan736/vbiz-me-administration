@@ -19,7 +19,7 @@ type ProfileModalShellProps = {
 
 /**
  * Shared popup shell for all profile templates.
- * Always middle-aligned with ~10% top/bottom safe space (max height 80dvh).
+ * Always middle-aligned with ~5% top/bottom safe space (max height 90dvh).
  */
 export function ProfileModalShell({
   isOpen,

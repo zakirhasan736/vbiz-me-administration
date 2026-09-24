@@ -15,9 +15,9 @@ export function IosPushHomeScreenSteps({ className = '', variant = 'ios' }: Home
 
   return (
     <div
-      className={`vbiz-description space-y-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-left text-[12px] leading-relaxed ${className}`}
+      className={`vbiz-description space-y-1.5 rounded-2xl border border-white/10 bg-black/20 p-3 text-left text-[12px] leading-relaxed ${className}`}
     >
-      <p className="flex items-start gap-2 font-semibold">
+      <p className="flex items-start gap-1.5 font-semibold">
         <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
         {isAndroidBackup
           ? 'Recommended backup: Add to Home Screen'
@@ -31,7 +31,7 @@ export function IosPushHomeScreenSteps({ className = '', variant = 'ios' }: Home
             Allow notifications in Chrome first — that works. Adding to Home Screen is an extra backup for one-tap
             access and more reliable alerts.
           </p>
-          <ol className="list-decimal space-y-2 pl-5">
+          <ol className="list-decimal space-y-1.5 pl-5">
             <li>Open the Chrome menu (⋮)</li>
             <li>
               Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>
@@ -41,7 +41,7 @@ export function IosPushHomeScreenSteps({ className = '', variant = 'ios' }: Home
         </>
       ) : isIosChrome ? (
         <>
-          <ol className="list-decimal space-y-2 pl-5">
+          <ol className="list-decimal space-y-1.5 pl-5">
             <li>
               Tap <strong>Allow &amp; continue setup</strong> below and choose <strong>Allow</strong> in Chrome
             </li>
@@ -56,13 +56,13 @@ export function IosPushHomeScreenSteps({ className = '', variant = 'ios' }: Home
               Tap <strong>Enable</strong> again if asked, and choose <strong>Allow</strong>
             </li>
           </ol>
-          <p className="pt-1 text-[11px] opacity-80">
+          <p className="pt-0.5 text-[11px] opacity-80">
             Chrome on iPhone can show Allow in the browser. Home Screen is still required so push keeps working.
           </p>
         </>
       ) : (
         <>
-          <ol className="list-decimal space-y-2 pl-5">
+          <ol className="list-decimal space-y-1.5 pl-5">
             <li className="flex flex-wrap items-center gap-1">
               Tap <Share className="inline h-3.5 w-3.5" aria-hidden /> <strong>Share</strong>
             </li>
@@ -76,7 +76,7 @@ export function IosPushHomeScreenSteps({ className = '', variant = 'ios' }: Home
               Tap <strong>Enable</strong> and choose <strong>Allow</strong> if asked
             </li>
           </ol>
-          <p className="pt-1 text-[11px] opacity-80">
+          <p className="pt-0.5 text-[11px] opacity-80">
             Safari may not show Allow in the tab — that&apos;s OK. Home Screen first, then Allow from the icon.
           </p>
         </>

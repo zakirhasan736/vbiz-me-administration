@@ -193,8 +193,8 @@ export function LanguageModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     <ProfileModalShell
       isOpen={isOpen}
       onClose={onClose}
-      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-150 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
-      panelClassName="max-h-[80dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl sm:max-w-md"
+      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-150 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(5dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(5dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
+      panelClassName="max-h-[90dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl sm:max-w-md"
     >
       {panel}
     </ProfileModalShell>

@@ -1007,8 +1007,8 @@ html.dark .vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(m
   background-color: var(--vbiz-overlay) !important;
   align-items: center !important;
   justify-content: center !important;
-  padding-top: max(10dvh, env(safe-area-inset-top, 0px)) !important;
-  padding-bottom: max(10dvh, env(safe-area-inset-bottom, 0px)) !important;
+  padding-top: max(5dvh, env(safe-area-inset-top, 0px)) !important;
+  padding-bottom: max(5dvh, env(safe-area-inset-bottom, 0px)) !important;
   padding-left: max(0.75rem, env(safe-area-inset-left, 0px)) !important;
   padding-right: max(0.75rem, env(safe-area-inset-right, 0px)) !important;
   box-sizing: border-box !important;
@@ -1018,7 +1018,7 @@ html.dark .vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(m
   border-color: var(--vbiz-modal-border, var(--vbiz-border)) !important;
   color: var(--vbiz-text) !important;
   border-radius: 1rem !important;
-  max-height: 80dvh !important;
+  max-height: 90dvh !important;
 }
 .vbiz-modal-header {
   border-color: var(--vbiz-border) !important;

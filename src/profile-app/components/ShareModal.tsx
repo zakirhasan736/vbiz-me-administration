@@ -430,8 +430,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       isOpen={isOpen}
       onClose={onClose}
       backdropId="share_modal_backdrop"
-      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-100 flex items-center justify-center overflow-y-auto px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(10dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(10dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
-      panelClassName="flex max-h-[80dvh] w-full flex-col overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200 bg-white shadow-2xl sm:max-w-[460px] dark:border-zinc-900 dark:bg-zinc-950"
+      backdropClassName="vbiz-modal-backdrop fixed inset-0 z-100 flex items-center justify-center overflow-y-auto px-[max(0.75rem,env(safe-area-inset-left,0px))] pt-[max(5dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(5dvh,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
+      panelClassName="flex max-h-[90dvh] w-full flex-col overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200 bg-white shadow-2xl sm:max-w-[460px] dark:border-zinc-900 dark:bg-zinc-950"
     >
       {body}
     </ProfileModalShell>
