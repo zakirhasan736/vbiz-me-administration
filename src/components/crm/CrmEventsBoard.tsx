@@ -254,36 +254,40 @@ export function CrmEventsBoard({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] font-bold tracking-[0.18em] text-rose-500 uppercase">Wish & Outreach</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">Wish & outreach</h2>
+          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+            Wish & outreach
+          </h2>
           <p className="mt-1 max-w-xl text-sm font-medium text-slate-500">
-            Create birthday wishes, thank-yous, and follow-ups with media. Events also appear on the Schedules calendar.
+            Birthday wishes, thank-yous, and follow-ups with media.
           </p>
         </div>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[11px] font-black tracking-wider text-white uppercase dark:bg-rose-500"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[11px] font-black tracking-wider text-white uppercase active:scale-[0.98] sm:w-auto dark:bg-rose-500"
         >
-          <Plus className="h-4 w-4" /> Create Wish & outreach
+          <Plus className="h-4 w-4" />
+          <span className="sm:hidden">Create wish</span>
+          <span className="hidden sm:inline">Create Wish & outreach</span>
         </button>
       </div>
 
-      <label className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#0d121c]">
+      <label className="flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white px-3.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3 dark:border-white/10 dark:bg-[#0d121c]">
         <Search className="h-4 w-4 shrink-0 text-slate-400" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter by host, type, date, or status…"
+          placeholder="Filter wishes…"
           className="w-full bg-transparent text-sm font-medium outline-none dark:text-white"
         />
       </label>
 
       {isError ? (
-        <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-6 py-10 text-center dark:border-rose-500/20 dark:bg-rose-500/10">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-8 text-center sm:rounded-[28px] sm:px-6 sm:py-10 dark:border-rose-500/20 dark:bg-rose-500/10">
           <p className="text-sm font-semibold text-rose-700 dark:text-rose-200">
             {error && typeof error === 'object' && 'data' in error
               ? String((error as { data?: { message?: string } }).data?.message || 'Couldn’t load events.')
@@ -291,26 +295,26 @@ export function CrmEventsBoard({
           </p>
         </div>
       ) : isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-48 w-full rounded-3xl" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-[28px] border border-slate-200/80 bg-white px-6 py-16 text-center dark:border-white/10 dark:bg-[#0b0f15]">
+        <div className="rounded-2xl border border-slate-200/80 bg-white px-5 py-12 text-center sm:rounded-[28px] sm:px-6 sm:py-16 dark:border-white/10 dark:bg-[#0b0f15]">
           <CalendarHeart className="mx-auto h-8 w-8 text-slate-300" />
           <p className="mt-3 text-sm font-semibold text-slate-500">
             No events yet. Create a wish or outreach message to get started.
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
           {items.map((row) => (
             <article
               id={`crm-event-${row.id}`}
               key={row.id}
               className={cn(
-                'rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0b0f15]',
+                'rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 dark:border-white/10 dark:bg-[#0b0f15]',
                 highlightedEventId === row.id &&
                   'ring-2 ring-rose-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0b0f15]'
               )}
@@ -362,12 +366,12 @@ export function CrmEventsBoard({
               )}
 
               {row.status === 'Scheduled' ? (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
                   <button
                     type="button"
                     disabled={isUpdating}
                     onClick={() => void setStatus(row, 'Completed')}
-                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-[10px] font-black tracking-wider text-emerald-800 uppercase dark:bg-emerald-500/15 dark:text-emerald-200"
+                    className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-emerald-50 px-2 py-2 text-[10px] font-black tracking-wider text-emerald-800 uppercase active:scale-[0.98] sm:px-3 dark:bg-emerald-500/15 dark:text-emerald-200"
                   >
                     <Check className="h-3.5 w-3.5" /> Complete
                   </button>
@@ -375,7 +379,7 @@ export function CrmEventsBoard({
                     type="button"
                     disabled={isUpdating}
                     onClick={() => void setStatus(row, 'Cancelled')}
-                    className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/5 dark:text-slate-300"
+                    className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-slate-100 px-2 py-2 text-[10px] font-black tracking-wider text-slate-600 uppercase active:scale-[0.98] sm:px-3 dark:bg-white/5 dark:text-slate-300"
                   >
                     <X className="h-3.5 w-3.5" /> Cancel
                   </button>
@@ -383,7 +387,7 @@ export function CrmEventsBoard({
                     type="button"
                     disabled={isDeleting}
                     onClick={() => void handleDelete(row)}
-                    className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-black tracking-wider text-rose-700 uppercase dark:bg-rose-500/15 dark:text-rose-200"
+                    className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-rose-50 px-2 py-2 text-[10px] font-black tracking-wider text-rose-700 uppercase active:scale-[0.98] sm:px-3 dark:bg-rose-500/15 dark:text-rose-200"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
@@ -394,7 +398,7 @@ export function CrmEventsBoard({
                     type="button"
                     disabled={isDeleting}
                     onClick={() => void handleDelete(row)}
-                    className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-black tracking-wider text-rose-700 uppercase dark:bg-rose-500/15 dark:text-rose-200"
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-1 rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-black tracking-wider text-rose-700 uppercase active:scale-[0.98] sm:w-auto dark:bg-rose-500/15 dark:text-rose-200"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>

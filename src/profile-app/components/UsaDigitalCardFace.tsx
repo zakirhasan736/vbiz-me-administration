@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 function ContactlessMark({ color }: { color: string }) {
   return (
-    <div className="flex h-9 w-9 items-center justify-center sm:h-10 sm:w-10" aria-hidden>
+    <div className="flex h-7 w-7 items-center justify-center sm:h-10 sm:w-10" aria-hidden>
       <div
         className="flex h-[85%] w-[85%] rotate-[-45deg] items-center justify-center rounded-full border-t-2 border-r-2 border-b-transparent border-l-transparent"
         style={{ borderTopColor: color, borderRightColor: color }}
@@ -87,7 +87,7 @@ export function UsaDigitalCardFace({
 
   return (
     <div
-      className="relative aspect-[1.586/1] w-full overflow-hidden rounded-[22px] p-[7px]"
+      className="relative aspect-[1.586/1] w-full max-w-full overflow-hidden rounded-[18px] p-[5px] sm:rounded-[22px] sm:p-[7px]"
       style={{
         background: face.background,
         border: `2px solid ${face.accent}`,
@@ -95,19 +95,19 @@ export function UsaDigitalCardFace({
       }}
     >
       <div
-        className="flex h-full flex-col justify-between rounded-[16px] px-4 py-4 sm:px-5 sm:py-5"
+        className="box-border flex h-full min-h-0 flex-col justify-between gap-1.5 overflow-hidden rounded-[12px] px-3 py-2.5 sm:gap-2 sm:rounded-[16px] sm:px-5 sm:py-5"
         style={{ border: `1.5px solid ${face.accent}` }}
       >
-        <div className="flex items-start justify-between">
+        <div className="flex shrink-0 items-start justify-between">
           <div
-            className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full sm:h-24 sm:w-24"
+            className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full sm:h-24 sm:w-24"
             style={{ border: `2px solid ${face.accent}`, background: face.accent }}
           >
             {stillLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={stillLogo} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="text-sm font-bold tracking-wide" style={{ color: face.background }}>
+              <span className="text-[11px] font-bold tracking-wide sm:text-sm" style={{ color: face.background }}>
                 {initialsFromName(holder)}
               </span>
             )}
@@ -115,36 +115,39 @@ export function UsaDigitalCardFace({
           <ContactlessMark color={face.accent} />
         </div>
 
-        <div className="flex items-end justify-between gap-3">
-          <div className="max-w-[58%] min-w-0 pr-2">
+        <div className="flex min-h-0 flex-1 items-end justify-between gap-2 sm:gap-3">
+          <div className="max-w-[56%] min-w-0 pr-1 sm:max-w-[58%] sm:pr-2">
             <p
-              className="truncate font-serif text-[17px] leading-tight font-bold sm:text-[21px]"
+              className="truncate font-serif text-[15px] leading-tight font-bold sm:text-[21px]"
               style={{ color: face.accent }}
             >
               {holder}
             </p>
             {title ? (
-              <p className="mt-1 line-clamp-2 text-[11px] leading-snug sm:text-sm" style={{ color: muted }}>
+              <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug sm:mt-1 sm:text-sm" style={{ color: muted }}>
                 {title}
               </p>
             ) : null}
           </div>
           <div className="flex shrink-0 flex-col items-center">
-            <p className="mb-1.5 text-[9px] tracking-wide sm:text-[10px]" style={{ color: face.accent }}>
+            <p className="mb-1 text-[8px] tracking-wide sm:mb-1.5 sm:text-[10px]" style={{ color: face.accent }}>
               Scan to Connect
             </p>
-            <div className="rounded-sm bg-white p-1">
+            <div className="rounded-sm bg-white p-0.5 sm:p-1">
               {qrSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={qrSrc} alt="" className="h-[4.2rem] w-[4.2rem] sm:h-[4.75rem] sm:w-[4.75rem]" />
+                <img src={qrSrc} alt="" className="h-12 w-12 sm:h-[4.75rem] sm:w-[4.75rem]" />
               ) : (
-                <div className="h-[4.2rem] w-[4.2rem] bg-zinc-100 sm:h-[4.75rem] sm:w-[4.75rem]" />
+                <div className="h-12 w-12 bg-zinc-100 sm:h-[4.75rem] sm:w-[4.75rem]" />
               )}
             </div>
           </div>
         </div>
 
-        <div className="mt-3 h-2.5 w-full rounded-sm" style={{ background: 'rgba(255,255,255,0.08)' }} />
+        <div
+          className="mt-0.5 hidden h-2.5 w-full shrink-0 rounded-sm sm:mt-1 sm:block"
+          style={{ background: 'rgba(255,255,255,0.08)' }}
+        />
       </div>
     </div>
   )

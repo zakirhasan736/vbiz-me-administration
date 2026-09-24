@@ -327,23 +327,32 @@ export function CrmWorkNotesBoard() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium text-slate-500">
-          Drag cards up or down to reorder a column, or across columns to update status. Click a card for details, due
-          dates, and reminders.
-        </p>
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold tracking-[0.18em] text-indigo-500 uppercase">Notes</p>
+          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+            Work board
+          </h2>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            <span className="sm:hidden">Swipe columns sideways. Tap a card for details.</span>
+            <span className="hidden sm:inline">
+              Drag cards up or down to reorder a column, or across columns to update status. Click a card for details,
+              due dates, and reminders.
+            </span>
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[11px] font-black tracking-wider text-white uppercase dark:bg-indigo-500"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[11px] font-black tracking-wider text-white uppercase active:scale-[0.98] sm:w-auto dark:bg-indigo-500"
         >
           <Plus className="h-4 w-4" /> Add note
         </button>
       </div>
 
       {isLoading ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="no-scrollbar -mx-3 flex gap-3 overflow-x-auto px-3 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 rounded-2xl" />
+            <Skeleton key={i} className="h-64 w-[min(100%,18.5rem)] shrink-0 rounded-2xl md:w-auto" />
           ))}
         </div>
       ) : (
@@ -355,7 +364,7 @@ export function CrmWorkNotesBoard() {
           onDragEnd={(e) => void onDragEnd(e)}
           onDragCancel={onDragCancel}
         >
-          <div className="no-scrollbar -mx-3 flex gap-3 overflow-x-auto overscroll-x-contain px-3 pb-1 [-webkit-overflow-scrolling:touch] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
+          <div className="no-scrollbar -mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-3 pb-2 [-webkit-overflow-scrolling:touch] md:mx-0 md:grid md:snap-none md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-4">
             {COLUMNS.map((column) => (
               <KanbanColumn
                 key={column.id}
@@ -410,7 +419,7 @@ function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex w-[min(100%,18.5rem)] shrink-0 flex-col rounded-3xl border bg-slate-50/80 p-3 md:min-h-80 md:w-auto dark:bg-white/5',
+        'flex w-[min(88vw,18.5rem)] shrink-0 snap-center flex-col rounded-3xl border bg-slate-50/80 p-3 md:min-h-80 md:w-auto md:snap-none dark:bg-white/5',
         isOver ? 'border-indigo-400 dark:border-indigo-400' : 'border-slate-200/80 dark:border-white/10'
       )}
     >

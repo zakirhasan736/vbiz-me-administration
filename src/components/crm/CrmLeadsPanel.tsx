@@ -272,39 +272,41 @@ export function CrmLeadsPanel({
   }
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="space-y-3 sm:space-y-5">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <MetricCard label="All leads" value={dashboard?.metrics.openLeads} />
-        <MetricCard label="New this week" value={dashboard?.metrics.newLeads} />
-        <MetricCard label="Added by you" value={dashboard?.metrics.externalLeads} />
+        <MetricCard label="New week" value={dashboard?.metrics.newLeads} />
+        <MetricCard label="By you" value={dashboard?.metrics.externalLeads} />
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#0d121c]">
-          <Search className="h-4 w-4 shrink-0 text-slate-400" />
-          <input
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value)
-              setSkip(0)
-              setAccum([])
-            }}
-            placeholder="Search name, email, phone, or card…"
-            className="w-full bg-transparent text-sm font-medium outline-none dark:text-white"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => setAddOpen(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-[11px] font-black tracking-wider text-white uppercase dark:bg-indigo-500"
-        >
-          <Plus className="h-4 w-4" /> Add lead
-        </button>
+      <div className="sticky top-14 z-10 -mx-3 space-y-2.5 border-b border-slate-200/70 bg-[#f4f6f9]/95 px-3 py-2.5 backdrop-blur-md sm:static sm:mx-0 sm:space-y-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none dark:border-white/5 dark:bg-[#070a12]/95 sm:dark:bg-transparent">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
+          <label className="flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-sm sm:gap-3 sm:px-4 sm:shadow-none dark:border-white/10 dark:bg-[#0d121c]">
+            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setSkip(0)
+                setAccum([])
+              }}
+              placeholder="Search leads…"
+              className="w-full bg-transparent text-[15px] font-medium outline-none placeholder:text-slate-400 dark:text-white"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-[12px] font-black tracking-wider text-white uppercase shadow-lg shadow-slate-950/15 active:scale-[0.98] sm:w-auto sm:py-3 sm:shadow-none dark:bg-indigo-500 dark:shadow-indigo-500/20"
+          >
+            <Plus className="h-4 w-4" /> Add lead
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#0b0f15]">
+      <div className="sm:overflow-hidden sm:rounded-[28px] sm:border sm:border-slate-200/80 sm:bg-white dark:sm:border-white/10 dark:sm:bg-[#0b0f15]">
         {isError ? (
-          <div className="px-6 py-12 text-center">
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-12 text-center sm:rounded-none sm:border-0 sm:bg-transparent dark:border-rose-500/20 dark:bg-rose-500/10">
             <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">
               {error && typeof error === 'object' && 'data' in error
                 ? String((error as { data?: { message?: string } }).data?.message || 'Couldn’t load CRM leads.')
@@ -312,20 +314,25 @@ export function CrmLeadsPanel({
             </p>
           </div>
         ) : isLoading && skip === 0 ? (
-          <div className="space-y-3 p-4">
+          <div className="space-y-3 sm:p-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-24 w-full rounded-2xl" />
+              <Skeleton key={index} className="h-36 w-full rounded-3xl" />
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className="px-6 py-16 text-center">
+          <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-16 text-center sm:rounded-none sm:border-0 dark:border-white/10 dark:bg-[#0b0f15]">
             <UserPlus className="mx-auto h-8 w-8 text-slate-300" />
             <p className="mt-3 text-sm font-semibold text-slate-500">
               No leads yet. Add someone here — external leads stay in CRM and won’t appear on your card dashboard.
             </p>
           </div>
         ) : (
-          <div className={cn('max-w-full min-w-0 space-y-3 overflow-x-hidden p-3 sm:p-4', isFetching && 'opacity-70')}>
+          <div
+            className={cn(
+              'max-w-full min-w-0 space-y-3 overflow-x-hidden sm:space-y-3 sm:p-4',
+              isFetching && 'opacity-70'
+            )}
+          >
             {rows.map((lead) => {
               const phone = digitsPhone(lead.phoneNumber || '')
               const email = lead.email?.trim()
@@ -334,224 +341,168 @@ export function CrmLeadsPanel({
               const eventsOpen = eventsLeadId === lead.id
               const detailsOpen = detailsLeadId === lead.id
               const multiCards = (lead.cards?.length ?? 0) > 1
+              const preview = lead.guestMessage?.trim() || lead.lastReply?.trim() || lead.privateNotes?.trim() || ''
+              const anyOpen = notesOpen || schedulesOpen || eventsOpen || detailsOpen
               return (
                 <article
                   key={lead.id}
                   className={cn(
-                    'max-w-full min-w-0 overflow-hidden rounded-2xl border transition-all duration-200',
-                    detailsOpen
-                      ? 'border-emerald-300/70 bg-emerald-50/30 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/6'
-                      : 'border-slate-200/80 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-white/2 dark:hover:border-white/20'
+                    'max-w-full min-w-0 overflow-hidden rounded-3xl border bg-white shadow-[0_8px_30px_-18px_rgba(15,23,42,0.35)] transition-all duration-200 dark:bg-[#0d121c]',
+                    anyOpen
+                      ? 'border-teal-300/80 ring-1 ring-teal-500/20 dark:border-teal-500/40'
+                      : 'border-slate-200/80 dark:border-white/10'
                   )}
                 >
-                  <div className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-5">
-                    <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
-                      <div className="flex min-w-0 flex-1 items-start gap-3 lg:max-w-[min(100%,22rem)] lg:flex-none">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-sm shadow-emerald-600/20 sm:h-12 sm:w-12">
-                          {initials(lead.fullName)}
-                        </div>
-                        <div className="min-w-0 flex-1 overflow-hidden">
-                          <div className="flex flex-wrap items-center gap-1.5 gap-y-1">
-                            <h4 className="max-w-full text-[14px] font-black tracking-tight wrap-break-word text-slate-900 sm:text-[15px] dark:text-white">
+                  <div className="flex min-w-0 flex-col gap-3.5 p-4 sm:p-5">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-emerald-400 to-teal-600 text-[13px] font-black text-white shadow-md shadow-teal-600/25">
+                        {initials(lead.fullName)}
+                      </div>
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h4 className="truncate text-[15px] font-black tracking-tight text-slate-900 dark:text-white">
                               {lead.fullName}
                             </h4>
-                            <span
-                              className={cn(
-                                'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                                lead.consent
-                                  ? 'border-emerald-200/70 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300'
-                                  : 'border-amber-200/70 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
-                              )}
-                            >
-                              {lead.consent ? (
-                                <>
-                                  <CheckCircle2 className="h-3 w-3" /> Consented
-                                </>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
+                                  lead.consent
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+                                )}
+                              >
+                                {lead.consent ? (
+                                  <>
+                                    <CheckCircle2 className="h-3 w-3" /> Active
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="h-3 w-3" /> No consent
+                                  </>
+                                )}
+                              </span>
+                              {lead.origin === 'crm_external' ? (
+                                <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-indigo-700 uppercase dark:bg-indigo-500/15 dark:text-indigo-300">
+                                  Added by you
+                                </span>
                               ) : (
-                                <>
-                                  <AlertCircle className="h-3 w-3" /> No consent
-                                </>
+                                <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-sky-700 uppercase dark:bg-sky-500/15 dark:text-sky-300">
+                                  Card save
+                                </span>
                               )}
-                            </span>
-                            {lead.origin === 'crm_external' ? (
-                              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[9px] font-black tracking-wider text-indigo-700 uppercase dark:bg-indigo-500/15 dark:text-indigo-300">
-                                Added by you
-                              </span>
-                            ) : null}
-                            {multiCards ? (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300">
-                                {lead.cards!.length} cards
-                              </span>
-                            ) : null}
+                              {multiCards ? (
+                                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/10 dark:text-slate-300">
+                                  {lead.cards!.length} cards
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
-
-                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                            {email ? (
-                              <a
-                                href={`mailto:${email}`}
-                                className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-600 hover:text-indigo-600 sm:text-[12.5px] dark:text-slate-300 dark:hover:text-indigo-400"
-                              >
-                                <Mail className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
-                                <span className="truncate">{email}</span>
-                              </a>
-                            ) : (
-                              <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-400 sm:text-[12.5px]">
-                                <Mail className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
-                                <span className="truncate">No email</span>
-                              </span>
-                            )}
-                            {phone ? (
-                              <a
-                                href={`tel:${phone}`}
-                                className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-600 hover:text-emerald-600 sm:text-[12.5px] dark:text-slate-300 dark:hover:text-emerald-400"
-                              >
-                                <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                                <span className="whitespace-nowrap">{lead.phoneNumber}</span>
-                              </a>
-                            ) : (
-                              <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-semibold text-slate-400 sm:text-[12.5px]">
-                                <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                                <span className="whitespace-nowrap">No phone</span>
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-400">
-                            <span className="inline-flex min-w-0 items-center gap-1">
-                              <Building2 className="h-3 w-3 shrink-0" />
-                              <span className={multiCards ? '' : 'truncate'}>
-                                {multiCards ? `Cards · ${cardsLabel(lead)}` : cardsLabel(lead)}
-                              </span>
-                            </span>
-                            <span className="inline-flex shrink-0 items-center gap-1">
-                              <Calendar className="h-3 w-3" />
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span className="text-[10px] font-semibold whitespace-nowrap text-slate-400">
                               {formatWhen(lead.submittedAt)}
                             </span>
+                            <button
+                              type="button"
+                              onClick={() => setPendingDeleteLead(lead)}
+                              className="rounded-lg p-1.5 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600 active:scale-95 dark:hover:bg-rose-500/10"
+                              title="Delete lead"
+                              aria-label="Delete lead"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="grid w-full min-w-0 grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-start lg:min-w-0 lg:flex-1 lg:justify-end">
-                        <ActionLink href={phone ? `tel:${phone}` : undefined} label="Call" icon={Phone} />
-                        <ActionLink href={email ? `mailto:${email}` : undefined} label="Email" icon={Mail} />
-                        <ActionLink href={phone ? `sms:${phone}` : undefined} label="Text" icon={MessageSquare} />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (schedulesOpen) {
-                              setSchedulesLeadId(null)
-                              return
-                            }
-                            closeAccordions()
-                            setSchedulesLeadId(lead.id)
-                          }}
-                          aria-expanded={schedulesOpen}
-                          aria-label={
-                            schedulesOpen
-                              ? 'Collapse schedules'
-                              : `Expand schedules${(lead.schedulesCount ?? 0) > 0 ? `, ${lead.schedulesCount} schedules` : ''}`
-                          }
-                          className={cn(
-                            'relative inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase transition',
-                            schedulesOpen
-                              ? 'bg-teal-100 text-teal-900 dark:bg-teal-500/25 dark:text-teal-100'
-                              : 'bg-teal-50 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200'
-                          )}
-                        >
-                          {(lead.schedulesCount ?? 0) > 0 ? (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[9px] leading-none font-black text-white dark:bg-teal-400 dark:text-teal-950">
-                              {(lead.schedulesCount ?? 0) > 99 ? '99+' : lead.schedulesCount}
-                            </span>
-                          ) : null}
-                          <Calendar className="h-3.5 w-3.5" /> Schedule
-                          <ChevronDown
-                            className={cn(
-                              'h-3.5 w-3.5 origin-center transition-transform duration-300 ease-in-out will-change-transform',
-                              schedulesOpen && 'rotate-180'
-                            )}
-                            aria-hidden
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <IconAction
+                            href={phone ? `tel:${phone}` : undefined}
+                            label="Call"
+                            icon={Phone}
+                            tone="emerald"
                           />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (eventsOpen) {
-                              setEventsLeadId(null)
-                              return
-                            }
-                            closeAccordions()
-                            setEventsLeadId(lead.id)
-                          }}
-                          aria-expanded={eventsOpen}
-                          aria-label={
-                            eventsOpen
-                              ? 'Collapse wish and outreach'
-                              : `Expand wish and outreach${(lead.eventsCount ?? 0) > 0 ? `, ${lead.eventsCount} items` : ''}`
-                          }
-                          className={cn(
-                            'relative inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase transition',
-                            eventsOpen
-                              ? 'bg-rose-100 text-rose-900 dark:bg-rose-500/25 dark:text-rose-100'
-                              : 'bg-rose-50 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200'
-                          )}
-                        >
-                          {(lead.eventsCount ?? 0) > 0 ? (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] leading-none font-black text-white dark:bg-rose-400 dark:text-rose-950">
-                              {(lead.eventsCount ?? 0) > 99 ? '99+' : lead.eventsCount}
-                            </span>
-                          ) : null}
-                          <CalendarHeart className="h-3.5 w-3.5 shrink-0" /> Wish & Outreach
-                          <ChevronDown
-                            className={cn(
-                              'h-3.5 w-3.5 origin-center transition-transform duration-300 ease-in-out will-change-transform',
-                              eventsOpen && 'rotate-180'
-                            )}
-                            aria-hidden
+                          <IconAction
+                            href={phone ? `sms:${phone}` : undefined}
+                            label="Text"
+                            icon={MessageSquare}
+                            tone="sky"
                           />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (notesOpen) {
-                              setNotesLeadId(null)
-                              return
-                            }
-                            closeAccordions()
-                            setNotesLeadId(lead.id)
-                          }}
-                          aria-expanded={notesOpen}
-                          aria-label={
-                            notesOpen
-                              ? 'Collapse notes'
-                              : `Expand notes${(lead.notesCount ?? 0) > 0 ? `, ${lead.notesCount} notes` : ''}`
-                          }
-                          className={cn(
-                            'relative inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase transition',
-                            notesOpen
-                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-500/25 dark:text-amber-100'
-                              : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'
-                          )}
-                        >
-                          {(lead.notesCount ?? 0) > 0 ? (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-600 px-1 text-[9px] leading-none font-black text-white dark:bg-amber-400 dark:text-amber-950">
-                              {(lead.notesCount ?? 0) > 99 ? '99+' : lead.notesCount}
-                            </span>
-                          ) : null}
-                          <StickyNote className="h-3.5 w-3.5" /> Notes
-                          <ChevronDown
-                            className={cn(
-                              'h-3.5 w-3.5 origin-center transition-transform duration-300 ease-in-out will-change-transform',
-                              notesOpen && 'rotate-180'
-                            )}
-                            aria-hidden
+                          <IconAction
+                            href={email ? `mailto:${email}` : undefined}
+                            label="Email"
+                            icon={Mail}
+                            tone="indigo"
                           />
-                        </button>
+                          <span className="ml-1 truncate text-[11px] font-semibold text-slate-400">
+                            {phone ? lead.phoneNumber : email || 'No contact'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid w-full min-w-0 grid-cols-[1fr_auto] gap-2">
-                      <button
-                        type="button"
+                    {preview ? (
+                      <p className="line-clamp-2 rounded-2xl bg-slate-50 px-3 py-2.5 text-[12.5px] leading-relaxed font-medium text-slate-500 dark:bg-white/4 dark:text-slate-400">
+                        {preview}
+                      </p>
+                    ) : null}
+
+                    <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-slate-400">
+                      <Building2 className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{multiCards ? `Cards · ${cardsLabel(lead)}` : cardsLabel(lead)}</span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1 rounded-2xl bg-slate-100/90 p-1 dark:bg-white/5">
+                      <LeadTab
+                        active={notesOpen}
+                        count={lead.notesCount}
+                        icon={StickyNote}
+                        label="Notes"
+                        tone="amber"
+                        onClick={() => {
+                          if (notesOpen) {
+                            setNotesLeadId(null)
+                            return
+                          }
+                          closeAccordions()
+                          setNotesLeadId(lead.id)
+                        }}
+                      />
+                      <LeadTab
+                        active={schedulesOpen}
+                        count={lead.schedulesCount}
+                        icon={Calendar}
+                        label="Schedule"
+                        tone="teal"
+                        onClick={() => {
+                          if (schedulesOpen) {
+                            setSchedulesLeadId(null)
+                            return
+                          }
+                          closeAccordions()
+                          setSchedulesLeadId(lead.id)
+                        }}
+                      />
+                      <LeadTab
+                        active={eventsOpen}
+                        count={lead.eventsCount}
+                        icon={CalendarHeart}
+                        label="Wishes"
+                        tone="rose"
+                        onClick={() => {
+                          if (eventsOpen) {
+                            setEventsLeadId(null)
+                            return
+                          }
+                          closeAccordions()
+                          setEventsLeadId(lead.id)
+                        }}
+                      />
+                      <LeadTab
+                        active={detailsOpen}
+                        icon={detailsOpen ? ChevronUp : ChevronDown}
+                        label="Details"
+                        tone="emerald"
                         onClick={() => {
                           if (detailsOpen) {
                             setDetailsLeadId(null)
@@ -560,38 +511,14 @@ export function CrmLeadsPanel({
                           closeAccordions()
                           setDetailsLeadId(lead.id)
                         }}
-                        aria-expanded={detailsOpen}
-                        aria-label={detailsOpen ? 'Hide lead details' : 'Show lead details'}
-                        className={cn(
-                          'inline-flex w-full min-w-0 cursor-pointer items-center justify-center gap-1 rounded-xl px-2.5 py-2.5 text-[10px] font-black tracking-wider uppercase transition-colors sm:text-[11px]',
-                          detailsOpen
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
-                        )}
-                      >
-                        {detailsOpen ? (
-                          <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                        ) : (
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                        )}
-                        {detailsOpen ? 'Hide' : 'Details'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingDeleteLead(lead)}
-                        className="shrink-0 rounded-xl p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
-                        title="Delete lead"
-                        aria-label="Delete lead"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      />
                     </div>
                   </div>
 
                   {detailsOpen ? (
                     <div
                       ref={expandedPanelRef}
-                      className="animate-in fade-in slide-in-from-top-2 min-w-0 space-y-3 overflow-x-hidden border-t border-emerald-100/60 bg-white/60 px-3.5 pt-0 pb-4 sm:space-y-4 sm:px-5 sm:pb-5 dark:border-emerald-500/15 dark:bg-black/10"
+                      className="animate-in fade-in slide-in-from-top-2 min-w-0 space-y-3 overflow-x-hidden border-t border-emerald-100/70 bg-emerald-50/40 px-4 pt-0 pb-4 sm:space-y-4 sm:px-5 sm:pb-5 dark:border-emerald-500/15 dark:bg-emerald-500/5"
                     >
                       <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 sm:mt-4 sm:grid-cols-2 sm:gap-2.5">
                         <MetaChip icon={Mail} label="Email" value={lead.email} />
@@ -623,7 +550,7 @@ export function CrmLeadsPanel({
                   {notesOpen ? (
                     <div
                       ref={expandedPanelRef}
-                      className="animate-in fade-in slide-in-from-top-2 origin-top px-3.5 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5"
+                      className="animate-in fade-in slide-in-from-top-2 origin-top border-t border-amber-100/80 px-4 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5 dark:border-amber-500/15"
                     >
                       <LeadNotesAccordion
                         leadId={lead.id}
@@ -636,7 +563,7 @@ export function CrmLeadsPanel({
                   {schedulesOpen ? (
                     <div
                       ref={expandedPanelRef}
-                      className="animate-in fade-in slide-in-from-top-2 origin-top px-3.5 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5"
+                      className="animate-in fade-in slide-in-from-top-2 origin-top border-t border-teal-100/80 px-4 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5 dark:border-teal-500/15"
                     >
                       <LeadSchedulesAccordion
                         leadId={lead.id}
@@ -650,7 +577,7 @@ export function CrmLeadsPanel({
                   {eventsOpen ? (
                     <div
                       ref={expandedPanelRef}
-                      className="animate-in fade-in slide-in-from-top-2 origin-top px-3.5 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5"
+                      className="animate-in fade-in slide-in-from-top-2 origin-top border-t border-rose-100/80 px-4 pb-4 duration-300 ease-in-out sm:px-5 sm:pb-5 dark:border-rose-500/15"
                     >
                       <LeadEventsAccordion
                         leadId={lead.id}
@@ -666,12 +593,12 @@ export function CrmLeadsPanel({
           </div>
         )}
         {hasMore ? (
-          <div className="border-t border-slate-100 p-4 dark:border-white/5">
+          <div className="p-1 pt-3 sm:border-t sm:border-slate-100 sm:p-4 dark:sm:border-white/5">
             <button
               type="button"
               onClick={loadMore}
               disabled={isFetching}
-              className="w-full rounded-2xl bg-slate-100 py-2.5 text-[11px] font-black tracking-wider text-slate-600 uppercase dark:bg-white/5 dark:text-slate-300"
+              className="w-full rounded-2xl bg-white py-3.5 text-[11px] font-black tracking-wider text-slate-600 uppercase shadow-sm ring-1 ring-slate-200/80 active:scale-[0.99] sm:bg-slate-100 sm:shadow-none sm:ring-0 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"
             >
               {isFetching ? 'Loading…' : 'Load more'}
             </button>
@@ -749,39 +676,120 @@ export function CrmLeadsPanel({
 
 function MetricCard({ label, value }: { label: string; value?: number }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
-      <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{label}</p>
-      <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+    <div className="rounded-2xl border border-slate-200/80 bg-white px-2.5 py-3 shadow-sm sm:p-4 sm:shadow-none dark:border-white/10 dark:bg-[#0b0f19]">
+      <p className="text-[9px] font-black tracking-wider text-slate-400 uppercase sm:text-[10px]">{label}</p>
+      <p className="mt-1.5 text-xl font-black text-slate-900 sm:mt-2 sm:text-2xl dark:text-white">
         {typeof value === 'number' ? value.toLocaleString() : '—'}
       </p>
     </div>
   )
 }
 
-function ActionLink({ href, label, icon: Icon }: { href?: string; label: string; icon: typeof Phone }) {
+function IconAction({
+  href,
+  label,
+  icon: Icon,
+  tone,
+}: {
+  href?: string
+  label: string
+  icon: typeof Phone
+  tone: 'emerald' | 'sky' | 'indigo'
+}) {
+  const toneClass =
+    tone === 'emerald'
+      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300'
+      : tone === 'sky'
+        ? 'bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300'
+        : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300'
   const className = cn(
-    'inline-flex items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-black tracking-wider uppercase',
-    href
-      ? 'bg-slate-100 text-slate-700 dark:bg-white/5 dark:text-slate-200'
-      : 'cursor-not-allowed bg-slate-50 text-slate-300 dark:bg-white/5 dark:text-slate-600'
+    'inline-flex h-9 w-9 items-center justify-center rounded-full transition active:scale-95',
+    href ? toneClass : 'cursor-not-allowed bg-slate-50 text-slate-300 dark:bg-white/5 dark:text-slate-600'
   )
   if (!href) {
     return (
-      <span className={className} aria-disabled>
-        <Icon className="h-3.5 w-3.5" /> {label}
+      <span className={className} aria-disabled aria-label={label}>
+        <Icon className="h-3.5 w-3.5" />
       </span>
     )
   }
   return (
-    <a href={href} className={className}>
-      <Icon className="h-3.5 w-3.5" /> {label}
+    <a href={href} className={className} aria-label={label}>
+      <Icon className="h-3.5 w-3.5" />
     </a>
+  )
+}
+
+function LeadTab({
+  active,
+  count,
+  icon: Icon,
+  label,
+  tone,
+  onClick,
+}: {
+  active: boolean
+  count?: number
+  icon: ElementType
+  label: string
+  tone: 'amber' | 'teal' | 'rose' | 'emerald'
+  onClick: () => void
+}) {
+  const activeTone =
+    tone === 'amber'
+      ? 'bg-white text-amber-800 shadow-sm dark:bg-amber-500/25 dark:text-amber-100'
+      : tone === 'teal'
+        ? 'bg-white text-teal-800 shadow-sm dark:bg-teal-500/25 dark:text-teal-100'
+        : tone === 'rose'
+          ? 'bg-white text-rose-800 shadow-sm dark:bg-rose-500/25 dark:text-rose-100'
+          : 'bg-white text-emerald-800 shadow-sm dark:bg-emerald-500/25 dark:text-emerald-100'
+  const idleTone =
+    tone === 'amber'
+      ? 'text-amber-700/80 dark:text-amber-300/80'
+      : tone === 'teal'
+        ? 'text-teal-700/80 dark:text-teal-300/80'
+        : tone === 'rose'
+          ? 'text-rose-700/80 dark:text-rose-300/80'
+          : 'text-emerald-700/80 dark:text-emerald-300/80'
+  const badgeTone =
+    tone === 'amber'
+      ? 'bg-amber-600 dark:bg-amber-400 dark:text-amber-950'
+      : tone === 'teal'
+        ? 'bg-teal-600 dark:bg-teal-400 dark:text-teal-950'
+        : tone === 'rose'
+          ? 'bg-rose-600 dark:bg-rose-400 dark:text-rose-950'
+          : 'bg-emerald-600 dark:bg-emerald-400 dark:text-emerald-950'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={active}
+      aria-label={active ? `Collapse ${label.toLowerCase()}` : `Expand ${label.toLowerCase()}`}
+      className={cn(
+        'relative inline-flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[9px] font-black tracking-wider uppercase transition active:scale-[0.97]',
+        active ? activeTone : idleTone
+      )}
+    >
+      {(count ?? 0) > 0 ? (
+        <span
+          className={cn(
+            'absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] leading-none font-black text-white',
+            badgeTone
+          )}
+        >
+          {(count ?? 0) > 99 ? '99+' : count}
+        </span>
+      ) : null}
+      <Icon className="h-3.5 w-3.5" />
+      <span className="truncate">{label}</span>
+    </button>
   )
 }
 
 function MetaChip({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string }) {
   return (
-    <div className="max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/4">
+    <div className="max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-100 bg-white p-3 dark:border-white/10 dark:bg-white/4">
       <p className="mb-1 flex items-center gap-1 text-[10px] font-black tracking-wider text-slate-400 uppercase">
         <Icon className="h-3 w-3 shrink-0" /> {label}
       </p>

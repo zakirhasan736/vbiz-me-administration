@@ -49,24 +49,24 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
 
   return (
     <ProfileModalShell isOpen={isOpen} onClose={onClose} panelClassName="sm:max-w-lg">
-      <div className="relative z-10 p-6">
+      <div className="relative z-10 p-4 sm:p-6">
         <button
           type="button"
           onClick={onClose}
-          className="vbiz-modal-close absolute top-4 right-4 rounded-full border p-1.5 transition-all focus:outline-none"
+          className="vbiz-modal-close absolute top-3 right-3 rounded-full border p-1.5 transition-all focus:outline-none sm:top-4 sm:right-4"
           aria-label="Close save to wallet dialog"
         >
           <X size={16} />
         </button>
 
-        <div className="mb-4 pr-8">
-          <h3 className="vbiz-title text-xl font-bold tracking-tight">Save to Wallet</h3>
-          <p className="vbiz-description mt-2 text-sm leading-relaxed">
+        <div className="mb-3 pr-8 sm:mb-4">
+          <h3 className="vbiz-title text-lg font-bold tracking-tight sm:text-xl">Save to Wallet</h3>
+          <p className="vbiz-description mt-1.5 text-sm leading-relaxed sm:mt-2">
             Add {holder}&apos;s digital card to Apple Wallet or Google Wallet.
           </p>
         </div>
 
-        <div className="mb-5">
+        <div className="mb-4 overflow-visible px-0.5 sm:mb-5">
           <UsaDigitalCardFace
             holderName={holder}
             designation={resolveGlobalProfession(personal, isVisible)}
@@ -79,7 +79,7 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
           />
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5 sm:gap-3">
           <button
             type="button"
             onClick={() => void handleGoogleWallet()}

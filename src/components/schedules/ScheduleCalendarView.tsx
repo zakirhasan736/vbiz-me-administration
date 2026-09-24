@@ -487,7 +487,7 @@ export function ScheduleCalendarView({
   return (
     <div
       className={cn(
-        'animate-in fade-in relative mx-auto max-w-7xl space-y-6 duration-500',
+        'animate-in fade-in relative mx-auto max-w-7xl space-y-4 duration-500 sm:space-y-6',
         compact ? 'p-0' : 'p-5 sm:p-8 lg:p-10'
       )}
     >
@@ -496,32 +496,34 @@ export function ScheduleCalendarView({
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top,rgba(13,148,136,0.12),transparent_55%),linear-gradient(180deg,rgba(15,23,42,0.03),transparent)] dark:bg-[radial-gradient(ellipse_at_top,rgba(45,212,191,0.08),transparent_55%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]"
       />
 
-      <header className="flex flex-col gap-5 border-b border-slate-200/70 pb-6 md:flex-row md:items-end md:justify-between dark:border-white/10">
+      <header className="flex flex-col gap-3 border-b border-slate-200/70 pb-4 sm:gap-5 sm:pb-6 md:flex-row md:items-end md:justify-between dark:border-white/10">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold tracking-[0.18em] text-teal-700 uppercase dark:text-teal-300">
             {eyebrow}
           </p>
           <h1
             className={cn(
-              'mt-1.5 font-(family-name:--font-geist-sans,ui-sans-serif) font-semibold tracking-tight text-slate-950 dark:text-white',
-              compact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'
+              'mt-1 font-(family-name:--font-geist-sans,ui-sans-serif) font-semibold tracking-tight text-slate-950 dark:text-white',
+              compact ? 'text-xl sm:text-3xl' : 'text-2xl sm:text-4xl'
             )}
           >
             {title}
           </h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">{subtitle}</p>
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-500 sm:mt-2 dark:text-slate-400">
+            {subtitle}
+          </p>
         </div>
         <button
           type="button"
           onClick={() => openBookModal(selectedDay || todayIsoDate())}
-          className="inline-flex items-center justify-center gap-2 self-start rounded-2xl bg-slate-950 px-5 py-3.5 text-xs font-semibold tracking-wide text-white uppercase transition hover:bg-slate-800 active:scale-[0.98] md:self-auto dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-semibold tracking-wide text-white uppercase transition hover:bg-slate-800 active:scale-[0.98] sm:w-auto sm:py-3.5 md:self-auto dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
         >
           <Plus className="h-4 w-4" /> Book discussion
         </button>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-        <label className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur dark:border-white/10 dark:bg-[#0d121c]/90">
+      <div className="grid gap-2 sm:gap-4 lg:grid-cols-[1fr_auto]">
+        <label className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur sm:gap-3 sm:px-4 sm:py-3 dark:border-white/10 dark:bg-[#0d121c]/90">
           <Search className="h-4 w-4 shrink-0 text-slate-400" />
           <input
             type="text"
@@ -529,7 +531,7 @@ export function ScheduleCalendarView({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
               isCrmZoho
-                ? 'Filter by host, type, note, or date…'
+                ? 'Filter schedules…'
                 : meetingsSource === 'owner'
                   ? 'Filter by type, notes, or date…'
                   : 'Filter by owner, type, notes, or date…'
@@ -537,34 +539,36 @@ export function ScheduleCalendarView({
             className="w-full bg-transparent text-sm font-medium text-slate-800 placeholder-slate-400 outline-none dark:text-white"
           />
         </label>
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 text-xs font-semibold text-slate-500 shadow-[0_1px_0_rgba(15,23,42,0.04)] dark:border-white/10 dark:bg-[#0d121c]/90 dark:text-slate-400">
-          <span className="inline-flex h-2 w-2 rounded-sm bg-teal-500" />
-          {monthMeetingCount} this month
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 text-xs font-semibold text-slate-500 shadow-[0_1px_0_rgba(15,23,42,0.04)] sm:justify-start sm:px-4 sm:py-3 dark:border-white/10 dark:bg-[#0d121c]/90 dark:text-slate-400">
+          <span className="inline-flex items-center gap-2">
+            <span className="inline-flex h-2 w-2 rounded-sm bg-teal-500" />
+            {monthMeetingCount} this month
+          </span>
           <span className="text-slate-300 dark:text-white/20">·</span>
-          {filteredEntries.length} total
+          <span>{filteredEntries.length} total</span>
         </div>
       </div>
 
       {meetingsSource === 'admin' ? <OneOnOneRequestsPanel /> : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(15,23,42,0.35)] dark:border-white/10 dark:bg-[#0b1018]">
-          <div className="flex flex-col gap-4 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(13,148,136,0.08),transparent_42%),linear-gradient(180deg,#f8fafc,#ffffff)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 dark:border-white/5 dark:bg-[linear-gradient(135deg,rgba(45,212,191,0.08),transparent_45%),linear-gradient(180deg,#0f1622,#0b1018)]">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
+        <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(15,23,42,0.35)] sm:rounded-[28px] dark:border-white/10 dark:bg-[#0b1018]">
+          <div className="flex flex-col gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(13,148,136,0.08),transparent_42%),linear-gradient(180deg,#f8fafc,#ffffff)] px-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-7 sm:py-5 dark:border-white/5 dark:bg-[linear-gradient(135deg,rgba(45,212,191,0.08),transparent_45%),linear-gradient(180deg,#0f1622,#0b1018)]">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-slate-950 sm:text-lg dark:text-white">
                 {monthTitle(viewYear, viewMonth)}
               </h2>
-              <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500 sm:text-xs dark:text-slate-400">
                 {isCrmZoho
                   ? 'Loaded from your database. New bookings still sync to Zoho.'
                   : 'Each pin shows the time and host. Click an empty day to book.'}
               </p>
             </div>
-            <div className="flex items-center gap-1.5 self-start rounded-2xl border border-slate-200/80 bg-white/80 p-1 dark:border-white/10 dark:bg-white/5">
+            <div className="flex w-full items-center justify-between gap-1.5 rounded-2xl border border-slate-200/80 bg-white/80 p-1 sm:w-auto sm:self-start dark:border-white/10 dark:bg-white/5">
               <button
                 type="button"
                 onClick={() => shiftMonth(-1)}
-                className="rounded-xl p-2.5 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
+                className="rounded-xl p-2.5 text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-white/10"
                 aria-label="Previous month"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -584,7 +588,7 @@ export function ScheduleCalendarView({
               <button
                 type="button"
                 onClick={() => shiftMonth(1)}
-                className="rounded-xl p-2.5 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
+                className="rounded-xl p-2.5 text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-white/10"
                 aria-label="Next month"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -592,7 +596,7 @@ export function ScheduleCalendarView({
             </div>
           </div>
 
-          <div className="p-3 sm:p-5">
+          <div className="p-2 sm:p-5">
             {isLoading ? (
               <AdminScheduleCalendarSkeleton />
             ) : isError ? (
@@ -621,7 +625,7 @@ export function ScheduleCalendarView({
                         type="button"
                         onClick={() => handleDayClick(cell)}
                         className={cn(
-                          'group relative flex min-h-22 flex-col gap-1 bg-white p-1.5 text-left transition sm:min-h-28 sm:p-2 dark:bg-[#0d121c]',
+                          'group relative flex min-h-14 flex-col gap-0.5 bg-white p-1 text-left transition sm:min-h-28 sm:gap-1 sm:p-2 dark:bg-[#0d121c]',
                           !cell.inMonth && 'bg-slate-50/90 text-slate-400 dark:bg-[#0a0e16] dark:text-slate-600',
                           cell.inMonth && 'hover:bg-teal-50/50 dark:hover:bg-teal-500/5',
                           isSelected && 'bg-teal-50 ring-2 ring-teal-500/50 ring-inset dark:bg-teal-500/10',
@@ -631,7 +635,7 @@ export function ScheduleCalendarView({
                         <div className="flex items-center justify-between gap-1">
                           <span
                             className={cn(
-                              'inline-flex h-7 min-w-7 items-center justify-center rounded-lg px-1.5 text-[12px] font-semibold tabular-nums',
+                              'inline-flex h-6 min-w-6 items-center justify-center rounded-lg px-1 text-[11px] font-semibold tabular-nums sm:h-7 sm:min-w-7 sm:px-1.5 sm:text-[12px]',
                               isToday
                                 ? 'bg-slate-950 text-white dark:bg-teal-400 dark:text-slate-950'
                                 : cell.inMonth
@@ -641,11 +645,9 @@ export function ScheduleCalendarView({
                           >
                             {cell.day}
                           </span>
-                          {hasItems ? (
-                            <span className="hidden h-1.5 w-1.5 rounded-sm bg-teal-500 sm:inline-block" aria-hidden />
-                          ) : null}
+                          {hasItems ? <span className="h-1.5 w-1.5 rounded-sm bg-teal-500" aria-hidden /> : null}
                         </div>
-                        <div className="mt-auto space-y-1">
+                        <div className="mt-auto hidden space-y-1 sm:block">
                           {items.slice(0, 2).map((meeting) => (
                             <span
                               key={`${meeting.kind}-${meeting.id}`}
@@ -679,12 +681,25 @@ export function ScheduleCalendarView({
                             </span>
                           ) : null}
                         </div>
+                        {hasItems ? (
+                          <div className="mt-auto flex flex-wrap gap-0.5 px-0.5 sm:hidden">
+                            {items.slice(0, 3).map((meeting) => (
+                              <span
+                                key={`${meeting.kind}-${meeting.id}-dot`}
+                                className={cn('h-1.5 w-1.5 rounded-full', statusDot(meeting))}
+                              />
+                            ))}
+                            {extra > 0 ? (
+                              <span className="text-[8px] font-black text-teal-700 dark:text-teal-300">+{extra}</span>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </button>
                     )
                   })}
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-4 px-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 px-0.5 text-[10px] font-medium text-slate-500 sm:mt-4 sm:gap-4 sm:text-[11px] dark:text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-sm bg-sky-500" /> Scheduled
                   </span>
@@ -734,14 +749,15 @@ export function ScheduleCalendarView({
               className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]"
               onClick={() => setSelectedDay(null)}
             />
-            <div className="animate-in slide-in-from-bottom-4 sm:zoom-in-95 relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-slate-200 bg-white shadow-2xl duration-200 sm:rounded-[28px] dark:border-white/10 dark:bg-[#0b1018]">
-              <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur dark:border-white/5 dark:bg-[#0b1018]/95">
+            <div className="animate-in slide-in-from-bottom-4 sm:zoom-in-95 relative max-h-[min(90dvh,calc(100dvh-5dvh))] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-slate-200 bg-white shadow-2xl duration-200 sm:rounded-[28px] dark:border-white/10 dark:bg-[#0b1018]">
+              <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 backdrop-blur sm:px-6 sm:pt-5 sm:pb-5 dark:border-white/5 dark:bg-[#0b1018]/95">
+                <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-white/15" />
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] font-semibold tracking-[0.16em] text-teal-700 uppercase dark:text-teal-300">
                       Day agenda
                     </p>
-                    <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">
+                    <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950 sm:text-xl dark:text-white">
                       {formatDayHeading(selectedDay)}
                     </h2>
                     <p className="mt-1 text-xs font-medium text-slate-500">
@@ -751,7 +767,7 @@ export function ScheduleCalendarView({
                   <button
                     type="button"
                     onClick={() => setSelectedDay(null)}
-                    className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"
+                    className="shrink-0 rounded-xl border border-slate-200 p-2.5 text-slate-500 transition hover:bg-slate-50 active:scale-95 dark:border-white/10 dark:hover:bg-white/5"
                     aria-label="Close"
                   >
                     <X className="h-4 w-4" />
@@ -759,7 +775,7 @@ export function ScheduleCalendarView({
                 </div>
               </div>
 
-              <div className="space-y-3 px-6 py-5">
+              <div className="space-y-3 px-4 py-4 sm:px-6 sm:py-5">
                 {selectedMeetings.length === 0 ? (
                   <p className="py-8 text-center text-sm font-medium text-slate-400">Nothing scheduled on this date.</p>
                 ) : (
@@ -839,14 +855,14 @@ export function ScheduleCalendarView({
                 )}
               </div>
 
-              <div className="border-t border-slate-100 px-6 py-4 dark:border-white/5">
+              <div className="sticky bottom-0 border-t border-slate-100 bg-white/95 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-6 sm:py-4 dark:border-white/5 dark:bg-[#0b1018]/95">
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedDay(null)
                     openBookModal(selectedDay)
                   }}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-3.5 text-[11px] font-semibold tracking-wide text-white uppercase transition hover:bg-slate-800 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-3.5 text-[11px] font-semibold tracking-wide text-white uppercase transition hover:bg-slate-800 active:scale-[0.98] dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
                 >
                   <Plus className="h-4 w-4" /> Book on this date
                 </button>

@@ -54,12 +54,12 @@ export function UpcomingSchedulesPanel({
   return (
     <section
       className={cn(
-        'overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b1018]',
+        'overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:rounded-[28px] dark:border-white/10 dark:bg-[#0b1018]',
         className
       )}
     >
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-white/5">
-        <div>
+      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4 dark:border-white/5">
+        <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] text-teal-700 uppercase dark:text-teal-300">
             <Calendar className="h-3.5 w-3.5" /> Schedules
           </p>
@@ -82,13 +82,13 @@ export function UpcomingSchedulesPanel({
       <div className="divide-y divide-slate-100 dark:divide-white/5">
         {isLoading ? (
           Array.from({ length: compact ? 2 : 3 }).map((_, i) => (
-            <div key={i} className="animate-pulse space-y-2 px-5 py-4">
+            <div key={i} className="animate-pulse space-y-2 px-4 py-3.5 sm:px-5 sm:py-4">
               <div className="h-4 w-2/3 rounded-lg bg-slate-100 dark:bg-white/10" />
               <div className="h-3 w-1/2 rounded-lg bg-slate-100 dark:bg-white/10" />
             </div>
           ))
         ) : upcoming.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm font-medium text-slate-400">{emptyMessage}</p>
+          <p className="px-4 py-8 text-center text-sm font-medium text-slate-400 sm:px-5">{emptyMessage}</p>
         ) : (
           upcoming.map((meeting) => {
             const linkLabel = meetLinkLabel(meeting.meetLink)
@@ -96,7 +96,7 @@ export function UpcomingSchedulesPanel({
             const isEvent = meeting.kind === 'event'
             const scope = meeting.scope ?? (meeting.profileId ? 'one_to_one' : 'global')
             return (
-              <article key={`${meeting.kind || 'meeting'}-${meeting.id}`} className="px-5 py-4">
+              <article key={`${meeting.kind || 'meeting'}-${meeting.id}`} className="px-4 py-3.5 sm:px-5 sm:py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
