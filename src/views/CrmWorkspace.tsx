@@ -7,15 +7,38 @@ import { CrmWorkNotesBoard } from '@/components/crm/CrmWorkNotesBoard'
 import { ScheduleCalendarView } from '@/components/schedules/ScheduleCalendarView'
 import { isStaffRole } from '@/constants/userRole'
 import { useAppSelector } from '@/hooks/redux'
+import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
 import { canSessionUseCrm, CRM_UI_ENABLED } from '@/lib/crmAccess'
 import { cn } from '@/utils/cn'
-import { CalendarDays, CalendarHeart, ClipboardList, LayoutDashboard, Lock, UserPlus } from 'lucide-react'
-import { useState } from 'react'
+import {
+  CalendarDays,
+  CalendarHeart,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  LayoutDashboard,
+  Lock,
+  UserPlus,
+} from 'lucide-react'
+import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 type CrmTab = 'dashboard' | 'leads' | 'calendar' | 'work_notes' | 'events'
 
 type FocusTarget = { tab: 'calendar'; id: string; date: string } | { tab: 'events'; id: string }
+
+const CRM_TABS: Array<{
+  id: CrmTab
+  label: string
+  longLabel?: string
+  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+}> = [
+  { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+  { id: 'leads', label: 'Leads', icon: UserPlus },
+  { id: 'calendar', label: 'Schedules', icon: CalendarDays },
+  { id: 'work_notes', label: 'Notes', icon: ClipboardList },
+  { id: 'events', label: 'Wish', longLabel: 'Wish & Outreach', icon: CalendarHeart },
+]
 
 export default function CrmWorkspace() {
   const role = useAppSelector((state) => state.user.user?.role)
@@ -25,6 +48,34 @@ export default function CrmWorkspace() {
   const allowed = CRM_UI_ENABLED && canSessionUseCrm({ role, allowedModules })
   const [tab, setTab] = useState<CrmTab>('dashboard')
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null)
+  const skipFirstPeekRef = useRef(true)
+
+  const {
+    scrollRef,
+    scrollClassName,
+    didDragRef,
+    canScrollLeft,
+    canScrollRight,
+    hiddenLeftCount,
+    hiddenRightCount,
+    scrollByTabs,
+    scrollActiveIntoPeek,
+  } = useHorizontalScroll('crm-workspace-tabs', tab)
+
+  useEffect(() => {
+    if (skipFirstPeekRef.current) {
+      skipFirstPeekRef.current = false
+      return
+    }
+    const frame = requestAnimationFrame(() => scrollActiveIntoPeek(tab))
+    return () => cancelAnimationFrame(frame)
+  }, [tab, scrollActiveIntoPeek])
+
+  const selectTab = (next: CrmTab) => {
+    if (didDragRef.current) return
+    setTab(next)
+    scrollActiveIntoPeek(next)
+  }
 
   if (!allowed) {
     return (
@@ -58,37 +109,78 @@ export default function CrmWorkspace() {
         </p>
       </div>
 
-      <div
-        role="tablist"
-        aria-label="CRM sections"
-        className="no-scrollbar mb-5 flex w-full snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain rounded-2xl bg-slate-100 p-1 [-webkit-overflow-scrolling:touch] sm:mb-6 dark:bg-white/5"
-      >
-        <TabButton
-          active={tab === 'dashboard'}
-          onClick={() => setTab('dashboard')}
-          icon={LayoutDashboard}
-          label="Home"
-        />
-        <TabButton active={tab === 'leads'} onClick={() => setTab('leads')} icon={UserPlus} label="Leads" />
-        <TabButton
-          active={tab === 'calendar'}
-          onClick={() => setTab('calendar')}
-          icon={CalendarDays}
-          label="Schedules"
-        />
-        <TabButton
-          active={tab === 'work_notes'}
-          onClick={() => setTab('work_notes')}
-          icon={ClipboardList}
-          label="Notes"
-        />
-        <TabButton
-          active={tab === 'events'}
-          onClick={() => setTab('events')}
-          icon={CalendarHeart}
-          label="Wish"
-          longLabel="Wish & Outreach"
-        />
+      <div className="relative mb-5 sm:mb-6">
+        {canScrollLeft ? (
+          <button
+            type="button"
+            aria-label="Show previous CRM tabs"
+            onClick={() => scrollByTabs(-1)}
+            className="absolute top-1/2 left-1 z-20 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-full border border-slate-200/90 bg-white/95 px-1.5 py-1 text-[10px] font-black whitespace-nowrap text-slate-700 shadow-sm dark:border-white/10 dark:bg-[#0b0f19]/95 dark:text-slate-200"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {Math.max(hiddenLeftCount, 1)} prev
+          </button>
+        ) : null}
+
+        {canScrollRight ? (
+          <button
+            type="button"
+            aria-label="Show next CRM tabs"
+            onClick={() => scrollByTabs(1)}
+            className="absolute top-1/2 right-1 z-20 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-full border border-slate-200/90 bg-white/95 px-1.5 py-1 text-[10px] font-black whitespace-nowrap text-slate-700 shadow-sm dark:border-white/10 dark:bg-[#0b0f19]/95 dark:text-slate-200"
+          >
+            {Math.max(hiddenRightCount, 1)} next
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+
+        <div className="relative overflow-hidden rounded-2xl bg-slate-100 p-1 dark:bg-white/5">
+          {canScrollLeft ? (
+            <div className="pointer-events-none absolute inset-y-1 left-1 z-10 w-10 rounded-l-xl bg-linear-to-r from-slate-100 to-transparent dark:from-[#121722]" />
+          ) : null}
+          {canScrollRight ? (
+            <div className="pointer-events-none absolute inset-y-1 right-1 z-10 w-10 rounded-r-xl bg-linear-to-l from-slate-100 to-transparent dark:from-[#121722]" />
+          ) : null}
+
+          <div
+            ref={scrollRef}
+            role="tablist"
+            aria-label="CRM sections"
+            className={cn(
+              'cursor-grab items-center gap-1 [-webkit-overflow-scrolling:touch] active:cursor-grabbing',
+              scrollClassName
+            )}
+          >
+            {CRM_TABS.map((item) => {
+              const active = tab === item.id
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  id={`crm-tab-${item.id}`}
+                  data-tab-chip
+                  data-tab-name={item.id}
+                  aria-selected={active}
+                  aria-label={item.longLabel || item.label}
+                  title={item.longLabel || item.label}
+                  onClick={() => selectTab(item.id)}
+                  className={cn(
+                    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[11px] font-black tracking-wider whitespace-nowrap uppercase transition-all',
+                    active
+                      ? 'bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="md:hidden">{item.label}</span>
+                  <span className="hidden md:inline">{item.longLabel || item.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       {tab === 'dashboard' ? <CrmHomeDashboard onOpenTab={setTab} /> : null}
@@ -138,38 +230,3 @@ export default function CrmWorkspace() {
 }
 
 type MeetingScopeTuple = readonly ['one_to_one'] | readonly ['one_to_one', 'group']
-
-function TabButton({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-  longLabel,
-}: {
-  active: boolean
-  onClick: () => void
-  icon: typeof CalendarDays
-  label: string
-  longLabel?: string
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      aria-label={longLabel || label}
-      title={longLabel || label}
-      onClick={onClick}
-      className={cn(
-        'inline-flex shrink-0 snap-start items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[11px] font-black tracking-wider whitespace-nowrap uppercase transition-all lg:min-w-0 lg:flex-1 lg:px-3',
-        active
-          ? 'bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300'
-          : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-      )}
-    >
-      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="md:hidden">{label}</span>
-      <span className="hidden md:inline">{longLabel || label}</span>
-    </button>
-  )
-}
