@@ -24,6 +24,7 @@ function ProfileMediaImage({ src, className = '', imageAlt = 'Profile' }: Custom
         src={src}
         alt={imageAlt}
         className="h-full w-full object-cover object-top opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100"
+        style={{ objectPosition: 'top' }}
       />
     </div>
   )

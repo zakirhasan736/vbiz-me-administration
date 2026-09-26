@@ -90,7 +90,17 @@ function ProfileMedia({ src, alt, className }: { src: string; alt: string; class
       <CustomVideoPlayer src={encoded} imageAlt={alt} controlsMode="owner" showSeekBar={false} className={className} />
     )
   }
-  return <Image src={encoded} alt={alt} fill priority sizes="(max-width: 767px) 60vw, 300px" className={className} />
+  return (
+    <Image
+      src={encoded}
+      alt={alt}
+      fill
+      priority
+      sizes="(max-width: 767px) 60vw, 300px"
+      className={`${className || 'h-full w-full object-cover'} object-top`}
+      style={{ objectPosition: 'top' }}
+    />
+  )
 }
 
 export const HomeHero: React.FC<{
@@ -504,7 +514,7 @@ export const HomeHero: React.FC<{
                 <ProfileMedia
                   src={profileSrc}
                   alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
-                  className="h-full w-full object-cover opacity-90 transition-opacity hover:opacity-100"
+                  className="h-full w-full object-cover object-top opacity-90 transition-opacity hover:opacity-100"
                 />
                 {profileIsVideo && (
                   <div className="border-gold/40 absolute top-3 right-3 z-30 flex items-center gap-1.5 rounded-full border bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-md transition-colors group-hover:bg-black/80">
