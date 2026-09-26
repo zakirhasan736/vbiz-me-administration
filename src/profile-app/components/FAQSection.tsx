@@ -129,7 +129,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
         <div className="flex flex-col gap-3">
           <div className={`${headerClass} p-5 shadow-sm`}>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 text-xl font-black text-zinc-900 dark:text-zinc-100">
+              <h3 className="vcard-faq-banner-title text-gold flex items-center gap-1.5 text-xl font-black">
                 <HelpCircle size={16} className="text-gold" /> {banner.title || sectionTitle}
               </h3>
               <span className="text-gold bg-gold/10 rounded-full px-2 py-0.5 text-[9px] font-black tracking-widest uppercase">
@@ -233,7 +233,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                 <MessageCircle size={16} /> {sectionTitle}
               </div>
               {banner.title ? (
-                <h2 className="mb-2 text-2xl leading-[1.1] font-black tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+                <h2 className="vcard-faq-banner-title text-gold mb-2 text-2xl leading-[1.1] font-black tracking-tight sm:text-4xl lg:text-4xl">
                   {banner.title}
                 </h2>
               ) : null}

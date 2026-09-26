@@ -530,6 +530,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-public-cards-banner h2 {
   color: var(--vbiz-page-header-fg, #ffffff) !important;
 }
+.vbiz-profile-root [data-section-id='faq'] .vbiz-section-banner h2,
+.vbiz-profile-root [data-section-id='faq'] .vbiz-section-banner h3,
+.vbiz-profile-root [data-section-id='faq'] .vcard-faq-banner-title {
+  color: var(--vbiz-accent, #eab308) !important;
+}
 .vbiz-profile-root .vbiz-section-banner .vbiz-description,
 .vbiz-profile-root .vbiz-page-header-surface .vbiz-description,
 .vbiz-profile-root .vbiz-public-cards-banner .vbiz-description,
