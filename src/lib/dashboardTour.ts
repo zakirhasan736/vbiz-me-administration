@@ -151,7 +151,7 @@ export const CREATE_CARD_TOUR_STEPS: DashboardTourStep[] = [
     placement: 'bottom',
     title: 'Navbar settings — enable & reorder',
     description:
-      'Open Navbar settings to turn sections on or off and set tab order (3-column grid). Drag or use ↑↓ to reorder, then Apply.',
+      'Open Navbar settings to turn sections on or off and set tab order (3-column grid). Drag or use ↑↓ to reorder, then Update changes.',
     tips: ['Personal stays required.', 'Global Connection & My Info stay pinned near the end by default.'],
   },
   {

@@ -1,6 +1,10 @@
 'use client'
 
-import { normalizeRichTextHtml, shouldDefaultToParagraph } from '@/lib/editor/normalizeRichTextHtml'
+import {
+  isThemeNeutralColor,
+  normalizeRichTextHtml,
+  shouldDefaultToParagraph,
+} from '@/lib/editor/normalizeRichTextHtml'
 import { useVCard } from '@/lib/VCardContext'
 import { cn } from '@/utils/cn'
 import { Highlight } from '@tiptap/extension-highlight'
@@ -96,7 +100,34 @@ const HEADING_OPTIONS: { label: string; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 }[] = [
   { label: 'Heading 6', level: 6 },
 ]
 
-const TEXT_COLORS = ['#0f172a', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
+const TEXT_COLORS = ['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
+
+const ThemeAwareColor = Color.extend({
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          color: {
+            default: null,
+            parseHTML: (element: HTMLElement) => {
+              const raw = element.getAttribute('style') || ''
+              const fromStyle = raw.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i)?.[1]
+              const value = (fromStyle || element.style.color || '').replace(/['"]+/g, '').trim()
+              if (!value || isThemeNeutralColor(value)) return null
+              return value
+            },
+            renderHTML: (attributes: { color?: string | null }) => {
+              if (!attributes.color || isThemeNeutralColor(attributes.color)) return {}
+              return { style: `color: ${attributes.color}` }
+            },
+          },
+        },
+      },
+    ]
+  },
+})
+
 const ALIGN_OPTIONS: { label: string; value: 'left' | 'center' | 'right' | 'justify' }[] = [
   { label: 'Align left', value: 'left' },
   { label: 'Align center', value: 'center' },
@@ -111,7 +142,15 @@ const EDITOR_ACCENT_CSS = `
 .vcard-rich-editor h4 { font-size: 1.125rem; font-weight: 700; line-height: 1.35; margin: 0.5em 0 0.25em; }
 .vcard-rich-editor h5 { font-size: 1rem; font-weight: 700; line-height: 1.4; margin: 0.45em 0 0.2em; }
 .vcard-rich-editor h6 { font-size: 0.875rem; font-weight: 700; line-height: 1.4; margin: 0.4em 0 0.2em; letter-spacing: 0.02em; }
-.vcard-rich-editor p { margin: 0.35em 0; }
+.vcard-rich-editor p { margin: 0.35em 0; color: inherit; }
+.vcard-rich-editor h1, .vcard-rich-editor h2, .vcard-rich-editor h3,
+.vcard-rich-editor h4, .vcard-rich-editor h5, .vcard-rich-editor h6 { color: inherit; }
+.vcard-rich-editor [style*='color: rgb(0, 0, 0)'],
+.vcard-rich-editor [style*='color:rgb(0, 0, 0)'],
+.vcard-rich-editor [style*='color: rgb(0,0,0)'],
+.vcard-rich-editor [style*='color:#000'],
+.vcard-rich-editor [style*='color: #000000'],
+.vcard-rich-editor [style*='color: black'] { color: inherit !important; }
 .vcard-rich-editor strong, .vcard-rich-editor b { color: var(--rte-accent, #eab308); font-weight: 700; }
 .vcard-rich-editor em, .vcard-rich-editor i { font-style: italic; }
 .vcard-rich-editor u { text-decoration: underline; }
@@ -154,8 +193,14 @@ function applyTextColor(editor: Editor, color: string | null) {
     const to = $from.end()
     if (to > from) chain = chain.setTextSelection({ from, to })
   }
-  if (color) chain.setColor(color).run()
+  if (color && !isThemeNeutralColor(color)) chain.setColor(color).run()
   else chain.unsetColor().run()
+}
+
+function applyTypographyBlock(editor: Editor, level: 0 | 1 | 2 | 3 | 4 | 5 | 6) {
+  const chain = editor.chain().focus().unsetColor()
+  if (level === 0) chain.setParagraph().run()
+  else chain.toggleHeading({ level }).run()
 }
 
 function RichTextToolbar({
@@ -255,8 +300,7 @@ function RichTextToolbar({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    if (opt.level === 0) editor.chain().focus().setParagraph().run()
-                    else editor.chain().focus().toggleHeading({ level: opt.level }).run()
+                    applyTypographyBlock(editor, opt.level)
                     setHeadingOpen(false)
                   }}
                   className={cn(
@@ -511,7 +555,7 @@ export function RichTextEditor({
       }),
       Underline,
       TextStyle.configure({ mergeNestedSpanStyles: true }),
-      Color.configure({ types: ['textStyle'] }),
+      ThemeAwareColor.configure({ types: ['textStyle'] }),
       Highlight.configure({ multicolor: true }),
       Subscript,
       Superscript,
@@ -535,9 +579,10 @@ export function RichTextEditor({
       if (shouldDefaultToParagraph(ed)) ed.commands.setParagraph()
     },
     onUpdate: ({ editor: ed }: { editor: Editor }) => {
-      onChangeRef.current?.(ed.getHTML())
+      onChangeRef.current?.(normalizeRichTextHtml(ed.getHTML()))
     },
     editorProps: {
+      transformPastedHTML: (html: string) => normalizeRichTextHtml(html),
       attributes: {
         class: cn(
           'vcard-rich-editor px-4 py-3 text-[14px] leading-relaxed text-slate-900 focus:outline-none dark:text-white',

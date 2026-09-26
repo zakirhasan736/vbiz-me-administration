@@ -791,6 +791,26 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
+/* Extra <span style="color: black"> under p/headings must not lock light/dark text */
+.vbiz-profile-root .vcard-rich-html [style*='color: rgb(0, 0, 0)'],
+.vbiz-profile-root .vcard-rich-html [style*='color:rgb(0, 0, 0)'],
+.vbiz-profile-root .vcard-rich-html [style*='color: rgb(0,0,0)'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#000'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #000000'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#000000'],
+.vbiz-profile-root .vcard-rich-html [style*='color: black'],
+.vbiz-profile-root .vcard-rich-html [style*='color:black'],
+.vbiz-profile-root .vcard-rich-html [style*='color: rgb(15, 23, 42)'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#0f172a'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #0f172a'],
+.vbiz-profile-root .vcard-rich-html [style*='color: rgb(255, 255, 255)'],
+.vbiz-profile-root .vcard-rich-html [style*='color:rgb(255, 255, 255)'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #ffffff'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#ffffff'],
+.vbiz-profile-root .vcard-rich-html [style*='color: white'],
+.vbiz-profile-root .vcard-rich-html [style*='color:white'] {
+  color: inherit !important;
+}
 .vbiz-profile-root .vbiz-description.vcard-rich-html a,
 .vbiz-profile-root .vcard-rich-html.vbiz-description a,
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html a {
@@ -935,17 +955,19 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-accent) !important;
 }
 /* FAQ answers: black in light, white in dark. Bold and highlight stay accent. */
-.vbiz-profile-root .vcard-faq-answer,
-.vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(mark):not(a):not(code):not(pre):not([style*='color'])) {
+.vbiz-profile-root .vcard-faq-answer {
   color: #000000 !important;
 }
-html.dark .vbiz-profile-root .vcard-faq-answer,
-html.dark .vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(mark):not(a):not(code):not(pre):not([style*='color'])) {
+html.dark .vbiz-profile-root .vcard-faq-answer {
   color: #ffffff !important;
+}
+.vbiz-profile-root .vcard-faq-answer :where(p, h1, h2, h3, h4, h5, h6, li, ul, ol, blockquote, div) {
+  color: inherit !important;
 }
 .vbiz-profile-root .vcard-faq-answer strong,
 .vbiz-profile-root .vcard-faq-answer b,
-.vbiz-profile-root .vcard-faq-answer mark {
+.vbiz-profile-root .vcard-faq-answer mark,
+.vbiz-profile-root .vcard-faq-answer a {
   color: var(--vbiz-accent) !important;
 }
 .vbiz-profile-root .vcard-faq-answer mark {

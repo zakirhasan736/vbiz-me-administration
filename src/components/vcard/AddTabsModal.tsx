@@ -330,9 +330,9 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
                 Custom tabs
               </p>
               <p className="mt-1 text-xs font-semibold text-slate-500">
-                Add an extra section that is not in the list. Rename it in Tab order, then Apply and open it in the
-                builder to add title, description, and media. Remove it from Tab order to hide it, or tap X on a chip to
-                delete it.
+                Add an extra section that is not in the list. Rename it in Tab order, then Update changes and open it in
+                the builder to add title, description, and media. Remove it from Tab order to hide it, or tap X on a
+                chip to delete it.
               </p>
             </div>
             <button
@@ -468,7 +468,7 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
             onClick={apply}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white hover:bg-indigo-700"
           >
-            <Check className="h-4 w-4" /> Apply
+            <Check className="h-4 w-4" /> Update changes
           </button>
         </div>
       </div>
