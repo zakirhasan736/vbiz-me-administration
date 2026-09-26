@@ -60,13 +60,11 @@ export function DynamicPostsSection({
   if (showEmptyState) {
     return (
       <div className="w-full pb-20">
+        <SectionHeader badge={badge} sectionTitle={sectionTitle} />
         <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-[#eab308] dark:border-zinc-700 dark:bg-zinc-800/80">
             <FileEdit size={24} />
           </div>
-          <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            {sectionTitle}
-          </h2>
           <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
             <V3PreviewAwareText published={emptyMessage} />
           </p>

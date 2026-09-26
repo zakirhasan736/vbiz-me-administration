@@ -6,7 +6,14 @@ import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { useSectionAccent, V3EmptyState, V3ErrorState, V3LoadingSkeleton, V3SectionShell } from '@/profile-app/sections'
+import {
+  useSectionAccent,
+  V3ErrorState,
+  V3LoadingSkeleton,
+  V3PreviewAwareText,
+  V3SectionHeader,
+  V3SectionShell,
+} from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, BookOpen, Quote } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -38,7 +45,7 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.6, delay: idx * 0.1, ease: 'easeOut' }}
-      className="vbiz-page-header-surface group relative flex min-h-60 flex-col justify-between overflow-hidden rounded-3xl border"
+      className="vcard-mission-card vbiz-card group relative flex min-h-60 flex-col justify-between overflow-hidden rounded-3xl border bg-white dark:bg-zinc-900"
     >
       <div className="pointer-events-none absolute inset-0">
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
@@ -52,12 +59,13 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
 
       <div className="relative z-10 flex w-full flex-col">
         {heroImage ? (
-          <div className="relative aspect-21/9 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+          <div className="vcard-mission-media flex w-full items-center justify-center overflow-hidden bg-zinc-100 dark:bg-zinc-950">
             <Image
               src={heroImage}
-              alt={item.title}
-              fill
-              className="object-cover"
+              alt={item.title.trim() || sectionTitle}
+              width={1600}
+              height={900}
+              className="h-auto max-h-[280px] w-full object-contain object-center sm:max-h-[340px] md:max-h-[400px]"
               sizes="(max-width: 1152px) 100vw, 1152px"
             />
           </div>
@@ -71,7 +79,7 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
           <div className="relative">
             <Quote size={40} className="absolute -top-4 -left-4 -rotate-12 text-zinc-300 dark:text-zinc-800/50" />
             {item.title.trim() ? (
-              <h2 className="relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+              <h2 className="vcard-mission-title relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
                 {item.title}
               </h2>
             ) : null}
@@ -124,25 +132,34 @@ export const MissionSection = () => {
 
   if (!profileId) return null
 
-  if (showInitialLoader) {
-    return <V3LoadingSkeleton />
-  }
-
-  if (isError) {
-    return <V3ErrorState sectionTitle={sectionTitle} />
-  }
-
-  if (showEmptyState) {
-    return <V3EmptyState icon={BookOpen} title={sectionTitle} message="No mission statement has been published yet." />
-  }
-
   return (
     <V3SectionShell>
-      <div className="flex w-full flex-col gap-4 md:gap-6">
-        {items.map((item, idx) => (
-          <MissionContentCard key={item.id} item={item} sectionTitle={sectionTitle} accent={accent} idx={idx} />
-        ))}
-      </div>
+      <V3SectionHeader
+        badge={sectionTitle}
+        badgeIcon={BookOpen}
+        title={sectionTitle}
+        subtitle="Our purpose and the values that guide our work."
+      />
+      {showInitialLoader ? (
+        <V3LoadingSkeleton />
+      ) : isError ? (
+        <V3ErrorState sectionTitle={sectionTitle} />
+      ) : showEmptyState ? (
+        <div className="vbiz-card flex min-h-80 flex-col items-center justify-center rounded-4xl border border-dashed p-10 text-center">
+          <div className="vbiz-pill-icon mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border">
+            <BookOpen size={24} />
+          </div>
+          <p className="vbiz-description max-w-md text-sm leading-relaxed font-medium">
+            <V3PreviewAwareText published="No mission statement has been published yet." />
+          </p>
+        </div>
+      ) : (
+        <div className="flex w-full flex-col gap-4 md:gap-6">
+          {items.map((item, idx) => (
+            <MissionContentCard key={item.id} item={item} sectionTitle={sectionTitle} accent={accent} idx={idx} />
+          ))}
+        </div>
+      )}
     </V3SectionShell>
   )
 }

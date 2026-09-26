@@ -9,7 +9,8 @@ import { PUBLIC_CARDS_SEARCH_DEBOUNCE_MS, PUBLIC_CARDS_SEARCH_MIN_CHARS } from '
 import { usePublicCardsDirectory } from '@/profile-app/hooks/usePublicCardsDirectory'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { useResolvedSectionTitle, useSectionBanner } from '@/profile-app/lib/sectionTitleContext'
+import { SectionBannerNotes, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { cn } from '@/utils/cn'
 import type { PublicCardId, PublicCardsFilterOption } from '@interfaces/api/publicCards'
 import {
@@ -249,6 +250,12 @@ export const PublicCardsSection = () => {
    */
   const { embedded } = useProfileDisplay()
   const compact = embedded
+  const sectionTitle = useResolvedSectionTitle(undefined, 'Public Cards')
+  const banner = useSectionBanner({
+    fallbackTitle: 'Global Connections',
+    fallbackDescription:
+      'Discover and connect with top-tier verified professionals across the United States. Filter instantly by state, city, and industry sector to find valuable prospects.',
+  })
 
   const [viewMode, setViewMode] = useState<'grid' | 'slider'>('slider')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -402,23 +409,24 @@ export const PublicCardsSection = () => {
             <div className="mt-auto flex w-full max-w-7xl flex-col items-start justify-between gap-4 md:gap-5">
               <div className="flex max-w-2xl flex-col gap-2 md:gap-2.5">
                 <div className="inline-flex items-center gap-1.5 self-start rounded-full border border-[#eab308]/30 bg-[#eab308]/15 px-3 py-1 text-[9px] font-bold tracking-wider text-[#eab308] uppercase shadow-md backdrop-blur-md md:text-xs">
-                  <Users size={12} className="text-[#eab308]" /> Global Connections Directory
+                  <Users size={12} className="text-[#eab308]" /> {sectionTitle}
                 </div>
 
-                <h2
-                  className={`leading-[1.05] font-black tracking-tight text-zinc-900 dark:text-white ${
-                    compact ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl lg:text-4xl'
-                  }`}
-                >
-                  Global{' '}
-                  <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent italic">
-                    Connections
-                  </span>
-                </h2>
-                <p className="max-w-xl text-[12px] leading-normal font-medium text-zinc-600 sm:text-xs md:text-sm dark:text-zinc-300">
-                  Discover and connect with top-tier verified professionals across the United States. Filter instantly
-                  by state, city, and industry sector to find valuable prospects.
-                </p>
+                {banner.title ? (
+                  <h2
+                    className={`leading-[1.05] font-black tracking-tight text-zinc-900 dark:text-white ${
+                      compact ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl lg:text-4xl'
+                    }`}
+                  >
+                    {banner.title}
+                  </h2>
+                ) : null}
+                {banner.description ? (
+                  <p className="max-w-xl text-[12px] leading-normal font-medium text-zinc-600 sm:text-xs md:text-sm dark:text-zinc-300">
+                    {banner.description}
+                  </p>
+                ) : null}
+                <SectionBannerNotes notes={banner.notes} />
                 {hasMore ? (
                   <button
                     type="button"

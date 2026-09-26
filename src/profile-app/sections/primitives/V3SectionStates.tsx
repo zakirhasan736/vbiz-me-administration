@@ -74,6 +74,27 @@ export function SectionBannerNotes({ notes }: { notes?: string | null }) {
   )
 }
 
+export function PublicTabFrame({
+  title,
+  badgeIcon: Icon,
+  fallbackDescription,
+  children,
+  className = '',
+}: {
+  title: string
+  badgeIcon: LucideIcon
+  fallbackDescription?: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`w-full pb-20 ${className}`}>
+      <V3SectionHeader badge={title} badgeIcon={Icon} title={title} subtitle={fallbackDescription} />
+      {children}
+    </div>
+  )
+}
+
 export function V3SectionHeader({ badge, badgeIcon: Icon, title, subtitle, className = '' }: V3SectionHeaderProps) {
   const banner = useSectionBanner({
     fallbackTitle: typeof title === 'string' ? title : '',

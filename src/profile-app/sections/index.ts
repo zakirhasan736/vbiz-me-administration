@@ -1,5 +1,6 @@
 export {
   PREVIEW_EMPTY_MESSAGE,
+  PublicTabFrame,
   SectionBannerBody,
   SectionBannerNotes,
   V3EmptyState,

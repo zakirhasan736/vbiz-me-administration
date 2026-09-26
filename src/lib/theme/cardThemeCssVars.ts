@@ -790,8 +790,29 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
+.vbiz-profile-root [data-section-id='mission'] .vcard-mission-card {
+  background-image: none !important;
+}
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card,
+html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card {
+  background-color: #ffffff !important;
+}
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-title,
+html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
+  color: #18181b !important;
+}
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card p,
+html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card p {
+  color: #3f3f46 !important;
+}
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-title,
+html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
+  color: #f4f4f5 !important;
+}
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html {
-  color: var(--vbiz-description, var(--vbiz-text-muted)) !important;
+  color: inherit !important;
 }
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;

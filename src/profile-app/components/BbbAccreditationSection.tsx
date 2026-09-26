@@ -4,10 +4,11 @@ import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interfac
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { PublicTabFrame, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { Shield } from 'lucide-react'
 import Image from 'next/image'
+import type { ReactNode } from 'react'
 
 function resolveBbbImage(item: DynamicPostListItem): string {
   const featured = item.featuredImage.trim()
@@ -90,38 +91,39 @@ export const BbbAccreditationSection = () => {
 
   if (!profileId) return null
 
+  const frame = (children: ReactNode) => (
+    <PublicTabFrame
+      title={sectionTitle}
+      badgeIcon={Shield}
+      fallbackDescription="Better Business Bureau accreditation and trust details."
+    >
+      {children}
+    </PublicTabFrame>
+  )
+
   if (showInitialLoader) {
-    return <BbbAccreditationSkeleton />
+    return frame(<BbbAccreditationSkeleton />)
   }
 
   if (isError) {
-    return (
-      <div className="w-full pb-20">
-        <V3ErrorState sectionTitle={sectionTitle} />
-      </div>
-    )
+    return frame(<V3ErrorState sectionTitle={sectionTitle} />)
   }
 
   if (showEmptyState) {
-    return (
-      <div className="w-full pb-20">
-        <div className="flex min-h-70 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
-          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
-            <Shield size={24} style={{ color: accent }} />
-          </div>
-          <h2 className="vbiz-title mb-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            {sectionTitle}
-          </h2>
-          <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
-            <V3PreviewAwareText published="No BBB accreditation has been published yet." />
-          </p>
+    return frame(
+      <div className="flex min-h-70 flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-10 text-center dark:border-zinc-800/80 dark:bg-zinc-900/30">
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/80">
+          <Shield size={24} style={{ color: accent }} />
         </div>
+        <p className="max-w-md text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
+          <V3PreviewAwareText published="No BBB accreditation has been published yet." />
+        </p>
       </div>
     )
   }
 
-  return (
-    <div className="flex w-full flex-col gap-4 pb-20">
+  return frame(
+    <div className="flex w-full flex-col gap-4">
       {items.map((item) => (
         <BbbAccreditationCard key={item.id} item={item} buttonLabel={buttonLabel} />
       ))}

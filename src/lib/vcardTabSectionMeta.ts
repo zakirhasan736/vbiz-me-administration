@@ -47,6 +47,7 @@ const DEFAULT_BANNER_DESCRIPTIONS: Record<string, string> = {
   'see-products': 'Browse featured products and open full details.',
   'sales-person': 'Reach out directly to your sales contact.',
   work: 'Roles, companies, and career milestones from your profile.',
+  'why-choose-us': 'Reasons clients and partners choose to work with us.',
 }
 
 export function defaultBannerDescription(tabId?: string | null): string {
