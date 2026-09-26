@@ -358,9 +358,13 @@ export const ReviewsSection = () => {
                     imageClassName="grayscale-30 transition-all duration-300 group-hover:grayscale-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className={`font-bold text-zinc-900 dark:text-zinc-100 ${isFeatured ? 'text-base' : 'text-sm'}`}>
-                      {item.title}
-                    </p>
+                    {item.title.trim() ? (
+                      <p
+                        className={`font-bold text-zinc-900 dark:text-zinc-100 ${isFeatured ? 'text-base' : 'text-sm'}`}
+                      >
+                        {item.title}
+                      </p>
+                    ) : null}
                     {item.linkUrl ? (
                       <Link
                         href={item.linkUrl}

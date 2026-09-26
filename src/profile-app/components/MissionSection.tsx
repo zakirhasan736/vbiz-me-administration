@@ -70,9 +70,11 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
 
           <div className="relative">
             <Quote size={40} className="absolute -top-4 -left-4 -rotate-12 text-zinc-300 dark:text-zinc-800/50" />
-            <h2 className="relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-              {item.title}
-            </h2>
+            {item.title.trim() ? (
+              <h2 className="relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+                {item.title}
+              </h2>
+            ) : null}
           </div>
 
           <div className="relative z-10 mt-3 lg:mt-8">

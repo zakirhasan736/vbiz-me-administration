@@ -196,9 +196,9 @@ function VideoCard({ item, compact }: { item: VCardContentMediaVideoItem; compac
         <PlayCircle size={22} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-bold text-zinc-900 dark:text-zinc-100">
-          {displayTitle || 'Video'}
-        </span>
+        {displayTitle ? (
+          <span className="block truncate text-sm font-bold text-zinc-900 dark:text-zinc-100">{displayTitle}</span>
+        ) : null}
         <span className="mt-0.5 block truncate text-xs font-medium text-zinc-500">Open video</span>
       </span>
       <ArrowUpRight size={18} className="shrink-0 text-zinc-400" />

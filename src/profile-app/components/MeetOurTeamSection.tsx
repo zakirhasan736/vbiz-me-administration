@@ -65,7 +65,7 @@ function TeamMemberCard({
             width={400}
             height={300}
             src={imageUrl}
-            alt={item.title}
+            alt={item.title.trim() || ''}
             className="h-full w-full object-cover object-top opacity-80 grayscale-30 transition-all duration-700 group-hover:scale-105 group-hover:opacity-100 group-hover:grayscale-0"
           />
         ) : (
@@ -76,9 +76,11 @@ function TeamMemberCard({
       </div>
 
       <div className="relative z-20 -mt-6 flex flex-1 flex-col p-6">
-        <h3 className="mb-3 text-xl font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
-          {item.title}
-        </h3>
+        {item.title.trim() ? (
+          <h3 className="mb-3 text-xl font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
+            {item.title}
+          </h3>
+        ) : null}
 
         {bio ? (
           <div

@@ -83,7 +83,9 @@ function EventCard({ item, idx, accent }: { item: DynamicPostListItem; idx: numb
           </div>
         ) : null}
 
-        <h3 className="mb-3 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
+        {item.title.trim() ? (
+          <h3 className="mb-3 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
+        ) : null}
 
         {item.description.trim() ? (
           <div

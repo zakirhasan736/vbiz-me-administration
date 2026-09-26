@@ -436,9 +436,11 @@ function GalleryCard({
             transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
             className="vbiz-card-overlay absolute inset-0 z-30 flex flex-col p-4"
           >
-            <div className="vbiz-card-pill vbiz-on-light-surface inline-flex w-fit max-w-[85%] rounded-sm px-3 py-1.5 shadow-sm">
-              <p className="truncate text-sm font-bold tracking-tight">{item.title}</p>
-            </div>
+            {item.title.trim() ? (
+              <div className="vbiz-card-pill vbiz-on-light-surface inline-flex w-fit max-w-[85%] rounded-sm px-3 py-1.5 shadow-sm">
+                <p className="truncate text-sm font-bold tracking-tight">{item.title}</p>
+              </div>
+            ) : null}
 
             <div className="mt-auto flex justify-end">
               <button
@@ -518,9 +520,11 @@ function GalleryLightbox({ item, onClose }: { item: GalleryListItem; onClose: ()
         onClick={(event) => event.stopPropagation()}
       >
         <GalleryLightboxMedia item={item} />
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-5 py-4">
-          <p className="vbiz-title text-base font-bold text-white">{item.title}</p>
-        </div>
+        {item.title.trim() ? (
+          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-5 py-4">
+            <p className="vbiz-title text-base font-bold text-white">{item.title}</p>
+          </div>
+        ) : null}
       </motion.div>
     </motion.div>,
     document.body

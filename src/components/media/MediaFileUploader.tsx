@@ -203,12 +203,6 @@ export function MediaFileUploader({
 
   useEffect(() => {
     return () => {
-      abortRef.current?.abort()
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
       if (localPreview?.startsWith('blob:')) URL.revokeObjectURL(localPreview)
     }
   }, [localPreview])

@@ -47,6 +47,17 @@ describe('mapDynamicPostItemToListItem', () => {
     expect(item.generalInfoUrl).toBe('https://youtu.be/abc123DEF45')
   })
 
+  it('keeps a blank title empty instead of falling back to Update', () => {
+    const item = mapDynamicPostItemToListItem({
+      id: 1,
+      title: '   ',
+      description: 'Answer only',
+      featured_image: { url: 'https://cdn.example.com/file.jpg', doc_name: 'file.jpg' },
+    })
+
+    expect(item.title).toBe('')
+  })
+
   it('maps price and offer price from metas', () => {
     const item = mapDynamicPostItemToListItem({
       id: 1,

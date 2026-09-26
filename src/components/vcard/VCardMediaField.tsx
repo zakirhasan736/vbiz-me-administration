@@ -162,7 +162,6 @@ export function VCardMediaField({
 
   useEffect(() => {
     return () => {
-      abortRef.current?.abort()
       if (localPreview?.startsWith('blob:')) URL.revokeObjectURL(localPreview)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- revoke only on unmount

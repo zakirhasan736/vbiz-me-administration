@@ -144,9 +144,11 @@ function CertificationCard({
       </div>
 
       <div className="relative z-20 flex flex-1 flex-col p-6">
-        <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
-          {item.title}
-        </h3>
+        {item.title.trim() ? (
+          <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
+            {item.title}
+          </h3>
+        ) : null}
         {issuer ? <p className="mb-3 text-xs font-bold tracking-wider text-zinc-500 uppercase">{issuer}</p> : null}
         {item.description.trim() ? (
           <div

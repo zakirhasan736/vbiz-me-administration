@@ -183,9 +183,11 @@ function FeaturedPostCard({
             </span>
           ) : null}
         </div>
-        <h2 className="mb-6 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 transition-colors group-hover:text-black sm:text-4xl lg:text-4xl dark:text-zinc-100 dark:group-hover:text-white">
-          {post.title}
-        </h2>
+        {post.title.trim() ? (
+          <h2 className="mb-6 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 transition-colors group-hover:text-black sm:text-4xl lg:text-4xl dark:text-zinc-100 dark:group-hover:text-white">
+            {post.title}
+          </h2>
+        ) : null}
         <TruncatedClampText
           html={hasHtml ? description : undefined}
           plain={!hasHtml ? description : undefined}
@@ -260,7 +262,11 @@ function PostCard({
   const mediaBlock = imageUrl ? (
     <div className="relative mb-4 h-48 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt={post.title} className="absolute inset-0 h-full w-full object-cover object-center" />
+      <img
+        src={imageUrl}
+        alt={post.title.trim() || ''}
+        className="absolute inset-0 h-full w-full object-cover object-center"
+      />
     </div>
   ) : linkUrl ? (
     <a
@@ -291,7 +297,9 @@ function PostCard({
           <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500">{dateLabel}</span>
         ) : null}
       </div>
-      <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">{post.title}</h3>
+      {post.title.trim() ? (
+        <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">{post.title}</h3>
+      ) : null}
       <TruncatedClampText
         html={hasHtml ? description : undefined}
         plain={!hasHtml ? description : undefined}

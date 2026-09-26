@@ -49,7 +49,7 @@ function ServiceCard({ item, accent }: { item: DynamicPostListItem; accent: stri
           <div className="mb-6 w-full overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-md transition-transform duration-300 group-hover:scale-[1.01] sm:mb-8 dark:border-zinc-700 dark:bg-zinc-950">
             <Image
               src={imageUrl}
-              alt={item.title}
+              alt={item.title.trim() || ''}
               width={768}
               height={432}
               className="mx-auto h-auto max-h-56 w-full object-contain"
@@ -58,9 +58,11 @@ function ServiceCard({ item, accent }: { item: DynamicPostListItem; accent: stri
           </div>
         ) : null}
 
-        <h2 className="mb-3 text-xl leading-snug font-bold tracking-tight text-zinc-900 transition-colors group-hover:text-zinc-950 sm:text-2xl lg:text-3xl dark:text-zinc-100 dark:group-hover:text-white">
-          {item.title}
-        </h2>
+        {item.title.trim() ? (
+          <h2 className="mb-3 text-xl leading-snug font-bold tracking-tight text-zinc-900 transition-colors group-hover:text-zinc-950 sm:text-2xl lg:text-3xl dark:text-zinc-100 dark:group-hover:text-white">
+            {item.title}
+          </h2>
+        ) : null}
 
         {description ? (
           <div

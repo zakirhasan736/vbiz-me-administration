@@ -40,7 +40,7 @@ export function mapServiceItemToListItem(item: ServiceItem): ServiceListItem {
 
   return {
     id: item.id,
-    title: decodeHtmlText(item.title.trim() || 'Service'),
+    title: decodeHtmlText(item.title.trim()),
     description: plain,
     htmlDescription: html,
     featuredImage: resolveFeaturedImageUrl(item.featured_image),

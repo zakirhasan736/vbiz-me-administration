@@ -936,11 +936,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 /* FAQ answers: black in light, white in dark. Bold and highlight stay accent. */
 .vbiz-profile-root .vcard-faq-answer,
-.vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(mark):not(a):not(code):not(pre)) {
+.vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(mark):not(a):not(code):not(pre):not([style*='color'])) {
   color: #000000 !important;
 }
 html.dark .vbiz-profile-root .vcard-faq-answer,
-html.dark .vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(mark):not(a):not(code):not(pre)) {
+html.dark .vbiz-profile-root .vcard-faq-answer :where(*:not(strong):not(b):not(mark):not(a):not(code):not(pre):not([style*='color'])) {
   color: #ffffff !important;
 }
 .vbiz-profile-root .vcard-faq-answer strong,

@@ -38,15 +38,17 @@ export function BlogPostDetail({ post, sectionTitle, onBack }: BlogPostDetailPro
       <article className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
         {heroImage ? (
           <div className="relative aspect-21/9 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-            <Image src={heroImage} alt={post.title} fill className="object-cover" priority sizes="100vw" />
+            <Image src={heroImage} alt={post.title.trim() || ''} fill className="object-cover" priority sizes="100vw" />
             <div className="absolute inset-0 bg-linear-to-t from-zinc-950/70 via-zinc-950/20 to-transparent" />
             <div className="absolute right-0 bottom-0 left-0 p-8 lg:p-10">
               <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/30 px-3 py-1.5 text-[10px] font-bold tracking-wider text-white uppercase backdrop-blur-sm">
                 <FileEdit size={12} className="text-[#eab308]" /> Blog
               </div>
-              <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-white sm:text-4xl lg:text-4xl">
-                {post.title}
-              </h1>
+              {post.title.trim() ? (
+                <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-white sm:text-4xl lg:text-4xl">
+                  {post.title}
+                </h1>
+              ) : null}
               {dateLabel ? (
                 <p className="mt-4 flex items-center gap-2 text-sm font-medium text-zinc-200">
                   <Calendar size={14} /> {dateLabel}
@@ -59,9 +61,11 @@ export function BlogPostDetail({ post, sectionTitle, onBack }: BlogPostDetailPro
             <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-700 uppercase dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300">
               <FileEdit size={12} className="text-[#eab308]" /> Blog
             </div>
-            <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-              {post.title}
-            </h1>
+            {post.title.trim() ? (
+              <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+                {post.title}
+              </h1>
+            ) : null}
             {dateLabel ? (
               <p className="mt-4 flex items-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
                 <Calendar size={14} /> {dateLabel}

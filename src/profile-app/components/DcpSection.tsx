@@ -47,13 +47,15 @@ function DcpCard({ item, accent }: { item: DynamicPostListItem; accent: string }
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         {imageUrl ? (
           <div className="relative mb-6 h-36 w-36 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-md transition-transform duration-300 group-hover:scale-105 sm:mb-8 md:h-40 md:w-40 dark:border-zinc-700 dark:bg-zinc-950">
-            <Image src={imageUrl} alt={item.title} fill className="object-contain p-2" sizes="160px" />
+            <Image src={imageUrl} alt={item.title.trim() || ''} fill className="object-contain p-2" sizes="160px" />
           </div>
         ) : null}
 
-        <h2 className="mb-3 text-xl leading-snug font-bold tracking-tight text-zinc-900 transition-colors group-hover:text-zinc-950 sm:text-2xl lg:text-3xl dark:text-zinc-100 dark:group-hover:text-white">
-          {item.title}
-        </h2>
+        {item.title.trim() ? (
+          <h2 className="mb-3 text-xl leading-snug font-bold tracking-tight text-zinc-900 transition-colors group-hover:text-zinc-950 sm:text-2xl lg:text-3xl dark:text-zinc-100 dark:group-hover:text-white">
+            {item.title}
+          </h2>
+        ) : null}
 
         {description ? (
           <div

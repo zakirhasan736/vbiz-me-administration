@@ -337,7 +337,6 @@ function TemplateDesigner() {
 
   useEffect(() => {
     return () => {
-      profileUploadAbortRef.current?.abort()
       if (profileLocalPreview?.startsWith('blob:')) URL.revokeObjectURL(profileLocalPreview)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- revoke only on unmount

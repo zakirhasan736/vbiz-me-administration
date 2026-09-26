@@ -48,7 +48,13 @@ function CalendarItemCard({ item, idx }: { item: DynamicPostListItem; idx: numbe
 
       {imageUrl ? (
         <div className="mb-6 h-52 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80">
-          <Image width={300} height={400} src={imageUrl} alt={item.title} className="h-full w-full object-contain" />
+          <Image
+            width={300}
+            height={400}
+            src={imageUrl}
+            alt={item.title.trim() || ''}
+            className="h-full w-full object-contain"
+          />
         </div>
       ) : (
         <div className="bg-yellow-primary/10 dark:bg-yellow-primary/5 mb-6 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl">
@@ -56,9 +62,11 @@ function CalendarItemCard({ item, idx }: { item: DynamicPostListItem; idx: numbe
         </div>
       )}
 
-      <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
-        {item.title}
-      </h3>
+      {item.title.trim() ? (
+        <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
+          {item.title}
+        </h3>
+      ) : null}
       {description && (
         <div
           className="vcard-rich-html prose prose-zinc dark:prose-invert mb-8 line-clamp-4 max-w-none text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"

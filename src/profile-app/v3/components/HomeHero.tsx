@@ -404,7 +404,7 @@ export const HomeHero: React.FC<{
             <ProfileMedia
               src={profileSrc}
               alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-top"
             />
           </div>
 

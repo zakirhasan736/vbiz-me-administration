@@ -78,7 +78,7 @@ export function ProfileSection() {
                 {profileIsVideo ? (
                   <video
                     src={encodedProfile}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover object-top"
                     muted
                     playsInline
                     autoPlay
@@ -90,7 +90,7 @@ export function ProfileSection() {
                     src={encodedProfile}
                     alt={fullName || sectionTitle}
                     fill
-                    className="object-cover"
+                    className="object-cover object-top"
                     sizes="128px"
                   />
                 )}

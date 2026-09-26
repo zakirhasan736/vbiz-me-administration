@@ -132,7 +132,7 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
 
   return {
     id,
-    title: decodeHtmlText(item.title?.trim() || featured.docName || 'Update'),
+    title: decodeHtmlText(item.title?.trim() || ''),
     description,
     featuredImage: featured.url,
     generalInfoUrl: resolveGeneralInfoUrl(item, metas),

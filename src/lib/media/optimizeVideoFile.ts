@@ -235,7 +235,7 @@ const compressVideo = async (file: File, options?: OptimizeVideoOptions): Promis
     const extension = mimeType.includes('mp4') ? 'mp4' : 'webm'
     const baseName = file.name.replace(/\.[^/.]+$/, '') || 'video'
     return new File([compressedBlob], `${baseName}.${extension}`, {
-      type: mimeType,
+      type: mimeType.split(';')[0].trim() || (extension === 'mp4' ? 'video/mp4' : 'video/webm'),
       lastModified: file.lastModified,
     })
   } catch (error) {

@@ -229,7 +229,7 @@ export function ProfileHeaderV2({
               height={640}
               src={encodedAvatarSrc}
               alt={displayName ? `${displayName} avatar` : 'Avatar'}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-top"
             />
           ) : null}
 

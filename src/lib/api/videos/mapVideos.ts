@@ -51,7 +51,7 @@ function mapVideoItem(item: VideoSectionItem, idx: number): VideoListItem {
 
   return {
     id,
-    title: decodeHtmlText(item.title?.trim() || 'Untitled'),
+    title: decodeHtmlText(item.title?.trim() || ''),
     description: decodeHtmlText(String(item.description || '').trim()),
     type: item.type?.trim().toLowerCase() || 'video',
     createdAt: item.created_at,

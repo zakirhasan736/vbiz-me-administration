@@ -34,26 +34,42 @@ function lineClampStyle(maxLines: number, expanded: boolean): CSSProperties | un
   }
 }
 
+function safeDetach(node: HTMLElement) {
+  const parent = node.parentNode
+  if (parent) parent.removeChild(node)
+}
+
 function measureNeedsClamp(el: HTMLElement, maxLines: number): boolean {
   const width = el.clientWidth
   const parent = el.parentElement
-  if (width <= 0 || !parent) return false
+  if (width <= 0 || !parent || !parent.isConnected) return false
 
   const base = `position:absolute;visibility:hidden;pointer-events:none;height:auto;width:${width}px`
+  let fullClone: HTMLElement | null = null
+  let clampedClone: HTMLElement | null = null
 
-  const fullClone = el.cloneNode(true) as HTMLElement
-  fullClone.style.cssText = `${base};display:block;max-height:none;-webkit-line-clamp:unset;overflow:visible`
-  parent.appendChild(fullClone)
-  const fullHeight = fullClone.scrollHeight
-  fullClone.remove()
+  try {
+    fullClone = el.cloneNode(true) as HTMLElement
+    fullClone.style.cssText = `${base};display:block;max-height:none;-webkit-line-clamp:unset;overflow:visible`
+    parent.appendChild(fullClone)
+    const fullHeight = fullClone.scrollHeight
+    safeDetach(fullClone)
+    fullClone = null
 
-  const clampedClone = el.cloneNode(true) as HTMLElement
-  clampedClone.style.cssText = `${base};display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${maxLines};overflow:hidden`
-  parent.appendChild(clampedClone)
-  const clampedHeight = clampedClone.clientHeight
-  clampedClone.remove()
+    clampedClone = el.cloneNode(true) as HTMLElement
+    clampedClone.style.cssText = `${base};display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${maxLines};overflow:hidden`
+    parent.appendChild(clampedClone)
+    const clampedHeight = clampedClone.clientHeight
+    safeDetach(clampedClone)
+    clampedClone = null
 
-  return fullHeight > clampedHeight + 1
+    return fullHeight > clampedHeight + 1
+  } catch {
+    return false
+  } finally {
+    if (fullClone) safeDetach(fullClone)
+    if (clampedClone) safeDetach(clampedClone)
+  }
 }
 
 /** Shared line-clamp with read more / read less (or external read-more handler). */
@@ -91,15 +107,22 @@ export function TruncatedClampText({
     const el = contentRef.current
     if (!el || !hasContent || onReadMore) return
 
+    let frame = 0
     const measure = () => {
-      const overflows = measureNeedsClamp(el, maxLines)
-      setNeedsClamp(overflows)
-      if (!overflows) setExpanded(false)
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const overflows = measureNeedsClamp(el, maxLines)
+        setNeedsClamp(overflows)
+        if (!overflows) setExpanded(false)
+      })
     }
 
     const ro = new ResizeObserver(measure)
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      cancelAnimationFrame(frame)
+      ro.disconnect()
+    }
   }, [plain, html, maxLines, onReadMore, hasContent])
 
   if (!hasContent) return null

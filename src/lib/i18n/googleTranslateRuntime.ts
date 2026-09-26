@@ -45,8 +45,17 @@ export async function triggerGoogleTranslate(
     return true
   }
 
-  combo.value = target
-  combo.dispatchEvent(new Event('change'))
+  try {
+    const comboWithHook = combo as HTMLSelectElement & { updateFrom?: () => void }
+    if (typeof comboWithHook.updateFrom !== 'function') {
+      comboWithHook.updateFrom = () => undefined
+    }
+    combo.value = target
+    combo.dispatchEvent(new Event('change', { bubbles: true }))
+  } catch {
+    document.body.classList.remove('vbiz-translate-switching')
+    return false
+  }
   document.body.classList.remove('vbiz-translate-switching')
   window.dispatchEvent(new Event(I18N_CONFIG.languageChangeEvent))
   return true

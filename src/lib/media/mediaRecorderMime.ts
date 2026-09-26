@@ -32,7 +32,9 @@ function extensionForMime(mimeType: string, kind: RecordedMediaKind): string {
 export function blobToRecordedFile(blob: Blob, kind: RecordedMediaKind, prefix = 'wish'): File {
   const mimeType = blob.type || (kind === 'audio' ? 'audio/webm' : 'video/webm')
   const ext = extensionForMime(mimeType, kind)
-  return new File([blob], `${prefix}-${kind}-${Date.now()}.${ext}`, { type: mimeType })
+  return new File([blob], `${prefix}-${kind}-${Date.now()}.${ext}`, {
+    type: mimeType.split(';')[0].trim() || (kind === 'audio' ? 'audio/webm' : 'video/webm'),
+  })
 }
 
 export function formatRecordingElapsed(totalSeconds: number): string {

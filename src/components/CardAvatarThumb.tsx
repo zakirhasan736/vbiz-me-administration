@@ -39,7 +39,7 @@ export function CardAvatarThumb({
     'flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/60 bg-slate-50 text-base font-black text-indigo-600 shadow-inner dark:border-white/5 dark:bg-slate-900 dark:text-indigo-400',
     className
   )
-  const mediaClass = cn('h-full w-full object-cover', mediaClassName)
+  const mediaClass = cn('h-full w-full object-cover object-top', mediaClassName)
 
   if (!url) {
     return (

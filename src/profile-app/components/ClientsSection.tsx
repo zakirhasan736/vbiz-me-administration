@@ -167,9 +167,11 @@ export const ClientsSection = () => {
                 </div>
 
                 <div className="relative z-20 -mt-6 flex flex-1 flex-col p-6">
-                  <h3 className="mb-1 text-lg font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
-                    {client.name}
-                  </h3>
+                  {client.name.trim() ? (
+                    <h3 className="mb-1 text-lg font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
+                      {client.name}
+                    </h3>
+                  ) : null}
                   {client.description ? (
                     <p className="text-yellow-primary mb-4 text-[10px] font-bold tracking-wider uppercase">
                       {client.description}

@@ -127,9 +127,11 @@ function LicenseCard({
       </div>
 
       <div className="relative z-20 flex flex-1 flex-col p-6 md:p-8">
-        <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
-          {item.title}
-        </h3>
+        {item.title.trim() ? (
+          <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
+            {item.title}
+          </h3>
+        ) : null}
         {item.description.trim() ? (
           <div
             className="prose prose-zinc dark:prose-invert mb-6 line-clamp-3 max-w-none text-sm font-medium text-zinc-600 dark:text-zinc-400"

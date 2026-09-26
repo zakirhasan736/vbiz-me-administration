@@ -1,5 +1,6 @@
 'use client'
 
+import { sentryReasonToMessage, shouldIgnoreSentryMessage } from '@/lib/sentry/ignore'
 import { reportSentryEvent } from '@/lib/sentry/report'
 import { useEffect } from 'react'
 
@@ -10,9 +11,11 @@ export function SentryBootstrap() {
     if (!dsn) return
 
     const onError = (event: ErrorEvent) => {
+      const message = event.message || 'window.error'
+      if (shouldIgnoreSentryMessage(message)) return
       void reportSentryEvent({
         dsn,
-        message: event.message || 'window.error',
+        message,
         extra: {
           filename: event.filename,
           lineno: event.lineno,
@@ -23,8 +26,8 @@ export function SentryBootstrap() {
     }
 
     const onRejection = (event: PromiseRejectionEvent) => {
-      const reason = event.reason
-      const message = reason instanceof Error ? reason.message : String(reason || 'unhandledrejection')
+      const message = sentryReasonToMessage(event.reason)
+      if (shouldIgnoreSentryMessage(message)) return
       void reportSentryEvent({
         dsn,
         message,

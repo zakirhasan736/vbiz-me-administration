@@ -1,5 +1,6 @@
 'use client'
 
+import { normalizeRichTextHtml, shouldDefaultToParagraph } from '@/lib/editor/normalizeRichTextHtml'
 import { useVCard } from '@/lib/VCardContext'
 import { cn } from '@/utils/cn'
 import { Highlight } from '@tiptap/extension-highlight'
@@ -140,6 +141,23 @@ function currentHeadingLabel(editor: Editor): string {
   return 'Paragraph'
 }
 
+function ensureParagraphBlock(editor: Editor) {
+  if (shouldDefaultToParagraph(editor)) return editor.chain().focus().setParagraph()
+  return editor.chain().focus()
+}
+
+function applyTextColor(editor: Editor, color: string | null) {
+  const { empty, $from } = editor.state.selection
+  let chain = ensureParagraphBlock(editor)
+  if (empty) {
+    const from = $from.start()
+    const to = $from.end()
+    if (to > from) chain = chain.setTextSelection({ from, to })
+  }
+  if (color) chain.setColor(color).run()
+  else chain.unsetColor().run()
+}
+
 function RichTextToolbar({
   editor,
   sourceMode,
@@ -244,7 +262,7 @@ function RichTextToolbar({
                   className={cn(
                     'block w-full px-3 py-1.5 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
                     opt.level === 0
-                      ? editor.isActive('paragraph') && 'bg-slate-100 dark:bg-white/10'
+                      ? !editor.isActive('heading') && 'bg-slate-100 dark:bg-white/10'
                       : editor.isActive('heading', { level: opt.level }) && 'bg-slate-100 dark:bg-white/10'
                   )}
                 >
@@ -406,7 +424,7 @@ function RichTextToolbar({
                   title={c}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    editor.chain().focus().setColor(c).run()
+                    applyTextColor(editor, c)
                     setColorOpen(false)
                   }}
                   className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
@@ -418,7 +436,7 @@ function RichTextToolbar({
                 title="Reset color"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  editor.chain().focus().unsetColor().run()
+                  applyTextColor(editor, null)
                   setColorOpen(false)
                 }}
                 className="px-1 text-[10px] font-bold text-slate-500"
@@ -452,7 +470,10 @@ function RichTextToolbar({
         <ToolbarBtn title="Code view" active={sourceMode} onClick={onToggleSource}>
           <Braces className="h-4 w-4" />
         </ToolbarBtn>
-        <ToolbarBtn title="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
+        <ToolbarBtn
+          title="Clear formatting"
+          onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().setParagraph().run()}
+        >
           <RemoveFormatting className="h-4 w-4" />
         </ToolbarBtn>
       </div>
@@ -489,8 +510,8 @@ export function RichTextEditor({
         underline: false,
       }),
       Underline,
-      TextStyle,
-      Color,
+      TextStyle.configure({ mergeNestedSpanStyles: true }),
+      Color.configure({ types: ['textStyle'] }),
       Highlight.configure({ multicolor: true }),
       Subscript,
       Superscript,
@@ -506,7 +527,13 @@ export function RichTextEditor({
       }),
       Placeholder.configure({ placeholder }),
     ],
-    content: value || '',
+    content: normalizeRichTextHtml(value || ''),
+    onCreate: ({ editor: ed }: { editor: Editor }) => {
+      if (shouldDefaultToParagraph(ed)) ed.commands.setParagraph()
+    },
+    onFocus: ({ editor: ed }: { editor: Editor }) => {
+      if (shouldDefaultToParagraph(ed)) ed.commands.setParagraph()
+    },
     onUpdate: ({ editor: ed }: { editor: Editor }) => {
       onChangeRef.current?.(ed.getHTML())
     },
@@ -523,7 +550,7 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor || sourceMode) return
     const current = editor.getHTML()
-    const next = value || ''
+    const next = normalizeRichTextHtml(value || '')
     if (next !== current && next !== '<p></p>') {
       // Avoid fighting the caret while typing the same content.
       if (stripEmpty(next) !== stripEmpty(current)) {

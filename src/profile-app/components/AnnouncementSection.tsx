@@ -73,7 +73,9 @@ function AnnouncementCard({ item, idx, accent }: { item: DynamicPostListItem; id
             <Calendar size={13} /> {dateLabel}
           </span>
         ) : null}
-        <h3 className="mb-3 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
+        {item.title.trim() ? (
+          <h3 className="mb-3 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
+        ) : null}
         {item.description.trim() ? (
           <div
             className="prose prose-zinc dark:prose-invert line-clamp-4 max-w-none text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"

@@ -75,7 +75,7 @@ export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryL
 
   return {
     id: item.id ?? featured?.id ?? index + 1,
-    title: decodeHtmlText(rawTitle || featured?.doc_name || 'Gallery'),
+    title: decodeHtmlText(rawTitle),
     imageUrl: mediaUrl || (mediaKind === 'link' ? '' : linkUrl),
     createdAt: item.created_at ?? '',
     mediaKind: mediaUrl ? mediaKind : linkUrl ? (isVideoUrl(linkUrl) ? 'video' : 'link') : mediaKind,

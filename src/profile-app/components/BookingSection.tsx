@@ -88,9 +88,11 @@ function BookingCard({ item, idx, accent, primaryColor }: BookingCardProps) {
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="mb-1 text-lg leading-snug font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
-          {item.title}
-        </h3>
+        {item.title.trim() ? (
+          <h3 className="mb-1 text-lg leading-snug font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
+            {item.title}
+          </h3>
+        ) : null}
         <p className="mb-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Book now</p>
 
         <span

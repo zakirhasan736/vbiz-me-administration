@@ -23,7 +23,7 @@ function ProfileMediaImage({ src, className = '', imageAlt = 'Profile' }: Custom
         height={800}
         src={src}
         alt={imageAlt}
-        className="h-full w-full object-cover opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100"
+        className="h-full w-full object-cover object-top opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100"
       />
     </div>
   )
@@ -135,7 +135,7 @@ function ProfileVideoPlayer({
         muted
         playsInline
         preload="metadata"
-        className="h-full w-full cursor-pointer object-cover opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100"
+        className="h-full w-full cursor-pointer object-cover object-top opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100"
       />
 
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />

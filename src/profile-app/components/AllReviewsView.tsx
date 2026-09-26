@@ -73,7 +73,9 @@ function ReviewCardContent({ item, compact }: { item: ReviewListItem; compact: b
       <div className="mt-auto flex items-center gap-4 border-t border-zinc-200 pt-5 dark:border-zinc-800/80">
         <ReviewAvatar imageUrl={item.image} alt={item.title || 'Reviewer'} className="h-12 w-12" />
         <div>
-          <p className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{item.title}</p>
+          {item.title.trim() ? (
+            <p className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{item.title}</p>
+          ) : null}
         </div>
       </div>
     </>
@@ -187,13 +189,15 @@ export function SliderReviewCard({ item, compact = false }: { item: ReviewListIt
           imageClassName="grayscale-30 transition-all duration-300 group-hover/card:grayscale-0"
         />
         <div className="min-w-0 flex-1">
-          <p
-            className={`truncate text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100 ${
-              compact ? '' : 'md:text-base'
-            }`}
-          >
-            {item.title}
-          </p>
+          {item.title.trim() ? (
+            <p
+              className={`truncate text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100 ${
+                compact ? '' : 'md:text-base'
+              }`}
+            >
+              {item.title}
+            </p>
+          ) : null}
           {item.linkUrl ? (
             <Link
               href={item.linkUrl}

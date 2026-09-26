@@ -112,7 +112,7 @@ export function ExperienceSection({ sectionName = 'Work Experience' }: Experienc
       <div className={cn('vbiz-bento-grid relative z-20 mt-4', contentGridClass(entries.length, 'md:grid-cols-2'))}>
         {entries.map((entry, idx) => {
           const period = formatExperiencePeriod(entry)
-          const company = entry.company?.trim() || entry.title?.trim() || 'Company'
+          const company = entry.company?.trim() || entry.title?.trim() || ''
           const jobTitle = entry.job_title?.trim() || (entry.company?.trim() ? entry.title?.trim() : '') || ''
           const detail = entry.description?.trim() ?? ''
           return (
@@ -126,7 +126,9 @@ export function ExperienceSection({ sectionName = 'Work Experience' }: Experienc
               <div className="vbiz-pill-icon mb-4 flex h-12 w-12 items-center justify-center rounded-xl border shadow-sm transition-transform duration-300 group-hover:scale-110">
                 <Briefcase size={22} />
               </div>
-              <h3 className="vbiz-title mb-2 text-xl leading-tight font-bold transition-colors">{company}</h3>
+              {company ? (
+                <h3 className="vbiz-title mb-2 text-xl leading-tight font-bold transition-colors">{company}</h3>
+              ) : null}
               {jobTitle ? <p className="vbiz-description mb-4 text-sm font-medium">{jobTitle}</p> : null}
               {detail ? (
                 <div

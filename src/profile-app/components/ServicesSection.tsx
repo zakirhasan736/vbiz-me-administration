@@ -114,7 +114,11 @@ export const ServicesSection = () => {
               {imageUrl ? (
                 <div className="mb-4 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imageUrl} alt={service.title} className="mx-auto max-h-56 w-full object-contain" />
+                  <img
+                    src={imageUrl}
+                    alt={service.title.trim() || ''}
+                    className="mx-auto max-h-56 w-full object-contain"
+                  />
                 </div>
               ) : (
                 <div className="mb-4 flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
@@ -123,7 +127,11 @@ export const ServicesSection = () => {
                   </div>
                 </div>
               )}
-              <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">{service.title}</h3>
+              {service.title.trim() ? (
+                <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">
+                  {service.title}
+                </h3>
+              ) : null}
               {service.htmlDescription || service.description ? (
                 <div
                   className="vcard-rich-html prose prose-zinc dark:prose-invert mb-4 line-clamp-4 max-w-none flex-1 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"

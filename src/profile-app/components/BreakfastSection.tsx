@@ -87,9 +87,11 @@ function BreakfastCard({ item, idx, accent, onSelect }: BreakfastCardProps) {
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="mb-2 text-lg leading-snug font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
-          {item.title}
-        </h3>
+        {item.title.trim() ? (
+          <h3 className="mb-2 text-lg leading-snug font-bold text-zinc-900 transition-colors group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white">
+            {item.title}
+          </h3>
+        ) : null}
 
         {preview ? (
           <p className="mb-4 line-clamp-3 flex-1 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400">
@@ -147,9 +149,11 @@ function BreakfastItemDetail({ item, sectionTitle, accent, onBack }: BreakfastIt
               <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/30 px-3 py-1.5 text-[10px] font-bold tracking-wider text-white uppercase backdrop-blur-sm">
                 <Coffee size={12} style={{ color: accent }} /> Breakfast
               </div>
-              <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-white sm:text-4xl lg:text-4xl">
-                {item.title}
-              </h1>
+              {item.title.trim() ? (
+                <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-white sm:text-4xl lg:text-4xl">
+                  {item.title}
+                </h1>
+              ) : null}
             </div>
           </div>
         ) : (
@@ -157,9 +161,11 @@ function BreakfastItemDetail({ item, sectionTitle, accent, onBack }: BreakfastIt
             <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-700 uppercase dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300">
               <Coffee size={12} style={{ color: accent }} /> Breakfast
             </div>
-            <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-              {item.title}
-            </h1>
+            {item.title.trim() ? (
+              <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+                {item.title}
+              </h1>
+            ) : null}
           </div>
         )}
 

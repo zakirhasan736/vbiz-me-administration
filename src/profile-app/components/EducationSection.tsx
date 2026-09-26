@@ -113,7 +113,7 @@ export function EducationSection({ sectionName = 'Resume' }: EducationSectionPro
         {entries.map((entry, idx) => {
           const period = formatEducationPeriod(entry)
           const degree = entry.title?.trim() ?? ''
-          const institute = entry.institute?.trim() || 'Institution'
+          const institute = entry.institute?.trim() || ''
           return (
             <motion.div
               key={`${institute}-${degree}-${entry.from_date}-${idx}`}
@@ -125,7 +125,9 @@ export function EducationSection({ sectionName = 'Resume' }: EducationSectionPro
               <div className="vbiz-pill-icon mb-4 flex h-12 w-12 items-center justify-center rounded-xl border shadow-sm transition-transform duration-300 group-hover:scale-110">
                 <GraduationCap size={22} />
               </div>
-              <h3 className="vbiz-title mb-2 text-xl leading-tight font-bold transition-colors">{institute}</h3>
+              {institute ? (
+                <h3 className="vbiz-title mb-2 text-xl leading-tight font-bold transition-colors">{institute}</h3>
+              ) : null}
               {degree ? <p className="vbiz-description mb-4 text-sm font-medium">{degree}</p> : null}
               {period ? (
                 <div className="mt-auto border-t border-zinc-200 pt-4 dark:border-zinc-800/80">

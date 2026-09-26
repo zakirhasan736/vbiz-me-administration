@@ -37,7 +37,11 @@ function BbbAccreditationCard({ item, buttonLabel }: { item: DynamicPostListItem
       ) : null}
 
       <div className="flex min-w-0 flex-col items-start gap-4">
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl dark:text-zinc-100">{item.title}</h2>
+        {item.title.trim() ? (
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl dark:text-zinc-100">
+            {item.title}
+          </h2>
+        ) : null}
 
         {verifyUrl ? (
           <span className="inline-flex items-center justify-center rounded-md border border-zinc-900 bg-white px-5 py-2.5 text-xs font-semibold tracking-wide text-zinc-900 uppercase shadow-sm transition-colors group-hover:bg-zinc-50 dark:border-zinc-200 dark:bg-zinc-950 dark:text-zinc-100 dark:group-hover:bg-zinc-900">

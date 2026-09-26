@@ -43,6 +43,10 @@ function goldSplitTitle(title: ReactNode): ReactNode {
 }
 
 export function V3SectionHeader({ badge, badgeIcon: Icon, title, subtitle, className = '' }: V3SectionHeaderProps) {
+  const badgeText = badge.trim()
+  const titleText = typeof title === 'string' ? title.trim() : title
+  const hasTitle = typeof titleText === 'string' ? titleText.length > 0 : titleText != null
+
   return (
     <div
       className={`vbiz-section-banner group relative mb-4 w-full overflow-hidden rounded-4xl border p-5 shadow-sm md:mb-4 md:rounded-[2.5rem] md:p-6 lg:p-8 ${className}`}
@@ -51,12 +55,16 @@ export function V3SectionHeader({ badge, badgeIcon: Icon, title, subtitle, class
       <div className="bg-gold/10 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
 
       <div className="relative z-10">
-        <div className="vbiz-eyebrow mb-2 self-start shadow-sm backdrop-blur-md md:mb-3 md:text-xs">
-          <Icon size={14} /> {badge}
-        </div>
-        <h2 className="vbiz-title mb-2 text-2xl leading-[1.15] font-black tracking-tight sm:text-4xl md:mb-2 lg:text-4xl">
-          {typeof title === 'string' ? goldSplitTitle(title) : title}
-        </h2>
+        {badgeText ? (
+          <div className="vbiz-eyebrow mb-2 self-start shadow-sm backdrop-blur-md md:mb-3 md:text-xs">
+            <Icon size={14} /> {badgeText}
+          </div>
+        ) : null}
+        {hasTitle ? (
+          <h2 className="vbiz-title mb-2 text-2xl leading-[1.15] font-black tracking-tight sm:text-4xl md:mb-2 lg:text-4xl">
+            {typeof titleText === 'string' ? goldSplitTitle(titleText) : titleText}
+          </h2>
+        ) : null}
         {subtitle ? (
           <p className="vbiz-description max-w-2xl text-sm leading-normal font-medium md:text-base">{subtitle}</p>
         ) : null}

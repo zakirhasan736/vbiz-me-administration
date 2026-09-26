@@ -34,15 +34,17 @@ export function ServiceDetail({ service, sectionTitle, onBack }: ServiceDetailPr
         {heroImage ? (
           <div className="vbiz-media-hero relative w-full overflow-hidden bg-zinc-950">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={heroImage} alt={service.title} className="mx-auto max-h-72 w-full object-contain" />
+            <img src={heroImage} alt={service.title.trim() || ''} className="mx-auto max-h-72 w-full object-contain" />
             <div className="absolute inset-0 bg-linear-to-t from-zinc-950/90 via-zinc-950/45 to-zinc-950/15" />
             <div className="absolute right-0 bottom-0 left-0 p-8 lg:p-10">
               <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/30 px-3 py-1.5 text-[10px] font-bold tracking-wider text-white uppercase backdrop-blur-sm">
                 <Layers size={12} className="text-[#eab308]" /> {sectionTitle}
               </div>
-              <h1 className="vbiz-media-title max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-white sm:text-4xl lg:text-4xl">
-                {service.title}
-              </h1>
+              {service.title.trim() ? (
+                <h1 className="vbiz-media-title max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-white sm:text-4xl lg:text-4xl">
+                  {service.title}
+                </h1>
+              ) : null}
             </div>
           </div>
         ) : (
@@ -50,9 +52,11 @@ export function ServiceDetail({ service, sectionTitle, onBack }: ServiceDetailPr
             <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-700 uppercase dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300">
               <Layers size={12} className="text-[#eab308]" /> {sectionTitle}
             </div>
-            <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-              {service.title}
-            </h1>
+            {service.title.trim() ? (
+              <h1 className="max-w-4xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+                {service.title}
+              </h1>
+            ) : null}
           </div>
         )}
 
