@@ -162,15 +162,16 @@ function FeaturedPostCard({
   const inner = (
     <>
       {imageUrl ? (
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-multiply grayscale transition-transform duration-1000 group-hover:scale-105 dark:opacity-40 dark:mix-blend-overlay"
-          style={{ backgroundImage: `url('${imageUrl}')` }}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1555529733-0e67056058e1?q=80&w=1200&fit=crop')] bg-cover bg-center opacity-30 mix-blend-multiply grayscale transition-transform duration-1000 group-hover:scale-105 dark:opacity-40 dark:mix-blend-overlay" />
-      )}
-      <div className="absolute inset-0 bg-linear-to-t from-zinc-50 via-zinc-100/90 to-transparent dark:from-zinc-950 dark:via-zinc-900/80" />
-      <div className="relative z-10 flex min-h-100 w-full flex-col justify-end p-8 lg:p-10">
+        <div className="vcard-blog-card-media flex w-full items-center justify-center overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={post.title.trim() || ''}
+            className="h-auto max-h-[280px] w-full object-contain object-center sm:max-h-[320px]"
+          />
+        </div>
+      ) : null}
+      <div className="relative z-10 flex w-full flex-col p-8 lg:p-10">
         <div className="mb-6 flex flex-wrap items-center gap-4">
           <span className="rounded-md bg-zinc-900 px-3 py-1.5 text-[10px] font-bold tracking-wider text-white uppercase sm:text-xs dark:bg-zinc-100 dark:text-zinc-950">
             Latest
@@ -225,7 +226,7 @@ function FeaturedPostCard({
   )
 
   const className = cn(
-    'group relative flex min-h-100 flex-col justify-end overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900',
+    'group relative flex min-h-60 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 dark:border-zinc-800/80 dark:bg-zinc-900',
     !single && 'md:col-span-3 lg:col-span-3',
     isClickable && 'cursor-pointer'
   )
@@ -258,12 +259,12 @@ function PostCard({
   const hasHtml = description.length > 0
 
   const mediaBlock = imageUrl ? (
-    <div className="relative mb-4 h-48 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
+    <div className="vcard-blog-card-media mb-4 flex w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={imageUrl}
         alt={post.title.trim() || ''}
-        className="absolute inset-0 h-full w-full object-cover object-center"
+        className="h-auto max-h-48 w-full object-contain object-center"
       />
     </div>
   ) : linkUrl ? (
