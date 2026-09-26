@@ -1,8 +1,14 @@
 'use client'
 
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3EmptyState, V3ErrorState, V3LoadingSkeleton, V3SectionShell } from '@/profile-app/sections'
+import { useResolvedSectionTitle, useSectionBanner } from '@/profile-app/lib/sectionTitleContext'
+import {
+  SectionBannerNotes,
+  V3EmptyState,
+  V3ErrorState,
+  V3LoadingSkeleton,
+  V3SectionShell,
+} from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ChevronDown, HelpCircle, MessageCircle, RotateCcw, Search } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -93,6 +99,10 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
     : faqs
 
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'FAQ')
+  const banner = useSectionBanner({
+    fallbackTitle: sectionTitle,
+    fallbackDescription: 'Answers to common questions about this profile.',
+  })
   const showInitialLoader = isLoading && faqs.length === 0
   const showEmptyState = !isLoading && !isError && faqs.length === 0
 
@@ -120,7 +130,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
           <div className={`${headerClass} p-5 shadow-sm`}>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="flex items-center gap-1.5 text-xl font-black text-zinc-900 dark:text-zinc-100">
-                <HelpCircle size={16} className="text-gold" /> {sectionTitle}
+                <HelpCircle size={16} className="text-gold" /> {banner.title || sectionTitle}
               </h3>
               <span className="text-gold bg-gold/10 rounded-full px-2 py-0.5 text-[9px] font-black tracking-widest uppercase">
                 {filteredFaqs.length} Answers
@@ -137,6 +147,10 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                 className="vbiz-modal-input focus:border-gold w-full rounded-xl border py-2.5 pr-4 pl-9 text-xs font-semibold focus:outline-none"
               />
             </div>
+            {banner.description ? (
+              <p className="vbiz-description text-xs leading-relaxed font-medium">{banner.description}</p>
+            ) : null}
+            <SectionBannerNotes notes={banner.notes} />
           </div>
 
           {filteredFaqs.length === 0 ? (
@@ -218,12 +232,17 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
               <div className="vbiz-eyebrow mb-2" style={{ fontSize: 16 }}>
                 <MessageCircle size={16} /> {sectionTitle}
               </div>
-              <h2 className="mb-2 text-2xl leading-[1.1] font-black tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-                Frequently Asked{' '}
-                <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent italic">
-                  Questions
-                </span>
-              </h2>
+              {banner.title ? (
+                <h2 className="mb-2 text-2xl leading-[1.1] font-black tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+                  {banner.title}
+                </h2>
+              ) : null}
+              {banner.description ? (
+                <p className="vbiz-description mb-3 max-w-2xl text-sm leading-normal font-medium md:text-base">
+                  {banner.description}
+                </p>
+              ) : null}
+              <SectionBannerNotes notes={banner.notes} />
               <div className="relative max-w-md">
                 <Search className="pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 text-(--vbiz-text-muted)" />
                 <input

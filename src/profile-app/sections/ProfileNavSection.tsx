@@ -29,7 +29,7 @@ export function ProfileNavSection({ tabId, template = 'v3', homeHeroProps }: Pro
   const sectionName = item?.apiSectionName
 
   return (
-    <SectionTitleProvider title={title}>
+    <SectionTitleProvider title={title} tabId={tabId}>
       {renderProfileSection({
         contentKey,
         tabId,

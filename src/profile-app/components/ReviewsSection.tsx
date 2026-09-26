@@ -4,8 +4,8 @@ import { AllReviewsView, SliderReviewCard } from '@/profile-app/components/AllRe
 import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { useResolvedSectionTitle, useSectionBanner } from '@/profile-app/lib/sectionTitleContext'
+import { SectionBannerNotes, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetReviewsQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import {
@@ -77,6 +77,10 @@ export const ReviewsSection = () => {
 
   const slides = data?.slides ?? []
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Reviews')
+  const banner = useSectionBanner({
+    fallbackTitle: sectionTitle,
+    fallbackDescription: 'Read what clients and partners are saying about working together — or leave your own review.',
+  })
   const leaveReviewUrl = data?.leaveReviewUrl ?? null
   const reviewCount = data?.reviewCount ?? 0
   const averageRating = data?.averageRating ?? 0
@@ -195,23 +199,25 @@ export const ReviewsSection = () => {
                     <Star size={12} className="text-[#eed677]" /> {sectionTitle}
                   </div>
 
-                  <h2
-                    className={`leading-[1.1] font-black tracking-tight text-white ${
-                      compact ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl lg:text-4xl'
-                    }`}
-                  >
-                    Trusted by{' '}
-                    <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent italic">
-                      Professionals
-                    </span>
-                  </h2>
-                  <p
-                    className={`max-w-xl text-sm leading-normal font-medium text-zinc-300 ${
-                      compact ? 'hidden' : 'hidden md:block md:text-lg'
-                    }`}
-                  >
-                    Read what clients and partners are saying about working together — or leave your own review.
-                  </p>
+                  {banner.title ? (
+                    <h2
+                      className={`leading-[1.1] font-black tracking-tight text-white ${
+                        compact ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl lg:text-4xl'
+                      }`}
+                    >
+                      {banner.title}
+                    </h2>
+                  ) : null}
+                  {banner.description ? (
+                    <p
+                      className={`max-w-xl text-sm leading-normal font-medium text-zinc-300 ${
+                        compact ? 'hidden' : 'hidden md:block md:text-lg'
+                      }`}
+                    >
+                      {banner.description}
+                    </p>
+                  ) : null}
+                  <SectionBannerNotes notes={banner.notes} />
                 </div>
 
                 <div

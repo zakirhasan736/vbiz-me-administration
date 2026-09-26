@@ -5,7 +5,7 @@ import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { ExternalLink, UsersRound } from 'lucide-react'
@@ -193,21 +193,12 @@ export const MeetOurTeamSection = ({ sectionName = 'Meet Our Team' }: MeetOurTea
               <UsersRound size={12} className="text-yellow-primary" /> Our People
             </div>
 
-            <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-              {sectionTitle.includes(' ') ? (
-                <>
-                  {sectionTitle.slice(0, sectionTitle.lastIndexOf(' '))}{' '}
-                  <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">
-                    {sectionTitle.slice(sectionTitle.lastIndexOf(' ') + 1)}
-                  </span>
-                </>
-              ) : (
-                sectionTitle
-              )}
-            </h2>
-            <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400">
-              The dedicated professionals behind your success — experts in design, technology, and client experience.
-            </p>
+            <SectionBannerBody
+              fallbackTitle={sectionTitle}
+              fallbackDescription="The dedicated professionals behind your success — experts in design, technology, and client experience."
+              titleClassName="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100"
+              descriptionClassName="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400"
+            />
           </div>
         </div>
       </div>

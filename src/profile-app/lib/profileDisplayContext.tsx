@@ -28,6 +28,7 @@ import type {
   VCardServiceEntry,
   VCardSocial,
   VCardTabLabelOverrides,
+  VCardTabSectionMeta,
 } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import type { MyCardActionButtons } from '@interfaces/api/myCard'
@@ -48,6 +49,7 @@ export type ProfileDisplayContextValue = {
   faqs: VCardFaqEntry[]
   customTabs: VCardCustomTab[]
   tabLabelOverrides: VCardTabLabelOverrides
+  tabSectionMeta: VCardTabSectionMeta
   design: ResolvedProfileDesign | null
   isVisible: (key: string) => boolean
   /** Nav Bar enable/disable — always respected (including live preview). */
@@ -102,6 +104,7 @@ const defaultValue: ProfileDisplayContextValue = {
   faqs: [],
   customTabs: [],
   tabLabelOverrides: {},
+  tabSectionMeta: {},
   design: null,
   isVisible: () => true,
   isNavVisible: () => true,
@@ -137,6 +140,7 @@ export function ProfileDisplayProvider({
   faqs,
   customTabs,
   tabLabelOverrides,
+  tabSectionMeta,
   design,
   /** Explicit avatar from card meta (merged into homeMedia.profileMedia). */
   avatarMediaUrl,
@@ -165,6 +169,7 @@ export function ProfileDisplayProvider({
   faqs?: VCardFaqEntry[]
   customTabs?: VCardCustomTab[]
   tabLabelOverrides?: VCardTabLabelOverrides
+  tabSectionMeta?: VCardTabSectionMeta
   design?: ResolvedProfileDesign | null
   avatarMediaUrl?: string
   avatarImageUrl?: string
@@ -190,6 +195,7 @@ export function ProfileDisplayProvider({
     const faqEntries = faqs ?? []
     const custom = customTabs ?? []
     const labels = tabLabelOverrides ?? {}
+    const banners = tabSectionMeta ?? {}
     return {
       settings,
       personal: p,
@@ -205,6 +211,7 @@ export function ProfileDisplayProvider({
       faqs: faqEntries,
       customTabs: custom,
       tabLabelOverrides: labels,
+      tabSectionMeta: banners,
       design: design ?? null,
       isVisible: (key: string) => isFieldVisibleInProfile(settings, key),
       isNavVisible: (label: string) => isFieldVisible(settings, label),
@@ -240,6 +247,7 @@ export function ProfileDisplayProvider({
     faqs,
     customTabs,
     tabLabelOverrides,
+    tabSectionMeta,
     design,
     avatarMediaUrl,
     avatarImageUrl,

@@ -385,6 +385,7 @@ function persistableBucketSlice(data: VCardData, bucket: string): unknown {
         },
         customTabs: persistableCustomTabs(data.customTabs),
         tabLabelOverrides: data.tabLabelOverrides,
+        tabSectionMeta: data.tabSectionMeta,
       }
     default:
       return data
@@ -405,7 +406,9 @@ export function dirtyBucketForPath(
     path === 'customTabs' ||
     path.startsWith('customTabs.') ||
     path === 'tabLabelOverrides' ||
-    path.startsWith('tabLabelOverrides.')
+    path.startsWith('tabLabelOverrides.') ||
+    path === 'tabSectionMeta' ||
+    path.startsWith('tabSectionMeta.')
   ) {
     return 'profile'
   }

@@ -4,7 +4,7 @@ import type { ProfileAiEducation } from '@/interfaces/api/profileAiData'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetProfileAiDataQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { GraduationCap } from 'lucide-react'
@@ -96,15 +96,12 @@ export function EducationSection({ sectionName = 'Resume' }: EducationSectionPro
             <div className="vbiz-eyebrow mb-6 shadow-sm backdrop-blur-sm">
               <GraduationCap size={12} /> {sectionTitle}
             </div>
-            <h2 className="vbiz-title mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight sm:text-4xl lg:text-4xl">
-              Academic{' '}
-              <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">
-                Background
-              </span>
-            </h2>
-            <p className="vbiz-description max-w-xl text-base leading-normal font-medium lg:text-lg">
-              Degrees, institutions, and study timelines from your profile resume.
-            </p>
+            <SectionBannerBody
+              fallbackTitle={sectionTitle}
+              fallbackDescription="Degrees, institutions, and study timelines from your profile resume."
+              titleClassName="vbiz-title mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight sm:text-4xl lg:text-4xl"
+              descriptionClassName="vbiz-description max-w-xl text-base leading-normal font-medium lg:text-lg"
+            />
           </div>
         </div>
       </div>

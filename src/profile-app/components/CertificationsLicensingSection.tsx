@@ -13,7 +13,7 @@ import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { Award, FileText, Maximize2 } from 'lucide-react'
@@ -258,15 +258,12 @@ export const CertificationsLicensingSection = () => {
                 Licenses & Certifications
               </span>
             </div>
-            <h2
-              className="notranslate mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight wrap-break-word hyphens-auto text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100"
-              translate="no"
-            >
-              {sectionTitle}
-            </h2>
-            <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400">
-              Showcasing recognized licenses, certifications, and academic achievements.
-            </p>
+            <SectionBannerBody
+              fallbackTitle={sectionTitle}
+              fallbackDescription="Showcasing recognized licenses, certifications, and academic achievements."
+              titleClassName="notranslate mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight wrap-break-word hyphens-auto text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100"
+              descriptionClassName="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400"
+            />
           </div>
         </div>
       </div>

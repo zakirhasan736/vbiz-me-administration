@@ -628,6 +628,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       sectionPosts: base.sectionPosts ?? {},
       customTabs: base.customTabs ?? [],
       tabLabelOverrides: base.tabLabelOverrides ?? {},
+      tabSectionMeta: base.tabSectionMeta ?? {},
       portfolio: base.portfolio ?? [],
       reviews: base.reviews ?? [],
       skills: base.skills ?? [],

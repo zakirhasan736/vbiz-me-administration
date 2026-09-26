@@ -1,5 +1,7 @@
 export {
   PREVIEW_EMPTY_MESSAGE,
+  SectionBannerBody,
+  SectionBannerNotes,
   V3EmptyState,
   V3ErrorState,
   V3LoadingSkeleton,

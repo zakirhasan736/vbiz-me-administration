@@ -45,6 +45,7 @@ export function ProfileApp(props: VBizProfileAppProps) {
       faqs={props.faqs}
       customTabs={props.customTabs}
       tabLabelOverrides={props.tabLabelOverrides}
+      tabSectionMeta={props.tabSectionMeta}
       design={props.design ?? null}
       avatarMediaUrl={props.avatarVideoUrl}
       avatarImageUrl={props.avatarImageUrl}

@@ -6,7 +6,7 @@ import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { ArrowLeft, ArrowUpRight, Utensils } from 'lucide-react'
@@ -297,21 +297,12 @@ export const DinnerSection = () => {
               <Utensils size={12} style={{ color: accent }} /> Evening
             </div>
 
-            <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-              {sectionTitle.includes(' ') ? (
-                <>
-                  {sectionTitle.slice(0, sectionTitle.lastIndexOf(' '))}{' '}
-                  <span className="font-medium italic" style={{ color: accent }}>
-                    {sectionTitle.slice(sectionTitle.lastIndexOf(' ') + 1)}
-                  </span>
-                </>
-              ) : (
-                sectionTitle
-              )}
-            </h2>
-            <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400">
-              Explore our dinner offerings for the evening.
-            </p>
+            <SectionBannerBody
+              fallbackTitle={sectionTitle}
+              fallbackDescription="Explore our dinner offerings for the evening."
+              titleClassName="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100"
+              descriptionClassName="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400"
+            />
           </div>
         </div>
       </div>

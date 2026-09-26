@@ -9,6 +9,7 @@ import { AiGenerateModal, type AiProfilePayload } from '@/components/vcard/AiGen
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
 import { CustomTabEditorPanel } from '@/components/vcard/CustomTabEditorPanel'
 import { useLivePreview } from '@/components/vcard/LivePreviewProvider'
+import { SectionBannerEditor } from '@/components/vcard/SectionBannerEditor'
 import { SectionPostsEditorPanel } from '@/components/vcard/SectionPostsEditorPanel'
 import { TabCompletionInspectorButton } from '@/components/vcard/TabCompletionInspectorButton'
 import { TabBlog } from '@/components/VCardBlog'
@@ -1170,7 +1171,10 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
                       tourTargetId={`tour-editor-panel-${activeNavId}`}
                     />
                   ) : (
-                    <SectionTitleProvider title={inspectorLabel}>{renderEditorPanel(editorPanel)}</SectionTitleProvider>
+                    <SectionTitleProvider title={inspectorLabel} tabId={activeNavId}>
+                      {!isPersonalEditor ? <SectionBannerEditor tabId={activeNavId} tabName={inspectorLabel} /> : null}
+                      {renderEditorPanel(editorPanel)}
+                    </SectionTitleProvider>
                   )}
                 </div>
               </div>

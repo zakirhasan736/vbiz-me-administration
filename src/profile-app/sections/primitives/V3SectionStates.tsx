@@ -1,6 +1,7 @@
 'use client'
 
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useSectionBanner } from '@/profile-app/lib/sectionTitleContext'
 import { Inbox, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -42,10 +43,46 @@ function goldSplitTitle(title: ReactNode): ReactNode {
   )
 }
 
+export function SectionBannerBody({
+  fallbackTitle,
+  fallbackDescription,
+  titleClassName = 'vbiz-title mb-2 max-w-2xl text-2xl leading-[1.1] font-black tracking-tight sm:text-4xl lg:text-4xl',
+  descriptionClassName = 'vbiz-description max-w-xl text-sm leading-normal font-medium md:text-base',
+}: {
+  fallbackTitle?: string
+  fallbackDescription?: string
+  titleClassName?: string
+  descriptionClassName?: string
+}) {
+  const banner = useSectionBanner({ fallbackTitle, fallbackDescription })
+  return (
+    <>
+      {banner.title ? <h2 className={titleClassName}>{goldSplitTitle(banner.title)}</h2> : null}
+      {banner.description ? <p className={descriptionClassName}>{banner.description}</p> : null}
+      <SectionBannerNotes notes={banner.notes} />
+    </>
+  )
+}
+
+export function SectionBannerNotes({ notes }: { notes?: string | null }) {
+  const text = notes?.trim() || ''
+  if (!text) return null
+  return (
+    <div className="mt-4 max-w-2xl rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm leading-relaxed font-semibold text-amber-950 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-50">
+      {text}
+    </div>
+  )
+}
+
 export function V3SectionHeader({ badge, badgeIcon: Icon, title, subtitle, className = '' }: V3SectionHeaderProps) {
+  const banner = useSectionBanner({
+    fallbackTitle: typeof title === 'string' ? title : '',
+    fallbackDescription: subtitle,
+  })
   const badgeText = badge.trim()
-  const titleText = typeof title === 'string' ? title.trim() : title
-  const hasTitle = typeof titleText === 'string' ? titleText.length > 0 : titleText != null
+  const resolvedTitle = banner.title || (typeof title === 'string' ? title.trim() : title)
+  const hasTitle = typeof resolvedTitle === 'string' ? resolvedTitle.length > 0 : resolvedTitle != null
+  const description = banner.description
 
   return (
     <div
@@ -62,12 +99,13 @@ export function V3SectionHeader({ badge, badgeIcon: Icon, title, subtitle, class
         ) : null}
         {hasTitle ? (
           <h2 className="vbiz-title mb-2 text-2xl leading-[1.15] font-black tracking-tight sm:text-4xl md:mb-2 lg:text-4xl">
-            {typeof titleText === 'string' ? goldSplitTitle(titleText) : titleText}
+            {typeof resolvedTitle === 'string' ? goldSplitTitle(resolvedTitle) : resolvedTitle}
           </h2>
         ) : null}
-        {subtitle ? (
-          <p className="vbiz-description max-w-2xl text-sm leading-normal font-medium md:text-base">{subtitle}</p>
+        {description ? (
+          <p className="vbiz-description max-w-2xl text-sm leading-normal font-medium md:text-base">{description}</p>
         ) : null}
+        <SectionBannerNotes notes={banner.notes} />
       </div>
     </div>
   )

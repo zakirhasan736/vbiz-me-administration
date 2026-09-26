@@ -28,6 +28,7 @@ import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { applyEditorSettingsToThemeConfig, hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { MY_INFO_SETTING_KEY, parseMyInfoJson } from '@/lib/vcardMyInfo'
 import { skillTagsToGroups } from '@/lib/vcardSkills'
+import { parseTabSectionMeta, TAB_SECTION_META_SETTING_KEY } from '@/lib/vcardTabSectionMeta'
 import { api } from '@/redux/api/api'
 import type { AdminProfileRow } from '@/redux/features/adminProfiles/adminProfiles.api'
 import { patchItem as patchAdminVCardsListItem } from '@/redux/features/adminVCardsList/adminVCardsList.slice'
@@ -628,6 +629,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   const extraFields = parseExtraFieldsJson(settingsMap[EXTRA_FIELDS_SETTING_KEY])
   const gameIds = parseGameIdsJson(settingsMap[GAME_IDS_SETTING_KEY])
   const tabLabelOverrides = parseTabLabelOverrides(settingsMap[TAB_LABEL_OVERRIDES_SETTING_KEY])
+  const tabSectionMeta = parseTabSectionMeta(settingsMap[TAB_SECTION_META_SETTING_KEY])
   const theme = {
     primaryColor: savedTheme?.primaryColor || staticTheme.primaryColor,
     secondaryColor:
@@ -792,6 +794,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     extraFields,
     customTabs,
     tabLabelOverrides,
+    tabSectionMeta,
     myInfo: parseMyInfoJson(settingsMap[MY_INFO_SETTING_KEY]),
     seo: parseSeoSettings(settingsMap),
     aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY], profile.slug),

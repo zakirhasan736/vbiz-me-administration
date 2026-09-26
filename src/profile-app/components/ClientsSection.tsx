@@ -2,7 +2,7 @@
 
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetClientsQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { ArrowRight, ExternalLink, Handshake } from 'lucide-react'
@@ -85,16 +85,12 @@ export const ClientsSection = () => {
               <Handshake size={12} /> Trusted Partners
             </div>
 
-            <h2 className="mb-0 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl md:mb-2 lg:text-4xl dark:text-zinc-100">
-              Organizations We{' '}
-              <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">
-                Serve
-              </span>
-            </h2>
-            <p className="mt-2 hidden max-w-xl text-base leading-normal font-medium text-zinc-600 md:block dark:text-zinc-400">
-              Proud to partner with forward-thinking companies across industries who trust us to elevate their
-              professional presence.
-            </p>
+            <SectionBannerBody
+              fallbackTitle="Clients"
+              fallbackDescription="Proud to partner with forward-thinking companies across industries who trust us to elevate their professional presence."
+              titleClassName="mb-0 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl md:mb-2 lg:text-4xl dark:text-zinc-100"
+              descriptionClassName="mt-2 hidden max-w-xl text-base leading-normal font-medium text-zinc-600 md:block dark:text-zinc-400"
+            />
           </div>
 
           <button

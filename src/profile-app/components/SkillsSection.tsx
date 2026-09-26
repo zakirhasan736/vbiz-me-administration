@@ -3,7 +3,7 @@
 import type { ProfileAiSkillGroup } from '@/interfaces/api/profileAiData'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetProfileAiDataQuery } from '@/redux/api'
 import { Wand2 } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -85,15 +85,12 @@ export function SkillsSection({ sectionName = 'Skills' }: SkillsSectionProps) {
             <div className="vbiz-eyebrow mb-6 shadow-sm backdrop-blur-sm">
               <Wand2 size={12} /> {sectionTitle}
             </div>
-            <h2 className="vbiz-title mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight sm:text-4xl lg:text-4xl">
-              Tools &{' '}
-              <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">
-                Expertise
-              </span>
-            </h2>
-            <p className="vbiz-description max-w-xl text-base leading-normal font-medium lg:text-lg">
-              Skills and specialties highlighted on this profile.
-            </p>
+            <SectionBannerBody
+              fallbackTitle={sectionTitle}
+              fallbackDescription="Skills and specialties highlighted on this profile."
+              titleClassName="vbiz-title mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight sm:text-4xl lg:text-4xl"
+              descriptionClassName="vbiz-description max-w-xl text-base leading-normal font-medium lg:text-lg"
+            />
           </div>
         </div>
       </div>

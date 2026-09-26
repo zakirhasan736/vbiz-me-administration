@@ -3,6 +3,7 @@ import { seoToApiSettings } from '@/lib/seo/cardSeo'
 import { mapContentMediaToApiSettings } from '@/lib/vcardContentMedia'
 import { mapMyInfoToApiSettings } from '@/lib/vcardMyInfo'
 import { getVCardResume, mapResumeToApiSettings } from '@/lib/vcardResume'
+import { serializeTabSectionMeta, TAB_SECTION_META_SETTING_KEY } from '@/lib/vcardTabSectionMeta'
 import type { VCardData, VCardExtraField, VCardTheme } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
@@ -257,9 +258,7 @@ export function mapThemeToApiSettings(data: Pick<VCardData, 'theme'>): Record<st
 function mapCustomTabsToApiSettings(data: VCardData): Record<string, string> {
   const settings: Record<string, string> = {
     [CUSTOM_TABS_SETTING_KEY]: JSON.stringify(data.customTabs || []),
-  }
-  if (data.tabLabelOverrides && Object.keys(data.tabLabelOverrides).length) {
-    settings[TAB_LABEL_OVERRIDES_SETTING_KEY] = JSON.stringify(data.tabLabelOverrides)
+    [TAB_LABEL_OVERRIDES_SETTING_KEY]: JSON.stringify(data.tabLabelOverrides || {}),
   }
   return settings
 }
@@ -293,6 +292,7 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
     ...mapGameIdsToApiSettings(data.social?.games),
     ...mapThemeToApiSettings(data),
     ...mapCustomTabsToApiSettings(data),
+    [TAB_SECTION_META_SETTING_KEY]: serializeTabSectionMeta(data.tabSectionMeta),
     ...mapMyInfoToApiSettings(data.myInfo, data.personal),
     ...mapResumeToApiSettings(getVCardResume(data)),
     ...mapContentMediaToApiSettings(data.contentMedia),

@@ -241,6 +241,16 @@ export type VCardCustomTab = {
 
 export type VCardTabLabelOverrides = Record<string, string>
 
+/** Per-tab public banner chrome stored as `tab_section_meta_json`. */
+export type VCardTabSectionMetaEntry = {
+  bannerTitle?: string
+  /** Missing uses the section default; empty string hides the description. */
+  bannerDescription?: string
+  notes?: string
+}
+
+export type VCardTabSectionMeta = Record<string, VCardTabSectionMetaEntry>
+
 export type VCardPortfolioEntry = {
   id: string
   type: string
@@ -287,6 +297,8 @@ export type VCardData = {
   customTabs?: VCardCustomTab[]
   /** Display/editor label overrides keyed by nav id. */
   tabLabelOverrides?: VCardTabLabelOverrides
+  /** Per-tab banner title, description, and notes keyed by nav id. */
+  tabSectionMeta?: VCardTabSectionMeta
   portfolio: VCardPortfolioEntry[]
   reviews?: VCardReviewEntry[]
   skills?: VCardSkillGroup[]
@@ -382,6 +394,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     sectionPosts: {},
     customTabs: [],
     tabLabelOverrides: {},
+    tabSectionMeta: {},
     portfolio: [],
     reviews: [],
     skills: [],
@@ -413,6 +426,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
     sectionPosts: overrides.sectionPosts ?? base.sectionPosts,
     customTabs: overrides.customTabs ?? base.customTabs,
     tabLabelOverrides: overrides.tabLabelOverrides ?? base.tabLabelOverrides,
+    tabSectionMeta: overrides.tabSectionMeta ?? base.tabSectionMeta,
     portfolio: overrides.portfolio ?? base.portfolio,
     reviews: overrides.reviews ?? base.reviews,
     skills: overrides.skills ?? base.skills,

@@ -5,9 +5,9 @@ import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
-import { ShieldCheck } from 'lucide-react'
+import { Layers, ShieldCheck } from 'lucide-react'
 import Image from 'next/image'
 import type { CSSProperties } from 'react'
 
@@ -150,6 +150,12 @@ export const AdditionalServicesSection = () => {
 
   return (
     <div className="flex w-full flex-col gap-4 pb-20">
+      <V3SectionHeader
+        badge={sectionTitle}
+        badgeIcon={Layers}
+        title={sectionTitle}
+        subtitle="Additional services and offerings from this profile."
+      />
       {services.map((item) => (
         <ServiceCard key={item.id} item={item} accent={accent} />
       ))}

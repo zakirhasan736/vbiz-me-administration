@@ -5,7 +5,7 @@ import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { ArrowUpRight, Headphones, PhoneCall } from 'lucide-react'
@@ -156,12 +156,12 @@ export const SalesPersonSection = ({ sectionName = 'Sales Person' }: SalesPerson
             <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-bold tracking-wider text-zinc-600 uppercase shadow-sm backdrop-blur-sm dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-300">
               <Headphones size={12} style={{ color: accent }} /> Support
             </div>
-            <h2 className="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
-              {sectionTitle}
-            </h2>
-            <p className="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400">
-              Reach out directly to your sales contact for quick help and guidance.
-            </p>
+            <SectionBannerBody
+              fallbackTitle={sectionTitle}
+              fallbackDescription="Reach out directly to your sales contact for quick help and guidance."
+              titleClassName="mb-4 max-w-2xl text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100"
+              descriptionClassName="max-w-xl text-base leading-normal font-medium text-zinc-600 dark:text-zinc-400"
+            />
           </div>
         </div>
       </div>

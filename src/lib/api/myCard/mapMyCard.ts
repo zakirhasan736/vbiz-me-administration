@@ -22,6 +22,7 @@ import { MY_INFO_SETTING_KEY, parseMyInfoJson } from '@/lib/vcardMyInfo'
 import { createDefaultNavFieldConfig, LOCKED_NAV_ITEM_IDS, NAV_BAR_FIELDS, NAV_BAR_NAV_ITEMS } from '@/lib/vcardNavbar'
 import { parseResumeJson, RESUME_SETTING_KEY } from '@/lib/vcardResume'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
+import { parseTabSectionMeta, TAB_SECTION_META_SETTING_KEY } from '@/lib/vcardTabSectionMeta'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 import type {
   VCardCustomTab,
@@ -583,6 +584,7 @@ export function mapMyCardToVCardData(card: MyCardData): VCardData {
     displaySettings: mapDisplaySettings(card),
     customTabs: parseCustomTabs(card.settings?.[CUSTOM_TABS_SETTING_KEY]),
     tabLabelOverrides: parseTabLabelOverrides(card.settings?.[TAB_LABEL_OVERRIDES_SETTING_KEY]),
+    tabSectionMeta: parseTabSectionMeta(card.settings?.[TAB_SECTION_META_SETTING_KEY]),
     themeConfig: hasDynamicTheme(card.theme_config)
       ? resolveCardThemeConfig(card.theme_config, resolveTemplate(card))
       : undefined,

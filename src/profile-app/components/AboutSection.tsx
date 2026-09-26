@@ -4,8 +4,8 @@ import { DEFAULT_ABOUT_FEATURED_MEDIA_FOCUS_Y, featuredMediaObjectPosition } fro
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3EmptyState, V3ErrorState, V3SectionShell } from '@/profile-app/sections'
+import { useResolvedSectionTitle, useSectionBanner } from '@/profile-app/lib/sectionTitleContext'
+import { SectionBannerNotes, V3EmptyState, V3ErrorState, V3SectionShell } from '@/profile-app/sections'
 import { useGetAboutMeQuery } from '@/redux/api'
 import { BookOpen, Flag, Lightbulb, Quote, Sparkles, Target, Users } from 'lucide-react'
 import Image from 'next/image'
@@ -127,6 +127,10 @@ export const AboutSection = () => {
 
   // Section chrome follows the nav tab label (including builder renames).
   const sectionTitle = useResolvedSectionTitle(undefined, FIXED_SECTION_TITLE)
+  const banner = useSectionBanner({
+    fallbackTitle: sectionTitle,
+    fallbackDescription: 'Learn more about the person and story behind this card.',
+  })
   const aboutItem = data?.items[0]
   /** Skeleton only until aboutItem exists — never after data arrives (incl. refetch). */
   const isAboutPending = (isLoading || isFetching) && !aboutItem
@@ -150,7 +154,7 @@ export const AboutSection = () => {
   const pillars = item?.pillars ?? []
   const highlight = item?.highlight
   const footer = item?.footer
-  const { lead: titleLead, accent: titleAccent } = splitSectionTitle(sectionTitle)
+  const { lead: titleLead, accent: titleAccent } = splitSectionTitle(banner.title || sectionTitle)
   const hasIntro = Boolean(item && (hasIntroHtml || item.plainDescription))
   const ownerInitial = personal.fullName?.trim().charAt(0).toUpperCase() || ''
   const accentColor = design?.accentColor?.trim() || '#eab308'
@@ -186,18 +190,26 @@ export const AboutSection = () => {
                 <Sparkles size={14} className="text-gold" /> {sectionTitle}
               </div>
 
-              <h2 className="vbiz-hero-title text-2xl leading-[1.15] font-black tracking-tight text-white sm:text-3xl md:text-4xl lg:text-4xl">
-                {titleAccent ? (
-                  <>
-                    {titleLead}{' '}
-                    <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent">
-                      {titleAccent}
-                    </span>
-                  </>
-                ) : (
-                  sectionTitle
-                )}
-              </h2>
+              {banner.title ? (
+                <h2 className="vbiz-hero-title text-2xl leading-[1.15] font-black tracking-tight text-white sm:text-3xl md:text-4xl lg:text-4xl">
+                  {titleAccent ? (
+                    <>
+                      {titleLead}{' '}
+                      <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent">
+                        {titleAccent}
+                      </span>
+                    </>
+                  ) : (
+                    banner.title
+                  )}
+                </h2>
+              ) : null}
+              {banner.description ? (
+                <p className="vbiz-hero-subtitle max-w-2xl text-sm leading-snug font-medium text-zinc-300 md:text-base">
+                  {banner.description}
+                </p>
+              ) : null}
+              <SectionBannerNotes notes={banner.notes} />
 
               {heroImage ? (
                 <AboutFeaturedMedia

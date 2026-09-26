@@ -5,7 +5,7 @@ import { detectGalleryMediaKind, encodeMediaUrl, isDocumentUrl, isVideoUrl } fro
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
-import { V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
+import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetGalleryQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { Camera, ExternalLink, FileText, Image as ImageIcon, Maximize2, Music, Play, X } from 'lucide-react'
@@ -642,12 +642,12 @@ function SectionHeader({ sectionTitle, isLoading }: { sectionTitle: string; isLo
             </>
           ) : (
             <>
-              <h2 className="vbiz-hero-title max-w-2xl font-serif text-2xl leading-tight font-medium tracking-tight text-white italic sm:text-4xl lg:text-4xl">
-                {sectionTitle}
-              </h2>
-              <p className="vbiz-hero-subtitle max-w-xl text-sm leading-snug font-medium text-zinc-300 md:text-base md:leading-normal">
-                Browse curated gallery images from this profile.
-              </p>
+              <SectionBannerBody
+                fallbackTitle={sectionTitle}
+                fallbackDescription="Browse curated gallery images from this profile."
+                titleClassName="vbiz-hero-title max-w-2xl font-serif text-2xl leading-tight font-medium tracking-tight text-white italic sm:text-4xl lg:text-4xl"
+                descriptionClassName="vbiz-hero-subtitle max-w-xl text-sm leading-snug font-medium text-zinc-300 md:text-base md:leading-normal"
+              />
             </>
           )}
         </div>

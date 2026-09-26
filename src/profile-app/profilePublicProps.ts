@@ -34,6 +34,7 @@ import type {
   VCardSkillGroup,
   VCardSocial,
   VCardTabLabelOverrides,
+  VCardTabSectionMeta,
 } from '@/types/vcard'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import type { MyCardActionButtons, MyCardTeamNotice } from '@interfaces/api/myCard'
@@ -79,6 +80,7 @@ export type VBizProfileAppProps = {
   sectionPosts?: Record<string, VCardSectionPostItem[]>
   customTabs?: VCardCustomTab[]
   tabLabelOverrides?: VCardTabLabelOverrides
+  tabSectionMeta?: VCardTabSectionMeta
   generalPosts?: VCardGeneralPost[]
   faqs?: VCardFaqEntry[]
   displaySettings?: VCardDisplaySettings
@@ -189,6 +191,7 @@ export function vCardDataToProfileProps(
     sectionPosts: data.sectionPosts ?? {},
     customTabs: data.customTabs ?? [],
     tabLabelOverrides: data.tabLabelOverrides ?? {},
+    tabSectionMeta: data.tabSectionMeta ?? {},
     generalPosts: normalizeGeneralPostList(data.generalPosts),
     faqs: normalizeFaqList(data.faqs),
     displaySettings: display,
