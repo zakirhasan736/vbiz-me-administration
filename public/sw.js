@@ -385,8 +385,19 @@ function isBackofficePath(pathname) {
     path.startsWith('/vcards') ||
     path.startsWith('/settings') ||
     path.startsWith('/team') ||
-    path.startsWith('/billing')
+    path.startsWith('/billing') ||
+    path.startsWith('/crm')
   )
+}
+
+function isBackofficeReferer(request) {
+  const referer = request.referrer || (request.headers && request.headers.get('Referer'))
+  if (!referer) return false
+  try {
+    return isBackofficePath(new URL(referer).pathname)
+  } catch {
+    return false
+  }
 }
 
 function isPublicCardDataRequest(url) {
@@ -419,7 +430,10 @@ function shouldHandleFetch(url, request) {
   if (isBackofficePath(pathname)) return false
   if (url.origin === self.location.origin && pathname.startsWith('/_next/webpack')) return false
   if (url.origin === self.location.origin && pathname.includes('hot-update')) return false
-  if (url.origin === self.location.origin && pathname.startsWith('/_next/static/')) return true
+  if (url.origin === self.location.origin && pathname.startsWith('/_next/static/')) {
+    if (isBackofficeReferer(request)) return false
+    return true
+  }
   if (request.mode === 'navigate' && isPublicCardPage(pathname)) return true
   if (isPublicCardMeta(pathname)) return false
   if (isPublicCardDataRequest(url)) return true

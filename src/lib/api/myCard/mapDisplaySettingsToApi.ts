@@ -317,7 +317,7 @@ function sameJson(left: unknown, right: unknown): boolean {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
 }
 
-const SHARED_HOME_MEDIA_SETTING_KEYS = ['profile_media_url', 'background_media_url'] as const
+const SHARED_HOME_MEDIA_SETTING_KEYS = ['background_media_url'] as const
 const SHARED_SEO_SETTING_KEYS = [
   SEO_META_TITLE_SETTING_KEY,
   SEO_META_DESCRIPTION_SETTING_KEY,

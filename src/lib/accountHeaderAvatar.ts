@@ -31,15 +31,18 @@ function profileAboutFeaturedStill(profile: ApiProfile): string {
 /**
  * Account menu avatar priority:
  * 1. Logged-in user account avatar
- * 2. First owned card profile / avatar still
- * 3. First owned card About Me featured still
+ * 2. Single-owner only: first owned card profile / avatar still
+ * 3. Single-owner only: first owned card About Me featured still
+ * Corporate backoffice never borrows a vCard photo.
  */
 export function resolveAccountHeaderAvatarUrl(
   accountAvatar?: string | null,
-  profiles?: ApiProfile[] | null
+  profiles?: ApiProfile[] | null,
+  ownerMode?: 'single' | 'corporate' | null
 ): string | null {
   const fromAccount = asStillImage(accountAvatar)
   if (fromAccount) return fromAccount
+  if (ownerMode !== 'single') return null
 
   if (!profiles?.length) return null
 

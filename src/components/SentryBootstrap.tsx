@@ -2,17 +2,25 @@
 
 import { sentryReasonToMessage, shouldIgnoreSentryMessage } from '@/lib/sentry/ignore'
 import { reportSentryEvent } from '@/lib/sentry/report'
+import { isStaleChunkLoadError, reloadForStaleChunk, shouldReloadForStaleChunk } from '@/lib/staleChunkReload'
 import { useEffect } from 'react'
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 
+function recoverStaleChunk(reason: unknown) {
+  if (!isStaleChunkLoadError(reason)) return false
+  if (shouldReloadForStaleChunk(Date.now(), window.sessionStorage)) {
+    reloadForStaleChunk()
+  }
+  return true
+}
+
 export function SentryBootstrap() {
   useEffect(() => {
-    if (!dsn) return
-
     const onError = (event: ErrorEvent) => {
       const message = event.message || 'window.error'
-      if (shouldIgnoreSentryMessage(message)) return
+      if (recoverStaleChunk(event.error || message)) return
+      if (!dsn || shouldIgnoreSentryMessage(message)) return
       void reportSentryEvent({
         dsn,
         message,
@@ -27,7 +35,8 @@ export function SentryBootstrap() {
 
     const onRejection = (event: PromiseRejectionEvent) => {
       const message = sentryReasonToMessage(event.reason)
-      if (shouldIgnoreSentryMessage(message)) return
+      if (recoverStaleChunk(event.reason || message)) return
+      if (!dsn || shouldIgnoreSentryMessage(message)) return
       void reportSentryEvent({
         dsn,
         message,

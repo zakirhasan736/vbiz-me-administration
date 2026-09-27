@@ -11,6 +11,17 @@ describe('shouldIgnoreSentryMessage', () => {
     expect(shouldIgnoreSentryMessage("Cannot read properties of null (reading 'removeChild')")).toBe(true)
     expect(shouldIgnoreSentryMessage('[object Event]')).toBe(true)
     expect(
+      shouldIgnoreSentryMessage(
+        'ChunkLoadError: Failed to load chunk /_next/static/chunks/0m0ly~zyp_cgo.js from module 435657'
+      )
+    ).toBe(true)
+    expect(shouldIgnoreSentryMessage('Loading chunk 435657 failed.')).toBe(true)
+    expect(
+      shouldIgnoreSentryMessage(
+        'Uncaught ChunkLoadError: Failed to load chunk /_next/static/chunks/0ogktlug8zgmb.js from module 964893'
+      )
+    ).toBe(true)
+    expect(
       shouldIgnoreSentryMessage("null is not an object (evaluating '(n=n.stateNode).parentNode.removeChild')")
     ).toBe(true)
   })

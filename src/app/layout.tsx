@@ -9,6 +9,7 @@ import { TranslationEarlyBootstrap } from '@/components/i18n/TranslationEarlyBoo
 import { IframeEmbedBootstrap } from '@/components/IframeEmbedBootstrap'
 import { PwaInstallBootstrap } from '@/components/PwaInstallBootstrap'
 import { SentryBootstrap } from '@/components/SentryBootstrap'
+import { StaleChunkReloadBootstrap } from '@/components/StaleChunkReloadBootstrap'
 import { NotificationToast } from '@/profile-app/components/NotificationToast'
 import { PushNotificationRegistrar } from '@/profile-app/components/PushNotificationRegistrar'
 import ClientProviders from '@/providers/ClientProviders'
@@ -37,6 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
+        <StaleChunkReloadBootstrap />
         <SentryBootstrap />
         <IframeEmbedBootstrap />
         <PwaInstallBootstrap />

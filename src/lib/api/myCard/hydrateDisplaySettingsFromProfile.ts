@@ -68,6 +68,16 @@ function attachmentUrl(att: ProfileAttachmentRow): string {
   return isDurableHttpUrl(raw) ? raw : ''
 }
 
+/** Latest Profile Image/Video attachment on this card — not a synced sibling URL. */
+export function latestProfileMediaAttachmentUrl(attachments?: ProfileAttachmentRow[] | null): string {
+  for (const att of attachments || []) {
+    if (attachmentTypeToDisplayField(att.attachmentType?.name) !== 'Profile Image/Video') continue
+    const url = attachmentUrl(att)
+    if (url) return url
+  }
+  return ''
+}
+
 function attachmentFieldLabel(att: ProfileAttachmentRow): string | null {
   return attachmentTypeToDisplayField(att.attachmentType?.name)
 }

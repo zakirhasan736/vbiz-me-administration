@@ -38,7 +38,7 @@ export type TUpdateProfilePayload = {
   password?: string
   currentPassword?: string
   name?: string
-  avatar?: string
+  avatar?: string | null
 }
 
 export type TSetPasswordFormValues = {

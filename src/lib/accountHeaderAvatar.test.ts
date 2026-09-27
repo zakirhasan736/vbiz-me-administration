@@ -14,8 +14,25 @@ describe('resolveAccountHeaderAvatarUrl', () => {
       },
     ] as ApiProfile[]
 
-    expect(resolveAccountHeaderAvatarUrl('https://cdn.example.com/account.jpg', profiles)).toBe(
+    expect(resolveAccountHeaderAvatarUrl('https://cdn.example.com/account.jpg', profiles, 'single')).toBe(
       'https://cdn.example.com/account.jpg'
+    )
+  })
+
+  it('does not use a vCard photo for corporate backoffice', () => {
+    const profiles = [
+      {
+        id: '1',
+        slug: 'a',
+        name: 'A',
+        email: 'a@example.com',
+        avatar: 'https://cdn.example.com/card.jpg',
+      },
+    ] as ApiProfile[]
+
+    expect(resolveAccountHeaderAvatarUrl(null, profiles, 'corporate')).toBeNull()
+    expect(resolveAccountHeaderAvatarUrl('https://cdn.example.com/corp.jpg', profiles, 'corporate')).toBe(
+      'https://cdn.example.com/corp.jpg'
     )
   })
 
@@ -30,7 +47,8 @@ describe('resolveAccountHeaderAvatarUrl', () => {
       },
     ] as ApiProfile[]
 
-    expect(resolveAccountHeaderAvatarUrl(null, profiles)).toBe('https://cdn.example.com/card.jpg')
+    expect(resolveAccountHeaderAvatarUrl(null, profiles, 'single')).toBe('https://cdn.example.com/card.jpg')
+    expect(resolveAccountHeaderAvatarUrl(null, profiles)).toBeNull()
   })
 
   it('falls back to About Me featured image', () => {
@@ -45,7 +63,7 @@ describe('resolveAccountHeaderAvatarUrl', () => {
       },
     ] as ApiProfile[]
 
-    expect(resolveAccountHeaderAvatarUrl(undefined, profiles)).toBe('https://cdn.example.com/about.jpg')
+    expect(resolveAccountHeaderAvatarUrl(undefined, profiles, 'single')).toBe('https://cdn.example.com/about.jpg')
   })
 
   it('returns null when nothing usable exists', () => {

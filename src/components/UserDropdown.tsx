@@ -48,10 +48,10 @@ export function UserDropdown() {
 
   // Owners: reuse cached /profiles list for card avatar / About featured fallback.
   // Staff: never pull admin directory cards into the account button.
-  const { data: profilesResult } = useGetProfilesQuery({ limit: 50 }, { skip: isStaff })
+  const { data: profilesResult } = useGetProfilesQuery({ limit: 50 }, { skip: isStaff || ownerMode !== 'single' })
   const resolvedAvatarSrc = useMemo(
-    () => resolveAccountHeaderAvatarUrl(user?.photoURL, isStaff ? null : profilesResult?.items),
-    [isStaff, profilesResult?.items, user?.photoURL]
+    () => resolveAccountHeaderAvatarUrl(user?.photoURL, isStaff ? null : profilesResult?.items, ownerMode),
+    [isStaff, ownerMode, profilesResult?.items, user?.photoURL]
   )
   const avatarSrc = resolvedAvatarSrc && brokenAvatarSrc !== resolvedAvatarSrc ? resolvedAvatarSrc : null
 

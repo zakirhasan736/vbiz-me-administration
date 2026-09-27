@@ -1,6 +1,7 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import {
   hydrateDisplaySettingsFromProfile,
+  latestProfileMediaAttachmentUrl,
   settingsRowsToMap,
 } from '@/lib/api/myCard/hydrateDisplaySettingsFromProfile'
 import {
@@ -648,12 +649,18 @@ export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
 }
 
 export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
-  const { displaySettings, avatarImageUrl, backgroundImageUrl, explainerVideoUrl } = hydrateDisplaySettingsFromProfile({
+  const {
+    displaySettings,
+    avatarImageUrl: hydratedAvatarUrl,
+    backgroundImageUrl,
+    explainerVideoUrl,
+  } = hydrateDisplaySettingsFromProfile({
     settings: profile.settings,
     attachments: profile.attachments,
     avatar: profile.avatar,
     slug: profile.slug,
   })
+  const avatarImageUrl = latestProfileMediaAttachmentUrl(profile.attachments) || hydratedAvatarUrl
   const settingsMap = settingsRowsToMap(profile.settings)
   const profileTemplate = templateToAppearance(profile.profileSettings?.profileTemplate || profile.template)
   const rawThemeConfig = profile.profileSettings?.themeConfig ?? profile.themeConfig

@@ -2,6 +2,7 @@
 
 import { CanvaConnectRow } from '@/components/canva'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
+import { AccountProfilePhotoEditor } from '@/components/settings/AccountProfilePhotoEditor'
 import { BillingPackagesModal } from '@/components/settings/BillingPackagesModal'
 import ChangePasswordForm from '@/components/settings/ChangePasswordForm'
 import SetPasswordForm from '@/components/settings/SetPasswordForm'
@@ -43,7 +44,6 @@ import {
   User,
 } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type MouseEventHandler, type ReactNode } from 'react'
 
@@ -389,45 +389,12 @@ export default function SettingsDialog() {
           {/* Content Area */}
           <div className="w-full min-w-0 flex-1 space-y-8 pb-20 sm:space-y-10 sm:pb-24 lg:space-y-12 lg:pb-32">
             <Section id="profile" active={activeTab === 'profile'} title="My Profile">
-              <div className="flex w-full min-w-0 flex-col items-start gap-5 rounded-[20px] border border-slate-200/50 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:gap-6 sm:rounded-3xl sm:p-6 dark:border-white/5 dark:bg-white/2">
-                <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
-                  {user?.photoURL ? (
-                    <Image
-                      src={user.photoURL}
-                      alt="Avatar"
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      width={100}
-                      height={100}
-                    />
-                  ) : (
-                    <User className="h-8 w-8 text-slate-400 dark:text-slate-500" />
-                  )}
-                  <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-900/40 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
-                    <span className="text-[11px] font-bold tracking-wider text-white uppercase">Change</span>
-                  </div>
-                </div>
-                <div className="w-full min-w-0 sm:flex-1">
-                  <h4 className="mb-1 truncate text-lg leading-tight font-black tracking-tight text-slate-900 sm:text-[20px] dark:text-white">
-                    {user?.displayName || 'User'}
-                  </h4>
-                  <p className="mb-4 truncate text-[13px] font-medium text-slate-500 sm:text-[14px] dark:text-slate-400">
-                    {user?.email}
-                  </p>
-                  <div className="flex flex-wrap gap-2 sm:gap-3">
-                    <Button type="button" variant="secondary" size="sm" className="h-10 px-4 font-bold sm:px-5">
-                      Upload new
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-10 px-4 font-bold text-slate-500 hover:bg-red-50 hover:text-red-600 sm:px-5 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <AccountProfilePhotoEditor
+                displayName={user?.displayName || 'User'}
+                email={user?.email || null}
+                accountAvatar={user?.photoURL || null}
+                disabled={!canPerformAccountActions}
+              />
 
               <div className="space-y-6">
                 <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
