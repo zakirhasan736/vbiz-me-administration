@@ -273,7 +273,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                   <button
                     type="button"
                     onClick={() => setOpenIndex(isOpen ? null : index)}
-                    className="relative z-10 flex w-full cursor-pointer items-center justify-between p-6 text-left focus:outline-none lg:p-8"
+                    className="relative z-10 flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left focus:outline-none lg:px-6 lg:py-4"
                   >
                     {faq.question.trim() ? (
                       <h4
@@ -298,7 +298,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <div className="vcard-faq-answer vcard-rich-html prose prose-sm max-w-none border-t border-zinc-200 px-6 pt-6 pb-8 text-[16.9px] leading-relaxed font-medium md:text-[19.4px] lg:px-8 dark:border-zinc-800/50">
+                        <div className="vcard-faq-answer vcard-rich-html prose prose-sm max-w-none border-t border-zinc-200 px-5 py-3 text-[16.9px] leading-relaxed font-medium md:text-[19.4px] lg:px-6 lg:py-4 dark:border-zinc-800/50">
                           <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
                           <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
                         </div>

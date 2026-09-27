@@ -2,6 +2,7 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { OneOnOneScheduleModal } from '@/components/admin/OneOnOneScheduleModal'
+import { Pagination } from '@/components/ui'
 import type { OneOnOneRequest, Propose1On1SlotsPayload } from '@/redux/features/oneOnOne/oneOnOne.api'
 import {
   useCancelOneOnOneMeetingMutation,
@@ -11,7 +12,9 @@ import {
 } from '@/redux/features/oneOnOne/oneOnOne.api'
 import { cn } from '@/utils/cn'
 import { ChevronDown, ChevronUp, Clock, Mail, MessageCircle, Phone } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+
+const PAGE_SIZE = 8
 
 type Props = {
   className?: string
@@ -43,7 +46,7 @@ function statusLabel(request: OneOnOneRequest) {
 }
 
 export function OneOnOneRequestsPanel({ className }: Props) {
-  const { data, isLoading } = useListOpenOneOnOneRequestsQuery(undefined, { refetchOnMountOrArgChange: true })
+  const [page, setPage] = useState(1)
   const [scheduleRequest, setScheduleRequest] = useState<OneOnOneRequest | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [confirmState, setConfirmState] = useState<{
@@ -58,7 +61,29 @@ export function OneOnOneRequestsPanel({ className }: Props) {
   const [cancelMeeting] = useCancelOneOnOneMeetingMutation()
   const [completeMeeting] = useCompleteOneOnOneMeetingMutation()
 
-  const items = data?.items ?? []
+  const { data: requestedPage, isLoading: requestedLoading } = useListOpenOneOnOneRequestsQuery(
+    { skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE },
+    { refetchOnMountOrArgChange: true }
+  )
+  const total = requestedPage?.total ?? 0
+  const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1)
+  const safePage = Math.min(page, maxPage)
+  const pageIsPastEnd = total > 0 && page > maxPage
+  const { data: lastPage, isLoading: lastPageLoading } = useListOpenOneOnOneRequestsQuery(
+    { skip: (safePage - 1) * PAGE_SIZE, limit: PAGE_SIZE },
+    { skip: !pageIsPastEnd, refetchOnMountOrArgChange: true }
+  )
+  const data = pageIsPastEnd ? lastPage : requestedPage
+  const isLoading = pageIsPastEnd ? lastPageLoading : requestedLoading
+  const items = useMemo(
+    () => [...(data?.items ?? [])].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+    [data?.items]
+  )
+
+  const handlePageChange = (nextPage: number) => {
+    setExpandedId(null)
+    setPage(Math.max(1, Math.min(nextPage, maxPage)))
+  }
 
   const handleSchedule = async (payload: Propose1On1SlotsPayload) => {
     await scheduleMeeting(payload).unwrap()
@@ -183,7 +208,13 @@ export function OneOnOneRequestsPanel({ className }: Props) {
             enabled).
           </p>
         </div>
-        {isLoading ? <div className="h-8 w-8 animate-pulse rounded-full bg-slate-200 dark:bg-white/10" /> : null}
+        {isLoading ? (
+          <div className="h-8 w-8 animate-pulse rounded-full bg-slate-200 dark:bg-white/10" />
+        ) : (
+          <span className="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-black tracking-wider text-slate-500 uppercase dark:bg-white/10 dark:text-slate-400">
+            {total} total
+          </span>
+        )}
       </div>
 
       <div className="divide-y divide-slate-100 dark:divide-white/5">
@@ -280,6 +311,12 @@ export function OneOnOneRequestsPanel({ className }: Props) {
           })
         )}
       </div>
+
+      {!isLoading && total > PAGE_SIZE ? (
+        <div className="border-t border-slate-100 px-5 py-3 dark:border-white/5">
+          <Pagination page={safePage} total={total} pageSize={PAGE_SIZE} onPageChange={handlePageChange} />
+        </div>
+      ) : null}
 
       {scheduleRequest ? (
         <OneOnOneScheduleModal

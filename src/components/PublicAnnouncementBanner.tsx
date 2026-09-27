@@ -42,6 +42,8 @@ function isShowPublicBanner(value: Announcement | null | undefined): value is An
   if (!value.title?.trim() && !value.body?.trim()) return false
   if (value.meta?.channel === 'inbox') return false
   if (value.meta?.showPublic !== '1') return false
+  if (value.targetType !== 'all') return false
+  if (value.meta?.source === 'card_notice') return false
   return true
 }
 
@@ -73,64 +75,17 @@ function bannerFromTeamNotice(value: MyCardTeamNotice | null | undefined): Annou
   }
 }
 
-type Props = {
-  /** Prefer explicit id; falls back to CardScopeProvider. */
-  profileId?: string
-  /** chrome = under nav pill; mobileTop = fixed top strip on small screens. */
-  placement?: 'chrome' | 'mobileTop'
+type BannerStripProps = {
+  banner: Announcement
+  placement: 'chrome' | 'mobileTop'
   className?: string
+  onDismiss: () => void
 }
 
-export default function PublicAnnouncementBanner({ profileId, placement = 'chrome', className }: Props) {
-  const scopeId = useCardScopeId()
-  const { activeSectionId } = useProfileNavigation()
-  const trimmed = String(profileId ?? scopeId ?? '').trim()
-  const visitorId = useMemo(() => getOrCreateGuestId(), [])
-  const [dismissAnnouncement] = useDismissPublicProfileAnnouncementMutation()
-  const [dismissTeamNotice] = useDismissPublicProfileTeamNoticeMutation()
-  const [dismissedId, setDismissedId] = useState<string | null>(null)
+function BannerStrip({ banner, placement, className, onDismiss }: BannerStripProps) {
   const [expanded, setExpanded] = useState(false)
-  const skip = !trimmed || activeSectionId !== 'home'
-  const queryOpts = {
-    skip,
-    pollingInterval: 120_000,
-    refetchOnMountOrArgChange: 60,
-    refetchOnFocus: false,
-    refetchOnReconnect: true,
-  }
-  const { data, isFetching } = useGetPublicProfileAnnouncementQuery({ profileId: trimmed, visitorId }, queryOpts)
-  const { data: teamNotice, isFetching: isFetchingNotice } = useGetPublicProfileTeamNoticeQuery(
-    { profileId: trimmed, visitorId, origin: 'admin' },
-    queryOpts
-  )
-
-  const cardNoticeBanner = bannerFromTeamNotice(teamNotice)
-  const globalBanner = isShowPublicBanner(data) ? data : null
-  const banner = cardNoticeBanner ?? globalBanner
-  const bannerSource = cardNoticeBanner ? 'team_notice' : 'announcement'
-  const isDismissed = Boolean(banner?.id && dismissedId === banner.id)
-  const isLongBody = (banner?.body?.trim().length ?? 0) > 140
-
-  if (activeSectionId !== 'home') return null
-  if (!banner || isDismissed) return null
-  if ((isFetching || isFetchingNotice) && !banner) return null
-
-  const handleDismiss = async () => {
-    if (!banner) return
-    setDismissedId(banner.id)
-    try {
-      if (bannerSource === 'team_notice') {
-        await dismissTeamNotice({ profileId: trimmed, noticeId: banner.id, visitorId }).unwrap()
-      } else {
-        await dismissAnnouncement({ profileId: trimmed, announcementId: banner.id, visitorId }).unwrap()
-      }
-    } catch {
-      setDismissedId(null)
-    }
-  }
-
+  const isLongBody = (banner.body?.trim().length ?? 0) > 140
   const bodyClassName = expanded || !isLongBody ? '' : 'line-clamp-2'
-
   const styles = typeStyles[banner.type] ?? typeStyles.info
   const Icon = styles.Icon
   const ariaRole = banner.type === 'warning' ? 'alert' : 'status'
@@ -175,13 +130,87 @@ export default function PublicAnnouncementBanner({ profileId, placement = 'chrom
         </div>
         <button
           type="button"
-          onClick={() => void handleDismiss()}
+          onClick={onDismiss}
           className={cn('shrink-0 rounded-xl p-1.5 transition-colors', styles.button)}
           aria-label="Dismiss announcement"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  )
+}
+
+type Props = {
+  /** Prefer explicit id; falls back to CardScopeProvider. */
+  profileId?: string
+  /** chrome = under nav pill; mobileTop = fixed top strip on small screens. */
+  placement?: 'chrome' | 'mobileTop'
+  className?: string
+}
+
+export default function PublicAnnouncementBanner({ profileId, placement = 'chrome', className }: Props) {
+  const scopeId = useCardScopeId()
+  const { activeSectionId } = useProfileNavigation()
+  const trimmed = String(profileId ?? scopeId ?? '').trim()
+  const visitorId = useMemo(() => getOrCreateGuestId(), [])
+  const [dismissAnnouncement] = useDismissPublicProfileAnnouncementMutation()
+  const [dismissTeamNotice] = useDismissPublicProfileTeamNoticeMutation()
+  const [dismissedIds, setDismissedIds] = useState<string[]>([])
+  const skip = !trimmed || activeSectionId !== 'home'
+  const queryOpts = {
+    skip,
+    pollingInterval: 120_000,
+    refetchOnMountOrArgChange: 60,
+    refetchOnFocus: false,
+    refetchOnReconnect: true,
+  }
+  const { data, isFetching } = useGetPublicProfileAnnouncementQuery({ profileId: trimmed, visitorId }, queryOpts)
+  const { data: teamNotice, isFetching: isFetchingNotice } = useGetPublicProfileTeamNoticeQuery(
+    { profileId: trimmed, visitorId, origin: 'admin' },
+    queryOpts
+  )
+
+  const cardNoticeBanner = bannerFromTeamNotice(teamNotice)
+  const globalBanner = isShowPublicBanner(data) ? data : null
+  const visibleGlobal = globalBanner && !dismissedIds.includes(globalBanner.id) ? globalBanner : null
+  const visibleCard = cardNoticeBanner && !dismissedIds.includes(cardNoticeBanner.id) ? cardNoticeBanner : null
+
+  if (activeSectionId !== 'home') return null
+  if ((isFetching || isFetchingNotice) && !visibleGlobal && !visibleCard) return null
+  if (!visibleGlobal && !visibleCard) return null
+
+  const dismiss = async (banner: Announcement, source: 'team_notice' | 'announcement') => {
+    setDismissedIds((ids) => (ids.includes(banner.id) ? ids : [...ids, banner.id]))
+    try {
+      if (source === 'team_notice') {
+        await dismissTeamNotice({ profileId: trimmed, noticeId: banner.id, visitorId }).unwrap()
+      } else {
+        await dismissAnnouncement({ profileId: trimmed, announcementId: banner.id, visitorId }).unwrap()
+      }
+    } catch {
+      setDismissedIds((ids) => ids.filter((id) => id !== banner.id))
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {visibleGlobal ? (
+        <BannerStrip
+          banner={visibleGlobal}
+          placement={placement}
+          className={className}
+          onDismiss={() => void dismiss(visibleGlobal, 'announcement')}
+        />
+      ) : null}
+      {visibleCard ? (
+        <BannerStrip
+          banner={visibleCard}
+          placement={placement}
+          className={className}
+          onDismiss={() => void dismiss(visibleCard, 'team_notice')}
+        />
+      ) : null}
     </div>
   )
 }

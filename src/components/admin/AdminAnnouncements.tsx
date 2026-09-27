@@ -13,6 +13,13 @@ import {
 import ProfileOwnerPicker, { type ProfileOwnerSelection } from '@/components/admin/ProfileOwnerPicker'
 import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { describeAnnouncementAudience } from '@/lib/announcementAudience'
+import {
+  announcementListStatusLabel,
+  isGlobalAnnouncementHistory,
+  isLiveGlobalPublicBanner,
+  isNoticeListItem,
+  isWarningListItem,
+} from '@/lib/announcementListFilters'
 import { notifyOwners } from '@/lib/notifications'
 import { meetLinkLabel } from '@/lib/scheduleMeetingNotifications'
 import { submitScheduleMeeting } from '@/lib/submitScheduleMeeting'
@@ -53,15 +60,6 @@ function defaultTitle(type: AnnouncementType): string {
   if (type === 'warning') return 'Warning notice'
   if (type === 'success') return 'Success notice'
   return 'Info announcement'
-}
-
-/** Same surfaces public cards can still render after Clear. */
-function isLivePublicBanner(notice: Announcement) {
-  return (
-    notice.status === 'active' &&
-    notice.meta?.channel !== 'inbox' &&
-    (notice.targetType === 'all' || notice.meta?.showPublic === '1')
-  )
 }
 
 function AnnouncementAudienceBadges({ notice }: { notice: Announcement }) {
@@ -121,13 +119,7 @@ export default function AdminAnnouncements() {
   const meetings = useMemo(() => meetingsPage?.items ?? [], [meetingsPage?.items])
 
   const history = useMemo(() => announcementsPage?.items ?? [], [announcementsPage?.items])
-  const liveAnnouncement = useMemo(
-    () =>
-      history.find((notice) => isLivePublicBanner(notice) && notice.targetType === 'all') ??
-      history.find((notice) => isLivePublicBanner(notice)) ??
-      null,
-    [history]
-  )
+  const liveAnnouncement = useMemo(() => history.find((row) => isLiveGlobalPublicBanner(row)) ?? null, [history])
 
   const [bannerDraft, setBannerDraft] = useState<BannerDraft | null>(null)
   const [isSaved, setIsSaved] = useState(false)
@@ -188,12 +180,10 @@ export default function AdminAnnouncements() {
     onConfirm: () => void
   } | null>(null)
 
-  const isInboxOnly = (notice: Announcement) => notice.meta?.channel === 'inbox'
-
   const recentPublishes = useMemo(
     () =>
       [...history]
-        .filter((notice) => !isInboxOnly(notice))
+        .filter((row) => isGlobalAnnouncementHistory(row))
         .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
     [history]
   )
@@ -201,17 +191,17 @@ export default function AdminAnnouncements() {
   const warningItems = useMemo(
     () =>
       history
-        .filter((notice) => notice.kind === 'warning' || notice.type === 'warning')
+        .filter((row) => isWarningListItem(row, liveAnnouncement?.id))
         .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
-    [history]
+    [history, liveAnnouncement?.id]
   )
 
   const noticeItems = useMemo(
     () =>
       history
-        .filter((notice) => notice.kind !== 'warning' && notice.type !== 'warning')
+        .filter((row) => isNoticeListItem(row, liveAnnouncement?.id))
         .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
-    [history]
+    [history, liveAnnouncement?.id]
   )
 
   const upcomingMeetings = useMemo(
@@ -318,7 +308,8 @@ export default function AdminAnnouncements() {
     setBusyAnnouncementId(id)
     try {
       await updateAnnouncement({ id, body: { status: 'archived' } }).unwrap()
-      notify.success('Announcement paused.')
+      if (id === liveAnnouncement?.id && !editingAnnouncementId) resetBannerEditor()
+      notify.success('Announcement paused. It is hidden from public cards.')
     } catch {
       notify.error('Could not pause this announcement.')
     } finally {
@@ -342,7 +333,7 @@ export default function AdminAnnouncements() {
     setConfirmState({
       open: true,
       title: 'Delete notice?',
-      description: `Permanently delete “${notice.title}”?`,
+      description: `Permanently remove “${notice.title}”? This cannot be restored.`,
       onConfirm: () => {
         void (async () => {
           try {
@@ -436,7 +427,8 @@ export default function AdminAnnouncements() {
             Global Announcements
           </h1>
           <p className="mt-1 text-sm font-semibold text-slate-500">
-            Manage live banners, warning notices, and upcoming events for single and corporate owners.
+            One live global banner, separate announcement lists, and upcoming events. Single-card banners stay on each
+            card.
           </p>
         </div>
         {announcementsLoading ? (
@@ -491,7 +483,7 @@ export default function AdminAnnouncements() {
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
                   {editingAnnouncementId
                     ? 'Update this publish without changing whether it is active or paused.'
-                    : 'Shown on single and corporate owner dashboards. Owners also get an inbox notification.'}
+                    : 'Pushes one public banner for every card. Lists, warnings, and events stay on their own tabs.'}
                 </p>
               </div>
               {editingAnnouncementId && (
@@ -659,7 +651,7 @@ export default function AdminAnnouncements() {
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white">Recent publishes</h3>
                   <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
-                    Global and single-card notices — edit any item to update it.
+                    Global banner history only. Pause hides it from public cards. Delete removes it permanently.
                   </p>
                 </div>
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
@@ -670,7 +662,7 @@ export default function AdminAnnouncements() {
                 {announcementsLoading ? (
                   <RecentPublishesListSkeleton />
                 ) : recentPublishes.length === 0 ? (
-                  <p className="py-6 text-center text-xs font-semibold text-slate-400">No notices published yet</p>
+                  <p className="py-6 text-center text-xs font-semibold text-slate-400">No global banners yet</p>
                 ) : (
                   recentPublishes.map((n) => (
                     <div
@@ -697,7 +689,7 @@ export default function AdminAnnouncements() {
                                 : 'bg-slate-200/70 text-slate-500 dark:bg-white/10'
                             )}
                           >
-                            {n.status === 'active' ? 'Live' : 'Paused'}
+                            {announcementListStatusLabel(n)}
                           </span>
                           <AnnouncementAudienceBadges notice={n} />
                         </div>
@@ -728,7 +720,8 @@ export default function AdminAnnouncements() {
                   Warnings
                 </h2>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                  Every warning notice — labeled Global or Single card. Edit, pause, reactivate, or delete.
+                  Warning history only — the current live banner stays on Live Banner. Pause hides it; delete removes
+                  it.
                 </p>
               </div>
               {announcementsLoading ? (
@@ -743,7 +736,7 @@ export default function AdminAnnouncements() {
               <WarningsNoticesListSkeleton />
             ) : warningItems.length === 0 ? (
               <p className="py-12 text-center text-sm font-semibold text-slate-400">
-                No warnings yet — publish a warning from Live Banner.
+                No other warnings — the current live banner is managed on Live Banner.
               </p>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-white/5">
@@ -762,7 +755,7 @@ export default function AdminAnnouncements() {
                               : 'bg-slate-100 text-slate-500 dark:bg-white/10'
                           )}
                         >
-                          {n.status === 'active' ? 'Live' : 'Paused'}
+                          {announcementListStatusLabel(n)}
                         </span>
                         <AnnouncementAudienceBadges notice={n} />
                         <span className="text-[10px] font-semibold text-slate-400">
@@ -787,7 +780,7 @@ export default function AdminAnnouncements() {
                   Notices
                 </h2>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                  Info and success notices — labeled Global or Single card. Edit, pause, reactivate, or delete.
+                  Info and success history — not the current live banner. Pause hides it; delete removes it.
                 </p>
               </div>
               <span className="inline-flex shrink-0 items-center self-start rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[11px] leading-none font-black tracking-wider whitespace-nowrap text-indigo-600 uppercase">
@@ -798,7 +791,7 @@ export default function AdminAnnouncements() {
               <WarningsNoticesListSkeleton />
             ) : noticeItems.length === 0 ? (
               <p className="py-12 text-center text-sm font-semibold text-slate-400">
-                No notices yet — publish info or success from Live Banner.
+                No other notices — the current live banner is managed on Live Banner.
               </p>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-white/5">
@@ -824,7 +817,7 @@ export default function AdminAnnouncements() {
                               : 'bg-slate-100 text-slate-500 dark:bg-white/10'
                           )}
                         >
-                          {n.status === 'active' ? 'Live' : 'Paused'}
+                          {announcementListStatusLabel(n)}
                         </span>
                         <AnnouncementAudienceBadges notice={n} />
                         <span className="text-[10px] font-semibold text-slate-400">
@@ -844,84 +837,106 @@ export default function AdminAnnouncements() {
       )}
 
       {tab === 'events' && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="space-y-4 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-5 dark:border-white/10 dark:bg-[#0b0f19]">
-            <div>
-              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
-                <Plus className="h-4 w-4 text-teal-600" />
-                Schedule upcoming event
-              </h2>
-              <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                Same flow as card list, dashboard, and calendar — Zoho Calendar, meeting link, push, and email.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowScheduleModal(true)}
-              className="w-full rounded-xl bg-slate-950 py-3 text-[10px] font-black tracking-wider text-white uppercase hover:bg-slate-800 dark:bg-teal-500 dark:text-slate-950"
-            >
-              Book session
-            </button>
+        <div className="space-y-6">
+          <div
+            className={cn(
+              'rounded-[28px] border p-5',
+              liveAnnouncement?.type === 'warning'
+                ? 'border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10'
+                : liveAnnouncement?.type === 'success'
+                  ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10'
+                  : 'border-indigo-200 bg-indigo-50 dark:border-indigo-500/20 dark:bg-indigo-500/10'
+            )}
+          >
+            <p className="mb-2 text-[10px] font-black tracking-wider text-slate-500 uppercase">Live global banner</p>
+            {announcementsLoading ? (
+              <AnnouncementsPreviewSkeleton />
+            ) : liveAnnouncement ? (
+              <p className="text-sm font-bold text-slate-900 dark:text-white">{liveAnnouncement.body}</p>
+            ) : (
+              <p className="text-sm font-semibold text-slate-400">No live global banner. Push one from Live Banner.</p>
+            )}
           </div>
 
-          <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-7 dark:border-white/10 dark:bg-[#0b0f19]">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <h2 className="flex min-w-0 items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
-                <Clock className="h-4 w-4 shrink-0 text-indigo-500" />
-                Upcoming events
-              </h2>
-              {meetingsLoading ? (
-                <EventsCountSkeleton />
-              ) : (
-                <span className="inline-flex shrink-0 items-center self-start rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[11px] leading-none font-black tracking-wider whitespace-nowrap text-indigo-600 uppercase">
-                  {upcomingMeetings.length} scheduled
-                </span>
-              )}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div className="space-y-4 rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-5 dark:border-white/10 dark:bg-[#0b0f19]">
+              <div>
+                <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
+                  <Plus className="h-4 w-4 text-teal-600" />
+                  Schedule upcoming event
+                </h2>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                  Same flow as card list, dashboard, and calendar — Zoho Calendar, meeting link, push, and email.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(true)}
+                className="w-full rounded-xl bg-slate-950 py-3 text-[10px] font-black tracking-wider text-white uppercase hover:bg-slate-800 dark:bg-teal-500 dark:text-slate-950"
+              >
+                Book session
+              </button>
             </div>
-            <div className="space-y-3 overflow-y-auto">
-              {meetingsLoading ? (
-                <UpcomingEventsListSkeleton />
-              ) : upcomingMeetings.length === 0 ? (
-                <p className="py-16 text-center text-sm font-semibold text-slate-400">No upcoming events scheduled</p>
-              ) : (
-                upcomingMeetings.map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex flex-col justify-between gap-3 rounded-2xl border border-indigo-500/15 bg-indigo-500/5 p-4 sm:flex-row sm:items-center dark:bg-indigo-500/10"
-                  >
-                    <div>
-                      <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-400">
-                        {m.type}
-                      </p>
-                      <p className="mt-0.5 text-sm font-black text-slate-900 dark:text-white">{m.host}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {m.date} · {m.time}
-                        {m.notes ? ` · ${m.notes}` : ''}
-                        {m.meetLink ? (
-                          <>
-                            {' · '}
-                            <a
-                              href={m.meetLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-indigo-600 hover:underline dark:text-indigo-400"
-                            >
-                              {meetLinkLabel(m.meetLink) || 'Meeting'}
-                            </a>
-                          </>
-                        ) : null}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCancelMeeting(m.id)}
-                      className="self-start rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-black tracking-wider text-rose-600 uppercase dark:bg-rose-500/10"
+
+            <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-7 dark:border-white/10 dark:bg-[#0b0f19]">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <h2 className="flex min-w-0 items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
+                  <Clock className="h-4 w-4 shrink-0 text-indigo-500" />
+                  Upcoming events
+                </h2>
+                {meetingsLoading ? (
+                  <EventsCountSkeleton />
+                ) : (
+                  <span className="inline-flex shrink-0 items-center self-start rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[11px] leading-none font-black tracking-wider whitespace-nowrap text-indigo-600 uppercase">
+                    {upcomingMeetings.length} scheduled
+                  </span>
+                )}
+              </div>
+              <div className="space-y-3 overflow-y-auto">
+                {meetingsLoading ? (
+                  <UpcomingEventsListSkeleton />
+                ) : upcomingMeetings.length === 0 ? (
+                  <p className="py-16 text-center text-sm font-semibold text-slate-400">No upcoming events scheduled</p>
+                ) : (
+                  upcomingMeetings.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex flex-col justify-between gap-3 rounded-2xl border border-indigo-500/15 bg-indigo-500/5 p-4 sm:flex-row sm:items-center dark:bg-indigo-500/10"
                     >
-                      Cancel
-                    </button>
-                  </div>
-                ))
-              )}
+                      <div>
+                        <p className="text-[10px] font-black tracking-wider text-indigo-600 uppercase dark:text-indigo-400">
+                          {m.type}
+                        </p>
+                        <p className="mt-0.5 text-sm font-black text-slate-900 dark:text-white">{m.host}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          {m.date} · {m.time}
+                          {m.notes ? ` · ${m.notes}` : ''}
+                          {m.meetLink ? (
+                            <>
+                              {' · '}
+                              <a
+                                href={m.meetLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-indigo-600 hover:underline dark:text-indigo-400"
+                              >
+                                {meetLinkLabel(m.meetLink) || 'Meeting'}
+                              </a>
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelMeeting(m.id)}
+                        className="self-start rounded-xl bg-rose-50 px-3 py-2 text-[10px] font-black tracking-wider text-rose-600 uppercase dark:bg-rose-500/10"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>

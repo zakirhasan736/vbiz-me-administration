@@ -85,6 +85,12 @@ export type OneOnOneScheduleResult = {
   guestPickUrl?: string
 }
 
+export type OpenRequestsQuery = {
+  skip?: number
+  limit?: number
+  status?: string
+}
+
 export type OpenRequestsPage = {
   items: OneOnOneRequest[]
   total: number
@@ -109,8 +115,15 @@ export type GuestMeetingView = {
 const oneOnOneApi = api.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
-    listOpenOneOnOneRequests: builder.query<OpenRequestsPage, void>({
-      query: () => '/one-on-one/open',
+    listOpenOneOnOneRequests: builder.query<OpenRequestsPage, OpenRequestsQuery | void>({
+      query: (args) => ({
+        url: '/one-on-one/open',
+        params: {
+          skip: args?.skip ?? 0,
+          limit: args?.limit ?? 8,
+          ...(args?.status ? { status: args.status } : {}),
+        },
+      }),
       transformResponse: (res: Envelope<OpenRequestsPage>) => res.data,
       providesTags: [{ type: 'meetings', id: 'ONE_ON_ONE_LIST' }],
     }),
