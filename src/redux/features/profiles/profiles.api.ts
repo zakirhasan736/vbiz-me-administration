@@ -36,6 +36,20 @@ import { updateVCard } from '@/redux/features/vcards/vcards.slice'
 import type { VCardCustomTab, VCardData, VCardFaqEntry, VCardGeneralPost, VCardRecord } from '@/types/vcard'
 import { createDefaultVCardData } from '@/types/vcard'
 
+export type CardChangeHealth = {
+  tabs: number
+  services: number
+  faqs: number
+  gallery: number
+  portfolio: number
+  blogs: number
+  reviews: number
+  education: number
+  experience: number
+  aboutMe: number
+  avatar: number
+}
+
 export type CardChangeHistoryItem = {
   id: string
   area: string
@@ -44,8 +58,14 @@ export type CardChangeHistoryItem = {
   summary: string
   actorName: string
   actorRoleLabel: string
+  actorEmail?: string
   device: string
   location: string
+  ip?: string
+  country?: string
+  countryName?: string
+  health?: CardChangeHealth | null
+  healthLabel?: string
   canRestore: boolean
   restoreExpired: boolean
   restoredAt: string | null

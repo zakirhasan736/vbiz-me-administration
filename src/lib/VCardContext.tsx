@@ -107,6 +107,30 @@ type DirtyBucket =
   | 'posts'
   | 'aboutMe'
 
+function collectionCountForBucket(data: VCardData, bucket: DirtyBucket): number {
+  if (bucket === 'education') return persistableEducation(data.education).length
+  if (bucket === 'experience') return persistableExperience(data.experience).length
+  if (bucket === 'services') return persistableServices(data.services).length
+  if (bucket === 'portfolio') return persistablePortfolio(data.portfolio).length
+  if (bucket === 'reviews') return persistableReviews(data.reviews).length
+  if (bucket === 'skills') return persistableSkills(data.skills).length
+  if (bucket === 'posts') {
+    const sectionCount = Object.values(persistableSectionPosts(data.sectionPosts)).reduce(
+      (count, items) => count + items.length,
+      0
+    )
+    return persistableFaqs(data.faqs).length + persistableGeneralPosts(data.generalPosts).length + sectionCount
+  }
+  return -1
+}
+
+/** Pending-save after reload can hold empty local lists while GET still has live rows. Never flush that wipe. */
+function isStaleEmptyCollectionPending(bucket: DirtyBucket, local: VCardData, saved: VCardData): boolean {
+  const localCount = collectionCountForBucket(local, bucket)
+  const savedCount = collectionCountForBucket(saved, bucket)
+  return localCount === 0 && savedCount > 0
+}
+
 const ALL_DIRTY_BUCKETS: DirtyBucket[] = [
   'profile',
   'education',
@@ -445,7 +469,10 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       editDataRef.current = localData
       lastSavedDataRef.current = mappedData
       lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(mappedData))
-      for (const bucket of pending.buckets) dirtyBucketsRef.current.add(bucket)
+      for (const bucket of pending.buckets) {
+        if (isStaleEmptyCollectionPending(bucket, localData, mappedData)) continue
+        dirtyBucketsRef.current.add(bucket)
+      }
       saveGateRef.current.dirty = true
       dispatch(addVCard({ id: profileId, seed: localData }))
       dispatch(updateVCard({ id: profileId, patch: { ...metaPatch, createdAt: mapped.createdAt } }))

@@ -62,7 +62,7 @@ describe('omitUnchangedCorporateSharedSettings', () => {
       saved
     )
     expect(omitted[TAB_LABEL_OVERRIDES_SETTING_KEY]).toBe(JSON.stringify({ services: 'Our Services' }))
-    expect(omitted[EXTRA_FIELDS_SETTING_KEY]).toBe('[]')
+    expect(omitted[EXTRA_FIELDS_SETTING_KEY]).toBeUndefined()
 
     const unchanged = omitUnchangedCorporateSharedSettings(
       { [TAB_LABEL_OVERRIDES_SETTING_KEY]: JSON.stringify(saved.tabLabelOverrides) },

@@ -92,6 +92,7 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
                   <div>
                     <span className="text-slate-400">Who: </span>
                     {row.actorName} · {row.actorRoleLabel}
+                    {row.actorEmail ? ` · ${row.actorEmail}` : ''}
                   </div>
                   <div>
                     <span className="text-slate-400">Device: </span>
@@ -101,7 +102,25 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
                     <span className="text-slate-400">Location: </span>
                     {row.location}
                   </div>
+                  {row.ip ? (
+                    <div>
+                      <span className="text-slate-400">IP: </span>
+                      {row.ip}
+                    </div>
+                  ) : null}
+                  {row.countryName || row.country ? (
+                    <div>
+                      <span className="text-slate-400">Country: </span>
+                      {row.countryName || row.country}
+                      {row.countryName && row.country ? ` (${row.country})` : ''}
+                    </div>
+                  ) : null}
                 </dl>
+                {row.healthLabel ? (
+                  <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 dark:bg-white/5 dark:text-slate-300">
+                    Card status: {row.healthLabel}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
