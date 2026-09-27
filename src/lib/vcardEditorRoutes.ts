@@ -14,6 +14,7 @@ export const SETTINGS_TAB_IDS = [
   'integration',
   'template',
   'seo',
+  'history',
   'ai-assistance',
 ] as const
 

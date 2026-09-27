@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { hasAboutMeDraftContent } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
 import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
+import { omitUnchangedCorporateSharedSettings } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
 import {
   collectVCardActivationProblems,
@@ -667,6 +668,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
 
       if (buckets.has('profile')) {
         const payload = mapVCardDataToProfilePayload(data)
+        payload.settings = omitUnchangedCorporateSharedSettings(payload.settings, data, saved)
         const payloadJson = JSON.stringify(payload)
         if (payloadJson === lastSavedProfilePayloadRef.current) {
           buckets.delete('profile')
@@ -697,6 +699,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const items = persistableEducation(data.education)
         if (saved && JSON.stringify(persistableEducation(saved.education)) === JSON.stringify(items)) {
           buckets.delete('education')
+        } else if (items.length === 0 && (!saved || persistableEducation(saved.education).length === 0)) {
+          buckets.delete('education')
         } else {
           wroteChanges = true
           tasks.push(
@@ -716,6 +720,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (buckets.has('experience')) {
         const items = persistableExperience(data.experience)
         if (saved && JSON.stringify(persistableExperience(saved.experience)) === JSON.stringify(items)) {
+          buckets.delete('experience')
+        } else if (items.length === 0 && (!saved || persistableExperience(saved.experience).length === 0)) {
           buckets.delete('experience')
         } else {
           wroteChanges = true
@@ -738,6 +744,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const items = persistableServices(data.services)
         if (saved && JSON.stringify(persistableServices(saved.services)) === JSON.stringify(items)) {
           buckets.delete('services')
+        } else if (items.length === 0 && (!saved || persistableServices(saved.services).length === 0)) {
+          buckets.delete('services')
         } else {
           wroteChanges = true
           tasks.push(
@@ -757,6 +765,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (buckets.has('portfolio')) {
         const items = persistablePortfolio(data.portfolio)
         if (saved && JSON.stringify(persistablePortfolio(saved.portfolio)) === JSON.stringify(items)) {
+          buckets.delete('portfolio')
+        } else if (items.length === 0 && (!saved || persistablePortfolio(saved.portfolio).length === 0)) {
           buckets.delete('portfolio')
         } else {
           wroteChanges = true
@@ -779,6 +789,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         const items = persistableReviews(data.reviews)
         if (saved && JSON.stringify(persistableReviews(saved.reviews)) === JSON.stringify(items)) {
           buckets.delete('reviews')
+        } else if (items.length === 0 && (!saved || persistableReviews(saved.reviews).length === 0)) {
+          buckets.delete('reviews')
         } else {
           wroteChanges = true
           tasks.push(
@@ -799,6 +811,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (buckets.has('skills')) {
         const items = persistableSkills(data.skills)
         if (saved && JSON.stringify(persistableSkills(saved.skills)) === JSON.stringify(items)) {
+          buckets.delete('skills')
+        } else if (items.length === 0 && (!saved || persistableSkills(saved.skills).length === 0)) {
           buckets.delete('skills')
         } else {
           wroteChanges = true

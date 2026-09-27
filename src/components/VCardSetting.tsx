@@ -4,6 +4,7 @@ import { CanvaConnectRow } from '@/components/canva'
 import { CardAvatarThumb, isAvatarVideoSrc } from '@/components/CardAvatarThumb'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { Button, Modal, Switch } from '@/components/ui'
+import { CardChangeHistoryPanel } from '@/components/vcard/CardChangeHistoryPanel'
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
@@ -84,6 +85,7 @@ import {
   Crown,
   FileText,
   Globe,
+  History,
   Home,
   Image as ImageIcon,
   LayoutTemplate,
@@ -113,12 +115,13 @@ const settingTabs = [
   { id: 'integration', label: 'Integration', icon: Plug },
   { id: 'template', label: 'Template Settings', icon: LayoutTemplate },
   { id: 'seo', label: 'SEO', icon: Search },
+  { id: 'history', label: 'History', icon: History },
 ]
 
 const cardInputClasses =
   'w-full rounded-[.875rem] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[.8125rem] font-medium text-slate-900 shadow-sm outline-none transition-all focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-slate-800 dark:text-white'
 
-const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'seo', 'integration', 'ai-assistance'])
+const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'seo', 'integration', 'ai-assistance', 'history'])
 const FIELD_CARD_TABS = new Set(['info', 'social', 'icons', 'general', 'home'])
 
 const settingTabTourIds: Record<string, string> = {
@@ -1942,6 +1945,8 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         return <CardIntegrationsPanel />
       case 'seo':
         return <CardSeoPanel />
+      case 'history':
+        return <CardChangeHistoryPanel cardId={cardId} />
       default:
         return null
     }
@@ -1950,11 +1955,13 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const headerSubtitle =
     activeTab === 'seo'
       ? 'Per-card SEO metadata for this public profile.'
-      : activeTab === 'integration' || activeTab === 'ai-assistance'
-        ? 'Connect Canva and manage AI Assistance for this card.'
-        : activeTab === 'template'
-          ? 'Choose the public card layout. Tab order and visibility are set from Add Tabs.'
-          : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
+      : activeTab === 'history'
+        ? 'Who changed this card, from which device, and what they changed. Restore is available for 72 hours.'
+        : activeTab === 'integration' || activeTab === 'ai-assistance'
+          ? 'Connect Canva and manage AI Assistance for this card.'
+          : activeTab === 'template'
+            ? 'Choose the public card layout. Tab order and visibility are set from Add Tabs.'
+            : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
 
   const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)
 

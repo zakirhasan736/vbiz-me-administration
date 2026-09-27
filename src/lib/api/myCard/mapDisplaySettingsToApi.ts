@@ -300,3 +300,31 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
     [AI_ASSISTANCE_SETTING_KEY]: isAiAssistanceEnabled(data.aiAssistanceEnabled) ? '1' : '0',
   }
 }
+
+type CorporateSharedSettingsSource = Pick<
+  VCardData,
+  'displaySettings' | 'customTabs' | 'tabLabelOverrides' | 'tabSectionMeta'
+>
+
+function sameJson(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
+}
+
+/** Drop shared tab JSON the user did not edit so a stale editor cannot overwrite sibling cards. */
+export function omitUnchangedCorporateSharedSettings(
+  settings: Record<string, string>,
+  current: CorporateSharedSettingsSource,
+  saved: CorporateSharedSettingsSource | null | undefined
+): Record<string, string> {
+  if (!saved) return settings
+  const next = { ...settings }
+  if (sameJson(current.displaySettings, saved.displaySettings)) delete next[DISPLAY_SETTINGS_SETTING_KEY]
+  if (sameJson(current.customTabs || [], saved.customTabs || [])) delete next[CUSTOM_TABS_SETTING_KEY]
+  if (sameJson(current.tabLabelOverrides || {}, saved.tabLabelOverrides || {})) {
+    delete next[TAB_LABEL_OVERRIDES_SETTING_KEY]
+  }
+  if (sameJson(current.tabSectionMeta || {}, saved.tabSectionMeta || {})) {
+    delete next[TAB_SECTION_META_SETTING_KEY]
+  }
+  return next
+}

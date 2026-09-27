@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   EXTRA_FIELDS_SETTING_KEY,
   mapExtraFieldsToApiSettings,
+  omitUnchangedCorporateSharedSettings,
   parseExtraFieldsJson,
+  TAB_LABEL_OVERRIDES_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 
 describe('extra fields settings', () => {
@@ -34,5 +36,39 @@ describe('extra fields settings', () => {
 
   it('writes an empty JSON array when every extra field is removed', () => {
     expect(mapExtraFieldsToApiSettings([])).toEqual({ [EXTRA_FIELDS_SETTING_KEY]: '[]' })
+  })
+})
+
+describe('omitUnchangedCorporateSharedSettings', () => {
+  it('keeps a renamed tab label and drops unchanged override JSON', () => {
+    const current = {
+      displaySettings: { globalEnabled: true, fields: {} },
+      customTabs: [],
+      tabLabelOverrides: { services: 'Our Services' },
+      tabSectionMeta: {},
+    }
+    const saved = {
+      displaySettings: { globalEnabled: true, fields: {} },
+      customTabs: [],
+      tabLabelOverrides: { services: 'Servicess' },
+      tabSectionMeta: {},
+    }
+    const omitted = omitUnchangedCorporateSharedSettings(
+      {
+        [TAB_LABEL_OVERRIDES_SETTING_KEY]: JSON.stringify(current.tabLabelOverrides),
+        [EXTRA_FIELDS_SETTING_KEY]: '[]',
+      },
+      current,
+      saved
+    )
+    expect(omitted[TAB_LABEL_OVERRIDES_SETTING_KEY]).toBe(JSON.stringify({ services: 'Our Services' }))
+    expect(omitted[EXTRA_FIELDS_SETTING_KEY]).toBe('[]')
+
+    const unchanged = omitUnchangedCorporateSharedSettings(
+      { [TAB_LABEL_OVERRIDES_SETTING_KEY]: JSON.stringify(saved.tabLabelOverrides) },
+      saved,
+      saved
+    )
+    expect(unchanged[TAB_LABEL_OVERRIDES_SETTING_KEY]).toBeUndefined()
   })
 })

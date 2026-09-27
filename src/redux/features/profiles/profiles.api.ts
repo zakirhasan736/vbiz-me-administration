@@ -36,6 +36,23 @@ import { updateVCard } from '@/redux/features/vcards/vcards.slice'
 import type { VCardCustomTab, VCardData, VCardFaqEntry, VCardGeneralPost, VCardRecord } from '@/types/vcard'
 import { createDefaultVCardData } from '@/types/vcard'
 
+export type CardChangeHistoryItem = {
+  id: string
+  area: string
+  areaLabel: string
+  action: string
+  summary: string
+  actorName: string
+  actorRoleLabel: string
+  device: string
+  location: string
+  canRestore: boolean
+  restoreExpired: boolean
+  restoredAt: string | null
+  createdAt: string
+  expiresAt: string | null
+}
+
 export type ApiProfile = {
   id: string
   slug: string | null
@@ -1332,6 +1349,23 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       invalidatesTags: () => [],
     }),
+    listCardChangeHistory: builder.query<{ items: CardChangeHistoryItem[]; total: number }, { id: string }>({
+      query: ({ id }) => `/profiles/${id}/change-history?limit=100`,
+      transformResponse: (res: Envelope<{ items: CardChangeHistoryItem[]; total: number }>) =>
+        res.data || { items: [], total: 0 },
+      providesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:history` }],
+    }),
+    restoreCardChange: builder.mutation<{ restored: boolean; id: string }, { id: string; historyId: string }>({
+      query: ({ id, historyId }) => ({
+        url: `/profiles/${id}/change-history/${historyId}/restore`,
+        method: 'POST',
+      }),
+      transformResponse: (res: Envelope<{ restored: boolean; id: string }>) => res.data,
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:history` },
+      ],
+    }),
     listProfilePosts: builder.query<ApiPost[], { id: string; postType?: string }>({
       query: ({ id, postType }) =>
         postType ? `/profiles/${id}/posts?postType=${encodeURIComponent(postType)}` : `/profiles/${id}/posts`,
@@ -1780,6 +1814,8 @@ export const {
   useReplaceReviewsMutation,
   useReplaceSkillsMutation,
   useReplaceSocialLinksMutation,
+  useListCardChangeHistoryQuery,
+  useRestoreCardChangeMutation,
   useListProfilePostsQuery,
   useLazyListProfilePostsQuery,
   useCreateProfilePostMutation,
