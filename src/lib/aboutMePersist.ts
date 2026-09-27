@@ -1,4 +1,4 @@
-import { getAboutMeDraft } from '@/lib/aboutMeDraft'
+import { getAboutMeDraft, hasAboutMeDraftContent } from '@/lib/aboutMeDraft'
 import { notify } from '@/lib/toast/toast'
 import { aboutMeAuthApi } from '@/redux/features/sections/aboutMe.api'
 import type { AppDispatch } from '@/redux/store'
@@ -87,6 +87,7 @@ export async function flushAboutMeUpsert(dispatch: AppDispatch, profileId?: stri
   const id = profileId?.trim() ? profileId.trim() : pendingProfileId?.trim() || null
   pendingProfileId = null
   if (!id) return
+  if (!hasAboutMeDraftContent()) return
 
   if (inflight) {
     try {

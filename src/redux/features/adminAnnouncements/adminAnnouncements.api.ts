@@ -36,7 +36,6 @@ function isAnnouncementRow(value: unknown): value is Announcement {
   if (isActivePayloadShape(value)) return false
   const row = value as Record<string, unknown>
   if (typeof row.id !== 'string' || !row.id.trim()) return false
-  if (typeof row.title !== 'string' || !row.title.trim()) return false
   if (typeof row.body !== 'string' || !row.body.trim()) return false
   return true
 }

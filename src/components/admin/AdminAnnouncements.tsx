@@ -15,9 +15,10 @@ import { ScheduleMeetingModal } from '@/components/admin/ScheduleMeetingModal'
 import { describeAnnouncementAudience } from '@/lib/announcementAudience'
 import {
   announcementListStatusLabel,
-  isGlobalAnnouncementHistory,
+  isAnnouncementHistory,
   isLiveGlobalPublicBanner,
   isNoticeListItem,
+  isUpcomingAnnouncement,
   isWarningListItem,
 } from '@/lib/announcementListFilters'
 import { notifyOwners } from '@/lib/notifications'
@@ -55,6 +56,13 @@ import {
   X,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+
+function toDateTimeLocalValue(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 
 function defaultTitle(type: AnnouncementType): string {
   if (type === 'warning') return 'Warning notice'
@@ -125,6 +133,7 @@ export default function AdminAnnouncements() {
   const [isSaved, setIsSaved] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [onlyBackoffice, setOnlyBackoffice] = useState(false)
+  const [startsAtLocal, setStartsAtLocal] = useState('')
   const [bannerOwner, setBannerOwner] = useState<ProfileOwnerSelection | null>(null)
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null)
   const [busyAnnouncementId, setBusyAnnouncementId] = useState<string | null>(null)
@@ -146,6 +155,7 @@ export default function AdminAnnouncements() {
     setBannerDraft(EMPTY_BANNER_DRAFT)
     setBannerOwner(null)
     setOnlyBackoffice(false)
+    setStartsAtLocal('')
     setEditingAnnouncementId(null)
     setFormError(null)
   }
@@ -154,6 +164,7 @@ export default function AdminAnnouncements() {
     const audience = describeAnnouncementAudience(notice)
     setBannerDraft({ text: notice.body, type: notice.type, targetType: notice.targetType })
     setOnlyBackoffice(notice.meta?.showPublic !== '1')
+    setStartsAtLocal(notice.startsAt ? toDateTimeLocalValue(notice.startsAt) : '')
     setBannerOwner(
       notice.targetType === 'specific'
         ? {
@@ -183,8 +194,16 @@ export default function AdminAnnouncements() {
   const recentPublishes = useMemo(
     () =>
       [...history]
-        .filter((row) => isGlobalAnnouncementHistory(row))
+        .filter((row) => isAnnouncementHistory(row))
         .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+    [history]
+  )
+
+  const upcomingAnnouncements = useMemo(
+    () =>
+      history
+        .filter((row) => isUpcomingAnnouncement(row))
+        .sort((a, b) => +new Date(a.startsAt || 0) - +new Date(b.startsAt || 0)),
     [history]
   )
 
@@ -268,6 +287,7 @@ export default function AdminAnnouncements() {
         body,
         targetType: announcementTargetType,
         targetEmails: announcementTargetType === 'specific' ? bannerOwner?.ownerEmails || [] : [],
+        startsAt: startsAtLocal ? new Date(startsAtLocal).toISOString() : null,
         meta: nextMeta,
       } as const
       const saved = editingAnnouncementId
@@ -427,8 +447,8 @@ export default function AdminAnnouncements() {
             Global Announcements
           </h1>
           <p className="mt-1 text-sm font-semibold text-slate-500">
-            One live global banner, separate announcement lists, and upcoming events. Single-card banners stay on each
-            card.
+            Send a global banner, a single vCard / team card notice, or a backoffice-only announcement. Every publish
+            appears in the lists below.
           </p>
         </div>
         {announcementsLoading ? (
@@ -483,7 +503,7 @@ export default function AdminAnnouncements() {
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
                   {editingAnnouncementId
                     ? 'Update this publish without changing whether it is active or paused.'
-                    : 'Pushes one public banner for every card. Lists, warnings, and events stay on their own tabs.'}
+                    : 'Publish to everyone, one card owner, or backoffice only. Warnings, notices, and recent publishes list every send.'}
                 </p>
               </div>
               {editingAnnouncementId && (
@@ -577,6 +597,21 @@ export default function AdminAnnouncements() {
               />
             </div>
 
+            <div className="space-y-2">
+              <label className="text-[9px] font-black tracking-wider text-slate-400 uppercase">
+                Start at (optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={startsAtLocal}
+                onChange={(e) => setStartsAtLocal(e.target.value)}
+                className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-white/5 dark:bg-slate-900"
+              />
+              <p className="text-[10px] leading-relaxed text-slate-400">
+                Leave empty to publish now. A future time appears under Upcoming announcements.
+              </p>
+            </div>
+
             <div className="flex flex-col gap-1">
               <label className="inline-flex items-center gap-2 text-xs">
                 <input type="checkbox" checked={onlyBackoffice} onChange={(e) => setOnlyBackoffice(e.target.checked)} />
@@ -649,9 +684,42 @@ export default function AdminAnnouncements() {
             <div className="rounded-[28px] border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-[#0b0f19]">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Upcoming announcements</h3>
+                  <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
+                    Scheduled notices that have a future start time.
+                  </p>
+                </div>
+                <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                  {upcomingAnnouncements.length} items
+                </span>
+              </div>
+              <div className="mb-5 max-h-48 space-y-2 overflow-y-auto">
+                {announcementsLoading ? (
+                  <RecentPublishesListSkeleton />
+                ) : upcomingAnnouncements.length === 0 ? (
+                  <p className="py-4 text-center text-xs font-semibold text-slate-400">No upcoming announcements</p>
+                ) : (
+                  upcomingAnnouncements.map((n) => (
+                    <div
+                      key={n.id}
+                      className="rounded-2xl border border-sky-100 bg-sky-50/70 p-3 dark:border-sky-500/20 dark:bg-sky-500/10"
+                    >
+                      <p className="text-[10px] font-black tracking-wider text-sky-600 uppercase">
+                        {n.startsAt ? new Date(n.startsAt).toLocaleString() : 'Scheduled'}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        {n.body}
+                      </p>
+                      <AnnouncementAudienceBadges notice={n} />
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="mb-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-4 dark:border-white/5">
+                <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white">Recent publishes</h3>
                   <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
-                    Global banner history only. Pause hides it from public cards. Delete removes it permanently.
+                    Global, single-card, and backoffice-only sends. Pause hides a live banner; delete removes it.
                   </p>
                 </div>
                 <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
@@ -662,7 +730,9 @@ export default function AdminAnnouncements() {
                 {announcementsLoading ? (
                   <RecentPublishesListSkeleton />
                 ) : recentPublishes.length === 0 ? (
-                  <p className="py-6 text-center text-xs font-semibold text-slate-400">No global banners yet</p>
+                  <p className="py-6 text-center text-xs font-semibold text-slate-400">
+                    No announcements yet. Publish a global or single-card notice.
+                  </p>
                 ) : (
                   recentPublishes.map((n) => (
                     <div
@@ -684,9 +754,11 @@ export default function AdminAnnouncements() {
                           <span
                             className={cn(
                               'rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-wider uppercase',
-                              n.status === 'active'
+                              announcementListStatusLabel(n) === 'Live'
                                 ? 'bg-emerald-500/10 text-emerald-600'
-                                : 'bg-slate-200/70 text-slate-500 dark:bg-white/10'
+                                : announcementListStatusLabel(n) === 'Upcoming'
+                                  ? 'bg-sky-500/10 text-sky-600'
+                                  : 'bg-slate-200/70 text-slate-500 dark:bg-white/10'
                             )}
                           >
                             {announcementListStatusLabel(n)}
@@ -720,8 +792,7 @@ export default function AdminAnnouncements() {
                   Warnings
                 </h2>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                  Warning history only — the current live banner stays on Live Banner. Pause hides it; delete removes
-                  it.
+                  Every warning notice — global, single card, live, paused, or backoffice-only.
                 </p>
               </div>
               {announcementsLoading ? (
@@ -736,7 +807,7 @@ export default function AdminAnnouncements() {
               <WarningsNoticesListSkeleton />
             ) : warningItems.length === 0 ? (
               <p className="py-12 text-center text-sm font-semibold text-slate-400">
-                No other warnings — the current live banner is managed on Live Banner.
+                No warning notices yet. Publish one from Live Banner.
               </p>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-white/5">
@@ -780,7 +851,7 @@ export default function AdminAnnouncements() {
                   Notices
                 </h2>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                  Info and success history — not the current live banner. Pause hides it; delete removes it.
+                  Every info and success notice — global, single card, live, paused, or backoffice-only.
                 </p>
               </div>
               <span className="inline-flex shrink-0 items-center self-start rounded-lg bg-indigo-500/10 px-2.5 py-1 text-[11px] leading-none font-black tracking-wider whitespace-nowrap text-indigo-600 uppercase">
@@ -791,7 +862,7 @@ export default function AdminAnnouncements() {
               <WarningsNoticesListSkeleton />
             ) : noticeItems.length === 0 ? (
               <p className="py-12 text-center text-sm font-semibold text-slate-400">
-                No other notices — the current live banner is managed on Live Banner.
+                No notices yet. Publish one from Live Banner or a card Notice action.
               </p>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-white/5">
