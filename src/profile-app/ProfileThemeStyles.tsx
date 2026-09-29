@@ -1,5 +1,6 @@
 'use client'
 
+import { HoistableStyle } from '@/lib/dom/HoistableStyle'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { buildV3ThemeCss } from '@/lib/v3Theme'
 import { useMemo } from 'react'
@@ -112,5 +113,5 @@ function buildProfileThemeCss(design: ResolvedProfileDesign): string {
 export function ProfileThemeStyles({ design }: { design: ResolvedProfileDesign }) {
   const css = useMemo(() => buildProfileThemeCss(design), [design])
 
-  return <style dangerouslySetInnerHTML={{ __html: css }} />
+  return <HoistableStyle href="vbiz-profile-theme" css={css} />
 }

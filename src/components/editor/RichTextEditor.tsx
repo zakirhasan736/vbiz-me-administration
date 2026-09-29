@@ -1,5 +1,6 @@
 'use client'
 
+import { HoistableStyle } from '@/lib/dom/HoistableStyle'
 import {
   isThemeNeutralColor,
   normalizeRichTextHtml,
@@ -631,7 +632,7 @@ export function RichTextEditor({
       )}
       style={{ ['--rte-accent' as string]: accent }}
     >
-      <style>{EDITOR_ACCENT_CSS}</style>
+      <HoistableStyle href="vbiz-rte-accent" css={EDITOR_ACCENT_CSS} />
       <RichTextToolbar
         editor={editor}
         sourceMode={sourceMode}

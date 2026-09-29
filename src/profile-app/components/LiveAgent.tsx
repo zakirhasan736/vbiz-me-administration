@@ -26,7 +26,8 @@ export function isLiveAgentVisible(enabled: boolean): boolean {
 
 function getPreviewPhoneShell(): HTMLElement | null {
   if (typeof document === 'undefined') return null
-  return document.querySelector(PREVIEW_PHONE_SELECTOR) as HTMLElement | null
+  const el = document.querySelector(PREVIEW_PHONE_SELECTOR) as HTMLElement | null
+  return el?.isConnected ? el : null
 }
 
 function subscribeToPreviewPhoneShell(onStoreChange: () => void) {

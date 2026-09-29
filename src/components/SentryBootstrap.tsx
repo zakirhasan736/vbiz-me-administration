@@ -18,9 +18,13 @@ function recoverStaleChunk(reason: unknown) {
 export function SentryBootstrap() {
   useEffect(() => {
     const onError = (event: ErrorEvent) => {
-      const message = event.message || 'window.error'
+      const message = event.message || sentryReasonToMessage(event.error) || 'window.error'
       if (recoverStaleChunk(event.error || message)) return
-      if (!dsn || shouldIgnoreSentryMessage(message)) return
+      if (shouldIgnoreSentryMessage(message) || shouldIgnoreSentryMessage(sentryReasonToMessage(event.error))) {
+        event.preventDefault()
+        return
+      }
+      if (!dsn) return
       void reportSentryEvent({
         dsn,
         message,
@@ -36,7 +40,11 @@ export function SentryBootstrap() {
     const onRejection = (event: PromiseRejectionEvent) => {
       const message = sentryReasonToMessage(event.reason)
       if (recoverStaleChunk(event.reason || message)) return
-      if (!dsn || shouldIgnoreSentryMessage(message)) return
+      if (shouldIgnoreSentryMessage(message)) {
+        event.preventDefault()
+        return
+      }
+      if (!dsn) return
       void reportSentryEvent({
         dsn,
         message,
@@ -44,10 +52,10 @@ export function SentryBootstrap() {
       })
     }
 
-    window.addEventListener('error', onError)
+    window.addEventListener('error', onError, true)
     window.addEventListener('unhandledrejection', onRejection)
     return () => {
-      window.removeEventListener('error', onError)
+      window.removeEventListener('error', onError, true)
       window.removeEventListener('unhandledrejection', onRejection)
     }
   }, [])

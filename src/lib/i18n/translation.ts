@@ -15,7 +15,11 @@ import {
   type BackendLanguage,
   type TranslationConfig,
 } from '@/lib/i18n/config'
-import { ensureGoogleTranslateLoaded, resetGoogleTranslateRuntime } from '@/lib/i18n/googleTranslateRuntime'
+import {
+  cleanupGoogleTranslateChrome,
+  ensureGoogleTranslateLoaded,
+  resetGoogleTranslateRuntime,
+} from '@/lib/i18n/googleTranslateRuntime'
 import { injectTranslateStyles } from '@/lib/i18n/translateDomStyles'
 import {
   buildGoogleTransCookieValue,
@@ -55,16 +59,6 @@ export function getAllCookies(name: string): string[] {
     }
   }
   return matchingCookies
-}
-
-function cleanupGoogleTranslateDom() {
-  document.body.classList.remove('translated-ltr', 'translated-rtl')
-  const googElements = document.querySelectorAll('[class*="goog"]')
-  googElements.forEach((el) => {
-    if (el.id !== I18N_CONFIG.googleTranslateElementId && !el.classList.contains('skiptranslate')) {
-      el.remove()
-    }
-  })
 }
 
 function parseGoogTransLanguage(cookieValue: string, fallback: string): string | null {
@@ -136,7 +130,7 @@ export function resetToEnglish() {
 
   persistLanguageChoice(cardId, fallback, fallback)
   clearGoogleTransCookies()
-  cleanupGoogleTranslateDom()
+  cleanupGoogleTranslateChrome()
   resetGoogleTranslateRuntime()
 
   beginTranslateSwitching()
@@ -166,7 +160,7 @@ export function applyTranslationConfigToDOM(config: TranslationConfig) {
   }
 
   clearGoogleTransCookies()
-  cleanupGoogleTranslateDom()
+  cleanupGoogleTranslateChrome()
 }
 
 export async function initTranslation(): Promise<TranslationConfig> {

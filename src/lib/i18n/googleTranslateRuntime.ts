@@ -61,6 +61,25 @@ export async function triggerGoogleTranslate(
   return true
 }
 
+const TRANSLATE_CHROME_SELECTOR = [
+  'iframe.goog-te-banner-frame',
+  '.goog-te-banner-frame',
+  '.goog-te-balloon-frame',
+  '#goog-gt-tt',
+  '.goog-tooltip',
+  'iframe.skiptranslate',
+].join(',')
+
+/** Strip Google Translate chrome only — never in-page wrappers React still owns. */
+export function cleanupGoogleTranslateChrome() {
+  if (typeof document === 'undefined') return
+  document.body.classList.remove('translated-ltr', 'translated-rtl')
+  document.querySelectorAll(TRANSLATE_CHROME_SELECTOR).forEach((el) => {
+    if (el.id === I18N_CONFIG.googleTranslateElementId) return
+    el.remove()
+  })
+}
+
 function ensureTranslateElementHost() {
   if (document.getElementById(I18N_CONFIG.googleTranslateElementId)) return
   const host = document.createElement('div')

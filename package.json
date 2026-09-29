@@ -13,6 +13,7 @@
     "test:e2e:ui": "playwright test --ui",
     "e2e:mock-api": "node --experimental-strip-types tests/e2e/mock-api.ts",
     "format": "prettier --write .",
+    "postinstall": "node scripts/patch-react-dom-hoistable.mjs",
     "prepare": "husky",
     "format:check": "prettier --check .",
     "lint": "eslint .",

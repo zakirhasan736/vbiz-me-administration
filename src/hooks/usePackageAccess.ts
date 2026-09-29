@@ -5,6 +5,7 @@ import { useAppSelector } from '@/hooks/redux'
 import {
   allPackageAccessEnabled,
   catalogFeatureAllowed,
+  MANDATORY_PACKAGE_ACCESS_KEYS,
   resolvePerFileUploadLimit,
   type PackageAccessKey,
   type PackageAccessMap,
@@ -13,6 +14,14 @@ import {
 import { useGetEntitlementsQuery, type EffectiveEntitlements } from '@/redux/features/profiles/profiles.api'
 
 const fallbackAccess = allPackageAccessEnabled()
+
+function withMandatoryAccess(access: PackageAccessMap): PackageAccessMap {
+  const next = { ...access }
+  for (const key of MANDATORY_PACKAGE_ACCESS_KEYS) {
+    next[key] = true
+  }
+  return next
+}
 
 export function usePackageAccess(): PackageAccessMap & {
   isLoading: boolean
@@ -25,12 +34,12 @@ export function usePackageAccess(): PackageAccessMap & {
   const { data, isLoading, isUninitialized } = useGetEntitlementsQuery(undefined, {
     skip: !shouldLoadEntitlements,
   })
-  const access = data?.access ?? fallbackAccess
+  const access = withMandatoryAccess(data?.access ?? fallbackAccess)
 
   return {
     ...access,
     isLoading: shouldLoadEntitlements && (isLoading || isUninitialized) && !data,
-    can: (key) => (data ? catalogFeatureAllowed(data, key) : access[key as PackageAccessKey] !== false),
+    can: (key) => (data ? catalogFeatureAllowed({ ...data, access }, key) : access[key as PackageAccessKey] !== false),
     entitlements: data,
   }
 }

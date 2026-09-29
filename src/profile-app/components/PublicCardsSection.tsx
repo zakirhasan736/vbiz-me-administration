@@ -967,28 +967,6 @@ export const PublicCardsSection = () => {
           </div>
         </div>
       )}
-
-      {/* Custom CSS for 3D Perspective & Hidden Scrollbars */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-              .perspective-[1600px] {
-                 perspective: 1600px;
-                 transform-style: preserve-3d;
-              }
-              .transform-style-3d {
-                 transform-style: preserve-3d;
-              }
-              .no-scrollbar::-webkit-scrollbar {
-                 display: none;
-              }
-              .no-scrollbar {
-                 -ms-overflow-style: none;
-                 scrollbar-width: none;
-              }
-            `,
-        }}
-      />
     </div>
   )
 }

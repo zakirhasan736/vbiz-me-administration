@@ -363,12 +363,6 @@ function ConfettiBurst() {
   )
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      <style>{`
-        @keyframes ai-confetti-fall {
-          0% { opacity: 1; transform: translate3d(0, -12px, 0) rotate(0deg) scale(1); }
-          100% { opacity: 0; transform: translate3d(0, 440px, 0) rotate(720deg) scale(0.55); }
-        }
-      `}</style>
       {pieces.map((p) => (
         <span
           key={p.id}

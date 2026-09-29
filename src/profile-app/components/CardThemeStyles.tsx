@@ -1,5 +1,6 @@
 'use client'
 
+import { HoistableStyle } from '@/lib/dom/HoistableStyle'
 import type { CardThemeConfig, ThemeMode } from '@/lib/theme/cardThemeContract'
 import { buildCardThemeStyleSheet } from '@/lib/theme/cardThemeCssVars'
 import { logCardThemeSettings } from '@/lib/theme/logCardThemeSettings'
@@ -103,12 +104,5 @@ export function CardThemeStyles({
   }, [config, mode, fromApi, template, themeFingerprint])
 
   if (!css) return null
-  return (
-    <style
-      key={`${themeFingerprint}|${mode}`}
-      data-vbiz-card-theme=""
-      data-mode={mode}
-      dangerouslySetInnerHTML={{ __html: css }}
-    />
-  )
+  return <HoistableStyle href={forcedMode ? 'vbiz-card-theme-preview' : 'vbiz-card-theme'} css={css} />
 }

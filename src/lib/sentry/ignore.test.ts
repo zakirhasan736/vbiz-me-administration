@@ -9,6 +9,9 @@ describe('shouldIgnoreSentryMessage', () => {
     expect(shouldIgnoreSentryMessage('The I/O read operation failed.')).toBe(true)
     expect(shouldIgnoreSentryMessage("Object [object Object] has no method 'updateFrom'")).toBe(true)
     expect(shouldIgnoreSentryMessage("Cannot read properties of null (reading 'removeChild')")).toBe(true)
+    expect(
+      shouldIgnoreSentryMessage("Uncaught TypeError: Cannot read properties of null (reading 'removeChild')")
+    ).toBe(true)
     expect(shouldIgnoreSentryMessage('[object Event]')).toBe(true)
     expect(
       shouldIgnoreSentryMessage(

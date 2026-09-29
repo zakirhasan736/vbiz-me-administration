@@ -31,10 +31,20 @@ describe('package launch matrix', () => {
     expect(resolvePostLoginPath({ role: 'vcard-owner', ownerMode: 'corporate' }, '/vcards')).toBe('/teamvcard')
     expect(
       catalogFeatureAllowed(
-        { access: paidAccess, features: [{ featureKey: 'allow_canva', featureValue: '1' }], subscriptionActive: false },
-        'allow_canva'
+        { access: paidAccess, features: [{ featureKey: 'allow_seo', featureValue: '1' }], subscriptionActive: false },
+        'allow_seo'
       )
     ).toBe(false)
+    expect(
+      catalogFeatureAllowed(
+        {
+          access: { ...paidAccess, allow_canva: false },
+          features: [{ featureKey: 'allow_canva', featureValue: '0' }],
+          subscriptionActive: false,
+        },
+        'allow_canva'
+      )
+    ).toBe(true)
     expect(
       catalogFeatureAllowed(
         {
@@ -47,9 +57,16 @@ describe('package launch matrix', () => {
     ).toBe(true)
   })
 
-  it('keeps push notification on even when the package flag is explicitly off', () => {
-    const access = entitlementsFromFeatures([{ featureKey: 'allow_push_notification', featureValue: '0' }], false)
+  it('keeps push notification and Canva on even when the package flag is explicitly off', () => {
+    const access = entitlementsFromFeatures(
+      [
+        { featureKey: 'allow_push_notification', featureValue: '0' },
+        { featureKey: 'allow_canva', featureValue: '0' },
+      ],
+      false
+    )
     expect(access.allow_push_notification).toBe(true)
+    expect(access.allow_canva).toBe(true)
   })
 
   it('treats FEATURE_NOT_INCLUDED and PACKAGE_FEATURE_LOCKED as the same lock', () => {

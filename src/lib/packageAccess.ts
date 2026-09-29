@@ -12,7 +12,7 @@ export const PACKAGE_ACCESS_FEATURES = [
 ] as const
 
 /** Always included for every card owner — not sellable or lockable by package. */
-export const MANDATORY_PACKAGE_ACCESS_KEYS = ['allow_push_notification', 'allow_crm'] as const
+export const MANDATORY_PACKAGE_ACCESS_KEYS = ['allow_push_notification', 'allow_crm', 'allow_canva'] as const
 
 export type PackageAccessKey = (typeof PACKAGE_ACCESS_FEATURES)[number]['key']
 export type MandatoryPackageAccessKey = (typeof MANDATORY_PACKAGE_ACCESS_KEYS)[number]

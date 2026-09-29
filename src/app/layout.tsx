@@ -8,6 +8,7 @@ import { ToastViewport } from '@/components/feedback/ToastViewport'
 import { TranslationEarlyBootstrap } from '@/components/i18n/TranslationEarlyBootstrap'
 import { IframeEmbedBootstrap } from '@/components/IframeEmbedBootstrap'
 import { PwaInstallBootstrap } from '@/components/PwaInstallBootstrap'
+import { SafeDomUnmountBootstrap } from '@/components/SafeDomUnmountBootstrap'
 import { SentryBootstrap } from '@/components/SentryBootstrap'
 import { StaleChunkReloadBootstrap } from '@/components/StaleChunkReloadBootstrap'
 import { NotificationToast } from '@/profile-app/components/NotificationToast'
@@ -39,6 +40,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
         <StaleChunkReloadBootstrap />
+        <SafeDomUnmountBootstrap />
         <SentryBootstrap />
         <IframeEmbedBootstrap />
         <PwaInstallBootstrap />
