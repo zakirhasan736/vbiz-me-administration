@@ -1,6 +1,10 @@
 import { designToCssVars, resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
-import { applyEditorSettingsToThemeConfig, resetBrandThemeColors } from '@/lib/theme/resolveCardTheme'
+import {
+  applyEditorSettingsToThemeConfig,
+  buildPreviewMatchedThemeConfig,
+  resetBrandThemeColors,
+} from '@/lib/theme/resolveCardTheme'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
 import { describe, expect, it } from 'vitest'
 
@@ -62,18 +66,57 @@ describe('applyEditorSettingsToThemeConfig', () => {
 })
 
 describe('resetBrandThemeColors', () => {
-  it('restores template primary/secondary/accent on both modes', () => {
+  it('restores the full preview palette (brand + surfaces + text) on both modes', () => {
+    const stock = getDefaultThemeConfig('v3')
     const customized = applyEditorSettingsToThemeConfig(
-      getDefaultThemeConfig('v3'),
+      {
+        ...stock,
+        colors: {
+          ...stock.colors,
+          dark: {
+            ...stock.colors.dark,
+            primary: '#111111',
+            background: '#ff0000',
+            surface: '#00ff00',
+            text: '#0000ff',
+          },
+        },
+      },
       { primaryColor: '#111111', secondaryColor: '#222222', accentColor: '#333333' },
       null
     )
     const reset = resetBrandThemeColors(customized, 'v3')
-    expect(reset.colors.light.primary).toBe('#eed677')
-    expect(reset.colors.dark.primary).toBe('#eed677')
-    expect(reset.colors.light.secondary).toBe(getDefaultThemeConfig('v3').colors.light.secondary)
-    expect(reset.colors.dark.accent).toBe('#eed677')
+    expect(reset.colors.light).toEqual(stock.colors.light)
+    expect(reset.colors.dark).toEqual(stock.colors.dark)
+    expect(reset.colors.defaultMode).toBe(stock.colors.defaultMode)
     expect(reset.wallpaper).toEqual(customized.wallpaper)
+  })
+
+  it('buildPreviewMatchedThemeConfig matches eye-preview / save merge', () => {
+    const stock = getDefaultThemeConfig('v3')
+    const theme = {
+      primaryColor: stock.colors.dark.primary,
+      secondaryColor: stock.colors.dark.secondary,
+      accentColor: stock.colors.dark.accent,
+    }
+    const matched = buildPreviewMatchedThemeConfig(
+      {
+        ...stock,
+        colors: {
+          ...stock.colors,
+          dark: { ...stock.colors.dark, background: '#ff0000' },
+        },
+      },
+      theme,
+      { profileTemplate: 'v3' },
+      'v3'
+    )
+    const preview = applyEditorSettingsToThemeConfig(resetBrandThemeColors(stock, 'v3'), theme, {
+      profileTemplate: 'v3',
+    })
+    expect(matched.colors.dark.background).toBe(stock.colors.dark.background)
+    expect(matched.colors.dark.primary).toBe(preview.colors.dark.primary)
+    expect(matched.colors.dark.accent).toBe(preview.colors.dark.accent)
   })
 })
 

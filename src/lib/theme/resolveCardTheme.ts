@@ -460,8 +460,9 @@ export function applyEditorSettingsToThemeConfig(
 }
 
 /**
- * Reset primary / secondary / accent (light + dark) and button/social brand roles
- * back to the template defaults. Wallpaper and layout appearance are kept.
+ * Reset the full template palette (brand + page surfaces + text) and button/social
+ * roles so public/preview match a fresh card: banner gradient (accent tint), card bg,
+ * nav chrome, and body text. Wallpaper + layout appearance are kept.
  */
 export function resetBrandThemeColors(
   current: CardThemeConfig | null | undefined,
@@ -472,19 +473,9 @@ export function resetBrandThemeColors(
   return {
     ...base,
     colors: {
-      ...base.colors,
-      light: {
-        ...base.colors.light,
-        primary: defaults.light.primary,
-        secondary: defaults.light.secondary,
-        accent: defaults.light.accent,
-      },
-      dark: {
-        ...base.colors.dark,
-        primary: defaults.dark.primary,
-        secondary: defaults.dark.secondary,
-        accent: defaults.dark.accent,
-      },
+      defaultMode: defaults.defaultMode,
+      light: { ...defaults.light },
+      dark: { ...defaults.dark },
     },
     components: {
       ...base.components,
@@ -496,4 +487,27 @@ export function resetBrandThemeColors(
       },
     },
   }
+}
+
+type EditorThemeSlice = {
+  primaryColor?: string
+  secondaryColor?: string
+  accentColor?: string
+  fontFamily?: string
+  darkMode?: boolean
+}
+
+type EditorAppearanceSlice = Parameters<typeof applyEditorSettingsToThemeConfig>[2]
+
+/**
+ * Same merge the eye-preview + save payload use: template palette reset, then live
+ * primary/secondary/accent from Card Settings so public CSS matches the phone preview.
+ */
+export function buildPreviewMatchedThemeConfig(
+  current: CardThemeConfig | null | undefined,
+  theme: EditorThemeSlice | null | undefined,
+  appearance: EditorAppearanceSlice,
+  template: ProfileTemplateId
+): CardThemeConfig {
+  return applyEditorSettingsToThemeConfig(resetBrandThemeColors(current, template), theme, appearance)
 }

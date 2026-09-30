@@ -39,7 +39,7 @@ import {
   ownerSeoKeywords,
 } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
-import { resetBrandThemeColors } from '@/lib/theme/resolveCardTheme'
+import { buildPreviewMatchedThemeConfig } from '@/lib/theme/resolveCardTheme'
 import {
   inferMediaWallpaperStyle,
   patchThemeConfigWallpaper,
@@ -308,7 +308,7 @@ function Toggle({
 
 function TemplateDesigner() {
   const canBgVideo = true
-  const { vCardData, updateData, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
+  const { vCardData, updateData, flushSave, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const accountDesign = useAppSelector((s) => s.designSettings)
 
@@ -601,10 +601,20 @@ function TemplateDesigner() {
             onClick={() => {
               const template = cardAppearance.profileTemplate ?? 'v3'
               const defaults = getStaticProfileTheme(template)
-              updateData('theme.primaryColor', defaults.primaryColor)
-              updateData('theme.secondaryColor', defaults.secondaryColor)
-              updateData('theme.accentColor', defaults.accentColor)
-              updateData('themeConfig', resetBrandThemeColors(vCardData.themeConfig, template))
+              const nextTheme = {
+                ...vCardData.theme,
+                primaryColor: defaults.primaryColor,
+                secondaryColor: defaults.secondaryColor,
+                accentColor: defaults.accentColor,
+                darkMode: defaults.darkMode,
+              }
+              // Exact config the eye preview + public card both apply after save.
+              const nextThemeConfig = buildPreviewMatchedThemeConfig(
+                vCardData.themeConfig,
+                nextTheme,
+                cardAppearance,
+                template
+              )
               const allColorFields = [
                 ...GENERAL_SETTINGS_FIELDS,
                 ...HOME_PAGE_FIELDS,
@@ -613,11 +623,13 @@ function TemplateDesigner() {
                 ...NAV_BAR_FIELDS,
                 ...MY_INFO_FIELDS,
               ]
-              updateData(
-                'displaySettings',
-                setCategoryResetColors(getDisplaySettingsFromVCard(vCardData), allColorFields)
-              )
-              notify.success('Theme colors reset to template defaults.')
+              const nextDisplay = setCategoryResetColors(getDisplaySettingsFromVCard(vCardData), allColorFields)
+              updateData('theme', nextTheme)
+              updateData('themeConfig', nextThemeConfig)
+              updateData('displaySettings', nextDisplay)
+              void flushSave()
+                .then(() => notify.success('Colors reset — public card matches preview defaults.'))
+                .catch(() => notify.error('Colors updated locally; save failed. Try again.'))
             }}
           >
             <RotateCcw className="h-3.5 w-3.5" />

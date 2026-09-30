@@ -7,6 +7,7 @@ import type { MappedProfileSettings } from '@/lib/api/profileSettings/mapProfile
 import { CardScopeProvider } from '@/lib/card-scope'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { collectPublicCardShareImageCandidates, resolvePublicCardShareImageUrl } from '@/lib/seo/resolvePublicCardSeo'
+import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { ProfileApp } from '@/profile-app/ProfileApp'
 import { ProfileLoadingScreen } from '@/profile-app/components/ProfileLoadingScreen'
 import { ProfileThemeShell } from '@/profile-app/components/ProfileThemeShell'
@@ -54,7 +55,7 @@ export default function PublicProfileLayout({
     record?.id != null ? String(record.id) : initialMyCard?.profile?.id != null ? String(initialMyCard.profile.id) : ''
 
   const {
-    themeConfig,
+    themeConfig: settingsThemeConfig,
     appearance: settingsAppearance,
     fromApi,
   } = useResolvedProfileTheme({
@@ -65,6 +66,15 @@ export default function PublicProfileLayout({
   })
 
   const template: ProfileTemplateId = earlyTemplate
+
+  // Same merge as the builder eye preview — flat theme + theme_config stay aligned.
+  const themeConfig = useMemo(() => {
+    if (!record) return settingsThemeConfig
+    return applyEditorSettingsToThemeConfig(settingsThemeConfig, record.theme, {
+      ...record.appearance,
+      ...settingsAppearance,
+    })
+  }, [record, settingsThemeConfig, settingsAppearance])
 
   const profileProps = useMemo(() => {
     if (!record) return null
