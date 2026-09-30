@@ -109,7 +109,7 @@ export const ServicesSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: idx * 0.08 }}
-              className={`group relative flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 md:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${isClickable ? 'cursor-pointer' : ''}`}
+              className={`vbiz-content-card group relative flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 md:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${isClickable ? 'cursor-pointer' : ''}`}
             >
               {imageUrl ? (
                 <div className="mb-4 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
@@ -122,19 +122,19 @@ export const ServicesSection = () => {
                 </div>
               ) : (
                 <div className="mb-4 flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-200 bg-white text-[#eab308] shadow-sm transition-transform duration-300 group-hover:scale-110 dark:border-zinc-700 dark:bg-zinc-800/80">
+                  <div className="vbiz-card-icon flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-200 bg-white text-[#eab308] shadow-sm transition-transform duration-300 group-hover:scale-110 dark:border-zinc-700 dark:bg-zinc-800/80">
                     <Wrench size={22} />
                   </div>
                 </div>
               )}
               {service.title.trim() ? (
-                <h3 className="mb-2 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">
+                <h3 className="vbiz-title mb-2 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">
                   {service.title}
                 </h3>
               ) : null}
               {service.htmlDescription || service.description ? (
                 <div
-                  className="vcard-rich-html prose prose-zinc dark:prose-invert mb-4 line-clamp-4 max-w-none flex-1 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"
+                  className="vbiz-description vcard-rich-html prose prose-zinc dark:prose-invert mb-4 line-clamp-4 max-w-none flex-1 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"
                   dangerouslySetInnerHTML={{ __html: service.htmlDescription || service.description }}
                 />
               ) : null}
@@ -149,7 +149,7 @@ export const ServicesSection = () => {
                   Learn more <ArrowUpRight size={16} />
                 </a>
               ) : isClickable ? (
-                <span className="mt-auto inline-flex items-center gap-1 text-sm font-bold text-[#eab308]">
+                <span className="mt-auto inline-flex items-center gap-1 text-sm font-bold text-[var(--vbiz-content-card-icon,var(--vbiz-accent,#eab308))]">
                   View details <ArrowUpRight size={14} />
                 </span>
               ) : null}

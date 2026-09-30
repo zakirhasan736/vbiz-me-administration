@@ -20,9 +20,23 @@ const designSettings: DesignSettingsState = {
 }
 
 describe('applyEditorSettingsToThemeConfig', () => {
-  it('writes live primary, secondary, and accent onto both color modes', () => {
+  it('stamps flat brand onto both modes only when light/dark brand roles match', () => {
+    const stock = getDefaultThemeConfig('v2')
+    // v2 light/dark share the same primary/secondary/accent roles.
+    const matched = {
+      ...stock,
+      colors: {
+        ...stock.colors,
+        light: {
+          ...stock.colors.light,
+          primary: stock.colors.dark.primary,
+          secondary: stock.colors.dark.secondary,
+          accent: stock.colors.dark.accent,
+        },
+      },
+    }
     const next = applyEditorSettingsToThemeConfig(
-      getDefaultThemeConfig('v3'),
+      matched,
       {
         primaryColor: '#112233',
         secondaryColor: '#0f2c4d',
@@ -37,6 +51,20 @@ describe('applyEditorSettingsToThemeConfig', () => {
     expect(next.colors.dark.secondary).toBe('#0f2c4d')
     expect(next.colors.light.accent).toBe('#445566')
     expect(next.colors.dark.accent).toBe('#445566')
+  })
+
+  it('does not stamp flat brand onto both modes when light/dark brands already differ', () => {
+    const stock = getDefaultThemeConfig('v3')
+    // Stock v3 already has distinct accents; flat editor values only update defaultMode (dark).
+    const next = applyEditorSettingsToThemeConfig(
+      stock,
+      { primaryColor: '#999999', secondaryColor: '#888888', accentColor: '#777777' },
+      null
+    )
+    expect(next.colors.dark.primary).toBe('#999999')
+    expect(next.colors.dark.accent).toBe('#777777')
+    expect(next.colors.light.primary).toBe(stock.colors.light.primary)
+    expect(next.colors.light.accent).toBe(stock.colors.light.accent)
   })
 
   it('applies template and button style from Card Settings', () => {

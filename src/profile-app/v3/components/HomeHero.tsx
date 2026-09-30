@@ -151,9 +151,11 @@ export const HomeHero: React.FC<{
   const notificationsChrome = displayIconChromeStyle(field('Notifications'), mode)
   const notepadChrome = displayIconChromeStyle(field('Notepad'), mode)
   const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), mode)
+  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), mode)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')
+  const showThemeToggle = isVisible('Theme Toggle')
 
   const designationLine = resolveGlobalProfession(personal, isVisible)
   const identityColors = resolveHomeIdentityColors({
@@ -161,6 +163,8 @@ export const HomeHero: React.FC<{
     nameField: field('MyInfo section Name'),
     professionField: field('MyInfo Profession'),
     designationField: field('MyInfo Designation'),
+    headingField: field('Home Heading Color'),
+    descriptionField: field('Home Description Color'),
   })
 
   const contactItems = useMemo(
@@ -348,31 +352,34 @@ export const HomeHero: React.FC<{
                   CRM
                 </button>
               )}
-              <IconHoverTooltip label="Toggle Theme" placement="left">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Toggle Theme"
-                  onClick={() => {
-                    triggerHaptic(10)
-                    toggleTheme?.()
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
+              {showThemeToggle ? (
+                <IconHoverTooltip label="Toggle Theme" placement="left">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Toggle Theme"
+                    onClick={() => {
                       triggerHaptic(10)
                       toggleTheme?.()
-                    }
-                  }}
-                  className={railButtonClass}
-                >
-                  {theme === 'dark' ? (
-                    <Sun size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                  ) : (
-                    <Moon size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                  )}
-                </div>
-              </IconHoverTooltip>
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        triggerHaptic(10)
+                        toggleTheme?.()
+                      }
+                    }}
+                    className={railButtonClass}
+                    style={themeToggleChrome}
+                  >
+                    {theme === 'dark' ? (
+                      <Sun size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                    ) : (
+                      <Moon size={HOME_ICON_SIZE} strokeWidth={2.5} />
+                    )}
+                  </div>
+                </IconHoverTooltip>
+              ) : null}
             </div>
           </div>
         </div>

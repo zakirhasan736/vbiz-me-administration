@@ -5,18 +5,24 @@ import {
   defaultButtonComponents,
   defaultSocialIconComponent,
   getDefaultThemeConfig,
+  type BannerStyleConfig,
   type ButtonComponents,
   type CardThemeConfig,
   type ComponentAppearance,
   type ComponentModeColors,
   type ComponentStyle,
+  type ContentCardStyleConfig,
   type CornerStyle,
+  type FaqItemStyleConfig,
   type GlobalThemeColors,
   type ProfileTemplateId,
+  type ReviewCardStyleConfig,
   type SocialIconComponent,
   type ThemeColorSet,
   type ThemeMode,
+  type TopNavBarStyleConfig,
 } from '@/lib/theme/cardThemeContract'
+import { ensureReadableColorSet } from '@/lib/theme/colorAccessibility'
 import { normalizeWallpaper } from '@/lib/theme/wallpaper'
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
@@ -242,12 +248,22 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
     components?: {
       button?: unknown
       socialIcon?: unknown
+      sectionBanner?: BannerStyleConfig
+      contentCard?: ContentCardStyleConfig
+      reviewCard?: ReviewCardStyleConfig
+      faqItem?: FaqItemStyleConfig
+      topNavBar?: TopNavBarStyleConfig
     }
     appearance?: Partial<CardThemeConfig['appearance']>
   }
 
   const buttonSource = r.components?.button ?? r.button
   const socialSource = r.components?.socialIcon ?? r.socialIcon
+  const sectionBanner = mergePartialModeStyle(r.components?.sectionBanner)
+  const contentCard = mergePartialModeStyle(r.components?.contentCard)
+  const reviewCard = mergePartialModeStyle(r.components?.reviewCard)
+  const faqItem = mergePartialModeStyle(r.components?.faqItem)
+  const topNavBar = mergePartialModeStyle(r.components?.topNavBar)
 
   const appearance = {
     ...defaults.appearance,
@@ -302,6 +318,11 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
     components: {
       button: buttons,
       socialIcon,
+      ...(sectionBanner ? { sectionBanner } : {}),
+      ...(contentCard ? { contentCard } : {}),
+      ...(reviewCard ? { reviewCard } : {}),
+      ...(faqItem ? { faqItem } : {}),
+      ...(topNavBar ? { topNavBar } : {}),
     },
     appearance: {
       profileTemplate: template,
@@ -322,6 +343,14 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
     },
     ...(wallpaper ? { wallpaper } : {}),
   }
+}
+
+function mergePartialModeStyle<T extends { light?: object; dark?: object }>(raw: T | null | undefined): T | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const light = raw.light && typeof raw.light === 'object' ? raw.light : undefined
+  const dark = raw.dark && typeof raw.dark === 'object' ? raw.dark : undefined
+  if (!light && !dark) return undefined
+  return { ...(light ? { light } : {}), ...(dark ? { dark } : {}) } as T
 }
 
 /** Returns true when the backend actually provided a usable theme_config. */
@@ -429,23 +458,41 @@ export function applyEditorSettingsToThemeConfig(
   const secondary = pickBrandColor(theme?.secondaryColor)
   const accent = pickBrandColor(theme?.accentColor)
 
+  // Per-mode brand in themeConfig is source of truth. Flat VCardTheme only stamps both
+  // modes when light/dark brand still match (legacy cards); otherwise update defaultMode only.
+  const brandDistinct =
+    base.colors.light.primary !== base.colors.dark.primary ||
+    base.colors.light.secondary !== base.colors.dark.secondary ||
+    base.colors.light.accent !== base.colors.dark.accent
+  const targetMode: ThemeMode = base.colors.defaultMode === 'light' ? 'light' : 'dark'
+  const stampBoth = !brandDistinct
+
+  const nextColors = {
+    ...base.colors,
+    light: { ...base.colors.light },
+    dark: { ...base.colors.dark },
+  }
+  const applyBrand = (mode: ThemeMode) => {
+    if (primary) nextColors[mode].primary = primary
+    if (secondary) nextColors[mode].secondary = secondary
+    if (accent) nextColors[mode].accent = accent
+    const readable = ensureReadableColorSet(nextColors[mode])
+    nextColors[mode].text = readable.text
+    nextColors[mode].textMuted = readable.textMuted
+    nextColors[mode].border = readable.border
+  }
+  if (primary || secondary || accent) {
+    if (stampBoth) {
+      applyBrand('light')
+      applyBrand('dark')
+    } else {
+      applyBrand(targetMode)
+    }
+  }
+
   return {
     ...base,
-    colors: {
-      ...base.colors,
-      light: {
-        ...base.colors.light,
-        ...(primary ? { primary } : {}),
-        ...(secondary ? { secondary } : {}),
-        ...(accent ? { accent } : {}),
-      },
-      dark: {
-        ...base.colors.dark,
-        ...(primary ? { primary } : {}),
-        ...(secondary ? { secondary } : {}),
-        ...(accent ? { accent } : {}),
-      },
-    },
+    colors: nextColors,
     components: {
       ...base.components,
       button: buttons,
@@ -455,6 +502,31 @@ export function applyEditorSettingsToThemeConfig(
       ...base.appearance,
       ...mergedAppearance,
       profileTemplate: template,
+    },
+  }
+}
+
+/** Patch one brand role on a single light/dark mode and keep text readable. */
+export function patchModeBrandColor(
+  current: CardThemeConfig,
+  mode: ThemeMode,
+  role: 'primary' | 'secondary' | 'accent',
+  value: string
+): CardThemeConfig {
+  const color = value.trim()
+  if (!color) return current
+  const nextSet = { ...current.colors[mode], [role]: color }
+  const readable = ensureReadableColorSet(nextSet)
+  return {
+    ...current,
+    colors: {
+      ...current.colors,
+      [mode]: {
+        ...nextSet,
+        text: readable.text,
+        textMuted: readable.textMuted,
+        border: readable.border,
+      },
     },
   }
 }
@@ -478,13 +550,13 @@ export function resetBrandThemeColors(
       dark: { ...defaults.dark },
     },
     components: {
-      ...base.components,
       button: defaultButtonComponents(),
       socialIcon: {
         ...defaultSocialIconComponent(),
         cornerRadius: base.components.socialIcon.cornerRadius,
         style: base.components.socialIcon.style,
       },
+      // Clear section style overrides so globals re-derive banner/cards/reviews/FAQ.
     },
   }
 }

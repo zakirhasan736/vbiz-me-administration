@@ -196,7 +196,7 @@ export const ReviewsSection = () => {
                       compact ? '' : 'md:text-xs'
                     }`}
                   >
-                    <Star size={12} className="text-[#eed677]" /> {sectionTitle}
+                    <Star size={12} className="vbiz-review-star text-[#eed677]" /> {sectionTitle}
                   </div>
 
                   {banner.title ? (
@@ -236,7 +236,7 @@ export const ReviewsSection = () => {
                         {[1, 2, 3, 4, 5].map((i) => (
                           <Star
                             key={i}
-                            className={`h-3 w-3 drop-shadow-[0_0_8px_rgba(238,214,119,0.4)] ${compact ? '' : 'md:h-5 md:w-5'} ${
+                            className={`vbiz-review-star h-3 w-3 drop-shadow-[0_0_8px_rgba(238,214,119,0.4)] ${compact ? '' : 'md:h-5 md:w-5'} ${
                               i <= Math.round(averageRating) ? 'fill-[#eed677] text-[#eed677]' : 'text-zinc-600'
                             }`}
                           />
@@ -318,13 +318,13 @@ export const ReviewsSection = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
                 key={item.id}
-                className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80 ${
+                className={`vbiz-review-card group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80 ${
                   compact
                     ? `col-span-1 p-4 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 dark:from-zinc-900/80 dark:to-zinc-900/40' : ''}`
                     : `p-6 sm:p-8 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 md:col-span-2 lg:col-span-2 dark:from-zinc-900/80 dark:to-zinc-900/40' : 'col-span-1'}`
                 }`}
               >
-                <div className="pointer-events-none absolute top-0 right-0 -mt-12 -mr-12 rounded-full bg-[#eab308]/10 p-24 opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-100 dark:bg-[#eab308]/5" />
+                <div className="pointer-events-none absolute top-0 right-0 -mt-12 -mr-12 rounded-full bg-[color-mix(in_srgb,var(--vbiz-review-star,var(--vbiz-accent))_10%,transparent)] p-24 opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-100" />
 
                 <div className="relative z-10 w-full">
                   <div className="mb-6 flex items-start justify-between">
@@ -332,7 +332,7 @@ export const ReviewsSection = () => {
                       {[1, 2, 3, 4, 5].map((i) => (
                         <Star
                           key={i}
-                          className={`h-4 w-4 ${
+                          className={`vbiz-review-star h-4 w-4 ${
                             i <= item.rating ? 'fill-[#eab308] text-[#eab308]' : 'text-zinc-300 dark:text-zinc-600'
                           }`}
                         />
@@ -366,7 +366,7 @@ export const ReviewsSection = () => {
                   <div className="min-w-0 flex-1">
                     {item.title.trim() ? (
                       <p
-                        className={`font-bold text-zinc-900 dark:text-zinc-100 ${isFeatured ? 'text-base' : 'text-sm'}`}
+                        className={`vbiz-review-user-name font-bold text-zinc-900 dark:text-zinc-100 ${isFeatured ? 'text-base' : 'text-sm'}`}
                       >
                         {item.title}
                       </p>
@@ -376,7 +376,7 @@ export const ReviewsSection = () => {
                         href={item.linkUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-zinc-500 underline-offset-4 hover:underline dark:text-zinc-400"
+                        className="vbiz-review-user-meta mt-1 inline-flex items-center gap-1 text-xs font-bold text-zinc-500 underline-offset-4 hover:underline dark:text-zinc-400"
                       >
                         View Original Review <ExternalLink size={12} />
                       </Link>
@@ -477,7 +477,7 @@ export const ReviewsSection = () => {
                         setTimeout(() => setIsTransitioning(false), 350)
                       }
                     }}
-                    className={`transform-style-3d group/card absolute flex cursor-pointer flex-col justify-between overflow-hidden rounded-4xl border border-zinc-200 bg-white shadow-2xl transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900 ${
+                    className={`vbiz-review-card transform-style-3d group/card absolute flex cursor-pointer flex-col justify-between overflow-hidden rounded-4xl border border-zinc-200 bg-white shadow-2xl transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900 ${
                       compact ? 'p-4' : 'p-6 md:p-8'
                     }`}
                     style={{ width: `${cardWidth}px`, height: `${cardHeight}px` }}

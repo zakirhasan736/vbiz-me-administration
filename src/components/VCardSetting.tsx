@@ -7,6 +7,14 @@ import { Button, Modal, Switch } from '@/components/ui'
 import { CardChangeHistoryPanel } from '@/components/vcard/CardChangeHistoryPanel'
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
+import {
+  BannerStylePanel,
+  ContentCardStylePanel,
+  FaqItemStylePanel,
+  ReviewCardStylePanel,
+  ThemeBrandColorsPanel,
+  TopNavBarStylePanel,
+} from '@/components/vcard/ThemeSmartColorPanels'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
@@ -39,7 +47,8 @@ import {
   ownerSeoKeywords,
 } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
-import { buildPreviewMatchedThemeConfig } from '@/lib/theme/resolveCardTheme'
+import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
+import { buildPreviewMatchedThemeConfig, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import {
   inferMediaWallpaperStyle,
   patchThemeConfigWallpaper,
@@ -60,6 +69,7 @@ import {
   getDisplaySettingsFromVCard,
   getFieldModePickerValues,
   getFieldThemeColorDefaults,
+  HOME_PAGE_COLOR_FIELDS,
   HOME_PAGE_FIELDS,
   HOME_PAGE_URL_FIELDS,
   ICON_FIELDS,
@@ -84,6 +94,7 @@ import { cn } from '@/utils/cn'
 import {
   Bot,
   CheckCircle2,
+  CircleHelp,
   Compass,
   Crown,
   FileText,
@@ -91,10 +102,12 @@ import {
   History,
   Home,
   Image as ImageIcon,
+  Layers,
   LayoutTemplate,
   Link2,
   Loader2,
   Menu,
+  MessageSquareQuote,
   Plug,
   RotateCcw,
   Search,
@@ -117,6 +130,9 @@ const settingTabs = [
   { id: 'home', label: 'Home Page Settings', icon: Home },
   { id: 'integration', label: 'Integration', icon: Plug },
   { id: 'template', label: 'Template Settings', icon: LayoutTemplate },
+  { id: 'content-cards', label: 'Content Cards', icon: Layers },
+  { id: 'reviews-style', label: 'Reviews', icon: MessageSquareQuote },
+  { id: 'faq-style', label: 'FAQ', icon: CircleHelp },
   { id: 'seo', label: 'SEO', icon: Search },
   { id: 'history', label: 'History', icon: History },
 ]
@@ -124,7 +140,16 @@ const settingTabs = [
 const cardInputClasses =
   'w-full rounded-[.875rem] border border-slate-200 bg-slate-50 px-4 py-3.5 text-[.8125rem] font-medium text-slate-900 shadow-sm outline-none transition-all focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-slate-800 dark:text-white'
 
-const TABS_WITHOUT_ENABLE_ALL = new Set(['template', 'seo', 'integration', 'ai-assistance', 'history'])
+const TABS_WITHOUT_ENABLE_ALL = new Set([
+  'template',
+  'content-cards',
+  'reviews-style',
+  'faq-style',
+  'seo',
+  'integration',
+  'ai-assistance',
+  'history',
+])
 const FIELD_CARD_TABS = new Set(['info', 'social', 'icons', 'general', 'home'])
 
 const settingTabTourIds: Record<string, string> = {
@@ -587,78 +612,45 @@ function TemplateDesigner() {
         </SettingSection>
       )}
 
-      {/* Theme Colors */}
+      {/* Theme Colors — per-mode Primary / Secondary / Accent */}
       <SettingSection title="Theme Colors">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
-            Primary, secondary, and accent apply across light and dark mode, buttons, and field chrome.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-1.5"
-            onClick={() => {
-              const template = cardAppearance.profileTemplate ?? 'v3'
-              const defaults = getStaticProfileTheme(template)
-              const nextTheme = {
-                ...vCardData.theme,
-                primaryColor: defaults.primaryColor,
-                secondaryColor: defaults.secondaryColor,
-                accentColor: defaults.accentColor,
-                darkMode: defaults.darkMode,
-              }
-              // Exact config the eye preview + public card both apply after save.
-              const nextThemeConfig = buildPreviewMatchedThemeConfig(
-                vCardData.themeConfig,
-                nextTheme,
-                cardAppearance,
-                template
-              )
-              const allColorFields = [
-                ...GENERAL_SETTINGS_FIELDS,
-                ...HOME_PAGE_FIELDS,
-                ...SOCIAL_LINK_FIELDS,
-                ...ICON_FIELDS,
-                ...NAV_BAR_FIELDS,
-                ...MY_INFO_FIELDS,
-              ]
-              const nextDisplay = setCategoryResetColors(getDisplaySettingsFromVCard(vCardData), allColorFields)
-              updateData('theme', nextTheme)
-              updateData('themeConfig', nextThemeConfig)
-              updateData('displaySettings', nextDisplay)
-              void flushSave()
-                .then(() => notify.success('Colors reset — public card matches preview defaults.'))
-                .catch(() => notify.error('Colors updated locally; save failed. Try again.'))
-            }}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset colors
-          </Button>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <ColorPicker
-            label="Primary Theme Color"
-            value={vCardData.theme.primaryColor}
-            onChange={(val) => {
-              updateData('theme.primaryColor', val)
-            }}
-          />
-          <ColorPicker
-            label="Secondary Theme Color"
-            value={vCardData.theme.secondaryColor}
-            onChange={(val) => {
-              updateData('theme.secondaryColor', val)
-            }}
-          />
-          <ColorPicker
-            label="Accent Theme Color"
-            value={vCardData.theme.accentColor}
-            onChange={(val) => {
-              updateData('theme.accentColor', val)
-            }}
-          />
-        </div>
+        <ThemeBrandColorsPanel
+          themeConfig={resolveCardThemeConfig(vCardData.themeConfig, templateId)}
+          onThemeConfigChange={(next) => updateData('themeConfig', next)}
+          onFlatThemePath={(path, value) => updateData(path, value)}
+          onReset={() => {
+            const template = cardAppearance.profileTemplate ?? 'v3'
+            const defaults = getStaticProfileTheme(template)
+            const nextTheme = {
+              ...vCardData.theme,
+              primaryColor: defaults.primaryColor,
+              secondaryColor: defaults.secondaryColor,
+              accentColor: defaults.accentColor,
+              darkMode: defaults.darkMode,
+            }
+            const nextThemeConfig = buildPreviewMatchedThemeConfig(
+              vCardData.themeConfig,
+              nextTheme,
+              cardAppearance,
+              template
+            )
+            const allColorFields = [
+              ...GENERAL_SETTINGS_FIELDS,
+              ...HOME_PAGE_FIELDS,
+              ...SOCIAL_LINK_FIELDS,
+              ...ICON_FIELDS,
+              ...NAV_BAR_FIELDS,
+              ...MY_INFO_FIELDS,
+            ]
+            const nextDisplay = setCategoryResetColors(getDisplaySettingsFromVCard(vCardData), allColorFields)
+            updateData('theme', nextTheme)
+            updateData('themeConfig', nextThemeConfig)
+            updateData('displaySettings', nextDisplay)
+            void flushSave()
+              .then(() => notify.success('Colors reset — public card matches preview defaults.'))
+              .catch(() => notify.error('Colors updated locally; save failed. Try again.'))
+          }}
+        />
       </SettingSection>
 
       <SettingSection title="Wallpaper style">
@@ -1910,7 +1902,7 @@ type TabSettingProps = {
 }
 
 export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSettingProps) {
-  const { vCardData, updateData } = useVCard()
+  const { vCardData, updateData, cardId: contextCardId, isCreateMode } = useVCard()
   const { allow_seo: canUseSeo } = usePackageAccess()
   const display = getDisplaySettingsFromVCard(vCardData)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -1933,6 +1925,14 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
 
   const profileTemplate = (vCardData.appearance?.profileTemplate ?? 'v2') as 'v1' | 'v2' | 'v3'
   const themeDefaults = getFieldThemeColorDefaults(vCardData.theme, profileTemplate)
+  const resolvedThemeConfig = resolveCardThemeConfig(
+    vCardData.themeConfig ?? getDefaultThemeConfig(profileTemplate),
+    profileTemplate
+  )
+  const settingsProfileId =
+    (cardId || contextCardId) && !isLocalTempId(cardId || contextCardId || '') && !isCreateMode
+      ? cardId || contextCardId || undefined
+      : undefined
 
   const renderFieldCards = (
     keys: readonly string[],
@@ -1963,27 +1963,82 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
       case 'icons':
         return renderFieldCards(ICON_FIELDS, { iconColLabel: '@Color: MyInfo Icon' })
       case 'general':
-        return renderFieldCards(GENERAL_SETTINGS_FIELDS, { showTextCol: true, showBgCol: true })
+        return (
+          <>
+            <div className="md:col-span-2">
+              <TopNavBarStylePanel
+                themeConfig={resolvedThemeConfig}
+                onThemeConfigChange={(next) => updateData('themeConfig', next)}
+              />
+              <BannerStylePanel
+                themeConfig={resolvedThemeConfig}
+                onThemeConfigChange={(next) => updateData('themeConfig', next)}
+                profileId={settingsProfileId}
+              />
+            </div>
+            {renderFieldCards(GENERAL_SETTINGS_FIELDS, { showTextCol: true, showBgCol: true })}
+          </>
+        )
+      case 'content-cards':
+        return (
+          <ContentCardStylePanel
+            themeConfig={resolvedThemeConfig}
+            onThemeConfigChange={(next) => updateData('themeConfig', next)}
+          />
+        )
+      case 'reviews-style':
+        return (
+          <ReviewCardStylePanel
+            themeConfig={resolvedThemeConfig}
+            onThemeConfigChange={(next) => updateData('themeConfig', next)}
+          />
+        )
+      case 'faq-style':
+        return (
+          <FaqItemStylePanel
+            themeConfig={resolvedThemeConfig}
+            onThemeConfigChange={(next) => updateData('themeConfig', next)}
+          />
+        )
       case 'home':
         return HOME_PAGE_FIELDS.map((key) => {
-          const isHeaderColor = key === 'vCard Header Color'
+          const isColorField = HOME_PAGE_COLOR_FIELDS.has(key)
+          const isHeading = key === 'Home Heading Color'
+          const isDescription = key === 'Home Description Color'
+          const isHeadingDesc = isHeading || isDescription
           const showInput = HOME_PAGE_URL_FIELDS.has(key)
+          const primary = themeDefaults.light.bg
+          const secondary = vCardData.theme.secondaryColor?.trim() || themeDefaults.light.text || primary
+          // Match public home defaults: heading light=secondary / dark=white; description=primary both modes.
+          const homeColorDefaults = isHeading
+            ? {
+                light: { ...themeDefaults.light, text: secondary, icon: secondary },
+                dark: { ...themeDefaults.dark, text: '#ffffff', icon: '#ffffff' },
+              }
+            : isDescription
+              ? {
+                  light: { ...themeDefaults.light, text: primary, icon: primary },
+                  dark: { ...themeDefaults.dark, text: primary, icon: primary },
+                }
+              : themeDefaults
           return (
             <FieldCard
               key={key}
               title={key}
               config={display.fields[key] ?? { visible: true }}
               onPatch={(patch) => patchField(key, patch)}
-              themeDefaults={themeDefaults}
+              themeDefaults={homeColorDefaults}
               showInput={showInput}
-              showTextCol={isHeaderColor}
-              showBgCol={isHeaderColor}
+              showTextCol={isColorField}
+              showBgCol={isColorField && !isHeadingDesc}
               toggleLabel={
                 showInput
                   ? 'Visibility and media URL'
-                  : isHeaderColor
-                    ? 'Visibility and header colors'
-                    : 'Visibility only'
+                  : isHeadingDesc
+                    ? 'Light/dark text color for home name or description'
+                    : isColorField
+                      ? 'Visibility and header colors'
+                      : 'Visibility only'
               }
             />
           )
@@ -2011,7 +2066,13 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
           ? 'Connect Canva and manage AI Assistance for this card.'
           : activeTab === 'template'
             ? 'Choose the public card layout. Tab order and visibility are set from Add Tabs.'
-            : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
+            : activeTab === 'content-cards'
+              ? 'Style shared content cards (services, blogs, and similar sections).'
+              : activeTab === 'reviews-style'
+                ? 'Style review cards, stars, and user chrome for light and dark mode.'
+                : activeTab === 'faq-style'
+                  ? 'Style FAQ question and answer surfaces for light and dark mode.'
+                  : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
 
   const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)
 
@@ -2192,9 +2253,11 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
                   'animate-in fade-in slide-in-from-bottom-8 fill-mode-both duration-700',
                   activeTab === 'template' || activeTab === 'integration' || activeTab === 'ai-assistance'
                     ? ''
-                    : FIELD_CARD_TABS.has(activeTab)
-                      ? 'mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-2'
-                      : 'mx-auto flex w-full max-w-4xl flex-col gap-4'
+                    : activeTab === 'content-cards' || activeTab === 'reviews-style' || activeTab === 'faq-style'
+                      ? 'mx-auto flex w-full max-w-4xl flex-col gap-4'
+                      : FIELD_CARD_TABS.has(activeTab)
+                        ? 'mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-2'
+                        : 'mx-auto flex w-full max-w-4xl flex-col gap-4'
                 )}
               >
                 {renderContent()}

@@ -10,6 +10,13 @@ import {
   type ThemeMode,
 } from '@/lib/theme/cardThemeContract'
 import { ensureContrastPair } from '@/lib/theme/resolveCardTheme'
+import {
+  resolveBannerStyle,
+  resolveContentCardStyle,
+  resolveFaqItemStyle,
+  resolveReviewCardStyle,
+  resolveTopNavBarStyle,
+} from '@/lib/theme/sectionStyleDefaults'
 import type { CSSProperties } from 'react'
 
 function colorFromToken(token: ColorToken | undefined, set: ThemeColorSet, fallback: string): string {
@@ -168,6 +175,58 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   vars['--vbiz-social-icon-size'] = `${Math.max(22, social.iconSize || 22)}px`
   vars['--vbiz-social-size'] = `${social.size}px`
 
+  const banner = resolveBannerStyle(set, mode, config.components.sectionBanner)
+  const contentCard = resolveContentCardStyle(set, mode, config.components.contentCard)
+  const review = resolveReviewCardStyle(set, mode, config.components.reviewCard)
+  const faq = resolveFaqItemStyle(set, mode, config.components.faqItem)
+  const topNav = resolveTopNavBarStyle(set, mode, config.components.topNavBar)
+
+  vars['--vbiz-banner-variant'] = banner.variant || 'gradient'
+  vars['--vbiz-banner-bg'] = banner.bg || set.secondary
+  vars['--vbiz-banner-gradient-from'] = banner.gradientFrom || set.accent
+  vars['--vbiz-banner-gradient-to'] = banner.gradientTo || '#020617'
+  vars['--vbiz-banner-title'] = banner.title || '#ffffff'
+  vars['--vbiz-banner-description'] = banner.description || 'rgba(255,255,255,0.78)'
+  vars['--vbiz-banner-note'] = banner.note || vars['--vbiz-banner-description']
+  vars['--vbiz-banner-label'] = banner.label || set.accent
+  vars['--vbiz-banner-text'] = banner.text || vars['--vbiz-banner-title']
+  vars['--vbiz-banner-image'] = banner.imageUrl ? `url(${JSON.stringify(banner.imageUrl)})` : 'none'
+  vars['--vbiz-banner-image-fit'] = banner.imageFit || 'cover'
+  vars['--vbiz-banner-image-position'] = banner.imagePosition || 'center'
+
+  vars['--vbiz-content-card-bg'] = contentCard.bg || set.surface
+  vars['--vbiz-content-card-border'] = contentCard.border || set.border
+  vars['--vbiz-content-card-title'] = contentCard.title || set.text
+  vars['--vbiz-content-card-text'] = contentCard.text || set.text
+  vars['--vbiz-content-card-desc'] = contentCard.description || set.textMuted
+  vars['--vbiz-content-card-icon'] = contentCard.icon || set.accent
+  vars['--vbiz-content-card-image-radius'] = `${cornerStyleToRadius(contentCard.imageCorner || 'round')}px`
+  vars['--vbiz-content-card-image-fit'] = contentCard.imageFit || 'cover'
+  vars['--vbiz-content-card-image-position'] = contentCard.imagePosition || 'center'
+
+  vars['--vbiz-review-card-bg'] = review.cardBg || set.surface
+  vars['--vbiz-review-text'] = review.text || set.text
+  vars['--vbiz-review-star'] = review.star || set.accent
+  vars['--vbiz-review-user-name'] = review.userName || set.text
+  vars['--vbiz-review-user-meta'] = review.userMeta || set.textMuted
+  vars['--vbiz-review-slider-track'] = review.sliderTrack || set.border
+  vars['--vbiz-review-slider-fill'] = review.sliderFill || set.accent
+
+  vars['--vbiz-faq-question-bg'] = faq.questionBg || set.surface
+  vars['--vbiz-faq-question-fg'] = faq.questionFg || set.text
+  vars['--vbiz-faq-answer-bg'] = faq.answerBg || set.background
+  vars['--vbiz-faq-answer-fg'] = faq.answerFg || set.textMuted
+  vars['--vbiz-faq-border'] = faq.border || set.border
+  vars['--vbiz-faq-icon'] = faq.icon || set.accent
+
+  vars['--vbiz-nav-variant'] = topNav.variant || 'gradient'
+  vars['--vbiz-nav-bg'] = topNav.bg || set.primary
+  vars['--vbiz-nav-gradient-from'] = topNav.gradientFrom || set.primary
+  vars['--vbiz-nav-gradient-to'] = topNav.gradientTo || set.secondary
+  vars['--vbiz-nav-item'] = topNav.item || set.secondary
+  vars['--vbiz-nav-item-active'] = topNav.itemActive || set.accent
+  vars['--vbiz-nav-border'] = topNav.border || set.accent
+
   return vars as CSSProperties
 }
 
@@ -317,24 +376,33 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   border-color: var(--vbiz-accent) !important;
 }
 
-/* ---------- Floating nav chrome (colors only — corners stay from template CSS) ---------- */
+/* ---------- Floating nav chrome (follows General → Top navbar / global brand) ---------- */
 .vbiz-profile-root .vbiz-floating-nav-inner {
-  background-color: color-mix(in srgb, var(--vbiz-surface) 92%, transparent) !important;
-  border-color: color-mix(in srgb, var(--vbiz-accent) 40%, transparent) !important;
-  color: var(--vbiz-text) !important;
+  background-color: var(--vbiz-nav-bg, color-mix(in srgb, var(--vbiz-primary) 92%, transparent)) !important;
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--vbiz-nav-gradient-from, var(--vbiz-primary)) 88%, transparent) 0%,
+    color-mix(in srgb, var(--vbiz-nav-gradient-to, var(--vbiz-secondary)) 82%, transparent) 100%
+  ) !important;
+  border-color: color-mix(in srgb, var(--vbiz-nav-border, var(--vbiz-accent)) 55%, transparent) !important;
+  color: var(--vbiz-nav-item, var(--vbiz-secondary)) !important;
+}
+.vbiz-profile-root[data-nav-variant='solid'] .vbiz-floating-nav-inner {
+  background-image: none !important;
+  background-color: var(--vbiz-nav-bg, var(--vbiz-primary)) !important;
 }
 
 /* ---------- Nav tabs (colors only — no API corner override) ---------- */
 .vbiz-profile-root .vbiz-nav-tab {
-  color: var(--vbiz-text-muted) !important;
+  color: var(--vbiz-nav-item, var(--vbiz-text-muted)) !important;
 }
 .vbiz-profile-root .vbiz-nav-tab:hover {
-  color: var(--vbiz-text) !important;
+  color: var(--vbiz-nav-item-active, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root .vbiz-nav-tab[data-active='true'],
 .vbiz-profile-root .vbiz-nav-tab[aria-selected='true'],
 .vbiz-profile-root .vbiz-nav-tab[aria-current='page'] {
-  color: var(--vbiz-accent) !important;
+  color: var(--vbiz-nav-item-active, var(--vbiz-accent)) !important;
 }
 .vbiz-profile-root .vbiz-nav-tab[data-active='true'] .vbiz-nav-tab-icon,
 .vbiz-profile-root .vbiz-nav-tab[aria-selected='true'] .vbiz-nav-tab-icon,
@@ -342,31 +410,31 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-nav-tab[data-active='true'] svg,
 .vbiz-profile-root .vbiz-nav-tab[aria-selected='true'] svg,
 .vbiz-profile-root .vbiz-nav-tab[aria-current='page'] svg {
-  color: var(--vbiz-accent) !important;
+  color: var(--vbiz-nav-item-active, var(--vbiz-accent)) !important;
 }
 .vbiz-profile-root .vbiz-nav-tab-icon {
   color: inherit;
 }
 .vbiz-profile-root .vbiz-nav-tab-active-bg {
-  background-color: var(--vbiz-accent-subtle) !important;
-  border-color: color-mix(in srgb, var(--vbiz-accent) 70%, transparent) !important;
+  background-color: color-mix(in srgb, var(--vbiz-nav-item-active, var(--vbiz-accent)) 18%, transparent) !important;
+  border-color: color-mix(in srgb, var(--vbiz-nav-border, var(--vbiz-accent)) 70%, transparent) !important;
 }
 .vbiz-profile-root .vbiz-nav-tab-hover-bg {
-  background-color: var(--vbiz-accent-faint) !important;
-  border-color: color-mix(in srgb, var(--vbiz-accent) 25%, transparent) !important;
+  background-color: color-mix(in srgb, var(--vbiz-nav-item-active, var(--vbiz-accent)) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--vbiz-nav-border, var(--vbiz-accent)) 25%, transparent) !important;
 }
 .vbiz-profile-root .vbiz-nav-tab-dot {
-  background-color: var(--vbiz-accent) !important;
+  background-color: var(--vbiz-nav-item-active, var(--vbiz-accent)) !important;
 }
 .vbiz-profile-root .vbiz-nav-scroll-btn {
-  border-color: color-mix(in srgb, var(--vbiz-accent) 35%, transparent) !important;
-  background-color: color-mix(in srgb, var(--vbiz-surface) 92%, transparent) !important;
-  color: var(--vbiz-accent) !important;
+  border-color: color-mix(in srgb, var(--vbiz-nav-border, var(--vbiz-accent)) 35%, transparent) !important;
+  background-color: color-mix(in srgb, var(--vbiz-nav-bg, var(--vbiz-surface)) 92%, transparent) !important;
+  color: var(--vbiz-nav-item-active, var(--vbiz-accent)) !important;
 }
 
 /* v2 active pill: solid accent fill + contrasting icon */
 .vbiz-profile-root .vbiz-nav-tab[aria-selected='true'] .vbiz-nav-tab-active-pill {
-  background-color: var(--vbiz-accent) !important;
+  background-color: var(--vbiz-nav-item-active, var(--vbiz-accent)) !important;
 }
 .vbiz-profile-root .vbiz-nav-tab[aria-selected='true']:has(.vbiz-nav-tab-active-pill) .vbiz-nav-tab-icon {
   color: var(--vbiz-btn-accent-fg, #0b0b0d) !important;
@@ -437,27 +505,60 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 
 /* ---------- Section banners & screen cards — always rounded-2xl, never API cornerStyle ---------- */
-.vbiz-profile-root .vbiz-section-banner,
 .vbiz-profile-root .vbiz-card,
-.vbiz-profile-root .vbiz-hero-banner,
+.vbiz-profile-root .vbiz-content-card,
 .vbiz-profile-root .vbiz-hero-card,
 .vbiz-profile-root .vbiz-screen-card {
-  background-color: color-mix(in srgb, var(--vbiz-surface) 94%, transparent) !important;
-  border-color: var(--vbiz-border) !important;
-  color: var(--vbiz-text) !important;
+  background-color: var(--vbiz-content-card-bg, color-mix(in srgb, var(--vbiz-surface) 94%, transparent)) !important;
+  border-color: var(--vbiz-content-card-border, var(--vbiz-border)) !important;
+  color: var(--vbiz-content-card-text, var(--vbiz-text)) !important;
   border-radius: 1rem !important;
 }
-/* Pages Header gradient: soft branding tint by default; --vbiz-page-header-fill overrides (never solid / never full blast) */
+.vbiz-profile-root .vbiz-content-card .vbiz-title,
+.vbiz-profile-root .vbiz-card .vbiz-title {
+  color: var(--vbiz-content-card-title, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root .vbiz-content-card .vbiz-description,
+.vbiz-profile-root .vbiz-card .vbiz-description {
+  color: var(--vbiz-content-card-desc, var(--vbiz-text-muted)) !important;
+}
+.vbiz-profile-root .vbiz-content-card img,
+.vbiz-profile-root .vbiz-card img {
+  object-fit: var(--vbiz-content-card-image-fit, cover);
+  object-position: var(--vbiz-content-card-image-position, center);
+  border-radius: var(--vbiz-content-card-image-radius, 1rem);
+}
+.vbiz-profile-root .vbiz-content-card svg,
+.vbiz-profile-root .vbiz-card .vbiz-card-icon {
+  color: var(--vbiz-content-card-icon, var(--vbiz-accent)) !important;
+}
+
+/* Banner: gradient (default) / solid / image via --vbiz-banner-variant */
 .vbiz-profile-root .vbiz-section-banner,
 .vbiz-profile-root .vbiz-hero-banner,
 .vbiz-profile-root .vbiz-page-header-surface {
   background-color: transparent !important;
   background-image: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 28%, #020617) 0%,
-    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 12%, #020617) 42%,
-    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-accent)) 5%, #0a0f1a) 100%
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-banner-gradient-from, var(--vbiz-accent))) 28%, var(--vbiz-banner-gradient-to, #020617)) 0%,
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-banner-gradient-from, var(--vbiz-accent))) 12%, var(--vbiz-banner-gradient-to, #020617)) 42%,
+    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-banner-gradient-from, var(--vbiz-accent))) 5%, var(--vbiz-banner-gradient-to, #0a0f1a)) 100%
   ) !important;
+  color: var(--vbiz-banner-text, #ffffff) !important;
+}
+.vbiz-profile-root[data-banner-variant='solid'] .vbiz-section-banner,
+.vbiz-profile-root[data-banner-variant='solid'] .vbiz-hero-banner,
+.vbiz-profile-root[data-banner-variant='solid'] .vbiz-page-header-surface {
+  background-image: none !important;
+  background-color: var(--vbiz-page-header-fill, var(--vbiz-banner-bg, var(--vbiz-secondary))) !important;
+}
+.vbiz-profile-root[data-banner-variant='image'] .vbiz-section-banner,
+.vbiz-profile-root[data-banner-variant='image'] .vbiz-hero-banner,
+.vbiz-profile-root[data-banner-variant='image'] .vbiz-page-header-surface {
+  background-image: linear-gradient(180deg, rgba(2,6,23,0.55), rgba(2,6,23,0.72)), var(--vbiz-banner-image) !important;
+  background-size: cover !important;
+  background-position: var(--vbiz-banner-image-position, center) !important;
+  background-color: var(--vbiz-banner-bg, #020617) !important;
 }
 .vbiz-profile-root .vbiz-page-header-surface {
   border-color: var(--vbiz-border) !important;
@@ -528,12 +629,39 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-page-header-surface .vbiz-title,
 .vbiz-profile-root .vbiz-page-header-surface h2,
 .vbiz-profile-root .vbiz-public-cards-banner h2 {
-  color: var(--vbiz-page-header-fg, #ffffff) !important;
+  color: var(--vbiz-page-header-fg, var(--vbiz-banner-title, #ffffff)) !important;
 }
 .vbiz-profile-root [data-section-id='faq'] .vbiz-section-banner h2,
 .vbiz-profile-root [data-section-id='faq'] .vbiz-section-banner h3,
 .vbiz-profile-root [data-section-id='faq'] .vcard-faq-banner-title {
-  color: var(--vbiz-accent, #eab308) !important;
+  color: var(--vbiz-banner-label, var(--vbiz-accent, #eab308)) !important;
+}
+.vbiz-profile-root .vbiz-section-banner .vbiz-description,
+.vbiz-profile-root .vbiz-page-header-surface .vbiz-description {
+  color: var(--vbiz-banner-description, rgba(255,255,255,0.78)) !important;
+}
+.vbiz-profile-root .vbiz-review-card {
+  background-color: var(--vbiz-review-card-bg, var(--vbiz-surface)) !important;
+  color: var(--vbiz-review-text, var(--vbiz-text)) !important;
+  border-color: var(--vbiz-content-card-border, var(--vbiz-border)) !important;
+}
+.vbiz-profile-root .vbiz-review-card .vbiz-review-star,
+.vbiz-profile-root .vbiz-review-star {
+  color: var(--vbiz-review-star, var(--vbiz-accent)) !important;
+  fill: var(--vbiz-review-star, var(--vbiz-accent)) !important;
+}
+.vbiz-profile-root .vbiz-review-user-name { color: var(--vbiz-review-user-name, var(--vbiz-text)) !important; }
+.vbiz-profile-root .vbiz-review-user-meta { color: var(--vbiz-review-user-meta, var(--vbiz-text-muted)) !important; }
+.vbiz-profile-root .vbiz-faq-item,
+.vbiz-profile-root [data-section-id='faq'] .vbiz-card {
+  background-color: var(--vbiz-faq-question-bg, var(--vbiz-surface)) !important;
+  border-color: var(--vbiz-faq-border, var(--vbiz-border)) !important;
+  color: var(--vbiz-faq-question-fg, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root [data-section-id='faq'] .vcard-faq-answer,
+.vbiz-profile-root .vbiz-faq-answer {
+  background-color: var(--vbiz-faq-answer-bg, var(--vbiz-bg)) !important;
+  color: var(--vbiz-faq-answer-fg, var(--vbiz-text-muted)) !important;
 }
 .vbiz-profile-root .vbiz-section-banner .vbiz-description,
 .vbiz-profile-root .vbiz-page-header-surface .vbiz-description,

@@ -74,12 +74,111 @@ export type CardWallpaperConfig = {
   patternId?: 'dots' | 'grid' | 'diagonal'
 }
 
+export type BannerVariant = 'gradient' | 'solid' | 'image'
+export type ObjectFitMode = 'cover' | 'contain' | 'fill'
+export type ObjectPositionMode = 'top' | 'center' | 'bottom'
+
+/** Per-mode section banner chrome (tab screen headers). */
+export type BannerModeColors = {
+  variant?: BannerVariant
+  bg?: string
+  gradientFrom?: string
+  gradientTo?: string
+  title?: string
+  description?: string
+  note?: string
+  label?: string
+  text?: string
+  imageUrl?: string
+  imageFit?: ObjectFitMode
+  imagePosition?: ObjectPositionMode
+}
+
+export type BannerStyleConfig = {
+  light?: BannerModeColors
+  dark?: BannerModeColors
+}
+
+/** Shared content cards (services, blogs, portfolio, etc.). */
+export type ContentCardModeColors = {
+  bg?: string
+  border?: string
+  title?: string
+  text?: string
+  description?: string
+  icon?: string
+  imageCorner?: CornerStyle
+  imageFit?: ObjectFitMode
+  imagePosition?: ObjectPositionMode
+}
+
+export type ContentCardStyleConfig = {
+  light?: ContentCardModeColors
+  dark?: ContentCardModeColors
+}
+
+export type ReviewCardModeColors = {
+  cardBg?: string
+  text?: string
+  star?: string
+  userName?: string
+  userMeta?: string
+  sliderTrack?: string
+  sliderFill?: string
+}
+
+export type ReviewCardStyleConfig = {
+  light?: ReviewCardModeColors
+  dark?: ReviewCardModeColors
+}
+
+export type FaqItemModeColors = {
+  questionBg?: string
+  questionFg?: string
+  answerBg?: string
+  answerFg?: string
+  border?: string
+  icon?: string
+}
+
+export type FaqItemStyleConfig = {
+  light?: FaqItemModeColors
+  dark?: FaqItemModeColors
+}
+
+export type TopNavVariant = 'gradient' | 'solid'
+
+/** Floating top/bottom navbar chrome (light/dark). */
+export type TopNavBarModeColors = {
+  /** gradient = brand gradient fill; solid = plane flat fill */
+  variant?: TopNavVariant
+  bg?: string
+  gradientFrom?: string
+  gradientTo?: string
+  /** Inactive nav item / icon color */
+  item?: string
+  /** Active nav item / icon color */
+  itemActive?: string
+  border?: string
+}
+
+export type TopNavBarStyleConfig = {
+  light?: TopNavBarModeColors
+  dark?: TopNavBarModeColors
+}
+
 export type CardThemeConfig = {
   version: 1
   colors: GlobalThemeColors
   components: {
     button: ButtonComponents
     socialIcon: SocialIconComponent
+    /** Optional overrides; omit fields to derive from global brand. */
+    sectionBanner?: BannerStyleConfig
+    contentCard?: ContentCardStyleConfig
+    reviewCard?: ReviewCardStyleConfig
+    faqItem?: FaqItemStyleConfig
+    topNavBar?: TopNavBarStyleConfig
   }
   appearance: {
     profileTemplate: ProfileTemplateId

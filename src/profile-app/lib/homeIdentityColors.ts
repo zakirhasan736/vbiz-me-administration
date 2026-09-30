@@ -12,22 +12,33 @@ type IdentityColors = {
   professionClassName: string
 }
 
+function fieldTextColor(config: DisplayFieldConfig | undefined, mode: ThemeMode): string | undefined {
+  if (!config || config.visible === false) return undefined
+  const resolved = resolveFieldModeColors(config, mode, { preferText: true })
+  return resolved.fg?.trim() || undefined
+}
+
 /**
  * Home-screen owner name + designation colors over video/wallpaper.
- * Light: primary brand color for both lines (readable brand accent on media).
- * Dark: white name + accent designation (existing home treatment).
- * Card Settings light/dark field colors win when set.
+ * Priority: Home Page heading/description colors → legacy header → My Info field colors → theme tokens.
  */
 export function resolveHomeIdentityColors(options: {
   mode: ThemeMode
   nameField?: DisplayFieldConfig
   professionField?: DisplayFieldConfig
   designationField?: DisplayFieldConfig
+  /** Card Settings → Home → Home Heading Color */
+  headingField?: DisplayFieldConfig
+  /** Card Settings → Home → Home Description Color */
+  descriptionField?: DisplayFieldConfig
   /** Legacy header color from Home settings (applies to name). */
   headerTextColor?: string
 }): IdentityColors {
   const mode = options.mode === 'dark' ? 'dark' : 'light'
   const header = options.headerTextColor?.trim() || ''
+
+  const homeHeading = fieldTextColor(options.headingField, mode)
+  const homeDescription = fieldTextColor(options.descriptionField, mode)
 
   const nameResolved = resolveFieldModeColors(options.nameField, mode, { preferText: true })
   const professionFromProfession = resolveFieldModeColors(options.professionField, mode, { preferText: true })
@@ -35,19 +46,25 @@ export function resolveHomeIdentityColors(options: {
   const professionResolved =
     professionFromProfession.fg || professionFromProfession.fill ? professionFromProfession : professionFromDesignation
 
+  // Defaults: heading light=secondary, dark=white; description light+dark=primary.
   const nameStyle: CSSProperties = {}
-  if (header) nameStyle.color = header
+  if (homeHeading) nameStyle.color = homeHeading
+  else if (header) nameStyle.color = header
   else if (nameResolved.fg) nameStyle.color = nameResolved.fg
-  else nameStyle.color = mode === 'light' ? 'var(--vbiz-primary)' : '#ffffff'
+  else nameStyle.color = mode === 'light' ? 'var(--vbiz-secondary)' : '#ffffff'
   if (nameResolved.fill) nameStyle.backgroundColor = nameResolved.fill
 
   const professionStyle: CSSProperties = {}
-  if (professionResolved.fg) {
+  if (homeDescription) {
+    professionStyle.color = homeDescription
+    professionStyle.backgroundImage = 'none'
+    professionStyle.WebkitTextFillColor = 'unset'
+  } else if (professionResolved.fg) {
     professionStyle.color = professionResolved.fg
     professionStyle.backgroundImage = 'none'
     professionStyle.WebkitTextFillColor = 'unset'
   } else {
-    professionStyle.color = mode === 'light' ? 'var(--vbiz-primary)' : 'var(--vbiz-accent)'
+    professionStyle.color = 'var(--vbiz-primary)'
   }
   if (professionResolved.fill) professionStyle.backgroundColor = professionResolved.fill
 
@@ -56,11 +73,9 @@ export function resolveHomeIdentityColors(options: {
     professionStyle,
     nameClassName:
       mode === 'light'
-        ? 'text-[color:var(--vbiz-primary)] drop-shadow-[0_1px_2px_rgba(255,255,255,0.85)]'
+        ? 'text-[color:var(--vbiz-secondary)] drop-shadow-[0_1px_2px_rgba(255,255,255,0.85)]'
         : 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]',
     professionClassName:
-      mode === 'light'
-        ? 'text-[color:var(--vbiz-primary)] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]'
-        : 'text-[color:var(--vbiz-accent)] drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]',
+      'text-[color:var(--vbiz-primary)] drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]',
   }
 }

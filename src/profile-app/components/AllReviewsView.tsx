@@ -12,7 +12,7 @@ import Link from 'next/link'
 function ReviewStars({
   rating,
   className = 'h-4 w-4',
-  filledClassName = 'fill-yellow-primary text-yellow-primary',
+  filledClassName = 'vbiz-review-star fill-yellow-primary text-yellow-primary',
   emptyClassName = 'text-zinc-300 dark:text-zinc-600',
 }: {
   rating: number
@@ -24,7 +24,7 @@ function ReviewStars({
   return (
     <>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Star key={i} className={`${className} ${i <= value ? filledClassName : emptyClassName}`} />
+        <Star key={i} className={`vbiz-review-star ${className} ${i <= value ? filledClassName : emptyClassName}`} />
       ))}
     </>
   )
@@ -131,7 +131,7 @@ export function AllReviewsView({ sectionTitle, slides, onBack }: AllReviewsViewP
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: idx * 0.05 }}
-            className={`flex min-h-70 flex-col rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50 ${
+            className={`vbiz-review-card flex min-h-70 flex-col rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50 ${
               compact ? 'p-4' : 'p-6 sm:p-8'
             }`}
           >

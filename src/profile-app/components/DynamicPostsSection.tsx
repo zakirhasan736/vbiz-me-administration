@@ -288,7 +288,7 @@ function PostCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
+      className="vbiz-content-card group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
       {mediaBlock}
       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -297,7 +297,7 @@ function PostCard({
         ) : null}
       </div>
       {post.title.trim() ? (
-        <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">{post.title}</h3>
+        <h3 className="vbiz-title mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">{post.title}</h3>
       ) : null}
       <TruncatedClampText
         html={hasHtml ? description : undefined}

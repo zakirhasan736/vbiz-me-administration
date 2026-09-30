@@ -176,6 +176,8 @@ export function ProfileHeaderV2({
     nameField: field('MyInfo section Name'),
     professionField: field('MyInfo Profession'),
     designationField: field('MyInfo Designation'),
+    headingField: field('Home Heading Color'),
+    descriptionField: field('Home Description Color'),
     headerTextColor,
   })
 

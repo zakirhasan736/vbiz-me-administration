@@ -270,6 +270,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   } = useProfileDisplay()
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showLanguage = isVisible('Language')
+  const showThemeToggle = isVisible('Theme Toggle')
   const cardTheme = homeHeroProps?.theme ?? 'light'
   const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), cardTheme)
   const languageChrome = displayIconChromeStyle(field('Language'), cardTheme)
@@ -278,6 +279,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const notificationsChrome = displayIconChromeStyle(field('Notifications'), cardTheme)
   const notepadChrome = displayIconChromeStyle(field('Notepad'), cardTheme)
   const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), cardTheme)
+  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), cardTheme)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')
@@ -287,6 +289,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
     nameField: field('MyInfo section Name'),
     professionField: field('MyInfo Profession'),
     designationField: field('MyInfo Designation'),
+    headingField: field('Home Heading Color'),
+    descriptionField: field('Home Description Color'),
   })
 
   const theme = useProfileTheme()
@@ -431,11 +435,15 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         },
                       ]
                     : []),
-                  {
-                    icon: Moon,
-                    label: 'Theme',
-                    action: () => homeHeroProps.toggleTheme(),
-                  },
+                  ...(showThemeToggle
+                    ? [
+                        {
+                          icon: Moon,
+                          label: 'Theme',
+                          action: () => homeHeroProps.toggleTheme(),
+                        },
+                      ]
+                    : []),
                 ].map((action, idx) => (
                   <IconHoverTooltip key={`${action.label}-${idx}`} label={action.label} placement="left">
                     <motion.button
@@ -460,7 +468,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               ? websiteChrome
                               : action.label === 'Language'
                                 ? languageChrome
-                                : undefined
+                                : action.label === 'Theme'
+                                  ? themeToggleChrome
+                                  : undefined
                       }
                     >
                       {'icon' in action && action.icon ? (
@@ -550,11 +560,15 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           },
                         ]
                       : []),
-                    {
-                      icon: Moon,
-                      label: 'Theme',
-                      action: () => homeHeroProps.toggleTheme(),
-                    },
+                    ...(showThemeToggle
+                      ? [
+                          {
+                            icon: Moon,
+                            label: 'Theme',
+                            action: () => homeHeroProps.toggleTheme(),
+                          },
+                        ]
+                      : []),
                   ].map((action, idx) => (
                     <IconHoverTooltip key={`${action.label}-${idx}`} label={action.label} placement="left">
                       <motion.button
@@ -570,7 +584,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               ? websiteChrome
                               : action.label === 'Language'
                                 ? languageChrome
-                                : undefined
+                                : action.label === 'Theme'
+                                  ? themeToggleChrome
+                                  : undefined
                         }
                       >
                         {'icon' in action && action.icon ? <action.icon size={22} strokeWidth={2.5} /> : null}

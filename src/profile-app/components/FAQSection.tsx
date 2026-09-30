@@ -121,7 +121,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
   }
 
   const headerClass = 'vbiz-section-banner rounded-4xl border backdrop-blur-xl'
-  const itemClass = 'vbiz-card rounded-4xl border backdrop-blur-xl'
+  const itemClass = 'vbiz-faq-item vbiz-card rounded-4xl border backdrop-blur-xl'
 
   return (
     <V3SectionShell className="overflow-hidden select-none">
@@ -211,7 +211,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.25 }}
                         >
-                          <div className="vcard-faq-answer vcard-rich-html prose prose-sm max-w-none border-t border-zinc-200 px-4 pt-1 pb-4 text-[13.3px] leading-relaxed font-medium sm:text-[14.5px] dark:border-zinc-800/40">
+                          <div className="vbiz-faq-answer vcard-faq-answer vcard-rich-html prose prose-sm max-w-none border-t border-zinc-200 px-4 pt-1 pb-4 text-[13.3px] leading-relaxed font-medium sm:text-[14.5px] dark:border-zinc-800/40">
                             <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
                             <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
                           </div>
@@ -298,7 +298,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <div className="vcard-faq-answer vcard-rich-html prose prose-sm max-w-none border-t border-zinc-200 px-5 py-3 text-[16.9px] leading-relaxed font-medium md:text-[19.4px] lg:px-6 lg:py-4 dark:border-zinc-800/50">
+                        <div className="vbiz-faq-answer vcard-faq-answer vcard-rich-html prose prose-sm max-w-none border-t border-zinc-200 px-5 py-3 text-[16.9px] leading-relaxed font-medium md:text-[19.4px] lg:px-6 lg:py-4 dark:border-zinc-800/50">
                           <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
                           <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
                         </div>

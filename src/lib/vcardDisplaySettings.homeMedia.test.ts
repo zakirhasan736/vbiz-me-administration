@@ -11,6 +11,8 @@ describe('HOME_PAGE_FIELDS catalog', () => {
       'YouTube Background Music Link',
       'Background Video/Image',
       'Profile Image/Video',
+      'Home Heading Color',
+      'Home Description Color',
       'vCard Header Color',
       'Repeat Background Music',
     ])

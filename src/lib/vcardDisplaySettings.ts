@@ -272,11 +272,15 @@ export const ICON_FIELDS = [
 export const GENERAL_SETTINGS_FIELDS = [
   'Pages Header',
   'Save Contact',
+  'Save to Wallet',
   'My Info Btn',
   'My vCard Btn',
-  'Share Btn',
+  'Theme Toggle',
   'Get your VCard Now',
 ] as const
+
+/** Legacy key kept for API/visibility sync; colors live on Social → Share. */
+export const LEGACY_SHARE_BTN_FIELD = 'Share Btn' as const
 
 export const HOME_PAGE_FIELDS = [
   'Intro vCard Video',
@@ -285,6 +289,8 @@ export const HOME_PAGE_FIELDS = [
   'YouTube Background Music Link',
   'Background Video/Image',
   'Profile Image/Video',
+  'Home Heading Color',
+  'Home Description Color',
   'vCard Header Color',
   'Repeat Background Music',
 ] as const
@@ -299,11 +305,19 @@ export const HOME_PAGE_URL_FIELDS = new Set<string>([
   'Profile Image/Video',
 ])
 
+/** Home fields that expose light/dark text color pickers. */
+export const HOME_PAGE_COLOR_FIELDS = new Set<string>([
+  'Home Heading Color',
+  'Home Description Color',
+  'vCard Header Color',
+])
+
 export const ALL_DISPLAY_FIELD_KEYS = [
   ...MY_INFO_FIELDS,
   ...SOCIAL_LINK_FIELDS,
   ...ICON_FIELDS,
   ...GENERAL_SETTINGS_FIELDS,
+  LEGACY_SHARE_BTN_FIELD,
   ...HOME_PAGE_FIELDS,
   ...NAV_BAR_FIELDS,
 ] as const

@@ -4,6 +4,7 @@ import { HoistableStyle } from '@/lib/dom/HoistableStyle'
 import type { CardThemeConfig, ThemeMode } from '@/lib/theme/cardThemeContract'
 import { buildCardThemeStyleSheet } from '@/lib/theme/cardThemeCssVars'
 import { logCardThemeSettings } from '@/lib/theme/logCardThemeSettings'
+import { resolveBannerStyle, resolveTopNavBarStyle } from '@/lib/theme/sectionStyleDefaults'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 
 function readDocumentThemeMode(fallback: ThemeMode): ThemeMode {
@@ -101,6 +102,11 @@ export function CardThemeStyles({
       b.accent.style,
       s.style,
       s.cornerRadius,
+      JSON.stringify(config.components.sectionBanner ?? null),
+      JSON.stringify(config.components.contentCard ?? null),
+      JSON.stringify(config.components.reviewCard ?? null),
+      JSON.stringify(config.components.faqItem ?? null),
+      JSON.stringify(config.components.topNavBar ?? null),
     ].join('|')
   }, [config])
 
@@ -108,6 +114,27 @@ export function CardThemeStyles({
     if (!config) return
     logCardThemeSettings(config, { source: 'CardThemeStyles', mode, fromApi, template })
   }, [config, mode, fromApi, template, themeFingerprint])
+
+  // Drive banner + top-nav CSS variants via data attributes on profile roots.
+  useEffect(() => {
+    if (!config || typeof document === 'undefined') return
+    const set = config.colors[mode] ?? config.colors.dark
+    const banner = resolveBannerStyle(set, mode, config.components.sectionBanner)
+    const topNav = resolveTopNavBarStyle(set, mode, config.components.topNavBar)
+    const bannerVariant = banner.variant || 'gradient'
+    const navVariant = topNav.variant || 'gradient'
+    const roots = document.querySelectorAll('.vbiz-profile-root')
+    roots.forEach((el) => {
+      el.setAttribute('data-banner-variant', bannerVariant)
+      el.setAttribute('data-nav-variant', navVariant)
+    })
+    return () => {
+      roots.forEach((el) => {
+        if (el.getAttribute('data-banner-variant') === bannerVariant) el.removeAttribute('data-banner-variant')
+        if (el.getAttribute('data-nav-variant') === navVariant) el.removeAttribute('data-nav-variant')
+      })
+    }
+  }, [config, mode])
 
   if (!css) return null
   return <HoistableStyle href={forcedMode ? 'vbiz-card-theme-preview' : 'vbiz-card-theme'} css={css} />

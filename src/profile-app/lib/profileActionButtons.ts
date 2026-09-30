@@ -194,7 +194,7 @@ export const HOME_CTA_SETTING_KEYS: Record<HomeCtaKey, string[]> = {
   my_info: ['My Info Btn'],
   save_my_info: ['Save Contact'],
   my_vcard: ['My vCard Btn'],
-  google_wallet: [],
+  google_wallet: ['Save to Wallet'],
   get_vcard_now: ['Get your VCard Now'],
   one_on_one: ['Request 1-on-1'],
 }
