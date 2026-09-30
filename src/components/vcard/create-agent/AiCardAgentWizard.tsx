@@ -1351,7 +1351,9 @@ export function AiCardAgentWizard({
         ? 'I’m analyzing your sources and comparing them with your current card. I’ll identify what’s missing, what’s new, and which sections I can improve. Nothing on your existing card will change until you approve the updates.'
         : effectiveStorefront
           ? 'I’m reading this seller/vendor storefront URL for the seller’s info, products, and services — not the whole marketplace site. Paste extra product notes if the shop blocks automated access.'
-          : 'I’m reading your website (including inner pages, blogs, and portfolio), OCR documents, and pasted notes so I can understand the business more fully. This can take extra time on a large site.'
+          : url
+            ? 'I’m reading your website, plus any PDF, Word, text, or photos you attached, so I can understand the business and suggest the card.'
+            : 'No website needed. I’m reading your PDF, Word, text, and photos, then I’ll understand the business and suggest the card from those files.'
     )
 
     try {
@@ -3926,7 +3928,7 @@ export function AiCardAgentWizard({
                 <p className="text-[11px] font-medium text-slate-400">
                   {storefrontMode || looksLikeStorefrontUrl(websiteUrl)
                     ? 'Best for Amway MyShop, independent sellers, and affiliate storefronts. Paste product notes if the shop blocks bots.'
-                    : 'We read the live pages (About, Services, Contact). Photos of a website are not needed.'}
+                    : 'Website is optional. A PDF, Word file, text file, or photos of a brochure, menu, or card are enough.'}
                 </p>
               </div>
             ) : null}
@@ -3936,7 +3938,8 @@ export function AiCardAgentWizard({
               </p>
             ) : phase === 'intake' ? (
               <p className="mb-1 text-[11px] font-medium text-slate-400">
-                Attach PDFs, Word files, or photos. Text files are read directly; photos are read only when needed.
+                No website? Attach a PDF, Word file, text, or photos. I’ll read them, understand the business, and
+                suggest the card.
               </p>
             ) : null}
             <div className="flex items-end gap-2">
@@ -3959,7 +3962,9 @@ export function AiCardAgentWizard({
                   phase === 'intake'
                     ? isEdit
                       ? 'Optional notes to resume with AI…'
-                      : 'Business notes or instructions (optional)…'
+                      : files.length
+                        ? 'Optional notes about these files, then tap send…'
+                        : 'Business notes, or attach a PDF, Word file, text, or photos…'
                     : phase === 'tabs'
                       ? 'Tap Continue when your tabs look right…'
                       : phase === 'section-gate'
