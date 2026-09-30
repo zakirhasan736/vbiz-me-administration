@@ -40,7 +40,7 @@ export function ProfileNavigationV2({ slugForPersistence, embedded }: ProfileNav
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           className={cn(
-            'vbiz-floating-nav-inner relative w-full max-w-full rounded-4xl border border-zinc-200/80 bg-white/80 p-2 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-3xl sm:rounded-full dark:border-zinc-700/50 dark:bg-zinc-900/80 dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]',
+            'vbiz-floating-nav-inner relative w-full max-w-full rounded-4xl border p-2 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-3xl sm:rounded-full',
             embedded ? 'max-w-[calc(100%-0.5rem)]' : ''
           )}
         >
