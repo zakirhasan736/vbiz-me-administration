@@ -2007,9 +2007,11 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
           const isDescription = key === 'Home Description Color'
           const isHeadingDesc = isHeading || isDescription
           const showInput = HOME_PAGE_URL_FIELDS.has(key)
-          const primary = themeDefaults.light.bg
-          const secondary = vCardData.theme.secondaryColor?.trim() || themeDefaults.light.text || primary
-          // Match public home defaults: heading light=secondary / dark=white; description=primary both modes.
+          const primary =
+            vCardData.theme.primaryColor?.trim() || resolvedThemeConfig.colors.dark.primary || themeDefaults.light.bg
+          const secondary =
+            vCardData.theme.secondaryColor?.trim() || resolvedThemeConfig.colors.dark.secondary || primary
+          // Global home defaults: dark title white + primary desc; light title secondary + primary desc.
           const homeColorDefaults = isHeading
             ? {
                 light: { ...themeDefaults.light, text: secondary, icon: secondary },
@@ -2234,7 +2236,11 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
                         const keys = CATEGORY_FIELDS[activeTab]
                         if (!keys) return
                         patchDisplay(setCategoryResetColors(display, keys))
-                        notify.info('Colors reset to Template primary / secondary / accent defaults.')
+                        notify.info(
+                          activeTab === 'home'
+                            ? 'Home colors reset — heading/description use brand defaults (dark: white + primary; light: secondary + primary).'
+                            : 'Colors reset to Template primary / secondary / accent defaults.'
+                        )
                       }}
                       className="inline-flex items-center gap-2 rounded-3xl border border-slate-200 bg-white px-5 py-4 text-[.8125rem] font-bold text-slate-900 shadow-sm transition-colors hover:bg-slate-50 dark:border-white/5 dark:bg-[#070a13] dark:text-white dark:hover:bg-white/5"
                     >

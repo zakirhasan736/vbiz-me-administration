@@ -701,6 +701,18 @@ export function displayGeneralRootStyle(
     if (fill) style['--vbiz-page-header-fill'] = fill
   }
 
+  const homeHeading = getFieldConfig(settings, 'Home Heading Color')
+  if (homeHeading.visible !== false) {
+    const { fg } = resolveFieldModeColors(homeHeading, mode, { preferText: true })
+    if (fg) style['--vbiz-home-heading'] = fg
+  }
+
+  const homeDescription = getFieldConfig(settings, 'Home Description Color')
+  if (homeDescription.visible !== false) {
+    const { fg } = resolveFieldModeColors(homeDescription, mode, { preferText: true })
+    if (fg) style['--vbiz-home-description'] = fg
+  }
+
   return Object.keys(style).length > 0 ? style : undefined
 }
 

@@ -140,7 +140,7 @@ export function VBizProfileAppV3({
       data-embedded={embedded ? '' : undefined}
       data-theme={theme}
       data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
-      className={`vbiz-profile-root vbiz-profile-v3 no-scrollbar relative flex w-full flex-col items-center overflow-x-clip transition-colors duration-500 ${profileRootThemeClass(theme)} ${theme === 'dark' ? 'bg-ocean-deep text-zinc-100' : 'bg-white text-zinc-900'} ${embedded ? 'min-h-full max-w-full grow' : 'min-h-dvh'}`}
+      className={`vbiz-profile-root vbiz-profile-v3 no-scrollbar relative flex w-full flex-col items-center overflow-x-clip transition-colors duration-500 ${profileRootThemeClass(theme)} ${theme === 'dark' ? 'bg-ocean-deep text-zinc-100' : 'bg-white text-zinc-900'} ${embedded ? 'min-h-full max-w-full grow' : 'min-h-dvh pb-24'}`}
       style={rootStyle}
     >
       <ProfileThemeStyles design={design} />

@@ -19,8 +19,11 @@ function fieldTextColor(config: DisplayFieldConfig | undefined, mode: ThemeMode)
 }
 
 /**
- * Home-screen owner name + designation colors over video/wallpaper.
- * Priority: Home Page heading/description colors → legacy header → My Info field colors → theme tokens.
+ * Global home heading / description defaults (every card):
+ * - Dark: heading white, description primary
+ * - Light: heading secondary, description primary
+ * Uses the card’s own `--vbiz-primary` / `--vbiz-secondary` brand tokens.
+ * Home Page → Heading/Description Color overrides win until Reset clears them.
  */
 export function resolveHomeIdentityColors(options: {
   mode: ThemeMode
@@ -40,33 +43,21 @@ export function resolveHomeIdentityColors(options: {
   const homeHeading = fieldTextColor(options.headingField, mode)
   const homeDescription = fieldTextColor(options.descriptionField, mode)
 
-  const nameResolved = resolveFieldModeColors(options.nameField, mode, { preferText: true })
-  const professionFromProfession = resolveFieldModeColors(options.professionField, mode, { preferText: true })
-  const professionFromDesignation = resolveFieldModeColors(options.designationField, mode, { preferText: true })
-  const professionResolved =
-    professionFromProfession.fg || professionFromProfession.fill ? professionFromProfession : professionFromDesignation
-
-  // Defaults: heading light=secondary, dark=white; description light+dark=primary.
   const nameStyle: CSSProperties = {}
   if (homeHeading) nameStyle.color = homeHeading
   else if (header) nameStyle.color = header
-  else if (nameResolved.fg) nameStyle.color = nameResolved.fg
   else nameStyle.color = mode === 'light' ? 'var(--vbiz-secondary)' : '#ffffff'
-  if (nameResolved.fill) nameStyle.backgroundColor = nameResolved.fill
 
   const professionStyle: CSSProperties = {}
   if (homeDescription) {
     professionStyle.color = homeDescription
     professionStyle.backgroundImage = 'none'
     professionStyle.WebkitTextFillColor = 'unset'
-  } else if (professionResolved.fg) {
-    professionStyle.color = professionResolved.fg
-    professionStyle.backgroundImage = 'none'
-    professionStyle.WebkitTextFillColor = 'unset'
   } else {
     professionStyle.color = 'var(--vbiz-primary)'
+    professionStyle.backgroundImage = 'none'
+    professionStyle.WebkitTextFillColor = 'unset'
   }
-  if (professionResolved.fill) professionStyle.backgroundColor = professionResolved.fill
 
   return {
     nameStyle,

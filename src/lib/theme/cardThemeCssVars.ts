@@ -219,13 +219,31 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   vars['--vbiz-faq-border'] = faq.border || set.border
   vars['--vbiz-faq-icon'] = faq.icon || set.accent
 
-  vars['--vbiz-nav-variant'] = topNav.variant || 'gradient'
-  vars['--vbiz-nav-bg'] = topNav.bg || set.primary
+  const navVariant = topNav.variant || (mode === 'light' ? 'solid' : 'gradient')
+  vars['--vbiz-nav-variant'] = navVariant
+  vars['--vbiz-nav-bg'] = topNav.bg || (mode === 'light' ? '#ffffff' : set.surface)
   vars['--vbiz-nav-gradient-from'] = topNav.gradientFrom || set.primary
   vars['--vbiz-nav-gradient-to'] = topNav.gradientTo || set.secondary
-  vars['--vbiz-nav-item'] = topNav.item || set.secondary
-  vars['--vbiz-nav-item-active'] = topNav.itemActive || set.accent
-  vars['--vbiz-nav-border'] = topNav.border || set.accent
+  vars['--vbiz-nav-item'] = topNav.item || (mode === 'light' ? set.primary : set.secondary)
+  vars['--vbiz-nav-item-active'] = topNav.itemActive || (mode === 'light' ? set.primary : set.accent)
+  vars['--vbiz-nav-border'] = topNav.border || (mode === 'light' ? set.primary : set.accent)
+  // Drive gradient vs plane without relying on data-nav-variant timing.
+  vars['--vbiz-nav-bg-image'] =
+    navVariant === 'solid'
+      ? 'none'
+      : `linear-gradient(135deg, color-mix(in srgb, ${vars['--vbiz-nav-gradient-from']} 88%, transparent) 0%, color-mix(in srgb, ${vars['--vbiz-nav-gradient-to']} 82%, transparent) 100%)`
+
+  const bannerVariant = banner.variant || 'gradient'
+  vars['--vbiz-banner-bg-image'] =
+    bannerVariant === 'solid'
+      ? 'none'
+      : bannerVariant === 'image'
+        ? `linear-gradient(180deg, rgba(2,6,23,0.55), rgba(2,6,23,0.72)), ${vars['--vbiz-banner-image']}`
+        : `linear-gradient(135deg, color-mix(in srgb, var(--vbiz-page-header-fill, ${vars['--vbiz-banner-gradient-from']}) 28%, ${vars['--vbiz-banner-gradient-to']}) 0%, color-mix(in srgb, var(--vbiz-page-header-fill, ${vars['--vbiz-banner-gradient-from']}) 12%, ${vars['--vbiz-banner-gradient-to']}) 42%, color-mix(in srgb, var(--vbiz-page-header-fill, ${vars['--vbiz-banner-gradient-from']}) 5%, #0a0f1a) 100%)`
+
+  // Home identity defaults (overridden by displayGeneralRootStyle when Card Settings set colors).
+  vars['--vbiz-home-heading'] = mode === 'light' ? set.secondary : '#ffffff'
+  vars['--vbiz-home-description'] = set.primary
 
   return vars as CSSProperties
 }
@@ -378,18 +396,19 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 
 /* ---------- Floating nav chrome (follows General → Top navbar / global brand) ---------- */
 .vbiz-profile-root .vbiz-floating-nav-inner {
-  background-color: var(--vbiz-nav-bg, color-mix(in srgb, var(--vbiz-primary) 92%, transparent)) !important;
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--vbiz-nav-gradient-from, var(--vbiz-primary)) 88%, transparent) 0%,
-    color-mix(in srgb, var(--vbiz-nav-gradient-to, var(--vbiz-secondary)) 82%, transparent) 100%
-  ) !important;
+  background-color: var(--vbiz-nav-bg, var(--vbiz-surface)) !important;
+  background-image: var(--vbiz-nav-bg-image, none) !important;
   border-color: color-mix(in srgb, var(--vbiz-nav-border, var(--vbiz-accent)) 55%, transparent) !important;
   color: var(--vbiz-nav-item, var(--vbiz-secondary)) !important;
 }
-.vbiz-profile-root[data-nav-variant='solid'] .vbiz-floating-nav-inner {
-  background-image: none !important;
-  background-color: var(--vbiz-nav-bg, var(--vbiz-primary)) !important;
+/* Soft page fill under mobile bottom nav so toggle light/dark matches card bg */
+.vbiz-profile-root .vbiz-nav-bottom-scrim {
+  background: linear-gradient(
+    to top,
+    var(--vbiz-bg) 0%,
+    color-mix(in srgb, var(--vbiz-bg) 88%, transparent) 55%,
+    transparent 100%
+  ) !important;
 }
 
 /* ---------- Nav tabs (colors only — no API corner override) ---------- */
@@ -533,32 +552,15 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-content-card-icon, var(--vbiz-accent)) !important;
 }
 
-/* Banner: gradient (default) / solid / image via --vbiz-banner-variant */
+/* Banner: gradient / solid / image via --vbiz-banner-bg-image (set per mode in JS) */
 .vbiz-profile-root .vbiz-section-banner,
 .vbiz-profile-root .vbiz-hero-banner,
 .vbiz-profile-root .vbiz-page-header-surface {
-  background-color: transparent !important;
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-banner-gradient-from, var(--vbiz-accent))) 28%, var(--vbiz-banner-gradient-to, #020617)) 0%,
-    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-banner-gradient-from, var(--vbiz-accent))) 12%, var(--vbiz-banner-gradient-to, #020617)) 42%,
-    color-mix(in srgb, var(--vbiz-page-header-fill, var(--vbiz-banner-gradient-from, var(--vbiz-accent))) 5%, var(--vbiz-banner-gradient-to, #0a0f1a)) 100%
-  ) !important;
-  color: var(--vbiz-banner-text, #ffffff) !important;
-}
-.vbiz-profile-root[data-banner-variant='solid'] .vbiz-section-banner,
-.vbiz-profile-root[data-banner-variant='solid'] .vbiz-hero-banner,
-.vbiz-profile-root[data-banner-variant='solid'] .vbiz-page-header-surface {
-  background-image: none !important;
-  background-color: var(--vbiz-page-header-fill, var(--vbiz-banner-bg, var(--vbiz-secondary))) !important;
-}
-.vbiz-profile-root[data-banner-variant='image'] .vbiz-section-banner,
-.vbiz-profile-root[data-banner-variant='image'] .vbiz-hero-banner,
-.vbiz-profile-root[data-banner-variant='image'] .vbiz-page-header-surface {
-  background-image: linear-gradient(180deg, rgba(2,6,23,0.55), rgba(2,6,23,0.72)), var(--vbiz-banner-image) !important;
+  background-color: var(--vbiz-page-header-fill, var(--vbiz-banner-bg, transparent)) !important;
+  background-image: var(--vbiz-banner-bg-image, none) !important;
   background-size: cover !important;
   background-position: var(--vbiz-banner-image-position, center) !important;
-  background-color: var(--vbiz-banner-bg, #020617) !important;
+  color: var(--vbiz-banner-text, #ffffff) !important;
 }
 .vbiz-profile-root .vbiz-page-header-surface {
   border-color: var(--vbiz-border) !important;
@@ -579,6 +581,22 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 .vbiz-profile-root h2 {
   color: var(--vbiz-page-header-fg, var(--vbiz-text)) !important;
+}
+/* Home identity defaults: light heading=secondary / dark=white; description=primary both modes */
+.vbiz-profile-root.vbiz-theme-light .vbiz-home-heading,
+.vbiz-profile-root.vbiz-theme-light h1.vbiz-home-heading {
+  color: var(--vbiz-home-heading, var(--vbiz-secondary)) !important;
+}
+.vbiz-profile-root.dark .vbiz-home-heading,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-home-heading,
+.vbiz-profile-root.dark h1.vbiz-home-heading,
+.vbiz-profile-root.vbiz-theme-dark h1.vbiz-home-heading {
+  color: var(--vbiz-home-heading, #ffffff) !important;
+}
+.vbiz-profile-root .vbiz-home-description,
+.vbiz-profile-root p.vbiz-home-description,
+.vbiz-profile-root .vbiz-home-description span {
+  color: var(--vbiz-home-description, var(--vbiz-primary)) !important;
 }
 
 /* Dark hero banners (About, etc.) — white titles in light + dark theme */

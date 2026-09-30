@@ -138,23 +138,35 @@ export function resolveFaqItemStyle(
 }
 
 /**
- * Top navbar defaults from global brand:
- * primary → bar bg / gradient from, secondary → item icons, accent → border + active.
+ * Top navbar defaults (mode-aware):
+ * - Dark: brand gradient (primary → secondary), accent border/active, secondary icons
+ * - Light: white plane bar, primary border + icons
  */
-export function deriveTopNavBarMode(set: ThemeColorSet, override?: TopNavBarModeColors | null): TopNavBarModeColors {
-  const bg = override?.bg || set.primary
-  const item = override?.item || set.secondary || set.accent
-  const itemActive = override?.itemActive || set.accent
-  const border = override?.border || set.accent
-  const base: TopNavBarModeColors = {
-    variant: 'gradient',
-    bg,
-    gradientFrom: set.primary,
-    gradientTo: set.secondary,
-    item: ensureReadableText(bg, item, CONTRAST_LARGE_MIN),
-    itemActive: ensureReadableText(bg, itemActive, CONTRAST_LARGE_MIN),
-    border,
-  }
+export function deriveTopNavBarMode(
+  set: ThemeColorSet,
+  mode: ThemeMode,
+  override?: TopNavBarModeColors | null
+): TopNavBarModeColors {
+  const base: TopNavBarModeColors =
+    mode === 'light'
+      ? {
+          variant: 'solid',
+          bg: '#ffffff',
+          gradientFrom: '#ffffff',
+          gradientTo: '#f4f5f7',
+          item: set.primary,
+          itemActive: set.primary,
+          border: set.primary,
+        }
+      : {
+          variant: 'gradient',
+          bg: set.surface,
+          gradientFrom: set.primary,
+          gradientTo: set.secondary,
+          item: ensureReadableText(set.primary, set.secondary, CONTRAST_LARGE_MIN),
+          itemActive: set.accent,
+          border: set.accent,
+        }
   return pick(base, override)
 }
 
@@ -163,8 +175,7 @@ export function resolveTopNavBarStyle(
   mode: ThemeMode,
   config?: TopNavBarStyleConfig | null
 ): TopNavBarModeColors {
-  void mode
-  return deriveTopNavBarMode(set, config?.[mode])
+  return deriveTopNavBarMode(set, mode, config?.[mode])
 }
 
 export function clearSectionStyleOverrides<T extends Record<string, unknown>>(config: T): T {

@@ -634,7 +634,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                 </div>
                 {isVisible('MyInfo section Name') && personal.fullName ? (
                   <h1
-                    className={`font-heading mb-2 text-3xl leading-[1.05] font-bold tracking-tight sm:mb-3 sm:text-5xl lg:text-7xl ${identityColors.nameClassName}`}
+                    className={`vbiz-home-heading font-heading mb-2 text-3xl leading-[1.05] font-bold tracking-tight sm:mb-3 sm:text-5xl lg:text-7xl ${identityColors.nameClassName}`}
                     style={identityColors.nameStyle}
                   >
                     {nameFirst}
@@ -647,7 +647,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                   </h1>
                 ) : (
                   <h1
-                    className={`font-heading mb-2 text-3xl leading-[1.05] font-bold tracking-tight sm:mb-3 sm:text-5xl lg:text-7xl ${identityColors.nameClassName}`}
+                    className={`vbiz-home-heading font-heading mb-2 text-3xl leading-[1.05] font-bold tracking-tight sm:mb-3 sm:text-5xl lg:text-7xl ${identityColors.nameClassName}`}
                     style={identityColors.nameStyle}
                   >
                     Michaelangelo
@@ -657,7 +657,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                 )}
                 {professionLine ? (
                   <p
-                    className={`mx-auto flex w-fit items-center rounded-full border border-black/5 bg-gray-50/80 px-3 py-1.5 text-[9px] font-bold tracking-[0.25em] uppercase backdrop-blur-xl sm:mx-0 sm:px-4 sm:py-2 sm:text-xs dark:border-white/10 dark:bg-white/5 ${identityColors.professionClassName}`}
+                    className={`vbiz-home-description mx-auto flex w-fit items-center rounded-full border border-black/5 bg-gray-50/80 px-3 py-1.5 text-[9px] font-bold tracking-[0.25em] uppercase backdrop-blur-xl sm:mx-0 sm:px-4 sm:py-2 sm:text-xs dark:border-white/10 dark:bg-white/5 ${identityColors.professionClassName}`}
                     style={identityColors.professionStyle}
                   >
                     <TypewriterText text={professionLine} delay={500} speed={120} />

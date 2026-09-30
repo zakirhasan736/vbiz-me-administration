@@ -20,6 +20,12 @@ export function ProfileFloatingNav({ theme, children, embedded = false }: Profil
     <>
       {!embedded ? <PublicAnnouncementOverlay slot="v1v3-mobile" /> : null}
 
+      {/* Mobile bottom fade follows --vbiz-bg so light/dark toggle paints the under-nav area */}
+      <div
+        aria-hidden
+        className="vbiz-nav-bottom-scrim pointer-events-none fixed inset-x-0 bottom-0 z-90 h-28 md:hidden"
+      />
+
       <div className="vbiz-floating-nav pointer-events-none fixed bottom-1 left-0 z-100 w-full px-2 md:top-5 md:bottom-auto md:px-20">
         <div className="relative mx-auto w-full max-w-258">
           <div className={navInnerClass}>

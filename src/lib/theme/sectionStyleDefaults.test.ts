@@ -85,12 +85,17 @@ describe('sectionStyleDefaults', () => {
     expect(resolved.components.topNavBar?.dark?.bg).toBe('#eed677')
   })
 
-  it('derives top navbar from primary / secondary / accent', () => {
-    const nav = deriveTopNavBarMode(dark)
-    expect(nav.bg).toBe(dark.primary)
-    expect(nav.gradientFrom).toBe(dark.primary)
-    expect(nav.gradientTo).toBe(dark.secondary)
-    expect(nav.border).toBe(dark.accent)
-    expect(nav.variant).toBe('gradient')
+  it('derives top navbar dark gradient and light solid defaults', () => {
+    const darkNav = deriveTopNavBarMode(dark, 'dark')
+    expect(darkNav.variant).toBe('gradient')
+    expect(darkNav.gradientFrom).toBe(dark.primary)
+    expect(darkNav.gradientTo).toBe(dark.secondary)
+    expect(darkNav.border).toBe(dark.accent)
+
+    const lightNav = deriveTopNavBarMode(stock.colors.light, 'light')
+    expect(lightNav.variant).toBe('solid')
+    expect(lightNav.bg).toBe('#ffffff')
+    expect(lightNav.item).toBe(stock.colors.light.primary)
+    expect(lightNav.border).toBe(stock.colors.light.primary)
   })
 })

@@ -589,7 +589,7 @@ export function TopNavBarStylePanel({
   onThemeConfigChange: ThemeConfigUpdater
 }) {
   const { mode, setMode, colorSet, patch, reset } = useSectionModeEditor(themeConfig, onThemeConfigChange, 'topNavBar')
-  const resolved = deriveTopNavBarMode(colorSet, themeConfig.components.topNavBar?.[mode])
+  const resolved = deriveTopNavBarMode(colorSet, mode, themeConfig.components.topNavBar?.[mode])
 
   return (
     <div className="mt-2 mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-white/10 dark:bg-[#070a13]/70">

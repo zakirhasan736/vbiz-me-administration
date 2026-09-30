@@ -498,7 +498,7 @@ export const HomeHero: React.FC<{
 
             {showName && (
               <h1
-                className={`notranslate mt-4 mb-0.5 px-4 text-center text-[22px] leading-tight font-bold tracking-tight ${identityColors.nameClassName}`}
+                className={`vbiz-home-heading notranslate mt-4 mb-0.5 px-4 text-center text-[22px] leading-tight font-bold tracking-tight ${identityColors.nameClassName}`}
                 style={identityColors.nameStyle}
               >
                 {personal.fullName}
@@ -506,7 +506,7 @@ export const HomeHero: React.FC<{
             )}
             {designationLine && (
               <p
-                className={`notranslate mb-2 text-[16px] font-medium opacity-90 ${identityColors.professionClassName}`}
+                className={`vbiz-home-description notranslate mb-2 text-[16px] font-medium opacity-90 ${identityColors.professionClassName}`}
                 style={identityColors.professionStyle}
               >
                 {designationLine}
@@ -540,7 +540,7 @@ export const HomeHero: React.FC<{
               <div className="flex flex-1 flex-col pt-8 drop-shadow-2xl xl:pt-12">
                 {showName && (
                   <h1
-                    className={`notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight xl:text-[46px] ${identityColors.nameClassName}`}
+                    className={`vbiz-home-heading notranslate mt-6 mb-2 text-[44px] leading-[1.1] font-black tracking-tight xl:text-[46px] ${identityColors.nameClassName}`}
                     style={identityColors.nameStyle}
                   >
                     {personal.fullName}
@@ -548,7 +548,7 @@ export const HomeHero: React.FC<{
                 )}
                 {designationLine && (
                   <p
-                    className={`notranslate mb-5 ml-1 w-fit text-[20px] font-bold xl:text-[24px] ${identityColors.professionClassName}`}
+                    className={`vbiz-home-description notranslate mb-5 ml-1 w-fit text-[20px] font-bold xl:text-[24px] ${identityColors.professionClassName}`}
                     style={identityColors.professionStyle}
                   >
                     {designationLine}

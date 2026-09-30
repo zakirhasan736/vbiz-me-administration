@@ -244,7 +244,7 @@ export function ProfileHeaderV2({
       <div className="mt-2 flex w-full flex-1 flex-col items-center text-center md:mt-4 md:items-start md:text-left">
         {displayName ? (
           <h1
-            className={`mb-0 leading-tight font-bold tracking-tight sm:mb-2 ${identityColors.nameClassName} ${embedded ? 'text-2xl' : 'text-3xl md:text-5xl'}`}
+            className={`vbiz-home-heading mb-0 leading-tight font-bold tracking-tight sm:mb-2 ${identityColors.nameClassName} ${embedded ? 'text-2xl' : 'text-3xl md:text-5xl'}`}
             style={identityColors.nameStyle}
           >
             {displayName}
@@ -252,7 +252,7 @@ export function ProfileHeaderV2({
         ) : null}
         {designation ? (
           <p
-            className={`mb-0 text-base font-bold sm:mb-4 md:text-lg ${identityColors.professionClassName}`}
+            className={`vbiz-home-description mb-0 text-base font-bold sm:mb-4 md:text-lg ${identityColors.professionClassName}`}
             style={identityColors.professionStyle}
           >
             {designation}
