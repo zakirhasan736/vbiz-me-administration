@@ -25,6 +25,8 @@ export type AdminLeadMetadata = {
   timezone: string
   approximateLocation: string
   referrer: string
+  guestId?: string
+  ip?: string
 }
 
 export type AdminLeadRow = {

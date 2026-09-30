@@ -263,7 +263,7 @@ export function LiveAgentPanel({
 
     try {
       const selectedLang = getSelectedLanguageForLiveAgent()
-      const company = cardData.company?.trim() || 'vBiz Me'
+      const hostName = cardData.greetingHostName?.trim() || cardData.ownerName?.trim() || 'Guest'
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       if (token !== connectionTokenRef.current) {
@@ -312,7 +312,7 @@ export function LiveAgentPanel({
 
             scheduleSpeakingMonitor(pcmContextRef, nextStartTimeRef, checkSpeakingRef, setIsSpeaking)
 
-            const initialPromptForLang = getLiveAgentInitialPromptForLanguage(selectedLang, company)
+            const initialPromptForLang = getLiveAgentInitialPromptForLanguage(selectedLang, hostName)
             void sessionPromise
               .then((session: Session) => {
                 if (token !== connectionTokenRef.current) {

@@ -1,4 +1,5 @@
 import { fetchPublicCardResponse, getApiBaseUrl } from '@/lib/api/serverApi'
+import { visitorForwardHeaders } from '@/lib/visitorRequestHeaders'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -14,6 +15,9 @@ export async function POST(request: NextRequest) {
 
     const response = await fetchPublicCardResponse(`${getApiBaseUrl()}/save-guest-user`, {
       method: 'POST',
+      headers: {
+        ...visitorForwardHeaders(request),
+      },
       body: outbound,
     })
 

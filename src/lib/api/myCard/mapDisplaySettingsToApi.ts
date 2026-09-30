@@ -1,12 +1,5 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
-import {
-  SEO_FAVICON_SETTING_KEY,
-  SEO_IMAGE_SETTING_KEY,
-  SEO_META_DESCRIPTION_SETTING_KEY,
-  SEO_META_KEYWORDS_SETTING_KEY,
-  SEO_META_TITLE_SETTING_KEY,
-  seoToApiSettings,
-} from '@/lib/seo/cardSeo'
+import { seoToApiSettings } from '@/lib/seo/cardSeo'
 import { mapContentMediaToApiSettings } from '@/lib/vcardContentMedia'
 import { mapMyInfoToApiSettings } from '@/lib/vcardMyInfo'
 import { getVCardResume, mapResumeToApiSettings } from '@/lib/vcardResume'
@@ -308,25 +301,17 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
   }
 }
 
-type CorporateSharedSettingsSource = Pick<
-  VCardData,
-  'displaySettings' | 'customTabs' | 'tabLabelOverrides' | 'tabSectionMeta' | 'extraFields' | 'seo' | 'social'
->
+type CorporateSharedSettingsSource = Pick<VCardData, 'customTabs' | 'tabLabelOverrides' | 'tabSectionMeta'>
 
 function sameJson(left: unknown, right: unknown): boolean {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
 }
 
-const SHARED_HOME_MEDIA_SETTING_KEYS = ['background_media_url'] as const
-const SHARED_SEO_SETTING_KEYS = [
-  SEO_META_TITLE_SETTING_KEY,
-  SEO_META_DESCRIPTION_SETTING_KEY,
-  SEO_META_KEYWORDS_SETTING_KEY,
-  SEO_IMAGE_SETTING_KEY,
-  SEO_FAVICON_SETTING_KEY,
-] as const
-
-/** Drop shared tab JSON the user did not edit so a stale editor cannot overwrite sibling cards. */
+/**
+ * Drop unchanged *shared* tab chrome so a stale editor cannot overwrite sibling cards.
+ * Personal info, Socials & Games, Card Settings (General/Home/SEO/Template/Integration),
+ * and About Me are per-card and are left alone.
+ */
 export function omitUnchangedCorporateSharedSettings(
   settings: Record<string, string>,
   current: CorporateSharedSettingsSource,
@@ -334,10 +319,6 @@ export function omitUnchangedCorporateSharedSettings(
 ): Record<string, string> {
   if (!saved) return settings
   const next = { ...settings }
-  if (sameJson(current.displaySettings, saved.displaySettings)) {
-    delete next[DISPLAY_SETTINGS_SETTING_KEY]
-    for (const key of SHARED_HOME_MEDIA_SETTING_KEYS) delete next[key]
-  }
   if (sameJson(current.customTabs || [], saved.customTabs || [])) delete next[CUSTOM_TABS_SETTING_KEY]
   if (sameJson(current.tabLabelOverrides || {}, saved.tabLabelOverrides || {})) {
     delete next[TAB_LABEL_OVERRIDES_SETTING_KEY]
@@ -345,10 +326,5 @@ export function omitUnchangedCorporateSharedSettings(
   if (sameJson(current.tabSectionMeta || {}, saved.tabSectionMeta || {})) {
     delete next[TAB_SECTION_META_SETTING_KEY]
   }
-  if (sameJson(current.extraFields || [], saved.extraFields || [])) delete next[EXTRA_FIELDS_SETTING_KEY]
-  if (sameJson(current.seo, saved.seo)) {
-    for (const key of SHARED_SEO_SETTING_KEYS) delete next[key]
-  }
-  if (sameJson(current.social?.games, saved.social?.games)) delete next[GAME_IDS_SETTING_KEY]
   return next
 }

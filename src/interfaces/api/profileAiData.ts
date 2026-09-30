@@ -62,6 +62,8 @@ export type ProfileAiData = {
   profileId: string
   slug: string
   ownerName: string
+  /** Live Agent greeting host — corporate owner for linked cards, else card owner. */
+  greetingHostName?: string
   title: string
   profession: string | null
   company: string

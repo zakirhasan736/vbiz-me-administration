@@ -5,6 +5,7 @@ import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { hasSavedContact, markContactSaved } from '@/profile-app/lib/contactSaveState'
 import { openContactVcfFromApi, vcfFilenameFromName } from '@/profile-app/lib/contactVcf'
+import { saveGuestUser } from '@/profile-app/lib/saveGuestUser'
 import { Check, Download, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
@@ -82,7 +83,7 @@ export const SaveContactModal = ({
     }, 1000)
   }
 
-  const startContactDownload = () => {
+  const startContactDownload = async () => {
     const trimmedId = profileId?.trim()
     setSubmitting(true)
     setSubmitError(null)
@@ -93,6 +94,19 @@ export const SaveContactModal = ({
         notify.success('Contact file ready.')
         finishSuccess({ continueFlow: showHomeScreen })
         return
+      }
+
+      // Persist lead + client device/timezone first so CRM gets real meta; VCF path upserts by guestId.
+      try {
+        await saveGuestUser({
+          fullName: formData.fullName,
+          phone: formData.phone,
+          email: formData.email,
+          profileId: trimmedId,
+          cardSlug,
+        })
+      } catch {
+        /* VCF download still records the lead server-side */
       }
 
       if (showHomeScreen) markHomeScreenPromptAfterContact()

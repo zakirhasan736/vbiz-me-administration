@@ -264,6 +264,9 @@ export function normalizeProfileAiData(raw: unknown): ProfileAiData | null {
     profileId: asString(data.profileId ?? data.profile_id ?? data.id),
     slug: asString(data.slug),
     ownerName: asText(data.ownerName || data.owner_name || data.name),
+    greetingHostName: asText(
+      data.greetingHostName || data.greeting_host_name || data.ownerName || data.owner_name || data.name
+    ),
     title: asText(data.title || data.designation),
     profession: asNullableString(data.profession == null ? null : asText(data.profession)),
     company: asText(data.company || data.companyName || data.company_name),

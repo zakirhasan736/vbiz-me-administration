@@ -29,9 +29,9 @@ const NUDGE_COOLDOWN_MS = 9000
 
 /** Text must use sendClientContent — sendRealtimeInput only accepts audio/media blobs. */
 function sendInitialGreetingSafe(session: Session, cardData: LiveAgentCardData) {
-  const company = cardData.company?.trim() || 'vBiz Me'
+  const hostName = cardData.greetingHostName?.trim() || cardData.ownerName?.trim() || 'Guest'
   const lang = getSelectedLanguageForLiveAgent()
-  const greetingPrompt = getLiveAgentInitialPromptForLanguage(lang, company)
+  const greetingPrompt = getLiveAgentInitialPromptForLanguage(lang, hostName)
   try {
     session.sendClientContent({
       turns: greetingPrompt,

@@ -1,5 +1,6 @@
 import type { SaveContactCardData, SaveContactResponse } from '@/interfaces/api/saveContact'
 import { fetchPublicCardResponse, getApiBaseUrl } from '@/lib/api/serverApi'
+import { visitorForwardHeaders, visitorMetaFromRequest } from '@/lib/visitorRequestHeaders'
 import { serializeContactVcf, type VcfPhoto } from '@/profile-app/lib/contactVcf'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -102,23 +103,28 @@ async function loadContact(profileId: string, visitorId?: string): Promise<SaveC
  * Must not fail the download if lead save errors.
  */
 async function recordGuestLead(
+  request: NextRequest,
   profileId: string,
   params: { visitorId?: string; fullName: string; phone: string; email: string; cardSlug: string }
 ): Promise<void> {
   try {
+    const meta = visitorMetaFromRequest(request, {
+      guestId: params.visitorId || undefined,
+      cardSlug: params.cardSlug || undefined,
+      source: 'save_contact',
+    })
     const response = await fetchPublicCardResponse(`${getApiBaseUrl()}/save-guest-user`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...visitorForwardHeaders(request),
+      },
       body: JSON.stringify({
         profile_id: profileId,
         full_name: params.fullName,
         phone: params.phone,
         email: params.email,
-        meta: {
-          guestId: params.visitorId || undefined,
-          cardSlug: params.cardSlug || undefined,
-          source: 'save_contact',
-        },
+        meta,
       }),
       signal: AbortSignal.timeout(8000),
     })
@@ -148,7 +154,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
     const [contact] = await Promise.all([
       loadContact(profileId, visitorId),
-      recordGuestLead(profileId, { visitorId, fullName, phone, email, cardSlug }),
+      recordGuestLead(request, profileId, { visitorId, fullName, phone, email, cardSlug }),
     ])
 
     let photo: VcfPhoto | null = null

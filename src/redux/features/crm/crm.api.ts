@@ -76,6 +76,8 @@ export type CrmLeadMetadata = {
   timezone: string
   approximateLocation: string
   referrer: string
+  guestId?: string
+  ip?: string
 }
 
 export type CrmLeadCardRef = {

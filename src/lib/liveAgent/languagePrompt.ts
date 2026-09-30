@@ -5,10 +5,14 @@ import {
   buildGreetingText,
   buildLiveAgentGreetingIntroPrompt,
   buildVoicePronunciationBlock,
-  spokenCompanyName,
+  VBIZ_ME_SPOKEN_BRAND,
 } from '@/lib/liveAgent/brandPronunciation'
 import { SYSTEM_PROMPT_TEMPLATE } from '@/lib/liveAgent/systemPromptTemplate'
 import type { LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
+
+export function resolveLiveAgentGreetingHost(data: LiveAgentCardData): string {
+  return data.greetingHostName?.trim() || data.ownerName?.trim() || 'Guest'
+}
 
 export function buildCardPayloadForPrompt(data: LiveAgentCardData): string {
   const bounded = (value: unknown, maxLength: number) => {
@@ -19,6 +23,7 @@ export function buildCardPayloadForPrompt(data: LiveAgentCardData): string {
     profileId: data.profileId,
     slug: data.slug,
     ownerName: data.ownerName,
+    greetingHostName: resolveLiveAgentGreetingHost(data),
     title: data.title,
     company: data.company,
     email: data.email,
@@ -43,17 +48,16 @@ export function buildCardPayloadForPrompt(data: LiveAgentCardData): string {
 }
 
 export function buildSystemPrompt(data: LiveAgentCardData, override?: string): string {
-  const company = data.company?.trim() || 'vBiz Me'
+  const hostName = resolveLiveAgentGreetingHost(data)
   const cardPayload = buildCardPayloadForPrompt(data)
-  const greetingText = buildGreetingText(company)
-  const spokenBrand = spokenCompanyName(company)
+  const greetingText = buildGreetingText(hostName)
 
   const base = (override ?? SYSTEM_PROMPT_TEMPLATE)
     .replace('__CARD_DATA_PLACEHOLDER__', cardPayload)
     .replaceAll('__LIVE_AGENT_GREETING_TEXT__', greetingText)
-    .replaceAll('__SPOKEN_BRAND_NAME__', spokenBrand)
+    .replaceAll('__SPOKEN_BRAND_NAME__', VBIZ_ME_SPOKEN_BRAND)
 
-  return `${base}\n\n${buildVoicePronunciationBlock(company)}\n\n${BRAND_PRONUNCIATION_PRIORITY_OVERRIDE}`
+  return `${base}\n\n${buildVoicePronunciationBlock(hostName)}\n\n${BRAND_PRONUNCIATION_PRIORITY_OVERRIDE}`
 }
 
 export function getLiveAgentSystemPromptForLanguage(
@@ -91,8 +95,8 @@ Do not speak in English unless explicitly asked by the user. Ensure your tone, p
   return `${base}${translationContext}`
 }
 
-export function getLiveAgentInitialPromptForLanguage(langCode: string, company = 'vBiz Me'): string {
-  return buildLiveAgentGreetingIntroPrompt(company, langCode)
+export function getLiveAgentInitialPromptForLanguage(langCode: string, hostName = 'Guest'): string {
+  return buildLiveAgentGreetingIntroPrompt(hostName, langCode)
 }
 
 /**

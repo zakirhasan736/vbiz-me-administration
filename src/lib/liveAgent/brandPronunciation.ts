@@ -22,13 +22,23 @@ export function spokenCompanyName(company: string): string {
   return isVbizMeBrand(company) ? VBIZ_ME_SPOKEN_BRAND : company.trim()
 }
 
-export function buildGreetingText(company: string): string {
-  const spoken = spokenCompanyName(company)
-  return `Welcome to ${spoken}! How can I help you? I can offer a quick guided tour of the card if you'd like.`
+/** English possessive for spoken/written greetings (`James'` / `Michaelangelo's`). */
+export function possessiveName(name: string): string {
+  const trimmed = name.trim() || 'Guest'
+  return /s$/i.test(trimmed) ? `${trimmed}'` : `${trimmed}'s`
 }
 
-/** @deprecated Use buildGreetingText('vBiz Me') — kept for imports. */
-export const VBIZ_ME_GREETING_TEXT = buildGreetingText('vBiz Me')
+/**
+ * Card Live Agent greeting — always personal to the host:
+ * "Welcome to {Name}'s Veebiz Me Card! …"
+ */
+export function buildGreetingText(hostName: string): string {
+  const host = hostName.trim() || 'Guest'
+  return `Welcome to ${possessiveName(host)} ${VBIZ_ME_SPOKEN_BRAND} Card! How can I help you? I can offer a quick guided tour of the card if you'd like.`
+}
+
+/** @deprecated Prefer buildGreetingText(hostName). */
+export const VBIZ_ME_GREETING_TEXT = buildGreetingText('Guest')
 
 const VBIZ_ME_PRONUNCIATION_RULES = `
 The brand is written ${VBIZ_ME_DISPLAY_BRAND}. For every voice response, write the TTS form exactly as: ${VBIZ_ME_SPOKEN_BRAND}
@@ -45,54 +55,45 @@ NEVER pronounce it as:
 * robotic pauses between Vee, biz, and Me
 `.trim()
 
-export function buildVoicePronunciationBlock(company: string): string {
-  const spoken = spokenCompanyName(company)
-  const greetingText = buildGreetingText(company)
-
-  const brandRules = isVbizMeBrand(company)
-    ? VBIZ_ME_PRONUNCIATION_RULES
-    : `
-When saying the business name "${company.trim()}", pronounce it clearly for text-to-speech.
-Write the spoken form exactly as: ${spoken}
-Say the full business name smoothly — no skipped words, garbled syllables, or awkward pauses.
-`.trim()
+export function buildVoicePronunciationBlock(hostName: string): string {
+  const host = hostName.trim() || 'Guest'
+  const greetingText = buildGreetingText(host)
 
   return `
-VOICE AND TTS PRONUNCIATION — BRAND NAME (CRITICAL)
+VOICE AND TTS PRONUNCIATION — CARD HOST + BRAND (CRITICAL)
 ========================================================
 
 Your responses are spoken aloud through text-to-speech.
 
-${brandRules}
+${VBIZ_ME_PRONUNCIATION_RULES}
+
+The card host name is "${host}". Pronounce it clearly and naturally.
+The possessive host phrase is spoken as: ${possessiveName(host)}
 
 The initial greeting MUST use this exact wording:
 "${greetingText}"
 
-Do not alter, shorten, or reword the greeting. The business name must be heard clearly and smoothly in the first sentence.
+Do not alter, shorten, or reword the greeting. The host name and ${VBIZ_ME_DISPLAY_BRAND} must both be heard clearly in the first sentence.
 
-Apply the spoken form "${spoken}" every time you say this business or brand name in a voice response.
+Whenever you say ${VBIZ_ME_DISPLAY_BRAND} in a voice response, write the TTS-safe form: ${VBIZ_ME_SPOKEN_BRAND}
 `.trim()
 }
 
-/** @deprecated Use buildVoicePronunciationBlock(company) */
-export const VBIZ_ME_VOICE_PRONUNCIATION = buildVoicePronunciationBlock('vBiz Me')
+/** @deprecated Use buildVoicePronunciationBlock(hostName) */
+export const VBIZ_ME_VOICE_PRONUNCIATION = buildVoicePronunciationBlock('Guest')
 
 const VBIZ_PRONUNCIATION_NOTE = ` CRITICAL: "${VBIZ_ME_SPOKEN_BRAND}" is phonetic for ${VBIZ_ME_DISPLAY_BRAND} — pronounce vee-biz-me as ONE smooth brand name (letter V + biz + me). NEVER say "viz me", "viz biz", "biv me", "biz me" alone, or "vibz". Do NOT insert pauses or gaps between syllables.`
 
 /** Client turn on connect — forces exact greeting wording and pronunciation. */
-export function buildLiveAgentGreetingIntroPrompt(company: string, langCode = 'en'): string {
-  const trimmedCompany = company.trim() || 'vBiz Me'
-  const greetingText = buildGreetingText(trimmedCompany)
-  const pronunciationNote = isVbizMeBrand(trimmedCompany) ? VBIZ_PRONUNCIATION_NOTE : ''
+export function buildLiveAgentGreetingIntroPrompt(hostName: string, langCode = 'en'): string {
+  const host = hostName.trim() || 'Guest'
+  const greetingText = buildGreetingText(host)
 
   if (langCode && langCode !== 'en') {
-    const brandNote = isVbizMeBrand(trimmedCompany)
-      ? ` Keep ${VBIZ_ME_DISPLAY_BRAND} as the smooth spoken brand "${VBIZ_ME_SPOKEN_BRAND}" (vee-biz-me, no pauses).`
-      : ` Pronounce the business name "${spokenCompanyName(trimmedCompany)}" clearly and smoothly.`
-    return `${VBIZ_ME_GREETING_TRIGGER} Their preferred language is not English — translate the greeting naturally but${brandNote} Say the equivalent of: "${greetingText}" and offer a quick guided tour of the card.${pronunciationNote} Respond aloud with ONLY the greeting sentence — no meta-commentary.`
+    return `${VBIZ_ME_GREETING_TRIGGER} Their preferred language is not English — translate the greeting naturally but keep the host name "${host}" and keep ${VBIZ_ME_DISPLAY_BRAND} as the smooth spoken brand "${VBIZ_ME_SPOKEN_BRAND}" (vee-biz-me, no pauses). Say the equivalent of: "${greetingText}" and offer a quick guided tour of the card.${VBIZ_PRONUNCIATION_NOTE} Respond aloud with ONLY the greeting sentence — no meta-commentary.`
   }
 
-  return `${VBIZ_ME_GREETING_TRIGGER} Speak aloud immediately. Your entire spoken response must be EXACTLY this greeting — word for word, do not rephrase, shorten, or add anything before or after: "${greetingText}"${pronunciationNote}`
+  return `${VBIZ_ME_GREETING_TRIGGER} Speak aloud immediately. Your entire spoken response must be EXACTLY this greeting — word for word, do not rephrase, shorten, or add anything before or after: "${greetingText}"${VBIZ_PRONUNCIATION_NOTE}`
 }
 
 export const BRAND_PRONUNCIATION_PRIORITY_OVERRIDE = `

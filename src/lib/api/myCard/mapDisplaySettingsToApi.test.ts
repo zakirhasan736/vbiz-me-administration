@@ -40,15 +40,13 @@ describe('extra fields settings', () => {
 })
 
 describe('omitUnchangedCorporateSharedSettings', () => {
-  it('keeps a renamed tab label and drops unchanged override JSON', () => {
+  it('keeps a renamed tab label and drops unchanged shared override JSON only', () => {
     const current = {
-      displaySettings: { globalEnabled: true, fields: {} },
       customTabs: [],
       tabLabelOverrides: { services: 'Our Services' },
       tabSectionMeta: {},
     }
     const saved = {
-      displaySettings: { globalEnabled: true, fields: {} },
       customTabs: [],
       tabLabelOverrides: { services: 'Servicess' },
       tabSectionMeta: {},
@@ -62,7 +60,8 @@ describe('omitUnchangedCorporateSharedSettings', () => {
       saved
     )
     expect(omitted[TAB_LABEL_OVERRIDES_SETTING_KEY]).toBe(JSON.stringify({ services: 'Our Services' }))
-    expect(omitted[EXTRA_FIELDS_SETTING_KEY]).toBeUndefined()
+    // Per-card settings (extra fields, SEO, games, display) are never stripped here.
+    expect(omitted[EXTRA_FIELDS_SETTING_KEY]).toBe('[]')
 
     const unchanged = omitUnchangedCorporateSharedSettings(
       { [TAB_LABEL_OVERRIDES_SETTING_KEY]: JSON.stringify(saved.tabLabelOverrides) },

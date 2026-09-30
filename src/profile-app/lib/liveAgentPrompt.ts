@@ -18,6 +18,7 @@ export const DEFAULT_LIVE_AGENT_CARD: LiveAgentCardData = {
   profileId: '',
   slug: '',
   ownerName: '',
+  greetingHostName: '',
   title: '',
   profession: null,
   company: '',

@@ -531,6 +531,7 @@ export function CrmLeadsPanel({
                           value={`${lead.metadata?.device || '—'} · ${lead.metadata?.browser || '—'}`}
                         />
                         <MetaChip icon={MapPin} label="Location" value={lead.metadata?.approximateLocation || '—'} />
+                        <MetaChip icon={Globe} label="IP" value={lead.metadata?.ip?.trim() || '—'} />
                         <MetaChip icon={Globe} label="Referrer" value={lead.metadata?.referrer || 'Direct'} />
                         <MetaChip icon={User} label="Owner" value={lead.ownerName || lead.ownerId} />
                       </div>
