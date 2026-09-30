@@ -14,6 +14,69 @@ import type {
 } from '@/lib/theme/cardThemeContract'
 import { CONTRAST_BODY_MIN, CONTRAST_LARGE_MIN, ensureReadableText } from '@/lib/theme/colorAccessibility'
 
+type Rgb = { r: number; g: number; b: number; a: number }
+
+function clampByte(n: number): number {
+  return Math.max(0, Math.min(255, Math.round(n)))
+}
+
+/** Parse #rgb, #rrggbb, #rrggbbaa, rgb(), or rgba(). */
+export function readCssColor(input: string): Rgb | null {
+  const value = input.trim()
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i)
+  if (hex) {
+    let h = hex[1]
+    if (h.length === 3)
+      h = h
+        .split('')
+        .map((c) => c + c)
+        .join('')
+    const r = parseInt(h.slice(0, 2), 16)
+    const g = parseInt(h.slice(2, 4), 16)
+    const b = parseInt(h.slice(4, 6), 16)
+    const a = h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1
+    return { r, g, b, a }
+  }
+  const rgb = value.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i)
+  if (!rgb) return null
+  return {
+    r: clampByte(Number(rgb[1])),
+    g: clampByte(Number(rgb[2])),
+    b: clampByte(Number(rgb[3])),
+    a: rgb[4] === undefined ? 1 : Math.max(0, Math.min(1, Number(rgb[4]))),
+  }
+}
+
+export function colorToHex(input: string, fallback = '#000000'): string {
+  const parts = readCssColor(input)
+  if (!parts) return fallback
+  const hex = (n: number) => clampByte(n).toString(16).padStart(2, '0')
+  return `#${hex(parts.r)}${hex(parts.g)}${hex(parts.b)}`
+}
+
+export function colorWithAlpha(input: string, alpha: number): string {
+  const parts = readCssColor(input)
+  if (!parts) return input
+  const a = Math.max(0, Math.min(1, alpha))
+  if (a >= 0.995) return colorToHex(input)
+  return `rgba(${parts.r}, ${parts.g}, ${parts.b}, ${Number(a.toFixed(2))})`
+}
+
+/**
+ * Tab banner gradient: primary is a 45% pigment (not a solid fill) and only
+ * tints about 13% of the banner. Secondary covers the rest (~85%) so titles stay readable.
+ * Picker opacity on each stop replaces the 45% / 85% defaults.
+ */
+export function buildSoftBannerGradient(from: string, to: string): string {
+  const fromParts = readCssColor(from)
+  const toParts = readCssColor(to)
+  const fromHex = fromParts ? colorToHex(from) : from
+  const toHex = toParts ? colorToHex(to) : to
+  const pigment = fromParts ? Math.round(fromParts.a * 100) : 45
+  const secondary = toParts ? Math.round(toParts.a * 100) : 85
+  return `linear-gradient(135deg, color-mix(in srgb, color-mix(in srgb, ${fromHex} ${pigment}%, transparent) 13%, ${toHex}) 0%, color-mix(in srgb, ${toHex} ${secondary}%, transparent) 100%)`
+}
+
 function pick<T extends Record<string, unknown>>(base: T, override?: Partial<T> | null): T {
   if (!override) return { ...base }
   const next = { ...base }
@@ -36,8 +99,10 @@ export function deriveBannerMode(
   const base: BannerModeColors = {
     variant: 'gradient',
     bg: set.secondary,
-    gradientFrom: set.accent,
-    gradientTo: '#020617',
+    // Primary at 45% opacity, mixed lightly; secondary owns ~85% of the banner.
+    gradientFrom: colorWithAlpha(set.primary, 0.45),
+    gradientTo: colorWithAlpha(set.secondary, 0.85),
+    border: colorWithAlpha(set.accent, 0.35),
     title,
     description,
     note: description,

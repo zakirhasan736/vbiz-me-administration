@@ -89,6 +89,8 @@ export type BannerModeColors = {
   note?: string
   label?: string
   text?: string
+  /** Banner outline. Supports hex or rgba so owners can set opacity. */
+  border?: string
   imageUrl?: string
   imageFit?: ObjectFitMode
   imagePosition?: ObjectPositionMode

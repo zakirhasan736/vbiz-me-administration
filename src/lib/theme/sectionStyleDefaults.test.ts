@@ -1,6 +1,7 @@
 import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
 import { buildPreviewMatchedThemeConfig, resetBrandThemeColors } from '@/lib/theme/resolveCardTheme'
 import {
+  buildSoftBannerGradient,
   clearOneSectionStyleOverride,
   deriveBannerMode,
   deriveContentCardMode,
@@ -14,11 +15,17 @@ describe('sectionStyleDefaults', () => {
   const stock = getDefaultThemeConfig('v3')
   const dark = stock.colors.dark
 
-  it('derives banner defaults from brand accent/secondary', () => {
+  it('derives a soft banner gradient with a light primary tint', () => {
     const banner = deriveBannerMode(dark, 'dark')
     expect(banner.variant).toBe('gradient')
-    expect(banner.gradientFrom).toBe(dark.accent)
+    expect(banner.gradientFrom).toContain('0.45')
+    expect(banner.gradientTo).toContain('0.85')
+    expect(banner.border).toContain('0.35')
     expect(banner.bg).toBe(dark.secondary)
+    const gradient = buildSoftBannerGradient(banner.gradientFrom || '', banner.gradientTo || '')
+    expect(gradient).toContain('13%')
+    expect(gradient).toContain('45%')
+    expect(gradient).toContain('85%')
   })
 
   it('content card titles stay readable on surface', () => {

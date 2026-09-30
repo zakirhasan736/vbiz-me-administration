@@ -20,12 +20,15 @@ import { suggestBrandCompanions } from '@/lib/theme/colorAccessibility'
 import { patchModeBrandColor } from '@/lib/theme/resolveCardTheme'
 import {
   clearOneSectionStyleOverride,
+  colorToHex,
+  colorWithAlpha,
   deriveBannerMode,
   deriveContentCardMode,
   deriveFaqItemMode,
   deriveReviewCardMode,
   deriveTopNavBarMode,
   patchSectionStyleMode,
+  readCssColor,
   type SectionStyleKey,
 } from '@/lib/theme/sectionStyleDefaults'
 import { notify } from '@/lib/toast/toast'
@@ -35,8 +38,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 const COLOR_COMMIT_MS = 120
 
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (val: string) => void }) {
+function ColorField({
+  label,
+  value,
+  onChange,
+  withOpacity = false,
+}: {
+  label: string
+  value: string
+  onChange: (val: string) => void
+  withOpacity?: boolean
+}) {
   const [localValue, setLocalValue] = useState(value || '#000000')
+  const [opacityOpen, setOpacityOpen] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingRef = useRef<string | null>(null)
   const onChangeRef = useRef(onChange)
@@ -76,30 +90,85 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
     }, COLOR_COMMIT_MS)
   }
 
+  const parsed = readCssColor(localValue)
+  const hex = parsed ? colorToHex(localValue) : '#000000'
+  const alpha = parsed ? parsed.a : 1
+  const alphaPct = Math.round(alpha * 100)
+
+  const paint = (nextHex: string, nextAlpha: number) => {
+    const safeHex = colorToHex(nextHex, '#000000')
+    if (!withOpacity || nextAlpha >= 0.995) handleChange(safeHex)
+    else handleChange(colorWithAlpha(safeHex, nextAlpha))
+  }
+
   return (
     <div
-      className="hover:border-primary-500/50 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-white/10 dark:bg-[#070a13]"
+      className="hover:border-primary-500/50 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-white/10 dark:bg-[#070a13]"
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) flush()
       }}
     >
-      <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">{label}</span>
-      <div className="flex items-center gap-3">
-        <input
-          type="text"
-          value={localValue}
-          onChange={(e) => handleChange(e.target.value)}
-          className="focus:text-primary-600 dark:focus:text-primary-400 w-20 bg-transparent text-right font-mono text-[.75rem] font-medium text-slate-500 uppercase outline-none dark:text-slate-400"
-        />
-        <div className="relative h-7 w-7 shrink-0 cursor-pointer overflow-hidden rounded-full border border-slate-200 shadow-sm dark:border-white/20">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">{label}</span>
+        <div className="flex items-center gap-2">
           <input
-            type="color"
-            value={/^#[0-9a-fA-F]{6}$/.test(localValue) ? localValue : '#000000'}
+            type="text"
+            value={localValue}
             onChange={(e) => handleChange(e.target.value)}
-            className="absolute -inset-2.5 h-14 w-14 cursor-pointer"
+            className={cn(
+              'focus:text-primary-600 dark:focus:text-primary-400 bg-transparent text-right font-mono text-[.7rem] font-medium text-slate-500 outline-none dark:text-slate-400',
+              withOpacity ? 'w-28 normal-case' : 'w-20 uppercase'
+            )}
           />
+          {withOpacity ? (
+            <button
+              type="button"
+              onClick={() => setOpacityOpen((open) => !open)}
+              className={cn(
+                'rounded-lg border px-1.5 py-1 font-mono text-[10px] font-bold',
+                opacityOpen
+                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-200'
+                  : 'border-slate-200 text-slate-500 dark:border-white/15 dark:text-slate-300'
+              )}
+              aria-pressed={opacityOpen}
+              aria-label={`${label} opacity`}
+            >
+              {parsed ? `${alphaPct}%` : 'Opacity'}
+            </button>
+          ) : null}
+          <div
+            className="relative h-7 w-7 shrink-0 cursor-pointer overflow-hidden rounded-full border border-slate-200 shadow-sm dark:border-white/20"
+            style={{
+              backgroundImage:
+                'linear-gradient(45deg, #cbd5e1 25%, transparent 25%), linear-gradient(-45deg, #cbd5e1 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #cbd5e1 75%), linear-gradient(-45deg, transparent 75%, #cbd5e1 75%)',
+              backgroundSize: '8px 8px',
+              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0',
+            }}
+          >
+            <span className="absolute inset-0" style={{ backgroundColor: parsed ? localValue : hex }} />
+            <input
+              type="color"
+              value={hex}
+              onChange={(e) => (withOpacity ? paint(e.target.value, alpha) : handleChange(e.target.value))}
+              className="absolute -inset-2.5 h-14 w-14 cursor-pointer opacity-0"
+            />
+          </div>
         </div>
       </div>
+      {withOpacity && opacityOpen ? (
+        <label className="flex items-center gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+          Opacity
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={parsed ? alphaPct : 100}
+            onChange={(e) => paint(hex, Number(e.target.value) / 100)}
+            className="h-1.5 flex-1 accent-slate-700 dark:accent-slate-200"
+          />
+          <span className="w-8 text-right font-mono">{parsed ? alphaPct : 100}</span>
+        </label>
+      ) : null}
     </div>
   )
 }
@@ -315,7 +384,7 @@ export function BannerStylePanel({
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Tab banner styles</h3>
           <p className="text-[12px] text-slate-500 dark:text-slate-400">
-            Gradient, solid, or image headers for section screens. Follows global brand until overridden.
+            Soft gradient: primary stays a light tint, secondary covers most of the banner. Use Opacity on fill colors.
           </p>
         </div>
         <ModeTabs mode={mode} onChange={setMode} />
@@ -341,19 +410,21 @@ export function BannerStylePanel({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {(
           [
-            ['bg', 'Background'],
-            ['gradientFrom', 'Gradient from'],
-            ['gradientTo', 'Gradient to'],
-            ['title', 'Title'],
-            ['description', 'Description'],
-            ['label', 'Label'],
-            ['text', 'Text'],
-            ['note', 'Note'],
-          ] as Array<[keyof BannerModeColors, string]>
-        ).map(([field, label]) => (
+            ['bg', 'Background', true],
+            ['gradientFrom', 'Gradient from', true],
+            ['gradientTo', 'Gradient to', true],
+            ['border', 'Banner border', true],
+            ['title', 'Title', false],
+            ['description', 'Description', false],
+            ['label', 'Label', false],
+            ['text', 'Text', false],
+            ['note', 'Note', false],
+          ] as Array<[keyof BannerModeColors, string, boolean]>
+        ).map(([field, label, withOpacity]) => (
           <ColorField
             key={field}
             label={label}
+            withOpacity={withOpacity}
             value={String(resolved[field] || '#000000')}
             onChange={(v) => patch({ [field]: v })}
           />

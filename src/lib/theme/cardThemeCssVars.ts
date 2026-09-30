@@ -11,6 +11,7 @@ import {
 } from '@/lib/theme/cardThemeContract'
 import { ensureContrastPair } from '@/lib/theme/resolveCardTheme'
 import {
+  buildSoftBannerGradient,
   resolveBannerStyle,
   resolveContentCardStyle,
   resolveFaqItemStyle,
@@ -190,6 +191,7 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   vars['--vbiz-banner-note'] = banner.note || vars['--vbiz-banner-description']
   vars['--vbiz-banner-label'] = banner.label || set.accent
   vars['--vbiz-banner-text'] = banner.text || vars['--vbiz-banner-title']
+  vars['--vbiz-banner-border'] = banner.border || `color-mix(in srgb, ${set.accent} 35%, transparent)`
   vars['--vbiz-banner-image'] = banner.imageUrl ? `url(${JSON.stringify(banner.imageUrl)})` : 'none'
   vars['--vbiz-banner-image-fit'] = banner.imageFit || 'cover'
   vars['--vbiz-banner-image-position'] = banner.imagePosition || 'center'
@@ -250,8 +252,8 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   }
 
   const bannerVariant = bannerOverride?.variant || banner.variant || 'gradient'
-  const bannerFrom = bannerOverride?.gradientFrom || bannerOverride?.bg || vars['--vbiz-banner-gradient-from']
-  const bannerTo = bannerOverride?.gradientTo || vars['--vbiz-banner-gradient-to']
+  const bannerFrom = banner.gradientFrom || set.primary
+  const bannerTo = banner.gradientTo || set.secondary
   if (bannerPaintCustom && bannerVariant === 'solid' && bannerOverride?.bg) {
     vars['--vbiz-banner-bg'] = bannerOverride.bg
   }
@@ -259,10 +261,8 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
     bannerVariant === 'solid'
       ? 'none'
       : bannerVariant === 'image'
-        ? `linear-gradient(180deg, rgba(2,6,23,0.55), rgba(2,6,23,0.72)), ${vars['--vbiz-banner-image']}`
-        : bannerPaintCustom
-          ? `linear-gradient(135deg, ${bannerFrom} 0%, ${bannerTo} 100%)`
-          : `linear-gradient(135deg, var(--vbiz-page-header-fill, ${bannerFrom}) 0%, color-mix(in srgb, var(--vbiz-page-header-fill, ${bannerFrom}) 42%, ${bannerTo}) 58%, ${bannerTo} 100%)`
+        ? `linear-gradient(180deg, rgba(2,6,23,0.45), rgba(2,6,23,0.72)), ${vars['--vbiz-banner-image']}`
+        : buildSoftBannerGradient(bannerFrom, bannerTo)
 
   // Home identity defaults (overridden by displayGeneralRootStyle when Card Settings set colors).
   vars['--vbiz-home-heading'] = mode === 'light' ? set.secondary : '#ffffff'
@@ -613,6 +613,7 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   background-image: var(--vbiz-banner-bg-image, none) !important;
   background-size: cover !important;
   background-position: var(--vbiz-banner-image-position, center) !important;
+  border-color: var(--vbiz-banner-border, color-mix(in srgb, var(--vbiz-accent) 35%, transparent)) !important;
   color: var(--vbiz-banner-title-override, var(--vbiz-page-header-fg, var(--vbiz-banner-text, #ffffff))) !important;
 }
 .vbiz-profile-root .vbiz-page-header-surface {
@@ -1601,6 +1602,16 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
 .vbiz-profile-root.vbiz-theme-light .vbiz-section-banner,
 .vbiz-profile-root.vbiz-theme-dark .vbiz-section-banner,
 .vbiz-profile-root.dark .vbiz-section-banner,
+.vbiz-profile-root.vbiz-theme-light .vbiz-hero-banner,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-hero-banner,
+.vbiz-profile-root.dark .vbiz-hero-banner {
+  background-color: var(--vbiz-banner-bg, var(--vbiz-page-header-fill, transparent)) !important;
+  background-image: var(--vbiz-banner-bg-image, none) !important;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-color: var(--vbiz-banner-border, color-mix(in srgb, var(--vbiz-accent) 35%, transparent)) !important;
+  color: var(--vbiz-banner-title-override, var(--vbiz-page-header-fg, var(--vbiz-banner-title, #ffffff))) !important;
+}
 .vbiz-profile-root.vbiz-theme-light .vbiz-page-header-surface,
 .vbiz-profile-root.vbiz-theme-dark .vbiz-page-header-surface,
 .vbiz-profile-root.dark .vbiz-page-header-surface {
