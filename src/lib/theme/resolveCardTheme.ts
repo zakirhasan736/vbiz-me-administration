@@ -1,7 +1,9 @@
 import {
   DEFAULT_THEME_COLORS,
+  TEMPLATE_THEME_COLORS,
   cornerStyleToRadius,
   defaultButtonComponents,
+  defaultSocialIconComponent,
   getDefaultThemeConfig,
   type ButtonComponents,
   type CardThemeConfig,
@@ -453,6 +455,45 @@ export function applyEditorSettingsToThemeConfig(
       ...base.appearance,
       ...mergedAppearance,
       profileTemplate: template,
+    },
+  }
+}
+
+/**
+ * Reset primary / secondary / accent (light + dark) and button/social brand roles
+ * back to the template defaults. Wallpaper and layout appearance are kept.
+ */
+export function resetBrandThemeColors(
+  current: CardThemeConfig | null | undefined,
+  template: ProfileTemplateId
+): CardThemeConfig {
+  const defaults = TEMPLATE_THEME_COLORS[template] ?? DEFAULT_THEME_COLORS
+  const base = resolveCardThemeConfig(current, template)
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      light: {
+        ...base.colors.light,
+        primary: defaults.light.primary,
+        secondary: defaults.light.secondary,
+        accent: defaults.light.accent,
+      },
+      dark: {
+        ...base.colors.dark,
+        primary: defaults.dark.primary,
+        secondary: defaults.dark.secondary,
+        accent: defaults.dark.accent,
+      },
+    },
+    components: {
+      ...base.components,
+      button: defaultButtonComponents(),
+      socialIcon: {
+        ...defaultSocialIconComponent(),
+        cornerRadius: base.components.socialIcon.cornerRadius,
+        style: base.components.socialIcon.style,
+      },
     },
   }
 }

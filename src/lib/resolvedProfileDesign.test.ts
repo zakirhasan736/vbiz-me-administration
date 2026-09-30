@@ -1,6 +1,6 @@
 import { designToCssVars, resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
-import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
+import { applyEditorSettingsToThemeConfig, resetBrandThemeColors } from '@/lib/theme/resolveCardTheme'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
 import { describe, expect, it } from 'vitest'
 
@@ -58,6 +58,22 @@ describe('applyEditorSettingsToThemeConfig', () => {
 
     expect(next.appearance.fontFamily).toBe('poppins')
     expect(next.appearance.buttonShadow).toBe('strong')
+  })
+})
+
+describe('resetBrandThemeColors', () => {
+  it('restores template primary/secondary/accent on both modes', () => {
+    const customized = applyEditorSettingsToThemeConfig(
+      getDefaultThemeConfig('v3'),
+      { primaryColor: '#111111', secondaryColor: '#222222', accentColor: '#333333' },
+      null
+    )
+    const reset = resetBrandThemeColors(customized, 'v3')
+    expect(reset.colors.light.primary).toBe('#eed677')
+    expect(reset.colors.dark.primary).toBe('#eed677')
+    expect(reset.colors.light.secondary).toBe(getDefaultThemeConfig('v3').colors.light.secondary)
+    expect(reset.colors.dark.accent).toBe('#eed677')
+    expect(reset.wallpaper).toEqual(customized.wallpaper)
   })
 })
 

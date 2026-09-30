@@ -2,7 +2,7 @@
 
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
-import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
+import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
@@ -136,9 +136,8 @@ export const HomeHero: React.FC<{
   )
   const profileTheme = useProfileTheme()
   const wallpaper = resolveWallpaperConfig(profileTheme?.themeConfig, homeMedia.bgMedia)
-  const coverMediaUrl = wallpaperNeedsMedia(wallpaper.style)
-    ? encodeMediaUrl(homeMedia.bgMedia || '')
-    : encodeMediaUrl(homeMedia.bgMedia || '')
+  const coverMediaUrl = encodeMediaUrl(homeMedia.bgMedia || '')
+  const coverIsVideo = wallpaper.style === 'video' || isVideoUrl(homeMedia.bgMedia || '')
   const profileIsVideo = Boolean(profileSrc) && isVideoUrl(profileSrc)
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn') || isVisible('Share')
@@ -228,9 +227,14 @@ export const HomeHero: React.FC<{
             wallpaper={wallpaper}
             mediaUrl={coverMediaUrl}
             mediaClassName={
-              compact
-                ? 'h-full w-full opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
-                : 'aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten'
+              // Videos stay mix-blend-normal — lighten/screen wash them out on dark home canvases.
+              coverIsVideo
+                ? compact
+                  ? 'h-full w-full object-cover opacity-95'
+                  : 'h-full w-full object-cover opacity-95 md:aspect-auto'
+                : compact
+                  ? 'h-full w-full opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
+                  : 'aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten'
             }
           />
           <div

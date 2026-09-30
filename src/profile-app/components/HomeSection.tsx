@@ -1,6 +1,6 @@
 'use client'
 
-import { encodeMediaUrl } from '@/lib/mediaUrl'
+import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
@@ -379,7 +379,11 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               <ProfileWallpaperContent
                 wallpaper={wallpaper}
                 mediaUrl={coverMediaUrl}
-                mediaClassName="scale-105 opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen"
+                mediaClassName={
+                  wallpaper.style === 'video' || isVideoUrl(coverMediaUrl)
+                    ? 'scale-105 object-cover opacity-90 transition-all duration-[10s] group-hover:scale-110'
+                    : 'scale-105 opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen'
+                }
               />
               <div className="absolute inset-0 bg-linear-to-t from-white via-white/40 to-transparent dark:from-gray-950 dark:via-gray-950/40" />
               <div className="absolute inset-0 bg-linear-to-r from-white/90 via-transparent to-transparent dark:from-gray-950/90" />

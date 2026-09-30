@@ -38,6 +38,8 @@ import {
   normalizeSeoKeywords,
   ownerSeoKeywords,
 } from '@/lib/seo/cardSeo'
+import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
+import { resetBrandThemeColors } from '@/lib/theme/resolveCardTheme'
 import {
   inferMediaWallpaperStyle,
   patchThemeConfigWallpaper,
@@ -62,6 +64,7 @@ import {
   HOME_PAGE_URL_FIELDS,
   ICON_FIELDS,
   MY_INFO_FIELDS,
+  NAV_BAR_FIELDS,
   patchDisplayField,
   setCategoryEnableAll,
   setCategoryResetColors,
@@ -586,6 +589,41 @@ function TemplateDesigner() {
 
       {/* Theme Colors */}
       <SettingSection title="Theme Colors">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
+            Primary, secondary, and accent apply across light and dark mode, buttons, and field chrome.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-1.5"
+            onClick={() => {
+              const template = cardAppearance.profileTemplate ?? 'v3'
+              const defaults = getStaticProfileTheme(template)
+              updateData('theme.primaryColor', defaults.primaryColor)
+              updateData('theme.secondaryColor', defaults.secondaryColor)
+              updateData('theme.accentColor', defaults.accentColor)
+              updateData('themeConfig', resetBrandThemeColors(vCardData.themeConfig, template))
+              const allColorFields = [
+                ...GENERAL_SETTINGS_FIELDS,
+                ...HOME_PAGE_FIELDS,
+                ...SOCIAL_LINK_FIELDS,
+                ...ICON_FIELDS,
+                ...NAV_BAR_FIELDS,
+                ...MY_INFO_FIELDS,
+              ]
+              updateData(
+                'displaySettings',
+                setCategoryResetColors(getDisplaySettingsFromVCard(vCardData), allColorFields)
+              )
+              notify.success('Theme colors reset to template defaults.')
+            }}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset colors
+          </Button>
+        </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <ColorPicker
             label="Primary Theme Color"

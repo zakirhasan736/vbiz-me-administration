@@ -72,7 +72,7 @@ describe('contact VCF photo', () => {
     expect(vcf).toContain('item2.X-ABLabel:vCard URL')
     expect(vcf).not.toMatch(/^URL:/m)
     expect(vcf).toContain('ADR;TYPE=WORK:;;London\\, UK;;;;')
-    expect(vcf).toContain('NOTE:First computer programmer\\nProfile: https://vbiz.me/v/ada')
+    expect(vcf).not.toContain('NOTE:')
     expect(vcf).toContain('PHOTO;ENCODING=b;TYPE=JPEG:abc123')
     expect(vcf).not.toContain('CHARSET=UTF-8')
     expect(vcf.startsWith('BEGIN:VCARD\r\nVERSION:3.0')).toBe(true)

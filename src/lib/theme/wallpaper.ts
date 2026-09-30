@@ -75,6 +75,7 @@ export function normalizeWallpaper(raw: unknown): CardWallpaperConfig | undefine
  * Style shown in the editor / public card.
  * When wallpaper is unset, infer from media URL so existing cards keep image/video covers.
  * Pass `fallbackMediaUrl` (e.g. DEFAULT_COVER) so empty uploads still match the public fallback media type.
+ * For image/video styles, prefer the real media type so an mp4 is never stuck on "image".
  */
 export function resolveWallpaperStyle(
   themeConfig: CardThemeConfig | null | undefined,
@@ -82,10 +83,16 @@ export function resolveWallpaperStyle(
   fallbackMediaUrl?: string | null
 ): WallpaperStyleId {
   const stored = themeConfig?.wallpaper?.style
-  if (stored && isWallpaperStyleId(stored)) return stored
-
   const media = bgMediaUrl?.trim() || fallbackMediaUrl?.trim() || ''
-  if (media && isVideoUrl(media)) return 'video'
+  const mediaStyle: WallpaperStyleId = media && isVideoUrl(media) ? 'video' : 'image'
+
+  // Non-media paint modes always win when explicitly chosen.
+  if (stored === 'fill' || stored === 'gradient' || stored === 'pattern' || stored === 'blur') {
+    return stored
+  }
+  // Cover media present → match file type (fixes cards saved as style "image" with .mp4).
+  if (media) return mediaStyle
+  if (stored === 'image' || stored === 'video') return stored
   return 'image'
 }
 

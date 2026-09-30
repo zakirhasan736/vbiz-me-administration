@@ -219,16 +219,10 @@ function pushAndroidCustomUrl(lines: string[], url: string, label: string) {
   lines.push(`X-ANDROID-CUSTOM:${fields.join(';')}`)
 }
 
-function buildNote(contact: SaveContactCardData): string {
-  const parts: string[] = []
-  if (contact.note?.trim()) parts.push(contact.note.trim())
-  if (contact.profileUrl?.trim()) parts.push(`Profile: ${contact.profileUrl.trim()}`)
-  return parts.join('\n')
-}
-
 /**
  * Apple Contacts is picky: no CHARSET params, no blank lines, vCard 3.0.
  * Android imports the same file.
+ * No NOTE — About Me / profile blurb must not land in the phone’s Notes field.
  */
 export function serializeContactVcf(
   contact: SaveContactCardData,
@@ -261,8 +255,6 @@ export function serializeContactVcf(
     lines.push(`ADR;TYPE=WORK:;;${escapeVcfValue(contact.address.trim())};;;;`)
   }
 
-  const note = buildNote(contact)
-  if (note) lines.push(`NOTE:${escapeVcfValue(note)}`)
   if (contact.gender?.trim()) lines.push(`X-GENDER:${escapeVcfValue(contact.gender.trim())}`)
 
   if (photo?.base64) {
