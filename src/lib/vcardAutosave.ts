@@ -343,6 +343,55 @@ export function hasPersistablePostsDelta(
   )
 }
 
+/** Use the server list when it has real rows. Otherwise keep a filled local draft. */
+export function preferFilledList<T>(
+  server: T[] | undefined,
+  local: T[] | undefined,
+  isEmpty: (item: T) => boolean
+): { items: T[]; keptLocal: boolean } {
+  const serverItems = server || []
+  if (serverItems.some((item) => !isEmpty(item))) {
+    return { items: serverItems, keptLocal: false }
+  }
+  const localItems = local || []
+  if (localItems.some((item) => !isEmpty(item))) {
+    return { items: localItems, keptLocal: true }
+  }
+  return { items: serverItems, keptLocal: false }
+}
+
+export type PostsSnapshotSlice = {
+  generalPosts?: VCardGeneralPost[]
+  faqs?: VCardFaqEntry[]
+  sectionPosts?: Record<string, VCardSectionPostItem[]>
+}
+
+/** Empty baseline used when a brand-new profile has no server posts yet. */
+export function emptyPostsSnapshot(): PostsSnapshotSlice {
+  return { generalPosts: [], faqs: [], sectionPosts: {} }
+}
+
+/**
+ * Existing cards must not write FAQs/blogs until the editor has loaded server rows.
+ * A profile created in this session has no rows yet, so the draft is written immediately
+ * against an empty baseline (a leftover snapshot from another card must not be reused).
+ */
+export function resolveInitialPostSync(input: {
+  profileId: string
+  hydratedProfileId: string | null
+  createdProfileId: string | null
+  snapshot: PostsSnapshotSlice
+}): { defer: boolean; snapshot: PostsSnapshotSlice } {
+  if (input.hydratedProfileId === input.profileId) {
+    return { defer: false, snapshot: input.snapshot }
+  }
+  const freshCreate = input.createdProfileId === input.profileId
+  if (freshCreate) {
+    return { defer: false, snapshot: emptyPostsSnapshot() }
+  }
+  return { defer: true, snapshot: input.snapshot }
+}
+
 function persistableBucketSlice(data: VCardData, bucket: string): unknown {
   switch (bucket) {
     case 'education':

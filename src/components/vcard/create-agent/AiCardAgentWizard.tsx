@@ -48,6 +48,7 @@ import { getVCardResume } from '@/lib/vcardResume'
 import type { VCardData } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   CheckCircle2,
@@ -391,10 +392,19 @@ function nextEmptyTabGaps(gaps: GapItem[], skippedIds: string[]): GapItem[] {
 }
 
 const BLOCKING_PERSONAL_FIELD_KEYS = new Set(['fullName', 'email', 'dob'])
-const OWNER_ENTRY_GAP_FIELDS = new Set(['fullName', 'email', 'dob', 'slug'])
+const OWNER_ENTRY_GAP_FIELDS = new Set(['fullName', 'email', 'dob', 'slug', 'phone', 'company'])
+const OPTIONAL_OWNER_FIELDS = new Set(['phone', 'company'])
+const SKIP_WITHOUT_ASKING = new Set(['experience', 'education'])
 
 function isOwnerEntryGap(gap: GapItem) {
   return gap.navId === 'home' && OWNER_ENTRY_GAP_FIELDS.has(gap.field)
+}
+
+function requiredPersonalReady(data: VCardData) {
+  const personal = data.personal
+  return Boolean(
+    personal?.fullName?.trim() && personal?.email?.trim() && personal?.dob?.trim() && String(data.slug || '').trim()
+  )
 }
 
 function isBlockingPersonalField(field?: { tabId?: string; fieldKey?: string; required?: boolean } | null) {
@@ -895,6 +905,7 @@ export function AiCardAgentWizard({
   const [coachSection, setCoachSection] = useState('services')
   const [featureQueue, setFeatureQueue] = useState<typeof OPTIONAL_ITEMS>([])
   const [featureIndex, setFeatureIndex] = useState(0)
+  const [featureChoices, setFeatureChoices] = useState<Record<string, 'yes' | 'skip'>>({})
   const [acceptedFeatures, setAcceptedFeatures] = useState<SettingsTabId[]>([])
   const [acceptedFeatureDetails, setAcceptedFeatureDetails] = useState<AcceptedFeature[]>([])
   const [createProgress, setCreateProgress] = useState(0)
@@ -908,6 +919,13 @@ export function AiCardAgentWizard({
   const [openLaunchTabs, setOpenLaunchTabs] = useState<string[]>([])
   const [activeFeatureGuideKey, setActiveFeatureGuideKey] = useState<keyof OptionalFeatures | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+  const promptAnchorRef = useRef<HTMLDivElement>(null)
+  const attemptedContentGapsRef = useRef<Set<string>>(new Set())
+  const approveGateSectionRef = useRef<(override?: GapItem, opts?: { silent?: boolean }) => Promise<void>>(
+    async () => {}
+  )
+  const askNextGapRef = useRef<(report: { score: number; gaps: GapItem[]; nextBest: GapItem | null }) => void>(() => {})
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const draftRef = useRef(vCardData)
   const wasOpenRef = useRef(false)
@@ -922,6 +940,13 @@ export function AiCardAgentWizard({
   const [cardPlan, setCardPlan] = useState<CardPlanTab[]>([])
   const [nextField, setNextField] = useState<JobField | null>(null)
   const [fieldDraft, setFieldDraft] = useState('')
+  const [personalDraft, setPersonalDraft] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    dob: '',
+    company: '',
+  })
   const [aiPreview, setAiPreview] = useState('')
   const [cardPercent, setCardPercent] = useState(0)
   const [reviewNavId, setReviewNavId] = useState<string | null>(null)
@@ -957,7 +982,7 @@ export function AiCardAgentWizard({
         role: 'assistant',
         text: isEdit
           ? status.text
-          : `I’ll build your vBiz Me card with you, step by step:\n\n1. Read your website, files, or notes\n2. Suggest the right card tabs\n3. For each empty tab, ask “fill now?” — yes or skip\n4. Offer optional extras (live AI, Canva, SEO, notifications)\n5. Preview, then create\n\nAdd a website, files, or a short description, then tap Start.`,
+          : `I’ll build your vBiz Me card with you:\n\n1. Read your website, PDF, Word file, notes, or photos\n2. Suggest the tabs that fit this business — all of them start selected\n3. Fill every selected tab myself, including up to 5 services, FAQs, reviews, and similar items when they’re missing\n4. Ask only for personal details I can’t invent, like your name, email, phone, and date of birth\n5. Offer optional extras, then preview and create\n\nAdd a website, files, or a short description, then tap Start.`,
       },
     ])
     setWebsiteUrl(existingWebsite)
@@ -971,6 +996,7 @@ export function AiCardAgentWizard({
     setSelectedRecs([])
     setFeatureQueue([])
     setFeatureIndex(0)
+    setFeatureChoices({})
     setAcceptedFeatures([])
     setAcceptedFeatureDetails([])
     setCreateProgress(0)
@@ -1000,8 +1026,25 @@ export function AiCardAgentWizard({
   }, [open, cardLoading, isEdit]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when newly opened
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, phase, busy])
+    const scroller = chatScrollRef.current
+    if (!scroller) return
+    const personalInFront =
+      (phase === 'coach' && coachSection === 'personal') || (phase === 'field' && isBlockingPersonalField(nextField))
+    const frame = window.requestAnimationFrame(() => {
+      if (personalInFront) {
+        scroller.scrollTo({ top: 0, behavior: 'smooth' })
+        return
+      }
+      const anchor = promptAnchorRef.current
+      if (anchor && scroller.contains(anchor)) {
+        const top = anchor.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 12
+        scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+        return
+      }
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [messages, phase, busy, coachSection, nextField, gateGap])
 
   useEffect(() => {
     if (phase !== 'coach') return
@@ -1121,6 +1164,7 @@ export function AiCardAgentWizard({
       setFeatureQueue(queue)
       setFeatureIndex(0)
       setGateGap(null)
+      setBusy(false)
       setPhase('features')
       const first = queue[0]
       pushMsg(
@@ -1140,6 +1184,14 @@ export function AiCardAgentWizard({
       }
 
       if (group.some(isOwnerEntryGap)) {
+        const optionalOnly = group.every((gap) => !isOwnerEntryGap(gap) || OPTIONAL_OWNER_FIELDS.has(gap.field))
+        if (optionalOnly && requiredPersonalReady(draftRef.current)) {
+          const skippedIds = group.map((gap) => gap.id)
+          skippedGapIdsRef.current = [...new Set([...skippedGapIdsRef.current, ...skippedIds])]
+          setSkippedGapIds(skippedGapIdsRef.current)
+          askNextGapRef.current(report)
+          return
+        }
         const smart = buildSmartSectionPayload('personal', draftRef.current, sourceContextRef.current)
         if (smart && payloadHasContent('personal', smart)) {
           applyDraft(
@@ -1148,47 +1200,48 @@ export function AiCardAgentWizard({
           )
         }
         const ownerFields = group.filter(isOwnerEntryGap)
+        const current = draftRef.current.personal
+        setPersonalDraft({
+          fullName: current?.fullName || '',
+          email: current?.email || '',
+          phone: current?.phone || '',
+          dob: current?.dob || '',
+          company: current?.company || '',
+        })
         setGateGap(null)
+        setBusy(false)
         setCoachSection('personal')
         setPhase('coach')
         pushMsg(
           'assistant',
-          `Personal Info still needs values only you can provide: ${ownerFields.map((gap) => gap.title).join(', ')}.\n\nType them below (name, card/business name, email, and date of birth as YYYY-MM-DD) and tap Send. Phone is optional. I will not invent email, phone, or date of birth.`
+          `I can finish the business tabs on my own. I still need a few personal details from you: ${ownerFields.map((gap) => gap.title).join(', ')}.\n\nThe form is at the top of this chat. Name, email, and date of birth are required. Phone is optional, and the same number can be used on more than one card.`
         )
         return
       }
 
       const primary = group[0]
-      const fieldNames = group.map((gap) => gap.title).join(', ')
-      setCoachSection(gapFieldToSection(primary.field))
-      setGateGap({
-        ...primary,
-        title: fieldNames,
-        explanation: group.length > 1 ? `${primary.tab} still has empty fields: ${fieldNames}.` : primary.explanation,
-      })
-      setPhase('section-gate')
-      const remainingTabs = new Set(
-        report.gaps.filter((gap) => !skippedGapIdsRef.current.includes(gap.id)).map((gap) => gap.navId)
-      ).size
-      const isFaq = primary.navId === 'faq' || primary.field === 'faqs'
-      const isBlog = primary.navId === 'blog' || primary.field === 'blogs' || primary.field === 'generalPosts'
-      const isReviews = primary.navId === 'reviews'
-      const isExperience = primary.navId === 'work' || primary.field === 'experience'
-      const isSkills = primary.navId === 'skills' || primary.field === 'skills'
-      const prompt = isFaq
-        ? `I couldn’t find FAQs in your website or documents. Based on this business, I can create up to 5 helpful customer questions and answers. I will not invent prices, hours, guarantees, or certifications.\n\nCreate FAQs with AI, or skip for later.`
-        : isBlog
-          ? `I didn’t find published articles. I can draft up to 5 useful educational posts from your business and services — not fake news events.\n\nCreate with AI, or skip.`
-          : isReviews
-            ? `I couldn’t find customer reviews. I can create up to 5 realistic example testimonials from this business. I will not invent licenses, prices, or awards, and I will not overwrite reviews already on the card.\n\nCreate example reviews with AI, or skip.`
-            : isExperience
-              ? `I couldn’t reliably determine your professional experience. I will not invent employers or dates.\n\nAdd experience now, or skip.`
-              : isSkills
-                ? `I can create up to 5 concise skills from the services and expertise found in your business sources.\n\nGenerate skills with AI, or skip.`
-                : `Let’s look at “${primary.tab}”. ${
-                    group.length > 1 ? `I still see empty fields: ${fieldNames}.` : `${primary.explanation}`
-                  }\n\nWant me to fill this now from your website and files? Tap Yes to fill, or Skip to leave it for the editor.`
-      pushMsg('assistant', prompt, `${remainingTabs} tab${remainingTabs === 1 ? '' : 's'} still open`)
+      const section = gapFieldToSection(primary.field)
+      const alreadyTried = group.every((gap) => attemptedContentGapsRef.current.has(gap.id))
+      if (alreadyTried || SKIP_WITHOUT_ASKING.has(section)) {
+        const skippedIds = group.map((gap) => gap.id)
+        skippedGapIdsRef.current = [...new Set([...skippedGapIdsRef.current, ...skippedIds])]
+        setSkippedGapIds(skippedGapIdsRef.current)
+        if (SKIP_WITHOUT_ASKING.has(section)) {
+          pushMsg(
+            'assistant',
+            `I’ll leave “${primary.tab}” empty for now. I won’t invent work history or education. You can add real details in the editor.`
+          )
+        }
+        askNextGapRef.current(report)
+        return
+      }
+      for (const gap of group) attemptedContentGapsRef.current.add(gap.id)
+      setPhase('working')
+      pushMsg(
+        'assistant',
+        `“${primary.tab}” still needs content, so I’m writing it now. If it’s a list, I’ll draft up to 5 items from the business. You don’t need to confirm this one.`
+      )
+      void approveGateSectionRef.current(primary, { silent: true })
     },
     [pushMsg, startFeaturesPhase, applyDraft, activeNav, enabledNavIds]
   )
@@ -1512,7 +1565,7 @@ export function AiCardAgentWizard({
             : 'Your card plan is ready.'
       const discoveryLine = isEdit
         ? `I finished analyzing your sources. Useful details found: ${filledBits.join(', ') || 'core personal details'}. Current card completion: ${job.cardPercent || score}%. Nothing was written to the live card yet.`
-        : `${completeLine} ${mapped.businessSummary || job.businessSummary || ''}\n\nI already drafted: ${filledBits.join(', ') || 'core personal details'}${enabledLabels ? `\nSuggested tabs: ${enabledLabels}` : ''}.\n\nNext I’ll show tab suggestions. Pick what belongs on this card — then I’ll ask about each empty tab.`
+        : `${completeLine} ${mapped.businessSummary || job.businessSummary || ''}\n\nI already drafted: ${filledBits.join(', ') || 'core personal details'}${enabledLabels ? `\nSuggested tabs: ${enabledLabels}` : ''}.\n\nNext I’ll show the tabs I recommend. They’re all selected. After you continue, I’ll fill any that are still short — up to 5 items for services, FAQs, reviews, and the other content tabs — without asking again.`
 
       pushMsg(
         'assistant',
@@ -1557,14 +1610,14 @@ export function AiCardAgentWizard({
             tab.selected && tab.tabId !== 'home' && !(PINNED_END_NAV_IDS as readonly string[]).includes(tab.tabId)
         )
         .map((tab) => tab.tabId)
-      setSelectedRecs(preselected.length ? preselected : recs.map((item) => item.navId))
+      setSelectedRecs([...new Set([...recs.map((item) => item.navId), ...preselected])])
       if (!recs.length) {
-        pushMsg('assistant', 'No extra tabs to suggest — I’ll collect the required owner details next.')
+        pushMsg('assistant', 'No extra tabs to suggest — I’ll collect the personal details only you can provide.')
         await continueFieldFlow(job)
       } else {
         pushMsg(
           'assistant',
-          `Here are the tabs I recommend for this business. Tick the ones you want, then continue.\n\nAfter that I’ll pause on each empty tab and ask: fill now, or skip?`
+          `These are the tabs I’d put on this card. I selected all of them.\n\nUntick anything you don’t want. When you continue, I’ll fill the selected tabs myself. I’ll only stop to ask for your name, email, phone, or date of birth if those are still missing.`
         )
         setPhase('tabs')
       }
@@ -1626,20 +1679,24 @@ export function AiCardAgentWizard({
   const continueFieldFlow = async (job: JobSnapshot) => {
     ingestJob(job)
     if (isBlockingPersonalField(job.nextField)) {
-      setFieldDraft(typeof job.nextField?.currentValue === 'string' ? job.nextField.currentValue : '')
+      const current = draftRef.current.personal
+      setPersonalDraft({
+        fullName:
+          current?.fullName || (job.nextField?.fieldKey === 'fullName' ? String(job.nextField.currentValue || '') : ''),
+        email: current?.email || (job.nextField?.fieldKey === 'email' ? String(job.nextField.currentValue || '') : ''),
+        phone: current?.phone || '',
+        dob: current?.dob || (job.nextField?.fieldKey === 'dob' ? String(job.nextField.currentValue || '') : ''),
+        company: current?.company || '',
+      })
+      setFieldDraft('')
       setAiPreview('')
-      setPhase('field')
-      const question =
-        job.nextField?.fieldKey === 'fullName'
-          ? 'What name should appear publicly on the card?'
-          : job.nextField?.fieldKey === 'email'
-            ? 'What email address should visitors use? This is collected at card creation.'
-            : job.nextField?.fieldKey === 'phone'
-              ? 'What phone number should visitors use? This is optional, and the same number can be used on more than one business card.'
-              : job.nextField?.fieldKey === 'dob'
-                ? "What is the card owner's date of birth? It is required at creation and cannot be generated by AI."
-                : `Let’s fill ${job.nextField?.fieldLabel || 'this required field'}.`
-      pushMsg('assistant', question)
+      setGateGap(null)
+      setCoachSection('personal')
+      setPhase('coach')
+      pushMsg(
+        'assistant',
+        `Before I create the card, I need the personal details that have to come from you. The form stays at the top.\n\n${job.nextField?.fieldLabel || 'This field'} is still open. Name, email, and date of birth are required. Phone is optional.`
+      )
       return
     }
     if (job.status === 'WAITING_FOR_USER_INPUT' && sessionIdRef.current && !job.nextField) {
@@ -1868,15 +1925,21 @@ export function AiCardAgentWizard({
         const job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'tabs', { selectedNavIds: nextNav })
         pushMsg(
           'assistant',
-          `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}. I’ll collect any required personal facts, then empty tabs, then optional extras (AI Assistance, Canva, SEO, notifications), then preview so you can save a draft or create & activate.`
+          `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}.\n\nI’m filling every selected tab now. Short services, FAQs, reviews, skills, blogs, and portfolio sections get up to 5 items. I’ll only stop if I still need your name, email, phone, or date of birth. Then you’ll get the optional extras and a preview.`
         )
-        await continueFieldFlow(job)
+        setPhase('working')
+        try {
+          const filled = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, 'fast-mode', { mode: 'ai' })
+          await continueFieldFlow(filled)
+        } catch {
+          await continueFieldFlow(job)
+        }
         return
       }
       const report = await refreshGaps(nextNav)
       pushMsg(
         'assistant',
-        `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}.\n\nNow I’ll walk empty tabs one by one. For each, tell me yes (fill now) or skip.`
+        `Locked in: ${nextNav.map((id) => getCreateCardDisplayLabel(id, id)).join(' → ')}.\n\nI’ll fill the empty tabs myself and only stop for your name, email, and date of birth.`
       )
       askNextGap(report)
     } catch (e) {
@@ -1968,39 +2031,66 @@ export function AiCardAgentWizard({
     [applyDraft, pushMsg, refreshAfterDraftChange]
   )
 
-  const approveGateSection = async () => {
-    if (!gateGap) return
-    const gap = gateGap
+  const skipGapGroupAndContinue = async (gap: GapItem, note: string) => {
+    const sameTabIds = gaps.filter((item) => item.navId === gap.navId).map((item) => item.id)
+    skippedGapIdsRef.current = [...new Set([...skippedGapIdsRef.current, gap.id, ...sameTabIds])]
+    setSkippedGapIds(skippedGapIdsRef.current)
+    setGateGap(null)
+    pushMsg('assistant', note)
+    const report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
+    askNextGap(report)
+  }
+
+  const approveGateSection = async (override?: GapItem, opts?: { silent?: boolean }) => {
+    const gap = override || gateGap
+    if (!gap) return
     const section = gapFieldToSection(gap.field)
-    pushMsg('user', `Yes — fill ${gap.tab} now`)
+    if (!opts?.silent) pushMsg('user', `Yes — fill ${gap.tab} now`)
     setCoachSection(section)
 
-    if (section === 'personal' || gap.navId === 'home') {
-      const report = await refreshGaps(activeNav.length ? activeNav : enabledNavIds, draftRef.current)
-      askNextGap(report)
-      return
-    }
-
-    if (section === 'experience') {
+    if ((section === 'personal' || gap.navId === 'home') && gap.field !== 'about') {
+      if (OPTIONAL_OWNER_FIELDS.has(gap.field) && requiredPersonalReady(draftRef.current)) {
+        await skipGapGroupAndContinue(
+          gap,
+          `Phone and company can wait. I’ll keep going and you can add them in the editor.`
+        )
+        return
+      }
+      const current = draftRef.current.personal
+      setPersonalDraft({
+        fullName: current?.fullName || '',
+        email: current?.email || '',
+        phone: current?.phone || '',
+        dob: current?.dob || '',
+        company: current?.company || '',
+      })
       setGateGap(null)
+      setBusy(false)
       setPhase('coach')
       pushMsg(
         'assistant',
-        'Paste a real role (company, title, dates if you have them) in the message box below, then tap Fill. I will not invent work history.'
+        'I need these from you — I won’t guess a name, email, phone, or date of birth. The form is pinned at the top of this chat. Save it and I’ll move to the next stage.'
+      )
+      return
+    }
+
+    if (section === 'experience' || section === 'education') {
+      await skipGapGroupAndContinue(
+        gap,
+        `I’ll leave “${gap.tab}” empty for now. I won’t invent work history or education. Moving to the next stage.`
       )
       return
     }
 
     if (!hasStoredSources() && !sessionIdRef.current) {
-      setGateGap(null)
-      setPhase('coach')
-      pushMsg(
-        'assistant',
-        `I don’t have the original website/files in this session for “${gap.tab}”.\n\n${gap.howToProvide}\n\nPaste a note or attach a file and I’ll fill it.`
+      await skipGapGroupAndContinue(
+        gap,
+        `I don’t have a website or file to fill “${gap.tab}” from, so I’ll leave it for the editor and keep going.`
       )
       return
     }
 
+    setPhase('working')
     setBusy(true)
     pushMsg('assistant', `On it — filling “${gap.tab}” from your ${sourceSummaryLine() || 'saved business profile'}…`)
     try {
@@ -2056,16 +2146,33 @@ export function AiCardAgentWizard({
         return
       }
       const msg = formatCardAgentError(e, 'Could not auto-fill this section')
-      setError(msg)
-      setPhase('coach')
-      pushMsg(
-        'assistant',
-        `I couldn’t auto-fill “${gap.tab}” from the saved sources: ${msg}.\n\n${gap.howToProvide}\n\nPaste details now, or skip this tab for later.`
-      )
-    } finally {
-      setBusy(false)
+      try {
+        await skipGapGroupAndContinue(
+          gap,
+          `I couldn’t finish “${gap.tab}” automatically (${msg}). I’ll leave it for the editor and keep going.`
+        )
+      } catch (continueError) {
+        setBusy(false)
+        setError(formatCardAgentError(continueError, 'Could not continue'))
+        startFeaturesPhase(score)
+      }
     }
   }
+
+  useEffect(() => {
+    approveGateSectionRef.current = approveGateSection
+    askNextGapRef.current = askNextGap
+  })
+
+  const advancingGateIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (phase !== 'section-gate' || !gateGap) return
+    if (advancingGateIdRef.current === gateGap.id) return
+    advancingGateIdRef.current = gateGap.id
+    setPhase('working')
+    setBusy(true)
+    void approveGateSectionRef.current(gateGap, { silent: true })
+  }, [phase, gateGap])
 
   const skipGateSection = async () => {
     if (!gateGap) return
@@ -2138,6 +2245,77 @@ export function AiCardAgentWizard({
     void fillFromComposer()
   }
 
+  const savePersonalForm = async () => {
+    const fullName = personalDraft.fullName.trim()
+    const email = personalDraft.email.trim()
+    const phone = personalDraft.phone.trim()
+    const dob = personalDraft.dob.trim()
+    const company = personalDraft.company.trim()
+    if (!fullName || !email || !dob) {
+      setError('Add your name, email, and date of birth. Phone can stay blank.')
+      return
+    }
+    setError('')
+    setBusy(true)
+    pushMsg('user', [fullName, email, phone, dob, company].filter(Boolean).join(' · '))
+    try {
+      const merged = mergeParsedPersonal(draftRef.current, { fullName, email, phone, dob, company })
+      applyDraft(merged, activeNav.length ? activeNav : enabledNavIds)
+      const valueFor = (key: string) => {
+        if (key === 'fullName') return merged.personal.fullName || ''
+        if (key === 'email') return merged.personal.email || ''
+        if (key === 'phone') return merged.personal.phone || ''
+        if (key === 'dob') return merged.personal.dob || ''
+        if (key === 'company') return merged.personal.company || ''
+        if (key === 'slug') return merged.slug || ''
+        return ''
+      }
+      if (sessionIdRef.current) {
+        let job = await cardAgentJobGet<JobSnapshot>(sessionIdRef.current)
+        for (let step = 0; step < 8; step += 1) {
+          const field = job.nextField
+          if (!field?.fieldKey || !['fullName', 'email', 'phone', 'dob', 'company', 'slug'].includes(field.fieldKey)) {
+            break
+          }
+          const value = String(valueFor(field.fieldKey) || '').trim()
+          if (!value) {
+            if (field.required) break
+            job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, `fields/${encodeURIComponent(field.id)}`, {
+              action: 'SKIP',
+            })
+            continue
+          }
+          job = await cardAgentJobPost<JobSnapshot>(sessionIdRef.current, `fields/${encodeURIComponent(field.id)}`, {
+            action: 'USER_INPUT',
+            value,
+          })
+        }
+        pushMsg('assistant', 'Got it. I’ll use those personal details on the card and keep building.')
+        await continueFieldFlow(job)
+        return
+      }
+      const report = await refreshAfterDraftChange(activeNav.length ? activeNav : enabledNavIds, merged)
+      const requiredLeft = report.gaps.some((gap) =>
+        ['personal.fullName', 'personal.email', 'personal.dob', 'slug'].includes(gap.id)
+      )
+      if (!requiredLeft) {
+        const optional = report.gaps
+          .filter((gap) => gap.id === 'personal.phone' || gap.id === 'personal.company')
+          .map((gap) => gap.id)
+        if (optional.length) {
+          skippedGapIdsRef.current = [...new Set([...skippedGapIdsRef.current, ...optional])]
+          setSkippedGapIds(skippedGapIdsRef.current)
+        }
+      }
+      pushMsg('assistant', `Saved. The card is now ${report.score}% complete.`)
+      askNextGap(report)
+    } catch (e) {
+      setError(formatCardAgentError(e, 'Could not save those personal details'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const fillFromComposer = async () => {
     const text = composer.trim()
     if (!text && files.length === 0) {
@@ -2165,7 +2343,19 @@ export function AiCardAgentWizard({
         setComposer('')
         setFiles([])
         const report = await refreshAfterDraftChange(activeNav, merged)
-        pushMsg('assistant', `Saved those Personal Info details. Card is now ${report.score}% complete.`)
+        const requiredLeft = report.gaps.some((gap) =>
+          ['personal.fullName', 'personal.email', 'personal.dob', 'slug'].includes(gap.id)
+        )
+        if (!requiredLeft) {
+          const optional = report.gaps
+            .filter((gap) => gap.id === 'personal.phone' || gap.id === 'personal.company')
+            .map((gap) => gap.id)
+          if (optional.length) {
+            skippedGapIdsRef.current = [...new Set([...skippedGapIdsRef.current, ...optional])]
+            setSkippedGapIds(skippedGapIdsRef.current)
+          }
+        }
+        pushMsg('assistant', `Saved those personal details. The card is now ${report.score}% complete.`)
         askNextGap(report)
         return
       }
@@ -2217,7 +2407,7 @@ export function AiCardAgentWizard({
     const item = featureQueue[featureIndex]
     if (!item || busy) return
     pushMsg('user', yes ? `Yes, enable ${item.title}` : `Skip ${item.title}`)
-    const nextAccepted = yes ? [...acceptedFeatures, item.settingsSection] : acceptedFeatures
+    setFeatureChoices((prev) => ({ ...prev, [item.key]: yes ? 'yes' : 'skip' }))
     if (yes) {
       setBusy(true)
       let note = ''
@@ -2253,17 +2443,20 @@ export function AiCardAgentWizard({
           note =
             'Email notifications are enabled in preferences. After create, review Settings > General notifications to choose which alerts should send email.'
         }
-        setAcceptedFeatures(nextAccepted)
-        pushMsg('assistant', note || `Noted. ${item.title} can be configured after the card is created.`)
-        setAcceptedFeatureDetails((prev) => [
-          ...prev,
-          {
-            key: item.key,
-            title: item.title,
-            settingsSection: item.settingsSection,
-            note,
-          },
-        ])
+        setAcceptedFeatureDetails((prev) => {
+          const without = prev.filter((detail) => detail.key !== item.key)
+          const nextDetails = [
+            ...without,
+            {
+              key: item.key,
+              title: item.title,
+              settingsSection: item.settingsSection,
+              note,
+            },
+          ]
+          setAcceptedFeatures([...new Set(nextDetails.map((detail) => detail.settingsSection))])
+          return nextDetails
+        })
         if (!note) {
           pushMsg(
             'assistant',
@@ -2276,17 +2469,18 @@ export function AiCardAgentWizard({
         setBusy(false)
       }
     } else {
-      pushMsg('assistant', `Okay, skipping ${item.title}.`)
+      setAcceptedFeatureDetails((prev) => {
+        const nextDetails = prev.filter((detail) => detail.key !== item.key)
+        setAcceptedFeatures([...new Set(nextDetails.map((detail) => detail.settingsSection))])
+        return nextDetails
+      })
+      pushMsg('assistant', `Okay, skipping ${item.title}. You can come back and enable it.`)
     }
 
-    const nextIdx = featureIndex + 1
-    if (nextIdx < featureQueue.length) {
-      setFeatureIndex(nextIdx)
-      const next = featureQueue[nextIdx]
-      pushMsg('assistant', `Next: ${next.title}? ${next.description}\n\nTap Yes, enable or Skip.`)
-      return
-    }
+    moveFeature(1)
+  }
 
+  const openPreview = () => {
     const nextLaunchTabs = buildLaunchTabs(draftRef.current, activeNav)
     setOpenLaunchTabs(
       nextLaunchTabs
@@ -2295,11 +2489,85 @@ export function AiCardAgentWizard({
         .map((tab) => tab.navId)
     )
     setPhase('preview')
-    const scoreLine = `You’re at about ${score}% content completeness.`
     pushMsg(
       'assistant',
-      `${scoreLine} Preview your card below. When it looks right, confirm and I’ll create it for you (with a progress animation).`
+      `You’re at about ${score}% content completeness. Preview your card below. When it looks right, confirm and I’ll create it.`
     )
+  }
+
+  const moveFeature = (delta: number) => {
+    if (!featureQueue.length || busy) return
+    const nextIdx = featureIndex + delta
+    if (nextIdx >= featureQueue.length) {
+      openPreview()
+      return
+    }
+    if (nextIdx < 0) {
+      setPhase('tabs')
+      return
+    }
+    setFeatureIndex(nextIdx)
+  }
+
+  const goBackStage = () => {
+    if (busy || phase === 'creating') return
+    if (phase === 'preview') {
+      if (!featureQueue.length) {
+        setPhase('tabs')
+        return
+      }
+      setFeatureIndex(featureQueue.length - 1)
+      setPhase('features')
+      return
+    }
+    if (phase === 'features') {
+      moveFeature(-1)
+      return
+    }
+    if (phase === 'coach' || phase === 'field' || phase === 'section-gate') {
+      setPhase('tabs')
+      return
+    }
+    if (phase === 'tabs') {
+      setPhase('intake')
+    }
+  }
+
+  const goNextStage = () => {
+    if (busy || phase === 'creating') return
+    if (phase === 'tabs') {
+      if (featureQueue.length && sessionIdRef.current) {
+        if (!requiredPersonalReady(draftRef.current)) {
+          setCoachSection('personal')
+          setPhase('coach')
+          setError('Add your name, email, and date of birth before the extras. Phone can stay blank.')
+          return
+        }
+        setError('')
+        setPhase('features')
+        return
+      }
+      void acceptTabs()
+      return
+    }
+    if (phase === 'coach' || phase === 'field') {
+      if (!requiredPersonalReady(draftRef.current)) {
+        setCoachSection('personal')
+        setPhase('coach')
+        setError('Add your name, email, and date of birth before continuing. Phone can stay blank.')
+        return
+      }
+      setError('')
+      if (!featureQueue.length) {
+        startFeaturesPhase(score)
+        return
+      }
+      setPhase('features')
+      return
+    }
+    if (phase === 'features') {
+      moveFeature(1)
+    }
   }
 
   const showFeatureGuide = async (feature: AcceptedFeature) => {
@@ -2758,7 +3026,59 @@ export function AiCardAgentWizard({
           />
         </div>
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+        <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+          {phase === 'coach' && coachSection === 'personal' ? (
+            <div className="sticky top-0 z-20 space-y-3 rounded-3xl border border-emerald-300 bg-white p-4 shadow-lg shadow-emerald-900/10 dark:border-emerald-500/40 dark:bg-slate-950">
+              <p className="text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase dark:text-emerald-300">
+                Your details · needed to finish
+              </p>
+              <p className="text-sm font-black text-slate-950 dark:text-white">
+                Tell me who this card is for. I’ll keep this form in view.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input
+                  value={personalDraft.fullName}
+                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, fullName: event.target.value }))}
+                  placeholder="Public name"
+                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                />
+                <input
+                  value={personalDraft.company}
+                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, company: event.target.value }))}
+                  placeholder="Business or card name"
+                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                />
+                <input
+                  type="email"
+                  value={personalDraft.email}
+                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, email: event.target.value }))}
+                  placeholder="Email"
+                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                />
+                <input
+                  type="tel"
+                  value={personalDraft.phone}
+                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, phone: event.target.value }))}
+                  placeholder="Phone (optional)"
+                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900"
+                />
+                <input
+                  type="date"
+                  value={personalDraft.dob}
+                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, dob: event.target.value }))}
+                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm sm:col-span-2 dark:border-white/10 dark:bg-slate-900"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void savePersonalForm()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
+              >
+                <Check className="h-3.5 w-3.5" /> Save personal details
+              </button>
+            </div>
+          ) : null}
           {isEdit && cardLoading ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
               Loading your current card before source analysis…
@@ -3090,12 +3410,15 @@ export function AiCardAgentWizard({
           ) : null}
 
           {phase === 'tabs' && recommendations.length > 0 ? (
-            <div className="space-y-3 rounded-3xl border border-slate-200/80 bg-linear-to-b from-white to-slate-50 p-4 shadow-sm dark:border-white/10 dark:from-white/5 dark:to-transparent">
+            <div
+              ref={promptAnchorRef}
+              className="space-y-3 rounded-3xl border border-slate-200/80 bg-linear-to-b from-white to-slate-50 p-4 shadow-sm dark:border-white/10 dark:from-white/5 dark:to-transparent"
+            >
               <div>
                 <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Suggested card tabs</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  These fit this business. Tick what you want on the public card, then continue. I’ll build every
-                  selected section before preview.
+                  I selected every tab that fits this business. Untick any you don’t want. When you continue, I’ll fill
+                  the rest — up to 5 items anywhere a list is short — and only ask for missing personal details.
                 </p>
               </div>
               {recommendations.map((rec) => {
@@ -3245,42 +3568,10 @@ export function AiCardAgentWizard({
             </div>
           ) : null}
 
-          {phase === 'section-gate' && gateGap ? (
-            <div className="overflow-hidden rounded-3xl border border-amber-200/80 bg-linear-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm dark:border-amber-500/25 dark:from-amber-500/15 dark:via-transparent dark:to-transparent">
-              <p className="text-[10px] font-black tracking-[0.14em] text-amber-700 uppercase dark:text-amber-300">
-                Empty tab · fill now?
-              </p>
-              <h4 className="mt-2 text-base font-black text-slate-950 dark:text-white">{gateGap.tab}</h4>
-              <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">Want me to fill this now?</p>
-              <p className="mt-2 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
-                Empty: {gateGap.title}. {gateGap.explanation}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void approveGateSection()}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-md shadow-emerald-600/20"
-                >
-                  <Check className="h-3.5 w-3.5" /> Yes, fill now
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void skipGateSection()}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
-                >
-                  <SkipForward className="h-3.5 w-3.5" /> Skip
-                </button>
-              </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={skipRemainingToFeatures}
-                className="mt-2 w-full rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[11px] font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
-              >
-                Skip remaining tabs — extras, preview & create
-              </button>
+          {phase === 'section-gate' ? (
+            <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Filling this tab and moving to the next stage…
             </div>
           ) : null}
 
@@ -3387,6 +3678,12 @@ export function AiCardAgentWizard({
               <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
                 {featureQueue[featureIndex].description} This is optional — skip if you do not need it yet.
               </p>
+              {featureChoices[featureQueue[featureIndex].key] ? (
+                <p className="mt-2 text-[11px] font-black text-emerald-700 dark:text-emerald-300">
+                  Current choice: {featureChoices[featureQueue[featureIndex].key] === 'yes' ? 'Enabled' : 'Skipped'}.
+                  You can change it.
+                </p>
+              ) : null}
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -3403,6 +3700,25 @@ export function AiCardAgentWizard({
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
                 >
                   <SkipForward className="h-3.5 w-3.5" /> Skip
+                </button>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={goBackStage}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> {featureIndex > 0 ? 'Previous' : 'Back to tabs'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={goNextStage}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
+                >
+                  {featureIndex < featureQueue.length - 1 ? 'Next extra' : 'Continue to preview'}{' '}
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -4015,58 +4331,123 @@ export function AiCardAgentWizard({
               </button>
             ) : null}
             {phase === 'tabs' ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void acceptTabs()}
-                className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
-              >
-                Continue with {selectedRecs.length} section{selectedRecs.length === 1 ? '' : 's'}{' '}
-                <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
-            {phase === 'coach' ? (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="mt-2 grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={requestCoachFill}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={goBackStage}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-xs font-black text-slate-700 dark:border-white/15 dark:bg-slate-900 dark:text-slate-200"
                 >
-                  <Check className="h-3.5 w-3.5" /> Fill {coachSectionLabel}
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back to sources
                 </button>
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void skipCoachGap()}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                  onClick={goNextStage}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 py-3 text-xs font-black text-white dark:bg-white dark:text-slate-950"
                 >
-                  <SkipForward className="h-3.5 w-3.5" /> Skip {coachSectionLabel}
+                  {featureQueue.length
+                    ? 'Next'
+                    : `Continue with ${selectedRecs.length} section${selectedRecs.length === 1 ? '' : 's'}`}{' '}
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             ) : null}
-            {phase === 'preview' ? (
+            {phase === 'features' && featureQueue[featureIndex] ? (
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {!isEdit ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={goBackStage}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> {featureIndex > 0 ? 'Previous extra' : 'Back to tabs'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={goNextStage}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
+                >
+                  {featureIndex < featureQueue.length - 1 ? 'Next extra' : 'Continue to preview'}{' '}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
+            {phase === 'coach' || phase === 'field' ? (
+              <div className="mt-2 space-y-2">
+                {phase === 'coach' ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={requestCoachFill}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Fill {coachSectionLabel}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void skipCoachGap()}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                    >
+                      <SkipForward className="h-3.5 w-3.5" /> Skip {coachSectionLabel}
+                    </button>
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void confirmCreateCard('draft')}
-                    className="rounded-xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+                    onClick={goBackStage}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
                   >
-                    Save Draft
+                    <ArrowLeft className="h-3.5 w-3.5" /> Back to tabs
                   </button>
-                ) : (
-                  <span />
-                )}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={goNextStage}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
+                  >
+                    Next: extras <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {phase === 'preview' ? (
+              <div className="mt-2 space-y-2">
                 <button
                   type="button"
-                  disabled={busy || !previewName.trim() || !previewSlug.trim()}
-                  onClick={() => void confirmCreateCard(isEdit ? launchMode : 'publish')}
-                  className="rounded-xl bg-emerald-600 py-3 text-xs font-black text-white disabled:opacity-50"
+                  disabled={busy}
+                  onClick={goBackStage}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-black text-slate-700 dark:border-white/15 dark:bg-slate-900 dark:text-slate-200"
                 >
-                  {isEdit ? 'Save updates' : 'Create & Activate'}
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back to extras
                 </button>
+                <div className="grid grid-cols-2 gap-2">
+                  {!isEdit ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void confirmCreateCard('draft')}
+                      className="rounded-xl border border-slate-200 py-3 text-xs font-black dark:border-white/15"
+                    >
+                      Save Draft
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy || !previewName.trim() || !previewSlug.trim()}
+                    onClick={() => void confirmCreateCard(isEdit ? launchMode : 'publish')}
+                    className="rounded-xl bg-emerald-600 py-3 text-xs font-black text-white disabled:opacity-50"
+                  >
+                    {isEdit ? 'Save updates' : 'Create & Activate'}
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>

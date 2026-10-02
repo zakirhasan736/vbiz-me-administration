@@ -1,7 +1,12 @@
 'use client'
 
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
-import { hasAboutMeDraftContent } from '@/lib/aboutMeDraft'
+import {
+  getAboutMeDraft,
+  hasAboutMeDraftContent,
+  isAboutMeDescriptionFilled,
+  setAboutMeDraft,
+} from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
 import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
 import { omitUnchangedCorporateSharedSettings } from '@/lib/api/myCard/mapDisplaySettingsToApi'
@@ -24,9 +29,15 @@ import {
   dirtyBucketForPath,
   getOrCreateProfileCreationKey,
   hasPersistablePostsDelta,
+  isEmptyEducation,
+  isEmptyExperience,
   isEmptyFaq,
   isEmptyGeneralPost,
+  isEmptyPortfolio,
+  isEmptyReview,
   isEmptySectionPost,
+  isEmptyService,
+  isEmptySkillGroup,
   isSaveWorthyChange,
   mergeSyncedListPreservingClientKeys,
   persistableEducation,
@@ -38,7 +49,9 @@ import {
   persistableSectionPosts,
   persistableServices,
   persistableSkills,
+  preferFilledList,
   readPendingCardSave,
+  resolveInitialPostSync,
   setByPath,
   writePendingCardSave,
 } from '@/lib/vcardAutosave'
@@ -468,23 +481,70 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     }
 
     const posts = postsSnapshotRef.current
-    const generalPosts = posts.generalPosts ?? []
-    const faqs = posts.faqs ?? []
-    const sectionPosts = posts.sectionPosts ?? {}
+    const local = localData
+    const services = preferFilledList(mappedData.services, local?.services, isEmptyService)
+    const portfolio = preferFilledList(mappedData.portfolio, local?.portfolio, isEmptyPortfolio)
+    const reviews = preferFilledList(mappedData.reviews, local?.reviews, isEmptyReview)
+    const skills = preferFilledList(mappedData.skills, local?.skills, isEmptySkillGroup)
+    const education = preferFilledList(mappedData.education, local?.education, isEmptyEducation)
+    const experience = preferFilledList(mappedData.experience, local?.experience, isEmptyExperience)
+    const generalPosts = preferFilledList(
+      posts.generalPosts?.length ? posts.generalPosts : mappedData.generalPosts,
+      local?.generalPosts,
+      isEmptyGeneralPost
+    )
+    const faqs = preferFilledList(posts.faqs?.length ? posts.faqs : mappedData.faqs, local?.faqs, isEmptyFaq)
+    const sectionPosts = { ...(mappedData.sectionPosts || {}) }
+    let keptSectionPosts = false
+    for (const key of new Set([
+      ...Object.keys(posts.sectionPosts || {}),
+      ...Object.keys(local?.sectionPosts || {}),
+      ...Object.keys(mappedData.sectionPosts || {}),
+    ])) {
+      const choice = preferFilledList(
+        posts.sectionPosts?.[key]?.length ? posts.sectionPosts[key] : mappedData.sectionPosts?.[key],
+        local?.sectionPosts?.[key],
+        isEmptySectionPost
+      )
+      if (choice.items.length) sectionPosts[key] = choice.items
+      if (choice.keptLocal) keptSectionPosts = true
+    }
     const data = {
       ...mappedData,
-      generalPosts: generalPosts.length ? generalPosts : mappedData.generalPosts,
-      faqs: faqs.length ? faqs : mappedData.faqs,
-      sectionPosts: Object.keys(sectionPosts).length ? sectionPosts : mappedData.sectionPosts,
+      services: services.items,
+      portfolio: portfolio.items,
+      reviews: reviews.items,
+      skills: skills.items,
+      education: education.items,
+      experience: experience.items,
+      generalPosts: generalPosts.items,
+      faqs: faqs.items,
+      sectionPosts,
     }
+    const keptBuckets: DirtyBucket[] = []
+    if (services.keptLocal) keptBuckets.push('services')
+    if (portfolio.keptLocal) keptBuckets.push('portfolio')
+    if (reviews.keptLocal) keptBuckets.push('reviews')
+    if (skills.keptLocal) keptBuckets.push('skills')
+    if (education.keptLocal) keptBuckets.push('education')
+    if (experience.keptLocal) keptBuckets.push('experience')
+    if (generalPosts.keptLocal || faqs.keptLocal || keptSectionPosts) keptBuckets.push('posts')
 
     editDataRef.current = data
-    lastSavedDataRef.current = data
-    lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(data))
+    lastSavedDataRef.current = mappedData
+    lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(mappedData))
     dispatch(addVCard({ id: profileId, seed: data }))
     dispatch(replaceVCardData({ id: profileId, data }))
     dispatch(updateVCard({ id: profileId, patch: { ...metaPatch, createdAt: mapped.createdAt } }))
     editorHydratedForIdRef.current = profileId
+    if (keptBuckets.length) {
+      for (const bucket of keptBuckets) dirtyBucketsRef.current.add(bucket)
+      saveGateRef.current.dirty = true
+      window.setTimeout(() => {
+        setSaveStatus('dirty')
+        void flushSaveRef.current()
+      }, 0)
+    }
   }, [remoteProfile, isCreateMode, dispatch])
 
   useEffect(() => {
@@ -509,20 +569,49 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     ) => {
       if (cancelled) return
       postsHydratedForId.current = profileId
-      postsSnapshotRef.current = { generalPosts, faqs, sectionPosts }
 
       const latest = editDataRef.current || (record ? toVCardData(record) : null)
       if (!latest) return
-      const withPosts = {
-        ...latest,
-        generalPosts,
-        faqs,
+      const blogs = preferFilledList(generalPosts, latest.generalPosts, isEmptyGeneralPost)
+      const faqChoice = preferFilledList(faqs, latest.faqs, isEmptyFaq)
+      const nextSections: Record<string, VCardSectionPostItem[]> = { ...(latest.sectionPosts || {}) }
+      let keptSections = false
+      for (const key of new Set([...Object.keys(sectionPosts), ...Object.keys(latest.sectionPosts || {})])) {
+        const choice = preferFilledList(sectionPosts[key], latest.sectionPosts?.[key], isEmptySectionPost)
+        nextSections[key] = choice.items
+        if (choice.keptLocal) keptSections = true
+      }
+      postsSnapshotRef.current = {
+        generalPosts: blogs.keptLocal ? [] : generalPosts || [],
+        faqs: faqChoice.keptLocal ? [] : faqs || [],
         sectionPosts,
       }
+      const withPosts = {
+        ...latest,
+        generalPosts: blogs.items,
+        faqs: faqChoice.items,
+        sectionPosts: nextSections,
+      }
       editDataRef.current = withPosts
-      lastSavedDataRef.current = withPosts
+      const saved = lastSavedDataRef.current
+      lastSavedDataRef.current = saved
+        ? {
+            ...saved,
+            generalPosts: blogs.keptLocal ? [] : generalPosts || [],
+            faqs: faqChoice.keptLocal ? [] : faqs || [],
+            sectionPosts,
+          }
+        : withPosts
       lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(withPosts))
       dispatch(replaceVCardData({ id: profileId, data: withPosts }))
+      if (blogs.keptLocal || faqChoice.keptLocal || keptSections) {
+        dirtyBucketsRef.current.add('posts')
+        saveGateRef.current.dirty = true
+        window.setTimeout(() => {
+          setSaveStatus('dirty')
+          void flushSaveRef.current()
+        }, 0)
+      }
     }
 
     ;(async () => {
@@ -862,12 +951,20 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         tasks.push(flushAboutMeUpsert(dispatch, profileId))
       }
 
-      if (buckets.has('posts') && postsHydratedForId.current !== profileId) {
+      const postSync = buckets.has('posts')
+        ? resolveInitialPostSync({
+            profileId,
+            hydratedProfileId: postsHydratedForId.current,
+            createdProfileId: createdProfileIdRef.current,
+            snapshot: postsSnapshotRef.current,
+          })
+        : null
+      if (postSync?.defer) {
         dirtyBucketsRef.current.add('posts')
         buckets.delete('posts')
       }
 
-      if (buckets.has('posts') && !hasPersistablePostsDelta(data, postsSnapshotRef.current)) {
+      if (postSync && buckets.has('posts') && !hasPersistablePostsDelta(data, postSync.snapshot)) {
         buckets.delete('posts')
       }
 
@@ -883,7 +980,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           blogPosts: saveTimeData.generalPosts || [],
           faqs: saveTimeData.faqs || [],
           sectionPosts: saveTimeData.sectionPosts || {},
-          snapshot: postsSnapshotRef.current,
+          snapshot: postSync?.snapshot || postsSnapshotRef.current,
           listPosts,
           createPost,
           updatePost,
@@ -1316,6 +1413,14 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
               })
             )
             editDataRef.current = seed
+
+            const aboutText = String(seed.personal?.about || '').trim()
+            if (aboutText && !isAboutMeDescriptionFilled(getAboutMeDraft().descriptionHtml)) {
+              setAboutMeDraft({
+                title: seed.personal.fullName || seed.personal.company || '',
+                descriptionHtml: aboutText.includes('<') ? aboutText : `<p>${aboutText}</p>`,
+              })
+            }
 
             await persistCollections(profileId, seed)
             if (hasAboutMeDraftContent()) {

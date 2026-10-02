@@ -1,4 +1,5 @@
 import {
+  emptyPostsSnapshot,
   isEmptyFaq,
   isEmptyGeneralPost,
   isEmptyReview,
@@ -6,6 +7,8 @@ import {
   isEmptyService,
   isSaveWorthyChange,
   persistableSectionPosts,
+  preferFilledList,
+  resolveInitialPostSync,
 } from '@/lib/vcardAutosave'
 import { certItemsToSectionPosts, createEmptyCert } from '@/lib/vcardCertificates'
 import { createDefaultFaqEntry } from '@/lib/vcardFaq'
@@ -73,5 +76,71 @@ describe('empty editor drafts stay local until the user types', () => {
     expect(isEmptyGeneralPost(createDefaultGeneralPost())).toBe(true)
     expect(isEmptyFaq(createDefaultFaqEntry())).toBe(true)
     expect(isEmptyReview(createDefaultReviewEntry())).toBe(true)
+  })
+})
+
+describe('initial post sync on card create', () => {
+  const filled = {
+    generalPosts: [],
+    faqs: [{ id: 'faq_1', question: 'Hours?', answer: '9 to 5', active: true }],
+    sectionPosts: {},
+  }
+
+  it('writes a brand-new card against an empty baseline', () => {
+    const resolved = resolveInitialPostSync({
+      profileId: 'new-card',
+      hydratedProfileId: null,
+      createdProfileId: 'new-card',
+      snapshot: filled,
+    })
+    expect(resolved.defer).toBe(false)
+    expect(resolved.snapshot).toEqual(emptyPostsSnapshot())
+  })
+
+  it('waits to load server posts before writing an existing card', () => {
+    const resolved = resolveInitialPostSync({
+      profileId: 'existing',
+      hydratedProfileId: null,
+      createdProfileId: null,
+      snapshot: emptyPostsSnapshot(),
+    })
+    expect(resolved.defer).toBe(true)
+  })
+
+  it('keeps the loaded snapshot once the editor has hydrated', () => {
+    const resolved = resolveInitialPostSync({
+      profileId: 'existing',
+      hydratedProfileId: 'existing',
+      createdProfileId: null,
+      snapshot: filled,
+    })
+    expect(resolved.defer).toBe(false)
+    expect(resolved.snapshot.faqs).toHaveLength(1)
+  })
+})
+
+describe('editor hydrate keeps filled AI lists', () => {
+  it('keeps the local FAQs when the server list is still empty', () => {
+    const local = [{ id: 'faq_1', question: 'Hours?', answer: '9 to 5', active: true }]
+    const choice = preferFilledList([], local, isEmptyFaq)
+    expect(choice.keptLocal).toBe(true)
+    expect(choice.items).toEqual(local)
+  })
+
+  it('uses the server list once it has rows', () => {
+    const server = [
+      {
+        id: 'srv',
+        type: 'Service',
+        title: 'Restore',
+        description: 'Body work',
+        url: '',
+        featuredImage: '',
+        active: true,
+      },
+    ]
+    const choice = preferFilledList(server, [], isEmptyService)
+    expect(choice.keptLocal).toBe(false)
+    expect(choice.items).toHaveLength(1)
   })
 })
