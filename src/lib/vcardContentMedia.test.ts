@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
+import { describe, expect, it } from 'vitest'
 import {
   CONTENT_MEDIA_SETTING_KEY,
   getContentMediaVideoDisplayTitle,
@@ -11,9 +10,9 @@ import {
 
 describe('vcardContentMedia', () => {
   it('rejects blob URLs as non-persistable', () => {
-    assert.equal(isPersistableMediaUrl('blob:http://localhost/abc'), false)
-    assert.equal(isPersistableMediaUrl('https://cdn.example.com/a.jpg'), true)
-    assert.equal(isPersistableMediaUrl(''), false)
+    expect(isPersistableMediaUrl('blob:http://localhost/abc')).toBe(false)
+    expect(isPersistableMediaUrl('https://cdn.example.com/a.jpg')).toBe(true)
+    expect(isPersistableMediaUrl('')).toBe(false)
   })
 
   it('strips blob gallery and video URLs when mapping to API settings', () => {
@@ -33,31 +32,29 @@ describe('vcardContentMedia', () => {
       videos: Array<{ id: string }>
       note: string
     }
-    assert.equal(parsed.gallery.length, 1)
-    assert.equal(parsed.gallery[0]?.id, '2')
-    assert.equal(parsed.gallery[0]?.size, 1200)
-    assert.equal(parsed.videos.length, 1)
-    assert.equal(parsed.videos[0]?.id, 'v2')
-    assert.equal(parsed.note, 'Hello')
+    expect(parsed.gallery).toHaveLength(1)
+    expect(parsed.gallery[0]?.id).toBe('2')
+    expect(parsed.gallery[0]?.size).toBe(1200)
+    expect(parsed.videos).toHaveLength(1)
+    expect(parsed.videos[0]?.id).toBe('v2')
+    expect(parsed.note).toBe('Hello')
   })
 
   it('hasContentMediaContent ignores blob-only media', () => {
-    assert.equal(
+    expect(
       hasContentMediaContent({
         gallery: [{ id: '1', url: 'blob:http://localhost/x', name: 'x' }],
         videos: [],
         note: '',
-      }),
-      false
-    )
-    assert.equal(
+      })
+    ).toBe(false)
+    expect(
       hasContentMediaContent({
         gallery: [{ id: '1', url: 'https://cdn.example.com/g.jpg', name: 'g' }],
         videos: [],
         note: '',
-      }),
-      true
-    )
+      })
+    ).toBe(true)
   })
 
   it('normalizes size and type on gallery items', () => {
@@ -66,15 +63,15 @@ describe('vcardContentMedia', () => {
       videos: [],
       note: '',
     })
-    assert.equal(normalized.gallery[0]?.size, 42)
-    assert.equal(normalized.gallery[0]?.type, 'image/png')
+    expect(normalized.gallery[0]?.size).toBe(42)
+    expect(normalized.gallery[0]?.type).toBe('image/png')
   })
 
   it('hides raw upload filenames from public video captions', () => {
-    assert.equal(getContentMediaVideoDisplayTitle('WhatsApp Video 2026-09-06 at 4.22.14 PM.mp4'), null)
-    assert.equal(getContentMediaVideoDisplayTitle('clip.mov'), null)
-    assert.equal(getContentMediaVideoDisplayTitle('Video'), null)
-    assert.equal(getContentMediaVideoDisplayTitle(''), null)
-    assert.equal(getContentMediaVideoDisplayTitle('Product demo'), 'Product demo')
+    expect(getContentMediaVideoDisplayTitle('WhatsApp Video 2026-09-06 at 4.22.14 PM.mp4')).toBeNull()
+    expect(getContentMediaVideoDisplayTitle('clip.mov')).toBeNull()
+    expect(getContentMediaVideoDisplayTitle('Video')).toBeNull()
+    expect(getContentMediaVideoDisplayTitle('')).toBeNull()
+    expect(getContentMediaVideoDisplayTitle('Product demo')).toBe('Product demo')
   })
 })

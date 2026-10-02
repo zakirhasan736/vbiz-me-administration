@@ -108,7 +108,7 @@ describe('secure card assistant integration', () => {
     expect(wizard).toContain('Fill selected tab: {coachSectionLabel}')
     expect(wizard).toContain('Continue — finish later in editor')
     expect(wizard).toContain('coachSectionOptions.map')
-    expect(wizard).toContain("!['faqs', 'blogs', 'skills'].includes(section)")
+    expect(wizard).toContain("!['faqs', 'blogs', 'skills', 'reviews'].includes(section)")
     expect(wizard).toContain('Generate up to 5 with AI')
     expect(wizard).toContain('Import real reviews with AI')
     expect(previewEditor).toContain("{ key: 'rating', label: 'Rating (1–5)', type: 'number' }")

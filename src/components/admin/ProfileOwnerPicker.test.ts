@@ -26,6 +26,7 @@ describe('profile owner announcement selection', () => {
       hostName: 'Abdul Aziz',
       ownerEmails: ['owner@example.com', 'corporate@example.com'],
       identity: 'Managing Director · Software Consultant · Hunza WebX · Abdul Aziz · owner@example.com · /abdul-aziz',
+      companyUserId: 'corporate-1',
     })
   })
 })

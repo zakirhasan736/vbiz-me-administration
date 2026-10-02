@@ -81,13 +81,20 @@ describe('package launch matrix', () => {
   it('locks intro, music, and background video independently', () => {
     const can = (key: string) =>
       key !== 'allow_intro_video_upload' && key !== 'allow_bg_music_upload' && key !== 'allow_background_video_upload'
-    expect(displayMediaAccess('Intro vCard Video', can).locked).toBe(true)
+    // Builder intro/background media stays unlocked; only package-gated music locks.
+    expect(displayMediaAccess('Intro vCard Video', can)).toEqual({
+      locked: false,
+      allowVideo: true,
+      allowAudio: false,
+      sourceMode: 'video',
+    })
     expect(musicFileAllowed(can)).toBe(false)
+    expect(displayMediaAccess('Background Music', can).locked).toBe(true)
     expect(displayMediaAccess('Background Video/Image', can)).toEqual({
       locked: false,
-      allowVideo: false,
+      allowVideo: true,
       allowAudio: false,
-      sourceMode: 'image',
+      sourceMode: 'both',
     })
   })
 

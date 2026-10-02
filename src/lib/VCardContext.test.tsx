@@ -606,6 +606,18 @@ describe('VCardProvider autosave and creation', () => {
       rendered!.api.updateData('personal.email', 'owner@example.com')
       rendered!.api.updateData('personal.phone', '+1 202 555 0101')
       rendered!.api.updateData('slug', 'recoverable-card')
+      // Empty collections are skipped on create; seed a service so the child write can fail.
+      rendered!.api.updateData('services', [
+        {
+          id: 'svc-1',
+          type: 'service',
+          title: 'Consulting',
+          description: 'Strategy help',
+          featuredImage: '',
+          url: '',
+          active: true,
+        },
+      ])
     })
 
     await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow('services unavailable')
