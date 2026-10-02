@@ -25,5 +25,6 @@ export const IPHONE_E2E_DEVICES = [
 export const IPHONE_E2E_FILES = [
   '**/public-card-visitor-flows.spec.ts',
   '**/public-card-api-responses.spec.ts',
+  '**/public-card-push-display.spec.ts',
   '**/iphone-*.spec.ts',
 ]

@@ -45,13 +45,13 @@ export default defineConfig({
     })),
     {
       name: 'pixel',
-      testMatch: '**/public-card-{visitor-flows,api-responses}.spec.ts',
+      testMatch: '**/public-card-{visitor-flows,api-responses,push-display}.spec.ts',
       use: { ...devices['Pixel 7'] },
     },
     {
       name: 'webkit',
       testMatch: [
-        '**/public-card-{visitor-flows,api-responses}.spec.ts',
+        '**/public-card-{visitor-flows,api-responses,push-display}.spec.ts',
         '**/iphone-safari.spec.ts',
         '**/iphone-share-video.spec.ts',
       ],

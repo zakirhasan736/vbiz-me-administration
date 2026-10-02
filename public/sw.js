@@ -668,7 +668,8 @@ self.addEventListener('push', (event) => {
 
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       const hasFocusedClient = clientList.some((client) => client.focused)
-      const meetingAlert = payload.type === 'meeting_alert'
+      const meetingAlert =
+        payload.type === 'meeting_alert' || payload.type === 'viewer_return' || payload.type === 'save_contact'
 
       for (const client of clientList) {
         client.postMessage({
@@ -678,7 +679,7 @@ self.addEventListener('push', (event) => {
       }
 
       const tag = meetingAlert
-        ? `vbiz-meeting-${payload.profileId || payload.slug || 'card'}-${Date.now()}`
+        ? `vbiz-${payload.type}-${payload.profileId || payload.slug || 'card'}-${Date.now()}`
         : payload.slug
           ? `vbiz-card-${payload.slug}`
           : 'vbiz-card-update'
@@ -699,7 +700,7 @@ self.addEventListener('push', (event) => {
           ...compatibleOptions,
           ...(icon ? { image: icon } : {}),
           renotify: true,
-          actions: [{ action: 'open', title: meetingAlert ? 'Open meeting' : 'Open card' }],
+          actions: [{ action: 'open', title: payload.type === 'meeting_alert' ? 'Open meeting' : 'Open' }],
         })
       } catch {
         try {
