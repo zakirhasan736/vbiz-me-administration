@@ -12,6 +12,7 @@ const PUSH_TYPE_TO_CATEGORY = {
   services_update: 'services',
   event_update: 'events',
   event_updates: 'events',
+  meeting_alert: 'events',
   announcement_update: 'announcements',
   announcement_updates: 'announcements',
   portfolio_update: 'video',
@@ -142,10 +143,14 @@ async function readCachedCardMedia(slug) {
 }
 
 function normalizePushPayload(raw) {
-  const slug = firstNonEmpty(raw.slug, raw.profile_slug, raw.cardSlug, slugFromUrl(raw.url))
+  const meetingAlert = raw.type === 'meeting_alert'
+  const explicitSlug = firstNonEmpty(raw.slug, raw.profile_slug, raw.cardSlug)
+  const slug = meetingAlert ? explicitSlug : firstNonEmpty(explicitSlug, slugFromUrl(raw.url))
   const category = raw.category || PUSH_TYPE_TO_CATEGORY[raw.type] || 'company'
-  // Always open the card on this origin under `/v/{slug}` (works in local + production).
-  const url = normalizeCardUrl(raw.url, slug)
+  const externalMeetingUrl =
+    meetingAlert && typeof raw.url === 'string' && /^https?:\/\//i.test(raw.url.trim()) ? raw.url.trim() : ''
+  // Card updates open `/vCard/{slug}`. A scheduled meeting keeps its join link.
+  const url = externalMeetingUrl || normalizeCardUrl(raw.url, slug)
 
   const avatarImageUrl = firstNonEmpty(
     raw.icon,
@@ -663,6 +668,7 @@ self.addEventListener('push', (event) => {
 
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       const hasFocusedClient = clientList.some((client) => client.focused)
+      const meetingAlert = payload.type === 'meeting_alert'
 
       for (const client of clientList) {
         client.postMessage({
@@ -671,16 +677,41 @@ self.addEventListener('push', (event) => {
         })
       }
 
-      await self.registration.showNotification(copy.title, {
+      const tag = meetingAlert
+        ? `vbiz-meeting-${payload.profileId || payload.slug || 'card'}-${Date.now()}`
+        : payload.slug
+          ? `vbiz-card-${payload.slug}`
+          : 'vbiz-card-update'
+
+      const compatibleOptions = {
         body: copy.body,
-        ...(icon ? { icon, badge: icon, image: icon } : {}),
         data: richPayload,
-        tag: payload.slug ? `vbiz-card-${payload.slug}` : 'vbiz-card-update',
-        renotify: true,
-        requireInteraction: false,
-        silent: hasFocusedClient,
-        actions: [{ action: 'open', title: 'Open card' }],
-      })
+        tag,
+        requireInteraction: meetingAlert,
+        silent: meetingAlert ? false : hasFocusedClient,
+        ...(icon ? { icon, badge: icon } : {}),
+      }
+
+      try {
+        // `image`, `renotify`, and `actions` display on Windows and Android Chrome.
+        // Safari on iPhone and Mac can reject the whole notification when those fields are present.
+        await self.registration.showNotification(copy.title, {
+          ...compatibleOptions,
+          ...(icon ? { image: icon } : {}),
+          renotify: true,
+          actions: [{ action: 'open', title: meetingAlert ? 'Open meeting' : 'Open card' }],
+        })
+      } catch {
+        try {
+          await self.registration.showNotification(copy.title, compatibleOptions)
+        } catch {
+          await self.registration.showNotification(copy.title, {
+            body: copy.body,
+            data: richPayload,
+            tag,
+          })
+        }
+      }
     })()
   )
 })

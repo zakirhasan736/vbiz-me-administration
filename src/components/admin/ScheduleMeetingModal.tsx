@@ -374,8 +374,8 @@ function ScheduleMeetingModalContent({
                   <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                     <span className="font-semibold text-slate-800 dark:text-slate-100">Only backoffice</span>
                     <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
-                      Show in that card owner’s backoffice banner and notification area only. Uncheck to also push this
-                      card’s saved contacts / notification subscribers.
+                      Show the banner in the card owner’s backoffice only. The meeting alert still goes to iPhone, Mac,
+                      Android, and Windows devices that already allowed notifications.
                     </span>
                   </span>
                 </label>
@@ -385,14 +385,10 @@ function ScheduleMeetingModalContent({
                 {scope === 'global'
                   ? 'This booking is for everyone — it isn’t tied to one card.'
                   : scope === 'group'
-                    ? onlyBackoffice
-                      ? 'Group sessions notify only the selected card owners in backoffice.'
-                      : 'Group sessions notify the selected card owners and each card’s push subscribers.'
-                    : onlyBackoffice
-                      ? 'One-to-one sessions notify only the selected card owner in backoffice.'
-                      : useOwnCards
-                        ? 'We’ll send a reminder for the card you picked.'
-                        : 'One-to-one sessions notify the selected card owner and that card’s push subscribers.'}
+                    ? 'Group sessions alert each selected card on iPhone, Mac, Android, and Windows where notifications are allowed.'
+                    : useOwnCards
+                      ? 'We’ll send the meeting alert to devices that allowed notifications for the card you picked.'
+                      : 'One-to-one sessions alert the card owner and guest on every device that already allowed notifications.'}
               </p>
             </div>
 
