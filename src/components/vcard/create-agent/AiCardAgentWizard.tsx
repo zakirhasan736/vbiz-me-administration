@@ -1214,7 +1214,7 @@ export function AiCardAgentWizard({
         setPhase('coach')
         pushMsg(
           'assistant',
-          `I can finish the business tabs on my own. I still need a few personal details from you: ${ownerFields.map((gap) => gap.title).join(', ')}.\n\nThe form is at the top of this chat. Name, email, and date of birth are required. Phone is optional, and the same number can be used on more than one card.`
+          'Business tabs are filled. Add your name, email, and date of birth in the form, then continue.'
         )
         return
       }
@@ -3028,54 +3028,73 @@ export function AiCardAgentWizard({
 
         <div ref={chatScrollRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
           {phase === 'coach' && coachSection === 'personal' ? (
-            <div className="sticky top-0 z-20 space-y-3 rounded-3xl border border-emerald-300 bg-white p-4 shadow-lg shadow-emerald-900/10 dark:border-emerald-500/40 dark:bg-slate-950">
-              <p className="text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase dark:text-emerald-300">
-                Your details · needed to finish
-              </p>
-              <p className="text-sm font-black text-slate-950 dark:text-white">
-                Tell me who this card is for. I’ll keep this form in view.
-              </p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <input
-                  value={personalDraft.fullName}
-                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, fullName: event.target.value }))}
-                  placeholder="Public name"
-                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900"
-                />
-                <input
-                  value={personalDraft.company}
-                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, company: event.target.value }))}
-                  placeholder="Business or card name"
-                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900"
-                />
-                <input
-                  type="email"
-                  value={personalDraft.email}
-                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, email: event.target.value }))}
-                  placeholder="Email"
-                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900"
-                />
-                <input
-                  type="tel"
-                  value={personalDraft.phone}
-                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, phone: event.target.value }))}
-                  placeholder="Phone (optional)"
-                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-white/10 dark:bg-slate-900"
-                />
-                <input
-                  type="date"
-                  value={personalDraft.dob}
-                  onChange={(event) => setPersonalDraft((prev) => ({ ...prev, dob: event.target.value }))}
-                  className="rounded-2xl border border-slate-200 bg-white p-3 text-sm sm:col-span-2 dark:border-white/10 dark:bg-slate-900"
-                />
+            <div className="sticky top-0 z-20 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-lg dark:border-white/10 dark:bg-slate-950">
+              <div>
+                <p className="text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase dark:text-emerald-300">
+                  Step · Your details
+                </p>
+                <p className="mt-1 text-base font-black text-slate-950 dark:text-white">A few details only you know</p>
+                <p className="mt-1 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
+                  The business tabs are already filled from your site and files. Name, email, and date of birth finish
+                  the card. Phone can stay blank.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-1 text-[11px] font-black text-slate-500">
+                  Public name
+                  <input
+                    value={personalDraft.fullName}
+                    onChange={(event) => setPersonalDraft((prev) => ({ ...prev, fullName: event.target.value }))}
+                    placeholder="Name on the card"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-900 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+                <label className="space-y-1 text-[11px] font-black text-slate-500">
+                  Business name
+                  <input
+                    value={personalDraft.company}
+                    onChange={(event) => setPersonalDraft((prev) => ({ ...prev, company: event.target.value }))}
+                    placeholder="Optional"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-900 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+                <label className="space-y-1 text-[11px] font-black text-slate-500">
+                  Email
+                  <input
+                    type="email"
+                    value={personalDraft.email}
+                    onChange={(event) => setPersonalDraft((prev) => ({ ...prev, email: event.target.value }))}
+                    placeholder="you@email.com"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-900 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+                <label className="space-y-1 text-[11px] font-black text-slate-500">
+                  Phone
+                  <input
+                    type="tel"
+                    value={personalDraft.phone}
+                    onChange={(event) => setPersonalDraft((prev) => ({ ...prev, phone: event.target.value }))}
+                    placeholder="Optional"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-900 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
+                <label className="space-y-1 text-[11px] font-black text-slate-500 sm:col-span-2">
+                  Date of birth
+                  <input
+                    type="date"
+                    value={personalDraft.dob}
+                    onChange={(event) => setPersonalDraft((prev) => ({ ...prev, dob: event.target.value }))}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-900 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                  />
+                </label>
               </div>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void savePersonalForm()}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white dark:bg-white dark:text-slate-950"
               >
-                <Check className="h-3.5 w-3.5" /> Save personal details
+                Continue <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           ) : null}
@@ -3418,7 +3437,7 @@ export function AiCardAgentWizard({
                 <p className="text-[10px] font-black tracking-[0.14em] text-slate-400 uppercase">Suggested card tabs</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
                   I selected every tab that fits this business. Untick any you don’t want. When you continue, I’ll fill
-                  the rest — up to 5 items anywhere a list is short — and only ask for missing personal details.
+                  the rest. I’ll keep lists I found, up to 15, and only draft 5 when a list is empty.
                 </p>
               </div>
               {recommendations.map((rec) => {
@@ -3575,7 +3594,7 @@ export function AiCardAgentWizard({
             </div>
           ) : null}
 
-          {phase === 'coach' && gaps.length > 0 ? (
+          {phase === 'coach' && coachSection !== 'personal' && gaps.length > 0 ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
               <p className="text-[10px] font-black tracking-wider text-amber-700 uppercase dark:text-amber-300">
                 Still empty ({gaps.length})
@@ -4376,7 +4395,7 @@ export function AiCardAgentWizard({
             ) : null}
             {phase === 'coach' || phase === 'field' ? (
               <div className="mt-2 space-y-2">
-                {phase === 'coach' ? (
+                {phase === 'coach' && coachSection !== 'personal' ? (
                   <div className="grid gap-2 sm:grid-cols-2">
                     <button
                       type="button"
@@ -4408,10 +4427,17 @@ export function AiCardAgentWizard({
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={goNextStage}
+                    onClick={() => {
+                      if (phase === 'coach' && coachSection === 'personal') {
+                        void savePersonalForm()
+                        return
+                      }
+                      goNextStage()
+                    }}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-black text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200"
                   >
-                    Next: extras <ArrowRight className="h-3.5 w-3.5" />
+                    {phase === 'coach' && coachSection === 'personal' ? 'Continue' : 'Next: extras'}{' '}
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
