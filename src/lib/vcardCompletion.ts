@@ -119,7 +119,7 @@ export type CompletionFieldEdit =
       paths: [string, string]
       labels: [string, string]
       controls?: [CompletionScalarControl, CompletionScalarControl]
-      options?: [{ value: string; label: string }[], { value: string; label: string }[]]
+      options?: [readonly { value: string; label: string }[], readonly { value: string; label: string }[]]
     }
   | { type: 'content-gallery' }
   | { type: 'content-video' }
@@ -453,12 +453,22 @@ const GENDER_OPTIONS = [
   { value: 'Prefer not to say', label: 'Prefer not to say' },
 ]
 
-const RELATIONSHIP_OPTIONS = [
+/** Personal Info relationship statuses — common USA / dating-culture labels. */
+export const RELATIONSHIP_OPTIONS = [
   { value: 'Single', label: 'Single' },
-  { value: 'Married', label: 'Married' },
+  { value: 'Dating', label: 'Dating' },
   { value: 'In a relationship', label: 'In a relationship' },
+  { value: 'Situationship', label: 'Situationship' },
+  { value: "It's complicated", label: "It's complicated" },
+  { value: 'In an open relationship', label: 'In an open relationship' },
+  { value: 'Engaged', label: 'Engaged' },
+  { value: 'Married', label: 'Married' },
+  { value: 'Domestic partnership', label: 'Domestic partnership' },
+  { value: 'Separated', label: 'Separated' },
+  { value: 'Divorced', label: 'Divorced' },
+  { value: 'Widowed', label: 'Widowed' },
   { value: 'Prefer not to say', label: 'Prefer not to say' },
-]
+] as const
 
 export function getEditorPanelCompletionFields(
   panel: EditorNavPanel,

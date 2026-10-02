@@ -398,7 +398,7 @@ export function BannerStylePanel({
             onClick={() => setVariant(v)}
             className={cn(
               'rounded-xl border px-3 py-2 text-[12px] font-bold capitalize',
-              (resolved.variant || 'gradient') === v
+              (resolved.variant || 'solid') === v
                 ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-200'
                 : 'border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300'
             )}
@@ -430,7 +430,7 @@ export function BannerStylePanel({
           />
         ))}
       </div>
-      {(resolved.variant || 'gradient') === 'image' ? (
+      {(resolved.variant || 'solid') === 'image' ? (
         <div className="flex flex-wrap items-center gap-3">
           <input
             ref={fileRef}
@@ -683,7 +683,7 @@ export function TopNavBarStylePanel({
             onClick={() => patch({ variant: v })}
             className={cn(
               'rounded-xl border px-3 py-2 text-[12px] font-bold capitalize',
-              (resolved.variant || 'gradient') === v
+              (resolved.variant || 'solid') === v
                 ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-200'
                 : 'border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300'
             )}

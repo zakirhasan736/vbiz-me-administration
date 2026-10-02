@@ -91,15 +91,16 @@ export function buildGapReport(
     explanation: 'Personal Info email is required at create and also powers the My Info Email button.',
     howToProvide: 'Reply with the public email visitors should use.',
   })
-  add(!empty(data.personal?.phone), 4, {
+  add(!empty(data.personal?.phone), 2, {
     id: 'personal.phone',
     tab: 'Personal Info',
     navId: 'home',
     field: 'phone',
-    severity: 'required',
+    severity: 'recommended',
     title: 'Phone',
-    explanation: 'Personal Info phone is required at create and also powers My Info Call and Text.',
-    howToProvide: 'Reply with the public phone number visitors should use.',
+    explanation:
+      'Phone is optional. The same number can be used on more than one business card for this owner. When present, it powers My Info Call and Text.',
+    howToProvide: 'Reply with the public phone number visitors should use, or leave it blank.',
   })
   add(!empty(data.personal?.company) || !empty(data.personal?.designation), 2, {
     id: 'personal.company',

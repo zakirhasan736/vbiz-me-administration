@@ -224,7 +224,7 @@ export function NotificationFollowModal({
                         </>
                       ) : (
                         <>
-                          Be the first to know when <span className="notranslate">{ownerName}</span>&apos;s card is
+                          Be the first to know when <span className="notranslate">{ownerName}</span>&apos; card is
                           updated. Get instant notifications for new links, services, and media.
                         </>
                       )}

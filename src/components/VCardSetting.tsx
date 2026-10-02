@@ -69,10 +69,12 @@ import {
   getDisplaySettingsFromVCard,
   getFieldModePickerValues,
   getFieldThemeColorDefaults,
+  getMyInfoActionButtonColorDefaults,
   HOME_PAGE_COLOR_FIELDS,
   HOME_PAGE_FIELDS,
   HOME_PAGE_URL_FIELDS,
   ICON_FIELDS,
+  MY_INFO_ACTION_FIELDS,
   MY_INFO_FIELDS,
   NAV_BAR_FIELDS,
   patchDisplayField,
@@ -1925,6 +1927,8 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
 
   const profileTemplate = (vCardData.appearance?.profileTemplate ?? 'v2') as 'v1' | 'v2' | 'v3'
   const themeDefaults = getFieldThemeColorDefaults(vCardData.theme, profileTemplate)
+  const myInfoActionDefaults = getMyInfoActionButtonColorDefaults(vCardData.theme, profileTemplate)
+  const myInfoActionFieldSet = new Set<string>(MY_INFO_ACTION_FIELDS)
   const resolvedThemeConfig = resolveCardThemeConfig(
     vCardData.themeConfig ?? getDefaultThemeConfig(profileTemplate),
     profileTemplate
@@ -1944,7 +1948,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         title={key}
         config={display.fields[key] ?? { visible: true }}
         onPatch={(patch) => patchField(key, patch)}
-        themeDefaults={themeDefaults}
+        themeDefaults={myInfoActionFieldSet.has(key) ? myInfoActionDefaults : themeDefaults}
         {...options}
       />
     ))

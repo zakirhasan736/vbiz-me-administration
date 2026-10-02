@@ -74,8 +74,7 @@ export function collectVCardCreationProblems(data: Pick<VCardData, 'personal'>):
   else if (!EMAIL_PATTERN.test(values.email)) problems.push({ field: 'email', label: 'Email', reason: 'invalid' })
 
   const phoneDigits = values.phone.replace(/\D/g, '')
-  if (!values.phone) problems.push({ field: 'phone', label: 'Phone', reason: 'missing' })
-  else if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+  if (values.phone && (phoneDigits.length < 7 || phoneDigits.length > 15)) {
     problems.push({ field: 'phone', label: 'Phone', reason: 'invalid' })
   }
 
@@ -96,9 +95,7 @@ export function vCardCreationProblemMessage(problem: CardActivationProblem): str
       : 'Please enter a valid email before creating the vCard.'
   }
   if (problem.field === 'phone') {
-    return problem.reason === 'missing'
-      ? 'Please enter a phone number before creating the vCard.'
-      : 'Please enter a valid phone number before creating the vCard.'
+    return 'Please enter a valid phone number before creating the vCard.'
   }
   if (problem.reason === 'missing') return 'Please enter a date of birth before creating the vCard.'
   if (problem.reason === 'underage') return 'You must be at least 12 years old to create a vCard.'

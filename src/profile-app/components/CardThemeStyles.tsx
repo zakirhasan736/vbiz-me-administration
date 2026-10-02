@@ -121,8 +121,8 @@ export function CardThemeStyles({
     const set = config.colors[mode] ?? config.colors.dark
     const banner = resolveBannerStyle(set, mode, config.components.sectionBanner)
     const topNav = resolveTopNavBarStyle(set, mode, config.components.topNavBar)
-    const bannerVariant = banner.variant || 'gradient'
-    const navVariant = topNav.variant || 'gradient'
+    const bannerVariant = banner.variant || 'solid'
+    const navVariant = topNav.variant || 'solid'
     const roots = document.querySelectorAll('.vbiz-profile-root')
     roots.forEach((el) => {
       el.setAttribute('data-banner-variant', bannerVariant)

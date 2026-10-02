@@ -124,7 +124,7 @@ describe('card activation readiness', () => {
     expect(vCardActivationProblemMessage(problems)).toBe('Card cannot be activated. You must be at least 12 years old.')
   })
 
-  it('requires email, phone, and a valid date of birth for draft creation', () => {
+  it('requires email and a valid date of birth for draft creation, and allows a blank phone', () => {
     const missing = collectVCardCreationProblems(completeCard(''))
     expect(missing).toEqual([{ field: 'dob', label: 'Date of birth', reason: 'missing' }])
     expect(vCardCreationProblemMessage(missing[0])).toBe('Please enter a date of birth before creating the vCard.')
@@ -132,8 +132,13 @@ describe('card activation readiness', () => {
 
     const defaults = createDefaultVCardData()
     const noEmail = createDefaultVCardData({
-      personal: { ...defaults.personal, email: '', phone: '+1 202 555 0101', dob: '1990-07-18' },
+      personal: { ...defaults.personal, email: '', phone: '', dob: '1990-07-18' },
     })
     expect(collectVCardCreationProblems(noEmail).map((problem) => problem.field)).toEqual(['email'])
+
+    const noPhone = createDefaultVCardData({
+      personal: { ...defaults.personal, email: 'owner@example.com', phone: '', dob: '1990-07-18' },
+    })
+    expect(collectVCardCreationProblems(noPhone)).toEqual([])
   })
 })

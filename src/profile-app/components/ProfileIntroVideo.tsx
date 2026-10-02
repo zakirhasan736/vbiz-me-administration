@@ -7,6 +7,8 @@ type Props = {
   className?: string
   onEnded?: () => void
   shouldPlay?: boolean
+  /** When false, keep audio unmuted (do not re-apply iOS mute flags). */
+  muted?: boolean
   onCanPlay?: () => void
   onPlaying?: () => void
   onWaiting?: () => void
@@ -24,34 +26,55 @@ function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
   }
 }
 
-function applyIosVideoFlags(el: HTMLVideoElement) {
-  el.muted = true
-  el.defaultMuted = true
+function applyIosPlayFlags(el: HTMLVideoElement, muted: boolean) {
   el.playsInline = true
-  el.setAttribute('muted', '')
-  el.setAttribute('autoplay', '')
   el.setAttribute('playsinline', '')
   el.setAttribute('webkit-playsinline', 'true')
   el.setAttribute('x5-playsinline', 'true')
+  el.setAttribute('autoplay', '')
+  if (muted) {
+    el.muted = true
+    el.defaultMuted = true
+    el.setAttribute('muted', '')
+  } else {
+    el.muted = false
+    el.defaultMuted = false
+    el.removeAttribute('muted')
+  }
 }
 
 /**
  * Intro preloader video — muted + playsInline for iOS Safari autoplay
  * (including Low Power Mode, which often needs a later tap to start).
+ * After the visitor unmutes, muted stays false so retry/autoplay does not silence audio.
  */
 export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function ProfileIntroVideo(
-  { src, className, onEnded, shouldPlay = false, onCanPlay, onPlaying, onWaiting, onError, onPlayError, qualityLabel },
+  {
+    src,
+    className,
+    onEnded,
+    shouldPlay = false,
+    muted = true,
+    onCanPlay,
+    onPlaying,
+    onWaiting,
+    onError,
+    onPlayError,
+    qualityLabel,
+  },
   forwardedRef
 ) {
   const internalRef = useRef<HTMLVideoElement>(null)
   const onPlayErrorRef = useRef(onPlayError)
+  const mutedRef = useRef(muted)
   onPlayErrorRef.current = onPlayError
+  mutedRef.current = muted
 
   useEffect(() => {
     const el = internalRef.current
     if (!el) return
 
-    applyIosVideoFlags(el)
+    applyIosPlayFlags(el, muted)
 
     if (!shouldPlay) {
       el.pause()
@@ -59,7 +82,7 @@ export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function Pr
     }
 
     const tryPlay = () => {
-      applyIosVideoFlags(el)
+      applyIosPlayFlags(el, mutedRef.current)
       const playResult = el.play()
       if (playResult && typeof playResult.then === 'function') {
         void playResult.catch(() => onPlayErrorRef.current?.())
@@ -76,7 +99,7 @@ export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function Pr
       el.removeEventListener('loadeddata', tryPlay)
       el.removeEventListener('canplay', tryPlay)
     }
-  }, [src, shouldPlay])
+  }, [src, shouldPlay, muted])
 
   const type = /\.webm(\?|#|$)/i.test(src) ? 'video/webm' : 'video/mp4'
 
@@ -85,7 +108,7 @@ export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function Pr
       ref={mergeRefs(internalRef, forwardedRef)}
       className={className}
       src={src}
-      muted
+      muted={muted}
       autoPlay
       playsInline
       preload="auto"
@@ -97,7 +120,6 @@ export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function Pr
       onPlaying={onPlaying}
       onWaiting={onWaiting}
       onError={onError}
-      // Older WebKit / iOS Safari still look for these attributes.
       {...{
         'webkit-playsinline': 'true',
         'x5-playsinline': 'true',

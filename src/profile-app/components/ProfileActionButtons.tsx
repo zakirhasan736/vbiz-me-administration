@@ -58,7 +58,7 @@ function getCtaButtonClasses(template: ProfileTemplateId, isDesktop: boolean): s
     return `${base} ${isDesktop ? 'text-[13px] sm:text-sm' : mobileText} font-semibold tracking-wide shadow-sm`
   }
 
-  return `${base} ${isDesktop ? 'text-[13px] font-bold' : `${mobileText} font-semibold`} duration-300 hover:scale-[1.02]`
+  return `${base} ${isDesktop ? 'text-[13px] font-bold' : `${mobileText} font-semibold`} duration-300 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.02]`
 }
 
 function HomeCtaButton({

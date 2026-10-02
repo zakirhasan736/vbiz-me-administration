@@ -693,15 +693,14 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     theme,
     ...(themeConfig ? { themeConfig } : {}),
     personal: (() => {
-      const role = (profile.designation || profile.prof || '').trim()
       return {
         fullName: profile.name,
         email: profile.email,
         dob: toDateInputValue(profile.dob),
         gender: profile.gender?.name || '',
         relationship: profile.maritalStatus?.name || '',
-        profession: role,
-        designation: role,
+        profession: (profile.prof || '').trim(),
+        designation: (profile.designation || '').trim(),
         company: profile.companyName || '',
         phone: profile.phone || '',
         whatsapp: profile.whatsapp || '',
@@ -877,14 +876,12 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
       ? profileMediaUrl
       : ''
   const themeConfig = applyEditorSettingsToThemeConfig(data.themeConfig, data.theme, data.appearance)
-  const role = (data.personal.designation || data.personal.profession || '').trim()
-
   return {
     name: data.personal.fullName,
     email: data.personal.email,
     slug: data.slug,
     companyName: data.personal.company,
-    designation: role,
+    designation: (data.personal.designation || '').trim(),
     phone: data.personal.phone,
     whatsapp: data.personal.whatsapp,
     website: data.personal.website,
@@ -892,7 +889,7 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     city: data.personal.city || '',
     state: data.personal.state || '',
     zipCode: data.personal.zipCode || '',
-    prof: role,
+    prof: (data.personal.profession || '').trim(),
     dob: dob || null,
     isPublic: data.isDraft ? false : data.isPublic,
     isDraft: data.isDraft !== false,

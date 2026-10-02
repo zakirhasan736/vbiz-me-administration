@@ -251,57 +251,36 @@ export function ExpandableEntryHeader({
       ) : null}
 
       <div
-        {...(dragHandleProps
-          ? {
-              ...restDragProps,
-              className: cn(
-                'flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-3 text-left transition-colors hover:bg-slate-100/70 sm:gap-4 sm:px-4 dark:hover:bg-white/5',
-                dragClassName
-              ),
-              onPointerDown: (e: PointerEvent) => {
-                pointerStart.current = { x: e.clientX, y: e.clientY }
-                didDrag.current = false
-              },
-              onPointerMove: (e: PointerEvent) => {
-                if (!pointerStart.current) return
-                const dx = Math.abs(e.clientX - pointerStart.current.x)
-                const dy = Math.abs(e.clientY - pointerStart.current.y)
-                if (dx > CLICK_DRAG_THRESHOLD_PX || dy > CLICK_DRAG_THRESHOLD_PX) {
-                  didDrag.current = true
-                }
-              },
-              onClick: () => {
-                if (didDrag.current) {
-                  didDrag.current = false
-                  pointerStart.current = null
-                  return
-                }
-                onToggle()
-              },
-              onKeyDown: (e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onToggle()
-                }
-              },
-              role: 'button',
-              tabIndex: 0,
-              'aria-expanded': isExpanded,
-            }
-          : {
-              role: 'button',
-              tabIndex: 0,
-              onClick: onToggle,
-              onKeyDown: (e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onToggle()
-                }
-              },
-              'aria-expanded': isExpanded,
-              className:
-                'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-2xl px-2 py-3 text-left transition-colors hover:bg-slate-100/70 sm:gap-4 sm:px-4 dark:hover:bg-white/5',
-            })}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-2xl px-2 py-3 text-left transition-colors hover:bg-slate-100/70 sm:gap-4 sm:px-4 dark:hover:bg-white/5"
+        onPointerDown={(e: PointerEvent) => {
+          pointerStart.current = { x: e.clientX, y: e.clientY }
+          didDrag.current = false
+        }}
+        onPointerMove={(e: PointerEvent) => {
+          if (!pointerStart.current) return
+          const dx = Math.abs(e.clientX - pointerStart.current.x)
+          const dy = Math.abs(e.clientY - pointerStart.current.y)
+          if (dx > CLICK_DRAG_THRESHOLD_PX || dy > CLICK_DRAG_THRESHOLD_PX) {
+            didDrag.current = true
+          }
+        }}
+        onClick={() => {
+          if (didDrag.current) {
+            didDrag.current = false
+            pointerStart.current = null
+            return
+          }
+          onToggle()
+        }}
+        onKeyDown={(e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onToggle()
+          }
+        }}
       >
         <EntryAttachmentThumb url={mediaUrl} />
         <div className="min-w-0 flex-1">
@@ -374,7 +353,8 @@ export function ExpandableEntryBody({ isExpanded, children, className }: Expanda
         isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
       )}
     >
-      <div className="min-h-0 overflow-hidden">
+      {/* When open, avoid overflow-hidden so iOS Safari selection handles / caret are not clipped. */}
+      <div className={cn('min-h-0', isExpanded ? 'overflow-visible' : 'overflow-hidden')}>
         <div className={cn(className, !isExpanded && 'pointer-events-none invisible')} aria-hidden={!isExpanded}>
           {children}
         </div>

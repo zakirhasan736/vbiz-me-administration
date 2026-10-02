@@ -182,7 +182,7 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   const faq = resolveFaqItemStyle(set, mode, config.components.faqItem)
   const topNav = resolveTopNavBarStyle(set, mode, config.components.topNavBar)
 
-  vars['--vbiz-banner-variant'] = banner.variant || 'gradient'
+  vars['--vbiz-banner-variant'] = banner.variant || 'solid'
   vars['--vbiz-banner-bg'] = banner.bg || set.secondary
   vars['--vbiz-banner-gradient-from'] = banner.gradientFrom || set.accent
   vars['--vbiz-banner-gradient-to'] = banner.gradientTo || '#020617'
@@ -221,17 +221,16 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   vars['--vbiz-faq-border'] = faq.border || set.border
   vars['--vbiz-faq-icon'] = faq.icon || set.accent
 
-  const navVariant = topNav.variant || (mode === 'light' ? 'solid' : 'gradient')
+  const navVariant = topNav.variant || 'solid'
   vars['--vbiz-nav-variant'] = navVariant
   vars['--vbiz-nav-bg'] = topNav.bg || (mode === 'light' ? '#ffffff' : set.surface)
   vars['--vbiz-nav-gradient-from'] = topNav.gradientFrom || set.primary
   vars['--vbiz-nav-gradient-to'] = topNav.gradientTo || set.secondary
-  vars['--vbiz-nav-item'] = topNav.item || (mode === 'light' ? set.primary : set.secondary)
-  vars['--vbiz-nav-item-active'] = topNav.itemActive || (mode === 'light' ? set.primary : set.accent)
+  // Default icons = brand primary (#eed677 on v3), not secondary navy.
+  vars['--vbiz-nav-item'] = topNav.item || set.primary
+  vars['--vbiz-nav-item-active'] = topNav.itemActive || set.primary
   vars['--vbiz-nav-border'] = topNav.border || (mode === 'light' ? set.primary : set.accent)
   // Drive gradient vs plane without relying on data-nav-variant timing.
-  // Dark default is brand gradient (primary → secondary) with accent border.
-  // Light default is a solid white bar with primary icons and border.
   vars['--vbiz-nav-bg-image'] =
     navVariant === 'solid'
       ? 'none'
@@ -251,7 +250,7 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
     vars['--vbiz-banner-description-override'] = banner.description || 'rgba(255,255,255,0.78)'
   }
 
-  const bannerVariant = bannerOverride?.variant || banner.variant || 'gradient'
+  const bannerVariant = bannerOverride?.variant || banner.variant || 'solid'
   const bannerFrom = banner.gradientFrom || set.primary
   const bannerTo = banner.gradientTo || set.secondary
   if (bannerPaintCustom && bannerVariant === 'solid' && bannerOverride?.bg) {
@@ -388,6 +387,8 @@ ${themeUi(".vbiz-btn[data-role='secondary']")} {
   border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 0px));
 }
+/* Hover overlays only on real hover devices — iOS sticky :hover steals the first tap. */
+@media (hover: hover) and (pointer: fine) {
 ${themeUi('.vbiz-btn:hover')} {
   background-image: linear-gradient(var(--vbiz-btn-hover-overlay, transparent), var(--vbiz-btn-hover-overlay, transparent));
 }
@@ -399,6 +400,7 @@ ${themeUi(".vbiz-btn[data-role='secondary']:hover")} {
 }
 ${themeUi(".vbiz-btn[data-role='accent']:hover")} {
   background-image: linear-gradient(var(--vbiz-btn-accent-hover-overlay, transparent), var(--vbiz-btn-accent-hover-overlay, transparent));
+}
 }
 
 /* ---------- Social icons (style + corner from API) ---------- */
@@ -420,8 +422,10 @@ ${themeUi('.vbiz-social svg')} {
   width: var(--vbiz-social-icon-size, 22px);
   height: var(--vbiz-social-icon-size, 22px);
 }
+@media (hover: hover) and (pointer: fine) {
 ${themeUi('.vbiz-social:hover')} {
   background-image: linear-gradient(var(--vbiz-social-hover-overlay, transparent), var(--vbiz-social-hover-overlay, transparent));
+}
 }
 
 /* ---------- Toolbar / icon buttons — theme colors + button style, default corners from markup ---------- */
@@ -442,9 +446,11 @@ ${themeUi('.vbiz-icon-btn img')} {
   object-fit: cover;
   color: transparent !important;
 }
+@media (hover: hover) and (pointer: fine) {
 ${themeUi('.vbiz-icon-btn:hover')} {
   background-image: linear-gradient(var(--vbiz-btn-secondary-hover-overlay, transparent), var(--vbiz-btn-secondary-hover-overlay, transparent));
   border-color: var(--vbiz-accent) !important;
+}
 }
 
 /* ---------- Floating nav chrome (follows General → Top navbar / global brand) ---------- */
@@ -452,7 +458,7 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   background-color: var(--vbiz-nav-bg, var(--vbiz-surface)) !important;
   background-image: var(--vbiz-nav-bg-image, none) !important;
   border-color: var(--vbiz-nav-border, var(--vbiz-accent)) !important;
-  color: var(--vbiz-nav-item, var(--vbiz-secondary)) !important;
+  color: var(--vbiz-nav-item, var(--vbiz-primary)) !important;
 }
 /* Soft page fill under mobile bottom nav so toggle light/dark matches card bg */
 .vbiz-profile-root .vbiz-nav-bottom-scrim {
@@ -468,8 +474,10 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-nav-tab {
   color: var(--vbiz-nav-item, var(--vbiz-text-muted)) !important;
 }
+@media (hover: hover) and (pointer: fine) {
 .vbiz-profile-root .vbiz-nav-tab:hover {
   color: var(--vbiz-nav-item-active, var(--vbiz-text)) !important;
+}
 }
 .vbiz-profile-root .vbiz-nav-tab[data-active='true'],
 .vbiz-profile-root .vbiz-nav-tab[aria-selected='true'],
@@ -1561,7 +1569,7 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
   background-image: var(--vbiz-nav-bg-image, none) !important;
   border-color: var(--vbiz-nav-border, var(--vbiz-accent)) !important;
   border-style: solid !important;
-  color: var(--vbiz-nav-item, var(--vbiz-secondary)) !important;
+  color: var(--vbiz-nav-item, var(--vbiz-primary)) !important;
 }
 .vbiz-profile-root.vbiz-theme-light .vbiz-nav-tab,
 .vbiz-profile-root.vbiz-theme-dark .vbiz-nav-tab,

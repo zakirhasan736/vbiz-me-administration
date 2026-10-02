@@ -676,14 +676,6 @@ describe('VCardProvider autosave and creation', () => {
     })
 
     await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow(
-      'Please enter a phone number before creating the vCard.'
-    )
-
-    await act(async () => {
-      rendered!.api.updateData('personal.phone', '+1 202 555 0101')
-    })
-
-    await expect(rendered.api.saveVCard({ skipNavigate: true })).rejects.toThrow(
       'Please enter a date of birth before creating the vCard.'
     )
     expect(mocks.createProfile).not.toHaveBeenCalled()

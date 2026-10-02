@@ -337,6 +337,22 @@
   word-break: break-word;
 }
 
+/* iOS Safari: contenteditable must allow select / paste / caret placement */
+.vcard-rich-editor.ProseMirror {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+  touch-action: manipulation;
+  cursor: text;
+  caret-color: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vcard-rich-editor.ProseMirror * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .vcard-rich-editor.ProseMirror p.is-editor-empty:first-child::before,
 .vcard-rich-editor.ProseMirror .is-empty::before {
   color: rgb(148 163 184);

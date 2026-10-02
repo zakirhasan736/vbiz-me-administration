@@ -539,6 +539,7 @@ export function RichTextEditor({
   const accent =
     accentColor?.trim() || vCardData.theme?.accentColor?.trim() || vCardData.theme?.primaryColor?.trim() || '#eab308'
   const onChangeRef = useRef(onChange)
+  const editorRef = useRef<Editor | null>(null)
   const [sourceMode, setSourceMode] = useState(false)
   const [sourceDraft, setSourceDraft] = useState(value || '')
   useEffect(() => {
@@ -574,27 +575,57 @@ export function RichTextEditor({
     ],
     content: normalizeRichTextHtml(value || ''),
     onCreate: ({ editor: ed }: { editor: Editor }) => {
+      editorRef.current = ed
       if (shouldDefaultToParagraph(ed)) ed.commands.setParagraph()
     },
-    onFocus: ({ editor: ed }: { editor: Editor }) => {
-      if (shouldDefaultToParagraph(ed)) ed.commands.setParagraph()
-    },
+    // Do not run setParagraph on every focus — on iOS that fights tap-to-place caret.
     onUpdate: ({ editor: ed }: { editor: Editor }) => {
       onChangeRef.current?.(normalizeRichTextHtml(ed.getHTML()))
     },
     editorProps: {
       transformPastedHTML: (html: string) => normalizeRichTextHtml(html),
+      // iOS often pastes text/plain only — ensure plain clipboard still inserts.
+      handlePaste: (_view, event) => {
+        const clipboard = event.clipboardData
+        if (!clipboard) return false
+        const html = clipboard.getData('text/html')?.trim()
+        if (html) return false
+        const text = clipboard.getData('text/plain')
+        if (!text) return false
+        const ed = editorRef.current
+        if (!ed) return false
+        event.preventDefault()
+        const escaped = text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .split(/\r?\n/)
+          .map((line) => `<p>${line || '<br>'}</p>`)
+          .join('')
+        ed.commands.insertContent(escaped)
+        return true
+      },
       attributes: {
         class: cn(
           'vcard-rich-editor px-4 py-3 text-[14px] leading-relaxed text-slate-900 focus:outline-none dark:text-white',
           minHeightClassName
         ),
+        // Helpful for VoiceOver / TalkBack and iOS editable discovery
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': placeholder,
       },
     },
   })
 
   useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
+
+  useEffect(() => {
     if (!editor || sourceMode) return
+    // Never replace document while focused — kills selection/caret/paste on iOS Safari.
+    if (editor.isFocused) return
     const current = editor.getHTML()
     const next = normalizeRichTextHtml(value || '')
     if (next !== current && next !== '<p></p>') {
@@ -626,26 +657,28 @@ export function RichTextEditor({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]',
+        'rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]',
         disabled && 'pointer-events-none opacity-60',
         className
       )}
       style={{ ['--rte-accent' as string]: accent }}
     >
       <HoistableStyle href="vbiz-rte-accent" css={EDITOR_ACCENT_CSS} />
-      <RichTextToolbar
-        editor={editor}
-        sourceMode={sourceMode}
-        onToggleSource={() => {
-          if (sourceMode) {
-            editor.commands.setContent(sourceDraft || '', { emitUpdate: true })
-            setSourceMode(false)
-            return
-          }
-          setSourceDraft(editor.getHTML())
-          setSourceMode(true)
-        }}
-      />
+      <div className="overflow-x-auto overflow-y-hidden rounded-t-2xl">
+        <RichTextToolbar
+          editor={editor}
+          sourceMode={sourceMode}
+          onToggleSource={() => {
+            if (sourceMode) {
+              editor.commands.setContent(sourceDraft || '', { emitUpdate: true })
+              setSourceMode(false)
+              return
+            }
+            setSourceDraft(editor.getHTML())
+            setSourceMode(true)
+          }}
+        />
+      </div>
       {sourceMode ? (
         <textarea
           value={sourceDraft}
@@ -656,12 +689,14 @@ export function RichTextEditor({
           spellCheck={false}
           aria-label="HTML code view"
           className={cn(
-            'w-full resize-y bg-slate-950 px-4 py-3 font-mono text-[12px] leading-relaxed text-slate-100 focus:outline-none',
+            'w-full resize-y rounded-b-2xl bg-slate-950 px-4 py-3 font-mono text-[12px] leading-relaxed text-slate-100 focus:outline-none',
             minHeightClassName
           )}
         />
       ) : (
-        <EditorContent editor={editor} />
+        <div className="rounded-b-2xl [&_.ProseMirror]:min-h-[inherit]">
+          <EditorContent editor={editor} />
+        </div>
       )}
     </div>
   )

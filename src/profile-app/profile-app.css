@@ -292,6 +292,12 @@ iframe.goog-te-banner-frame {
   background: var(--vbiz-scrollbar-thumb-hover);
 }
 
+/* iPhone/Safari: first tap must activate the control, not sticky :hover */
+.vbiz-profile-root :is(.vbiz-icon-btn, .vbiz-social, .vbiz-btn) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Profile nav — horizontal scroll, no visible scrollbar */
 .vbiz-cover-video {
   isolation: isolate;

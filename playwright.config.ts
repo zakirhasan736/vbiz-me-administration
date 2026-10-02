@@ -50,7 +50,11 @@ export default defineConfig({
     },
     {
       name: 'webkit',
-      testMatch: ['**/public-card-{visitor-flows,api-responses}.spec.ts', '**/iphone-safari.spec.ts'],
+      testMatch: [
+        '**/public-card-{visitor-flows,api-responses}.spec.ts',
+        '**/iphone-safari.spec.ts',
+        '**/iphone-share-video.spec.ts',
+      ],
       use: { ...devices['Desktop Safari'] },
     },
   ],

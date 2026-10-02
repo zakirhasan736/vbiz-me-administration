@@ -25,6 +25,12 @@ function getServerMounted() {
   return false
 }
 
+/** True only for mouse/trackpad hover — iOS sticky :hover must not open tooltips. */
+function canUseHoverTooltips(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches
+}
+
 const TOOLTIP_CLASS =
   'pointer-events-none z-200 rounded-lg border border-zinc-200 bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-white shadow-sm dark:border-zinc-700 dark:bg-zinc-100 dark:text-zinc-900'
 
@@ -105,7 +111,9 @@ export function IconHoverTooltip({
         <span
           role="tooltip"
           className={cn(
-            'absolute opacity-0 transition-opacity duration-150 group-hover/tip:opacity-100',
+            'absolute opacity-0 transition-opacity duration-150',
+            // Only real hover devices — first iPhone tap must fire the button click.
+            '[@media(hover:hover)_and_(pointer:fine)]:group-hover/tip:opacity-100',
             TOOLTIP_CLASS,
             PLACEMENT_CLASS[placement]
           )}
@@ -123,11 +131,13 @@ export function IconHoverTooltip({
       ref={triggerRef}
       className={cn('relative inline-flex', className)}
       onMouseEnter={() => {
+        if (!canUseHoverTooltips()) return
         syncCoords()
         setOpen(true)
       }}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => {
+        if (!canUseHoverTooltips()) return
         syncCoords()
         setOpen(true)
       }}

@@ -508,7 +508,6 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           rel="noopener noreferrer"
                           aria-label={tip}
                           onClick={() => onTrackedSocialClick(item.label, cardOwnerId, cardSlug)}
-                          whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           className={gameBtnClass}
                           style={socialInlineStyle}
@@ -673,7 +672,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               icon: Share2,
                               tip: 'Share',
                               label: null as string | null,
-                              hover: 'hover:bg-blue-500 hover:border-blue-500 hover:text-white text-blue-500',
+                              hover:
+                                '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-blue-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-blue-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-blue-500',
                               onClick: () => triggerAction('share'),
                               className: 'h-10 w-10',
                               chrome: shareChrome,
@@ -686,7 +686,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               icon: Bell,
                               tip: 'Notifications',
                               label: null as string | null,
-                              hover: 'hover:bg-amber-500 hover:border-amber-500 hover:text-white text-amber-500',
+                              hover:
+                                '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-amber-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-amber-500',
                               onClick: () => triggerAction('settings'),
                               className: 'h-10 w-10',
                               chrome: notificationsChrome,
@@ -699,7 +700,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               icon: FileText,
                               tip: 'Notes',
                               label: null as string | null,
-                              hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white text-emerald-500',
+                              hover:
+                                '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-emerald-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-emerald-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-emerald-500',
                               onClick: () => triggerAction('notepad'),
                               className: 'h-10 w-10',
                               chrome: notepadChrome,
@@ -712,7 +714,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               icon: CalendarDays,
                               tip: '1-on-1',
                               label: '1-ON-1',
-                              hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white text-teal-600',
+                              hover:
+                                '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-teal-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-teal-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-teal-600',
                               onClick: () => triggerAction('one_on_one'),
                               className: 'h-10 gap-1.5 px-2.5',
                               chrome: oneOnOneChrome,
@@ -725,7 +728,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           type="button"
                           onClick={item.onClick}
                           aria-label={item.tip}
-                          className={`vbiz-icon-btn flex items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-gray-900/80 ${item.hover} ${item.className}`}
+                          className={`vbiz-icon-btn flex items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 active:scale-95 dark:border-white/10 dark:bg-gray-900/80 ${item.hover} ${item.className}`}
                           style={item.chrome}
                         >
                           <item.icon size={22} />

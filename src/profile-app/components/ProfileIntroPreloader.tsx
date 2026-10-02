@@ -52,6 +52,7 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
   const [curtainsDone, setCurtainsDone] = useState(false)
   const [needsTap, setNeedsTap] = useState(false)
   const lastDropAtRef = useRef(0)
+  const userUnmutedRef = useRef(false)
 
   const playbackSrc = useMemo(() => {
     if (useOriginal) return originalSrc
@@ -71,9 +72,12 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
   const kickPlay = useCallback(() => {
     const el = videoRef.current
     if (!el) return
-    el.muted = true
-    el.defaultMuted = true
     el.playsInline = true
+    // Autoplay retries must not re-mute after the visitor explicitly unmuted.
+    if (!userUnmutedRef.current) {
+      el.muted = true
+      el.defaultMuted = true
+    }
     const result = el.play()
     if (result && typeof result.then === 'function') {
       void result
@@ -174,7 +178,9 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
   const handleUserPlay = () => {
     const el = videoRef.current
     if (!el) return
-    el.muted = true
+    if (!userUnmutedRef.current) {
+      el.muted = true
+    }
     void el
       .play()
       .then(() => {
@@ -197,13 +203,23 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
     setVolume(clamped)
 
     if (clamped === 0) {
+      userUnmutedRef.current = false
       el.muted = true
+      el.defaultMuted = true
+      el.setAttribute('muted', '')
       setIsMuted(true)
       return
     }
 
+    userUnmutedRef.current = true
     el.muted = false
+    el.defaultMuted = false
+    el.removeAttribute('muted')
     setIsMuted(false)
+    // iOS/Safari often pauses when leaving muted autoplay — resume in this tap.
+    if (el.paused) {
+      void el.play().catch(() => undefined)
+    }
   }
 
   const toggleMute = () => {
@@ -216,7 +232,10 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       return
     }
 
+    userUnmutedRef.current = false
     el.muted = true
+    el.defaultMuted = true
+    el.setAttribute('muted', '')
     setIsMuted(true)
   }
 
@@ -241,6 +260,7 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
         ref={videoRef}
         src={playbackSrc}
         shouldPlay
+        muted={isMuted}
         qualityLabel={`${quality}p`}
         className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 md:object-contain ${
           revealed ? 'opacity-100' : 'opacity-[0.02]'
@@ -332,9 +352,8 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
         <button
           type="button"
           onClick={toggleMute}
-          disabled={!revealed}
           aria-label={isMuted ? 'Unmute intro video' : 'Mute intro video'}
-          className="vbiz-preloader-btn flex h-11 w-11 shrink-0 items-center justify-center border transition-colors disabled:opacity-40"
+          className="vbiz-preloader-btn flex h-11 w-11 shrink-0 items-center justify-center border transition-colors"
         >
           {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>

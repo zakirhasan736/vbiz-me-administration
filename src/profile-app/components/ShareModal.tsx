@@ -3,7 +3,13 @@
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { resolveShareUrl } from '@/profile-app/lib/shareProfile'
+import {
+  buildFacebookShareHref,
+  openShareWindow,
+  resolveShareUrl,
+  shareToFacebook,
+  toAbsoluteShareUrl,
+} from '@/profile-app/lib/shareProfile'
 import {
   buildShareProfileTitle,
   buildShareQrInitialsDataUrl,
@@ -35,7 +41,7 @@ interface ShareModalProps {
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
-  const { design, personal, homeMedia, field, isVisible, avatarImageUrl, cardOwnerId } = useProfileDisplay()
+  const { design, personal, homeMedia, field, isVisible, avatarImageUrl, cardOwnerId, cardSlug } = useProfileDisplay()
   const accentColor = design?.accentColor ?? '#eab308'
   const profileId = cardOwnerId?.trim() || ''
   const { data: aboutMe } = useGetAboutMeQuery(profileId, {
@@ -66,9 +72,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
   )
   const shareUrl = useMemo(() => {
     if (!isOpen) return ''
-    const url = resolveShareUrl()
-    return url.split('?')[0]
-  }, [isOpen])
+    return toAbsoluteShareUrl(resolveShareUrl(cardSlug))
+  }, [isOpen, cardSlug])
 
   // Same strategy as dashboard QrCodeModal: still image → QRCodeCanvas imageSettings;
   // video → generated canvas QR; no photo → initials (e.g. Zakir Hosen → ZH).
@@ -221,6 +226,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       href: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
       color: 'hover:bg-[#25D366] hover:border-[#25D366]/50 hover:text-white',
       textColor: 'text-[#25D366]',
+      onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'LinkedIn',
@@ -228,6 +234,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
       color: 'hover:bg-[#0077B5] hover:border-[#0077B5]/50 hover:text-white',
       textColor: 'text-[#0077B5]',
+      onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'X',
@@ -235,6 +242,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
       color: 'hover:bg-[#1DA1F2] hover:border-[#1DA1F2]/50 hover:text-white',
       textColor: 'text-[#1DA1F2]',
+      onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'Telegram',
@@ -242,13 +250,18 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
       color: 'hover:bg-[#0088cc] hover:border-[#0088cc]/50 hover:text-white',
       textColor: 'text-[#0088cc]',
+      onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'Facebook',
       icon: Facebook,
-      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      href: buildFacebookShareHref(shareUrl, shareText),
       color: 'hover:bg-[#1877F2] hover:border-[#1877F2]/50 hover:text-white',
       textColor: 'text-[#1877F2]',
+      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault()
+        void shareToFacebook(shareUrl, shareText, profileName || undefined)
+      },
     },
   ]
 
@@ -388,14 +401,23 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                   href={platform.href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => {
+                    if (platform.onClick) {
+                      platform.onClick(e)
+                      return
+                    }
+                    e.preventDefault()
+                    openShareWindow(platform.href)
+                  }}
                   className={`group flex flex-col items-center justify-center rounded-xl border border-zinc-200/60 bg-zinc-50/50 p-2 transition-all duration-300 sm:p-3 dark:border-zinc-800/80 dark:bg-zinc-900/30 ${platform.color} active:scale-95`}
                   title={`Share on ${platform.name}`}
+                  aria-label={`Share on ${platform.name}`}
                 >
                   <platform.icon
                     size={26}
-                    className={`opacity-80 transition-opacity group-hover:opacity-100 ${platform.textColor} group-hover:text-white`}
+                    className={`opacity-80 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 ${platform.textColor} [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white`}
                   />
-                  <span className="mt-1 hidden text-[10.799999999999999px] font-bold text-zinc-900 group-hover:text-white sm:mt-1.5 dark:text-zinc-900">
+                  <span className="mt-1 hidden text-[10.799999999999999px] font-bold text-zinc-900 sm:mt-1.5 dark:text-zinc-900 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white">
                     {platform.name}
                   </span>
                 </a>

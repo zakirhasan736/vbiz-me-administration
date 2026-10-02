@@ -15,13 +15,13 @@ describe('sectionStyleDefaults', () => {
   const stock = getDefaultThemeConfig('v3')
   const dark = stock.colors.dark
 
-  it('derives a soft banner gradient with a light primary tint', () => {
+  it('derives banner solid defaults and keeps soft gradient tokens for when gradient is selected', () => {
     const banner = deriveBannerMode(dark, 'dark')
-    expect(banner.variant).toBe('gradient')
+    expect(banner.variant).toBe('solid')
+    expect(banner.bg).toBe(dark.secondary)
     expect(banner.gradientFrom).toContain('0.45')
     expect(banner.gradientTo).toContain('0.85')
     expect(banner.border).toContain('0.35')
-    expect(banner.bg).toBe(dark.secondary)
     const gradient = buildSoftBannerGradient(banner.gradientFrom || '', banner.gradientTo || '')
     expect(gradient).toContain('13%')
     expect(gradient).toContain('45%')
@@ -43,7 +43,7 @@ describe('sectionStyleDefaults', () => {
     const cleared = clearOneSectionStyleOverride(patched, 'contentCard') as typeof stock
     expect(cleared.components.contentCard).toBeUndefined()
     const resolved = resolveBannerStyle(dark, 'dark', patched.components.sectionBanner)
-    expect(resolved.variant).toBe('gradient')
+    expect(resolved.variant).toBe('solid')
   })
 
   it('global reset clears section overrides and restores palette', () => {
@@ -92,11 +92,11 @@ describe('sectionStyleDefaults', () => {
     expect(resolved.components.topNavBar?.dark?.bg).toBe('#eed677')
   })
 
-  it('derives top navbar dark gradient and light solid defaults', () => {
+  it('derives top navbar solid defaults with primary icon color', () => {
     const darkNav = deriveTopNavBarMode(dark, 'dark')
-    expect(darkNav.variant).toBe('gradient')
-    expect(darkNav.gradientFrom).toBe(dark.primary)
-    expect(darkNav.gradientTo).toBe(dark.secondary)
+    expect(darkNav.variant).toBe('solid')
+    expect(darkNav.item).toBe(dark.primary)
+    expect(darkNav.itemActive).toBe(dark.primary)
     expect(darkNav.border).toBe(dark.accent)
 
     const lightNav = deriveTopNavBarMode(stock.colors.light, 'light')

@@ -3,6 +3,7 @@
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { minCardAgeCutoffDate } from '@/lib/cardActivation'
+import { RELATIONSHIP_OPTIONS } from '@/lib/vcardCompletion'
 import { useVCard } from '@/lib/VCardContext'
 import {
   Briefcase,
@@ -161,8 +162,15 @@ export function Tab2PersonalInfo() {
                   onChange={(e) => updateData('personal.relationship', e.target.value)}
                   className={`${selectClasses} pl-10`}
                 >
-                  <option>Single</option>
-                  <option>Married</option>
+                  {!RELATIONSHIP_OPTIONS.some((option) => option.value === vCardData.personal.relationship) &&
+                  vCardData.personal.relationship ? (
+                    <option value={vCardData.personal.relationship}>{vCardData.personal.relationship}</option>
+                  ) : null}
+                  {RELATIONSHIP_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500 dark:text-slate-400">
                   <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">

@@ -97,7 +97,7 @@ export function deriveBannerMode(
   const title = ensureReadableText('#020617', override?.title || '#ffffff', CONTRAST_LARGE_MIN)
   const description = ensureReadableText('#020617', override?.description || 'rgba(255,255,255,0.78)', 3)
   const base: BannerModeColors = {
-    variant: 'gradient',
+    variant: 'solid',
     bg: set.secondary,
     // Primary at 45% opacity, mixed lightly; secondary owns ~85% of the banner.
     gradientFrom: colorWithAlpha(set.primary, 0.45),
@@ -203,15 +203,15 @@ export function resolveFaqItemStyle(
 }
 
 /**
- * Top navbar defaults (mode-aware):
- * - Dark: brand gradient (primary → secondary), accent border/active, secondary icons
- * - Light: white plane bar, primary border + icons
+ * Top navbar defaults — solid (plane) for light and dark.
+ * Nav item / icon / active use brand primary (e.g. #eed677 on v3), not secondary navy.
  */
 export function deriveTopNavBarMode(
   set: ThemeColorSet,
   mode: ThemeMode,
   override?: TopNavBarModeColors | null
 ): TopNavBarModeColors {
+  const icon = set.primary
   const base: TopNavBarModeColors =
     mode === 'light'
       ? {
@@ -219,17 +219,17 @@ export function deriveTopNavBarMode(
           bg: '#ffffff',
           gradientFrom: '#ffffff',
           gradientTo: '#f4f5f7',
-          item: set.primary,
-          itemActive: set.primary,
+          item: icon,
+          itemActive: icon,
           border: set.primary,
         }
       : {
-          variant: 'gradient',
+          variant: 'solid',
           bg: set.surface,
           gradientFrom: set.primary,
           gradientTo: set.secondary,
-          item: ensureReadableText(set.primary, set.secondary, CONTRAST_LARGE_MIN),
-          itemActive: set.accent,
+          item: icon,
+          itemActive: icon,
           border: set.accent,
         }
   return pick(base, override)

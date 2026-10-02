@@ -93,7 +93,7 @@ function DeferredScalarField({
   label: string
   control: CompletionScalarControl
   initialValue: string
-  options?: { value: string; label: string }[]
+  options?: readonly { value: string; label: string }[]
   cardId?: string | null
   isCreateMode?: boolean
   onApply: (value: string) => void
@@ -155,7 +155,7 @@ function ScalarControl({
   control: CompletionScalarControl
   value: string
   onChange: (next: string) => void
-  options?: { value: string; label: string }[]
+  options?: readonly { value: string; label: string }[]
   label?: string
   cardId?: string | null
   isCreateMode?: boolean

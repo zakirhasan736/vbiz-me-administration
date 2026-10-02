@@ -269,6 +269,9 @@ export const ICON_FIELDS = [
   'My Info Whatsapp',
 ] as const
 
+/** Public My Info tab Call / Text / Email action pills (Card Settings → General). */
+export const MY_INFO_ACTION_FIELDS = ['My Info Call Btn', 'My Info Text Btn', 'My Info Email Btn'] as const
+
 export const GENERAL_SETTINGS_FIELDS = [
   'Pages Header',
   'Save Contact',
@@ -277,7 +280,24 @@ export const GENERAL_SETTINGS_FIELDS = [
   'My vCard Btn',
   'Theme Toggle',
   'Get your VCard Now',
+  ...MY_INFO_ACTION_FIELDS,
 ] as const
+
+/**
+ * Defaults for My Info Call / Text / Email pills — secondary fill + readable text
+ * (v3: #0f2c4d bg, #ffffff text/icon) for light and dark.
+ */
+export function getMyInfoActionButtonColorDefaults(
+  theme?: ThemeBrandColors,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): { light: { text: string; bg: string; icon: string }; dark: { text: string; bg: string; icon: string } } {
+  const secondary =
+    theme?.secondaryColor?.trim() ||
+    (profileTemplate === 'v1' ? '#1a1a2e' : profileTemplate === 'v3' ? '#0f2c4d' : '#0f172a')
+  const fg = readableForeground(secondary)
+  const mode = { bg: secondary, text: fg, icon: fg }
+  return { light: mode, dark: { ...mode } }
+}
 
 /** Legacy key kept for API/visibility sync; colors live on Social → Share. */
 export const LEGACY_SHARE_BTN_FIELD = 'Share Btn' as const
@@ -669,6 +689,21 @@ export function displayCtaChromeStyle(
     style['--vbiz-btn-secondary-fg'] = fg
   }
   return style
+}
+
+/**
+ * Solid pill chrome for My Info Call / Text / Email.
+ * Uses saved light/dark overrides when set; otherwise Template secondary + readable fg.
+ */
+export function displayMyInfoActionChromeStyle(
+  config: DisplayFieldConfig | undefined,
+  mode: ThemeMode,
+  defaults: { bg: string; text: string }
+): CSSProperties {
+  const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
+  const backgroundColor = fill || defaults.bg
+  const color = fg || defaults.text
+  return { backgroundColor, color, backgroundImage: 'none' }
 }
 
 export function displayLiveAgentChromeStyle(

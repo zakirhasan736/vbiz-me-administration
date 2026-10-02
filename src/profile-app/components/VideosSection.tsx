@@ -5,6 +5,7 @@ import { isVideoUrl } from '@/lib/mediaUrl'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
+import { openShareWindow } from '@/profile-app/lib/shareProfile'
 import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetVideosQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
@@ -267,7 +268,11 @@ function VideoCard({
           aria-label={`Watch ${item.title}`}
           className="relative block h-56 overflow-hidden bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-zinc-950"
           style={{ outlineColor: accent }}
-          onClick={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            openShareWindow(videoUrl)
+          }}
         >
           {mediaInner}
         </a>
@@ -299,7 +304,11 @@ function VideoCard({
             href={videoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              openShareWindow(videoUrl)
+            }}
             className="mt-4 inline-flex items-center gap-2 text-sm font-bold transition-opacity hover:opacity-80"
             style={{ color: accent }}
           >

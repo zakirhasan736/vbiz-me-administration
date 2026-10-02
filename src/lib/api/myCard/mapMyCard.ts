@@ -470,18 +470,14 @@ function mapPersonal(card: MyCardData): VCardPersonal {
   const contactEmail = card.my_info.contact?.email?.value?.trim() || ''
   const contactWhatsapp = card.my_info.contact?.whatsapp?.value?.trim() || ''
 
-  const designation = decodeHtmlText(p.designation ?? '')
-  const professionRaw = decodeHtmlText(p.profession ?? '')
-  const role = designation.trim() || professionRaw.trim()
-
   return {
     fullName: decodeHtmlText(p.name ?? ''),
     email: p.email || contactEmail,
     dob: card.my_info.personal?.dob?.value ?? '',
     gender: decodeHtmlText(p.gender ?? card.my_info.personal?.gender?.value ?? 'Male'),
     relationship: decodeHtmlText(p.marital_status ?? card.my_info.personal?.marital_status?.value ?? 'Single'),
-    profession: role,
-    designation: role,
+    profession: decodeHtmlText(p.profession ?? ''),
+    designation: decodeHtmlText(p.designation ?? ''),
     company: decodeHtmlText(p.company_name ?? ''),
     phone: p.phone || contactPhone,
     whatsapp: p.whatsapp || contactWhatsapp || p.phone || contactPhone,

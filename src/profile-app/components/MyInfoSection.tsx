@@ -1,28 +1,43 @@
 'use client'
 
+import { displayMyInfoActionChromeStyle, getMyInfoActionButtonColorDefaults } from '@/lib/vcardDisplaySettings'
 import { DEFAULT_VCARD_MY_INFO, resolveMyInfoContact } from '@/lib/vcardMyInfo'
+import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import { toMailtoHref, toSmsHref, toTelHref } from '@/profile-app/lib/openExternalIntent'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3EmptyState, V3SectionShell } from '@/profile-app/sections'
 import { Mail, MessageCircle, Phone, type LucideIcon } from 'lucide-react'
+import type { CSSProperties } from 'react'
 
 type ActionRow = {
-  id: string
+  id: 'call' | 'text' | 'email'
   href: string
   label: string
   Icon: LucideIcon
   external: boolean
+  settingKey: 'My Info Call Btn' | 'My Info Text Btn' | 'My Info Email Btn'
 }
 
 export function MyInfoSection() {
-  const { personal, myInfo, design, embedded } = useProfileDisplay()
+  const { personal, myInfo, design, embedded, field, isVisible } = useProfileDisplay()
+  const themeMode = useDocumentThemeMode('dark')
   const info = myInfo ?? DEFAULT_VCARD_MY_INFO
   const { phone, email, smsNumber } = resolveMyInfoContact(personal, info)
-  const accent = design?.primaryColor?.trim() || '#7c3aed'
+  const template = design?.profileTemplate === 'v1' || design?.profileTemplate === 'v2' ? design.profileTemplate : 'v3'
 
-  const callHref = info.showCall !== false ? toTelHref(phone) : null
-  const textHref = info.showText !== false ? toSmsHref(smsNumber) : null
-  const emailHref = info.showEmail !== false ? toMailtoHref(email) : null
+  const actionDefaults = getMyInfoActionButtonColorDefaults(
+    {
+      primaryColor: design?.primaryColor,
+      secondaryColor: design?.secondaryColor,
+      accentColor: design?.accentColor,
+    },
+    template
+  )
+  const modeDefaults = themeMode === 'dark' ? actionDefaults.dark : actionDefaults.light
+
+  const callHref = info.showCall !== false && isVisible('My Info Call Btn') ? toTelHref(phone) : null
+  const textHref = info.showText !== false && isVisible('My Info Text Btn') ? toSmsHref(smsNumber) : null
+  const emailHref = info.showEmail !== false && isVisible('My Info Email Btn') ? toMailtoHref(email) : null
 
   const actions: ActionRow[] = [
     callHref
@@ -32,6 +47,7 @@ export function MyInfoSection() {
           label: info.callLabel || DEFAULT_VCARD_MY_INFO.callLabel,
           Icon: Phone,
           external: false,
+          settingKey: 'My Info Call Btn',
         }
       : null,
     textHref
@@ -41,6 +57,7 @@ export function MyInfoSection() {
           label: info.textLabel || DEFAULT_VCARD_MY_INFO.textLabel,
           Icon: MessageCircle,
           external: false,
+          settingKey: 'My Info Text Btn',
         }
       : null,
     emailHref
@@ -50,6 +67,7 @@ export function MyInfoSection() {
           label: info.emailLabel || DEFAULT_VCARD_MY_INFO.emailLabel,
           Icon: Mail,
           external: false,
+          settingKey: 'My Info Email Btn',
         }
       : null,
   ].filter((row): row is ActionRow => Boolean(row))
@@ -94,22 +112,23 @@ export function MyInfoSection() {
         </div>
 
         <div className="flex flex-col gap-3">
-          {actions.map((action) => (
-            <a
-              key={action.id}
-              href={action.href}
-              {...(action.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-              className="group flex items-center gap-4 rounded-full px-5 py-4 text-white shadow-lg transition-transform active:scale-[0.98] sm:px-6 sm:py-4.5"
-              style={{
-                background: `linear-gradient(90deg, ${accent} 0%, #f97316 100%)`,
-              }}
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25">
-                <action.Icon size={22} strokeWidth={2.25} />
-              </span>
-              <span className="text-base font-black tracking-tight sm:text-lg">{action.label}</span>
-            </a>
-          ))}
+          {actions.map((action) => {
+            const chrome = displayMyInfoActionChromeStyle(field(action.settingKey), themeMode, modeDefaults)
+            return (
+              <a
+                key={action.id}
+                href={action.href}
+                {...(action.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                className="group flex items-center gap-4 rounded-full px-5 py-4 shadow-lg transition-transform active:scale-[0.98] sm:px-6 sm:py-4.5"
+                style={chrome as CSSProperties}
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-current/15 ring-1 ring-current/25">
+                  <action.Icon size={22} strokeWidth={2.25} />
+                </span>
+                <span className="text-base font-black tracking-tight sm:text-lg">{action.label}</span>
+              </a>
+            )
+          })}
         </div>
       </div>
     </V3SectionShell>

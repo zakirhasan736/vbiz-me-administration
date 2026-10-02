@@ -1,7 +1,7 @@
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import Image from 'next/image'
-import { MouseEvent, useEffect, useRef, useState } from 'react'
+import { MouseEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 interface CustomVideoPlayerProps {
   src: string
@@ -33,6 +33,20 @@ function ProfileMediaImage({ src, className = '', imageAlt = 'Profile' }: Custom
 const controlBtnClass =
   'flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/70 hover:text-[#facc15]'
 
+function useCoarsePointer() {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {}
+      const mq = window.matchMedia('(pointer: coarse)')
+      mq.addEventListener('change', onStoreChange)
+      return () => mq.removeEventListener('change', onStoreChange)
+    },
+    () =>
+      typeof window !== 'undefined' && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0),
+    () => false
+  )
+}
+
 function ProfileVideoPlayer({
   src,
   className = '',
@@ -44,9 +58,12 @@ function ProfileVideoPlayer({
   const [progress, setProgress] = useState(0)
   const [isMuted, setIsMuted] = useState(true)
   const [isHovering, setIsHovering] = useState(false)
+  const coarsePointer = useCoarsePointer()
 
   const isOwnerLayout = controlsMode === 'owner'
-  const showPlayButton = isOwnerLayout ? isHovering || !isPlaying : isHovering
+  // Touch devices have no hover — keep mute/play reachable on first tap.
+  const showPlayButton = isOwnerLayout ? isHovering || !isPlaying || coarsePointer : isHovering || coarsePointer
+  const showHoverBar = isHovering || coarsePointer
 
   useEffect(() => {
     const video = videoRef.current
@@ -79,6 +96,12 @@ function ProfileVideoPlayer({
     const video = videoRef.current
     if (!video) return
     video.muted = isMuted
+    if (isMuted) {
+      video.setAttribute('muted', '')
+    } else {
+      video.removeAttribute('muted')
+      if (video.volume === 0) video.volume = 1
+    }
   }, [isMuted])
 
   const togglePlay = (e: MouseEvent) => {
@@ -93,7 +116,24 @@ function ProfileVideoPlayer({
   const toggleMute = (e: MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setIsMuted((prev) => !prev)
+    const video = videoRef.current
+    if (!video) return
+
+    if (isMuted) {
+      video.muted = false
+      video.defaultMuted = false
+      video.removeAttribute('muted')
+      if (video.volume === 0) video.volume = 1
+      setIsMuted(false)
+      // Unmute often pauses autoplay on iOS — resume in this gesture.
+      if (video.paused) void video.play().catch(() => undefined)
+      return
+    }
+
+    video.muted = true
+    video.defaultMuted = true
+    video.setAttribute('muted', '')
+    setIsMuted(true)
   }
 
   const handleSeek = (e: MouseEvent<HTMLDivElement>) => {
@@ -133,10 +173,14 @@ function ProfileVideoPlayer({
         src={src}
         autoPlay
         loop
-        muted
+        muted={isMuted}
         playsInline
         preload="metadata"
         className="h-full w-full cursor-pointer object-cover object-top opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100"
+        {...{
+          'webkit-playsinline': 'true',
+          'x5-playsinline': 'true',
+        }}
       />
 
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
@@ -171,7 +215,7 @@ function ProfileVideoPlayer({
       ) : (
         <div
           className={`absolute right-3 bottom-3 left-3 z-20 flex flex-col gap-2 rounded-xl border border-white/20 bg-black/45 p-2.5 shadow-xl backdrop-blur-md transition-all duration-300 ${
-            isHovering ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
+            showHoverBar ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
