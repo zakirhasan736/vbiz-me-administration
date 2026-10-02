@@ -31,18 +31,18 @@ npm i -g pm2
 pm2 startup
 ```
 
-Nginx should proxy `app.vbizme.com` → `http://127.0.0.1:3000`.
+Nginx should proxy `app.vbizme.com` → `http://127.0.0.1:3009` (port 3000 is the public landing site).
 
 ## GitHub secrets (repo → Settings → Secrets → Actions)
 
-| Secret              | Example                           |
-| ------------------- | --------------------------------- |
-| `DEPLOY_HOST`       | `123.45.67.89` or hostname        |
-| `DEPLOY_USER`       | `ubuntu`                          |
-| `DEPLOY_SSH_KEY`    | private key for that user         |
-| `DEPLOY_SSH_PORT`   | `22` (optional)                   |
-| `DEPLOY_PATH_ADMIN` | `/var/www/vbiz-me-administration` |
-| `ADMIN_HEALTH_URL`  | `https://app.vbizme.com/login`    |
+| Secret              | Example                            |
+| ------------------- | ---------------------------------- |
+| `DEPLOY_HOST`       | `123.45.67.89` or hostname         |
+| `DEPLOY_USER`       | `root` (or your SSH user)          |
+| `DEPLOY_SSH_KEY`    | private key for that user          |
+| `DEPLOY_SSH_PORT`   | `22` (optional)                    |
+| `DEPLOY_PATH_ADMIN` | `/var/www/vbiz-me-administration`  |
+| `ADMIN_HEALTH_URL`  | `http://127.0.0.1:3009/` (or omit) |
 
 Also create a GitHub **Environment** named `production` (optional approval gate).
 

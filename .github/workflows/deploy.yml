@@ -66,7 +66,10 @@ jobs:
           set -euo pipefail
           PORT="${DEPLOY_PORT:-22}"
           APP_PATH="${DEPLOY_PATH:-/var/www/vbiz-me-administration}"
-          CHECK_URL="${HEALTH_URL:-https://app.vbizme.com/login}"
+          CHECK_URL="$(printf '%s' "${HEALTH_URL:-}" | tr -d '\r' | xargs || true)"
+          if [[ -z "$CHECK_URL" || ! "$CHECK_URL" =~ ^https?:// ]]; then
+            CHECK_URL="http://127.0.0.1:3009/"
+          fi
           REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
           RELEASE_DIR="${APP_PATH}/releases/${RELEASE_SHA}"
 
@@ -83,6 +86,7 @@ jobs:
             ./ "${REMOTE}:${RELEASE_DIR}/"
 
           # Build + atomic symlink flip + PM2 reload on the server.
+          # Strip UTF-8 BOM if an editor saved one (breaks `bash -s` shebang).
           ssh -p "$PORT" "$REMOTE" \
             "RELEASE_SHA='${RELEASE_SHA}' DEPLOY_PATH='${APP_PATH}' HEALTH_URL='${CHECK_URL}' bash -s" \
-            < deploy/remote-deploy.sh
+            < <(sed '1s/^\xEF\xBB\xBF//' deploy/remote-deploy.sh)

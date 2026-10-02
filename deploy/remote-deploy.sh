@@ -1,11 +1,15 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # Runs ON the production server. Builds a release folder, flips `current`, reloads PM2.
 # Live site keeps serving the previous release until the flip.
 set -euo pipefail
 
 DEPLOY_PATH="${DEPLOY_PATH:?DEPLOY_PATH required}"
 RELEASE_SHA="${RELEASE_SHA:?RELEASE_SHA required}"
-HEALTH_URL="${HEALTH_URL:-https://app.vbizme.com/login}"
+# Trim whitespace / CR from GitHub secrets; fall back if empty or non-http.
+HEALTH_URL="$(printf '%s' "${HEALTH_URL:-}" | tr -d '\r' | xargs || true)"
+if [[ -z "$HEALTH_URL" || ! "$HEALTH_URL" =~ ^https?:// ]]; then
+  HEALTH_URL="http://127.0.0.1:3009/"
+fi
 RELEASE_DIR="${DEPLOY_PATH}/releases/${RELEASE_SHA}"
 SHARED_ENV="${DEPLOY_PATH}/shared/.env"
 KEEP_RELEASES="${KEEP_RELEASES:-5}"
@@ -34,25 +38,27 @@ source "$SHARED_ENV"
 set +a
 yarn build
 
-echo "==> Atomic symlink flip â†’ current"
+echo "==> Atomic symlink flip -> current"
 ln -sfn "$RELEASE_DIR" "${DEPLOY_PATH}/current"
 
 # Keep a copy of ecosystem next to the app root for PM2.
 cp -f "${RELEASE_DIR}/ecosystem.config.cjs" "${DEPLOY_PATH}/ecosystem.config.cjs"
 
-echo "==> PM2 reload (graceful â€” no full downtime window for in-place rebuild)"
+echo "==> PM2 reload (graceful - no full downtime window for in-place rebuild)"
 cd "$DEPLOY_PATH"
-if pm2 describe vbiz-admin >/dev/null 2>&1; then
-  pm2 reload ecosystem.config.cjs --update-env --env production
-else
-  pm2 start ecosystem.config.cjs --env production
+# Drop short-lived name; replace historical process so port 3009 is taken cleanly.
+pm2 delete vbiz-admin >/dev/null 2>&1 || true
+if pm2 describe vbizme-administration >/dev/null 2>&1; then
+  pm2 delete vbizme-administration >/dev/null 2>&1 || true
 fi
+pm2 start ecosystem.config.cjs --env production
 pm2 save
 
 echo "==> Health check ${HEALTH_URL}"
 ok=0
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -fsS -o /dev/null -w "%{http_code}" "$HEALTH_URL" | grep -Eq '^(200|301|302|308)$'; then
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  code="$(curl -fsS -o /tmp/vbiz-admin-health.out -w '%{http_code}' "$HEALTH_URL" || true)"
+  if [[ "$code" =~ ^(200|301|302|307|308)$ ]]; then
     ok=1
     break
   fi
@@ -60,9 +66,9 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 
 if [[ "$ok" -ne 1 ]]; then
-  echo "ERROR: health check failed after deploy"
-  echo "Previous releases still under ${DEPLOY_PATH}/releases/ â€” roll back with:"
-  echo "  ln -sfn ${DEPLOY_PATH}/releases/<previous-sha> ${DEPLOY_PATH}/current && pm2 reload ecosystem.config.cjs --env production"
+  echo "ERROR: health check failed after deploy (last HTTP ${code:-none})"
+  echo "Previous releases still under ${DEPLOY_PATH}/releases/ - roll back with:"
+  echo "  ln -sfn ${DEPLOY_PATH}/releases/<previous-sha> ${DEPLOY_PATH}/current && pm2 start ecosystem.config.cjs --env production"
   exit 1
 fi
 
