@@ -1,0 +1,88 @@
+# Zero-downtime production deploy.
+# Builds in a NEW release folder on the server, then flips `current` symlink + PM2 reload.
+# Live traffic keeps serving the previous release while the new one builds.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to deploy (branch, tag, or SHA)'
+        required: false
+        default: main
+
+concurrency:
+  group: deploy-admin-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy administration (zero-downtime)
+    runs-on: ubuntu-latest
+    # Auto-deploy only when CI on main succeeded; manual dispatch always allowed.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    environment: production
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Resolve release SHA
+        id: meta
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust host key
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          PORT="${DEPLOY_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload release + run remote deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH_ADMIN }}
+          RELEASE_SHA: ${{ steps.meta.outputs.sha }}
+          HEALTH_URL: ${{ secrets.ADMIN_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          PORT="${DEPLOY_PORT:-22}"
+          APP_PATH="${DEPLOY_PATH:-/var/www/vbiz-me-administration}"
+          CHECK_URL="${HEALTH_URL:-https://app.vbizme.com/login}"
+          REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
+          RELEASE_DIR="${APP_PATH}/releases/${RELEASE_SHA}"
+
+          ssh -p "$PORT" "$REMOTE" "mkdir -p '${APP_PATH}/releases' '${APP_PATH}/shared'"
+
+          # Sync source into a fresh release directory (never into live `current`).
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.next' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            -e "ssh -p ${PORT}" \
+            ./ "${REMOTE}:${RELEASE_DIR}/"
+
+          # Build + atomic symlink flip + PM2 reload on the server.
+          ssh -p "$PORT" "$REMOTE" \
+            "RELEASE_SHA='${RELEASE_SHA}' DEPLOY_PATH='${APP_PATH}' HEALTH_URL='${CHECK_URL}' bash -s" \
+            < deploy/remote-deploy.sh
