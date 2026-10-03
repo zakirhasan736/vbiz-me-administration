@@ -2,7 +2,7 @@
 
 import { Modal } from '@/components/ui'
 import { useVCard } from '@/lib/VCardContext'
-import { extractLeaveReviewUrlFromList, withoutLeaveReviewEntries } from '@/lib/vcardReviews'
+import { extractLeaveReviewUrlFromList, syncLeaveReviewListItem } from '@/lib/vcardReviews'
 import { defaultBannerDescription, getTabSectionMetaEntry, upsertTabSectionMetaEntry } from '@/lib/vcardTabSectionMeta'
 import type { VCardTabSectionMetaEntry } from '@/types/vcard'
 import { ExternalLink, Highlighter, StickyNote, Type, X } from 'lucide-react'
@@ -27,67 +27,81 @@ export function SectionBannerEditor({ tabId, tabName }: SectionBannerEditorProps
   const legacyLeaveReviewUrl = extractLeaveReviewUrlFromList(vCardData.reviews)
   const leaveReviewUrlValue = meta.leaveReviewUrl ?? legacyLeaveReviewUrl
   const hasNotes = Boolean(notesValue.trim())
+  const hasLeaveReviewUrl = Boolean(leaveReviewUrlValue.trim())
   const isReviewsTab = tabId.trim() === 'reviews'
   const [notesOpen, setNotesOpen] = useState(false)
+  const [leaveReviewOpen, setLeaveReviewOpen] = useState(false)
   const migratedLeaveReviewRef = useRef(false)
-
-  const stripLegacyLeaveReviewRows = () => {
-    const cleaned = withoutLeaveReviewEntries(vCardData.reviews)
-    if (cleaned.length !== (vCardData.reviews?.length ?? 0)) {
-      updateData('reviews', cleaned)
-    }
-  }
-
-  // Move legacy “Leave a Review” list CTAs into the banner field once.
-  useEffect(() => {
-    if (!isReviewsTab || migratedLeaveReviewRef.current) return
-    const fromList = extractLeaveReviewUrlFromList(vCardData.reviews)
-    if (!fromList) {
-      migratedLeaveReviewRef.current = true
-      return
-    }
-
-    migratedLeaveReviewRef.current = true
-    if (!meta.leaveReviewUrl?.trim()) {
-      updateData(
-        'tabSectionMeta',
-        upsertTabSectionMetaEntry(vCardData.tabSectionMeta, tabId, { leaveReviewUrl: fromList })
-      )
-    }
-    const cleaned = withoutLeaveReviewEntries(vCardData.reviews)
-    if (cleaned.length !== (vCardData.reviews?.length ?? 0)) {
-      updateData('reviews', cleaned)
-    }
-  }, [isReviewsTab, meta.leaveReviewUrl, tabId, updateData, vCardData.reviews, vCardData.tabSectionMeta])
-
-  if (!tabId.trim()) return null
 
   const patch = (next: VCardTabSectionMetaEntry) => {
     updateData('tabSectionMeta', upsertTabSectionMetaEntry(vCardData.tabSectionMeta, tabId, next))
   }
 
+  const setLeaveReviewUrl = (value: string) => {
+    patch({ leaveReviewUrl: value })
+    updateData('reviews', syncLeaveReviewListItem(vCardData.reviews, value))
+  }
+
+  // Pull existing leave-review list URLs into the banner once, and keep the CTA row in sync.
+  useEffect(() => {
+    if (!isReviewsTab || migratedLeaveReviewRef.current) return
+    migratedLeaveReviewRef.current = true
+
+    const fromList = extractLeaveReviewUrlFromList(vCardData.reviews)
+    const bannerUrl = meta.leaveReviewUrl?.trim() || ''
+    if (!bannerUrl && fromList) {
+      updateData(
+        'tabSectionMeta',
+        upsertTabSectionMetaEntry(vCardData.tabSectionMeta, tabId, { leaveReviewUrl: fromList })
+      )
+      updateData('reviews', syncLeaveReviewListItem(vCardData.reviews, fromList))
+      return
+    }
+    if (bannerUrl) {
+      updateData('reviews', syncLeaveReviewListItem(vCardData.reviews, bannerUrl))
+    }
+  }, [isReviewsTab, meta.leaveReviewUrl, tabId, updateData, vCardData.reviews, vCardData.tabSectionMeta])
+
+  if (!tabId.trim()) return null
+
   return (
     <section className="mb-4 overflow-hidden rounded-2xl border border-amber-100 bg-amber-50/40 shadow-sm dark:border-amber-500/10 dark:bg-amber-500/5">
-      <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:gap-3 sm:px-5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10">
           <Type className="h-4 w-4 text-amber-700 dark:text-amber-300" />
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-40">
           <h4 className="text-[14px] font-black text-slate-900 dark:text-white">Tab banner</h4>
           <p className="hidden text-[11px] font-medium text-slate-500 sm:block dark:text-slate-400">
             Defaults to this tab name and description. Empty notes stay hidden on the public card.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setNotesOpen(true)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-200 bg-white px-3 py-2 text-[12px] font-bold text-amber-800 shadow-sm transition hover:bg-amber-50 dark:border-amber-500/20 dark:bg-[#0b0f19] dark:text-amber-200 dark:hover:bg-amber-500/10"
-        >
-          <StickyNote className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{hasNotes ? 'Edit notes' : 'Add notes'}</span>
-          <span className="sm:hidden">{hasNotes ? 'Notes' : 'Note'}</span>
-          {hasNotes ? <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> : null}
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isReviewsTab ? (
+            <button
+              type="button"
+              onClick={() => setLeaveReviewOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-white px-3 py-2 text-[12px] font-bold text-amber-800 shadow-sm transition hover:bg-amber-50 dark:border-amber-500/20 dark:bg-[#0b0f19] dark:text-amber-200 dark:hover:bg-amber-500/10"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">
+                {hasLeaveReviewUrl ? 'Edit review btn URL' : 'Add review btn URL'}
+              </span>
+              <span className="sm:hidden">{hasLeaveReviewUrl ? 'Review URL' : 'Review URL'}</span>
+              {hasLeaveReviewUrl ? <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> : null}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setNotesOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-white px-3 py-2 text-[12px] font-bold text-amber-800 shadow-sm transition hover:bg-amber-50 dark:border-amber-500/20 dark:bg-[#0b0f19] dark:text-amber-200 dark:hover:bg-amber-500/10"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{hasNotes ? 'Edit notes' : 'Add notes'}</span>
+            <span className="sm:hidden">{hasNotes ? 'Notes' : 'Note'}</span>
+            {hasNotes ? <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> : null}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 border-t border-amber-100/80 px-4 py-3 sm:grid-cols-2 sm:px-5 dark:border-amber-500/10">
@@ -115,28 +129,6 @@ export function SectionBannerEditor({ tabId, tabName }: SectionBannerEditorProps
             className={textareaClasses}
           />
         </div>
-        {isReviewsTab ? (
-          <div className="sm:col-span-2">
-            <label className="mb-1 flex items-center gap-1.5 pl-0.5 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-              <ExternalLink className="h-3 w-3" />
-              Leave a review URL
-            </label>
-            <input
-              type="url"
-              value={leaveReviewUrlValue}
-              onChange={(event) => {
-                patch({ leaveReviewUrl: event.target.value })
-                stripLegacyLeaveReviewRows()
-              }}
-              placeholder="https://g.page/r/… or Google / Yelp review link"
-              className={inputClasses}
-            />
-            <p className="mt-1.5 pl-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              Shows a small “Leave a Review” button on the public Reviews banner. Existing leave-review links from the
-              review list are moved here automatically. Leave empty to hide it.
-            </p>
-          </div>
-        ) : null}
       </div>
 
       <Modal
@@ -188,6 +180,63 @@ export function SectionBannerEditor({ tabId, tabName }: SectionBannerEditorProps
           <button
             type="button"
             onClick={() => setNotesOpen(false)}
+            className="rounded-xl bg-amber-600 px-4 py-2 text-[12px] font-bold text-white shadow-sm hover:bg-amber-700"
+          >
+            Done
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={leaveReviewOpen}
+        onClose={() => setLeaveReviewOpen(false)}
+        className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h5 className="flex items-center gap-2 text-[15px] font-black text-slate-900 dark:text-white">
+              <ExternalLink className="h-4 w-4 text-amber-600" />
+              Leave a review button URL
+            </h5>
+            <p className="mt-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
+              Shows the public “Leave a Review” banner button. Empty hides it. Saving also creates or updates a Leave a
+              Review item in the review list.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLeaveReviewOpen(false)}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+            aria-label="Close leave review URL"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <input
+          type="url"
+          value={leaveReviewUrlValue}
+          onChange={(event) => setLeaveReviewUrl(event.target.value)}
+          placeholder="https://g.page/r/… or Google / Yelp review link"
+          className={inputClasses}
+        />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          {hasLeaveReviewUrl ? (
+            <button
+              type="button"
+              onClick={() => {
+                setLeaveReviewUrl('')
+                setLeaveReviewOpen(false)
+              }}
+              className="text-[12px] font-bold text-slate-500 underline-offset-2 hover:underline dark:text-slate-400"
+            >
+              Remove URL
+            </button>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={() => setLeaveReviewOpen(false)}
             className="rounded-xl bg-amber-600 px-4 py-2 text-[12px] font-bold text-white shadow-sm hover:bg-amber-700"
           >
             Done

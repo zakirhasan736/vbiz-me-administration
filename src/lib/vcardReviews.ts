@@ -49,7 +49,42 @@ export function extractLeaveReviewUrlFromList(raw?: VCardReviewEntry[] | null): 
   return ''
 }
 
-/** Drop legacy leave-a-review CTA rows once the URL lives on the banner. */
+/** Drop leave-a-review CTA rows (used when the banner URL is cleared). */
 export function withoutLeaveReviewEntries(raw?: VCardReviewEntry[] | null): VCardReviewEntry[] {
   return normalizeReviewList(raw).filter((entry) => !isLeaveReviewEntry(entry))
+}
+
+export function createLeaveReviewEntry(url: string): VCardReviewEntry {
+  return {
+    id: `rev_leave_${Date.now()}`,
+    author: 'Leave a Review',
+    rating: 5,
+    text: '',
+    imageUrl: '',
+    url: url.trim(),
+  }
+}
+
+/**
+ * Keep a single “Leave a Review” list item in sync with the banner URL.
+ * Empty URL removes CTA rows; non-empty URL updates or creates one.
+ */
+export function syncLeaveReviewListItem(
+  raw: VCardReviewEntry[] | null | undefined,
+  leaveReviewUrl: string
+): VCardReviewEntry[] {
+  const url = leaveReviewUrl.trim()
+  const reviews = normalizeReviewList(raw)
+  if (!url) return withoutLeaveReviewEntries(reviews)
+
+  const existing = reviews.find((entry) => isLeaveReviewEntry(entry))
+  if (existing) {
+    return reviews.map((entry) =>
+      entry.id === existing.id
+        ? { ...entry, author: 'Leave a Review', text: '', url, rating: entry.rating || 5 }
+        : entry
+    )
+  }
+
+  return [...reviews, createLeaveReviewEntry(url)]
 }

@@ -1,9 +1,11 @@
-/** Direct file / CDN video (not a host page like YouTube). */
+/** Direct file / CDN video (not a host page like YouTube / Drive). */
 export function isDirectVideoFileUrl(url: string): boolean {
   const trimmed = url.trim()
   if (!trimmed) return false
   if (trimmed.startsWith('blob:') || /^data:video\//i.test(trimmed)) return true
-  if (/(?:youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com)/i.test(trimmed)) return false
+  if (/(?:youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|drive\.google\.com|docs\.google\.com)/i.test(trimmed)) {
+    return false
+  }
   if (/\.(m4v|mov|mp4|ogv|webm|ogg)(\?|#|$)/i.test(trimmed)) return true
   if (/\/video\/upload\//i.test(trimmed)) return true
   return false
@@ -58,6 +60,27 @@ function dailymotionId(url: string): string | null {
   return null
 }
 
+function googleDriveFileId(url: string): string | null {
+  try {
+    const parsed = new URL(url.trim())
+    const host = parsed.hostname.replace(/^www\./, '')
+    if (host !== 'drive.google.com' && host !== 'docs.google.com') return null
+
+    const parts = parsed.pathname.split('/').filter(Boolean)
+    // /file/d/FILE_ID/view|preview|edit
+    const fileIdx = parts.indexOf('file')
+    if (fileIdx >= 0 && parts[fileIdx + 1] === 'd' && parts[fileIdx + 2]) {
+      return parts[fileIdx + 2]
+    }
+    // /open?id=FILE_ID or /uc?id=FILE_ID
+    const fromQuery = parsed.searchParams.get('id')
+    if (fromQuery) return fromQuery
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
 /** Convert a watch/share URL into an autoplaying embed iframe src, or null. */
 export function toVideoEmbedUrl(url: string, options?: { autoplay?: boolean }): string | null {
   const trimmed = url.trim()
@@ -90,6 +113,12 @@ export function toVideoEmbedUrl(url: string, options?: { autoplay?: boolean }): 
       autoplay: autoplay ? '1' : '0',
     })
     return `https://www.dailymotion.com/embed/video/${daily}?${params.toString()}`
+  }
+
+  const driveId = googleDriveFileId(trimmed)
+  if (driveId) {
+    // Drive preview player — file must be shared as “Anyone with the link”.
+    return `https://drive.google.com/file/d/${driveId}/preview`
   }
 
   return null

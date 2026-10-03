@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { extractLeaveReviewUrlFromList, isLeaveReviewEntry, withoutLeaveReviewEntries } from './vcardReviews'
+import {
+  extractLeaveReviewUrlFromList,
+  isLeaveReviewEntry,
+  syncLeaveReviewListItem,
+  withoutLeaveReviewEntries,
+} from './vcardReviews'
 
 describe('vcardReviews leave-review CTA helpers', () => {
   it('detects titled and URL-only leave-review entries', () => {
@@ -60,5 +65,20 @@ describe('vcardReviews leave-review CTA helpers', () => {
 
     expect(extractLeaveReviewUrlFromList(reviews)).toBe('https://g.page/r/example/review')
     expect(withoutLeaveReviewEntries(reviews).map((r) => r.id)).toEqual(['real'])
+  })
+
+  it('creates, updates, and removes the Leave a Review list item from a banner URL', () => {
+    const created = syncLeaveReviewListItem([], 'https://g.page/r/new')
+    expect(created).toHaveLength(1)
+    expect(created[0]).toMatchObject({
+      author: 'Leave a Review',
+      url: 'https://g.page/r/new',
+    })
+
+    const updated = syncLeaveReviewListItem(created, 'https://yelp.com/write-review')
+    expect(updated).toHaveLength(1)
+    expect(updated[0]?.url).toBe('https://yelp.com/write-review')
+
+    expect(syncLeaveReviewListItem(updated, '')).toEqual([])
   })
 })

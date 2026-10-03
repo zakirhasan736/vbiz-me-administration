@@ -31,23 +31,30 @@ export function readNetworkHints(
   }
 }
 
-export function pickIntroQuality(hints: NetworkHints, options?: { isMobile?: boolean }): IntroQuality {
+export function pickIntroQuality(
+  hints: NetworkHints,
+  options?: { isMobile?: boolean; isSafari?: boolean }
+): IntroQuality {
   if (hints.saveData) return 360
 
   const type = (hints.effectiveType || '').toLowerCase()
   if (type === 'slow-2g' || type === '2g') return 360
-  if (type === '3g') return 540
+  if (type === '3g') return options?.isSafari ? 360 : 540
 
   if (typeof hints.downlink === 'number' && hints.downlink > 0) {
     if (hints.downlink < 1.5) return 360
-    if (hints.downlink < 4) return 540
-    return 720
+    if (hints.downlink < 4) return options?.isSafari ? 360 : 540
+    return options?.isSafari && options?.isMobile ? 540 : 720
   }
 
-  if (typeof hints.rtt === 'number' && hints.rtt > 400) return 360
+  if (typeof hints.rtt === 'number' && hints.rtt > 300) return 360
 
-  // Safari / iOS have no Network Information API. Start at 540p on phones so
-  // the first frame arrives before a full HD download, 720p on desktop.
+  // Safari / iOS have no Network Information API and buffer more cautiously.
+  // Start smaller so the first playable frame arrives sooner on weak links.
+  if (options?.isSafari) {
+    return options.isMobile ? 360 : 540
+  }
+
   if (options?.isMobile) return 540
   return 720
 }
@@ -58,10 +65,17 @@ export function lowerIntroQuality(quality: IntroQuality): IntroQuality | null {
   return INTRO_QUALITY_LADDER[index - 1] ?? null
 }
 
-function transformForQuality(quality: IntroQuality): string {
-  const bitrate = quality <= 360 ? 'br_400k' : quality <= 540 ? 'br_700k' : 'br_1200k'
-  const q = quality <= 360 ? 'q_auto:eco' : 'q_auto:good'
-  return `f_mp4,vc_h264,${q},w_${quality},c_limit,${bitrate}`
+type AdaptiveVideoOptions = {
+  /** Strip audio track — ideal for muted looping background/cover videos. */
+  stripAudio?: boolean
+}
+
+function transformForQuality(quality: IntroQuality, options?: AdaptiveVideoOptions): string {
+  // Leaner ladders: Safari and slow networks benefit from smaller first chunks.
+  const bitrate = quality <= 360 ? 'br_280k' : quality <= 540 ? 'br_550k' : 'br_900k'
+  const q = quality <= 540 ? 'q_auto:eco' : 'q_auto:good'
+  const audio = options?.stripAudio ? ',ac_none' : ''
+  return `f_mp4,vc_h264,${q},w_${quality},c_limit,${bitrate}${audio}`
 }
 
 function publicIdFromCloudinaryRest(rest: string): string {
@@ -79,7 +93,11 @@ function publicIdFromCloudinaryRest(rest: string): string {
   return rest
 }
 
-export function applyCloudinaryVideoQuality(url: string, quality: IntroQuality): string | null {
+export function applyCloudinaryVideoQuality(
+  url: string,
+  quality: IntroQuality,
+  options?: AdaptiveVideoOptions
+): string | null {
   let parsed: URL
   try {
     parsed = new URL(url)
@@ -94,11 +112,15 @@ export function applyCloudinaryVideoQuality(url: string, quality: IntroQuality):
   const rest = match[2] || ''
   if (!rest) return null
 
-  parsed.pathname = `${prefix}${transformForQuality(quality)}/${publicIdFromCloudinaryRest(rest)}`
+  parsed.pathname = `${prefix}${transformForQuality(quality, options)}/${publicIdFromCloudinaryRest(rest)}`
   return parsed.toString()
 }
 
-export function applyImageKitVideoQuality(url: string, quality: IntroQuality): string | null {
+export function applyImageKitVideoQuality(
+  url: string,
+  quality: IntroQuality,
+  options?: AdaptiveVideoOptions
+): string | null {
   let parsed: URL
   try {
     parsed = new URL(url)
@@ -110,20 +132,48 @@ export function applyImageKitVideoQuality(url: string, quality: IntroQuality): s
     return null
   }
 
-  parsed.searchParams.set('tr', `w-${quality},q-60,f-mp4`)
+  const q = quality <= 360 ? 40 : quality <= 540 ? 50 : 60
+  const parts = [`w-${quality}`, `q-${q}`, 'f-mp4']
+  if (options?.stripAudio) parts.push('ac-none')
+  parsed.searchParams.set('tr', parts.join(','))
   return parsed.toString()
 }
 
-export function buildAdaptiveIntroUrl(originalUrl: string, quality: IntroQuality): string {
+export function buildAdaptiveIntroUrl(
+  originalUrl: string,
+  quality: IntroQuality,
+  options?: AdaptiveVideoOptions
+): string {
   const trimmed = originalUrl.trim()
   if (!trimmed) return trimmed
   if (trimmed.startsWith('/') || trimmed.startsWith('blob:') || trimmed.startsWith('data:')) {
     return trimmed
   }
 
-  return applyCloudinaryVideoQuality(trimmed, quality) || applyImageKitVideoQuality(trimmed, quality) || trimmed
+  return (
+    applyCloudinaryVideoQuality(trimmed, quality, options) ||
+    applyImageKitVideoQuality(trimmed, quality, options) ||
+    trimmed
+  )
+}
+
+/** Background / cover loops never need audio — strip it to cut bytes on Safari. */
+export function buildAdaptiveBackgroundVideoUrl(originalUrl: string, quality: IntroQuality): string {
+  return buildAdaptiveIntroUrl(originalUrl, quality, { stripAudio: true })
 }
 
 export function canAdaptIntroUrl(url: string): boolean {
   return buildAdaptiveIntroUrl(url, 360) !== url.trim()
+}
+
+/**
+ * Media fragment forces Safari/iOS to decode an early frame instead of waiting
+ * for a larger buffer before painting.
+ */
+export function withVideoStartHint(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed) return trimmed
+  if (trimmed.startsWith('blob:') || trimmed.startsWith('data:') || trimmed.startsWith('/')) return trimmed
+  if (/#t=/i.test(trimmed)) return trimmed
+  return `${trimmed}#t=0.001`
 }

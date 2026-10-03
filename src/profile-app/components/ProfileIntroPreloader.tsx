@@ -1,8 +1,9 @@
 'use client'
 
-import { isIosDevice } from '@/lib/pwa/pwaInstallEnv'
+import { isIosDevice, isSafariBrowser } from '@/lib/pwa/pwaInstallEnv'
 import {
   buildAdaptiveIntroUrl,
+  canAdaptIntroUrl,
   lowerIntroQuality,
   pickIntroQuality,
   readNetworkHints,
@@ -15,9 +16,10 @@ import { ProfileIntroVideo } from './ProfileIntroVideo'
 
 const DEFAULT_UNMUTE_VOLUME = 0.5
 /** Keep trying autoplay; never hide the loader until playback actually starts. */
-const TAP_HINT_MS = 1200
-const STALL_DOWNGRADE_MS = 2500
-const PLAY_RETRY_MS = 700
+const TAP_HINT_MS = 1000
+const STALL_DOWNGRADE_MS = 1800
+const STALL_DOWNGRADE_SAFARI_MS = 1100
+const PLAY_RETRY_MS = 500
 
 const SPLIT_COUNT = 3
 const SPLIT_STAGGER_S = 0.14
@@ -37,13 +39,19 @@ function isCoarsePointerDevice() {
   return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1
 }
 
+function pickInitialQuality(): IntroQuality {
+  return pickIntroQuality(readNetworkHints(), {
+    isMobile: isCoarsePointerDevice(),
+    isSafari: isSafariBrowser() || isIosDevice(),
+  })
+}
+
 export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intro' }: Props) {
   const originalSrc = videoUrl.trim()
   const videoRef = useRef<HTMLVideoElement>(null)
   const [srcKey, setSrcKey] = useState(originalSrc)
-  const [quality, setQuality] = useState<IntroQuality>(() =>
-    pickIntroQuality(readNetworkHints(), { isMobile: isCoarsePointerDevice() })
-  )
+  const [quality, setQuality] = useState<IntroQuality>(() => pickInitialQuality())
+  const isSafariLike = isSafariBrowser() || isIosDevice()
   const [useOriginal, setUseOriginal] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
   const [volume, setVolume] = useState(0)
@@ -61,13 +69,27 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
 
   if (originalSrc !== srcKey) {
     setSrcKey(originalSrc)
-    setQuality(pickIntroQuality(readNetworkHints(), { isMobile: isCoarsePointerDevice() }))
+    setQuality(pickInitialQuality())
     setUseOriginal(false)
     setReady(false)
     setRevealed(false)
     setCurtainsDone(false)
     setNeedsTap(false)
   }
+
+  // Warm the CDN edge / browser cache before the <video> element mounts the same URL.
+  useEffect(() => {
+    if (!playbackSrc || !canAdaptIntroUrl(originalSrc)) return
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'video'
+    link.href = playbackSrc.split('#')[0] || playbackSrc
+    link.type = 'video/mp4'
+    document.head.appendChild(link)
+    return () => {
+      link.remove()
+    }
+  }, [originalSrc, playbackSrc])
 
   const kickPlay = useCallback(() => {
     const el = videoRef.current
@@ -149,9 +171,12 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       if (el.paused) setNeedsTap(true)
     }, TAP_HINT_MS)
 
-    const stallTimer = window.setTimeout(() => {
-      if (!playing) dropQualityOrOriginal()
-    }, STALL_DOWNGRADE_MS)
+    const stallTimer = window.setTimeout(
+      () => {
+        if (!playing) dropQualityOrOriginal()
+      },
+      isSafariLike ? STALL_DOWNGRADE_SAFARI_MS : STALL_DOWNGRADE_MS
+    )
 
     const retryTimer = window.setInterval(() => {
       if (!playing) kickPlay()
@@ -166,7 +191,7 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       window.clearTimeout(stallTimer)
       window.clearInterval(retryTimer)
     }
-  }, [playbackSrc, kickPlay, dropQualityOrOriginal])
+  }, [playbackSrc, kickPlay, dropQualityOrOriginal, isSafariLike])
 
   useEffect(() => {
     if (!ready) return

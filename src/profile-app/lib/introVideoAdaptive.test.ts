@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyCloudinaryVideoQuality,
+  buildAdaptiveBackgroundVideoUrl,
   buildAdaptiveIntroUrl,
   canAdaptIntroUrl,
   lowerIntroQuality,
   pickIntroQuality,
+  withVideoStartHint,
 } from './introVideoAdaptive'
 
 describe('pickIntroQuality', () => {
@@ -20,7 +22,9 @@ describe('pickIntroQuality', () => {
     expect(pickIntroQuality({ downlink: 8 })).toBe(720)
   })
 
-  it('defaults to 540p on phones when Safari has no connection API', () => {
+  it('defaults lower on Safari when there is no connection API', () => {
+    expect(pickIntroQuality({}, { isMobile: true, isSafari: true })).toBe(360)
+    expect(pickIntroQuality({}, { isMobile: false, isSafari: true })).toBe(540)
     expect(pickIntroQuality({}, { isMobile: true })).toBe(540)
     expect(pickIntroQuality({}, { isMobile: false })).toBe(720)
   })
@@ -43,21 +47,27 @@ describe('buildAdaptiveIntroUrl', () => {
   it('injects Cloudinary H.264 width/bitrate transforms', () => {
     const src = 'https://res.cloudinary.com/demo/video/upload/v1/about_clip.mp4'
     expect(applyCloudinaryVideoQuality(src, 360)).toBe(
-      'https://res.cloudinary.com/demo/video/upload/f_mp4,vc_h264,q_auto:eco,w_360,c_limit,br_400k/v1/about_clip.mp4'
+      'https://res.cloudinary.com/demo/video/upload/f_mp4,vc_h264,q_auto:eco,w_360,c_limit,br_280k/v1/about_clip.mp4'
     )
     expect(buildAdaptiveIntroUrl(src, 720)).toContain('w_720')
+  })
+
+  it('strips audio for muted background videos', () => {
+    const src = 'https://res.cloudinary.com/demo/video/upload/v1/bg.mp4'
+    expect(buildAdaptiveBackgroundVideoUrl(src, 360)).toContain('ac_none')
+    expect(buildAdaptiveIntroUrl(src, 360)).not.toContain('ac_none')
   })
 
   it('replaces existing Cloudinary transforms instead of stacking them', () => {
     const src = 'https://res.cloudinary.com/demo/video/upload/q_auto,w_1280/v12/folder/clip.mp4'
     expect(applyCloudinaryVideoQuality(src, 540)).toBe(
-      'https://res.cloudinary.com/demo/video/upload/f_mp4,vc_h264,q_auto:good,w_540,c_limit,br_700k/v12/folder/clip.mp4'
+      'https://res.cloudinary.com/demo/video/upload/f_mp4,vc_h264,q_auto:eco,w_540,c_limit,br_550k/v12/folder/clip.mp4'
     )
   })
 
   it('adds ImageKit width transforms', () => {
     const src = 'https://ik.imagekit.io/demo/intro.mp4'
-    expect(buildAdaptiveIntroUrl(src, 360)).toBe('https://ik.imagekit.io/demo/intro.mp4?tr=w-360%2Cq-60%2Cf-mp4')
+    expect(buildAdaptiveIntroUrl(src, 360)).toBe('https://ik.imagekit.io/demo/intro.mp4?tr=w-360%2Cq-40%2Cf-mp4')
     expect(canAdaptIntroUrl(src)).toBe(true)
   })
 
@@ -65,5 +75,10 @@ describe('buildAdaptiveIntroUrl', () => {
     const src = 'https://cdn.example.com/uploads/intro.mp4'
     expect(buildAdaptiveIntroUrl(src, 360)).toBe(src)
     expect(canAdaptIntroUrl(src)).toBe(false)
+  })
+
+  it('adds a Safari first-frame media hint', () => {
+    expect(withVideoStartHint('https://cdn.example.com/a.mp4')).toBe('https://cdn.example.com/a.mp4#t=0.001')
+    expect(withVideoStartHint('https://cdn.example.com/a.mp4#t=1')).toBe('https://cdn.example.com/a.mp4#t=1')
   })
 })
