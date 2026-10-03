@@ -38,18 +38,13 @@ const SKELETON_CARD_COUNT = 4
 function ReviewsHeaderSkeleton({ compact }: { compact: boolean }) {
   return (
     <div
-      className={`relative flex min-h-50 flex-col justify-end overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-100 p-4 pb-12 lg:col-span-4 dark:border-zinc-800/80 dark:bg-zinc-900 ${
-        compact ? '' : 'md:min-h-[22vh] md:rounded-[2.5rem] md:p-6 md:pb-6 lg:min-h-[24vh]'
+      className={`relative flex flex-col justify-end overflow-hidden rounded-4xl border border-zinc-200 bg-zinc-100 p-3 lg:col-span-4 dark:border-zinc-800/80 dark:bg-zinc-900 ${
+        compact ? 'min-h-36' : 'min-h-36 md:min-h-0 md:rounded-[2rem] md:p-4'
       }`}
     >
-      <div className="w-full space-y-3">
-        <div className="h-6 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
-        <div className="h-8 w-3/4 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
-        <div
-          className={`h-12 w-full max-w-xl animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800 ${
-            compact ? 'hidden' : 'hidden md:block'
-          }`}
-        />
+      <div className="w-full space-y-2">
+        <div className="h-5 w-28 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-7 w-2/3 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
       </div>
     </div>
   )
@@ -179,7 +174,7 @@ export const ReviewsSection = () => {
         ) : (
           <div
             className={`vbiz-section-banner group relative flex w-full flex-col overflow-hidden rounded-4xl border shadow-xl lg:col-span-4 ${
-              compact ? '' : 'min-h-50 md:min-h-[22vh] md:rounded-[2.5rem] lg:min-h-[24vh]'
+              compact ? '' : 'md:rounded-[2rem]'
             }`}
           >
             {/* Soft wash over Pages Header gradient */}
@@ -191,27 +186,27 @@ export const ReviewsSection = () => {
             {/* Content overlay */}
             <div
               className={`relative z-10 flex h-full w-full grow flex-col justify-end ${
-                compact ? 'gap-3 p-4' : 'p-0 pb-0 sm:p-5 md:p-6 md:pb-6 lg:p-7'
+                compact ? 'gap-2 p-3' : 'p-3 sm:p-4 md:p-4'
               }`}
             >
               <div
                 className={`mt-auto flex w-full max-w-7xl flex-col items-start justify-between ${
-                  compact ? 'gap-3' : 'gap-3 md:flex-row md:items-end md:gap-5'
+                  compact ? 'gap-2.5' : 'gap-2.5 md:flex-row md:items-end md:gap-4'
                 }`}
               >
-                <div className={`flex max-w-2xl flex-col gap-1.5 ${compact ? '' : 'md:gap-2'}`}>
+                <div className="flex max-w-2xl flex-col gap-1">
                   <div
-                    className={`inline-flex items-center gap-1.5 self-start rounded-full border border-[#eed677]/30 bg-[#eed677]/10 px-2.5 py-1 text-[9px] font-bold tracking-widest text-[#eed677] uppercase shadow-sm backdrop-blur-md ${
-                      compact ? '' : 'md:text-xs'
+                    className={`inline-flex items-center gap-1.5 self-start rounded-full border border-[#eed677]/30 bg-[#eed677]/10 px-2 py-0.5 text-[9px] font-bold tracking-widest text-[#eed677] uppercase shadow-sm backdrop-blur-md ${
+                      compact ? '' : 'md:text-[10px]'
                     }`}
                   >
-                    <Star size={12} className="vbiz-review-star text-[#eed677]" /> {sectionTitle}
+                    <Star size={11} className="vbiz-review-star text-[#eed677]" /> {sectionTitle}
                   </div>
 
                   {banner.title ? (
                     <h2
                       className={`leading-[1.1] font-black tracking-tight text-white ${
-                        compact ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl lg:text-4xl'
+                        compact ? 'text-xl' : 'text-xl sm:text-2xl md:text-3xl'
                       }`}
                     >
                       {banner.title}
@@ -219,8 +214,8 @@ export const ReviewsSection = () => {
                   ) : null}
                   {banner.description ? (
                     <p
-                      className={`max-w-xl text-sm leading-normal font-medium text-zinc-300 ${
-                        compact ? 'hidden' : 'hidden md:block md:text-lg'
+                      className={`max-w-xl text-sm leading-snug font-medium text-zinc-300 ${
+                        compact ? 'hidden' : 'hidden md:line-clamp-2 md:block md:text-sm'
                       }`}
                     >
                       {banner.description}
@@ -230,41 +225,30 @@ export const ReviewsSection = () => {
                 </div>
 
                 <div
-                  className={`flex w-full shrink-0 flex-col items-stretch gap-3 ${
-                    compact ? '' : 'md:w-auto md:items-end md:gap-4'
+                  className={`flex w-full shrink-0 flex-col items-stretch gap-2 ${
+                    compact ? '' : 'md:w-auto md:items-end md:gap-2'
                   }`}
                 >
                   <div className="flex w-full justify-end">{viewToggle}</div>
                   <div
-                    className={`flex w-full flex-row items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-black/30 p-2 backdrop-blur-md ${
-                      compact ? '' : 'md:w-auto md:flex-col md:items-end md:gap-2 md:rounded-2xl md:p-5'
+                    className={`inline-flex w-full flex-row items-center justify-between gap-2 rounded-xl border border-zinc-800/80 bg-black/30 px-2.5 py-1.5 backdrop-blur-md ${
+                      compact ? '' : 'md:w-auto md:justify-start md:gap-2 md:rounded-xl md:px-3 md:py-1.5'
                     }`}
                   >
-                    <div className="flex min-w-0 flex-col">
-                      <div className={`flex gap-0.5 ${compact ? '' : 'md:gap-1'}`}>
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <Star
-                            key={i}
-                            className={`vbiz-review-star h-3 w-3 drop-shadow-[0_0_8px_rgba(238,214,119,0.4)] ${compact ? '' : 'md:h-5 md:w-5'} ${
-                              i <= Math.round(averageRating) ? 'fill-[#eed677] text-[#eed677]' : 'text-zinc-600'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span
-                        className={`mt-0.5 text-[8px] font-bold tracking-wider text-zinc-400 uppercase ${
-                          compact ? '' : 'md:mt-1 md:text-[10px]'
-                        }`}
-                      >
-                        {totalReviewsLabel} Verified Reviews
-                      </span>
-                    </div>
-                    <div className={`flex shrink-0 items-baseline gap-1 ${compact ? '' : 'md:gap-2'}`}>
-                      <span className={`text-sm font-black text-white ${compact ? '' : 'md:text-3xl'}`}>
+                    <div className="inline-flex min-w-0 items-center gap-1.5">
+                      <Star
+                        className="vbiz-review-star h-3.5 w-3.5 shrink-0 fill-[#eed677] text-[#eed677] drop-shadow-[0_0_8px_rgba(238,214,119,0.4)]"
+                        aria-hidden
+                      />
+                      <span className={`font-black text-white ${compact ? 'text-sm' : 'text-sm md:text-base'}`}>
                         {averageLabel}
                       </span>
-                      <span className={`text-[9px] font-medium text-zinc-500 ${compact ? '' : 'md:text-sm'}`}>
-                        / 5.0
+                      <span
+                        className={`truncate text-[9px] font-bold tracking-wider text-zinc-400 uppercase ${
+                          compact ? '' : 'md:text-[10px]'
+                        }`}
+                      >
+                        · {totalReviewsLabel} Verified Reviews
                       </span>
                     </div>
                   </div>
@@ -274,8 +258,8 @@ export const ReviewsSection = () => {
                       href={leaveReviewUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`relative z-10 flex w-full items-center justify-center gap-2 rounded-xl bg-[#eed677] px-3 py-2 text-[11px] font-bold text-zinc-950 shadow-lg shadow-yellow-500/10 transition-all hover:bg-yellow-500 active:scale-95 ${
-                        compact ? '' : 'max-w-[calc(100%-3.5rem)] md:max-w-none md:px-6 md:py-3 md:text-xs'
+                      className={`relative z-10 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#eed677] px-3 py-1.5 text-[11px] font-bold text-zinc-950 shadow-lg shadow-yellow-500/10 transition-all hover:bg-yellow-500 active:scale-95 ${
+                        compact ? '' : 'max-w-[calc(100%-3.5rem)] md:max-w-none md:px-4 md:py-2 md:text-xs'
                       }`}
                     >
                       <span>Leave a Review</span>

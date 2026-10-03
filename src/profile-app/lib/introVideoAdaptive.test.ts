@@ -3,9 +3,12 @@ import {
   applyCloudinaryVideoQuality,
   buildAdaptiveBackgroundVideoUrl,
   buildAdaptiveIntroUrl,
+  buildBackgroundVideoPosterUrl,
   canAdaptIntroUrl,
   lowerIntroQuality,
+  pickBackgroundQuality,
   pickIntroQuality,
+  resolveAdaptiveBackgroundVideoSrc,
   withVideoStartHint,
 } from './introVideoAdaptive'
 
@@ -35,6 +38,38 @@ describe('lowerIntroQuality', () => {
     expect(lowerIntroQuality(720)).toBe(540)
     expect(lowerIntroQuality(540)).toBe(360)
     expect(lowerIntroQuality(360)).toBeNull()
+  })
+})
+
+describe('pickBackgroundQuality', () => {
+  it('never goes above 540 and prefers 360 on weak links', () => {
+    expect(pickBackgroundQuality({ saveData: true })).toBe(360)
+    expect(pickBackgroundQuality({ effectiveType: '3g' })).toBe(360)
+    expect(pickBackgroundQuality({ downlink: 2 })).toBe(360)
+    expect(pickBackgroundQuality({ downlink: 8 })).toBe(540)
+    expect(pickBackgroundQuality({}, { isMobile: true, isSafari: true })).toBe(360)
+    expect(pickBackgroundQuality({}, { isMobile: false })).toBe(540)
+  })
+
+  it('keeps iPhone/Safari at 360 even on strong downlink hints', () => {
+    expect(pickBackgroundQuality({ downlink: 20 }, { isMobile: true, isSafari: true })).toBe(360)
+    expect(pickBackgroundQuality({ downlink: 20 }, { isMobile: true })).toBe(360)
+  })
+
+  it('resolves a lean Safari background URL with poster + start hint', () => {
+    const src = 'https://res.cloudinary.com/demo/video/upload/v1/bg.mp4'
+    const out = resolveAdaptiveBackgroundVideoSrc(src, {
+      isMobile: true,
+      isSafari: true,
+      hints: { downlink: 20 },
+    })
+    expect(out).toContain('w_360')
+    expect(out).toContain('ac_none')
+    expect(out).toContain('br_180k')
+    expect(out).toContain('fps_20')
+    expect(out).toContain('#t=0.001')
+    expect(buildBackgroundVideoPosterUrl(src)).toContain('so_0,f_jpg,w_360')
+    expect(buildAdaptiveBackgroundVideoUrl(src, 360, { lean: true })).toContain('q_auto:low')
   })
 })
 

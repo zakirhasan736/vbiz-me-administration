@@ -10,12 +10,7 @@ import {
   type CardWallpaperConfig,
   type WallpaperPatternId,
 } from '@/lib/theme/wallpaper'
-import {
-  buildAdaptiveBackgroundVideoUrl,
-  pickIntroQuality,
-  readNetworkHints,
-  withVideoStartHint,
-} from '@/profile-app/lib/introVideoAdaptive'
+import { buildBackgroundVideoPosterUrl, resolveAdaptiveBackgroundVideoSrc } from '@/profile-app/lib/introVideoAdaptive'
 import { cn } from '@/utils/cn'
 import { forwardRef, useEffect, useMemo, useRef, type CSSProperties, type MutableRefObject } from 'react'
 
@@ -37,6 +32,22 @@ function isCoarsePointerDevice() {
   if (isIosDevice()) return true
   if (/Android/i.test(navigator.userAgent || '')) return true
   return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1
+}
+
+function applySafariBgPlayFlags(el: HTMLVideoElement) {
+  el.muted = true
+  el.defaultMuted = true
+  el.playsInline = true
+  el.setAttribute('muted', '')
+  el.setAttribute('playsinline', '')
+  el.setAttribute('webkit-playsinline', 'true')
+  el.setAttribute('x5-playsinline', 'true')
+  el.setAttribute('autoplay', '')
+  try {
+    el.setAttribute('preload', 'auto')
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -144,68 +155,84 @@ function WallpaperMedia({
   setVideoRef: (node: HTMLVideoElement | null) => void
   localVideoRef: MutableRefObject<HTMLVideoElement | null>
 }) {
+  const safariLike = isSafariBrowser() || isIosDevice()
   const adaptiveSrc = useMemo(() => {
     if (!treatAsVideo) return src
-    const quality = pickIntroQuality(readNetworkHints(), {
+    return resolveAdaptiveBackgroundVideoSrc(src, {
       isMobile: isCoarsePointerDevice(),
-      isSafari: isSafariBrowser() || isIosDevice(),
+      isSafari: safariLike,
     })
-    return withVideoStartHint(buildAdaptiveBackgroundVideoUrl(src, quality))
+  }, [safariLike, src, treatAsVideo])
+
+  const posterSrc = useMemo(() => {
+    if (!treatAsVideo) return undefined
+    return buildBackgroundVideoPosterUrl(src) || undefined
   }, [src, treatAsVideo])
 
+  // Always mount the <video> for home backgrounds so warmup + real player share cache.
+  // `deferVideo` used to delay mount until intersection — that caused a post-intro wait.
+  const showVideo = treatAsVideo && (!deferVideo || videoVisible)
+
   useEffect(() => {
-    if (!treatAsVideo || (deferVideo && !videoVisible)) return
+    if (!showVideo) return
     const el = localVideoRef.current
     if (!el) return
 
-    el.muted = true
-    el.defaultMuted = true
-    el.playsInline = true
-    el.setAttribute('muted', '')
-    el.setAttribute('playsinline', '')
-    el.setAttribute('webkit-playsinline', 'true')
+    applySafariBgPlayFlags(el)
 
     const tryPlay = () => {
+      applySafariBgPlayFlags(el)
       if (el.paused) void el.play().catch(() => undefined)
     }
 
-    try {
-      el.load()
-    } catch {
-      /* ignore */
-    }
     tryPlay()
+    el.addEventListener('loadedmetadata', tryPlay)
     el.addEventListener('loadeddata', tryPlay)
     el.addEventListener('canplay', tryPlay)
+    el.addEventListener('canplaythrough', tryPlay)
+
+    // iOS Safari often pauses muted bg video when the tab resumes / Low Power Mode lifts.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tryPlay()
+    }
+    const onPageShow = () => tryPlay()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('pageshow', onPageShow)
+
     return () => {
+      el.removeEventListener('loadedmetadata', tryPlay)
       el.removeEventListener('loadeddata', tryPlay)
       el.removeEventListener('canplay', tryPlay)
+      el.removeEventListener('canplaythrough', tryPlay)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('pageshow', onPageShow)
     }
-  }, [adaptiveSrc, deferVideo, localVideoRef, treatAsVideo, videoVisible])
+  }, [adaptiveSrc, localVideoRef, showVideo])
 
-  const media =
-    treatAsVideo && deferVideo && !videoVisible ? (
-      <div className="absolute inset-0 h-full w-full bg-zinc-200 dark:bg-zinc-900" aria-hidden />
-    ) : treatAsVideo ? (
-      <video
-        ref={setVideoRef}
-        src={adaptiveSrc}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        disableRemotePlayback
-        className={mediaClasses}
-        {...{
-          'webkit-playsinline': 'true',
-          'x5-playsinline': 'true',
-        }}
-      />
-    ) : (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt} className={mediaClasses} />
-    )
+  const media = showVideo ? (
+    <video
+      ref={setVideoRef}
+      src={adaptiveSrc}
+      poster={posterSrc}
+      autoPlay
+      loop
+      muted
+      playsInline
+      preload="auto"
+      disablePictureInPicture
+      disableRemotePlayback
+      className={mediaClasses}
+      {...{
+        'webkit-playsinline': 'true',
+        'x5-playsinline': 'true',
+      }}
+    />
+  ) : treatAsVideo ? (
+    <div className="absolute inset-0 h-full w-full bg-zinc-200 dark:bg-zinc-900" aria-hidden />
+  ) : (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} className={mediaClasses} />
+  )
 
   // Clip filter:blur + scale so paint cannot escape the cover slot.
   if (isBlur) {
