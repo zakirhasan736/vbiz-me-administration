@@ -247,6 +247,8 @@ export type VCardTabSectionMetaEntry = {
   /** Missing uses the section default; empty string hides the description. */
   bannerDescription?: string
   notes?: string
+  /** Reviews tab only — public “Leave a Review” CTA target. */
+  leaveReviewUrl?: string
 }
 
 export type VCardTabSectionMeta = Record<string, VCardTabSectionMetaEntry>

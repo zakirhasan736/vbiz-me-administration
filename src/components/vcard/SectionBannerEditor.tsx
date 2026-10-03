@@ -2,9 +2,11 @@
 
 import { Modal } from '@/components/ui'
 import { useVCard } from '@/lib/VCardContext'
+import { extractLeaveReviewUrlFromList, withoutLeaveReviewEntries } from '@/lib/vcardReviews'
 import { defaultBannerDescription, getTabSectionMetaEntry, upsertTabSectionMetaEntry } from '@/lib/vcardTabSectionMeta'
-import { Highlighter, StickyNote, Type, X } from 'lucide-react'
-import { useState } from 'react'
+import type { VCardTabSectionMetaEntry } from '@/types/vcard'
+import { ExternalLink, Highlighter, StickyNote, Type, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-sm'
@@ -22,12 +24,45 @@ export function SectionBannerEditor({ tabId, tabName }: SectionBannerEditorProps
   const titleValue = meta.bannerTitle ?? tabName
   const descriptionValue = meta.bannerDescription === undefined ? defaultDescription : meta.bannerDescription
   const notesValue = meta.notes ?? ''
+  const legacyLeaveReviewUrl = extractLeaveReviewUrlFromList(vCardData.reviews)
+  const leaveReviewUrlValue = meta.leaveReviewUrl ?? legacyLeaveReviewUrl
   const hasNotes = Boolean(notesValue.trim())
+  const isReviewsTab = tabId.trim() === 'reviews'
   const [notesOpen, setNotesOpen] = useState(false)
+  const migratedLeaveReviewRef = useRef(false)
+
+  const stripLegacyLeaveReviewRows = () => {
+    const cleaned = withoutLeaveReviewEntries(vCardData.reviews)
+    if (cleaned.length !== (vCardData.reviews?.length ?? 0)) {
+      updateData('reviews', cleaned)
+    }
+  }
+
+  // Move legacy “Leave a Review” list CTAs into the banner field once.
+  useEffect(() => {
+    if (!isReviewsTab || migratedLeaveReviewRef.current) return
+    const fromList = extractLeaveReviewUrlFromList(vCardData.reviews)
+    if (!fromList) {
+      migratedLeaveReviewRef.current = true
+      return
+    }
+
+    migratedLeaveReviewRef.current = true
+    if (!meta.leaveReviewUrl?.trim()) {
+      updateData(
+        'tabSectionMeta',
+        upsertTabSectionMetaEntry(vCardData.tabSectionMeta, tabId, { leaveReviewUrl: fromList })
+      )
+    }
+    const cleaned = withoutLeaveReviewEntries(vCardData.reviews)
+    if (cleaned.length !== (vCardData.reviews?.length ?? 0)) {
+      updateData('reviews', cleaned)
+    }
+  }, [isReviewsTab, meta.leaveReviewUrl, tabId, updateData, vCardData.reviews, vCardData.tabSectionMeta])
 
   if (!tabId.trim()) return null
 
-  const patch = (next: { bannerTitle?: string; bannerDescription?: string; notes?: string }) => {
+  const patch = (next: VCardTabSectionMetaEntry) => {
     updateData('tabSectionMeta', upsertTabSectionMetaEntry(vCardData.tabSectionMeta, tabId, next))
   }
 
@@ -80,6 +115,28 @@ export function SectionBannerEditor({ tabId, tabName }: SectionBannerEditorProps
             className={textareaClasses}
           />
         </div>
+        {isReviewsTab ? (
+          <div className="sm:col-span-2">
+            <label className="mb-1 flex items-center gap-1.5 pl-0.5 text-[10px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+              <ExternalLink className="h-3 w-3" />
+              Leave a review URL
+            </label>
+            <input
+              type="url"
+              value={leaveReviewUrlValue}
+              onChange={(event) => {
+                patch({ leaveReviewUrl: event.target.value })
+                stripLegacyLeaveReviewRows()
+              }}
+              placeholder="https://g.page/r/… or Google / Yelp review link"
+              className={inputClasses}
+            />
+            <p className="mt-1.5 pl-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              Shows a small “Leave a Review” button on the public Reviews banner. Existing leave-review links from the
+              review list are moved here automatically. Leave empty to hide it.
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <Modal

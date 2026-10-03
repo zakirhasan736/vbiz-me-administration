@@ -1,7 +1,7 @@
 import type { ReviewItem, ReviewsSectionResponse } from '@/interfaces/api/reviews.interface'
 import { describe, expect, it } from 'vitest'
 
-import { mapReviewItemToListItem, normalizeReviewsResponse } from './mapReviews'
+import { mapReviewItemToListItem, normalizeReviewsResponse, sanitizeReviewUrl } from './mapReviews'
 
 function response(items: ReviewItem[]): ReviewsSectionResponse {
   return {
@@ -126,5 +126,12 @@ describe('review response mapping', () => {
       linkUrl: 'https://legacy.example.com/review',
       isLinkCard: false,
     })
+  })
+
+  it('forgives review URLs missing a protocol and rejects unsafe schemes', () => {
+    expect(sanitizeReviewUrl('g.page/r/example/review')).toBe('https://g.page/r/example/review')
+    expect(sanitizeReviewUrl('https://reviews.example.com/new')).toBe('https://reviews.example.com/new')
+    expect(sanitizeReviewUrl('javascript:alert(1)')).toBeNull()
+    expect(sanitizeReviewUrl('data:text/html,bad')).toBeNull()
   })
 })

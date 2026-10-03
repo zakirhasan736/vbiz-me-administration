@@ -60,4 +60,23 @@ describe('vcardTabSectionMeta', () => {
       notes: 'Please read before booking.',
     })
   })
+
+  it('round-trips leaveReviewUrl on the reviews tab', () => {
+    const raw = serializeTabSectionMeta(
+      upsertTabSectionMetaEntry({}, 'reviews', {
+        leaveReviewUrl: 'https://g.page/r/example/review',
+      })
+    )
+    const parsed = parseTabSectionMeta(raw)
+    expect(parsed.reviews).toEqual({
+      leaveReviewUrl: 'https://g.page/r/example/review',
+    })
+    expect(
+      resolveSectionBanner({
+        tabId: 'reviews',
+        tabName: 'Reviews',
+        meta: parsed.reviews,
+      }).leaveReviewUrl
+    ).toBe('https://g.page/r/example/review')
+  })
 })

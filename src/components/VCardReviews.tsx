@@ -197,7 +197,7 @@ export function TabReviews() {
                     <input
                       value={item.url || ''}
                       onChange={(e) => updateReview(item.id, { url: e.target.value })}
-                      placeholder="Leave a review URL (Google, Yelp, optional)"
+                      placeholder="Original review URL (optional — whole card opens this link)"
                       className={inputClasses}
                     />
                   </ExpandableEntryBody>

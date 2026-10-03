@@ -1,9 +1,11 @@
 'use client'
 
+import { sanitizeReviewUrl } from '@/lib/api/reviews/mapReviews'
 import { AllReviewsView, SliderReviewCard } from '@/profile-app/components/AllReviewsView'
 import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { openExternalInNewTab } from '@/profile-app/lib/profileExternalLinks'
 import { useResolvedSectionTitle, useSectionBanner } from '@/profile-app/lib/sectionTitleContext'
 import { SectionBannerNotes, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetReviewsQuery } from '@/redux/api'
@@ -22,7 +24,14 @@ import {
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react'
+
+function openReviewLink(url: string | null | undefined, event?: MouseEvent | KeyboardEvent) {
+  if (!url) return
+  event?.preventDefault()
+  event?.stopPropagation()
+  openExternalInNewTab(url)
+}
 
 const SKELETON_CARD_COUNT = 4
 
@@ -81,7 +90,7 @@ export const ReviewsSection = () => {
     fallbackTitle: sectionTitle,
     fallbackDescription: 'Read what clients and partners are saying about working together — or leave your own review.',
   })
-  const leaveReviewUrl = data?.leaveReviewUrl ?? null
+  const leaveReviewUrl = sanitizeReviewUrl(banner.leaveReviewUrl) || data?.leaveReviewUrl || null
   const reviewCount = data?.reviewCount ?? 0
   const averageRating = data?.averageRating ?? 0
   const slideCount = slides.length
@@ -311,6 +320,7 @@ export const ReviewsSection = () => {
         >
           {slides.map((item, idx) => {
             const isFeatured = idx === 0 || idx === 3
+            const hasLink = Boolean(item.linkUrl)
 
             return (
               <motion.div
@@ -318,7 +328,21 @@ export const ReviewsSection = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
                 key={item.id}
+                role={hasLink ? 'link' : undefined}
+                tabIndex={hasLink ? 0 : undefined}
+                aria-label={hasLink ? `Open original review by ${item.title || 'reviewer'}` : undefined}
+                onClick={(event) => {
+                  if (hasLink) openReviewLink(item.linkUrl, event)
+                }}
+                onKeyDown={(event) => {
+                  if (!hasLink) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    openReviewLink(item.linkUrl, event)
+                  }
+                }}
                 className={`vbiz-review-card group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80 ${
+                  hasLink ? 'cursor-pointer' : ''
+                } ${
                   compact
                     ? `col-span-1 p-4 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 dark:from-zinc-900/80 dark:to-zinc-900/40' : ''}`
                     : `p-6 sm:p-8 ${isFeatured ? 'bg-linear-to-br from-white to-zinc-50 md:col-span-2 lg:col-span-2 dark:from-zinc-900/80 dark:to-zinc-900/40' : 'col-span-1'}`
@@ -372,14 +396,9 @@ export const ReviewsSection = () => {
                       </p>
                     ) : null}
                     {item.linkUrl ? (
-                      <Link
-                        href={item.linkUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="vbiz-review-user-meta mt-1 inline-flex items-center gap-1 text-xs font-bold text-zinc-500 underline-offset-4 hover:underline dark:text-zinc-400"
-                      >
+                      <span className="vbiz-review-user-meta mt-1 inline-flex items-center gap-1 text-xs font-bold text-zinc-500 dark:text-zinc-400">
                         View Original Review <ExternalLink size={12} />
-                      </Link>
+                      </span>
                     ) : null}
                   </div>
                 </div>
@@ -470,11 +489,28 @@ export const ReviewsSection = () => {
                     initial={false}
                     animate={{ x: xTranslate, z: zTranslate, rotateY: yRotate, scale, zIndex, opacity }}
                     transition={{ type: 'spring', damping: 24, stiffness: 160 }}
+                    role={item.linkUrl && absOffset === 0 ? 'link' : undefined}
+                    tabIndex={item.linkUrl && absOffset === 0 ? 0 : undefined}
+                    aria-label={
+                      item.linkUrl && absOffset === 0
+                        ? `Open original review by ${item.title || 'reviewer'}`
+                        : undefined
+                    }
                     onClick={() => {
                       if (absOffset !== 0 && !isTransitioning) {
                         setIsTransitioning(true)
                         setActiveIndex(idx)
                         setTimeout(() => setIsTransitioning(false), 350)
+                        return
+                      }
+                      if (absOffset === 0 && item.linkUrl) {
+                        openReviewLink(item.linkUrl)
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (absOffset !== 0 || !item.linkUrl) return
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        openReviewLink(item.linkUrl, event)
                       }
                     }}
                     className={`vbiz-review-card transform-style-3d group/card absolute flex cursor-pointer flex-col justify-between overflow-hidden rounded-4xl border border-zinc-200 bg-white shadow-2xl transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900 ${
