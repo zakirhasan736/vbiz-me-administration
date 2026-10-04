@@ -457,6 +457,13 @@
   padding: 0.75rem 1rem;
 }
 
+.vcard-rich-editor.ProseMirror strong,
+.vcard-rich-editor.ProseMirror b,
+.vcard-rich-html strong,
+.vcard-rich-html b {
+  font-weight: 900 !important;
+}
+
 .vcard-rich-editor.ProseMirror a,
 .vcard-rich-html a {
   color: rgb(79 70 229);

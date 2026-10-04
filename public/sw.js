@@ -214,7 +214,8 @@ function buildNotificationCopy(payload) {
   const detail = rawBody || `${name} ${action}.`
   let displayLink = ''
   if (payload.slug) {
-    displayLink = isLocalDevHost() ? `${PUBLIC_CARD_HOST}/v/${payload.slug}` : `${self.location.host}/v/${payload.slug}`
+    const slugPath = cardPathFromSlug(payload.slug).replace(/^\//, '')
+    displayLink = isLocalDevHost() ? `${PUBLIC_CARD_HOST}/${slugPath}` : `${self.location.host}/${slugPath}`
   }
 
   const body = displayLink ? `${detail}\nOpen card · ${displayLink}` : `${detail}\nTap to open card`
@@ -299,10 +300,10 @@ self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
-const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v2'
-const CARD_DATA_CACHE = 'vbiz-public-card-data-v2'
-const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v2'
-const NEXT_STATIC_CACHE = 'vbiz-next-static-v2'
+const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v3'
+const CARD_DATA_CACHE = 'vbiz-public-card-data-v3'
+const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v3'
+const NEXT_STATIC_CACHE = 'vbiz-next-static-v3'
 const MANAGED_CACHES = [CARD_SHELL_CACHE, CARD_DATA_CACHE, CARD_ASSET_CACHE, NEXT_STATIC_CACHE, CARD_PUSH_MEDIA_CACHE]
 
 self.addEventListener('activate', (event) => {

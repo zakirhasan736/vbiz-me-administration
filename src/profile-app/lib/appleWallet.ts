@@ -1,3 +1,4 @@
+import { notify } from '@/lib/toast/toast'
 import { walletHttpErrorMessage } from '@/profile-app/lib/walletErrors'
 import { baseUrl } from '@/redux/api/publicApi'
 
@@ -10,23 +11,44 @@ export function resolveAppleWalletUrl(slug?: string): string | null {
 function isIosDevice(): boolean {
   if (typeof navigator === 'undefined') return false
   return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   )
 }
 
+/** Instagram / Facebook / etc. in-app browsers cannot hand .pkpass to Wallet. */
+function isRestrictedInAppBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  return /FBAN|FBAV|Instagram|Line\/|LinkedInApp|Twitter|MicroMessenger|Snapchat|TikTok/i.test(ua)
+}
+
 /**
- * Downloads the signed .pkpass. On iPhone/iPad Safari, opening the API URL
- * lets Wallet show Add Pass. On desktop, the file downloads.
+ * Opens the signed .pkpass for Apple Wallet.
+ *
+ * iPhone/Safari: navigate straight to the API URL in the same tap (no about:blank,
+ * no await before navigation). Safari hands the Content-Type to Wallet → Add Pass.
+ * Desktop: download the .pkpass file.
  */
 export async function downloadAppleWalletPass(slug?: string): Promise<void> {
-  const { notify } = await import('@/lib/toast/toast')
   const endpoint = resolveAppleWalletUrl(slug)
   if (!endpoint) {
     notify.info('Apple Wallet is unavailable in preview.')
     return
   }
 
-  const passTab = window.open('about:blank', '_blank')
+  if (isRestrictedInAppBrowser()) {
+    notify.info('Open this card in Safari, then tap Save to Apple Wallet. In-app browsers cannot add passes.')
+    return
+  }
+
+  // iOS: must navigate in the same user-gesture turn. Any await before this
+  // (toast dynamic import, fetch, blank tab) causes a blank page or blocked handoff.
+  if (isIosDevice()) {
+    notify.info('Opening Apple Wallet…')
+    window.location.assign(endpoint)
+    return
+  }
+
   notify.info('Generating your Apple Wallet pass…')
 
   try {
@@ -45,17 +67,6 @@ export async function downloadAppleWalletPass(slug?: string): Promise<void> {
       throw new Error(walletHttpErrorMessage(response.status, payload, 'Apple Wallet'))
     }
 
-    if (isIosDevice()) {
-      if (passTab && !passTab.closed) {
-        passTab.opener = null
-        passTab.location.href = endpoint
-      } else {
-        window.location.href = endpoint
-      }
-      notify.success('Opening Apple Wallet…')
-      return
-    }
-
     const blob = await response.blob()
     const file = new Blob([blob], { type: 'application/vnd.apple.pkpass' })
     const objectUrl = URL.createObjectURL(file)
@@ -66,10 +77,8 @@ export async function downloadAppleWalletPass(slug?: string): Promise<void> {
     link.click()
     link.remove()
     URL.revokeObjectURL(objectUrl)
-    passTab?.close()
-    notify.success('Apple Wallet pass downloaded. Email or AirDrop the .pkpass to your iPhone, then tap it to add.')
+    notify.success('Apple Wallet pass downloaded. AirDrop or email the .pkpass to your iPhone, then tap it to add.')
   } catch (error) {
-    passTab?.close()
     notify.error(error instanceof Error ? error.message : 'Could not open Apple Wallet.')
   }
 }

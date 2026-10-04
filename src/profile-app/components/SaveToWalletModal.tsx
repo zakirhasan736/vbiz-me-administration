@@ -64,6 +64,10 @@ export function SaveToWalletModal({ isOpen, onClose, cardSlug, ownerName }: Save
           <p className="vbiz-description mt-1.5 text-sm leading-relaxed sm:mt-2">
             Add {holder}&apos;s digital card to Apple Wallet or Google Wallet.
           </p>
+          <p className="vbiz-description mt-1 text-[11px] leading-snug opacity-80">
+            On iPhone, use Safari (not Instagram/Facebook in-app browser). Tap Add in the Wallet sheet, then check the
+            Wallet app under Cards / Passes.
+          </p>
         </div>
 
         <div className="mb-4 overflow-visible px-0.5 sm:mb-5">

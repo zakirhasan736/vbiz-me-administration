@@ -1128,8 +1128,15 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root .vcard-rich-html b,
 .vbiz-profile-root .prose strong,
 .vbiz-profile-root .prose b {
-  color: var(--vbiz-accent) !important;
-  font-weight: 700 !important;
+  color: var(--vbiz-accent);
+  font-weight: 900 !important;
+}
+/* Picker text color must win when it wraps bold. */
+.vbiz-profile-root .vcard-rich-html [style*='color'] strong,
+.vbiz-profile-root .vcard-rich-html [style*='color'] b,
+.vbiz-profile-root .prose [style*='color'] strong,
+.vbiz-profile-root .prose [style*='color'] b {
+  color: inherit;
 }
 .vbiz-profile-root .vcard-rich-html em,
 .vbiz-profile-root .vcard-rich-html i,
@@ -1223,8 +1230,12 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
 }
 .vbiz-profile-root .vcard-faq-answer strong,
 .vbiz-profile-root .vcard-faq-answer b {
-  color: var(--vbiz-accent) !important;
-  font-weight: 700 !important;
+  color: var(--vbiz-accent);
+  font-weight: 900 !important;
+}
+.vbiz-profile-root .vcard-faq-answer [style*='color'] strong,
+.vbiz-profile-root .vcard-faq-answer [style*='color'] b {
+  color: inherit;
 }
 .vbiz-profile-root .vcard-faq-answer mark,
 .vbiz-profile-root .vcard-faq-answer a {

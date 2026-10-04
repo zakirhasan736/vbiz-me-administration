@@ -105,32 +105,6 @@ const HEADING_OPTIONS: { label: string; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 }[] = [
 const TEXT_COLORS = ['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777', '#eab308']
 const HIGHLIGHT_COLORS = ['#fef08a', '#bbf7d0', '#bae6fd', '#fbcfe8', '#ddd6fe', '#fed7aa', '#e5e7eb']
 
-const ThemeAwareColor = Color.extend({
-  addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          color: {
-            default: null,
-            parseHTML: (element: HTMLElement) => {
-              const raw = element.getAttribute('style') || ''
-              const fromStyle = raw.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i)?.[1]
-              const value = (fromStyle || element.style.color || '').replace(/['"]+/g, '').trim()
-              if (!value || isThemeNeutralColor(value)) return null
-              return value
-            },
-            renderHTML: (attributes: { color?: string | null }) => {
-              if (!attributes.color || isThemeNeutralColor(attributes.color)) return {}
-              return { style: `color: ${attributes.color}` }
-            },
-          },
-        },
-      },
-    ]
-  },
-})
-
 const ALIGN_OPTIONS: { label: string; value: 'left' | 'center' | 'right' | 'justify' }[] = [
   { label: 'Align left', value: 'left' },
   { label: 'Align center', value: 'center' },
@@ -156,13 +130,20 @@ const EDITOR_ACCENT_CSS = `
 .vcard-rich-editor [style*='color: black'] { color: inherit !important; }
 .vcard-rich-editor strong, .vcard-rich-editor b {
   color: var(--rte-accent, #eab308);
-  font-weight: 700;
+  font-weight: 900 !important;
+}
+/* When text color wraps bold, inherit the picker color instead of accent. */
+.vcard-rich-editor [style*='color'] strong,
+.vcard-rich-editor [style*='color'] b {
+  color: inherit;
 }
 .vcard-rich-editor em, .vcard-rich-editor i { font-style: italic; }
 .vcard-rich-editor u { text-decoration: underline; }
 .vcard-rich-editor s, .vcard-rich-editor strike, .vcard-rich-editor del { text-decoration: line-through; }
-.vcard-rich-editor mark:not([style*='background']) { background-color: color-mix(in srgb, var(--rte-accent, #eab308) 42%, white); }
 .vcard-rich-editor mark { color: inherit; }
+.vcard-rich-editor mark:not([style*='background']) {
+  background-color: color-mix(in srgb, var(--rte-accent, #eab308) 42%, white);
+}
 .vcard-rich-editor a { color: var(--rte-accent, #eab308); text-decoration: underline; }
 .vcard-rich-editor ul { list-style: disc; padding-left: 1.25rem; margin: 0.4em 0; }
 .vcard-rich-editor ol { list-style: decimal; padding-left: 1.25rem; margin: 0.4em 0; }
@@ -187,25 +168,26 @@ function currentHeadingLabel(editor: Editor): string {
   return 'Paragraph'
 }
 
-function ensureParagraphBlock(editor: Editor) {
-  if (shouldDefaultToParagraph(editor)) return editor.chain().focus().setParagraph()
-  return editor.chain().focus()
+/** Keep the current selection (or stored marks when collapsed). Never expand to the whole block. */
+function chainForInlineMark(editor: Editor) {
+  const { from, to, empty } = editor.state.selection
+  const chain = editor.chain().focus()
+  if (!empty) return chain.setTextSelection({ from, to })
+  return chain
 }
 
 function applyTextColor(editor: Editor, color: string | null) {
-  const { empty, $from } = editor.state.selection
-  let chain = ensureParagraphBlock(editor)
-  if (empty) {
-    const from = $from.start()
-    const to = $from.end()
-    if (to > from) chain = chain.setTextSelection({ from, to })
+  const chain = chainForInlineMark(editor)
+  if (color && !isThemeNeutralColor(color)) {
+    // setMark on textStyle — avoid Color.setColor which calls .run() internally and can drop chained selection.
+    chain.setMark('textStyle', { color }).run()
+    return
   }
-  if (color && !isThemeNeutralColor(color)) chain.setColor(color).run()
-  else chain.unsetColor().run()
+  chain.setMark('textStyle', { color: null }).removeEmptyTextStyle().run()
 }
 
 function applyHighlightColor(editor: Editor, color: string | null) {
-  const chain = ensureParagraphBlock(editor)
+  const chain = chainForInlineMark(editor)
   if (!color) {
     chain.unsetHighlight().run()
     return
@@ -214,7 +196,9 @@ function applyHighlightColor(editor: Editor, color: string | null) {
 }
 
 function toggleBoldMark(editor: Editor) {
-  ensureParagraphBlock(editor).toggleBold().run()
+  const chain = chainForInlineMark(editor)
+  // Toggle only the current selection (or stored mark when caret is collapsed).
+  chain.toggleBold().run()
 }
 
 function setLinkFromPrompt(editor: Editor) {
@@ -270,7 +254,8 @@ function SelectionBubbleMenu({ editor, accent }: { editor: Editor; accent: strin
     <BubbleMenu
       editor={editor}
       appendTo={() => document.body}
-      options={{ placement: 'top', offset: 10, flip: true, shift: true }}
+      updateDelay={0}
+      options={{ placement: 'top', offset: 10, flip: true, shift: true, strategy: 'fixed' }}
       shouldShow={({ editor: ed, state }) => {
         const { from, to, empty } = state.selection
         if (empty || !ed.isEditable) return false
@@ -304,14 +289,14 @@ function SelectionBubbleMenu({ editor, accent }: { editor: Editor; accent: strin
         <ToolbarBtn
           title="Italic"
           active={editor.isActive('italic')}
-          onClick={() => ensureParagraphBlock(editor).toggleItalic().run()}
+          onClick={() => chainForInlineMark(editor).toggleItalic().run()}
         >
           <Italic className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
           title="Underline"
           active={editor.isActive('underline')}
-          onClick={() => ensureParagraphBlock(editor).toggleUnderline().run()}
+          onClick={() => chainForInlineMark(editor).toggleUnderline().run()}
         >
           <UnderlineIcon className="h-4 w-4" />
         </ToolbarBtn>
@@ -494,15 +479,19 @@ function RichTextToolbar({
   const [, setTick] = useState(0)
   const [headingOpen, setHeadingOpen] = useState(false)
   const [colorOpen, setColorOpen] = useState(false)
+  const [highlightOpen, setHighlightOpen] = useState(false)
   const [alignOpen, setAlignOpen] = useState(false)
   const headingRef = useRef<HTMLDivElement>(null)
   const colorRef = useRef<HTMLDivElement>(null)
+  const highlightRef = useRef<HTMLDivElement>(null)
   const alignRef = useRef<HTMLDivElement>(null)
   const headingMenuRef = useRef<HTMLDivElement>(null)
   const colorMenuRef = useRef<HTMLDivElement>(null)
+  const highlightMenuRef = useRef<HTMLDivElement>(null)
   const alignMenuRef = useRef<HTMLDivElement>(null)
   const headingMenuStyle = useAnchoredMenuStyle(headingOpen, headingRef)
   const colorMenuStyle = useAnchoredMenuStyle(colorOpen, colorRef)
+  const highlightMenuStyle = useAnchoredMenuStyle(highlightOpen, highlightRef)
   const alignMenuStyle = useAnchoredMenuStyle(alignOpen, alignRef)
   const canPortal = typeof document !== 'undefined'
 
@@ -521,9 +510,11 @@ function RichTextToolbar({
       const t = e.target as Node
       const inHeading = headingRef.current?.contains(t) || headingMenuRef.current?.contains(t)
       const inColor = colorRef.current?.contains(t) || colorMenuRef.current?.contains(t)
+      const inHighlight = highlightRef.current?.contains(t) || highlightMenuRef.current?.contains(t)
       const inAlign = alignRef.current?.contains(t) || alignMenuRef.current?.contains(t)
       if (!inHeading) setHeadingOpen(false)
       if (!inColor) setColorOpen(false)
+      if (!inHighlight) setHighlightOpen(false)
       if (!inAlign) setAlignOpen(false)
     }
     document.addEventListener('mousedown', onDocClick)
@@ -564,6 +555,7 @@ function RichTextToolbar({
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               setColorOpen(false)
+              setHighlightOpen(false)
               setAlignOpen(false)
               setHeadingOpen((o) => !o)
             }}
@@ -623,21 +615,21 @@ function RichTextToolbar({
         <ToolbarBtn
           title="Italic"
           active={editor.isActive('italic')}
-          onClick={() => ensureParagraphBlock(editor).toggleItalic().run()}
+          onClick={() => chainForInlineMark(editor).toggleItalic().run()}
         >
           <Italic className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
           title="Underline"
           active={editor.isActive('underline')}
-          onClick={() => ensureParagraphBlock(editor).toggleUnderline().run()}
+          onClick={() => chainForInlineMark(editor).toggleUnderline().run()}
         >
           <UnderlineIcon className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
           title="Strikethrough"
           active={editor.isActive('strike')}
-          onClick={() => editor.chain().focus().toggleStrike().run()}
+          onClick={() => chainForInlineMark(editor).toggleStrike().run()}
         >
           <Strikethrough className="h-4 w-4" />
         </ToolbarBtn>
@@ -729,6 +721,7 @@ function RichTextToolbar({
             onClick={() => {
               setHeadingOpen(false)
               setColorOpen(false)
+              setHighlightOpen(false)
               setAlignOpen((open) => !open)
             }}
           >
@@ -771,6 +764,7 @@ function RichTextToolbar({
             onClick={() => {
               setHeadingOpen(false)
               setAlignOpen(false)
+              setHighlightOpen(false)
               setColorOpen((o) => !o)
             }}
           >
@@ -815,16 +809,57 @@ function RichTextToolbar({
             : null}
         </div>
 
-        <ToolbarBtn
-          title="Highlight"
-          active={editor.isActive('highlight')}
-          onClick={() => {
-            if (editor.isActive('highlight')) applyHighlightColor(editor, null)
-            else applyHighlightColor(editor, HIGHLIGHT_COLORS[0])
-          }}
-        >
-          <Highlighter className="h-4 w-4" />
-        </ToolbarBtn>
+        <div className="relative" ref={highlightRef}>
+          <ToolbarBtn
+            title="Highlight"
+            active={highlightOpen || editor.isActive('highlight')}
+            onClick={() => {
+              setHeadingOpen(false)
+              setAlignOpen(false)
+              setColorOpen(false)
+              setHighlightOpen((o) => !o)
+            }}
+          >
+            <Highlighter className="h-4 w-4" />
+          </ToolbarBtn>
+          {highlightOpen && canPortal
+            ? createPortal(
+                <div
+                  ref={highlightMenuRef}
+                  style={highlightMenuStyle}
+                  className="flex gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
+                >
+                  {HIGHLIGHT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      title={c}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        applyHighlightColor(editor, c)
+                        setHighlightOpen(false)
+                      }}
+                      className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    title="Clear highlight"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      applyHighlightColor(editor, null)
+                      setHighlightOpen(false)
+                    }}
+                    className="px-1 text-[10px] font-bold text-slate-500"
+                  >
+                    Clear
+                  </button>
+                </div>,
+                document.body
+              )
+            : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-0.5">
@@ -883,7 +918,7 @@ export function RichTextEditor({
       }),
       Underline,
       TextStyle.configure({ mergeNestedSpanStyles: true }),
-      ThemeAwareColor.configure({ types: ['textStyle'] }),
+      Color.configure({ types: ['textStyle'] }),
       Highlight.configure({ multicolor: true }),
       Subscript,
       Superscript,
