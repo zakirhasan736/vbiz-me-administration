@@ -264,7 +264,7 @@ export const HomeHero: React.FC<{
         >
           <div className="relative h-0 w-full max-w-258">
             <div
-              className={`pointer-events-auto absolute flex flex-col gap-3 ${compact ? 'top-24 right-1' : 'top-8 right-2 md:right-6'}`}
+              className={`pointer-events-auto absolute flex flex-col gap-2 ${compact ? 'top-24 right-1' : 'top-8 right-2 md:right-6'}`}
             >
               {/* Fixed rail: Eye → World (website) → Language → CRM → Theme */}
               <IconHoverTooltip label="Total views" placement="left">
