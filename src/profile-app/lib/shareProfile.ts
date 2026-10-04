@@ -40,27 +40,19 @@ export function toAbsoluteShareUrl(url: string): string {
 export function buildFacebookShareHref(shareUrl: string, shareText = '', options?: { mobile?: boolean }): string {
   const url = toAbsoluteShareUrl(shareUrl)
   const quote = [shareText.trim(), url].filter(Boolean).join(' ')
-  // Put the link in both `u` and `quote` — iOS Facebook app often drops `u`.
+  // Put the link in both `u` and `quote` — Facebook often drops a bare `u`.
   const params = new URLSearchParams()
   params.set('u', url)
   if (quote) params.set('quote', quote)
-  // Mobile sharer keeps the link more reliably when the Facebook app intercepts desktop sharer.php.
   const host = options?.mobile ? 'https://m.facebook.com/sharer.php' : 'https://www.facebook.com/sharer/sharer.php'
   return `${host}?${params.toString()}`
 }
 
-function openFacebookShareHref(href: string): void {
-  if (typeof window === 'undefined' || !href) return
-  // After an await, iOS often blocks window.open — location.assign still works.
-  if (isIosDevice()) {
-    try {
-      window.location.assign(href)
-      return
-    } catch {
-      /* fall through */
-    }
-  }
-  openShareWindow(href)
+/** Message body for iOS share sheet — URL must live in `text` (see shareToFacebook). */
+export function buildFacebookShareText(shareUrl: string, shareText = ''): string {
+  const url = toAbsoluteShareUrl(shareUrl)
+  // Trailing space helps iOS keep the full link when handing off to apps.
+  return [shareText.trim(), url].filter(Boolean).join('\n') + (url ? ' ' : '')
 }
 
 /**
@@ -97,26 +89,69 @@ export function openShareWindow(href: string): boolean {
   }
 }
 
+export type FacebookShareResult = 'shared' | 'opened' | 'cancelled' | 'failed'
+
 /**
- * Facebook share (esp. iPhone):
- * Do not route through navigator.share — choosing Facebook from the iOS sheet
- * often opens an empty composer (no URL, no friend suggestions).
- * Open Facebook's sharer in the same tap so `u` + `quote` carry the card link.
+ * Facebook on iPhone:
+ * Meta's sharer.php is broken when the Facebook app is installed (opens empty /
+ * “something went wrong”). The reliable path is the iOS share sheet — but the
+ * card link must be in `text` (not only `url`), or Facebook drops it.
+ * Clipboard is primed in parallel so the user can paste if an app still omits it.
  */
-export async function shareToFacebook(shareUrl: string, shareText: string, _title?: string): Promise<void> {
+export async function shareToFacebook(
+  shareUrl: string,
+  shareText: string,
+  title?: string
+): Promise<FacebookShareResult> {
   const url = toAbsoluteShareUrl(shareUrl)
-  if (!url) return
+  if (!url) return 'failed'
 
   const facebookHref = buildFacebookShareHref(url, shareText, { mobile: isIosDevice() })
+  const sheetText = buildFacebookShareText(url, shareText)
 
-  if (isIosDevice()) {
-    openFacebookShareHref(facebookHref)
-    return
+  if (isIosDevice() && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    // Do not await clipboard before share — that can drop the user-gesture token.
+    void navigator.clipboard?.writeText(url).catch(() => undefined)
+
+    try {
+      const payload: ShareData = {
+        title: title || 'Digital business card',
+        text: sheetText,
+        // Omit `url` on iOS: Facebook/Messages often replace or strip it.
+      }
+      if (typeof navigator.canShare === 'function' && !navigator.canShare(payload)) {
+        // Fall through to sharer / Facebook home
+      } else {
+        await navigator.share(payload)
+        return 'shared'
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return 'cancelled'
+      // Fall through
+    }
+
+    // Last resort: open Facebook; link is already on the clipboard.
+    if (openShareWindow('https://www.facebook.com/') || openShareWindow(facebookHref)) {
+      return 'opened'
+    }
+    try {
+      window.location.assign('https://www.facebook.com/')
+      return 'opened'
+    } catch {
+      return 'failed'
+    }
   }
 
-  if (!openShareWindow(facebookHref) && typeof window !== 'undefined') {
-    window.location.assign(facebookHref)
+  if (openShareWindow(facebookHref)) return 'opened'
+  if (typeof window !== 'undefined') {
+    try {
+      window.location.assign(facebookHref)
+      return 'opened'
+    } catch {
+      return 'failed'
+    }
   }
+  return 'failed'
 }
 
 export type InstagramShareResult = 'copied_opened' | 'opened_only' | 'failed'

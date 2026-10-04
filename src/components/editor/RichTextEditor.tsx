@@ -19,6 +19,7 @@ import { Underline } from '@tiptap/extension-underline'
 import { Youtube } from '@tiptap/extension-youtube'
 import { Placeholder } from '@tiptap/extensions'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import {
   AlignLeft,
@@ -101,7 +102,8 @@ const HEADING_OPTIONS: { label: string; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 }[] = [
   { label: 'Heading 6', level: 6 },
 ]
 
-const TEXT_COLORS = ['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
+const TEXT_COLORS = ['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777', '#eab308']
+const HIGHLIGHT_COLORS = ['#fef08a', '#bbf7d0', '#bae6fd', '#fbcfe8', '#ddd6fe', '#fed7aa', '#e5e7eb']
 
 const ThemeAwareColor = Color.extend({
   addGlobalAttributes() {
@@ -152,11 +154,15 @@ const EDITOR_ACCENT_CSS = `
 .vcard-rich-editor [style*='color:#000'],
 .vcard-rich-editor [style*='color: #000000'],
 .vcard-rich-editor [style*='color: black'] { color: inherit !important; }
-.vcard-rich-editor strong, .vcard-rich-editor b { color: inherit; font-weight: 700; }
+.vcard-rich-editor strong, .vcard-rich-editor b {
+  color: var(--rte-accent, #eab308);
+  font-weight: 700;
+}
 .vcard-rich-editor em, .vcard-rich-editor i { font-style: italic; }
 .vcard-rich-editor u { text-decoration: underline; }
 .vcard-rich-editor s, .vcard-rich-editor strike, .vcard-rich-editor del { text-decoration: line-through; }
-.vcard-rich-editor mark { background-color: color-mix(in srgb, var(--rte-accent, #eab308) 42%, white); color: inherit; }
+.vcard-rich-editor mark:not([style*='background']) { background-color: color-mix(in srgb, var(--rte-accent, #eab308) 42%, white); }
+.vcard-rich-editor mark { color: inherit; }
 .vcard-rich-editor a { color: var(--rte-accent, #eab308); text-decoration: underline; }
 .vcard-rich-editor ul { list-style: disc; padding-left: 1.25rem; margin: 0.4em 0; }
 .vcard-rich-editor ol { list-style: decimal; padding-left: 1.25rem; margin: 0.4em 0; }
@@ -198,11 +204,245 @@ function applyTextColor(editor: Editor, color: string | null) {
   else chain.unsetColor().run()
 }
 
+function applyHighlightColor(editor: Editor, color: string | null) {
+  const chain = ensureParagraphBlock(editor)
+  if (!color) {
+    chain.unsetHighlight().run()
+    return
+  }
+  chain.setHighlight({ color }).run()
+}
+
+function toggleBoldMark(editor: Editor) {
+  ensureParagraphBlock(editor).toggleBold().run()
+}
+
+function setLinkFromPrompt(editor: Editor) {
+  const prev = editor.getAttributes('link').href as string | undefined
+  const url = window.prompt('Enter URL', prev || 'https://')
+  if (url === null) return
+  const trimmed = url.trim()
+  if (!trimmed) {
+    editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    return
+  }
+  editor.chain().focus().extendMarkRange('link').setLink({ href: trimmed }).run()
+}
+
 function applyTypographyBlock(editor: Editor, level: 0 | 1 | 2 | 3 | 4 | 5 | 6) {
   const chain = editor.chain().focus().unsetColor()
   // Prefer setHeading over toggle so picking a style always applies (never toggles off).
   if (level === 0) chain.setParagraph().run()
   else chain.setHeading({ level }).run()
+}
+
+/**
+ * WordPress-style floating bar — appears instantly when text is selected.
+ * Bold / italic / underline / link / text size / text color / highlight.
+ */
+function SelectionBubbleMenu({ editor, accent }: { editor: Editor; accent: string }) {
+  const [, setTick] = useState(0)
+  const [panel, setPanel] = useState<'none' | 'size' | 'color' | 'highlight'>('none')
+
+  useEffect(() => {
+    const rerender = () => setTick((n) => n + 1)
+    editor.on('selectionUpdate', rerender)
+    editor.on('transaction', rerender)
+    return () => {
+      editor.off('selectionUpdate', rerender)
+      editor.off('transaction', rerender)
+    }
+  }, [editor])
+
+  useEffect(() => {
+    const onSel = () => {
+      if (editor.state.selection.empty) setPanel('none')
+    }
+    editor.on('selectionUpdate', onSel)
+    return () => {
+      editor.off('selectionUpdate', onSel)
+    }
+  }, [editor])
+
+  const textColors = accent && !TEXT_COLORS.includes(accent) ? [accent, ...TEXT_COLORS] : TEXT_COLORS
+
+  return (
+    <BubbleMenu
+      editor={editor}
+      appendTo={() => document.body}
+      options={{ placement: 'top', offset: 10, flip: true, shift: true }}
+      shouldShow={({ editor: ed, state }) => {
+        const { from, to, empty } = state.selection
+        if (empty || !ed.isEditable) return false
+        if (ed.isActive('codeBlock')) return false
+        return to - from > 0
+      }}
+      className="vbiz-rte-bubble flex max-w-[min(100vw-1.5rem,28rem)] flex-col gap-1 rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-[#0b0f19]"
+      style={{ zIndex: 10000 }}
+    >
+      <div className="flex flex-wrap items-center gap-0.5">
+        <button
+          type="button"
+          title="Text size"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setPanel((p) => (p === 'size' ? 'none' : 'size'))}
+          className={cn(
+            'inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold text-slate-700 dark:text-slate-200',
+            panel === 'size' ? 'bg-slate-200 dark:bg-white/15' : 'hover:bg-slate-100 dark:hover:bg-white/10'
+          )}
+        >
+          <Type className="h-3.5 w-3.5" />
+          {currentHeadingLabel(editor).replace('Heading ', 'H')}
+          <ChevronDown className="h-3 w-3 opacity-60" />
+        </button>
+
+        <ToolbarDivider />
+
+        <ToolbarBtn title="Bold" active={editor.isActive('bold')} onClick={() => toggleBoldMark(editor)}>
+          <Bold className="h-4 w-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          title="Italic"
+          active={editor.isActive('italic')}
+          onClick={() => ensureParagraphBlock(editor).toggleItalic().run()}
+        >
+          <Italic className="h-4 w-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          title="Underline"
+          active={editor.isActive('underline')}
+          onClick={() => ensureParagraphBlock(editor).toggleUnderline().run()}
+        >
+          <UnderlineIcon className="h-4 w-4" />
+        </ToolbarBtn>
+        <ToolbarBtn title="Link" active={editor.isActive('link')} onClick={() => setLinkFromPrompt(editor)}>
+          <Link2 className="h-4 w-4" />
+        </ToolbarBtn>
+
+        <ToolbarDivider />
+
+        <ToolbarBtn
+          title="Text color"
+          active={panel === 'color'}
+          onClick={() => setPanel((p) => (p === 'color' ? 'none' : 'color'))}
+        >
+          <span className="relative inline-flex h-4 w-4 items-center justify-center">
+            <Type className="h-3.5 w-3.5" />
+            <span
+              className="absolute right-0 bottom-0 h-1.5 w-1.5 rounded-full ring-1 ring-white dark:ring-[#0b0f19]"
+              style={{ backgroundColor: (editor.getAttributes('textStyle').color as string) || accent }}
+            />
+          </span>
+        </ToolbarBtn>
+        <ToolbarBtn
+          title="Highlight / background"
+          active={panel === 'highlight' || editor.isActive('highlight')}
+          onClick={() => setPanel((p) => (p === 'highlight' ? 'none' : 'highlight'))}
+        >
+          <Highlighter className="h-4 w-4" />
+        </ToolbarBtn>
+      </div>
+
+      {panel === 'size' ? (
+        <div className="flex flex-wrap gap-1 border-t border-slate-100 pt-1.5 dark:border-white/10">
+          {HEADING_OPTIONS.map((opt) => {
+            const active =
+              opt.level === 0 ? !editor.isActive('heading') : editor.isActive('heading', { level: opt.level })
+            return (
+              <button
+                key={opt.label}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  applyTypographyBlock(editor, opt.level)
+                  setPanel('none')
+                }}
+                className={cn(
+                  'rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200',
+                  active ? 'bg-slate-200 dark:bg-white/15' : 'hover:bg-slate-100 dark:hover:bg-white/10'
+                )}
+              >
+                {opt.label.replace('Heading ', 'H').replace('Paragraph', 'P')}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {panel === 'color' ? (
+        <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 pt-1.5 dark:border-white/10">
+          {textColors.map((c) => (
+            <button
+              key={c}
+              type="button"
+              title={c}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                applyTextColor(editor, c)
+                setPanel('none')
+              }}
+              className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+              style={{ backgroundColor: c }}
+            />
+          ))}
+          <button
+            type="button"
+            title="Clear text color"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              applyTextColor(editor, null)
+              setPanel('none')
+            }}
+            className="px-1.5 text-[10px] font-bold text-slate-500"
+          >
+            Clear
+          </button>
+        </div>
+      ) : null}
+
+      {panel === 'highlight' ? (
+        <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 pt-1.5 dark:border-white/10">
+          {HIGHLIGHT_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              title={c}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                applyHighlightColor(editor, c)
+                setPanel('none')
+              }}
+              className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+              style={{ backgroundColor: c }}
+            />
+          ))}
+          <button
+            type="button"
+            title="Accent highlight"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              applyHighlightColor(editor, accent)
+              setPanel('none')
+            }}
+            className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+            style={{ backgroundColor: `color-mix(in srgb, ${accent} 45%, white)` }}
+          />
+          <button
+            type="button"
+            title="Clear highlight"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              applyHighlightColor(editor, null)
+              setPanel('none')
+            }}
+            className="px-1.5 text-[10px] font-bold text-slate-500"
+          >
+            Clear
+          </button>
+        </div>
+      ) : null}
+    </BubbleMenu>
+  )
 }
 
 /** Dropdown menus portaled to body so parent overflow-hidden panels cannot clip them. */
@@ -290,17 +530,7 @@ function RichTextToolbar({
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [])
 
-  const setLink = useCallback(() => {
-    const prev = editor.getAttributes('link').href as string | undefined
-    const url = window.prompt('Enter URL', prev || 'https://')
-    if (url === null) return
-    const trimmed = url.trim()
-    if (!trimmed) {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      return
-    }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: trimmed }).run()
-  }, [editor])
+  const setLink = useCallback(() => setLinkFromPrompt(editor), [editor])
 
   const addImage = useCallback(() => {
     const url = window.prompt('Image URL', 'https://')
@@ -387,24 +617,20 @@ function RichTextToolbar({
 
         <ToolbarDivider />
 
-        <ToolbarBtn
-          title="Bold"
-          active={editor.isActive('bold')}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-        >
+        <ToolbarBtn title="Bold" active={editor.isActive('bold')} onClick={() => toggleBoldMark(editor)}>
           <Bold className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
           title="Italic"
           active={editor.isActive('italic')}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
+          onClick={() => ensureParagraphBlock(editor).toggleItalic().run()}
         >
           <Italic className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
           title="Underline"
           active={editor.isActive('underline')}
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          onClick={() => ensureParagraphBlock(editor).toggleUnderline().run()}
         >
           <UnderlineIcon className="h-4 w-4" />
         </ToolbarBtn>
@@ -592,7 +818,10 @@ function RichTextToolbar({
         <ToolbarBtn
           title="Highlight"
           active={editor.isActive('highlight')}
-          onClick={() => editor.chain().focus().toggleHighlight().run()}
+          onClick={() => {
+            if (editor.isActive('highlight')) applyHighlightColor(editor, null)
+            else applyHighlightColor(editor, HIGHLIGHT_COLORS[0])
+          }}
         >
           <Highlighter className="h-4 w-4" />
         </ToolbarBtn>
@@ -792,6 +1021,7 @@ export function RichTextEditor({
         />
       ) : (
         <div className="rounded-b-2xl [&_.ProseMirror]:min-h-[inherit]">
+          <SelectionBubbleMenu editor={editor} accent={accent} />
           <EditorContent editor={editor} />
         </div>
       )}

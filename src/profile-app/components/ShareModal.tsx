@@ -281,17 +281,23 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       href: buildFacebookShareHref(shareUrl, shareText),
       color: 'hover:bg-[#1877F2] hover:border-[#1877F2]/50 hover:text-white',
       textColor: 'text-[#1877F2]',
-      hint: 'Share card link on Facebook',
+      hint: 'Opens share sheet — pick Facebook (link is included + copied)',
       onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
-        // Keep this sync: iOS blocks popups / drops the URL if we wait on async share first.
         e.preventDefault()
         if (!shareUrl) {
           notify.error('Card link is still loading. Try Facebook again in a moment.')
           return
         }
-        void shareToFacebook(shareUrl, shareText, profileName || undefined).catch(() => {
+        void (async () => {
+          const result = await shareToFacebook(shareUrl, shareText, profileName || undefined)
+          // 'shared' = iOS sheet finished (URL was in the message + clipboard). No toast needed.
+          if (result === 'shared' || result === 'cancelled') return
+          if (result === 'opened') {
+            notify.info('Link copied — paste it in Facebook if the post is empty.')
+            return
+          }
           notify.error('Could not open Facebook share. Copy the card link above and paste it there.')
-        })
+        })()
       },
     },
   ]

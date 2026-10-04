@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFacebookShareHref, toAbsoluteShareUrl } from './shareProfile'
+import { buildFacebookShareHref, buildFacebookShareText, toAbsoluteShareUrl } from './shareProfile'
 
 describe('shareProfile helpers', () => {
   it('builds Facebook sharer with absolute u= and quote containing the card link', () => {
@@ -19,6 +19,15 @@ describe('shareProfile helpers', () => {
     expect(url.origin + url.pathname).toBe('https://m.facebook.com/sharer.php')
     expect(url.searchParams.get('u')).toBe('https://app.vbizme.com/vCard/demo')
     expect(url.searchParams.get('quote')).toContain('https://app.vbizme.com/vCard/demo')
+  })
+
+  it('puts the absolute card URL inside iOS Facebook share text', () => {
+    const text = buildFacebookShareText(
+      'https://app.vbizme.com/vCard/luzmarie',
+      "Check out LuzMarie's digital business card profile here:"
+    )
+    expect(text).toContain('https://app.vbizme.com/vCard/luzmarie')
+    expect(text.endsWith(' ')).toBe(true)
   })
 
   it('normalizes absolute share URLs and strips hash/query', () => {

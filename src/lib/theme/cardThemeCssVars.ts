@@ -1127,7 +1127,7 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root .vcard-rich-html b,
 .vbiz-profile-root .prose strong,
 .vbiz-profile-root .prose b {
-  color: inherit !important;
+  color: var(--vbiz-accent) !important;
   font-weight: 700 !important;
 }
 .vbiz-profile-root .vcard-rich-html em,
@@ -1147,9 +1147,12 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root .prose del {
   text-decoration: line-through;
 }
+.vbiz-profile-root .vcard-rich-html mark:not([style*='background']),
+.vbiz-profile-root .prose mark:not([style*='background']) {
+  background-color: color-mix(in srgb, var(--vbiz-accent) 42%, transparent) !important;
+}
 .vbiz-profile-root .vcard-rich-html mark,
 .vbiz-profile-root .prose mark {
-  background-color: color-mix(in srgb, var(--vbiz-accent) 42%, transparent) !important;
   color: inherit !important;
 }
 .vbiz-profile-root .vcard-rich-html a,
@@ -1219,14 +1222,14 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
 }
 .vbiz-profile-root .vcard-faq-answer strong,
 .vbiz-profile-root .vcard-faq-answer b {
-  color: inherit !important;
+  color: var(--vbiz-accent) !important;
   font-weight: 700 !important;
 }
 .vbiz-profile-root .vcard-faq-answer mark,
 .vbiz-profile-root .vcard-faq-answer a {
   color: var(--vbiz-accent) !important;
 }
-.vbiz-profile-root .vcard-faq-answer mark {
+.vbiz-profile-root .vcard-faq-answer mark:not([style*='background']) {
   background-color: color-mix(in srgb, var(--vbiz-accent) 42%, transparent) !important;
 }
 
