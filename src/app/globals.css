@@ -461,7 +461,8 @@
 .vcard-rich-editor.ProseMirror b,
 .vcard-rich-html strong,
 .vcard-rich-html b {
-  font-weight: 900 !important;
+  color: inherit;
+  font-weight: 700 !important;
 }
 
 .vcard-rich-editor.ProseMirror a,

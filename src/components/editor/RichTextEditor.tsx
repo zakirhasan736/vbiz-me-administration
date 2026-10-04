@@ -55,7 +55,7 @@ export type RichTextEditorProps = {
   className?: string
   minHeightClassName?: string
   disabled?: boolean
-  /** Bold text and highlight follow this color. Defaults to the card accent. */
+  /** Highlight / link accents. Bold keeps the current text color (not accent). */
   accentColor?: string
 }
 
@@ -129,13 +129,8 @@ const EDITOR_ACCENT_CSS = `
 .vcard-rich-editor [style*='color: #000000'],
 .vcard-rich-editor [style*='color: black'] { color: inherit !important; }
 .vcard-rich-editor strong, .vcard-rich-editor b {
-  color: var(--rte-accent, #eab308);
-  font-weight: 900 !important;
-}
-/* When text color wraps bold, inherit the picker color instead of accent. */
-.vcard-rich-editor [style*='color'] strong,
-.vcard-rich-editor [style*='color'] b {
   color: inherit;
+  font-weight: 700 !important;
 }
 .vcard-rich-editor em, .vcard-rich-editor i { font-style: italic; }
 .vcard-rich-editor u { text-decoration: underline; }
