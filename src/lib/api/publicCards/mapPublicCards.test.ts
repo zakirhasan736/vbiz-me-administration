@@ -18,12 +18,12 @@ const card = {
 }
 
 describe('public card text mapping', () => {
-  it('decodes directory card names and prefers designation for role label', () => {
+  it('decodes directory card names and shows designation with profession', () => {
     expect(mapPublicCardToListItem(card)).toMatchObject({
       name: 'Smith & Jones',
       profession: 'Sales & Marketing',
       designation: 'Senior Advisor',
-      roleLabel: 'Senior Advisor',
+      roleLabel: 'Senior Advisor · Sales & Marketing',
       slug: 'smith-jones',
     })
   })
@@ -32,6 +32,25 @@ describe('public card text mapping', () => {
     expect(mapPublicCardToListItem({ ...card, designation: null })).toMatchObject({
       roleLabel: 'Sales & Marketing',
       designation: null,
+    })
+  })
+
+  it('falls back to designation when profession is empty', () => {
+    expect(mapPublicCardToListItem({ ...card, profession: '' })).toMatchObject({
+      roleLabel: 'Senior Advisor',
+      designation: 'Senior Advisor',
+    })
+  })
+
+  it('dedupes when designation and profession match', () => {
+    expect(
+      mapPublicCardToListItem({
+        ...card,
+        designation: 'Advisor',
+        profession: 'advisor',
+      })
+    ).toMatchObject({
+      roleLabel: 'Advisor',
     })
   })
 

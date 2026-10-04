@@ -374,7 +374,7 @@ export function SectionPostsEditorPanel({
                                     value={post.description}
                                     onChange={(html) => updatePost(post.id, 'description', html)}
                                     placeholder="Write a description..."
-                                    minHeightClassName="min-h-36"
+                                    minHeightClassName="min-h-44"
                                   />
                                 </div>
                               ) : null}

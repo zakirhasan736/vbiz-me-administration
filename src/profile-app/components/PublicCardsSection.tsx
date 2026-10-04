@@ -208,10 +208,11 @@ function ConnectionCardInner({ card }: { card: PublicCardListItem }) {
             {card.name}
           </h3>
           <div
-            className="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[#eab308] uppercase"
+            className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[#eab308] uppercase"
             title={card.roleLabel}
           >
-            <Briefcase size={10} /> {card.roleLabel}
+            <Briefcase size={10} className="shrink-0" />
+            <span className="line-clamp-2 text-left leading-snug tracking-wide normal-case">{card.roleLabel}</span>
           </div>
         </div>
         <Link
@@ -903,7 +904,7 @@ export const PublicCardsSection = () => {
                           {card.name}
                         </h4>
                         <p
-                          className={`mt-1 w-full truncate px-1 text-[9px] font-black tracking-wider text-[#eab308] uppercase ${compact ? '' : 'md:text-xs'}`}
+                          className={`mt-1 w-full px-1 text-[9px] leading-snug font-black tracking-wide text-[#eab308] ${compact ? 'line-clamp-2' : 'line-clamp-2 md:text-xs'}`}
                           title={card.roleLabel}
                         >
                           {card.roleLabel}

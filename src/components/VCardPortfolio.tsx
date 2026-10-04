@@ -241,7 +241,7 @@ export function TabPortfolio() {
                             value={portfolio.description}
                             onChange={(html) => updatePortfolio(portfolio.id, 'description', html)}
                             placeholder="Write a description for your portfolio..."
-                            minHeightClassName="min-h-40"
+                            minHeightClassName="min-h-48"
                           />
                         </div>
                         <div className="order-1 space-y-3 md:order-2">

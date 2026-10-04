@@ -329,7 +329,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   }
 
   const gameBtnClass =
-    'vbiz-social flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl'
+    'vbiz-social vbiz-social-rail flex h-10 w-10 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur-2xl'
 
   const [messageModalOpen, setMessageModalOpen] = useState(false)
   const messageOwnerName = personal.fullName?.trim() || 'the card owner'

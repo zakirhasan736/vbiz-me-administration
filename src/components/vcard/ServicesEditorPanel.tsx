@@ -222,7 +222,7 @@ export function ServicesEditorPanel({
                         value={service.description}
                         onChange={(html) => updateService(service.id, 'description', html)}
                         placeholder="Write your service description here..."
-                        minHeightClassName="min-h-36"
+                        minHeightClassName="min-h-44"
                       />
                     </div>
 

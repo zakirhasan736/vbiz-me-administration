@@ -72,7 +72,7 @@ export function TabResume() {
             value={state.summary}
             onChange={(html) => persist({ ...state, summary: html })}
             placeholder="Short summary shown with your resume…"
-            minHeightClassName="min-h-32"
+            minHeightClassName="min-h-48"
           />
         </label>
 

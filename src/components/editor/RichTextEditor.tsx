@@ -27,7 +27,6 @@ import {
   ChevronDown,
   Code2,
   FileCode,
-  Heading3,
   Highlighter,
   Image as ImageIcon,
   Indent,
@@ -45,7 +44,8 @@ import {
   Underline as UnderlineIcon,
   Video,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 export type RichTextEditorProps = {
   value?: string
@@ -152,7 +152,7 @@ const EDITOR_ACCENT_CSS = `
 .vcard-rich-editor [style*='color:#000'],
 .vcard-rich-editor [style*='color: #000000'],
 .vcard-rich-editor [style*='color: black'] { color: inherit !important; }
-.vcard-rich-editor strong, .vcard-rich-editor b { color: var(--rte-accent, #eab308); font-weight: 700; }
+.vcard-rich-editor strong, .vcard-rich-editor b { color: inherit; font-weight: 700; }
 .vcard-rich-editor em, .vcard-rich-editor i { font-style: italic; }
 .vcard-rich-editor u { text-decoration: underline; }
 .vcard-rich-editor s, .vcard-rich-editor strike, .vcard-rich-editor del { text-decoration: line-through; }
@@ -200,8 +200,46 @@ function applyTextColor(editor: Editor, color: string | null) {
 
 function applyTypographyBlock(editor: Editor, level: 0 | 1 | 2 | 3 | 4 | 5 | 6) {
   const chain = editor.chain().focus().unsetColor()
+  // Prefer setHeading over toggle so picking a style always applies (never toggles off).
   if (level === 0) chain.setParagraph().run()
-  else chain.toggleHeading({ level }).run()
+  else chain.setHeading({ level }).run()
+}
+
+/** Dropdown menus portaled to body so parent overflow-hidden panels cannot clip them. */
+function useAnchoredMenuStyle(open: boolean, anchorRef: React.RefObject<HTMLElement | null>): CSSProperties {
+  const [style, setStyle] = useState<CSSProperties>({ display: 'none' })
+
+  useLayoutEffect(() => {
+    if (!open || !anchorRef.current) {
+      setStyle({ display: 'none' })
+      return
+    }
+    const place = () => {
+      const el = anchorRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const menuMaxHeight = 288
+      const spaceBelow = window.innerHeight - rect.bottom - 8
+      const openUp = spaceBelow < 160 && rect.top > spaceBelow
+      const top = openUp ? Math.max(8, rect.top - menuMaxHeight - 4) : rect.bottom + 4
+      setStyle({
+        position: 'fixed',
+        top,
+        left: Math.min(rect.left, window.innerWidth - 160),
+        zIndex: 10000,
+        maxHeight: Math.min(menuMaxHeight, openUp ? rect.top - 8 : spaceBelow),
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [anchorRef, open])
+
+  return style
 }
 
 function RichTextToolbar({
@@ -220,6 +258,13 @@ function RichTextToolbar({
   const headingRef = useRef<HTMLDivElement>(null)
   const colorRef = useRef<HTMLDivElement>(null)
   const alignRef = useRef<HTMLDivElement>(null)
+  const headingMenuRef = useRef<HTMLDivElement>(null)
+  const colorMenuRef = useRef<HTMLDivElement>(null)
+  const alignMenuRef = useRef<HTMLDivElement>(null)
+  const headingMenuStyle = useAnchoredMenuStyle(headingOpen, headingRef)
+  const colorMenuStyle = useAnchoredMenuStyle(colorOpen, colorRef)
+  const alignMenuStyle = useAnchoredMenuStyle(alignOpen, alignRef)
+  const canPortal = typeof document !== 'undefined'
 
   useEffect(() => {
     const rerender = () => setTick((n) => n + 1)
@@ -234,9 +279,12 @@ function RichTextToolbar({
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const t = e.target as Node
-      if (headingRef.current && !headingRef.current.contains(t)) setHeadingOpen(false)
-      if (colorRef.current && !colorRef.current.contains(t)) setColorOpen(false)
-      if (alignRef.current && !alignRef.current.contains(t)) setAlignOpen(false)
+      const inHeading = headingRef.current?.contains(t) || headingMenuRef.current?.contains(t)
+      const inColor = colorRef.current?.contains(t) || colorMenuRef.current?.contains(t)
+      const inAlign = alignRef.current?.contains(t) || alignMenuRef.current?.contains(t)
+      if (!inHeading) setHeadingOpen(false)
+      if (!inColor) setColorOpen(false)
+      if (!inAlign) setAlignOpen(false)
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
@@ -284,38 +332,57 @@ function RichTextToolbar({
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setHeadingOpen((o) => !o)}
-            className="inline-flex h-8 min-w-28 items-center justify-between gap-1 rounded-lg px-2 text-[12px] font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+            onClick={() => {
+              setColorOpen(false)
+              setAlignOpen(false)
+              setHeadingOpen((o) => !o)
+            }}
+            aria-haspopup="listbox"
+            aria-expanded={headingOpen}
+            className="inline-flex h-8 min-w-32 items-center justify-between gap-1 rounded-lg px-2 text-[12px] font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
           >
             <span className="inline-flex items-center gap-1.5">
-              <Heading3 className="h-3.5 w-3.5" />
+              <Type className="h-3.5 w-3.5 shrink-0" />
               {currentHeadingLabel(editor)}
             </span>
-            <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
           </button>
-          {headingOpen ? (
-            <div className="absolute top-full left-0 z-30 mt-1 max-h-72 min-w-36 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
-              {HEADING_OPTIONS.map((opt) => (
-                <button
-                  key={opt.label}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    applyTypographyBlock(editor, opt.level)
-                    setHeadingOpen(false)
-                  }}
-                  className={cn(
-                    'block w-full px-3 py-1.5 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
-                    opt.level === 0
-                      ? !editor.isActive('heading') && 'bg-slate-100 dark:bg-white/10'
-                      : editor.isActive('heading', { level: opt.level }) && 'bg-slate-100 dark:bg-white/10'
-                  )}
+          {headingOpen && canPortal
+            ? createPortal(
+                <div
+                  ref={headingMenuRef}
+                  role="listbox"
+                  aria-label="Text style"
+                  style={headingMenuStyle}
+                  className="min-w-40 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
                 >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
+                  {HEADING_OPTIONS.map((opt) => {
+                    const active =
+                      opt.level === 0 ? !editor.isActive('heading') : editor.isActive('heading', { level: opt.level })
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          applyTypographyBlock(editor, opt.level)
+                          setHeadingOpen(false)
+                        }}
+                        className={cn(
+                          'block w-full px-3 py-2 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
+                          active && 'bg-slate-100 dark:bg-white/10'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>,
+                document.body
+              )
+            : null}
         </div>
 
         <ToolbarDivider />
@@ -430,66 +497,96 @@ function RichTextToolbar({
         <ToolbarDivider />
 
         <div className="relative" ref={alignRef}>
-          <ToolbarBtn title="Text alignment" active={alignOpen} onClick={() => setAlignOpen((open) => !open)}>
+          <ToolbarBtn
+            title="Text alignment"
+            active={alignOpen}
+            onClick={() => {
+              setHeadingOpen(false)
+              setColorOpen(false)
+              setAlignOpen((open) => !open)
+            }}
+          >
             <AlignLeft className="h-4 w-4" />
           </ToolbarBtn>
-          {alignOpen ? (
-            <div className="absolute top-full left-0 z-30 mt-1 min-w-36 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
-              {ALIGN_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    editor.chain().focus().setTextAlign(opt.value).run()
-                    setAlignOpen(false)
-                  }}
-                  className={cn(
-                    'block w-full px-3 py-1.5 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
-                    editor.isActive({ textAlign: opt.value }) && 'bg-slate-100 dark:bg-white/10'
-                  )}
+          {alignOpen && canPortal
+            ? createPortal(
+                <div
+                  ref={alignMenuRef}
+                  style={alignMenuStyle}
+                  className="min-w-36 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
                 >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
+                  {ALIGN_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        editor.chain().focus().setTextAlign(opt.value).run()
+                        setAlignOpen(false)
+                      }}
+                      className={cn(
+                        'block w-full px-3 py-2 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
+                        editor.isActive({ textAlign: opt.value }) && 'bg-slate-100 dark:bg-white/10'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>,
+                document.body
+              )
+            : null}
         </div>
 
         <div className="relative" ref={colorRef}>
-          <ToolbarBtn title="Text color" active={colorOpen} onClick={() => setColorOpen((o) => !o)}>
+          <ToolbarBtn
+            title="Text color"
+            active={colorOpen}
+            onClick={() => {
+              setHeadingOpen(false)
+              setAlignOpen(false)
+              setColorOpen((o) => !o)
+            }}
+          >
             <Type className="h-4 w-4" />
           </ToolbarBtn>
-          {colorOpen ? (
-            <div className="absolute top-full left-0 z-30 mt-1 flex gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
-              {TEXT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    applyTextColor(editor, c)
-                    setColorOpen(false)
-                  }}
-                  className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-              <button
-                type="button"
-                title="Reset color"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  applyTextColor(editor, null)
-                  setColorOpen(false)
-                }}
-                className="px-1 text-[10px] font-bold text-slate-500"
-              >
-                Clear
-              </button>
-            </div>
-          ) : null}
+          {colorOpen && canPortal
+            ? createPortal(
+                <div
+                  ref={colorMenuRef}
+                  style={colorMenuStyle}
+                  className="flex gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
+                >
+                  {TEXT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      title={c}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        applyTextColor(editor, c)
+                        setColorOpen(false)
+                      }}
+                      className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    title="Reset color"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      applyTextColor(editor, null)
+                      setColorOpen(false)
+                    }}
+                    className="px-1 text-[10px] font-bold text-slate-500"
+                  >
+                    Clear
+                  </button>
+                </div>,
+                document.body
+              )
+            : null}
         </div>
 
         <ToolbarBtn
@@ -531,7 +628,7 @@ export function RichTextEditor({
   onChange,
   placeholder = 'Write a detailed description…',
   className,
-  minHeightClassName = 'min-h-48',
+  minHeightClassName = 'min-h-56',
   disabled = false,
   accentColor,
 }: RichTextEditorProps) {
@@ -664,7 +761,7 @@ export function RichTextEditor({
       style={{ ['--rte-accent' as string]: accent }}
     >
       <HoistableStyle href="vbiz-rte-accent" css={EDITOR_ACCENT_CSS} />
-      <div className="overflow-x-auto overflow-y-hidden rounded-t-2xl">
+      <div className="rounded-t-2xl">
         <RichTextToolbar
           editor={editor}
           sourceMode={sourceMode}

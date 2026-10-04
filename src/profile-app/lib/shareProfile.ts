@@ -37,14 +37,30 @@ export function toAbsoluteShareUrl(url: string): string {
   }
 }
 
-export function buildFacebookShareHref(shareUrl: string, shareText = ''): string {
+export function buildFacebookShareHref(shareUrl: string, shareText = '', options?: { mobile?: boolean }): string {
   const url = toAbsoluteShareUrl(shareUrl)
   const quote = [shareText.trim(), url].filter(Boolean).join(' ')
-  // Put the link in both `u` and `quote` — iOS Facebook app sometimes drops `u`.
+  // Put the link in both `u` and `quote` — iOS Facebook app often drops `u`.
   const params = new URLSearchParams()
   params.set('u', url)
   if (quote) params.set('quote', quote)
-  return `https://www.facebook.com/sharer/sharer.php?${params.toString()}`
+  // Mobile sharer keeps the link more reliably when the Facebook app intercepts desktop sharer.php.
+  const host = options?.mobile ? 'https://m.facebook.com/sharer.php' : 'https://www.facebook.com/sharer/sharer.php'
+  return `${host}?${params.toString()}`
+}
+
+function openFacebookShareHref(href: string): void {
+  if (typeof window === 'undefined' || !href) return
+  // After an await, iOS often blocks window.open — location.assign still works.
+  if (isIosDevice()) {
+    try {
+      window.location.assign(href)
+      return
+    } catch {
+      /* fall through */
+    }
+  }
+  openShareWindow(href)
 }
 
 /**
@@ -82,28 +98,52 @@ export function openShareWindow(href: string): boolean {
 }
 
 /**
- * Facebook on iOS often opens the app without the card URL when using sharer.php.
- * Prefer the native share sheet (URL is included); fall back to sharer with quote.
+ * Facebook share (esp. iPhone):
+ * Do not route through navigator.share — choosing Facebook from the iOS sheet
+ * often opens an empty composer (no URL, no friend suggestions).
+ * Open Facebook's sharer in the same tap so `u` + `quote` carry the card link.
  */
-export async function shareToFacebook(shareUrl: string, shareText: string, title?: string): Promise<void> {
+export async function shareToFacebook(shareUrl: string, shareText: string, _title?: string): Promise<void> {
   const url = toAbsoluteShareUrl(shareUrl)
   if (!url) return
 
-  if (isIosDevice() && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-    try {
-      await navigator.share({
-        title: title || 'Digital business card',
-        text: shareText || undefined,
-        url,
-      })
-      return
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
-      // Fall through to sharer.php
-    }
+  const facebookHref = buildFacebookShareHref(url, shareText, { mobile: isIosDevice() })
+
+  if (isIosDevice()) {
+    openFacebookShareHref(facebookHref)
+    return
   }
 
-  openShareWindow(buildFacebookShareHref(url, shareText))
+  if (!openShareWindow(facebookHref) && typeof window !== 'undefined') {
+    window.location.assign(facebookHref)
+  }
+}
+
+export type InstagramShareResult = 'copied_opened' | 'opened_only' | 'failed'
+
+/**
+ * Instagram has no public “share this URL” web intent.
+ * Smart flow: copy the card link (+ message), then open Instagram so the user can paste
+ * into a Story, Reel caption, DM, or post.
+ */
+export async function shareToInstagram(shareUrl: string, shareText = ''): Promise<InstagramShareResult> {
+  const url = toAbsoluteShareUrl(shareUrl)
+  if (!url) return 'failed'
+
+  const payload = [shareText.trim(), url].filter(Boolean).join(' ')
+  let copied = false
+  try {
+    await navigator.clipboard.writeText(payload)
+    copied = true
+  } catch {
+    copied = false
+  }
+
+  const opened = openShareWindow('https://www.instagram.com/')
+  if (copied && opened) return 'copied_opened'
+  if (opened) return 'opened_only'
+  if (copied) return 'copied_opened'
+  return 'failed'
 }
 
 /** Opens the OS native share sheet when available; otherwise copies the profile URL. */

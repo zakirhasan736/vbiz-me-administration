@@ -416,11 +416,29 @@ ${themeUi('.vbiz-social')} {
   backdrop-filter: blur(var(--vbiz-social-blur, 0px));
   font-family: var(--vbiz-font, inherit);
 }
+/* Side rails next to Views/Website/CRM — match .vbiz-icon-btn diameter (ignore theme social size). */
+${themeUi('.vbiz-social.vbiz-social-rail')} {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  min-width: 2.5rem !important;
+  min-height: 2.5rem !important;
+}
+${themeUi('.vbiz-social.vbiz-social-rail-sm')} {
+  width: 2rem !important;
+  height: 2rem !important;
+  min-width: 2rem !important;
+  min-height: 2rem !important;
+}
 ${themeUi('.vbiz-social svg')} {
   color: inherit !important;
   stroke: currentColor;
   width: var(--vbiz-social-icon-size, 22px);
   height: var(--vbiz-social-icon-size, 22px);
+}
+${themeUi('.vbiz-social.vbiz-social-rail svg')},
+${themeUi('.vbiz-social.vbiz-social-rail-sm svg')} {
+  width: 1.375rem !important;
+  height: 1.375rem !important;
 }
 @media (hover: hover) and (pointer: fine) {
 ${themeUi('.vbiz-social:hover')} {
@@ -1109,7 +1127,7 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root .vcard-rich-html b,
 .vbiz-profile-root .prose strong,
 .vbiz-profile-root .prose b {
-  color: var(--vbiz-accent) !important;
+  color: inherit !important;
   font-weight: 700 !important;
 }
 .vbiz-profile-root .vcard-rich-html em,
@@ -1200,7 +1218,10 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
   color: inherit !important;
 }
 .vbiz-profile-root .vcard-faq-answer strong,
-.vbiz-profile-root .vcard-faq-answer b,
+.vbiz-profile-root .vcard-faq-answer b {
+  color: inherit !important;
+  font-weight: 700 !important;
+}
 .vbiz-profile-root .vcard-faq-answer mark,
 .vbiz-profile-root .vcard-faq-answer a {
   color: var(--vbiz-accent) !important;

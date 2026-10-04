@@ -192,7 +192,7 @@ export function TabReviews() {
                       value={item.text}
                       onChange={(html) => updateReview(item.id, { text: html })}
                       placeholder="What they said…"
-                      minHeightClassName="min-h-32"
+                      minHeightClassName="min-h-48"
                     />
                     <input
                       value={item.url || ''}

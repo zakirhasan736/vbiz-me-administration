@@ -1,6 +1,7 @@
 'use client'
 
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
+import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import {
@@ -8,6 +9,7 @@ import {
   openShareWindow,
   resolveShareUrl,
   shareToFacebook,
+  shareToInstagram,
   toAbsoluteShareUrl,
 } from '@/profile-app/lib/shareProfile'
 import {
@@ -22,13 +24,13 @@ import {
   Check,
   Copy,
   Facebook,
+  Instagram,
   Linkedin,
   Mail,
   MessageCircle,
   MessageSquare,
   Phone,
   QrCode as QrIcon,
-  Send,
   Twitter,
   X,
 } from 'lucide-react'
@@ -90,11 +92,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
   const [proxiedCenter, setProxiedCenter] = useState<{ key: string; url: string } | null>(null)
   const [videoQrFailed, setVideoQrFailed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [instagramTip, setInstagramTip] = useState(false)
 
   // Reset ephemeral QR state when the modal opens/closes (avoid sync setState in effects).
   if (isOpen !== wasOpen) {
     setWasOpen(isOpen)
     setCopied(false)
+    setInstagramTip(false)
     setGeneratedQr(null)
     setProxiedCenter(null)
     setVideoQrFailed(false)
@@ -245,12 +249,31 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
-      name: 'Telegram',
-      icon: Send,
-      href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
-      color: 'hover:bg-[#0088cc] hover:border-[#0088cc]/50 hover:text-white',
-      textColor: 'text-[#0088cc]',
-      onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
+      name: 'Instagram',
+      icon: Instagram,
+      href: 'https://www.instagram.com/',
+      color: 'hover:bg-[#E4405F] hover:border-[#E4405F]/50 hover:text-white',
+      textColor: 'text-[#E4405F]',
+      hint: 'Copies link, then opens Instagram',
+      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault()
+        void (async () => {
+          const result = await shareToInstagram(shareUrl, shareText)
+          if (result === 'copied_opened') {
+            setCopied(true)
+            setInstagramTip(true)
+            window.setTimeout(() => setCopied(false), 2500)
+            notify.success('Link copied — paste it in Instagram Story, Reel, DM, or post.')
+            return
+          }
+          if (result === 'opened_only') {
+            setInstagramTip(true)
+            notify.info('Instagram opened — copy the card link above, then paste it in Instagram.')
+            return
+          }
+          notify.error('Could not open Instagram. Copy the card link above and paste it there.')
+        })()
+      },
     },
     {
       name: 'Facebook',
@@ -258,9 +281,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       href: buildFacebookShareHref(shareUrl, shareText),
       color: 'hover:bg-[#1877F2] hover:border-[#1877F2]/50 hover:text-white',
       textColor: 'text-[#1877F2]',
+      hint: 'Share card link on Facebook',
       onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+        // Keep this sync: iOS blocks popups / drops the URL if we wait on async share first.
         e.preventDefault()
-        void shareToFacebook(shareUrl, shareText, profileName || undefined)
+        if (!shareUrl) {
+          notify.error('Card link is still loading. Try Facebook again in a moment.')
+          return
+        }
+        void shareToFacebook(shareUrl, shareText, profileName || undefined).catch(() => {
+          notify.error('Could not open Facebook share. Copy the card link above and paste it there.')
+        })
       },
     },
   ]
@@ -410,19 +441,33 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                     openShareWindow(platform.href)
                   }}
                   className={`group flex flex-col items-center justify-center rounded-xl border border-zinc-200/60 bg-zinc-50/50 p-2 transition-all duration-300 sm:p-3 dark:border-zinc-800/80 dark:bg-zinc-900/30 ${platform.color} active:scale-95`}
-                  title={`Share on ${platform.name}`}
-                  aria-label={`Share on ${platform.name}`}
+                  title={'hint' in platform && platform.hint ? platform.hint : `Share on ${platform.name}`}
+                  aria-label={
+                    'hint' in platform && platform.hint
+                      ? `${platform.name}: ${platform.hint}`
+                      : `Share on ${platform.name}`
+                  }
                 >
                   <platform.icon
                     size={26}
                     className={`opacity-80 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 ${platform.textColor} [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white`}
                   />
-                  <span className="mt-1 hidden text-[10.799999999999999px] font-bold text-zinc-900 sm:mt-1.5 dark:text-zinc-900 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white">
+                  <span className="mt-1 hidden text-[10.8px] font-bold text-zinc-900 sm:mt-1.5 dark:text-zinc-900 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white">
                     {platform.name}
                   </span>
                 </a>
               ))}
             </div>
+            {instagramTip ? (
+              <p className="rounded-xl border border-[#E4405F]/25 bg-[#E4405F]/10 px-3 py-2 text-[11px] leading-snug font-medium text-zinc-700 dark:text-zinc-200">
+                Instagram tip: your card link is on the clipboard. In Instagram, open a Story / Reel / DM / new post and
+                paste it.
+              </p>
+            ) : (
+              <p className="text-[10px] leading-snug text-zinc-500 dark:text-zinc-400">
+                Instagram copies your link first, then opens the app — paste it into a Story, Reel, DM, or post.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

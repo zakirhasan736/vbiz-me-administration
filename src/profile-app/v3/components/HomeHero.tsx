@@ -187,15 +187,15 @@ export const HomeHero: React.FC<{
   const hasGameIds = Boolean(social.games && Object.values(social.games).some((v) => v?.trim()))
   const showSocialRail = visibleSocials.length > 0 || hasGameIds
 
-  const socialMobileBtnClass = `vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.12] [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] ${
-    compact ? '' : 'md:h-10 md:w-10'
-  }`
+  // Match right utility rail (h-10). vbiz-social-rail overrides theme --vbiz-social-size.
+  const socialMobileBtnClass =
+    'vbiz-social vbiz-social-rail flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.12] [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-[0_0_18px_rgba(238,214,119,0.85)]'
   const socialDesktopBtnClass =
     'vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 [@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-1 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110'
 
   const viewCountLabel = formatProfileViewCount(actionButtons?.view_counter?.count ?? profileViews)
 
-  /** Right-side utility rail — phone sizing in the preview, larger on real desktops. */
+  /** Right-side utility rail — same diameter as left social rail on phone. */
   const railButtonClass = `vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 ${
     compact ? '' : 'md:h-12 md:w-12'
   }`
