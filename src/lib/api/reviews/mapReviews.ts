@@ -21,8 +21,15 @@ function normalizeRating(raw: unknown): number {
 
 export function sanitizeReviewUrl(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw.trim()) return null
+  let value = raw.trim()
+  // Block non-navigable / unsafe schemes before we forgive a missing protocol.
+  if (/^(javascript|data|vbscript|file|blob):/i.test(value)) return null
+  // Forgive bare domains and paths users paste without https://
+  if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value)) {
+    value = `https://${value}`
+  }
   try {
-    const url = new URL(raw.trim())
+    const url = new URL(value)
     return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null
   } catch {
     return null

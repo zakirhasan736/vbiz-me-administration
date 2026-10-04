@@ -192,12 +192,12 @@ export function TabReviews() {
                       value={item.text}
                       onChange={(html) => updateReview(item.id, { text: html })}
                       placeholder="What they said…"
-                      minHeightClassName="min-h-32"
+                      minHeightClassName="min-h-48"
                     />
                     <input
                       value={item.url || ''}
                       onChange={(e) => updateReview(item.id, { url: e.target.value })}
-                      placeholder="Leave a review URL (Google, Yelp, optional)"
+                      placeholder="Original review URL (optional — whole card opens this link)"
                       className={inputClasses}
                     />
                   </ExpandableEntryBody>

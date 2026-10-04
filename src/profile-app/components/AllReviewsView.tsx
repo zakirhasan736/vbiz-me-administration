@@ -4,10 +4,18 @@ import type { ReviewListItem } from '@/interfaces/api/reviews.interface'
 import { ReviewAvatar } from '@/profile-app/components/ReviewAvatar'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { openExternalInNewTab } from '@/profile-app/lib/profileExternalLinks'
 import { cn } from '@/utils/cn'
 import { ArrowLeft, ExternalLink, Quote, Star } from 'lucide-react'
 import { motion } from 'motion/react'
-import Link from 'next/link'
+import type { KeyboardEvent, MouseEvent } from 'react'
+
+function openReviewLink(url: string | null | undefined, event?: MouseEvent | KeyboardEvent) {
+  if (!url) return
+  event?.preventDefault()
+  event?.stopPropagation()
+  openExternalInNewTab(url)
+}
 
 function ReviewStars({
   rating,
@@ -61,14 +69,9 @@ function ReviewCardContent({ item, compact }: { item: ReviewListItem; compact: b
         </p>
       ) : null}
       {item.linkUrl ? (
-        <Link
-          href={item.linkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mb-5 inline-flex items-center gap-2 self-start text-sm font-bold text-zinc-600 underline-offset-4 hover:underline dark:text-zinc-400"
-        >
+        <span className="mb-5 inline-flex items-center gap-2 self-start text-sm font-bold text-zinc-600 dark:text-zinc-400">
           View Original Review <ExternalLink size={14} />
-        </Link>
+        </span>
       ) : null}
       <div className="mt-auto flex items-center gap-4 border-t border-zinc-200 pt-5 dark:border-zinc-800/80">
         <ReviewAvatar imageUrl={item.image} alt={item.title || 'Reviewer'} className="h-12 w-12" />
@@ -125,19 +128,34 @@ export function AllReviewsView({ sectionTitle, slides, onBack }: AllReviewsViewP
           contentGridClass(slides.length, compact ? '' : 'md:grid-cols-2 lg:grid-cols-3')
         )}
       >
-        {slides.map((item, idx) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: idx * 0.05 }}
-            className={`vbiz-review-card flex min-h-70 flex-col rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50 ${
-              compact ? 'p-4' : 'p-6 sm:p-8'
-            }`}
-          >
-            <ReviewCardContent item={item} compact={compact} />
-          </motion.div>
-        ))}
+        {slides.map((item, idx) => {
+          const hasLink = Boolean(item.linkUrl)
+          return (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: idx * 0.05 }}
+              role={hasLink ? 'link' : undefined}
+              tabIndex={hasLink ? 0 : undefined}
+              aria-label={hasLink ? `Open original review by ${item.title || 'reviewer'}` : undefined}
+              onClick={(event) => {
+                if (hasLink) openReviewLink(item.linkUrl, event)
+              }}
+              onKeyDown={(event) => {
+                if (!hasLink) return
+                if (event.key === 'Enter' || event.key === ' ') {
+                  openReviewLink(item.linkUrl, event)
+                }
+              }}
+              className={`vbiz-review-card flex min-h-70 flex-col rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50 ${
+                hasLink ? 'cursor-pointer' : ''
+              } ${compact ? 'p-4' : 'p-6 sm:p-8'}`}
+            >
+              <ReviewCardContent item={item} compact={compact} />
+            </motion.div>
+          )
+        })}
       </div>
     </motion.div>
   )
@@ -199,14 +217,9 @@ export function SliderReviewCard({ item, compact = false }: { item: ReviewListIt
             </p>
           ) : null}
           {item.linkUrl ? (
-            <Link
-              href={item.linkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-zinc-500 underline-offset-4 hover:underline dark:text-zinc-400"
-            >
+            <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-zinc-500 dark:text-zinc-400">
               View Original Review <ExternalLink size={12} />
-            </Link>
+            </span>
           ) : null}
         </div>
       </div>

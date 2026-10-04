@@ -1,5 +1,6 @@
 import type { MyCardData } from '@/interfaces/api/myCard'
 import {
+  applySeoFieldsToJsonLd,
   buildPublicCardCanonicalUrl,
   buildPublicCardJsonLd,
   buildPublicCardSeoMetadata,
@@ -67,6 +68,7 @@ describe('public card SEO', () => {
     expect(buildPublicCardCanonicalUrl(origin, '/vCard/maya')).toBe('https://app.vbiz.me/vCard/maya')
     expect(metadata.alternates?.canonical).toBe('https://app.vbiz.me/vCard/maya')
     expect(metadata.openGraph?.url).toBe('https://app.vbiz.me/vCard/maya')
+    expect(metadata.robots).toMatchObject({ index: true, follow: true })
     expect(metadata.keywords).toEqual([
       'vbizme',
       'vbiz me',
@@ -85,6 +87,45 @@ describe('public card SEO', () => {
       'https://linkedin.com/in/maya-chen',
       'https://studio.test',
     ])
+  })
+
+  it('puts SEO meta title, description, and keywords on JSON-LD ProfilePage', () => {
+    const jsonLd = buildPublicCardJsonLd({
+      slug: 'maya',
+      origin: 'https://app.vbiz.me',
+      cardPath: '/vCard/maya',
+      myCard: card(),
+    })
+    expect(jsonLd.name).toBe('Maya Design Studio | Brand Designer')
+    expect(jsonLd.description).toBe('Brand systems, identity, and contact details.')
+    expect(String(jsonLd.keywords)).toContain('brand designer')
+    expect(String(jsonLd.keywords)).toContain('identity design')
+    expect((jsonLd.mainEntity as { description?: string }).description).toBe(
+      'Brand systems, identity, and contact details.'
+    )
+  })
+
+  it('patches JSON-LD when SEO meta title, description, or keywords change', () => {
+    const patched = applySeoFieldsToJsonLd(
+      {
+        '@type': 'ProfilePage',
+        name: 'Old title',
+        description: 'Old description',
+        keywords: 'old',
+        mainEntity: { '@type': 'Person', name: 'Maya Chen', description: 'Old description' },
+      },
+      {
+        metaTitle: 'New SEO Title',
+        metaDescription: 'New SEO description',
+        metaKeywords: ['new keyword', 'brand'],
+      },
+      'Maya Chen'
+    )
+    expect(patched.name).toBe('New SEO Title')
+    expect(patched.description).toBe('New SEO description')
+    expect(patched.keywords).toBe('new keyword, brand')
+    expect((patched.mainEntity as { name: string; description: string }).name).toBe('Maya Chen')
+    expect((patched.mainEntity as { description: string }).description).toBe('New SEO description')
   })
 
   it('adds review markup only when real reviews exist', () => {

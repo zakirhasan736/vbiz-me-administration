@@ -173,8 +173,9 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   Object.assign(vars, componentVars('--vbiz-social', social, set, mode))
   vars['--vbiz-social-radius'] =
     typeof social.cornerRadius === 'number' ? `${social.cornerRadius}px` : String(social.cornerRadius)
-  vars['--vbiz-social-icon-size'] = `${Math.max(22, social.iconSize || 22)}px`
-  vars['--vbiz-social-size'] = `${social.size}px`
+  // Cap home social circles at 40px so theme settings cannot inflate rails to 48px+.
+  vars['--vbiz-social-icon-size'] = `${Math.min(22, Math.max(18, social.iconSize || 22))}px`
+  vars['--vbiz-social-size'] = `${Math.min(40, Math.max(32, social.size || 40))}px`
 
   const banner = resolveBannerStyle(set, mode, config.components.sectionBanner)
   const contentCard = resolveContentCardStyle(set, mode, config.components.contentCard)
@@ -416,11 +417,29 @@ ${themeUi('.vbiz-social')} {
   backdrop-filter: blur(var(--vbiz-social-blur, 0px));
   font-family: var(--vbiz-font, inherit);
 }
+/* Side rails next to Views/Website/CRM — match .vbiz-icon-btn diameter (ignore theme social size). */
+${themeUi('.vbiz-social.vbiz-social-rail')} {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  min-width: 2.5rem !important;
+  min-height: 2.5rem !important;
+}
+${themeUi('.vbiz-social.vbiz-social-rail-sm')} {
+  width: 2rem !important;
+  height: 2rem !important;
+  min-width: 2rem !important;
+  min-height: 2rem !important;
+}
 ${themeUi('.vbiz-social svg')} {
   color: inherit !important;
   stroke: currentColor;
   width: var(--vbiz-social-icon-size, 22px);
   height: var(--vbiz-social-icon-size, 22px);
+}
+${themeUi('.vbiz-social.vbiz-social-rail svg')},
+${themeUi('.vbiz-social.vbiz-social-rail-sm svg')} {
+  width: 1.375rem !important;
+  height: 1.375rem !important;
 }
 @media (hover: hover) and (pointer: fine) {
 ${themeUi('.vbiz-social:hover')} {
@@ -1109,7 +1128,7 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root .vcard-rich-html b,
 .vbiz-profile-root .prose strong,
 .vbiz-profile-root .prose b {
-  color: var(--vbiz-accent) !important;
+  color: inherit;
   font-weight: 700 !important;
 }
 .vbiz-profile-root .vcard-rich-html em,
@@ -1129,9 +1148,12 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root .prose del {
   text-decoration: line-through;
 }
+.vbiz-profile-root .vcard-rich-html mark:not([style*='background']),
+.vbiz-profile-root .prose mark:not([style*='background']) {
+  background-color: color-mix(in srgb, var(--vbiz-accent) 42%, transparent) !important;
+}
 .vbiz-profile-root .vcard-rich-html mark,
 .vbiz-profile-root .prose mark {
-  background-color: color-mix(in srgb, var(--vbiz-accent) 42%, transparent) !important;
   color: inherit !important;
 }
 .vbiz-profile-root .vcard-rich-html a,
@@ -1200,12 +1222,15 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
   color: inherit !important;
 }
 .vbiz-profile-root .vcard-faq-answer strong,
-.vbiz-profile-root .vcard-faq-answer b,
+.vbiz-profile-root .vcard-faq-answer b {
+  color: inherit;
+  font-weight: 700 !important;
+}
 .vbiz-profile-root .vcard-faq-answer mark,
 .vbiz-profile-root .vcard-faq-answer a {
   color: var(--vbiz-accent) !important;
 }
-.vbiz-profile-root .vcard-faq-answer mark {
+.vbiz-profile-root .vcard-faq-answer mark:not([style*='background']) {
   background-color: color-mix(in srgb, var(--vbiz-accent) 42%, transparent) !important;
 }
 

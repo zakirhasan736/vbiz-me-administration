@@ -79,9 +79,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     myCard,
   })
 
+  // Keep SEO title/description/OG first — PWA chrome must not overwrite share preview tags.
   return {
-    ...seo,
     ...pwaMeta,
+    ...seo,
     applicationName: name,
     appleWebApp: {
       capable: true,

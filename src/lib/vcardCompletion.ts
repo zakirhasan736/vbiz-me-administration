@@ -446,12 +446,20 @@ function sectionPostFields(
   })
 }
 
-const GENDER_OPTIONS = [
+/** Personal Info gender options — common USA / inclusive form labels. */
+export const GENDER_OPTIONS = [
   { value: 'Male', label: 'Male' },
   { value: 'Female', label: 'Female' },
+  { value: 'Non-binary', label: 'Non-binary' },
+  { value: 'Transgender man', label: 'Transgender man' },
+  { value: 'Transgender woman', label: 'Transgender woman' },
+  { value: 'Genderqueer', label: 'Genderqueer' },
+  { value: 'Genderfluid', label: 'Genderfluid' },
+  { value: 'Agender', label: 'Agender' },
+  { value: 'Two-Spirit', label: 'Two-Spirit' },
   { value: 'Other', label: 'Other' },
   { value: 'Prefer not to say', label: 'Prefer not to say' },
-]
+] as const
 
 /** Personal Info relationship statuses — common USA / dating-culture labels. */
 export const RELATIONSHIP_OPTIONS = [

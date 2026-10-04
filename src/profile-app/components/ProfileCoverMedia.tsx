@@ -1,10 +1,11 @@
 'use client'
 
+import { isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { restoreCoverPlayback, saveCoverPlayback } from '@/profile-app/lib/profileCoverPlayback'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef } from 'react'
 
 type Props = {
   persistenceId: string
@@ -13,7 +14,10 @@ type Props = {
   isHeroLayout: boolean
 }
 
-/** Cover media — memoized; defers video buffering until visible; keeps playback position across navigations. */
+/**
+ * Cover media — always mounts the video immediately (no intersection defer) so
+ * buffering can finish during intro and play the moment home is visible.
+ */
 export const ProfileCoverMedia = memo(function ProfileCoverMedia({
   persistenceId,
   coverVideoUrl,
@@ -24,55 +28,37 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
   const wallpaper = resolveWallpaperConfig(theme?.themeConfig, coverVideoUrl)
   const needsMedia = wallpaperNeedsMedia(wallpaper.style)
   const src = coverVideoUrl?.trim() ?? ''
-  const isVideoStyle = wallpaper.style === 'video' || (wallpaper.style === 'blur' && Boolean(src))
+  const isVideo = Boolean(src) && (wallpaper.style === 'video' || wallpaper.style === 'blur' || isVideoUrl(src))
   const cacheKey = needsMedia && src ? `${persistenceId}:${src}` : ''
-  const containerRef = useRef<HTMLDivElement>(null)
   const coverVideoRef = useRef<HTMLVideoElement>(null)
-  const [isVisible, setIsVisible] = useState(!(wallpaper.style === 'video' || wallpaper.style === 'blur'))
 
   useEffect(() => {
-    if (!isVideoStyle || !needsMedia) {
-      setIsVisible(true)
-      return
-    }
-    const root = containerRef.current
-    if (!root) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setIsVisible(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: '80px' }
-    )
-
-    observer.observe(root)
-    return () => observer.disconnect()
-  }, [isVideoStyle, needsMedia])
-
-  useEffect(() => {
-    if (wallpaper.style !== 'video' && wallpaper.style !== 'blur') return
-    if (!cacheKey || !isVisible) return
+    if (!isVideo || !cacheKey) return
     const el = coverVideoRef.current
     if (!el) return
 
     el.muted = true
+    el.defaultMuted = true
+    el.playsInline = true
     restoreCoverPlayback(cacheKey, el)
 
     const tryPlay = () => {
       if (el.paused) void el.play().catch(() => undefined)
     }
 
+    // Do not call el.load() — it aborts in-flight buffers from warmup / first mount.
     tryPlay()
-    el.addEventListener('canplay', tryPlay, { once: true })
+    el.addEventListener('loadedmetadata', tryPlay)
+    el.addEventListener('loadeddata', tryPlay)
+    el.addEventListener('canplay', tryPlay)
 
     return () => {
+      el.removeEventListener('loadedmetadata', tryPlay)
+      el.removeEventListener('loadeddata', tryPlay)
       el.removeEventListener('canplay', tryPlay)
       saveCoverPlayback(cacheKey, el)
     }
-  }, [wallpaper.style, cacheKey, isVisible])
+  }, [cacheKey, isVideo])
 
   if (needsMedia && !src && (wallpaper.style === 'image' || wallpaper.style === 'video')) {
     return null
@@ -80,7 +66,6 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
 
   return (
     <div
-      ref={containerRef}
       className={`vbiz-cover-video pointer-events-none absolute top-0 left-0 z-1 mt-0 w-full overflow-hidden ${isHeroLayout ? 'h-[70vh]' : 'h-[60vh]'}`}
     >
       <ProfileWallpaperContent
@@ -88,8 +73,8 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
         wallpaper={wallpaper}
         mediaUrl={src}
         alt={ownerName ? `${ownerName} cover` : 'Cover'}
-        deferVideo={wallpaper.style === 'video' || wallpaper.style === 'blur'}
-        videoVisible={isVisible}
+        deferVideo={false}
+        videoVisible
         mediaClassName="opacity-100 brightness-105"
       />
       <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-b from-zinc-50/25 via-zinc-50/5 to-transparent dark:from-[#09090b]/70 dark:via-[#09090b]/30 dark:to-transparent" />

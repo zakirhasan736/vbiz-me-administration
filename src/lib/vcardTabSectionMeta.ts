@@ -62,6 +62,23 @@ export function emptyTabSectionMetaEntry(): VCardTabSectionMetaEntry {
   return {}
 }
 
+function cleanMetaString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+function pickMetaEntry(entry: Partial<VCardTabSectionMetaEntry>): VCardTabSectionMetaEntry | null {
+  const next: VCardTabSectionMetaEntry = {}
+  const bannerTitle = cleanMetaString(entry.bannerTitle)
+  const bannerDescription = cleanMetaString(entry.bannerDescription)
+  const notes = cleanMetaString(entry.notes)
+  const leaveReviewUrl = cleanMetaString(entry.leaveReviewUrl)
+  if (bannerTitle !== undefined) next.bannerTitle = bannerTitle
+  if (bannerDescription !== undefined) next.bannerDescription = bannerDescription
+  if (notes !== undefined) next.notes = notes
+  if (leaveReviewUrl !== undefined) next.leaveReviewUrl = leaveReviewUrl
+  return Object.keys(next).length > 0 ? next : null
+}
+
 export function parseTabSectionMeta(raw?: string | null): VCardTabSectionMeta {
   if (!raw?.trim()) return {}
   try {
@@ -71,12 +88,9 @@ export function parseTabSectionMeta(raw?: string | null): VCardTabSectionMeta {
     for (const [tabId, value] of Object.entries(parsed)) {
       const id = tabId.trim()
       if (!id || !value || typeof value !== 'object' || Array.isArray(value)) continue
-      const entry = value as Partial<VCardTabSectionMetaEntry>
-      const bannerTitle = typeof entry.bannerTitle === 'string' ? entry.bannerTitle : undefined
-      const bannerDescription = typeof entry.bannerDescription === 'string' ? entry.bannerDescription : undefined
-      const notes = typeof entry.notes === 'string' ? entry.notes : undefined
-      if (bannerTitle === undefined && bannerDescription === undefined && notes === undefined) continue
-      next[id] = { bannerTitle, bannerDescription, notes }
+      const entry = pickMetaEntry(value as Partial<VCardTabSectionMetaEntry>)
+      if (!entry) continue
+      next[id] = entry
     }
     return next
   } catch {
@@ -89,11 +103,9 @@ export function serializeTabSectionMeta(meta?: VCardTabSectionMeta | null): stri
   for (const [tabId, entry] of Object.entries(meta || {})) {
     const id = tabId.trim()
     if (!id || !entry) continue
-    const bannerTitle = typeof entry.bannerTitle === 'string' ? entry.bannerTitle : undefined
-    const bannerDescription = typeof entry.bannerDescription === 'string' ? entry.bannerDescription : undefined
-    const notes = typeof entry.notes === 'string' ? entry.notes : undefined
-    if (bannerTitle === undefined && bannerDescription === undefined && notes === undefined) continue
-    cleaned[id] = { bannerTitle, bannerDescription, notes }
+    const nextEntry = pickMetaEntry(entry)
+    if (!nextEntry) continue
+    cleaned[id] = nextEntry
   }
   return JSON.stringify(cleaned)
 }
@@ -119,20 +131,23 @@ export function upsertTabSectionMetaEntry(
     bannerTitle: patch.bannerTitle === undefined ? current.bannerTitle : patch.bannerTitle,
     bannerDescription: patch.bannerDescription === undefined ? current.bannerDescription : patch.bannerDescription,
     notes: patch.notes === undefined ? current.notes : patch.notes,
+    leaveReviewUrl: patch.leaveReviewUrl === undefined ? current.leaveReviewUrl : patch.leaveReviewUrl,
   }
   const hasTitle = Boolean(nextEntry.bannerTitle?.trim())
   const hasDescription = nextEntry.bannerDescription !== undefined
   const hasNotes = Boolean(nextEntry.notes?.trim())
+  const hasLeaveReviewUrl = Boolean(nextEntry.leaveReviewUrl?.trim())
   const next = { ...(meta || {}) }
-  if (!hasTitle && !hasDescription && !hasNotes) {
+  if (!hasTitle && !hasDescription && !hasNotes && !hasLeaveReviewUrl) {
     delete next[id]
     return next
   }
-  next[id] = {
-    bannerTitle: hasTitle ? nextEntry.bannerTitle : undefined,
-    bannerDescription: hasDescription ? nextEntry.bannerDescription : undefined,
-    notes: hasNotes ? nextEntry.notes : undefined,
-  }
+  const stored: VCardTabSectionMetaEntry = {}
+  if (hasTitle) stored.bannerTitle = nextEntry.bannerTitle
+  if (hasDescription) stored.bannerDescription = nextEntry.bannerDescription
+  if (hasNotes) stored.notes = nextEntry.notes
+  if (hasLeaveReviewUrl) stored.leaveReviewUrl = nextEntry.leaveReviewUrl?.trim()
+  next[id] = stored
   return next
 }
 
@@ -140,6 +155,7 @@ export type ResolvedSectionBanner = {
   title: string
   description: string
   notes: string
+  leaveReviewUrl: string
 }
 
 export function resolveSectionBanner(input: {
@@ -155,5 +171,6 @@ export function resolveSectionBanner(input: {
       ? input.fallbackDescription?.trim() || defaultBannerDescription(input.tabId)
       : input.meta.bannerDescription.trim()
   const notes = input.meta?.notes?.trim() || ''
-  return { title, description, notes }
+  const leaveReviewUrl = input.meta?.leaveReviewUrl?.trim() || ''
+  return { title, description, notes, leaveReviewUrl }
 }

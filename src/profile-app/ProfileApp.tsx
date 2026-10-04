@@ -1,5 +1,6 @@
 'use client'
 
+import { BackgroundVideoWarmup } from '@/profile-app/components/BackgroundVideoWarmup'
 import { CardNoticeAfterIntro } from '@/profile-app/components/CardNoticeAfterIntro'
 import { CardPushMediaSync } from '@/profile-app/components/CardPushMediaSync'
 import { CinematicScrollbarBinder } from '@/profile-app/components/CinematicScrollbarBinder'
@@ -55,6 +56,7 @@ export function ProfileApp(props: VBizProfileAppProps) {
       cardSlug={props.profileSlug ?? props.shareSlug}
       profileViews={props.profileViews}
       actionButtons={props.actionButtons}
+      seo={props.seo}
     >
       <EmbeddedDraftCacheSync
         embedded={props.embedded}
@@ -102,6 +104,7 @@ export function ProfileApp(props: VBizProfileAppProps) {
             />
             {!props.embedded && <CardPushMediaSync />}
             {!props.embedded && <ProfileBrandPreloader />}
+            {!props.embedded && <BackgroundVideoWarmup />}
             {!props.embedded && <ProfileIntroOverlay explainerVideoUrl={props.explainerVideoUrl} />}
             <CardNoticeAfterIntro
               embedded={props.embedded}

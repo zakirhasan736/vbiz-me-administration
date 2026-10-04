@@ -1,6 +1,7 @@
 'use client'
 
-import { forwardRef, useEffect, useRef } from 'react'
+import { withVideoStartHint } from '@/profile-app/lib/introVideoAdaptive'
+import { forwardRef, useEffect, useMemo, useRef } from 'react'
 
 type Props = {
   src: string
@@ -32,6 +33,12 @@ function applyIosPlayFlags(el: HTMLVideoElement, muted: boolean) {
   el.setAttribute('webkit-playsinline', 'true')
   el.setAttribute('x5-playsinline', 'true')
   el.setAttribute('autoplay', '')
+  // Prefer early decode over waiting for a deep buffer on Safari.
+  try {
+    el.setAttribute('preload', 'auto')
+  } catch {
+    /* ignore */
+  }
   if (muted) {
     el.muted = true
     el.defaultMuted = true
@@ -70,6 +77,9 @@ export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function Pr
   onPlayErrorRef.current = onPlayError
   mutedRef.current = muted
 
+  // `#t=0.001` nudges Safari to paint a first frame without a large buffer.
+  const playbackSrc = useMemo(() => withVideoStartHint(src), [src])
+
   useEffect(() => {
     const el = internalRef.current
     if (!el) return
@@ -89,31 +99,38 @@ export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function Pr
       }
     }
 
+    // Force the network stack to start immediately on Safari.
+    try {
+      el.load()
+    } catch {
+      /* ignore */
+    }
     tryPlay()
     el.addEventListener('loadedmetadata', tryPlay)
     el.addEventListener('loadeddata', tryPlay)
     el.addEventListener('canplay', tryPlay)
+    el.addEventListener('canplaythrough', tryPlay)
 
     return () => {
       el.removeEventListener('loadedmetadata', tryPlay)
       el.removeEventListener('loadeddata', tryPlay)
       el.removeEventListener('canplay', tryPlay)
+      el.removeEventListener('canplaythrough', tryPlay)
     }
-  }, [src, shouldPlay, muted])
-
-  const type = /\.webm(\?|#|$)/i.test(src) ? 'video/webm' : 'video/mp4'
+  }, [playbackSrc, shouldPlay, muted])
 
   return (
     <video
       ref={mergeRefs(internalRef, forwardedRef)}
       className={className}
-      src={src}
+      src={playbackSrc}
       muted={muted}
       autoPlay
       playsInline
       preload="auto"
       controls={false}
       disablePictureInPicture
+      disableRemotePlayback
       data-intro-quality={qualityLabel}
       onEnded={onEnded}
       onCanPlay={onCanPlay}
@@ -124,8 +141,6 @@ export const ProfileIntroVideo = forwardRef<HTMLVideoElement, Props>(function Pr
         'webkit-playsinline': 'true',
         'x5-playsinline': 'true',
       }}
-    >
-      <source src={src} type={type} />
-    </video>
+    />
   )
 })

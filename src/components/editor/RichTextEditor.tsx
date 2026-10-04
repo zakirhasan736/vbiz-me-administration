@@ -19,6 +19,7 @@ import { Underline } from '@tiptap/extension-underline'
 import { Youtube } from '@tiptap/extension-youtube'
 import { Placeholder } from '@tiptap/extensions'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import {
   AlignLeft,
@@ -27,7 +28,6 @@ import {
   ChevronDown,
   Code2,
   FileCode,
-  Heading3,
   Highlighter,
   Image as ImageIcon,
   Indent,
@@ -45,7 +45,8 @@ import {
   Underline as UnderlineIcon,
   Video,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 export type RichTextEditorProps = {
   value?: string
@@ -54,7 +55,7 @@ export type RichTextEditorProps = {
   className?: string
   minHeightClassName?: string
   disabled?: boolean
-  /** Bold text and highlight follow this color. Defaults to the card accent. */
+  /** Highlight / link accents. Bold keeps the current text color (not accent). */
   accentColor?: string
 }
 
@@ -101,33 +102,8 @@ const HEADING_OPTIONS: { label: string; level: 0 | 1 | 2 | 3 | 4 | 5 | 6 }[] = [
   { label: 'Heading 6', level: 6 },
 ]
 
-const TEXT_COLORS = ['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777']
-
-const ThemeAwareColor = Color.extend({
-  addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          color: {
-            default: null,
-            parseHTML: (element: HTMLElement) => {
-              const raw = element.getAttribute('style') || ''
-              const fromStyle = raw.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i)?.[1]
-              const value = (fromStyle || element.style.color || '').replace(/['"]+/g, '').trim()
-              if (!value || isThemeNeutralColor(value)) return null
-              return value
-            },
-            renderHTML: (attributes: { color?: string | null }) => {
-              if (!attributes.color || isThemeNeutralColor(attributes.color)) return {}
-              return { style: `color: ${attributes.color}` }
-            },
-          },
-        },
-      },
-    ]
-  },
-})
+const TEXT_COLORS = ['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#db2777', '#eab308']
+const HIGHLIGHT_COLORS = ['#fef08a', '#bbf7d0', '#bae6fd', '#fbcfe8', '#ddd6fe', '#fed7aa', '#e5e7eb']
 
 const ALIGN_OPTIONS: { label: string; value: 'left' | 'center' | 'right' | 'justify' }[] = [
   { label: 'Align left', value: 'left' },
@@ -136,7 +112,14 @@ const ALIGN_OPTIONS: { label: string; value: 'left' | 'center' | 'right' | 'just
   { label: 'Justify', value: 'justify' },
 ]
 
+/** Selection bubble is portaled to body; keep it above sticky chrome / overflow panels. */
+const RTE_BUBBLE_Z = 10050
+
 const EDITOR_ACCENT_CSS = `
+.vbiz-rte-bubble {
+  z-index: ${RTE_BUBBLE_Z} !important;
+  pointer-events: auto;
+}
 .vcard-rich-editor h1 { font-size: 1.875rem; font-weight: 800; line-height: 1.2; margin: 0.6em 0 0.3em; }
 .vcard-rich-editor h2 { font-size: 1.5rem; font-weight: 800; line-height: 1.25; margin: 0.6em 0 0.3em; }
 .vcard-rich-editor h3 { font-size: 1.25rem; font-weight: 700; line-height: 1.3; margin: 0.55em 0 0.25em; }
@@ -152,11 +135,17 @@ const EDITOR_ACCENT_CSS = `
 .vcard-rich-editor [style*='color:#000'],
 .vcard-rich-editor [style*='color: #000000'],
 .vcard-rich-editor [style*='color: black'] { color: inherit !important; }
-.vcard-rich-editor strong, .vcard-rich-editor b { color: var(--rte-accent, #eab308); font-weight: 700; }
+.vcard-rich-editor strong, .vcard-rich-editor b {
+  color: inherit;
+  font-weight: 700 !important;
+}
 .vcard-rich-editor em, .vcard-rich-editor i { font-style: italic; }
 .vcard-rich-editor u { text-decoration: underline; }
 .vcard-rich-editor s, .vcard-rich-editor strike, .vcard-rich-editor del { text-decoration: line-through; }
-.vcard-rich-editor mark { background-color: color-mix(in srgb, var(--rte-accent, #eab308) 42%, white); color: inherit; }
+.vcard-rich-editor mark { color: inherit; }
+.vcard-rich-editor mark:not([style*='background']) {
+  background-color: color-mix(in srgb, var(--rte-accent, #eab308) 42%, white);
+}
 .vcard-rich-editor a { color: var(--rte-accent, #eab308); text-decoration: underline; }
 .vcard-rich-editor ul { list-style: disc; padding-left: 1.25rem; margin: 0.4em 0; }
 .vcard-rich-editor ol { list-style: decimal; padding-left: 1.25rem; margin: 0.4em 0; }
@@ -181,27 +170,323 @@ function currentHeadingLabel(editor: Editor): string {
   return 'Paragraph'
 }
 
-function ensureParagraphBlock(editor: Editor) {
-  if (shouldDefaultToParagraph(editor)) return editor.chain().focus().setParagraph()
-  return editor.chain().focus()
+/** Keep the current selection (or stored marks when collapsed). Never expand to the whole block. */
+function chainForInlineMark(editor: Editor) {
+  const { from, to, empty } = editor.state.selection
+  const chain = editor.chain().focus()
+  if (!empty) return chain.setTextSelection({ from, to })
+  return chain
 }
 
 function applyTextColor(editor: Editor, color: string | null) {
-  const { empty, $from } = editor.state.selection
-  let chain = ensureParagraphBlock(editor)
-  if (empty) {
-    const from = $from.start()
-    const to = $from.end()
-    if (to > from) chain = chain.setTextSelection({ from, to })
+  const chain = chainForInlineMark(editor)
+  if (color && !isThemeNeutralColor(color)) {
+    // setMark on textStyle — avoid Color.setColor which calls .run() internally and can drop chained selection.
+    chain.setMark('textStyle', { color }).run()
+    return
   }
-  if (color && !isThemeNeutralColor(color)) chain.setColor(color).run()
-  else chain.unsetColor().run()
+  chain.setMark('textStyle', { color: null }).removeEmptyTextStyle().run()
+}
+
+function applyHighlightColor(editor: Editor, color: string | null) {
+  const chain = chainForInlineMark(editor)
+  if (!color) {
+    chain.unsetHighlight().run()
+    return
+  }
+  chain.setHighlight({ color }).run()
+}
+
+function toggleBoldMark(editor: Editor) {
+  const chain = chainForInlineMark(editor)
+  // Toggle only the current selection (or stored mark when caret is collapsed).
+  chain.toggleBold().run()
+}
+
+function setLinkFromPrompt(editor: Editor) {
+  const prev = editor.getAttributes('link').href as string | undefined
+  const url = window.prompt('Enter URL', prev || 'https://')
+  if (url === null) return
+  const trimmed = url.trim()
+  if (!trimmed) {
+    editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    return
+  }
+  editor.chain().focus().extendMarkRange('link').setLink({ href: trimmed }).run()
 }
 
 function applyTypographyBlock(editor: Editor, level: 0 | 1 | 2 | 3 | 4 | 5 | 6) {
   const chain = editor.chain().focus().unsetColor()
+  // Prefer setHeading over toggle so picking a style always applies (never toggles off).
   if (level === 0) chain.setParagraph().run()
-  else chain.toggleHeading({ level }).run()
+  else chain.setHeading({ level }).run()
+}
+
+/**
+ * WordPress-style floating bar — appears instantly when text is selected.
+ * Bold / italic / underline / link / text size / text color / highlight.
+ */
+function SelectionBubbleMenu({ editor, accent }: { editor: Editor; accent: string }) {
+  const [, setTick] = useState(0)
+  const [panel, setPanel] = useState<'none' | 'size' | 'color' | 'highlight'>('none')
+
+  useEffect(() => {
+    const rerender = () => setTick((n) => n + 1)
+    editor.on('selectionUpdate', rerender)
+    editor.on('transaction', rerender)
+    return () => {
+      editor.off('selectionUpdate', rerender)
+      editor.off('transaction', rerender)
+    }
+  }, [editor])
+
+  useEffect(() => {
+    // Size/heading options stay collapsed until the bubble’s own control is clicked.
+    const collapse = () => setPanel('none')
+    const onSel = () => {
+      if (editor.state.selection.empty) collapse()
+    }
+    editor.on('selectionUpdate', onSel)
+    editor.on('focus', collapse)
+    return () => {
+      editor.off('selectionUpdate', onSel)
+      editor.off('focus', collapse)
+    }
+  }, [editor])
+
+  const textColors = accent && !TEXT_COLORS.includes(accent) ? [accent, ...TEXT_COLORS] : TEXT_COLORS
+
+  return (
+    <BubbleMenu
+      editor={editor}
+      appendTo={() => document.body}
+      updateDelay={0}
+      options={{
+        placement: 'top',
+        offset: 10,
+        flip: true,
+        shift: { padding: 8 },
+        strategy: 'fixed',
+        // Never auto-hide when selection “escapes” an overflow ancestor — bubble is on body.
+        hide: false,
+        onShow: () => {
+          const el = document.querySelector('.vbiz-rte-bubble') as HTMLElement | null
+          if (el) el.style.zIndex = String(RTE_BUBBLE_Z)
+        },
+        onUpdate: () => {
+          const el = document.querySelector('.vbiz-rte-bubble') as HTMLElement | null
+          if (el) el.style.zIndex = String(RTE_BUBBLE_Z)
+        },
+      }}
+      shouldShow={({ editor: ed, state }) => {
+        const { from, to, empty } = state.selection
+        if (empty || !ed.isEditable) return false
+        if (ed.isActive('codeBlock')) return false
+        return to - from > 0
+      }}
+      className="vbiz-rte-bubble z-[10050] flex max-w-[min(100vw-1.5rem,28rem)] flex-col gap-1 rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-[#0b0f19]"
+      style={{ zIndex: RTE_BUBBLE_Z }}
+    >
+      <div className="flex flex-wrap items-center gap-0.5">
+        <button
+          type="button"
+          title="Text size"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setPanel((p) => (p === 'size' ? 'none' : 'size'))}
+          className={cn(
+            'inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold text-slate-700 dark:text-slate-200',
+            panel === 'size' ? 'bg-slate-200 dark:bg-white/15' : 'hover:bg-slate-100 dark:hover:bg-white/10'
+          )}
+        >
+          <Type className="h-3.5 w-3.5" />
+          {currentHeadingLabel(editor).replace('Heading ', 'H')}
+          <ChevronDown className="h-3 w-3 opacity-60" />
+        </button>
+
+        <ToolbarDivider />
+
+        <ToolbarBtn title="Bold" active={editor.isActive('bold')} onClick={() => toggleBoldMark(editor)}>
+          <Bold className="h-4 w-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          title="Italic"
+          active={editor.isActive('italic')}
+          onClick={() => chainForInlineMark(editor).toggleItalic().run()}
+        >
+          <Italic className="h-4 w-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          title="Underline"
+          active={editor.isActive('underline')}
+          onClick={() => chainForInlineMark(editor).toggleUnderline().run()}
+        >
+          <UnderlineIcon className="h-4 w-4" />
+        </ToolbarBtn>
+        <ToolbarBtn title="Link" active={editor.isActive('link')} onClick={() => setLinkFromPrompt(editor)}>
+          <Link2 className="h-4 w-4" />
+        </ToolbarBtn>
+
+        <ToolbarDivider />
+
+        <ToolbarBtn
+          title="Text color"
+          active={panel === 'color'}
+          onClick={() => setPanel((p) => (p === 'color' ? 'none' : 'color'))}
+        >
+          <span className="relative inline-flex h-4 w-4 items-center justify-center">
+            <Type className="h-3.5 w-3.5" />
+            <span
+              className="absolute right-0 bottom-0 h-1.5 w-1.5 rounded-full ring-1 ring-white dark:ring-[#0b0f19]"
+              style={{ backgroundColor: (editor.getAttributes('textStyle').color as string) || accent }}
+            />
+          </span>
+        </ToolbarBtn>
+        <ToolbarBtn
+          title="Highlight / background"
+          active={panel === 'highlight' || editor.isActive('highlight')}
+          onClick={() => setPanel((p) => (p === 'highlight' ? 'none' : 'highlight'))}
+        >
+          <Highlighter className="h-4 w-4" />
+        </ToolbarBtn>
+      </div>
+
+      {panel === 'size' ? (
+        <div className="flex flex-wrap gap-1 border-t border-slate-100 pt-1.5 dark:border-white/10">
+          {HEADING_OPTIONS.map((opt) => {
+            const active =
+              opt.level === 0 ? !editor.isActive('heading') : editor.isActive('heading', { level: opt.level })
+            return (
+              <button
+                key={opt.label}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  applyTypographyBlock(editor, opt.level)
+                  setPanel('none')
+                }}
+                className={cn(
+                  'rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200',
+                  active ? 'bg-slate-200 dark:bg-white/15' : 'hover:bg-slate-100 dark:hover:bg-white/10'
+                )}
+              >
+                {opt.label.replace('Heading ', 'H').replace('Paragraph', 'P')}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {panel === 'color' ? (
+        <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 pt-1.5 dark:border-white/10">
+          {textColors.map((c) => (
+            <button
+              key={c}
+              type="button"
+              title={c}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                applyTextColor(editor, c)
+                setPanel('none')
+              }}
+              className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+              style={{ backgroundColor: c }}
+            />
+          ))}
+          <button
+            type="button"
+            title="Clear text color"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              applyTextColor(editor, null)
+              setPanel('none')
+            }}
+            className="px-1.5 text-[10px] font-bold text-slate-500"
+          >
+            Clear
+          </button>
+        </div>
+      ) : null}
+
+      {panel === 'highlight' ? (
+        <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 pt-1.5 dark:border-white/10">
+          {HIGHLIGHT_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              title={c}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                applyHighlightColor(editor, c)
+                setPanel('none')
+              }}
+              className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+              style={{ backgroundColor: c }}
+            />
+          ))}
+          <button
+            type="button"
+            title="Accent highlight"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              applyHighlightColor(editor, accent)
+              setPanel('none')
+            }}
+            className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+            style={{ backgroundColor: `color-mix(in srgb, ${accent} 45%, white)` }}
+          />
+          <button
+            type="button"
+            title="Clear highlight"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              applyHighlightColor(editor, null)
+              setPanel('none')
+            }}
+            className="px-1.5 text-[10px] font-bold text-slate-500"
+          >
+            Clear
+          </button>
+        </div>
+      ) : null}
+    </BubbleMenu>
+  )
+}
+
+/** Dropdown menus portaled to body so parent overflow-hidden panels cannot clip them. */
+function useAnchoredMenuStyle(open: boolean, anchorRef: React.RefObject<HTMLElement | null>): CSSProperties {
+  const [style, setStyle] = useState<CSSProperties>({ display: 'none' })
+
+  useLayoutEffect(() => {
+    if (!open || !anchorRef.current) {
+      setStyle({ display: 'none' })
+      return
+    }
+    const place = () => {
+      const el = anchorRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const menuMaxHeight = 288
+      const spaceBelow = window.innerHeight - rect.bottom - 8
+      const openUp = spaceBelow < 160 && rect.top > spaceBelow
+      const top = openUp ? Math.max(8, rect.top - menuMaxHeight - 4) : rect.bottom + 4
+      setStyle({
+        position: 'fixed',
+        top,
+        left: Math.min(rect.left, window.innerWidth - 160),
+        zIndex: 10000,
+        maxHeight: Math.min(menuMaxHeight, openUp ? rect.top - 8 : spaceBelow),
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [anchorRef, open])
+
+  return style
 }
 
 function RichTextToolbar({
@@ -216,10 +501,21 @@ function RichTextToolbar({
   const [, setTick] = useState(0)
   const [headingOpen, setHeadingOpen] = useState(false)
   const [colorOpen, setColorOpen] = useState(false)
+  const [highlightOpen, setHighlightOpen] = useState(false)
   const [alignOpen, setAlignOpen] = useState(false)
   const headingRef = useRef<HTMLDivElement>(null)
   const colorRef = useRef<HTMLDivElement>(null)
+  const highlightRef = useRef<HTMLDivElement>(null)
   const alignRef = useRef<HTMLDivElement>(null)
+  const headingMenuRef = useRef<HTMLDivElement>(null)
+  const colorMenuRef = useRef<HTMLDivElement>(null)
+  const highlightMenuRef = useRef<HTMLDivElement>(null)
+  const alignMenuRef = useRef<HTMLDivElement>(null)
+  const headingMenuStyle = useAnchoredMenuStyle(headingOpen, headingRef)
+  const colorMenuStyle = useAnchoredMenuStyle(colorOpen, colorRef)
+  const highlightMenuStyle = useAnchoredMenuStyle(highlightOpen, highlightRef)
+  const alignMenuStyle = useAnchoredMenuStyle(alignOpen, alignRef)
+  const canPortal = typeof document !== 'undefined'
 
   useEffect(() => {
     const rerender = () => setTick((n) => n + 1)
@@ -231,28 +527,44 @@ function RichTextToolbar({
     }
   }, [editor])
 
+  const closeToolbarMenus = useCallback(() => {
+    setHeadingOpen(false)
+    setColorOpen(false)
+    setHighlightOpen(false)
+    setAlignOpen(false)
+  }, [])
+
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const t = e.target as Node
-      if (headingRef.current && !headingRef.current.contains(t)) setHeadingOpen(false)
-      if (colorRef.current && !colorRef.current.contains(t)) setColorOpen(false)
-      if (alignRef.current && !alignRef.current.contains(t)) setAlignOpen(false)
+      const inHeading = headingRef.current?.contains(t) || headingMenuRef.current?.contains(t)
+      const inColor = colorRef.current?.contains(t) || colorMenuRef.current?.contains(t)
+      const inHighlight = highlightRef.current?.contains(t) || highlightMenuRef.current?.contains(t)
+      const inAlign = alignRef.current?.contains(t) || alignMenuRef.current?.contains(t)
+      if (!inHeading) setHeadingOpen(false)
+      if (!inColor) setColorOpen(false)
+      if (!inHighlight) setHighlightOpen(false)
+      if (!inAlign) setAlignOpen(false)
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [])
 
-  const setLink = useCallback(() => {
-    const prev = editor.getAttributes('link').href as string | undefined
-    const url = window.prompt('Enter URL', prev || 'https://')
-    if (url === null) return
-    const trimmed = url.trim()
-    if (!trimmed) {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      return
+  // Clicking/focusing the write area closes Paragraph/Heading — it must only open from the toolbar button.
+  useEffect(() => {
+    const close = () => closeToolbarMenus()
+    editor.on('focus', close)
+    const dom = editor.view.dom
+    dom.addEventListener('mousedown', close)
+    dom.addEventListener('touchstart', close, { passive: true })
+    return () => {
+      editor.off('focus', close)
+      dom.removeEventListener('mousedown', close)
+      dom.removeEventListener('touchstart', close)
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: trimmed }).run()
-  }, [editor])
+  }, [editor, closeToolbarMenus])
+
+  const setLink = useCallback(() => setLinkFromPrompt(editor), [editor])
 
   const addImage = useCallback(() => {
     const url = window.prompt('Image URL', 'https://')
@@ -284,67 +596,83 @@ function RichTextToolbar({
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setHeadingOpen((o) => !o)}
-            className="inline-flex h-8 min-w-28 items-center justify-between gap-1 rounded-lg px-2 text-[12px] font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+            onClick={() => {
+              setColorOpen(false)
+              setHighlightOpen(false)
+              setAlignOpen(false)
+              setHeadingOpen((o) => !o)
+            }}
+            aria-haspopup="listbox"
+            aria-expanded={headingOpen}
+            className="inline-flex h-8 min-w-32 items-center justify-between gap-1 rounded-lg px-2 text-[12px] font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
           >
             <span className="inline-flex items-center gap-1.5">
-              <Heading3 className="h-3.5 w-3.5" />
+              <Type className="h-3.5 w-3.5 shrink-0" />
               {currentHeadingLabel(editor)}
             </span>
-            <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
           </button>
-          {headingOpen ? (
-            <div className="absolute top-full left-0 z-30 mt-1 max-h-72 min-w-36 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
-              {HEADING_OPTIONS.map((opt) => (
-                <button
-                  key={opt.label}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    applyTypographyBlock(editor, opt.level)
-                    setHeadingOpen(false)
-                  }}
-                  className={cn(
-                    'block w-full px-3 py-1.5 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
-                    opt.level === 0
-                      ? !editor.isActive('heading') && 'bg-slate-100 dark:bg-white/10'
-                      : editor.isActive('heading', { level: opt.level }) && 'bg-slate-100 dark:bg-white/10'
-                  )}
+          {headingOpen && canPortal
+            ? createPortal(
+                <div
+                  ref={headingMenuRef}
+                  role="listbox"
+                  aria-label="Text style"
+                  style={headingMenuStyle}
+                  className="min-w-40 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
                 >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
+                  {HEADING_OPTIONS.map((opt) => {
+                    const active =
+                      opt.level === 0 ? !editor.isActive('heading') : editor.isActive('heading', { level: opt.level })
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          applyTypographyBlock(editor, opt.level)
+                          setHeadingOpen(false)
+                        }}
+                        className={cn(
+                          'block w-full px-3 py-2 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
+                          active && 'bg-slate-100 dark:bg-white/10'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>,
+                document.body
+              )
+            : null}
         </div>
 
         <ToolbarDivider />
 
-        <ToolbarBtn
-          title="Bold"
-          active={editor.isActive('bold')}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-        >
+        <ToolbarBtn title="Bold" active={editor.isActive('bold')} onClick={() => toggleBoldMark(editor)}>
           <Bold className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
           title="Italic"
           active={editor.isActive('italic')}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
+          onClick={() => chainForInlineMark(editor).toggleItalic().run()}
         >
           <Italic className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
           title="Underline"
           active={editor.isActive('underline')}
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          onClick={() => chainForInlineMark(editor).toggleUnderline().run()}
         >
           <UnderlineIcon className="h-4 w-4" />
         </ToolbarBtn>
         <ToolbarBtn
           title="Strikethrough"
           active={editor.isActive('strike')}
-          onClick={() => editor.chain().focus().toggleStrike().run()}
+          onClick={() => chainForInlineMark(editor).toggleStrike().run()}
         >
           <Strikethrough className="h-4 w-4" />
         </ToolbarBtn>
@@ -430,75 +758,151 @@ function RichTextToolbar({
         <ToolbarDivider />
 
         <div className="relative" ref={alignRef}>
-          <ToolbarBtn title="Text alignment" active={alignOpen} onClick={() => setAlignOpen((open) => !open)}>
+          <ToolbarBtn
+            title="Text alignment"
+            active={alignOpen}
+            onClick={() => {
+              setHeadingOpen(false)
+              setColorOpen(false)
+              setHighlightOpen(false)
+              setAlignOpen((open) => !open)
+            }}
+          >
             <AlignLeft className="h-4 w-4" />
           </ToolbarBtn>
-          {alignOpen ? (
-            <div className="absolute top-full left-0 z-30 mt-1 min-w-36 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
-              {ALIGN_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    editor.chain().focus().setTextAlign(opt.value).run()
-                    setAlignOpen(false)
-                  }}
-                  className={cn(
-                    'block w-full px-3 py-1.5 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
-                    editor.isActive({ textAlign: opt.value }) && 'bg-slate-100 dark:bg-white/10'
-                  )}
+          {alignOpen && canPortal
+            ? createPortal(
+                <div
+                  ref={alignMenuRef}
+                  style={alignMenuStyle}
+                  className="min-w-36 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
                 >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
+                  {ALIGN_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        editor.chain().focus().setTextAlign(opt.value).run()
+                        setAlignOpen(false)
+                      }}
+                      className={cn(
+                        'block w-full px-3 py-2 text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5',
+                        editor.isActive({ textAlign: opt.value }) && 'bg-slate-100 dark:bg-white/10'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>,
+                document.body
+              )
+            : null}
         </div>
 
         <div className="relative" ref={colorRef}>
-          <ToolbarBtn title="Text color" active={colorOpen} onClick={() => setColorOpen((o) => !o)}>
+          <ToolbarBtn
+            title="Text color"
+            active={colorOpen}
+            onClick={() => {
+              setHeadingOpen(false)
+              setAlignOpen(false)
+              setHighlightOpen(false)
+              setColorOpen((o) => !o)
+            }}
+          >
             <Type className="h-4 w-4" />
           </ToolbarBtn>
-          {colorOpen ? (
-            <div className="absolute top-full left-0 z-30 mt-1 flex gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-[#0b0f19]">
-              {TEXT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    applyTextColor(editor, c)
-                    setColorOpen(false)
-                  }}
-                  className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-              <button
-                type="button"
-                title="Reset color"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  applyTextColor(editor, null)
-                  setColorOpen(false)
-                }}
-                className="px-1 text-[10px] font-bold text-slate-500"
-              >
-                Clear
-              </button>
-            </div>
-          ) : null}
+          {colorOpen && canPortal
+            ? createPortal(
+                <div
+                  ref={colorMenuRef}
+                  style={colorMenuStyle}
+                  className="flex gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
+                >
+                  {TEXT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      title={c}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        applyTextColor(editor, c)
+                        setColorOpen(false)
+                      }}
+                      className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    title="Reset color"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      applyTextColor(editor, null)
+                      setColorOpen(false)
+                    }}
+                    className="px-1 text-[10px] font-bold text-slate-500"
+                  >
+                    Clear
+                  </button>
+                </div>,
+                document.body
+              )
+            : null}
         </div>
 
-        <ToolbarBtn
-          title="Highlight"
-          active={editor.isActive('highlight')}
-          onClick={() => editor.chain().focus().toggleHighlight().run()}
-        >
-          <Highlighter className="h-4 w-4" />
-        </ToolbarBtn>
+        <div className="relative" ref={highlightRef}>
+          <ToolbarBtn
+            title="Highlight"
+            active={highlightOpen || editor.isActive('highlight')}
+            onClick={() => {
+              setHeadingOpen(false)
+              setAlignOpen(false)
+              setColorOpen(false)
+              setHighlightOpen((o) => !o)
+            }}
+          >
+            <Highlighter className="h-4 w-4" />
+          </ToolbarBtn>
+          {highlightOpen && canPortal
+            ? createPortal(
+                <div
+                  ref={highlightMenuRef}
+                  style={highlightMenuStyle}
+                  className="flex gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#0b0f19]"
+                >
+                  {HIGHLIGHT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      title={c}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        applyHighlightColor(editor, c)
+                        setHighlightOpen(false)
+                      }}
+                      className="h-5 w-5 rounded-md border border-slate-200 dark:border-white/10"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    title="Clear highlight"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      applyHighlightColor(editor, null)
+                      setHighlightOpen(false)
+                    }}
+                    className="px-1 text-[10px] font-bold text-slate-500"
+                  >
+                    Clear
+                  </button>
+                </div>,
+                document.body
+              )
+            : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-0.5">
@@ -531,7 +935,8 @@ export function RichTextEditor({
   onChange,
   placeholder = 'Write a detailed description…',
   className,
-  minHeightClassName = 'min-h-48',
+  // Default was min-h-56 (14rem); +30% → ~18.2rem
+  minHeightClassName = 'min-h-[18.2rem]',
   disabled = false,
   accentColor,
 }: RichTextEditorProps) {
@@ -557,7 +962,7 @@ export function RichTextEditor({
       }),
       Underline,
       TextStyle.configure({ mergeNestedSpanStyles: true }),
-      ThemeAwareColor.configure({ types: ['textStyle'] }),
+      Color.configure({ types: ['textStyle'] }),
       Highlight.configure({ multicolor: true }),
       Subscript,
       Superscript,
@@ -645,7 +1050,7 @@ export function RichTextEditor({
     return (
       <div
         className={cn(
-          'overflow-hidden rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#0b0f19]',
+          'overflow-visible rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#0b0f19]',
           className
         )}
       >
@@ -657,14 +1062,15 @@ export function RichTextEditor({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]',
+        // overflow-visible so selection bubble / caret handles are never clipped by this shell
+        'overflow-visible rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]',
         disabled && 'pointer-events-none opacity-60',
         className
       )}
       style={{ ['--rte-accent' as string]: accent }}
     >
       <HoistableStyle href="vbiz-rte-accent" css={EDITOR_ACCENT_CSS} />
-      <div className="overflow-x-auto overflow-y-hidden rounded-t-2xl">
+      <div className="relative z-10 overflow-visible rounded-t-2xl">
         <RichTextToolbar
           editor={editor}
           sourceMode={sourceMode}
@@ -694,7 +1100,8 @@ export function RichTextEditor({
           )}
         />
       ) : (
-        <div className="rounded-b-2xl [&_.ProseMirror]:min-h-[inherit]">
+        <div className="relative z-0 overflow-visible rounded-b-2xl [&_.ProseMirror]:min-h-[inherit]">
+          <SelectionBubbleMenu editor={editor} accent={accent} />
           <EditorContent editor={editor} />
         </div>
       )}

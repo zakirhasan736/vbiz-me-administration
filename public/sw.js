@@ -1,5 +1,4 @@
 const CARD_PUSH_MEDIA_CACHE = 'vbiz-card-push-media-v1'
-const LAST_MEDIA_SLUG = '__last__'
 const CLIENT_MEDIA_TIMEOUT_MS = 900
 /** Friendly public host shown in notification text when running on localhost. */
 const PUBLIC_CARD_HOST = 'vbiz.me'
@@ -191,50 +190,61 @@ function normalizePushPayload(raw) {
 
 /** Build a clearer OS notification title/body (owner + what changed + card link). */
 function buildNotificationCopy(payload) {
+  // Always the updated card’s owner — never another subscribed card’s name.
   const name = firstNonEmpty(payload.businessName, payload.slug, 'vBiz Me')
   const action = CATEGORY_ACTION[payload.category] || 'has a new update'
   const rawTitle = firstNonEmpty(payload.title)
   const rawBody = firstNonEmpty(payload.body, payload.speakLine)
+  const nameLower = name.toLowerCase()
 
-  // Title: card owner first, then short update type from backend when useful.
-  let title = name
+  // Title always leads with THIS card’s name.
+  let title = `${name} · Update`
   if (rawTitle) {
     const titleLower = rawTitle.toLowerCase()
-    const nameLower = name.toLowerCase()
-    if (!titleLower.includes(nameLower)) {
-      title = `${name} · ${rawTitle}`
-    } else {
-      title = rawTitle
-    }
-  } else {
-    title = `${name} · Update`
+    title = titleLower.includes(nameLower) ? rawTitle : `${name} · ${rawTitle}`
   }
 
-  // Body: what changed, then a friendly card link (never advertise localhost).
-  const detail = rawBody || `${name} ${action}.`
+  // Body must mention THIS card. If backend text names someone else, rebuild it.
+  let detail = rawBody || `${name} ${action}.`
+  if (rawBody && nameLower && !rawBody.toLowerCase().includes(nameLower)) {
+    detail = `${name} ${action}.`
+  }
+
   let displayLink = ''
   if (payload.slug) {
-    displayLink = isLocalDevHost() ? `${PUBLIC_CARD_HOST}/v/${payload.slug}` : `${self.location.host}/v/${payload.slug}`
+    const slugPath = `vCard/${String(payload.slug).trim()}`
+    displayLink = isLocalDevHost() ? `${PUBLIC_CARD_HOST}/${slugPath}` : `${self.location.host}/${slugPath}`
   }
 
-  const body = displayLink ? `${detail}\nOpen card · ${displayLink}` : `${detail}\nTap to open card`
+  const cleanedDetail = String(detail).replace(/\/v\/(?=[\w%-])/g, '/vCard/')
+  const body = displayLink ? `${cleanedDetail}\nOpen card · ${displayLink}` : `${cleanedDetail}\nTap to open card`
 
   return { title, body, displayLink }
 }
 
 function applyCachedMedia(payload, cached) {
   if (!cached) return payload
+  // Never borrow another card’s identity (slug / businessName) from media cache.
+  const payloadSlug = String(payload.slug || '')
+    .trim()
+    .toLowerCase()
+  const cachedSlug = String(cached.slug || '')
+    .trim()
+    .toLowerCase()
+  if (payloadSlug && cachedSlug && payloadSlug !== cachedSlug) return payload
+
   const cachedIcon = firstNonEmpty(cached.icon, cached.avatarImageUrl, cached.avatarUrl)
   if (!isStaticImageUrl(cachedIcon) && !cached.avatarVideoUrl) return payload
 
   return {
     ...payload,
-    businessName: firstNonEmpty(payload.businessName, cached.businessName) || payload.businessName,
+    // Keep payload businessName/slug authoritative — cache only fills missing avatars.
+    businessName: firstNonEmpty(payload.businessName) || payload.businessName,
     avatarImageUrl: firstNonEmpty(payload.avatarImageUrl, cached.avatarImageUrl, cachedIcon),
     avatarUrl: firstNonEmpty(payload.avatarUrl, cached.avatarUrl, cached.avatarImageUrl, cachedIcon),
     avatarVideoUrl: firstNonEmpty(payload.avatarVideoUrl, cached.avatarVideoUrl),
     icon: firstNonEmpty(payload.icon, cachedIcon),
-    slug: firstNonEmpty(payload.slug, cached.slug),
+    slug: firstNonEmpty(payload.slug) || payload.slug,
   }
 }
 
@@ -282,16 +292,15 @@ async function resolveCardMedia(payload) {
     return next
   }
 
+  // Only the updated card’s own media — never LAST visited card (wrong owner name/avatar).
   if (next.slug) {
     next = applyCachedMedia(next, await readCachedCardMedia(next.slug))
     if (isStaticImageUrl(next.icon) || isStaticImageUrl(next.avatarImageUrl)) return next
+
+    const fromClient = await requestMediaFromClients(next.slug)
+    next = applyCachedMedia(next, fromClient)
   }
 
-  const fromClient = await requestMediaFromClients(next.slug)
-  next = applyCachedMedia(next, fromClient)
-  if (isStaticImageUrl(next.icon) || isStaticImageUrl(next.avatarImageUrl)) return next
-
-  next = applyCachedMedia(next, await readCachedCardMedia(LAST_MEDIA_SLUG))
   return next
 }
 
@@ -299,10 +308,10 @@ self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
-const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v2'
-const CARD_DATA_CACHE = 'vbiz-public-card-data-v2'
-const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v2'
-const NEXT_STATIC_CACHE = 'vbiz-next-static-v2'
+const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v5'
+const CARD_DATA_CACHE = 'vbiz-public-card-data-v5'
+const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v5'
+const NEXT_STATIC_CACHE = 'vbiz-next-static-v5'
 const MANAGED_CACHES = [CARD_SHELL_CACHE, CARD_DATA_CACHE, CARD_ASSET_CACHE, NEXT_STATIC_CACHE, CARD_PUSH_MEDIA_CACHE]
 
 self.addEventListener('activate', (event) => {
@@ -640,6 +649,12 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     (async () => {
       payload = await resolveCardMedia(payload)
+      // Force /vCard/{slug} before copy + click target (never leave legacy /v/ in the payload).
+      if (payload.slug) {
+        payload.url = normalizeCardUrl(payload.url, payload.slug)
+      } else if (payload.url) {
+        payload.url = normalizeCardUrl(payload.url, slugFromUrl(payload.url))
+      }
       const copy = buildNotificationCopy(payload)
       const openUrl = toAbsoluteUrl(normalizeCardUrl(payload.url, payload.slug))
 

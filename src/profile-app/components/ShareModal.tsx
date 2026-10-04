@@ -1,13 +1,16 @@
 'use client'
 
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
+import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import {
   buildFacebookShareHref,
+  buildShareCopy,
   openShareWindow,
   resolveShareUrl,
   shareToFacebook,
+  shareToInstagram,
   toAbsoluteShareUrl,
 } from '@/profile-app/lib/shareProfile'
 import {
@@ -22,13 +25,13 @@ import {
   Check,
   Copy,
   Facebook,
+  Instagram,
   Linkedin,
   Mail,
   MessageCircle,
   MessageSquare,
   Phone,
   QrCode as QrIcon,
-  Send,
   Twitter,
   X,
 } from 'lucide-react'
@@ -41,7 +44,8 @@ interface ShareModalProps {
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
-  const { design, personal, homeMedia, field, isVisible, avatarImageUrl, cardOwnerId, cardSlug } = useProfileDisplay()
+  const { design, personal, homeMedia, field, isVisible, avatarImageUrl, cardOwnerId, cardSlug, seo } =
+    useProfileDisplay()
   const accentColor = design?.accentColor ?? '#eab308'
   const profileId = cardOwnerId?.trim() || ''
   const { data: aboutMe } = useGetAboutMeQuery(profileId, {
@@ -90,11 +94,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
   const [proxiedCenter, setProxiedCenter] = useState<{ key: string; url: string } | null>(null)
   const [videoQrFailed, setVideoQrFailed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [instagramTip, setInstagramTip] = useState(false)
 
   // Reset ephemeral QR state when the modal opens/closes (avoid sync setState in effects).
   if (isOpen !== wasOpen) {
     setWasOpen(isOpen)
     setCopied(false)
+    setInstagramTip(false)
     setGeneratedQr(null)
     setProxiedCenter(null)
     setVideoQrFailed(false)
@@ -215,52 +221,90 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     }
   }
 
-  const shareText = profileName
-    ? `Check out ${profileName}'s digital business card profile here:`
-    : 'Check out this digital business card profile here:'
+  const { title: shareTitle, message: shareMessage } = buildShareCopy({
+    metaTitle: seo?.metaTitle,
+    metaDescription: seo?.metaDescription,
+    fallbackName: profileName || personal.fullName?.trim() || '',
+  })
 
   const socialShares = [
     {
       name: 'WhatsApp',
       icon: MessageCircle,
-      href: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
-      color: 'hover:bg-[#25D366] hover:border-[#25D366]/50 hover:text-white',
-      textColor: 'text-[#25D366]',
+      href: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage + ' ' + shareUrl)}`,
+      // Light theme: tinted brand hover (keep brand icon). Dark: solid brand + white icon.
+      color: 'hover:border-[#25D366]/50 hover:bg-[#25D366]/15 dark:hover:border-[#25D366]/50 dark:hover:bg-[#25D366]',
+      textColor: 'text-[#25D366] dark:group-hover:text-white',
       onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'LinkedIn',
       icon: Linkedin,
       href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
-      color: 'hover:bg-[#0077B5] hover:border-[#0077B5]/50 hover:text-white',
-      textColor: 'text-[#0077B5]',
+      color: 'hover:border-[#0077B5]/50 hover:bg-[#0077B5]/15 dark:hover:border-[#0077B5]/50 dark:hover:bg-[#0077B5]',
+      textColor: 'text-[#0077B5] dark:group-hover:text-white',
       onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'X',
       icon: Twitter,
-      href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
-      color: 'hover:bg-[#1DA1F2] hover:border-[#1DA1F2]/50 hover:text-white',
-      textColor: 'text-[#1DA1F2]',
+      href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareMessage)}`,
+      color: 'hover:border-[#1DA1F2]/50 hover:bg-[#1DA1F2]/15 dark:hover:border-[#1DA1F2]/50 dark:hover:bg-[#1DA1F2]',
+      textColor: 'text-[#1DA1F2] dark:group-hover:text-white',
       onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
-      name: 'Telegram',
-      icon: Send,
-      href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
-      color: 'hover:bg-[#0088cc] hover:border-[#0088cc]/50 hover:text-white',
-      textColor: 'text-[#0088cc]',
-      onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
+      name: 'Instagram',
+      icon: Instagram,
+      href: 'https://www.instagram.com/',
+      color: 'hover:border-[#E4405F]/50 hover:bg-[#E4405F]/15 dark:hover:border-[#E4405F]/50 dark:hover:bg-[#E4405F]',
+      textColor: 'text-[#E4405F] dark:group-hover:text-white',
+      hint: 'Copies link, then opens Instagram',
+      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault()
+        void (async () => {
+          const result = await shareToInstagram(shareUrl, shareMessage)
+          if (result === 'copied_opened') {
+            setCopied(true)
+            setInstagramTip(true)
+            window.setTimeout(() => setCopied(false), 2500)
+            notify.success('Link copied — paste it in Instagram Story, Reel, DM, or post.')
+            return
+          }
+          if (result === 'opened_only') {
+            setInstagramTip(true)
+            notify.info('Instagram opened — copy the card link above, then paste it in Instagram.')
+            return
+          }
+          notify.error('Could not open Instagram. Copy the card link above and paste it there.')
+        })()
+      },
     },
     {
       name: 'Facebook',
       icon: Facebook,
-      href: buildFacebookShareHref(shareUrl, shareText),
-      color: 'hover:bg-[#1877F2] hover:border-[#1877F2]/50 hover:text-white',
-      textColor: 'text-[#1877F2]',
+      href: buildFacebookShareHref(shareUrl, shareMessage, {
+        mobile: typeof navigator !== 'undefined' && /iPad|iPhone|iPod/i.test(navigator.userAgent),
+      }),
+      color: 'hover:border-[#1877F2]/50 hover:bg-[#1877F2]/15 dark:hover:border-[#1877F2]/50 dark:hover:bg-[#1877F2]',
+      textColor: 'text-[#1877F2] dark:group-hover:text-white',
+      hint: 'Opens Facebook create post with your card link',
       onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault()
-        void shareToFacebook(shareUrl, shareText, profileName || undefined)
+        if (!shareUrl) {
+          notify.error('Card link is still loading. Try Facebook again in a moment.')
+          return
+        }
+        void (async () => {
+          const result = await shareToFacebook(shareUrl, shareMessage, shareTitle)
+          if (result === 'shared' || result === 'cancelled') return
+          if (result === 'opened') {
+            // iPhone navigates away immediately; toast may not show — clipboard is still primed.
+            notify.info('Opening Facebook — paste the link if the post is empty.')
+            return
+          }
+          notify.error('Could not open Facebook share. Copy the card link above and paste it there.')
+        })()
       },
     },
   ]
@@ -271,7 +315,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
           {
             name: 'Email',
             icon: Mail,
-            href: `mailto:${email}?subject=${encodeURIComponent('Digital Profile: ' + profileName)}&body=${encodeURIComponent(shareText + '\n' + shareUrl)}`,
+            href: `mailto:${email}?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareMessage + '\n' + shareUrl)}`,
             color:
               'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-[#eab308]',
           },
@@ -280,7 +324,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     {
       name: 'SMS / Text',
       icon: MessageSquare,
-      href: `sms:?&body=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
+      href: `sms:?&body=${encodeURIComponent(shareMessage + ' ' + shareUrl)}`,
       color:
         'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-[#eab308]',
     },
@@ -410,19 +454,33 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                     openShareWindow(platform.href)
                   }}
                   className={`group flex flex-col items-center justify-center rounded-xl border border-zinc-200/60 bg-zinc-50/50 p-2 transition-all duration-300 sm:p-3 dark:border-zinc-800/80 dark:bg-zinc-900/30 ${platform.color} active:scale-95`}
-                  title={`Share on ${platform.name}`}
-                  aria-label={`Share on ${platform.name}`}
+                  title={'hint' in platform && platform.hint ? platform.hint : `Share on ${platform.name}`}
+                  aria-label={
+                    'hint' in platform && platform.hint
+                      ? `${platform.name}: ${platform.hint}`
+                      : `Share on ${platform.name}`
+                  }
                 >
                   <platform.icon
                     size={26}
-                    className={`opacity-80 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 ${platform.textColor} [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white`}
+                    className={`opacity-90 transition-colors [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 ${platform.textColor}`}
                   />
-                  <span className="mt-1 hidden text-[10.799999999999999px] font-bold text-zinc-900 sm:mt-1.5 dark:text-zinc-900 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white">
+                  <span className="mt-1 hidden text-[10.8px] font-bold text-zinc-700 sm:mt-1.5 dark:text-zinc-200 dark:[@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white">
                     {platform.name}
                   </span>
                 </a>
               ))}
             </div>
+            {instagramTip ? (
+              <p className="rounded-xl border border-[#E4405F]/25 bg-[#E4405F]/10 px-3 py-2 text-[11px] leading-snug font-medium text-zinc-700 dark:text-zinc-200">
+                Instagram tip: your card link is on the clipboard. In Instagram, open a Story / Reel / DM / new post and
+                paste it.
+              </p>
+            ) : (
+              <p className="text-[10px] leading-snug text-zinc-500 dark:text-zinc-400">
+                Instagram copies your link first, then opens the app — paste it into a Story, Reel, DM, or post.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

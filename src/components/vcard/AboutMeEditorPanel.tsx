@@ -118,7 +118,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
+      <section className="overflow-visible rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
         <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
           <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-violet-100 bg-violet-50 dark:border-violet-500/20 dark:bg-violet-500/10">
             <AlignLeft className="h-5 w-5 text-violet-600 dark:text-violet-400" />
@@ -133,6 +133,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             value={draft.descriptionHtml}
             onChange={(html) => update({ descriptionHtml: html })}
             placeholder="Share your story, background, and what makes you unique…"
+            minHeightClassName="min-h-[18.2rem]"
           />
         </div>
       </section>

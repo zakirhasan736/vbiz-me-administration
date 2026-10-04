@@ -46,7 +46,7 @@ function CtaButtonContent({ button, iconSize }: { button: ResolvedHomeCtaButton;
 
 /** Layout/size only — colors come from theme tokens via `.vbiz-btn[data-role]`. */
 function getCtaButtonClasses(template: ProfileTemplateId, isDesktop: boolean): string {
-  const size = isDesktop ? 'h-[52px] w-full' : 'h-[38px] min-h-[38px] w-full shrink-0'
+  const size = isDesktop ? 'h-10 w-full' : 'h-10 min-h-10 w-full shrink-0'
   const mobileText = 'text-[13px]'
   const base = `vbiz-btn flex min-w-0 items-center justify-center gap-2 overflow-hidden whitespace-nowrap transition-all active:scale-95 ${size}`
 

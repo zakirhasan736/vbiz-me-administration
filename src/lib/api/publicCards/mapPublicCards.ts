@@ -118,13 +118,26 @@ export type PublicCardListItem = {
   name: string
   profession: string
   designation: string | null
-  /** Designation preferred, then profession — shown under the owner name. */
+  /** Designation + profession under the owner name (deduped when identical). */
   roleLabel: string
   professionId: string | number | null
   img: string | null
   isVideo: boolean
   initials: string
   slug: string
+}
+
+/** Public card directory subtitle: show designation and profession together. */
+export function formatPublicCardRoleLabel(
+  designation: string | null | undefined,
+  profession: string | null | undefined
+): string {
+  const title = designation?.trim() || ''
+  const industry = profession?.trim() || ''
+  if (title && industry && title.toLowerCase() !== industry.toLowerCase()) {
+    return `${title} · ${industry}`
+  }
+  return title || industry || 'Professional'
 }
 
 export function mapPublicCardToListItem(card: PublicCard): PublicCardListItem {
@@ -137,7 +150,7 @@ export function mapPublicCardToListItem(card: PublicCard): PublicCardListItem {
     name,
     profession: profession || 'Professional',
     designation,
-    roleLabel: designation || profession || 'Professional',
+    roleLabel: formatPublicCardRoleLabel(designation, profession),
     professionId: card.profession_id,
     img: image.src,
     isVideo: image.isVideo,

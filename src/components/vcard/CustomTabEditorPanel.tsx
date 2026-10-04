@@ -155,7 +155,7 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
           onReorder={setItems}
           className="space-y-8"
           renderItem={(item, _index, dragHandleProps) => (
-            <section className="group/card overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2">
+            <section className="group/card overflow-visible rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm transition-all hover:border-slate-200/80 hover:bg-slate-50 dark:border-white/5 dark:bg-white/2">
               <div className="flex items-center justify-between gap-2 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
                 <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                   <span

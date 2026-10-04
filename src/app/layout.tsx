@@ -5,21 +5,34 @@ import {
   VBIZ_LOGO_PATH,
 } from '@/components/brand/VbizBrandMark'
 import { ToastViewport } from '@/components/feedback/ToastViewport'
+import { GoogleAnalyticsBootstrap, GoogleTagManagerNoscript } from '@/components/GoogleAnalyticsBootstrap'
 import { TranslationEarlyBootstrap } from '@/components/i18n/TranslationEarlyBootstrap'
 import { IframeEmbedBootstrap } from '@/components/IframeEmbedBootstrap'
 import { PwaInstallBootstrap } from '@/components/PwaInstallBootstrap'
 import { SafeDomUnmountBootstrap } from '@/components/SafeDomUnmountBootstrap'
 import { SentryBootstrap } from '@/components/SentryBootstrap'
 import { StaleChunkReloadBootstrap } from '@/components/StaleChunkReloadBootstrap'
+import { getGoogleSiteVerification, getSiteOrigin } from '@/lib/seo/siteOrigin'
 import { NotificationToast } from '@/profile-app/components/NotificationToast'
 import { PushNotificationRegistrar } from '@/profile-app/components/PushNotificationRegistrar'
 import ClientProviders from '@/providers/ClientProviders'
 import type { Metadata } from 'next'
 import './globals.css'
 
+const siteOrigin = getSiteOrigin()
+const googleVerification = getGoogleSiteVerification()
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteOrigin),
   title: 'Vbiz - Backoffice',
   description: 'Manage your vCards and digital business presence',
+  // Admin/auth default: noindex. Public /vCard/* pages opt into indexing in generateMetadata.
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
+  },
+  ...(googleVerification ? { verification: { google: googleVerification } } : {}),
   icons: {
     icon: [
       { url: VBIZ_FAVICON_32_PATH, sizes: '32x32', type: 'image/png' },
@@ -39,6 +52,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
+        {/* GTM noscript must be first in <body>; beforeInteractive scripts hoist into <head>. */}
+        <GoogleTagManagerNoscript />
+        <GoogleAnalyticsBootstrap />
         <StaleChunkReloadBootstrap />
         <SafeDomUnmountBootstrap />
         <SentryBootstrap />

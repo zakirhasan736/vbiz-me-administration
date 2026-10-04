@@ -1,7 +1,7 @@
 'use client'
 
 import type { VideoListItem } from '@/interfaces/api/videos.interface'
-import { isVideoUrl } from '@/lib/mediaUrl'
+import { isDirectVideoFileUrl, resolvePlayableVideo, type PlayableVideo } from '@/lib/videoEmbed'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -14,15 +14,28 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   Film,
   Image as ImageIcon,
+  Mic,
+  MicOff,
+  Play,
   PlayCircle,
   X,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
+
+const mediaControlBtnClass =
+  'pointer-events-auto flex h-10 w-10 items-center justify-center rounded-2xl border border-white/25 bg-zinc-950/75 text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-md transition-transform hover:scale-105 active:scale-95'
+
+type VideoPreview = {
+  title: string
+  playable: PlayableVideo
+  externalUrl?: string
+}
 
 function formatDate(value: string): string {
   const date = new Date(value)
@@ -168,16 +181,220 @@ function VideosSkeleton() {
   )
 }
 
+function VideoLightbox({ preview, onClose }: { preview: VideoPreview; onClose: () => void }) {
+  const isClient = useIsClient()
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
+  if (!isClient) return null
+
+  const externalUrl =
+    preview.externalUrl || (preview.playable.kind === 'embed' ? preview.playable.pageUrl : preview.playable.src)
+
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="vbiz-modal-backdrop fixed inset-0 z-200 flex items-center justify-center bg-black/90 pt-[max(4dvh,env(safe-area-inset-top,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(4dvh,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={preview.title ? `${preview.title} video player` : 'Video player'}
+    >
+      <button
+        type="button"
+        aria-label="Close video"
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/55 text-white transition-colors hover:bg-black/75 sm:top-5 sm:right-5"
+      >
+        <X size={20} />
+      </button>
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 8 }}
+        transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+        className="relative flex w-full max-w-[min(960px,100%)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl sm:rounded-3xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="relative aspect-video w-full bg-black">
+          {preview.playable.kind === 'file' ? (
+            <video
+              key={preview.playable.src}
+              src={preview.playable.src}
+              controls
+              autoPlay
+              playsInline
+              className="absolute inset-0 h-full w-full object-contain"
+              {...{
+                'webkit-playsinline': 'true',
+                'x5-playsinline': 'true',
+              }}
+            />
+          ) : (
+            <iframe
+              key={preview.playable.src}
+              src={preview.playable.src}
+              title={preview.title || 'Video'}
+              className="absolute inset-0 h-full w-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+          {preview.title.trim() ? (
+            <p className="min-w-0 truncate text-sm font-bold text-white sm:text-base">{preview.title}</p>
+          ) : (
+            <span />
+          )}
+          {externalUrl ? (
+            <button
+              type="button"
+              onClick={() => openShareWindow(externalUrl)}
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 self-start rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-white/15 sm:self-auto"
+            >
+              Open externally <ExternalLink size={13} />
+            </button>
+          ) : null}
+        </div>
+      </motion.div>
+    </motion.div>,
+    document.body
+  )
+}
+
+/**
+ * Muted autoplay preview on the card.
+ * Main click / play opens the popup player; mic only toggles preview sound.
+ */
+function InlineCardVideo({ src, paused, onOpenPlayer }: { src: string; paused?: boolean; onOpenPlayer: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [isMuted, setIsMuted] = useState(true)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.muted = isMuted
+    if (isMuted) video.setAttribute('muted', '')
+    else {
+      video.removeAttribute('muted')
+      if (video.volume === 0) video.volume = 1
+    }
+  }, [isMuted])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    if (paused) {
+      video.pause()
+      return
+    }
+    void video.play().catch(() => undefined)
+  }, [paused, src])
+
+  const openPlayer = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onOpenPlayer()
+  }
+
+  const toggleMute = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const video = videoRef.current
+    if (!video) return
+
+    if (isMuted) {
+      video.muted = false
+      video.defaultMuted = false
+      video.removeAttribute('muted')
+      if (video.volume === 0) video.volume = 1
+      setIsMuted(false)
+      if (video.paused && !paused) void video.play().catch(() => undefined)
+      return
+    }
+
+    video.muted = true
+    video.defaultMuted = true
+    video.setAttribute('muted', '')
+    setIsMuted(true)
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <video
+        ref={videoRef}
+        src={src}
+        autoPlay
+        loop
+        muted={isMuted}
+        playsInline
+        preload="metadata"
+        className="h-full w-full object-cover"
+        {...{
+          'webkit-playsinline': 'true',
+          'x5-playsinline': 'true',
+        }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
+
+      <button
+        type="button"
+        onClick={openPlayer}
+        aria-label="Open video player"
+        className="absolute inset-0 z-10 flex items-center justify-center"
+      >
+        <span className={mediaControlBtnClass}>
+          <Play size={22} fill="currentColor" className="ml-0.5" />
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleMute}
+        aria-label={isMuted ? 'Unmute preview' : 'Mute preview'}
+        className={`absolute right-3 bottom-3 z-20 ${mediaControlBtnClass}`}
+      >
+        {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+      </button>
+    </div>
+  )
+}
+
 function VideoCard({
   item,
   idx,
   accent,
+  playerOpen,
   onOpenGallery,
+  onOpenVideo,
 }: {
   item: VideoListItem
   idx: number
   accent: string
+  playerOpen: boolean
   onOpenGallery: (item: VideoListItem) => void
+  onOpenVideo: (item: VideoListItem) => void
 }) {
   const date = formatDate(item.createdAt)
   const isGallery = item.type === 'gallery'
@@ -185,60 +402,15 @@ function VideoCard({
   const videoUrl = item.videoUrl.trim()
   const featuredImage = item.featuredImage.trim()
   const hasFeatured = Boolean(featuredImage)
-  const featuredIsVideo = hasFeatured && isVideoUrl(featuredImage)
+  const featuredIsDirectVideo = hasFeatured && isDirectVideoFileUrl(featuredImage)
+  const playable = resolvePlayableVideo({ featuredImage, videoUrl })
   const description = item.description.trim()
+  const canOpenPlayer = Boolean(playable)
 
-  const mediaInner = (
-    <>
-      {featuredIsVideo ? (
-        <video
-          src={featuredImage}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          aria-hidden
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-        />
-      ) : hasFeatured ? (
-        <Image
-          src={featuredImage}
-          alt={item.title}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover transition-transform duration-700 group-hover:scale-105"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
-          {isGallery ? (
-            <ImageIcon size={40} className="text-zinc-400 dark:text-zinc-500" />
-          ) : (
-            <Film size={40} className="text-zinc-400 dark:text-zinc-500" />
-          )}
-        </div>
-      )}
-      <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
-      {!isGallery && videoUrl ? (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 bg-zinc-950/75 text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-md transition-transform group-hover:scale-105">
-            <PlayCircle size={24} />
-          </span>
-        </div>
-      ) : null}
-      <span
-        className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
-        style={{ backgroundColor: accent }}
-      >
-        {isGallery ? <ImageIcon size={12} /> : <PlayCircle size={12} />} {isGallery ? 'Gallery' : 'Video'}
-      </span>
-      {hasGalleryImages ? (
-        <span className="absolute right-3 bottom-3 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[11px] font-bold tracking-wide text-white uppercase backdrop-blur-sm">
-          View gallery
-        </span>
-      ) : null}
-    </>
-  )
+  const openVideo = () => {
+    if (playable) onOpenVideo(item)
+    else if (videoUrl) openShareWindow(videoUrl)
+  }
 
   return (
     <motion.article
@@ -260,29 +432,73 @@ function VideoCard({
       role={hasGalleryImages ? 'button' : undefined}
       tabIndex={hasGalleryImages ? 0 : undefined}
     >
-      {videoUrl && !hasGalleryImages ? (
-        <a
-          href={videoUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Watch ${item.title}`}
-          className="relative block h-56 overflow-hidden bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-zinc-950"
-          style={{ outlineColor: accent }}
-          onClick={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            openShareWindow(videoUrl)
-          }}
-        >
-          {mediaInner}
-        </a>
-      ) : (
-        <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">{mediaInner}</div>
-      )}
+      <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
+        {featuredIsDirectVideo ? (
+          <InlineCardVideo src={featuredImage} paused={playerOpen} onOpenPlayer={openVideo} />
+        ) : hasFeatured ? (
+          <>
+            <Image
+              src={featuredImage}
+              alt={item.title}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
+            {canOpenPlayer || videoUrl ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  openVideo()
+                }}
+                aria-label={`Play ${item.title || 'video'}`}
+                className="absolute inset-0 z-10 flex items-center justify-center"
+              >
+                <span className={mediaControlBtnClass}>
+                  <Play size={22} fill="currentColor" className="ml-0.5" />
+                </span>
+              </button>
+            ) : null}
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              if (canOpenPlayer || videoUrl) openVideo()
+            }}
+            className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800"
+            aria-label={canOpenPlayer || videoUrl ? `Play ${item.title || 'video'}` : undefined}
+          >
+            {isGallery ? (
+              <ImageIcon size={40} className="text-zinc-400 dark:text-zinc-500" />
+            ) : (
+              <span className={mediaControlBtnClass}>
+                <Play size={22} fill="currentColor" className="ml-0.5" />
+              </span>
+            )}
+          </button>
+        )}
 
-      <div className="flex flex-1 flex-col p-6">
+        <span
+          className="pointer-events-none absolute top-3 left-3 z-30 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
+          style={{ backgroundColor: accent }}
+        >
+          {isGallery ? <ImageIcon size={12} /> : <PlayCircle size={12} />} {isGallery ? 'Gallery' : 'Video'}
+        </span>
+        {hasGalleryImages ? (
+          <span className="pointer-events-none absolute right-3 bottom-3 z-30 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-[11px] font-bold tracking-wide text-white uppercase backdrop-blur-sm">
+            View gallery
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex flex-1 flex-col p-4 sm:p-6">
         {item.title.trim() ? (
-          <h3 className="mb-3 line-clamp-2 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">
+          <h3 className="mb-3 line-clamp-2 text-lg leading-tight font-bold text-zinc-900 sm:text-xl dark:text-zinc-100">
             {item.title}
           </h3>
         ) : null}
@@ -299,21 +515,19 @@ function VideoCard({
           </span>
           {isGallery ? <span>{item.galleryCount} images</span> : null}
         </div>
-        {videoUrl ? (
-          <a
-            href={videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+        {canOpenPlayer || videoUrl ? (
+          <button
+            type="button"
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
-              openShareWindow(videoUrl)
+              openVideo()
             }}
             className="mt-4 inline-flex items-center gap-2 text-sm font-bold transition-opacity hover:opacity-80"
             style={{ color: accent }}
           >
-            {hasFeatured ? 'Watch video' : 'Open video link'} <ArrowUpRight size={15} />
-          </a>
+            {canOpenPlayer ? 'Watch video' : 'Open video link'} <ArrowUpRight size={15} />
+          </button>
         ) : null}
       </div>
     </motion.article>
@@ -327,6 +541,7 @@ export function VideosSection() {
   const accent = design?.accentColor ?? (template === 'v1' ? '#dcc969' : '#eab308')
   const { data, isLoading, isError } = useGetVideosQuery(profileId, { skip: !profileId })
   const [galleryPreview, setGalleryPreview] = useState<GalleryPreview | null>(null)
+  const [videoPreview, setVideoPreview] = useState<VideoPreview | null>(null)
 
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Video')
   const items = data?.items ?? []
@@ -339,6 +554,22 @@ export function VideosSection() {
       title: item.title,
       images: item.galleryImages,
       initialIndex: 0,
+    })
+  }, [])
+
+  const openVideo = useCallback((item: VideoListItem) => {
+    const playable = resolvePlayableVideo({
+      featuredImage: item.featuredImage,
+      videoUrl: item.videoUrl,
+    })
+    if (!playable) {
+      if (item.videoUrl.trim()) openShareWindow(item.videoUrl.trim())
+      return
+    }
+    setVideoPreview({
+      title: item.title,
+      playable,
+      externalUrl: item.videoUrl.trim() || undefined,
     })
   }, [])
 
@@ -374,7 +605,7 @@ export function VideosSection() {
   return (
     <div className="w-full pb-20">
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <div className="vbiz-section-banner group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border p-8 backdrop-blur-xl md:flex-row md:items-center lg:col-span-4 lg:p-10">
+        <div className="vbiz-section-banner group relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border p-6 backdrop-blur-xl sm:p-8 md:flex-row md:items-center lg:col-span-4 lg:p-10">
           <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
           <div
             className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110"
@@ -396,12 +627,21 @@ export function VideosSection() {
 
       <div className={cn('relative z-20 mt-4', contentGridClass(items.length, 'md:grid-cols-2 lg:grid-cols-3'))}>
         {items.map((item, idx) => (
-          <VideoCard key={item.id} item={item} idx={idx} accent={accent} onOpenGallery={openGallery} />
+          <VideoCard
+            key={item.id}
+            item={item}
+            idx={idx}
+            accent={accent}
+            playerOpen={Boolean(videoPreview)}
+            onOpenGallery={openGallery}
+            onOpenVideo={openVideo}
+          />
         ))}
       </div>
 
       <AnimatePresence>
         {galleryPreview ? <GalleryLightbox preview={galleryPreview} onClose={() => setGalleryPreview(null)} /> : null}
+        {videoPreview ? <VideoLightbox preview={videoPreview} onClose={() => setVideoPreview(null)} /> : null}
       </AnimatePresence>
     </div>
   )

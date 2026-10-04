@@ -127,15 +127,17 @@ export const NotificationToast = () => {
   const videoUrl = !imageUrl ? notification?.avatarVideoUrl : undefined
   const title = notification?.title?.trim() || `${businessName} · Update`
   const rawMessage = notification?.message?.trim() || ''
+  const cardPath = notification?.slug ? buildProfilePath(notification.slug) : ''
   const displayLink =
     (typeof notification?.displayLink === 'string' && notification.displayLink.trim()) ||
-    (notification?.slug ? `${window.location.host}/${notification.slug}` : '')
+    (cardPath ? `${window.location.host}${cardPath}` : '')
   const message =
     rawMessage ||
     (displayLink
       ? `${businessName} has a new update on their card.\nOpen card · ${displayLink}`
       : 'Tap to view the latest on this card.')
-  const targetUrl = notification?.url || (notification?.slug ? buildProfilePath(notification.slug) : '')
+  // Prefer slug → /vCard/{slug}; never open legacy /v/{slug} from payload.url.
+  const targetUrl = cardPath || notification?.url || ''
 
   const handleOpenTarget = useCallback(() => {
     if (!targetUrl) return

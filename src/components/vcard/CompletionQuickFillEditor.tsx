@@ -178,7 +178,7 @@ function ScalarControl({
       <RichTextEditor
         value={value}
         onChange={onChange}
-        minHeightClassName="min-h-32"
+        minHeightClassName="min-h-48"
         placeholder={label ? `Enter ${label.toLowerCase()}` : 'Write a detailed description…'}
       />
     )
@@ -597,7 +597,7 @@ function ResumeSummaryFill() {
       <RichTextEditor
         value={draft}
         onChange={setDraft}
-        minHeightClassName="min-h-32"
+        minHeightClassName="min-h-48"
         placeholder="Short resume summary"
       />
     </DeferredApplyRow>
@@ -788,7 +788,7 @@ function AboutMeDraftQuickFill({
           value={descriptionHtml}
           onChange={setDescriptionHtml}
           placeholder="Share your story, background, and what makes you unique…"
-          minHeightClassName="min-h-36"
+          minHeightClassName="min-h-44"
         />
       </DeferredApplyRow>
     )

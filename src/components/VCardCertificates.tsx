@@ -185,7 +185,7 @@ export function TabCertificates() {
                             persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, description: html } : c)))
                           }
                           placeholder="Short summary of this credential"
-                          minHeightClassName="min-h-32"
+                          minHeightClassName="min-h-48"
                         />
                       </label>
                       <label className="block space-y-1.5">

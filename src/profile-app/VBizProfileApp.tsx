@@ -20,7 +20,7 @@ import { useLiveAgentProfileActions } from './hooks/useLiveAgentProfileActions'
 import { useProfileSectionScroll } from './hooks/useProfileSectionScroll'
 import { LIVE_AGENT_V2_PUBLIC_PLACEMENT } from './lib/liveAgentPlacement'
 import { useProfileDisplay } from './lib/profileDisplayContext'
-import { shareProfile } from './lib/shareProfile'
+import { buildShareCopy, shareProfile } from './lib/shareProfile'
 import type { VBizProfileAppProps } from './profilePublicProps'
 import { DEMO_PROFILE_PROPS } from './profilePublicProps'
 import { ProfileThemeStyles } from './ProfileThemeStyles'
@@ -50,6 +50,7 @@ export function VBizProfileApp({
   embedded = false,
   previewTheme,
   onPreviewThemeChange,
+  seo,
 }: VBizProfileAppProps) {
   const { isVisible, pageColors, field, settings } = useProfileDisplay()
   const slugForPersistence = profileSlug ?? shareSlug
@@ -100,10 +101,15 @@ export function VBizProfileApp({
   useLiveAgentProfileActions(openSaveContactModal, openNotepadModal)
 
   const handleShare = useCallback(async () => {
+    const { title, text } = buildShareCopy({
+      metaTitle: seo?.metaTitle,
+      metaDescription: seo?.metaDescription,
+      fallbackName: ownerName,
+    })
     const result = await shareProfile({
       shareSlug,
-      title: ownerName ?? 'Profile',
-      text: `Check out ${ownerName ?? 'this'}'s digital business card`,
+      title,
+      text,
     })
 
     if (result === 'copied') {
@@ -113,7 +119,7 @@ export function VBizProfileApp({
       setShareFeedback('Unable to share — try copying the URL from your browser')
       window.setTimeout(() => setShareFeedback(null), 3000)
     }
-  }, [shareSlug, ownerName])
+  }, [shareSlug, ownerName, seo?.metaTitle, seo?.metaDescription])
 
   useProfileHomeModalEvents(setActiveModal, { cardSlug })
 

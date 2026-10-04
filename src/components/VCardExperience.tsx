@@ -155,7 +155,7 @@ export function TabExperience() {
                     value={exp.description}
                     onChange={(html) => updateExperience(exp.id, 'description', html)}
                     placeholder="Describe your responsibilities and achievements..."
-                    minHeightClassName="min-h-32"
+                    minHeightClassName="min-h-48"
                   />
                 </div>
                 <div className="group flex flex-col space-y-1.5">

@@ -187,18 +187,19 @@ export const HomeHero: React.FC<{
   const hasGameIds = Boolean(social.games && Object.values(social.games).some((v) => v?.trim()))
   const showSocialRail = visibleSocials.length > 0 || hasGameIds
 
-  const socialMobileBtnClass = `vbiz-social flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.12] [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-[0_0_18px_rgba(238,214,119,0.85)] ${
-    compact ? '' : 'md:h-10 md:w-10'
-  }`
+  // Home rails + action chips stay 40px (h-10) — never scale up to 48px.
+  const socialMobileBtnClass =
+    'vbiz-social vbiz-social-rail flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-black shadow-md transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.12] [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-[0_0_18px_rgba(238,214,119,0.85)]'
   const socialDesktopBtnClass =
-    'vbiz-social flex items-center justify-center shadow-xl transition-all duration-300 [@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-1 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110'
+    'vbiz-social vbiz-social-rail flex h-10 w-10 items-center justify-center shadow-xl transition-all duration-300 [@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-1 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110'
 
   const viewCountLabel = formatProfileViewCount(actionButtons?.view_counter?.count ?? profileViews)
 
-  /** Right-side utility rail — phone sizing in the preview, larger on real desktops. */
-  const railButtonClass = `vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 ${
-    compact ? '' : 'md:h-12 md:w-12'
-  }`
+  /** Right-side utility rail — 40px, matches left social rail. */
+  const railButtonClass =
+    'vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110'
+  const midActionBtnClass =
+    'vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-xl border p-2 shadow-md transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110'
 
   const triggerHaptic = (duration = 10) => {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -263,7 +264,7 @@ export const HomeHero: React.FC<{
         >
           <div className="relative h-0 w-full max-w-258">
             <div
-              className={`pointer-events-auto absolute flex flex-col gap-3 ${compact ? 'top-24 right-1' : 'top-8 right-2 md:right-6'}`}
+              className={`pointer-events-auto absolute flex flex-col gap-2 ${compact ? 'top-24 right-1' : 'top-8 right-2 md:right-6'}`}
             >
               {/* Fixed rail: Eye → World (website) → Language → CRM → Theme */}
               <IconHoverTooltip label="Total views" placement="left">
@@ -315,7 +316,7 @@ export const HomeHero: React.FC<{
                 <button
                   type="button"
                   aria-label="Language"
-                  className={`${railButtonClass} notranslate h-auto min-h-10 w-auto min-w-10 flex-col gap-0.5 px-1 py-1 ${compact ? '' : 'md:min-h-12 md:min-w-12'}`}
+                  className={`${railButtonClass} notranslate h-auto min-h-10 w-auto min-w-10 flex-col gap-0.5 px-1 py-1`}
                   style={languageChrome}
                   onClick={() => {
                     triggerHaptic(10)
@@ -324,8 +325,8 @@ export const HomeHero: React.FC<{
                 >
                   <SelectedLanguageMark
                     showName={false}
-                    flagWidth={48}
-                    flagClassName={`h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15 ${compact ? '' : 'md:h-6 md:w-8'}`}
+                    flagWidth={40}
+                    flagClassName="h-5 w-7 rounded-[3px] object-cover shadow-sm ring-1 ring-black/15"
                   />
                 </button>
               </IconHoverTooltip>
@@ -334,7 +335,7 @@ export const HomeHero: React.FC<{
                   type="button"
                   title="CRM"
                   aria-label="Open CRM"
-                  className={`${railButtonClass} text-[10px] font-black tracking-wide ${compact ? '' : 'md:text-[11px]'}`}
+                  className={`${railButtonClass} text-[10px] font-black tracking-wide`}
                   style={crmChrome}
                   onClick={() => {
                     triggerHaptic(10)
@@ -420,7 +421,7 @@ export const HomeHero: React.FC<{
                   <button
                     aria-label="Share"
                     type="button"
-                    className="vbiz-icon-btn group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                    className={midActionBtnClass}
                     style={shareChrome}
                     onClick={() => {
                       triggerHaptic(10)
@@ -436,7 +437,7 @@ export const HomeHero: React.FC<{
                   <button
                     aria-label="Notifications"
                     type="button"
-                    className="vbiz-icon-btn group relative flex items-center justify-center rounded-xl border p-2 transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                    className={`${midActionBtnClass} group relative`}
                     style={notificationsChrome}
                     onClick={() => {
                       triggerHaptic(10)
@@ -444,7 +445,7 @@ export const HomeHero: React.FC<{
                     }}
                   >
                     <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                    <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
+                    <div className="absolute top-2 right-2 h-2 w-2 rounded-full border border-black bg-red-500" />
                   </button>
                 </IconHoverTooltip>
               ) : null}
@@ -452,7 +453,7 @@ export const HomeHero: React.FC<{
                 <IconHoverTooltip label="Notes">
                   <button
                     aria-label="Notes"
-                    className="vbiz-icon-btn group flex items-center justify-center rounded-xl border p-2 transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                    className={midActionBtnClass}
                     style={notepadChrome}
                     onClick={() => {
                       triggerHaptic(10)
@@ -468,7 +469,7 @@ export const HomeHero: React.FC<{
                   <button
                     type="button"
                     aria-label="Request 1-on-1"
-                    className="vbiz-icon-btn group flex items-center gap-1.5 rounded-xl border px-2.5 py-2 transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                    className="vbiz-icon-btn group flex h-10 items-center gap-1.5 rounded-xl border px-2.5 transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
                     style={oneOnOneChrome}
                     onClick={() => {
                       triggerHaptic(10)
@@ -547,7 +548,7 @@ export const HomeHero: React.FC<{
                       <button
                         type="button"
                         aria-label="Share"
-                        className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 md:h-12 md:w-12 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                        className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
                         style={shareChrome}
                         onClick={() => {
                           triggerHaptic(10)
@@ -563,7 +564,7 @@ export const HomeHero: React.FC<{
                       <button
                         type="button"
                         aria-label="Notifications"
-                        className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 md:h-12 md:w-12 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                        className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
                         style={notificationsChrome}
                         onClick={() => {
                           triggerHaptic(10)
@@ -571,7 +572,7 @@ export const HomeHero: React.FC<{
                         }}
                       >
                         <Bell size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                        <div className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border border-black bg-red-500" />
+                        <div className="absolute top-2 right-2 h-2 w-2 rounded-full border border-black bg-red-500" />
                       </button>
                     </IconHoverTooltip>
                   ) : null}
@@ -580,7 +581,7 @@ export const HomeHero: React.FC<{
                       <button
                         type="button"
                         aria-label="Notes"
-                        className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 md:h-12 md:w-12 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                        className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
                         style={notepadChrome}
                         onClick={() => {
                           triggerHaptic(10)
@@ -596,7 +597,7 @@ export const HomeHero: React.FC<{
                       <button
                         type="button"
                         aria-label="Request 1-on-1"
-                        className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 active:scale-95 md:h-12 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                        className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
                         style={oneOnOneChrome}
                         onClick={() => {
                           triggerHaptic(10)

@@ -221,6 +221,8 @@ export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string,
     }))
   }
 
+  const keywords = seo.metaKeywords.filter(Boolean)
+
   return {
     '@context': 'https://schema.org',
     '@type': 'ProfilePage',
@@ -228,12 +230,41 @@ export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string,
     url: canonical,
     name: seo.metaTitle || name,
     description,
+    ...(keywords.length ? { keywords: keywords.join(', ') } : {}),
     mainEntity: person,
   }
 }
 
 export function serializeJsonLd(data: unknown): string {
   return JSON.stringify(data).replace(/</g, '\\u003c')
+}
+
+/**
+ * Patch ProfilePage JSON-LD so title / description / keywords stay aligned with Card Settings SEO.
+ * Person `name` is left alone (real person/brand name); only the page + person description update.
+ */
+export function applySeoFieldsToJsonLd(
+  data: Record<string, unknown>,
+  seo: { metaTitle?: string | null; metaDescription?: string | null; metaKeywords?: string[] | null },
+  fallbackName?: string | null
+): Record<string, unknown> {
+  const title = seo.metaTitle?.trim() || fallbackName?.trim() || ''
+  const description = seo.metaDescription?.trim() || ''
+  const keywords = (seo.metaKeywords || []).map((k) => k.trim()).filter(Boolean)
+  const next: Record<string, unknown> = { ...data }
+
+  if (title) next.name = title
+  if (description) {
+    next.description = description
+    const entity = next.mainEntity
+    if (entity && typeof entity === 'object' && !Array.isArray(entity)) {
+      next.mainEntity = { ...(entity as Record<string, unknown>), description }
+    }
+  }
+  if (keywords.length) next.keywords = keywords.join(', ')
+  else delete next.keywords
+
+  return next
 }
 
 export function buildPublicCardSeoMetadata(input: PublicCardSeoInput): Metadata {
@@ -252,6 +283,17 @@ export function buildPublicCardSeoMetadata(input: PublicCardSeoInput): Metadata 
     description,
     keywords: keywords.length ? keywords : undefined,
     alternates: { canonical },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+        'max-video-preview': -1,
+      },
+    },
     openGraph: {
       type: 'profile',
       title,

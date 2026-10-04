@@ -85,9 +85,10 @@ export function readCardPushMediaSync(slug?: string | null): CardPushMedia | nul
     }
   }
 
+  // When a slug is known, NEVER fall back to another card’s “last visited” media —
+  // that made admin edits of card B show mcasanova’s name/avatar.
   if (slug?.trim()) {
-    const exact = tryRead(slug)
-    if (exact?.icon) return exact
+    return tryRead(slug)
   }
 
   return tryRead(CARD_PUSH_MEDIA_LAST_KEY)
@@ -129,26 +130,32 @@ export function enrichPushPayloadWithCardMedia<T extends Record<string, unknown>
   const resolvedSlug =
     (typeof slug === 'string' && slug.trim()) || (typeof payload.slug === 'string' && payload.slug.trim()) || ''
 
-  const cached = readCardPushMediaSync(resolvedSlug || null)
+  // Exact-slug cache only — never invent identity from another card.
+  const cached = resolvedSlug ? readCardPushMediaSync(resolvedSlug) : null
   if (!cached) return payload
+  if (cached.slug && resolvedSlug && cached.slug.toLowerCase() !== resolvedSlug.toLowerCase()) {
+    return payload
+  }
 
   const existingImage =
     (typeof payload.avatarImageUrl === 'string' && payload.avatarImageUrl.trim()) ||
     (typeof payload.avatarUrl === 'string' && payload.avatarUrl.trim()) ||
     ''
 
+  const businessName = (typeof payload.businessName === 'string' && payload.businessName.trim()) || cached.businessName
+
   if (existingImage && isUsableStaticIcon(existingImage)) {
     return {
       ...payload,
-      slug: resolvedSlug || cached.slug,
-      businessName: (typeof payload.businessName === 'string' && payload.businessName.trim()) || cached.businessName,
+      slug: resolvedSlug,
+      businessName,
     }
   }
 
   return {
     ...payload,
-    slug: resolvedSlug || cached.slug,
-    businessName: (typeof payload.businessName === 'string' && payload.businessName.trim()) || cached.businessName,
+    slug: resolvedSlug,
+    businessName,
     avatarImageUrl: cached.avatarImageUrl || cached.icon,
     avatarUrl: cached.avatarUrl || cached.icon,
     avatarVideoUrl:

@@ -201,7 +201,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                           value={faq.answer}
                           onChange={(html) => updateFaq(faq.id, 'answer', html)}
                           placeholder="Write a clear, helpful answer..."
-                          minHeightClassName="min-h-32"
+                          minHeightClassName="min-h-48"
                         />
                       </div>
 

@@ -168,7 +168,7 @@ export function ProfileHeaderV2({
   const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), theme)
 
   const socialBtnClass =
-    'vbiz-social flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10'
+    'vbiz-social vbiz-social-rail-sm flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10'
   const desktopSocialBtnClass = 'vbiz-social flex h-10 w-10 items-center justify-center rounded-full transition-colors'
 
   const identityColors = resolveHomeIdentityColors({

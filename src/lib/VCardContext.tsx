@@ -249,17 +249,37 @@ function designDefaultsSignature(design: RootState['designSettings']): string {
 }
 
 function errorMessage(err: unknown): string {
-  if (err && typeof err === 'object' && 'data' in err) {
-    const data = (
-      err as {
-        data?: { message?: string; requestId?: string; errorMessages?: { path?: string; message?: string }[] }
-      }
-    ).data
+  if (err && typeof err === 'object') {
+    const e = err as {
+      status?: number | string
+      error?: string
+      message?: string
+      data?: { message?: string; requestId?: string; errorMessages?: { path?: string; message?: string }[] }
+    }
+    const data = e.data
     const withReference = (message: string) => (data?.requestId ? `${message} (Reference: ${data.requestId})` : message)
-    if (data?.message && data.message !== 'Validation Error') return withReference(data.message)
-    const details = data?.errorMessages?.map((item) => item.message).filter((msg): msg is string => Boolean(msg))
-    if (details?.length) return withReference(details.join('. '))
-    if (data?.message) return withReference(data.message)
+
+    if (data && typeof data === 'object') {
+      if (data.message && data.message !== 'Validation Error') return withReference(data.message)
+      const details = data.errorMessages?.map((item) => item.message).filter((msg): msg is string => Boolean(msg))
+      if (details?.length) return withReference(details.join('. '))
+      if (data.message) return withReference(data.message)
+    }
+
+    if (typeof e.status === 'number') {
+      if (e.status === 401 || e.status === 403) {
+        return 'Session expired or you do not have permission to save. Sign in again.'
+      }
+      if (e.status >= 500) return `Server error while saving (${e.status}). Try again.`
+      return `Save failed (${e.status}).`
+    }
+    if (e.status === 'FETCH_ERROR') {
+      return e.error?.trim() || 'Network error while saving. Check your connection and try again.'
+    }
+    if (e.status === 'TIMEOUT_ERROR') return 'Save timed out. Try again.'
+    if (e.status === 'PARSING_ERROR') return 'Unexpected server response while saving. Try again.'
+    if (typeof e.error === 'string' && e.error.trim()) return e.error
+    if (typeof e.message === 'string' && e.message.trim()) return e.message
   }
   if (err instanceof Error && err.message) return err.message
   return 'Failed to save changes'
@@ -1210,20 +1230,24 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     const scheduler = autosaveSchedulerRef.current
     if (isCreateMode) return () => scheduler.cancel()
 
+    // Fire-and-forget saves must swallow rejections — runPersist already toasts + sets saveError.
+    // Without .catch(), Safari reports unhandledrejection "Failed to save changes" to Sentry.
+    const flushQuietly = () => {
+      void flushSaveRef.current().catch(() => undefined)
+    }
+
     const onVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        void flushSaveRef.current()
-      }
+      if (document.visibilityState === 'hidden') flushQuietly()
     }
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (dirtyBucketsRef.current.size === 0 && !saveGateRef.current.dirty) return
-      void flushSaveRef.current()
+      flushQuietly()
       event.preventDefault()
       event.returnValue = ''
     }
 
     const onPageHide = () => {
-      void flushSaveRef.current()
+      flushQuietly()
     }
 
     document.addEventListener('visibilitychange', onVisibility)
@@ -1234,7 +1258,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('beforeunload', onBeforeUnload)
       scheduler.cancel()
-      void flushSaveRef.current()
+      flushQuietly()
     }
   }, [isCreateMode])
 

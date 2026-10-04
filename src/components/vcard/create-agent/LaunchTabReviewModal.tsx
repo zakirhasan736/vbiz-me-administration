@@ -235,7 +235,7 @@ export function LaunchTabReviewModal({ open, navId, label, data, busy, onClose, 
               <RichTextEditor
                 value={value}
                 onChange={(html) => setScalar(field, html)}
-                minHeightClassName="min-h-28"
+                minHeightClassName="min-h-36"
                 placeholder={field.label}
               />
             )
@@ -464,7 +464,7 @@ function StructuredListEditor({
                   <RichTextEditor
                     value={String(value ?? '')}
                     onChange={(html) => onChange(item.id, field.key, html)}
-                    minHeightClassName="min-h-28"
+                    minHeightClassName="min-h-36"
                     placeholder={field.label}
                   />
                 ) : field.type === 'checkbox' ? (
@@ -556,7 +556,7 @@ function ListEditor({
                   value={item.body}
                   onChange={(html) => onChange(item.id, item.title, html)}
                   placeholder="Details"
-                  minHeightClassName="min-h-28"
+                  minHeightClassName="min-h-36"
                 />
               </div>
             ) : (
