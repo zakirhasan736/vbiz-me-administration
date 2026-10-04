@@ -51,6 +51,20 @@ export type CardChangeHealth = {
   avatar: number
 }
 
+export type CardTabCount = {
+  id: string
+  label: string
+  count: number
+  empty: boolean
+}
+
+export type CardDailyBackupSummary = {
+  id: string
+  backupDate: string
+  tabCount: number
+  tabs: CardTabCount[]
+}
+
 export type CardChangeHistoryItem = {
   id: string
   area: string
@@ -1373,10 +1387,24 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<ApiProfile>) => res.data,
       invalidatesTags: () => [],
     }),
-    listCardChangeHistory: builder.query<{ items: CardChangeHistoryItem[]; total: number }, { id: string }>({
+    listCardChangeHistory: builder.query<
+      {
+        items: CardChangeHistoryItem[]
+        total: number
+        inventory?: { tabCount: number; tabs: CardTabCount[] }
+        backups?: CardDailyBackupSummary[]
+      },
+      { id: string }
+    >({
       query: ({ id }) => `/profiles/${id}/change-history?limit=100`,
-      transformResponse: (res: Envelope<{ items: CardChangeHistoryItem[]; total: number }>) =>
-        res.data || { items: [], total: 0 },
+      transformResponse: (
+        res: Envelope<{
+          items: CardChangeHistoryItem[]
+          total: number
+          inventory?: { tabCount: number; tabs: CardTabCount[] }
+          backups?: CardDailyBackupSummary[]
+        }>
+      ) => res.data || { items: [], total: 0 },
       providesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:history` }],
     }),
     restoreCardChange: builder.mutation<{ restored: boolean; id: string }, { id: string; historyId: string }>({

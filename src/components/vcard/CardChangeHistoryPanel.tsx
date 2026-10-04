@@ -1,7 +1,11 @@
 'use client'
 
 import { notify } from '@/lib/toast/toast'
-import { useListCardChangeHistoryQuery, useRestoreCardChangeMutation } from '@/redux/features/profiles/profiles.api'
+import {
+  useListCardChangeHistoryQuery,
+  useRestoreCardChangeMutation,
+  type CardTabCount,
+} from '@/redux/features/profiles/profiles.api'
 import { History, Loader2, RotateCcw } from 'lucide-react'
 
 function formatWhen(iso: string) {
@@ -13,11 +17,45 @@ function formatWhen(iso: string) {
   })
 }
 
+function tabLine(tab: CardTabCount) {
+  if (tab.empty || tab.count <= 0) return 'Empty'
+  return tab.count === 1 ? '1 item' : `${tab.count} items`
+}
+
+function TabCountList({ tabs }: { tabs: CardTabCount[] }) {
+  if (!tabs.length) {
+    return <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No tabs on this card.</p>
+  }
+  return (
+    <ul className="grid gap-2 sm:grid-cols-2">
+      {tabs.map((tab) => (
+        <li
+          key={tab.id}
+          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
+        >
+          <span className="min-w-0 truncate font-semibold text-slate-800 dark:text-slate-100">{tab.label}</span>
+          <span
+            className={
+              tab.empty
+                ? 'shrink-0 text-xs font-bold tracking-wide text-slate-400 uppercase'
+                : 'shrink-0 text-xs font-bold text-slate-700 dark:text-slate-200'
+            }
+          >
+            {tabLine(tab)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
   const profileId = cardId?.trim() || ''
   const { data, isLoading, isError, refetch } = useListCardChangeHistoryQuery({ id: profileId }, { skip: !profileId })
   const [restoreChange, restoreState] = useRestoreCardChangeMutation()
   const items = data?.items || []
+  const inventory = data?.inventory
+  const backups = data?.backups || []
 
   const onRestore = async (historyId: string) => {
     if (!profileId) return
@@ -51,16 +89,48 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
     return <p className="p-6 text-sm font-medium text-rose-600">Could not load change history.</p>
   }
 
-  if (!items.length) {
-    return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-8 text-sm font-medium text-slate-500 dark:border-white/10 dark:bg-[#070a13] dark:text-slate-400">
-        No builder changes recorded yet. Edits to services, settings, and other card areas will appear here.
-      </div>
-    )
-  }
+  const tabCount = inventory?.tabCount ?? inventory?.tabs.length ?? 0
 
   return (
     <div className="space-y-3">
+      <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#070a13]">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+          {inventory ? `${tabCount} ${tabCount === 1 ? 'tab' : 'tabs'} now` : 'Tabs now'}
+        </h3>
+        <p className="mt-1 mb-3 text-[12px] font-medium text-slate-500 dark:text-slate-400">
+          Each tab on this card, and how many items it has. A tab with nothing stored is marked Empty.
+        </p>
+        <TabCountList tabs={inventory?.tabs || []} />
+      </section>
+
+      <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#070a13]">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Daily backups</h3>
+        <p className="mt-1 mb-3 text-[12px] font-medium text-slate-500 dark:text-slate-400">
+          Every card is backed up once a day. The newest 7 days are kept. On the 8th day, the oldest day is deleted.
+        </p>
+        {backups.length ? (
+          <div className="space-y-3">
+            {backups.map((backup) => (
+              <article key={backup.id} className="rounded-xl border border-slate-200 p-3 dark:border-white/10">
+                <p className="mb-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                  {backup.backupDate} · {backup.tabCount} {backup.tabCount === 1 ? 'tab' : 'tabs'}
+                </p>
+                <TabCountList tabs={backup.tabs} />
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            No daily backup is stored yet. Opening this page saves today, and the nightly job saves every card.
+          </p>
+        )}
+      </section>
+
+      {!items.length ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-8 text-sm font-medium text-slate-500 dark:border-white/10 dark:bg-[#070a13] dark:text-slate-400">
+          No builder changes recorded yet. Edits to services, settings, and other card areas will appear here.
+        </div>
+      ) : null}
       {items.map((row) => {
         const restoreBusy = restoreState.isLoading && restoreState.originalArgs?.historyId === row.id
         const restoreDisabled = !row.canRestore || restoreState.isLoading
