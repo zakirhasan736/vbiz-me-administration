@@ -458,7 +458,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       }}
                       whileTap={{ scale: 0.9 }}
                       aria-label={action.label}
-                      className="vbiz-icon-btn group/btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-12 w-12 items-center justify-center overflow-visible rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl transition-all duration-500 dark:bg-black/40 dark:text-gray-300"
+                      className="vbiz-icon-btn group/btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-10 w-10 items-center justify-center overflow-visible rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl transition-all duration-500 dark:bg-black/40 dark:text-gray-300"
                       style={
                         action.label === 'Share'
                           ? shareChrome

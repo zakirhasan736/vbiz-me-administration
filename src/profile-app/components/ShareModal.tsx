@@ -228,32 +228,33 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       name: 'WhatsApp',
       icon: MessageCircle,
       href: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
-      color: 'hover:bg-[#25D366] hover:border-[#25D366]/50 hover:text-white',
-      textColor: 'text-[#25D366]',
+      // Light theme: tinted brand hover (keep brand icon). Dark: solid brand + white icon.
+      color: 'hover:border-[#25D366]/50 hover:bg-[#25D366]/15 dark:hover:border-[#25D366]/50 dark:hover:bg-[#25D366]',
+      textColor: 'text-[#25D366] dark:group-hover:text-white',
       onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'LinkedIn',
       icon: Linkedin,
       href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
-      color: 'hover:bg-[#0077B5] hover:border-[#0077B5]/50 hover:text-white',
-      textColor: 'text-[#0077B5]',
+      color: 'hover:border-[#0077B5]/50 hover:bg-[#0077B5]/15 dark:hover:border-[#0077B5]/50 dark:hover:bg-[#0077B5]',
+      textColor: 'text-[#0077B5] dark:group-hover:text-white',
       onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'X',
       icon: Twitter,
       href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
-      color: 'hover:bg-[#1DA1F2] hover:border-[#1DA1F2]/50 hover:text-white',
-      textColor: 'text-[#1DA1F2]',
+      color: 'hover:border-[#1DA1F2]/50 hover:bg-[#1DA1F2]/15 dark:hover:border-[#1DA1F2]/50 dark:hover:bg-[#1DA1F2]',
+      textColor: 'text-[#1DA1F2] dark:group-hover:text-white',
       onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
     },
     {
       name: 'Instagram',
       icon: Instagram,
       href: 'https://www.instagram.com/',
-      color: 'hover:bg-[#E4405F] hover:border-[#E4405F]/50 hover:text-white',
-      textColor: 'text-[#E4405F]',
+      color: 'hover:border-[#E4405F]/50 hover:bg-[#E4405F]/15 dark:hover:border-[#E4405F]/50 dark:hover:bg-[#E4405F]',
+      textColor: 'text-[#E4405F] dark:group-hover:text-white',
       hint: 'Copies link, then opens Instagram',
       onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault()
@@ -279,8 +280,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       name: 'Facebook',
       icon: Facebook,
       href: buildFacebookShareHref(shareUrl, shareText),
-      color: 'hover:bg-[#1877F2] hover:border-[#1877F2]/50 hover:text-white',
-      textColor: 'text-[#1877F2]',
+      color: 'hover:border-[#1877F2]/50 hover:bg-[#1877F2]/15 dark:hover:border-[#1877F2]/50 dark:hover:bg-[#1877F2]',
+      textColor: 'text-[#1877F2] dark:group-hover:text-white',
       hint: 'Opens share sheet — pick Facebook (link is included + copied)',
       onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault()
@@ -456,9 +457,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                 >
                   <platform.icon
                     size={26}
-                    className={`opacity-80 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 ${platform.textColor} [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white`}
+                    className={`opacity-90 transition-colors [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 ${platform.textColor}`}
                   />
-                  <span className="mt-1 hidden text-[10.8px] font-bold text-zinc-900 sm:mt-1.5 dark:text-zinc-900 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white">
+                  <span className="mt-1 hidden text-[10.8px] font-bold text-zinc-700 sm:mt-1.5 dark:text-zinc-200 dark:[@media(hover:hover)_and_(pointer:fine)]:group-hover:text-white">
                     {platform.name}
                   </span>
                 </a>

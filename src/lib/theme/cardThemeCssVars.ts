@@ -173,8 +173,9 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   Object.assign(vars, componentVars('--vbiz-social', social, set, mode))
   vars['--vbiz-social-radius'] =
     typeof social.cornerRadius === 'number' ? `${social.cornerRadius}px` : String(social.cornerRadius)
-  vars['--vbiz-social-icon-size'] = `${Math.max(22, social.iconSize || 22)}px`
-  vars['--vbiz-social-size'] = `${social.size}px`
+  // Cap home social circles at 40px so theme settings cannot inflate rails to 48px+.
+  vars['--vbiz-social-icon-size'] = `${Math.min(22, Math.max(18, social.iconSize || 22))}px`
+  vars['--vbiz-social-size'] = `${Math.min(40, Math.max(32, social.size || 40))}px`
 
   const banner = resolveBannerStyle(set, mode, config.components.sectionBanner)
   const contentCard = resolveContentCardStyle(set, mode, config.components.contentCard)
