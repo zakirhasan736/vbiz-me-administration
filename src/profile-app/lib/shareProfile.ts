@@ -114,66 +114,48 @@ export function openShareWindow(href: string): boolean {
 export type FacebookShareResult = 'shared' | 'opened' | 'cancelled' | 'failed'
 
 /**
- * Facebook on iPhone:
- * Meta's sharer.php is broken when the Facebook app is installed (opens empty /
- * “something went wrong”). The reliable path is the iOS share sheet — but the
- * card link must be in `text` (not only `url`), or Facebook drops it.
- * Clipboard is primed in parallel so the user can paste if an app still omits it.
+ * Facebook share button — go straight to Meta’s create-post / sharer with the card URL.
+ *
+ * Do NOT use navigator.share() for this button on iPhone: the iOS sheet shows
+ * Messages / contact rows (“message users”), not Facebook’s composer. Android
+ * already works via sharer.php; iPhone uses the same sharer, with location.assign
+ * so Safari keeps the tap gesture and can hand off to the Facebook app.
+ * Clipboard is primed so the user can paste if Facebook still drops `u=`.
  */
 export async function shareToFacebook(
   shareUrl: string,
   shareText: string,
-  title?: string
+  _title?: string
 ): Promise<FacebookShareResult> {
   const url = toAbsoluteShareUrl(shareUrl)
   if (!url) return 'failed'
 
   const facebookHref = buildFacebookShareHref(url, shareText, { mobile: isIosDevice() })
-  const sheetText = buildFacebookShareText(url, shareText)
 
-  if (isIosDevice() && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-    // Do not await clipboard before share — that can drop the user-gesture token.
-    void navigator.clipboard?.writeText(url).catch(() => undefined)
+  // Never await clipboard before navigation — that can burn the iOS user-gesture token.
+  void navigator.clipboard?.writeText(url).catch(() => undefined)
 
-    try {
-      const payload: ShareData = {
-        title: title || 'Digital business card',
-        text: sheetText,
-        // Omit `url` on iOS: Facebook/Messages often replace or strip it.
-      }
-      if (typeof navigator.canShare === 'function' && !navigator.canShare(payload)) {
-        // Fall through to sharer / Facebook home
-      } else {
-        await navigator.share(payload)
-        return 'shared'
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return 'cancelled'
-      // Fall through
-    }
+  if (typeof window === 'undefined') return 'failed'
 
-    // Last resort: open Facebook; link is already on the clipboard.
-    if (openShareWindow('https://www.facebook.com/') || openShareWindow(facebookHref)) {
-      return 'opened'
-    }
-    try {
-      window.location.assign('https://www.facebook.com/')
-      return 'opened'
-    } catch {
-      return 'failed'
-    }
-  }
-
-  if (openShareWindow(facebookHref)) return 'opened'
-  if (typeof window !== 'undefined') {
+  // iPhone/iPad: same-tab navigation is the reliable path into Facebook’s composer
+  // (popups are often blocked; navigator.share opens Messages contacts instead).
+  if (isIosDevice()) {
     try {
       window.location.assign(facebookHref)
       return 'opened'
     } catch {
-      return 'failed'
+      /* fall through */
     }
   }
-  return 'failed'
+
+  if (openShareWindow(facebookHref)) return 'opened'
+
+  try {
+    window.location.assign(facebookHref)
+    return 'opened'
+  } catch {
+    return 'failed'
+  }
 }
 
 export type InstagramShareResult = 'copied_opened' | 'opened_only' | 'failed'

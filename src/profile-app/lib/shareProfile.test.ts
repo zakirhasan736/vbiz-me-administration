@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'vitest'
-import { buildFacebookShareHref, buildFacebookShareText, buildShareCopy, toAbsoluteShareUrl } from './shareProfile'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  buildFacebookShareHref,
+  buildFacebookShareText,
+  buildShareCopy,
+  shareToFacebook,
+  toAbsoluteShareUrl,
+} from './shareProfile'
 
 describe('shareProfile helpers', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('uses SEO meta title and description for share copy', () => {
     expect(
       buildShareCopy({
@@ -54,5 +64,34 @@ describe('shareProfile helpers', () => {
 
   it('normalizes absolute share URLs and strips hash/query', () => {
     expect(toAbsoluteShareUrl('https://app.vbizme.com/vCard/demo?x=1#tab')).toBe('https://app.vbizme.com/vCard/demo')
+  })
+
+  it('opens Facebook sharer on iPhone instead of navigator.share (Messages sheet)', async () => {
+    const assign = vi.fn()
+    const share = vi.fn()
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+      platform: 'iPhone',
+      maxTouchPoints: 5,
+      share,
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
+    vi.stubGlobal('window', {
+      location: { assign, origin: 'https://app.vbizme.com', href: 'https://app.vbizme.com/vCard/demo' },
+      open: vi.fn(),
+    })
+
+    const result = await shareToFacebook(
+      'https://app.vbizme.com/vCard/demo',
+      'Check out this digital business card',
+      'Demo Card'
+    )
+
+    expect(result).toBe('opened')
+    expect(share).not.toHaveBeenCalled()
+    expect(assign).toHaveBeenCalledTimes(1)
+    const href = String(assign.mock.calls[0]?.[0] || '')
+    expect(href).toContain('https://m.facebook.com/sharer.php')
+    expect(href).toContain(encodeURIComponent('https://app.vbizme.com/vCard/demo'))
   })
 })

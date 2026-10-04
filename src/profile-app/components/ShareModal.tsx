@@ -283,10 +283,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     {
       name: 'Facebook',
       icon: Facebook,
-      href: buildFacebookShareHref(shareUrl, shareMessage),
+      href: buildFacebookShareHref(shareUrl, shareMessage, {
+        mobile: typeof navigator !== 'undefined' && /iPad|iPhone|iPod/i.test(navigator.userAgent),
+      }),
       color: 'hover:border-[#1877F2]/50 hover:bg-[#1877F2]/15 dark:hover:border-[#1877F2]/50 dark:hover:bg-[#1877F2]',
       textColor: 'text-[#1877F2] dark:group-hover:text-white',
-      hint: 'Opens share sheet — pick Facebook (link is included + copied)',
+      hint: 'Opens Facebook create post with your card link',
       onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault()
         if (!shareUrl) {
@@ -295,10 +297,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
         }
         void (async () => {
           const result = await shareToFacebook(shareUrl, shareMessage, shareTitle)
-          // 'shared' = iOS sheet finished (URL was in the message + clipboard). No toast needed.
           if (result === 'shared' || result === 'cancelled') return
           if (result === 'opened') {
-            notify.info('Link copied — paste it in Facebook if the post is empty.')
+            // iPhone navigates away immediately; toast may not show — clipboard is still primed.
+            notify.info('Opening Facebook — paste the link if the post is empty.')
             return
           }
           notify.error('Could not open Facebook share. Copy the card link above and paste it there.')
