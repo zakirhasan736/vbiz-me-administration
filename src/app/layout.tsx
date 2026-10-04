@@ -26,11 +26,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
   title: 'Vbiz - Backoffice',
   description: 'Manage your vCards and digital business presence',
-  // Admin/auth default: noindex. Public /vCard/* pages opt into indexing in generateMetadata.
   robots: {
-    index: false,
-    follow: false,
-    googleBot: { index: false, follow: false },
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
   ...(googleVerification ? { verification: { google: googleVerification } } : {}),
   icons: {
