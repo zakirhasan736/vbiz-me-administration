@@ -133,7 +133,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             value={draft.descriptionHtml}
             onChange={(html) => update({ descriptionHtml: html })}
             placeholder="Share your story, background, and what makes you unique…"
-            minHeightClassName="min-h-56"
+            minHeightClassName="min-h-[18.2rem]"
           />
         </div>
       </section>

@@ -112,7 +112,14 @@ const ALIGN_OPTIONS: { label: string; value: 'left' | 'center' | 'right' | 'just
   { label: 'Justify', value: 'justify' },
 ]
 
+/** Selection bubble is portaled to body; keep it above sticky chrome / overflow panels. */
+const RTE_BUBBLE_Z = 10050
+
 const EDITOR_ACCENT_CSS = `
+.vbiz-rte-bubble {
+  z-index: ${RTE_BUBBLE_Z} !important;
+  pointer-events: auto;
+}
 .vcard-rich-editor h1 { font-size: 1.875rem; font-weight: 800; line-height: 1.2; margin: 0.6em 0 0.3em; }
 .vcard-rich-editor h2 { font-size: 1.5rem; font-weight: 800; line-height: 1.25; margin: 0.6em 0 0.3em; }
 .vcard-rich-editor h3 { font-size: 1.25rem; font-weight: 700; line-height: 1.3; margin: 0.55em 0 0.25em; }
@@ -234,12 +241,16 @@ function SelectionBubbleMenu({ editor, accent }: { editor: Editor; accent: strin
   }, [editor])
 
   useEffect(() => {
+    // Size/heading options stay collapsed until the bubble’s own control is clicked.
+    const collapse = () => setPanel('none')
     const onSel = () => {
-      if (editor.state.selection.empty) setPanel('none')
+      if (editor.state.selection.empty) collapse()
     }
     editor.on('selectionUpdate', onSel)
+    editor.on('focus', collapse)
     return () => {
       editor.off('selectionUpdate', onSel)
+      editor.off('focus', collapse)
     }
   }, [editor])
 
@@ -250,15 +261,31 @@ function SelectionBubbleMenu({ editor, accent }: { editor: Editor; accent: strin
       editor={editor}
       appendTo={() => document.body}
       updateDelay={0}
-      options={{ placement: 'top', offset: 10, flip: true, shift: true, strategy: 'fixed' }}
+      options={{
+        placement: 'top',
+        offset: 10,
+        flip: true,
+        shift: { padding: 8 },
+        strategy: 'fixed',
+        // Never auto-hide when selection “escapes” an overflow ancestor — bubble is on body.
+        hide: false,
+        onShow: () => {
+          const el = document.querySelector('.vbiz-rte-bubble') as HTMLElement | null
+          if (el) el.style.zIndex = String(RTE_BUBBLE_Z)
+        },
+        onUpdate: () => {
+          const el = document.querySelector('.vbiz-rte-bubble') as HTMLElement | null
+          if (el) el.style.zIndex = String(RTE_BUBBLE_Z)
+        },
+      }}
       shouldShow={({ editor: ed, state }) => {
         const { from, to, empty } = state.selection
         if (empty || !ed.isEditable) return false
         if (ed.isActive('codeBlock')) return false
         return to - from > 0
       }}
-      className="vbiz-rte-bubble flex max-w-[min(100vw-1.5rem,28rem)] flex-col gap-1 rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-[#0b0f19]"
-      style={{ zIndex: 10000 }}
+      className="vbiz-rte-bubble z-[10050] flex max-w-[min(100vw-1.5rem,28rem)] flex-col gap-1 rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-[#0b0f19]"
+      style={{ zIndex: RTE_BUBBLE_Z }}
     >
       <div className="flex flex-wrap items-center gap-0.5">
         <button
@@ -500,6 +527,13 @@ function RichTextToolbar({
     }
   }, [editor])
 
+  const closeToolbarMenus = useCallback(() => {
+    setHeadingOpen(false)
+    setColorOpen(false)
+    setHighlightOpen(false)
+    setAlignOpen(false)
+  }, [])
+
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       const t = e.target as Node
@@ -515,6 +549,20 @@ function RichTextToolbar({
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [])
+
+  // Clicking/focusing the write area closes Paragraph/Heading — it must only open from the toolbar button.
+  useEffect(() => {
+    const close = () => closeToolbarMenus()
+    editor.on('focus', close)
+    const dom = editor.view.dom
+    dom.addEventListener('mousedown', close)
+    dom.addEventListener('touchstart', close, { passive: true })
+    return () => {
+      editor.off('focus', close)
+      dom.removeEventListener('mousedown', close)
+      dom.removeEventListener('touchstart', close)
+    }
+  }, [editor, closeToolbarMenus])
 
   const setLink = useCallback(() => setLinkFromPrompt(editor), [editor])
 
@@ -887,7 +935,8 @@ export function RichTextEditor({
   onChange,
   placeholder = 'Write a detailed description…',
   className,
-  minHeightClassName = 'min-h-56',
+  // Default was min-h-56 (14rem); +30% → ~18.2rem
+  minHeightClassName = 'min-h-[18.2rem]',
   disabled = false,
   accentColor,
 }: RichTextEditorProps) {
@@ -1001,7 +1050,7 @@ export function RichTextEditor({
     return (
       <div
         className={cn(
-          'overflow-hidden rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#0b0f19]',
+          'overflow-visible rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#0b0f19]',
           className
         )}
       >
@@ -1013,14 +1062,15 @@ export function RichTextEditor({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]',
+        // overflow-visible so selection bubble / caret handles are never clipped by this shell
+        'overflow-visible rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]',
         disabled && 'pointer-events-none opacity-60',
         className
       )}
       style={{ ['--rte-accent' as string]: accent }}
     >
       <HoistableStyle href="vbiz-rte-accent" css={EDITOR_ACCENT_CSS} />
-      <div className="rounded-t-2xl">
+      <div className="relative z-10 overflow-visible rounded-t-2xl">
         <RichTextToolbar
           editor={editor}
           sourceMode={sourceMode}
@@ -1050,7 +1100,7 @@ export function RichTextEditor({
           )}
         />
       ) : (
-        <div className="rounded-b-2xl [&_.ProseMirror]:min-h-[inherit]">
+        <div className="relative z-0 overflow-visible rounded-b-2xl [&_.ProseMirror]:min-h-[inherit]">
           <SelectionBubbleMenu editor={editor} accent={accent} />
           <EditorContent editor={editor} />
         </div>
