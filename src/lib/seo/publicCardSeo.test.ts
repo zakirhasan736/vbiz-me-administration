@@ -68,6 +68,7 @@ describe('public card SEO', () => {
     expect(buildPublicCardCanonicalUrl(origin, '/vCard/maya')).toBe('https://app.vbiz.me/vCard/maya')
     expect(metadata.alternates?.canonical).toBe('https://app.vbiz.me/vCard/maya')
     expect(metadata.openGraph?.url).toBe('https://app.vbiz.me/vCard/maya')
+    expect(metadata.robots).toMatchObject({ index: true, follow: true })
     expect(metadata.keywords).toEqual([
       'vbizme',
       'vbiz me',

@@ -198,6 +198,7 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     upsertNamedMeta('mobile-web-app-capable', 'yes')
     upsertNamedMeta('description', description)
     upsertNamedMeta('keywords', keywords)
+    upsertNamedMeta('robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1')
     upsertNamedMeta('twitter:card', image ? 'summary_large_image' : 'summary')
     upsertNamedMeta('twitter:title', title)
     upsertNamedMeta('twitter:description', description)

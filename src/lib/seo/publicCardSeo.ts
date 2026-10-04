@@ -283,6 +283,17 @@ export function buildPublicCardSeoMetadata(input: PublicCardSeoInput): Metadata 
     description,
     keywords: keywords.length ? keywords : undefined,
     alternates: { canonical },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+        'max-video-preview': -1,
+      },
+    },
     openGraph: {
       type: 'profile',
       title,
