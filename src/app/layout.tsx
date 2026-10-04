@@ -5,7 +5,7 @@ import {
   VBIZ_LOGO_PATH,
 } from '@/components/brand/VbizBrandMark'
 import { ToastViewport } from '@/components/feedback/ToastViewport'
-import { GoogleAnalyticsBootstrap } from '@/components/GoogleAnalyticsBootstrap'
+import { GoogleAnalyticsBootstrap, GoogleTagManagerNoscript } from '@/components/GoogleAnalyticsBootstrap'
 import { TranslationEarlyBootstrap } from '@/components/i18n/TranslationEarlyBootstrap'
 import { IframeEmbedBootstrap } from '@/components/IframeEmbedBootstrap'
 import { PwaInstallBootstrap } from '@/components/PwaInstallBootstrap'
@@ -52,10 +52,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
+        {/* GTM noscript must be first in <body>; beforeInteractive scripts hoist into <head>. */}
+        <GoogleTagManagerNoscript />
+        <GoogleAnalyticsBootstrap />
         <StaleChunkReloadBootstrap />
         <SafeDomUnmountBootstrap />
         <SentryBootstrap />
-        <GoogleAnalyticsBootstrap />
         <IframeEmbedBootstrap />
         <PwaInstallBootstrap />
         <TranslationEarlyBootstrap />
