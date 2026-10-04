@@ -27,6 +27,8 @@ describe('shouldIgnoreSentryMessage', () => {
     expect(
       shouldIgnoreSentryMessage("null is not an object (evaluating '(n=n.stateNode).parentNode.removeChild')")
     ).toBe(true)
+    expect(shouldIgnoreSentryMessage("ReferenceError: Can't find variable: EmptyRanges")).toBe(true)
+    expect(shouldIgnoreSentryMessage('Uncaught ReferenceError: EmptyRanges is not defined')).toBe(true)
   })
 
   it('keeps real application errors', () => {

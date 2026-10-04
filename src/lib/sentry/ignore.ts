@@ -21,6 +21,10 @@ const IGNORED_MESSAGE_PATTERNS: RegExp[] = [
   /the operation was aborted/i,
   /play\(\) request was interrupted/i,
   /the play\(\) request was interrupted/i,
+  // Safari/WebKit media-controls bug (NullMedia.buffered/played/seekable → EmptyRanges).
+  // https://bugs.webkit.org/show_bug.cgi?id=318284 — not application code.
+  /can't find variable:\s*EmptyRanges/i,
+  /EmptyRanges is not defined/i,
 ]
 
 export function sentryReasonToMessage(reason: unknown): string {
