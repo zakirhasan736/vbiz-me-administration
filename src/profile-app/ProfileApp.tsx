@@ -56,6 +56,7 @@ export function ProfileApp(props: VBizProfileAppProps) {
       cardSlug={props.profileSlug ?? props.shareSlug}
       profileViews={props.profileViews}
       actionButtons={props.actionButtons}
+      seo={props.seo}
     >
       <EmbeddedDraftCacheSync
         embedded={props.embedded}

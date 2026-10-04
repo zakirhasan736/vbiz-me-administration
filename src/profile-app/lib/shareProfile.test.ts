@@ -1,7 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { buildFacebookShareHref, buildFacebookShareText, toAbsoluteShareUrl } from './shareProfile'
+import { buildFacebookShareHref, buildFacebookShareText, buildShareCopy, toAbsoluteShareUrl } from './shareProfile'
 
 describe('shareProfile helpers', () => {
+  it('uses SEO meta title and description for share copy', () => {
+    expect(
+      buildShareCopy({
+        metaTitle: 'Acme Plumbing | 24/7 Service',
+        metaDescription: 'Licensed plumbers in Miami. Call today.',
+        fallbackName: 'John Doe',
+      })
+    ).toEqual({
+      title: 'Acme Plumbing | 24/7 Service',
+      text: 'Licensed plumbers in Miami. Call today.',
+      message: 'Acme Plumbing | 24/7 Service\nLicensed plumbers in Miami. Call today.',
+    })
+  })
+
+  it('falls back to profile name when SEO is empty', () => {
+    expect(buildShareCopy({ fallbackName: 'Ada L.' })).toEqual({
+      title: 'Ada L.',
+      text: "Check out Ada L.'s digital business card profile here:",
+      message: "Ada L.\nCheck out Ada L.'s digital business card profile here:",
+    })
+  })
+
   it('builds Facebook sharer with absolute u= and quote containing the card link', () => {
     const href = buildFacebookShareHref(
       'https://app.vbizme.com/vCard/michael-hemingway-1',

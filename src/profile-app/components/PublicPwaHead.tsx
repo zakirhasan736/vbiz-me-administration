@@ -4,7 +4,12 @@ import { VBIZ_DEFAULT_FAVICON_PATH } from '@/components/brand/VbizBrandMark'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl } from '@/lib/pwa/resolvePublicCardPwa'
-import { buildPublicCardCanonicalUrl, toAbsoluteUrl } from '@/lib/seo/publicCardSeo'
+import {
+  applySeoFieldsToJsonLd,
+  buildPublicCardCanonicalUrl,
+  serializeJsonLd,
+  toAbsoluteUrl,
+} from '@/lib/seo/publicCardSeo'
 import type { VCardSeo } from '@/types/vcard'
 import { useEffect } from 'react'
 
@@ -94,6 +99,54 @@ function resolveTabFavicon(origin: string, seo?: VCardSeo): string {
   return toAbsoluteUrl(origin, VBIZ_DEFAULT_FAVICON_PATH)
 }
 
+/** Keep SSR JSON-LD in sync when Card Settings SEO title / description / keywords change. */
+function upsertProfilePageJsonLd(title: string, description: string, keywords: string[], fallbackName?: string) {
+  const scripts = Array.from(document.querySelectorAll<HTMLScriptElement>('script[type="application/ld+json"]'))
+  let updated = false
+
+  for (const script of scripts) {
+    try {
+      const parsed = JSON.parse(script.textContent || '') as Record<string, unknown>
+      const type = parsed['@type']
+      const id = typeof parsed['@id'] === 'string' ? parsed['@id'] : ''
+      const isProfilePage = type === 'ProfilePage' || id.endsWith('#page')
+      if (!isProfilePage) continue
+
+      script.textContent = serializeJsonLd(
+        applySeoFieldsToJsonLd(
+          parsed,
+          { metaTitle: title, metaDescription: description, metaKeywords: keywords },
+          fallbackName
+        )
+      )
+      script.dataset.vbizSeo = 'card'
+      updated = true
+    } catch {
+      /* ignore malformed scripts */
+    }
+  }
+
+  if (updated) return
+
+  // Fallback when SSR did not emit JSON-LD (rare) — still expose page-level SEO for crawlers that run JS.
+  const script = document.createElement('script')
+  script.type = 'application/ld+json'
+  script.dataset.vbizSeo = 'card'
+  script.textContent = serializeJsonLd(
+    applySeoFieldsToJsonLd(
+      {
+        '@context': 'https://schema.org',
+        '@type': 'ProfilePage',
+        name: title,
+        description,
+      },
+      { metaTitle: title, metaDescription: description, metaKeywords: keywords },
+      fallbackName
+    )
+  )
+  document.head.appendChild(script)
+}
+
 /** Injects per-card manifest + apple-touch-icon so Chrome / iOS can install this card. */
 export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadProps) {
   useEffect(() => {
@@ -104,7 +157,8 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     const canonical = buildPublicCardCanonicalUrl(origin, buildProfilePath(trimmed))
     const title = seo?.metaTitle?.trim() || ownerName?.trim() || trimmed
     const description = seo?.metaDescription?.trim() || `${title}'s digital business card on vBiz Me.`
-    const keywords = seo?.metaKeywords?.join(', ') || ''
+    const keywordList = (seo?.metaKeywords || []).map((k) => k.trim()).filter(Boolean)
+    const keywords = keywordList.join(', ')
     const image = shareImageUrl(trimmed, imageUrl || seo?.seoImage)
     const tabIcon = resolveTabFavicon(origin, seo)
     const appleIcon = `${origin.replace(/\/$/, '')}${buildProfileIconPath(trimmed, 192)}`
@@ -153,6 +207,9 @@ export function PublicPwaHead({ slug, ownerName, seo, imageUrl }: PublicPwaHeadP
     upsertPropertyMeta('og:description', description)
     upsertPropertyMeta('og:url', canonical)
     upsertPropertyMeta('og:image', image)
+    upsertPropertyMeta('og:site_name', 'vBiz Me')
+
+    upsertProfilePageJsonLd(title, description, keywordList, ownerName?.trim() || trimmed)
 
     void ensurePublicCardServiceWorker()
   }, [slug, ownerName, seo, imageUrl])

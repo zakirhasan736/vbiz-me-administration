@@ -30,6 +30,7 @@ import type {
   VCardResume,
   VCardReviewEntry,
   VCardSectionPostItem,
+  VCardSeo,
   VCardServiceEntry,
   VCardSkillGroup,
   VCardSocial,
@@ -109,6 +110,8 @@ export type VBizProfileAppProps = {
   themeConfig?: CardThemeConfig | null
   /** True when theme comes from settings API (not template defaults). */
   themeFromApi?: boolean
+  /** Card Settings → SEO (share sheet + OG copy). */
+  seo?: VCardSeo
 }
 
 export function buildProfileShareUrl(slug: string): string {
@@ -199,6 +202,7 @@ export function vCardDataToProfileProps(
     themeConfig,
     themeFromApi: meta?.themeFromApi,
     liveAgentEnabled: isAiAssistanceEnabled(data.aiAssistanceEnabled, slug),
+    seo: data.seo,
   }
 }
 

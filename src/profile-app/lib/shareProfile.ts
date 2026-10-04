@@ -6,6 +6,28 @@ export type ShareProfileInput = {
   text?: string
 }
 
+export type ShareCopyInput = {
+  metaTitle?: string | null
+  metaDescription?: string | null
+  /** Visible card name used when SEO fields are empty. */
+  fallbackName?: string | null
+}
+
+/**
+ * Share sheet / social intent copy — prefer Card Settings SEO meta title & description
+ * so WhatsApp, Facebook quote, X, SMS, and native share match the public SEO tags.
+ */
+export function buildShareCopy(input: ShareCopyInput): { title: string; text: string; message: string } {
+  const name = input.fallbackName?.trim() || 'this'
+  const title = input.metaTitle?.trim() || (name === 'this' ? 'Digital business card' : name)
+  const text =
+    input.metaDescription?.trim() ||
+    `Check out ${name === 'this' ? 'this' : `${name}'s`} digital business card profile here:`
+  // Single-field apps (WhatsApp / SMS) get title + description together.
+  const message = title && text && title !== text ? `${title}\n${text}` : text || title
+  return { title, text, message }
+}
+
 export function resolveShareUrl(shareSlug?: string): string {
   if (shareSlug?.trim()) return buildProfileShareUrl(shareSlug)
   if (typeof window !== 'undefined') {

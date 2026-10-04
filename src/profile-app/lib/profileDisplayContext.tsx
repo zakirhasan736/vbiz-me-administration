@@ -25,6 +25,7 @@ import type {
   VCardMyInfo,
   VCardPersonal,
   VCardResume,
+  VCardSeo,
   VCardServiceEntry,
   VCardSocial,
   VCardTabLabelOverrides,
@@ -68,6 +69,7 @@ export type ProfileDisplayContextValue = {
   cardSlug?: string
   profileViews: number
   actionButtons?: MyCardActionButtons | null
+  seo?: VCardSeo | null
 }
 
 const FALLBACK_PERSONAL: VCardPersonal = {
@@ -120,6 +122,7 @@ const defaultValue: ProfileDisplayContextValue = {
   cardSlug: undefined,
   profileViews: 0,
   actionButtons: null,
+  seo: null,
 }
 
 const ProfileDisplayContext = createContext<ProfileDisplayContextValue>(defaultValue)
@@ -153,6 +156,7 @@ export function ProfileDisplayProvider({
   cardSlug,
   profileViews = 0,
   actionButtons = null,
+  seo = null,
 }: {
   children: React.ReactNode
   personal?: VCardPersonal
@@ -179,6 +183,7 @@ export function ProfileDisplayProvider({
   cardSlug?: string
   profileViews?: number
   actionButtons?: MyCardActionButtons | null
+  seo?: VCardSeo | null
 }) {
   const value = useMemo<ProfileDisplayContextValue>(() => {
     const settings = resolveDisplaySettings(displaySettings)
@@ -231,6 +236,7 @@ export function ProfileDisplayProvider({
       cardSlug,
       profileViews,
       actionButtons,
+      seo,
     }
   }, [
     personal,
@@ -257,6 +263,7 @@ export function ProfileDisplayProvider({
     cardSlug,
     profileViews,
     actionButtons,
+    seo,
   ])
 
   return <ProfileDisplayContext.Provider value={value}>{children}</ProfileDisplayContext.Provider>

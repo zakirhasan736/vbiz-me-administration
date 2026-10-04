@@ -6,6 +6,7 @@ import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import {
   buildFacebookShareHref,
+  buildShareCopy,
   openShareWindow,
   resolveShareUrl,
   shareToFacebook,
@@ -43,7 +44,8 @@ interface ShareModalProps {
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
-  const { design, personal, homeMedia, field, isVisible, avatarImageUrl, cardOwnerId, cardSlug } = useProfileDisplay()
+  const { design, personal, homeMedia, field, isVisible, avatarImageUrl, cardOwnerId, cardSlug, seo } =
+    useProfileDisplay()
   const accentColor = design?.accentColor ?? '#eab308'
   const profileId = cardOwnerId?.trim() || ''
   const { data: aboutMe } = useGetAboutMeQuery(profileId, {
@@ -219,15 +221,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     }
   }
 
-  const shareText = profileName
-    ? `Check out ${profileName}'s digital business card profile here:`
-    : 'Check out this digital business card profile here:'
+  const { title: shareTitle, message: shareMessage } = buildShareCopy({
+    metaTitle: seo?.metaTitle,
+    metaDescription: seo?.metaDescription,
+    fallbackName: profileName || personal.fullName?.trim() || '',
+  })
 
   const socialShares = [
     {
       name: 'WhatsApp',
       icon: MessageCircle,
-      href: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
+      href: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage + ' ' + shareUrl)}`,
       // Light theme: tinted brand hover (keep brand icon). Dark: solid brand + white icon.
       color: 'hover:border-[#25D366]/50 hover:bg-[#25D366]/15 dark:hover:border-[#25D366]/50 dark:hover:bg-[#25D366]',
       textColor: 'text-[#25D366] dark:group-hover:text-white',
@@ -244,7 +248,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     {
       name: 'X',
       icon: Twitter,
-      href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+      href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareMessage)}`,
       color: 'hover:border-[#1DA1F2]/50 hover:bg-[#1DA1F2]/15 dark:hover:border-[#1DA1F2]/50 dark:hover:bg-[#1DA1F2]',
       textColor: 'text-[#1DA1F2] dark:group-hover:text-white',
       onClick: undefined as undefined | ((e: React.MouseEvent<HTMLAnchorElement>) => void),
@@ -259,7 +263,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
       onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault()
         void (async () => {
-          const result = await shareToInstagram(shareUrl, shareText)
+          const result = await shareToInstagram(shareUrl, shareMessage)
           if (result === 'copied_opened') {
             setCopied(true)
             setInstagramTip(true)
@@ -279,7 +283,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     {
       name: 'Facebook',
       icon: Facebook,
-      href: buildFacebookShareHref(shareUrl, shareText),
+      href: buildFacebookShareHref(shareUrl, shareMessage),
       color: 'hover:border-[#1877F2]/50 hover:bg-[#1877F2]/15 dark:hover:border-[#1877F2]/50 dark:hover:bg-[#1877F2]',
       textColor: 'text-[#1877F2] dark:group-hover:text-white',
       hint: 'Opens share sheet — pick Facebook (link is included + copied)',
@@ -290,7 +294,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
           return
         }
         void (async () => {
-          const result = await shareToFacebook(shareUrl, shareText, profileName || undefined)
+          const result = await shareToFacebook(shareUrl, shareMessage, shareTitle)
           // 'shared' = iOS sheet finished (URL was in the message + clipboard). No toast needed.
           if (result === 'shared' || result === 'cancelled') return
           if (result === 'opened') {
@@ -309,7 +313,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
           {
             name: 'Email',
             icon: Mail,
-            href: `mailto:${email}?subject=${encodeURIComponent('Digital Profile: ' + profileName)}&body=${encodeURIComponent(shareText + '\n' + shareUrl)}`,
+            href: `mailto:${email}?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareMessage + '\n' + shareUrl)}`,
             color:
               'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-[#eab308]',
           },
@@ -318,7 +322,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     {
       name: 'SMS / Text',
       icon: MessageSquare,
-      href: `sms:?&body=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
+      href: `sms:?&body=${encodeURIComponent(shareMessage + ' ' + shareUrl)}`,
       color:
         'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-[#eab308]',
     },
