@@ -12,11 +12,16 @@ import { PwaInstallBootstrap } from '@/components/PwaInstallBootstrap'
 import { SafeDomUnmountBootstrap } from '@/components/SafeDomUnmountBootstrap'
 import { SentryBootstrap } from '@/components/SentryBootstrap'
 import { StaleChunkReloadBootstrap } from '@/components/StaleChunkReloadBootstrap'
+import { fetchPublicCardBootstrap } from '@/lib/api/myCard/fetchPublicCardBootstrap'
+import { publicCardPageSlug } from '@/lib/profileRoutes'
+import { resolveRequestOrigin } from '@/lib/seo/publicCardSeo'
+import { PublicCardServerDocument } from '@/lib/seo/PublicCardServerDocument'
 import { getGoogleSiteVerification, getSiteOrigin } from '@/lib/seo/siteOrigin'
 import { NotificationToast } from '@/profile-app/components/NotificationToast'
 import { PushNotificationRegistrar } from '@/profile-app/components/PushNotificationRegistrar'
 import ClientProviders from '@/providers/ClientProviders'
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import './globals.css'
 
 const siteOrigin = getSiteOrigin()
@@ -46,14 +51,30 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const headerStore = await headers()
+  const slug = publicCardPageSlug(headerStore.get('x-pathname') || '')
+  const origin = resolveRequestOrigin(
+    headerStore.get('x-forwarded-host') || headerStore.get('host'),
+    headerStore.get('x-forwarded-proto')
+  )
+  const bootstrap = slug ? await fetchPublicCardBootstrap(slug).catch(() => null) : null
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
+        {bootstrap?.myCard ? (
+          <PublicCardServerDocument
+            slug={slug || ''}
+            origin={origin}
+            myCard={bootstrap.myCard}
+            sections={bootstrap.sections}
+          />
+        ) : null}
         {/* GTM noscript must be first in <body>; beforeInteractive scripts hoist into <head>. */}
         <GoogleTagManagerNoscript />
         <GoogleAnalyticsBootstrap />

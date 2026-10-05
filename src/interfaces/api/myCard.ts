@@ -30,6 +30,8 @@ export type MyCardProfile = {
   linkedin: string | null
   pinterest: string | null
   whatsapp: string | null
+  is_draft?: boolean | null
+  is_public?: boolean | null
 }
 
 export type MyCardMyInfoField = {

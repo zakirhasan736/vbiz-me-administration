@@ -3,9 +3,11 @@ import {
   applySeoFieldsToJsonLd,
   buildPublicCardCanonicalUrl,
   buildPublicCardJsonLd,
+  buildPublicCardJsonLdGraph,
   buildPublicCardSeoMetadata,
   collectSameAsUrls,
   extractPublicSeoReviews,
+  publicCardEntityType,
   resolvePublicOrigin,
 } from '@/lib/seo/publicCardSeo'
 import { describe, expect, it } from 'vitest'
@@ -67,6 +69,7 @@ describe('public card SEO', () => {
 
     expect(buildPublicCardCanonicalUrl(origin, '/vCard/maya')).toBe('https://app.vbiz.me/vCard/maya')
     expect(metadata.alternates?.canonical).toBe('https://app.vbiz.me/vCard/maya')
+    expect(metadata.alternates?.types?.['text/markdown']).toBe('https://app.vbiz.me/vCard/maya/llms.txt')
     expect(metadata.openGraph?.url).toBe('https://app.vbiz.me/vCard/maya')
     expect(metadata.robots).toMatchObject({ index: true, follow: true })
     expect(metadata.keywords).toEqual([
@@ -96,13 +99,38 @@ describe('public card SEO', () => {
       cardPath: '/vCard/maya',
       myCard: card(),
     })
-    expect(jsonLd.name).toBe('Maya Design Studio | Brand Designer')
+    expect(jsonLd.name).toBe('Maya Chen | Maya Design Studio | Brand Designer')
     expect(jsonLd.description).toBe('Brand systems, identity, and contact details.')
     expect(String(jsonLd.keywords)).toContain('brand designer')
     expect(String(jsonLd.keywords)).toContain('identity design')
     expect((jsonLd.mainEntity as { description?: string }).description).toBe(
       'Brand systems, identity, and contact details.'
     )
+    expect((jsonLd.mainEntity as { '@type'?: string })['@type']).toBe('Person')
+    expect(jsonLd['@type']).toBe('ProfilePage')
+  })
+
+  it('uses LocalBusiness when the card name is the business name', () => {
+    const myCard = card({ name: 'Maya Design Studio', company_name: 'Maya Design Studio' })
+    expect(publicCardEntityType(myCard.profile)).toBe('LocalBusiness')
+    const jsonLd = buildPublicCardJsonLd({
+      slug: 'maya',
+      origin: 'https://app.vbiz.me',
+      cardPath: '/vCard/maya',
+      myCard,
+    })
+    expect(jsonLd['@type']).toBe('ProfilePage')
+    expect((jsonLd.mainEntity as { '@type'?: string })['@type']).toBe('LocalBusiness')
+  })
+
+  it('marks a draft card noindex', () => {
+    const metadata = buildPublicCardSeoMetadata({
+      slug: 'maya',
+      origin: 'https://app.vbiz.me',
+      cardPath: '/vCard/maya',
+      myCard: card({ is_draft: true, is_public: false }),
+    })
+    expect(metadata.robots).toMatchObject({ index: false, follow: false })
   })
 
   it('patches JSON-LD when SEO meta title, description, or keywords change', () => {
@@ -146,9 +174,38 @@ describe('public card SEO', () => {
     const person = withReviews.mainEntity as Record<string, unknown>
     const emptyPerson = withoutReviews.mainEntity as Record<string, unknown>
 
-    expect(person.aggregateRating).toMatchObject({ reviewCount: 1, ratingValue: 5 })
+    expect(withReviews.aggregateRating).toMatchObject({ reviewCount: 1, ratingValue: 5 })
+    expect(withReviews.review).toHaveLength(1)
+    expect(person.aggregateRating).toBeUndefined()
+    expect(person.review).toBeUndefined()
+    expect(withoutReviews.aggregateRating).toBeUndefined()
     expect(emptyPerson.aggregateRating).toBeUndefined()
     expect(emptyPerson.review).toBeUndefined()
+  })
+
+  it('puts reviews on a LocalBusiness and keeps the postal code', () => {
+    const myCard = card({
+      name: 'Maya Design Studio',
+      company_name: 'Maya Design Studio',
+      zip_code: '06051',
+      website: 'not a website',
+    })
+    const jsonLd = buildPublicCardJsonLd({
+      slug: 'maya',
+      origin: 'https://app.vbiz.me',
+      cardPath: '/vCard/maya',
+      myCard,
+      reviews: [{ author: 'Pat', text: 'Clear, fast work.', rating: 5 }],
+    })
+    const business = jsonLd.mainEntity as {
+      review?: unknown[]
+      address?: { postalCode?: string }
+      sameAs?: string[]
+    }
+    expect(business.review).toHaveLength(1)
+    expect(jsonLd.review).toBeUndefined()
+    expect(business.address?.postalCode).toBe('06051')
+    expect(business.sameAs?.some((url) => url.includes('not a website'))).toBe(false)
   })
 
   it('ignores leave-a-review link cards when extracting reviews', () => {
@@ -164,5 +221,44 @@ describe('public card SEO', () => {
       ],
     })
     expect(reviews).toEqual([{ author: 'Sam', text: 'Great service', rating: 5 }])
+  })
+
+  it('puts ProfilePage, FAQ, reviews, and products in one JSON-LD graph', () => {
+    const graph = buildPublicCardJsonLdGraph(
+      {
+        slug: 'maya',
+        origin: 'https://app.vbiz.me',
+        cardPath: '/vCard/maya',
+        myCard: card(),
+        reviews: [{ author: 'Sam', text: 'Great service', rating: 5 }],
+      },
+      {
+        faqs: [{ question: 'Do you ship?', answer: 'Yes, nationwide.' }],
+        products: [
+          { name: 'Brand kit', description: 'Logo and cards', price: '49', image: '' },
+          { name: 'Consult', description: 'Talk to us', price: 'Call', image: '' },
+        ],
+      }
+    )
+    const nodes = graph['@graph'] as Array<Record<string, unknown>>
+    const page = nodes.find((node) => node['@type'] === 'ProfilePage')
+    const faq = nodes.find((node) => node['@type'] === 'FAQPage')
+    const product = nodes.find((node) => node['@type'] === 'Product')
+    expect(page?.url).toBe('https://app.vbiz.me/vCard/maya')
+    expect(page?.review as unknown[]).toHaveLength(1)
+    expect((page?.mainEntity as { review?: unknown }).review).toBeUndefined()
+    expect(faq?.mainEntity).toEqual([
+      {
+        '@type': 'Question',
+        name: 'Do you ship?',
+        acceptedAnswer: { '@type': 'Answer', text: 'Yes, nationwide.' },
+      },
+    ])
+    expect(nodes.filter((node) => node['@type'] === 'Product')).toHaveLength(1)
+    expect(product).toMatchObject({
+      name: 'Brand kit',
+      description: 'Logo and cards. Price 49',
+      offers: { '@type': 'Offer', price: '49', priceCurrency: 'USD' },
+    })
   })
 })

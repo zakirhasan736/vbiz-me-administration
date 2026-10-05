@@ -22,6 +22,18 @@ export type PublicSeoReview = {
   rating: number
 }
 
+export type PublicSeoFaq = {
+  question: string
+  answer: string
+}
+
+export type PublicSeoProduct = {
+  name: string
+  description: string
+  price: string
+  image: string
+}
+
 export type PublicCardSeoReviews = {
   slides: Array<{
     title?: string
@@ -45,6 +57,33 @@ function stripHtml(html: string): string {
     .replace(/&nbsp;/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function isSchemaHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return (url.protocol === 'http:' || url.protocol === 'https:') && url.hostname.includes('.')
+  } catch {
+    return false
+  }
+}
+
+function isSchemaEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
+/** Numeric price for a Product offer. Non-prices stay out of Product markup. */
+export function parseProductOffer(price: string): { price: string; priceCurrency: string } | null {
+  const text = price.trim()
+  if (!text) return null
+  let priceCurrency = 'USD'
+  if (/€|\bEUR\b/i.test(text)) priceCurrency = 'EUR'
+  else if (/£|\bGBP\b/i.test(text)) priceCurrency = 'GBP'
+  else if (/\bCAD\b|C\$/i.test(text)) priceCurrency = 'CAD'
+  else if (/\bAUD\b|A\$/i.test(text)) priceCurrency = 'AUD'
+  const match = text.replace(/,/g, '').match(/(\d+(?:\.\d{1,2})?)/)
+  if (!match) return null
+  return { price: match[1], priceCurrency }
 }
 
 /** The origin the browser is actually on. PWA manifest/icons must be same-origin. */
@@ -80,7 +119,7 @@ export function collectSameAsUrls(profile: MyCardProfile): string[] {
   const seen = new Set<string>()
   const push = (raw: string) => {
     const value = raw.trim()
-    if (!value || seen.has(value.toLowerCase())) return
+    if (!isSchemaHttpUrl(value) || seen.has(value.toLowerCase())) return
     seen.add(value.toLowerCase())
     urls.push(value)
   }
@@ -133,6 +172,71 @@ export function extractPublicSeoReviews(section: unknown): PublicSeoReview[] {
   return reviews
 }
 
+function sectionItems(section: unknown): Record<string, unknown>[] {
+  if (!section || typeof section !== 'object') return []
+  const data = section as { items?: unknown[]; data?: { items?: unknown[] } }
+  const items = Array.isArray(data.items) ? data.items : Array.isArray(data.data?.items) ? data.data.items : []
+  return items.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+}
+
+function itemIsHidden(item: Record<string, unknown>): boolean {
+  return item.status === 0 || item.status === '0' || item.status === false
+}
+
+function firstImageUrl(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === 'string' && entry.trim()) return entry.trim()
+      if (entry && typeof entry === 'object' && typeof (entry as { url?: unknown }).url === 'string') {
+        const url = (entry as { url: string }).url.trim()
+        if (url) return url
+      }
+    }
+  }
+  if (value && typeof value === 'object' && typeof (value as { url?: unknown }).url === 'string') {
+    return (value as { url: string }).url.trim()
+  }
+  return ''
+}
+
+export function extractPublicSeoFaqs(section: unknown): PublicSeoFaq[] {
+  const faqs: PublicSeoFaq[] = []
+  for (const item of sectionItems(section)) {
+    if (itemIsHidden(item)) continue
+    const question = stripHtml(String(item.title || item.question || ''))
+    const answer = stripHtml(String(item.description || item.answer || ''))
+    if (!question || !answer) continue
+    faqs.push({ question, answer })
+    if (faqs.length >= 20) break
+  }
+  return faqs
+}
+
+export function extractPublicSeoProducts(section: unknown): PublicSeoProduct[] {
+  const products: PublicSeoProduct[] = []
+  for (const item of sectionItems(section)) {
+    if (itemIsHidden(item)) continue
+    const name = stripHtml(String(item.title || item.name || ''))
+    if (!name) continue
+    const description = stripHtml(String(item.description || ''))
+    const price = stripHtml(String(item.offerPrice || item.offer_price || item.price || ''))
+    const image = firstImageUrl(item.featured_image || item.image)
+    products.push({ name, description, price, image })
+    if (products.length >= 20) break
+  }
+  return products
+}
+
+export function sectionByName(sections: Record<string, unknown> | null | undefined, names: string[]): unknown {
+  if (!sections) return undefined
+  const wanted = new Set(names.map((name) => name.toLowerCase()))
+  for (const [key, value] of Object.entries(sections)) {
+    if (wanted.has(key.toLowerCase())) return value
+  }
+  return undefined
+}
+
 function reviewsForJsonLd(input: PublicCardSeoInput['reviews']): PublicSeoReview[] {
   if (!input) return []
   if (Array.isArray(input)) return input.slice(0, 10)
@@ -146,17 +250,26 @@ function reviewsForJsonLd(input: PublicCardSeoInput['reviews']): PublicSeoReview
     }))
 }
 
+export function isPublicCardIndexable(profile: MyCardProfile): boolean {
+  if (profile.is_draft === true) return false
+  if (profile.is_public === false) return false
+  return true
+}
+
+/** A card whose public name is the business name, rather than a person at that business. */
+export function publicCardEntityType(profile: MyCardProfile): 'Person' | 'LocalBusiness' {
+  const name = profile.name?.trim().toLowerCase() || ''
+  const company = profile.company_name?.trim().toLowerCase() || ''
+  if (name && company && name === company) return 'LocalBusiness'
+  return 'Person'
+}
+
 function postalAddress(profile: MyCardProfile) {
-  const extra = profile as MyCardProfile & {
-    city?: string | null
-    state?: string | null
-    zipcode?: string | null
-  }
-  const street = extra.address?.trim() || ''
-  const city = extra.city?.trim() || ''
-  const region = extra.state?.trim() || ''
-  const postalCode = extra.zipcode?.trim() || ''
-  const country = extra.country?.trim() || ''
+  const street = profile.address?.trim() || ''
+  const city = profile.city?.trim() || ''
+  const region = profile.state?.trim() || ''
+  const postalCode = profile.zip_code?.trim() || profile.zipCode?.trim() || ''
+  const country = profile.country?.trim() || ''
   if (!street && !city && !region && !postalCode && !country) return undefined
   return {
     '@type': 'PostalAddress',
@@ -179,46 +292,32 @@ export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string,
   const sameAs = collectSameAsUrls(profile)
   const reviews = reviewsForJsonLd(input.reviews)
   const company = profile.company_name?.trim() || ''
-  const personId = `${canonical}#person`
+  const entityType = publicCardEntityType(profile)
+  const personId = `${canonical}#${entityType === 'LocalBusiness' ? 'business' : 'person'}`
 
   const person: Record<string, unknown> = {
-    '@type': 'Person',
+    '@type': entityType,
     '@id': personId,
     name,
     url: canonical,
-    ...(profile.designation?.trim() ? { jobTitle: profile.designation.trim() } : {}),
-    ...(profile.profession?.trim() && !profile.designation?.trim() ? { jobTitle: profile.profession.trim() } : {}),
-    ...(company ? { worksFor: { '@type': 'Organization', name: company } } : {}),
+    ...(entityType === 'Person' && profile.designation?.trim() ? { jobTitle: profile.designation.trim() } : {}),
+    ...(entityType === 'Person' && profile.profession?.trim() && !profile.designation?.trim()
+      ? { jobTitle: profile.profession.trim() }
+      : {}),
+    ...(entityType === 'Person' && company ? { worksFor: { '@type': 'Organization', name: company } } : {}),
     ...(description ? { description } : {}),
-    ...(image ? { image } : {}),
-    ...(profile.email?.trim() ? { email: profile.email.trim() } : {}),
+    ...(image && isSchemaHttpUrl(image) ? { image } : {}),
+    ...(profile.email?.trim() && isSchemaEmail(profile.email) ? { email: profile.email.trim() } : {}),
     ...(profile.phone?.trim() ? { telephone: profile.phone.trim() } : {}),
     ...(postalAddress(profile) ? { address: postalAddress(profile) } : {}),
     ...(sameAs.length ? { sameAs } : {}),
   }
 
-  if (reviews.length) {
-    const ratingValues = reviews.map((review) => review.rating)
-    const ratingValue =
-      Math.round((ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length) * 10) / 10
-    person.aggregateRating = {
-      '@type': 'AggregateRating',
-      ratingValue,
-      reviewCount: reviews.length,
-      bestRating: 5,
-      worstRating: 1,
-    }
-    person.review = reviews.map((review) => ({
-      '@type': 'Review',
-      author: { '@type': 'Person', name: review.author },
-      ...(review.text ? { reviewBody: review.text } : {}),
-      reviewRating: {
-        '@type': 'Rating',
-        ratingValue: review.rating,
-        bestRating: 5,
-        worstRating: 1,
-      },
-    }))
+  const reviewMarkup = reviews.length ? reviewMarkupFor(reviews, personId) : null
+  // LocalBusiness accepts review and aggregateRating. Person does not, so those sit on ProfilePage.
+  if (reviewMarkup && entityType === 'LocalBusiness') {
+    person.aggregateRating = reviewMarkup.aggregateRating
+    person.review = reviewMarkup.review
   }
 
   const keywords = seo.metaKeywords.filter(Boolean)
@@ -231,7 +330,95 @@ export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string,
     name: seo.metaTitle || name,
     description,
     ...(keywords.length ? { keywords: keywords.join(', ') } : {}),
+    ...(reviewMarkup && entityType === 'Person' ? reviewMarkup : {}),
     mainEntity: person,
+  }
+}
+
+function reviewMarkupFor(reviews: PublicSeoReview[], reviewedId: string) {
+  const ratingValue = Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length) * 10) / 10
+  return {
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue,
+      reviewCount: reviews.length,
+      bestRating: 5,
+      worstRating: 1,
+    },
+    review: reviews.map((review) => ({
+      '@type': 'Review',
+      itemReviewed: { '@id': reviewedId },
+      author: { '@type': 'Person', name: review.author },
+      ...(review.text ? { reviewBody: review.text } : {}),
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: review.rating,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    })),
+  }
+}
+
+/** ProfilePage plus FAQ and products, in one script Google can read. */
+export function buildPublicCardJsonLdGraph(
+  input: PublicCardSeoInput,
+  extras?: { faqs?: PublicSeoFaq[]; products?: PublicSeoProduct[] }
+): Record<string, unknown> {
+  const page = buildPublicCardJsonLd(input)
+  const pageNode = { ...page }
+  delete pageNode['@context']
+  const canonical = String(pageNode.url || '')
+  const graph: Record<string, unknown>[] = [pageNode]
+  const faqs = extras?.faqs?.filter((item) => item.question && item.answer) ?? []
+  const products = extras?.products?.filter((item) => item.name) ?? []
+
+  if (faqs.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      '@id': `${canonical}#faq`,
+      url: canonical,
+      mainEntity: faqs.map((faq) => ({
+        '@type': 'Question',
+        name: faq.question,
+        acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+      })),
+    })
+  }
+
+  const origin = (() => {
+    try {
+      return new URL(canonical).origin
+    } catch {
+      return ''
+    }
+  })()
+  let productIndex = 0
+  for (const product of products) {
+    const offer = parseProductOffer(product.price)
+    if (!offer) continue
+    productIndex += 1
+    const description = [product.description, product.price ? `Price ${product.price}` : ''].filter(Boolean).join('. ')
+    const image = origin && product.image ? toAbsoluteUrl(origin, product.image) : product.image
+    graph.push({
+      '@type': 'Product',
+      '@id': `${canonical}#product-${productIndex}`,
+      name: product.name,
+      url: canonical,
+      ...(description ? { description } : {}),
+      ...(image && isSchemaHttpUrl(image) ? { image } : {}),
+      offers: {
+        '@type': 'Offer',
+        price: offer.price,
+        priceCurrency: offer.priceCurrency,
+        url: canonical,
+      },
+    })
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': graph,
   }
 }
 
@@ -276,19 +463,25 @@ export function buildPublicCardSeoMetadata(input: PublicCardSeoInput): Metadata 
   const canonical = buildPublicCardCanonicalUrl(origin, cardPath)
   const image = resolvePublicCardImageUrl(myCard, origin, slug)
   const keywords = seo.metaKeywords.filter(Boolean)
+  const indexable = isPublicCardIndexable(myCard.profile)
 
   return {
     metadataBase: new URL(origin),
     title,
     description,
     keywords: keywords.length ? keywords : undefined,
-    alternates: { canonical },
+    alternates: {
+      canonical,
+      types: {
+        'text/markdown': `${canonical}/llms.txt`,
+      },
+    },
     robots: {
-      index: true,
-      follow: true,
+      index: indexable,
+      follow: indexable,
       googleBot: {
-        index: true,
-        follow: true,
+        index: indexable,
+        follow: indexable,
         'max-image-preview': 'large',
         'max-snippet': -1,
         'max-video-preview': -1,

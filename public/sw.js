@@ -34,7 +34,8 @@ const PUBLIC_CARD_SEGMENT = 'vCard'
 const LEGACY_PUBLIC_CARD_SEGMENT = 'v'
 
 function isPublicCardRoot(segment) {
-  return segment === PUBLIC_CARD_SEGMENT || segment === LEGACY_PUBLIC_CARD_SEGMENT
+  const value = String(segment || '').toLowerCase()
+  return value === PUBLIC_CARD_SEGMENT.toLowerCase() || value === LEGACY_PUBLIC_CARD_SEGMENT
 }
 
 function slugFromUrl(url) {
@@ -70,10 +71,7 @@ function normalizeCardUrl(rawUrl, slug) {
       .split('/')
       .filter(Boolean)
     if (isPublicCardRoot(parts[0]) && parts[1]) {
-      if (parts[0] === LEGACY_PUBLIC_CARD_SEGMENT) {
-        parsed.pathname = `/vCard/${parts.slice(1).join('/')}`
-        return absolute ? parsed.href : `${parsed.pathname}${parsed.search}${parsed.hash}`
-      }
+      parsed.pathname = `/vCard/${parts.slice(1).join('/')}`
       return absolute ? parsed.href : `${parsed.pathname}${parsed.search}${parsed.hash}`
     }
     if (parts.length === 1 && parts[0]) {

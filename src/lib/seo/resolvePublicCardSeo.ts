@@ -88,6 +88,58 @@ export function collectPublicCardShareImageCandidates(card: MyCardData): string[
   return candidates
 }
 
+function tidyTitleSeparators(title: string): string {
+  return title
+    .replace(/\s*\|\s*/g, ' | ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function includesPhrase(haystack: string, phrase: string): boolean {
+  const needle = phrase.trim().toLowerCase()
+  if (!needle) return false
+  return haystack.toLowerCase().includes(needle)
+}
+
+/** Keep the person or business name, then the saved title, then a location if it still fits. */
+export function composePublicCardTitle(input: {
+  name: string
+  company: string
+  role: string
+  city: string
+  state: string
+  custom: string
+}): string {
+  const name = input.name.trim()
+  const company = input.company.trim()
+  const role = input.role.trim()
+  const city = input.city.trim()
+  const state = input.state.trim()
+  const custom = tidyTitleSeparators(input.custom)
+  const sameNameAndCompany = Boolean(name && company && name.toLowerCase() === company.toLowerCase())
+  const pieces: string[] = []
+
+  if (name && !includesPhrase(custom, name)) pieces.push(name)
+  if (custom) pieces.push(custom)
+  else if (role) pieces.push(role)
+  else if (company && !sameNameAndCompany) pieces.push(company)
+
+  if (!pieces.length) pieces.push(name || company || 'Digital Card')
+
+  const place = [city, state].filter(Boolean).join(', ')
+  const alreadyHasPlace =
+    (city && includesPhrase(pieces.join(' '), city)) || (state && includesPhrase(pieces.join(' '), state))
+  if (place && !alreadyHasPlace) pieces.push(place)
+
+  let title = ''
+  for (const piece of pieces) {
+    const next = tidyTitleSeparators(title ? `${title} | ${piece}` : piece)
+    if (next.length > 70) break
+    title = next
+  }
+  return title || tidyTitleSeparators(pieces[0] || 'Digital Card').slice(0, 70)
+}
+
 /** Effective SEO for share previews — custom settings first, then profile-derived defaults. */
 export function resolvePublicCardSeo(myCard: MyCardData, slug: string): VCardSeo {
   const parsed = parseSeoSettings(myCard.settings || {})
@@ -95,12 +147,21 @@ export function resolvePublicCardSeo(myCard: MyCardData, slug: string): VCardSeo
   const name = profile.name?.trim() || slug.trim() || 'Digital Card'
   const company = profile.company_name?.trim() || ''
   const role = profile.designation?.trim() || profile.profession?.trim() || ''
+  const city = profile.city?.trim() || ''
+  const state = profile.state?.trim() || ''
   const about = stripHtml(String(profile.description || ''))
 
-  const metaTitle =
-    parsed.metaTitle || (company && role ? `${name} | ${role}` : company ? `${name} | ${company}` : name)
+  const metaTitle = composePublicCardTitle({
+    name,
+    company,
+    role,
+    city,
+    state,
+    custom: parsed.metaTitle,
+  })
 
-  const metaDescription =
+  const place = [city, state].filter(Boolean).join(', ')
+  let metaDescription =
     parsed.metaDescription ||
     about ||
     (role && company
@@ -108,6 +169,10 @@ export function resolvePublicCardSeo(myCard: MyCardData, slug: string): VCardSeo
       : role
         ? `${role}. Connect with ${name}.`
         : `${name}'s digital business card on vBiz Me.`)
+  if (place && !includesPhrase(metaDescription, city || state)) {
+    const withPlace = `${metaDescription.replace(/[.\s]+$/, '')}. Based in ${place}.`
+    if (withPlace.length <= 160) metaDescription = withPlace
+  }
 
   const ownerKeywords = ownerSeoKeywords(parsed.metaKeywords)
   const metaKeywords = normalizeSeoKeywords(

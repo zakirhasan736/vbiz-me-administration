@@ -1,6 +1,10 @@
 import type { MyCardData } from '@/interfaces/api/myCard'
 import { buildPublicCardSeoMetadata } from '@/lib/seo/publicCardSeo'
-import { resolvePublicCardSeo, resolvePublicCardShareImageUrl } from '@/lib/seo/resolvePublicCardSeo'
+import {
+  composePublicCardTitle,
+  resolvePublicCardSeo,
+  resolvePublicCardShareImageUrl,
+} from '@/lib/seo/resolvePublicCardSeo'
 import { describe, expect, it } from 'vitest'
 
 function card(partial?: Partial<MyCardData>): MyCardData {
@@ -105,6 +109,30 @@ describe('resolvePublicCardSeo', () => {
     expect(resolvePublicCardShareImageUrl(myCard, 'https://app.vbizme.com', 'michaelangelo-casanova-2')).toBe(
       'https://cdn.example.com/seo-share.jpg'
     )
+  })
+
+  it('puts the person name and a space around the title separator, then the city when it fits', () => {
+    expect(
+      composePublicCardTitle({
+        name: 'Sheldon Singleton',
+        company: 'Black Swan',
+        role: 'Life, Annuity & Health Insurance',
+        city: '',
+        state: '',
+        custom: 'Black Swan |Life, Annuity & Health Insurance',
+      })
+    ).toBe('Sheldon Singleton | Black Swan | Life, Annuity & Health Insurance')
+
+    expect(
+      composePublicCardTitle({
+        name: 'Michael Donnelly',
+        company: 'The Paddock',
+        role: '',
+        city: 'Meriden',
+        state: 'CT',
+        custom: 'The Paddock',
+      })
+    ).toBe('Michael Donnelly | The Paddock | Meriden, CT')
   })
 
   it('prefers server-resolved share preview image when present', () => {

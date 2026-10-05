@@ -1,18 +1,11 @@
-import type { ReviewItem } from '@/interfaces/api/reviews.interface'
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import { fetchPublicCardBootstrap } from '@/lib/api/myCard/fetchPublicCardBootstrap'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { mapProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
-import { buildReviewsQueryResult } from '@/lib/api/reviews/mapReviews'
 import { resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
-import {
-  buildPublicCardJsonLd,
-  buildPublicCardSeoMetadata,
-  resolveRequestOrigin,
-  serializeJsonLd,
-} from '@/lib/seo/publicCardSeo'
+import { buildPublicCardSeoMetadata, resolveRequestOrigin } from '@/lib/seo/publicCardSeo'
 import { resolvePublicCardFaviconUrl } from '@/lib/seo/resolvePublicCardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
 import type { Metadata } from 'next'
@@ -21,13 +14,6 @@ import { notFound } from 'next/navigation'
 
 type Props = {
   params: Promise<{ slug: string }>
-}
-
-function reviewsFromBootstrapSection(section: unknown) {
-  if (!section || typeof section !== 'object') return null
-  const payload = section as { items?: ReviewItem[]; postType?: { title?: string } }
-  if (!Array.isArray(payload.items)) return null
-  return buildReviewsQueryResult(payload.items, payload.postType?.title?.trim() || 'Reviews')
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -118,21 +104,11 @@ export default async function PublicProfilePage({ params }: Props) {
     headerStore.get('x-forwarded-host') || headerStore.get('host'),
     headerStore.get('x-forwarded-proto')
   )
-  const cardPath = buildProfilePath(trimmed)
 
   const navBarLinks = bootstrap.postTypes ?? null
   const profileSettings = mapProfileSettings(bootstrap.settings, template)
-  const reviews = reviewsFromBootstrapSection(bootstrap.sections?.reviews)
-
   const liveAgent = liveAgentEnabled ? await resolveLiveAgentPromptFromProfileId(profileId).catch(() => null) : null
   const agent = liveAgentEnabled ? liveAgent : null
-  const jsonLd = buildPublicCardJsonLd({
-    slug: trimmed,
-    origin,
-    cardPath,
-    myCard,
-    reviews,
-  })
   const tabIcon = resolvePublicCardFaviconUrl(myCard, origin)
   const icon192 = buildProfileIconPath(trimmed, 192)
 
@@ -141,7 +117,6 @@ export default async function PublicProfilePage({ params }: Props) {
       <link rel="manifest" href={buildPwaManifestUrl(trimmed)} />
       <link rel="icon" href={tabIcon} />
       <link rel="apple-touch-icon" href={icon192} sizes="192x192" />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <PublicProfileLayout
         slug={trimmed}
         initialMyCard={myCard}

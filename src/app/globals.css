@@ -132,6 +132,15 @@
     box-shadow: 0 0 14px var(--vbiz-scrollbar-glow);
   }
 
+  /* In the HTML source for crawlers; the interactive card is the visible page. */
+  #vcard-source {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
   body {
     @apply bg-slate-50 font-sans text-slate-900 antialiased dark:bg-[#070a13] dark:text-slate-100;
   }

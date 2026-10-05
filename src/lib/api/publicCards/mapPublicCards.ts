@@ -110,7 +110,7 @@ export function mapPublicCardProfileUrl(slug: string, fallback?: string): string
   if (typeof window !== 'undefined') {
     return `${window.location.origin}${buildProfilePath(slug)}`
   }
-  return fallback ?? `https://vbiz.me/vCard/${encodeURIComponent(slug.trim())}`
+  return fallback ?? `https://vbiz.me${buildProfilePath(slug)}`
 }
 
 export type PublicCardListItem = {

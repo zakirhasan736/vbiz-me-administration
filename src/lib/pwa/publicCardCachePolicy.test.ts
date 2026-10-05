@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 describe('public card cache policy', () => {
   it('treats installed card pages as public PWA routes', () => {
     expect(isPublicCardPagePath('/vCard/acme')).toBe(true)
+    expect(isPublicCardPagePath('/vcard/acme')).toBe(true)
     expect(isPublicCardPagePath('/vCard/acme/icon/192')).toBe(false)
     expect(isPublicCardPagePath('/v/acme')).toBe(true)
     expect(isPublicCardPagePath('/dashboard')).toBe(false)

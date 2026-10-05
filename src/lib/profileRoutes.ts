@@ -14,7 +14,19 @@ function splitPathname(pathname: string): string[] {
 }
 
 export function isPublicCardRootSegment(segment: string | undefined): boolean {
-  return segment === PUBLIC_CARD_PATH_SEGMENT || segment === LEGACY_PUBLIC_CARD_PATH_SEGMENT
+  const value = String(segment || '').toLowerCase()
+  return value === PUBLIC_CARD_PATH_SEGMENT.toLowerCase() || value === LEGACY_PUBLIC_CARD_PATH_SEGMENT
+}
+
+/** Slug for `/vCard/{slug}`. Icon, manifest, and wallet routes return null. */
+export function publicCardPageSlug(pathname: string): string | null {
+  const parts = splitPathname(pathname)
+  if (!isPublicCardRootSegment(parts[0]) || !parts[1] || parts[2]) return null
+  try {
+    return decodeURIComponent(parts[1])
+  } catch {
+    return parts[1]
+  }
 }
 
 /** Public profile path: `/vCard/{slug}`. */

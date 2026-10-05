@@ -6,13 +6,21 @@ import { getSiteOrigin } from '@/lib/seo/siteOrigin'
 export type PublicCardSitemapEntry = {
   slug: string
   url: string
+  name: string
+  summary: string
   lastModified?: Date
 }
 
 type PublicCardsPagePayload = {
   success?: boolean
   data?: {
-    data?: Array<{ slug?: string | null; updated_at?: string | null }>
+    data?: Array<{
+      slug?: string | null
+      name?: string | null
+      designation?: string | null
+      profession?: string | null
+      updated_at?: string | null
+    }>
     last_page?: number
     current_page?: number
   }
@@ -55,8 +63,16 @@ export async function fetchPublicCardSitemapEntries(origin = getSiteOrigin()): P
       if (!slug || seen.has(slug)) continue
       seen.add(slug)
       const updated = row.updated_at ? new Date(row.updated_at) : undefined
+      const designation = typeof row.designation === 'string' ? row.designation.trim() : ''
+      const profession = typeof row.profession === 'string' ? row.profession.trim() : ''
+      const summary =
+        designation && profession && designation.toLowerCase() !== profession.toLowerCase()
+          ? `${designation}, ${profession}`
+          : designation || profession
       entries.push({
         slug,
+        name: (typeof row.name === 'string' && row.name.trim()) || slug,
+        summary,
         url: buildPublicCardCanonicalUrl(origin, buildProfilePath(slug)),
         lastModified: updated && !Number.isNaN(updated.getTime()) ? updated : undefined,
       })
