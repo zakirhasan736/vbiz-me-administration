@@ -67,6 +67,8 @@ export type CardDailyBackupSummary = {
 
 export type CardChangeHistoryItem = {
   id: string
+  /** Short 7-digit change id for support / restore (e.g. 4829173). */
+  changeCode?: string
   area: string
   areaLabel: string
   action: string
@@ -81,6 +83,12 @@ export type CardChangeHistoryItem = {
   countryName?: string
   health?: CardChangeHealth | null
   healthLabel?: string
+  /** Linked corporate sync attribution (source card that caused this update). */
+  syncSourceProfileId?: string
+  syncSourceSlug?: string
+  syncSourceName?: string
+  syncScope?: string
+  syncTargetCount?: number | null
   canRestore: boolean
   restoreExpired: boolean
   restoredAt: string | null

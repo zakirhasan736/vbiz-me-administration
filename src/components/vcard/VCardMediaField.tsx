@@ -135,6 +135,8 @@ export function VCardMediaField({
   const [localPreview, setLocalPreview] = useState<string | null>(null)
   const [localFileName, setLocalFileName] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false)
+  const [pendingReplaceFile, setPendingReplaceFile] = useState<File | null>(null)
   const [clearing, setClearing] = useState(false)
 
   const savedUrl = (value || '').trim()
@@ -250,20 +252,55 @@ export function VCardMediaField({
     setConfirmOpen(false)
   }
 
+  const requestUpload = (file: File) => {
+    // Replacing existing image/video requires explicit human confirmation.
+    if (displayUrl) {
+      setPendingReplaceFile(file)
+      setReplaceConfirmOpen(true)
+      return
+    }
+    void applyUpload(file)
+  }
+
+  const handleConfirmReplace = () => {
+    const file = pendingReplaceFile
+    setReplaceConfirmOpen(false)
+    setPendingReplaceFile(null)
+    if (file) void applyUpload(file)
+  }
+
   const confirmModal = (
-    <ConfirmModal
-      open={confirmOpen}
-      onCancel={() => setConfirmOpen(false)}
-      onConfirm={handleConfirmRemove}
-      variant="danger"
-      icon={Trash2}
-      title="Remove this file?"
-      description="This media will be removed from the card."
-      confirmLabel="Remove"
-      cancelLabel="Cancel"
-      labelledBy={`remove-media-title-${inputId}`}
-      describedBy={`remove-media-description-${inputId}`}
-    />
+    <>
+      <ConfirmModal
+        open={confirmOpen}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleConfirmRemove}
+        variant="danger"
+        icon={Trash2}
+        title="Remove this file?"
+        description="This media will be removed from the card. Confirm only if you intend to delete it."
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        labelledBy={`remove-media-title-${inputId}`}
+        describedBy={`remove-media-description-${inputId}`}
+      />
+      <ConfirmModal
+        open={replaceConfirmOpen}
+        onCancel={() => {
+          setReplaceConfirmOpen(false)
+          setPendingReplaceFile(null)
+        }}
+        onConfirm={handleConfirmReplace}
+        variant="danger"
+        icon={Upload}
+        title="Replace this file?"
+        description="The current image/video on this card will be replaced. Confirm only if you intend to overwrite it."
+        confirmLabel="Replace"
+        cancelLabel="Cancel"
+        labelledBy={`replace-media-title-${inputId}`}
+        describedBy={`replace-media-description-${inputId}`}
+      />
+    </>
   )
 
   const browseRow = (
@@ -279,7 +316,7 @@ export function VCardMediaField({
           onChange={(e) => {
             const file = e.target.files?.[0]
             e.target.value = ''
-            if (file) void applyUpload(file)
+            if (file) requestUpload(file)
           }}
         />
         <button

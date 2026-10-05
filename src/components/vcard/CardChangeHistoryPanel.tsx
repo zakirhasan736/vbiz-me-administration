@@ -146,6 +146,11 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
+                  {row.changeCode ? (
+                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200">
+                      #{row.changeCode}
+                    </span>
+                  ) : null}
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold tracking-wide text-slate-700 uppercase dark:bg-white/10 dark:text-slate-200">
                     {row.areaLabel}
                   </span>
@@ -154,6 +159,18 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
                   </span>
                 </div>
                 <p className="text-sm font-bold text-slate-900 dark:text-white">{row.summary}</p>
+                {row.action === 'sync' || row.syncSourceName || row.syncSourceSlug ? (
+                  <p className="mt-2 rounded-xl border border-sky-200/80 bg-sky-50 px-3 py-2 text-[12px] font-semibold text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+                    {row.syncSourceName || row.syncSourceSlug
+                      ? `Corporate linked sync from “${row.syncSourceName || row.syncSourceSlug}”${
+                          row.syncSourceSlug && row.syncSourceName ? ` (/${row.syncSourceSlug})` : ''
+                        }${row.syncScope ? ` · ${row.syncScope}` : ''}`
+                      : 'Corporate linked sync'}
+                    {typeof row.syncTargetCount === 'number'
+                      ? ` · ${row.syncTargetCount} linked card${row.syncTargetCount === 1 ? '' : 's'} updated`
+                      : ''}
+                  </p>
+                ) : null}
                 <dl className="mt-3 grid gap-1 text-[13px] font-medium text-slate-500 dark:text-slate-400">
                   <div>
                     <span className="text-slate-400">When: </span>
@@ -208,7 +225,7 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
       })}
       <p className="flex items-start gap-2 px-1 text-[12px] font-medium text-slate-400">
         <History className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Restore copies are kept for 72 hours. After that the list stays, but Restore is disabled.
+        Restore copies are kept for 10 days (latest 10 snapshots). After that the list stays, but Restore is disabled.
       </p>
     </div>
   )
