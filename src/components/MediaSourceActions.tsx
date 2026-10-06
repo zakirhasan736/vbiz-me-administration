@@ -3,6 +3,7 @@
 import { CanvaConnectModal } from '@/components/canva/CanvaConnectModal'
 import { CanvaLibraryPicker, type CanvaPickedFile } from '@/components/canva/CanvaLibraryPicker'
 import { useCanvaConnection } from '@/components/canva/useCanvaConnection'
+import { SkeletonImage } from '@/components/media/SkeletonMedia'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
@@ -89,11 +90,12 @@ function GalleryModal({ onClose, onSelect }: { onClose: () => void; onSelect: (a
               }
               className="group relative aspect-video cursor-pointer overflow-hidden rounded-[20px] border-2 border-transparent bg-slate-200 text-left shadow-sm hover:border-amber-500 dark:bg-slate-800"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <SkeletonImage
                 src={v.img}
                 alt={v.title}
-                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                fill
+                mediaClassName="object-cover transition-transform group-hover:scale-105"
+                skeletonLabel="Loading thumbnail"
               />
               <div className="absolute inset-0 flex items-end bg-linear-to-t from-black/80 via-transparent to-transparent p-3 opacity-0 group-hover:opacity-100">
                 <span className="truncate text-[12px] font-bold text-white">{v.title}</span>

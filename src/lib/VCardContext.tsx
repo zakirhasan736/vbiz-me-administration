@@ -871,6 +871,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             replaceServices({
               id: profileId,
               items: items.map((s) => ({
+                id: s.id,
+                corporateOwned: Boolean(s.corporateOwned),
                 title: s.title,
                 description: s.description,
                 imageUrl: s.featuredImage,
@@ -893,6 +895,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             replacePortfolios({
               id: profileId,
               items: items.map((p) => ({
+                id: p.id,
+                corporateOwned: Boolean(p.corporateOwned),
                 title: p.title,
                 description: p.description,
                 imageUrl: p.imageUrl,
@@ -916,6 +920,8 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             replaceReviews({
               id: profileId,
               items: items.map((r) => ({
+                id: r.id,
+                corporateOwned: Boolean(r.corporateOwned),
                 author: r.author,
                 text: r.text,
                 rating: r.rating,

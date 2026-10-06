@@ -252,7 +252,7 @@ export default function TeamVCardsView() {
                 key={card.id}
                 card={card}
                 mode="corporate"
-                badgeLabel="Corporate"
+                badgeLabel="Corporate Team Member"
                 showCheckbox
                 selected={selectedIds.includes(card.id)}
                 onToggleSelect={() => toggleSelect(card.id)}

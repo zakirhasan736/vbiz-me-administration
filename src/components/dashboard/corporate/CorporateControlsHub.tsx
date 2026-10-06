@@ -341,7 +341,7 @@ export function CorporateControlsHub({
                     key={card.id}
                     card={card}
                     mode="corporate"
-                    badgeLabel="Corporate"
+                    badgeLabel="Corporate Team Member"
                     showDragHandle
                     dragged={draggedIndex === idx}
                     onDragStart={(e: DragEvent) => {

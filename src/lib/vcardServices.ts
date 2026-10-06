@@ -40,6 +40,7 @@ export function normalizeServiceList(raw?: VCardServiceEntry[] | null): VCardSer
     url: entry.url ?? '',
     featuredImage: entry.featuredImage ?? '',
     active: entry.active !== false,
+    corporateOwned: Boolean(entry.corporateOwned),
   }))
 }
 

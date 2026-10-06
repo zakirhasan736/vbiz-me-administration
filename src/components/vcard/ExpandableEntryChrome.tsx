@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonImage, SkeletonVideo } from '@/components/media/SkeletonMedia'
 import { ModalPortal } from '@/components/ModalPortal'
 import type { DragHandleProps } from '@/components/ReorderList'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
@@ -171,10 +172,9 @@ export function EntryAttachmentThumb({ url, className }: { url?: string | null; 
             <Film className="h-6 w-6" />
           </span>
         ) : video ? (
-          <video src={src} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+          <SkeletonVideo src={src} muted playsInline preload="metadata" fill mediaClassName="object-cover" />
         ) : canShowImage ? (
-          // eslint-disable-next-line @next/next/no-img-element -- editor preview; arbitrary remote URLs
-          <img src={src} alt="" className="h-full w-full object-cover" />
+          <SkeletonImage src={src} alt="" fill mediaClassName="object-cover" />
         ) : (
           <span className="flex h-full w-full items-center justify-center text-slate-400">
             <Film className="h-6 w-6" />

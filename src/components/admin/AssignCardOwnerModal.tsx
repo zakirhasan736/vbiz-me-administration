@@ -86,7 +86,7 @@ function toSession(user: Pick<AdminUserRow, 'id' | 'name' | 'email' | 'role'>): 
 }
 
 function roleLabel(role: string) {
-  if (role === 'corporate-owner') return 'Corporate'
+  if (role === 'corporate-owner') return 'Corporate Team Owner'
   if (role === 'vcard-owner') return 'Single'
   return role
 }

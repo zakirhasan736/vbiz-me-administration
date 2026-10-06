@@ -172,6 +172,7 @@ export type ApiProfile = {
     imageUrl?: string | null
     reviewUrl?: string | null
     status?: number | null
+    corporateOwned?: boolean
   }>
   portfolios?: Array<{
     id: string
@@ -181,6 +182,7 @@ export type ApiProfile = {
     imageUrl?: string | null
     featuredImage?: string | null
     status?: number | string | null
+    corporateOwned?: boolean
   }>
   galleries?: Array<{
     id: string
@@ -198,6 +200,7 @@ export type ApiProfile = {
     status?: number | null
     imageUrl?: string | null
     reviewUrl?: string | null
+    corporateOwned?: boolean
   }>
   skillTags?: Array<{
     id: string
@@ -785,6 +788,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       url: s.reviewUrl || '',
       featuredImage: s.imageUrl || '',
       active: s.status !== 0,
+      corporateOwned: Boolean(s.corporateOwned),
     })),
     portfolio: (() => {
       const galleries = profile.galleries || []
@@ -839,6 +843,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
           imageName: '',
           url: linkUrl,
           active,
+          corporateOwned: Boolean('corporateOwned' in p && p.corporateOwned),
         }
       })
     })(),
@@ -852,6 +857,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
         rating,
         imageUrl: r.imageUrl || '',
         url: r.reviewUrl || '',
+        corporateOwned: Boolean(r.corporateOwned),
       }
     }),
     skills: skillTagsToGroups(profile.skillTags),

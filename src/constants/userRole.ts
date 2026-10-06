@@ -4,7 +4,7 @@ export type TUserRole = (typeof USER_ROLES)[number]
 
 export const USER_ROLE_LABELS: Record<TUserRole, string> = {
   'vcard-owner': 'vCard Owner',
-  'corporate-owner': 'Corporate Owner',
+  'corporate-owner': 'Corporate Team Owner',
   admin: 'Admin',
   'super-admin': 'Super Admin',
 }

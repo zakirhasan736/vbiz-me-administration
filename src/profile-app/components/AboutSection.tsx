@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonMediaShell, SkeletonVideo, useMediaLoadState } from '@/components/media/SkeletonMedia'
 import { DEFAULT_ABOUT_FEATURED_MEDIA_FOCUS_Y, featuredMediaObjectPosition } from '@/lib/media/featuredMediaFocus'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
@@ -88,14 +89,16 @@ function AboutFeaturedMedia({ src, alt, focusY }: { src: string; alt: string; fo
   if (isVideoUrl(src) || isVideoUrl(encoded)) {
     return (
       <div className={frameClass}>
-        <video
+        <SkeletonVideo
           src={encoded}
-          className={`h-full w-full ${mediaClass}`}
+          fill
+          mediaClassName={mediaClass}
           style={{ objectPosition }}
           controls
           playsInline
           preload="metadata"
           aria-label={alt}
+          skeletonLabel="Loading About Me media"
         />
       </div>
     )
@@ -105,16 +108,37 @@ function AboutFeaturedMedia({ src, alt, focusY }: { src: string; alt: string; fo
 
   return (
     <div className={frameClass}>
+      <AboutFeaturedNextImage src={encoded} alt={alt} objectPosition={objectPosition} mediaClass={mediaClass} />
+    </div>
+  )
+}
+
+function AboutFeaturedNextImage({
+  src,
+  alt,
+  objectPosition,
+  mediaClass,
+}: {
+  src: string
+  alt: string
+  objectPosition: string
+  mediaClass: string
+}) {
+  const { loaded, markLoaded, markError } = useMediaLoadState(src)
+  return (
+    <SkeletonMediaShell loading={!loaded} label="Loading About Me media" className="absolute inset-0 h-full w-full">
       <Image
-        src={encoded}
+        src={src}
         alt={alt}
         fill
-        className={mediaClass}
+        className={`${mediaClass} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{ objectPosition }}
         sizes="(max-width: 768px) 100vw, 768px"
         priority
+        onLoadingComplete={markLoaded}
+        onError={markError}
       />
-    </div>
+    </SkeletonMediaShell>
   )
 }
 

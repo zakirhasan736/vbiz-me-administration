@@ -54,7 +54,21 @@ export function ServicesEditorPanel({
     expandNew(next.id)
   }
 
+  const reorderServices = (next: VCardServiceEntry[]) => {
+    // Keep owner-synced items editable only for order among themselves if needed;
+    // never drop corporateOwned flags while reordering member-local items.
+    onServicesChange(
+      next.map((item) => {
+        const prev = services.find((s) => s.id === item.id)
+        if (!prev) return item
+        return prev.corporateOwned ? { ...item, corporateOwned: true } : item
+      })
+    )
+  }
+
   const removeService = (id: string) => {
+    const target = services.find((s) => s.id === id)
+    if (target?.corporateOwned) return
     const next = services.filter((s) => s.id !== id)
     onServicesChange(next)
     recoverExpandedAfterRemove(id, next)
@@ -65,7 +79,13 @@ export function ServicesEditorPanel({
     field: keyof VCardServiceEntry,
     value: VCardServiceEntry[keyof VCardServiceEntry]
   ) => {
-    onServicesChange(services.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
+    onServicesChange(
+      services.map((s) => {
+        if (s.id !== id) return s
+        if (s.corporateOwned) return s
+        return { ...s, [field]: value }
+      })
+    )
   }
 
   const applyFilled = (result: AiFilledResult) => {
@@ -98,6 +118,13 @@ export function ServicesEditorPanel({
         </div>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           Offerings you provide to clients. Title and description are required for completion.
+          {services.some((s) => s.corporateOwned) ? (
+            <>
+              {' '}
+              Services marked from the corporate team owner stay on this card but are view-only — you can still add your
+              own services below; those appear on your public card and stay editable.
+            </>
+          ) : null}
         </p>
         <button
           type="button"
@@ -149,31 +176,42 @@ export function ServicesEditorPanel({
           <ReorderList
             items={services}
             getKey={(s) => s.id}
-            onReorder={onServicesChange}
+            onReorder={reorderServices}
             className="space-y-4"
             renderItem={(service, index, dragHandleProps) => {
               const open = isExpanded(service.id)
+              const locked = Boolean(service.corporateOwned)
               return (
                 <section
                   id={`entry-${service.id}`}
                   ref={(el) => setCardRef(service.id, el)}
-                  className={cn(expandableCardClassName(open, accent), 'scroll-mt-24')}
+                  className={cn(expandableCardClassName(open, accent), 'scroll-mt-24', locked && 'opacity-90')}
                 >
                   <ExpandableEntryHeader
                     indexLabel={index + 1}
                     title={service.title || 'New Service'}
-                    subtitle={service.type || stripHtml(service.description || '').slice(0, 48) || null}
+                    subtitle={
+                      locked
+                        ? 'Corporate team owner · view only'
+                        : service.type || stripHtml(service.description || '').slice(0, 48) || null
+                    }
                     mediaUrl={service.featuredImage}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(service.id)}
-                    showRemove
+                    showRemove={!locked}
                     onRemove={() => removeService(service.id)}
                     accent={accent}
-                    dragHandleProps={dragHandleProps}
+                    dragHandleProps={locked ? undefined : dragHandleProps}
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="p-8">
-                    <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                    {locked ? (
+                      <p className="mb-6 rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-[13px] font-medium text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+                        This service was added by the corporate team owner. You can add your own services below, but you
+                        cannot edit or remove owner-synced items.
+                      </p>
+                    ) : null}
+                    <div className={cn('mb-8 grid grid-cols-1 gap-6 md:grid-cols-2', locked && 'pointer-events-none')}>
                       <div className="group flex flex-col space-y-1.5">
                         <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
                           <LayoutGrid className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Service Type

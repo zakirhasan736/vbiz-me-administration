@@ -47,7 +47,7 @@ function normalizeOwnerRole(role: string): string {
 /** Banner subtitle for the assigned create-card owner. */
 export function createCardOwnerKindLabel(owner: CreateCardOwnerSession, currentUserId?: string | null): string {
   const role = normalizeOwnerRole(owner.role)
-  if (role === 'corporate-owner') return 'Corporate owner'
+  if (role === 'corporate-owner') return 'Corporate Team Owner'
   if (role === 'vcard-owner') return 'Single owner'
   if (role === 'admin' || role === 'super-admin') {
     return currentUserId && owner.userId === currentUserId ? 'You' : 'Team member'
