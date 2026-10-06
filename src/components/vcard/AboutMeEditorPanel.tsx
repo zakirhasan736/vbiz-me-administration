@@ -73,7 +73,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
 
   useEffect(() => {
     return () => {
-      void flushAboutMeUpsert(dispatch)
+      void flushAboutMeUpsert(dispatch).catch(() => undefined)
     }
   }, [dispatch, profileId])
 

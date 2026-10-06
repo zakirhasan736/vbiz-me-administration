@@ -18,9 +18,11 @@ function recoverStaleChunk(reason: unknown) {
 export function SentryBootstrap() {
   useEffect(() => {
     const onError = (event: ErrorEvent) => {
-      const message = event.message || sentryReasonToMessage(event.error) || 'window.error'
+      const fromError = sentryReasonToMessage(event.error)
+      const raw = (event.message || '').trim()
+      const message = raw && !shouldIgnoreSentryMessage(raw) ? raw : fromError || raw
       if (recoverStaleChunk(event.error || message)) return
-      if (shouldIgnoreSentryMessage(message) || shouldIgnoreSentryMessage(sentryReasonToMessage(event.error))) {
+      if (!message || shouldIgnoreSentryMessage(message)) {
         event.preventDefault()
         return
       }
@@ -40,7 +42,7 @@ export function SentryBootstrap() {
     const onRejection = (event: PromiseRejectionEvent) => {
       const message = sentryReasonToMessage(event.reason)
       if (recoverStaleChunk(event.reason || message)) return
-      if (shouldIgnoreSentryMessage(message)) {
+      if (!message || shouldIgnoreSentryMessage(message)) {
         event.preventDefault()
         return
       }

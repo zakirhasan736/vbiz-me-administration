@@ -66,7 +66,7 @@ export function scheduleAboutMeUpsert(dispatch: AppDispatch, profileId: string):
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => {
     timer = null
-    void flushAboutMeUpsert(dispatch)
+    void flushAboutMeUpsert(dispatch).catch(() => undefined)
   }, DEBOUNCE_MS)
 }
 

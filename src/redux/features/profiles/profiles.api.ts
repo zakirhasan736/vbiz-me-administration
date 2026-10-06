@@ -229,6 +229,7 @@ export type ApiProfile = {
 
 export type ApiPost = {
   id: string
+  corporateOwned?: boolean
   title?: string | null
   description?: string | null
   url?: string | null
@@ -657,6 +658,7 @@ export function mapApiPostsToGeneralPosts(posts: ApiPost[]): VCardGeneralPost[] 
       featuredImage: p.featuredImage || '',
       date: toDateInputValue(metas.date || p.date || (p.createdAt ? String(p.createdAt) : '')),
       active: p.status !== '0' && p.status !== 'false',
+      corporateOwned: Boolean(p.corporateOwned),
     }
   })
 }
@@ -670,6 +672,7 @@ export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
     featuredImage: p.featuredImage || '',
     url: p.url || '',
     active: p.status !== '0' && p.status !== 'false',
+    corporateOwned: Boolean(p.corporateOwned),
   }))
 }
 

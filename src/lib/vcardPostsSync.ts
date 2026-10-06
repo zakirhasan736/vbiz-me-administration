@@ -66,6 +66,26 @@ type SyncItem = {
   metas?: Record<string, string>
   documents?: PostDocumentPayload[]
   sortOrder: number
+  corporateOwned?: boolean
+}
+
+function isCorporateOwnedLockError(err: unknown): boolean {
+  const message =
+    err && typeof err === 'object' && 'data' in err
+      ? (err as { data?: { message?: string } }).data?.message
+      : err instanceof Error
+        ? err.message
+        : ''
+  return typeof message === 'string' && message.includes('corporate team owner')
+}
+
+async function deleteUnlessCorporateOwned(run: () => Promise<unknown>): Promise<void> {
+  try {
+    await run()
+  } catch (err) {
+    if (isCorporateOwnedLockError(err)) return
+    throw err
+  }
 }
 
 function publicSectionNameToTabKey(postTypeName: string): string | null {
@@ -116,8 +136,10 @@ function syncItemHasContent(item: SyncItem): boolean {
   return Object.values(item.metas || {}).some((value) => String(value || '').trim().length > 0)
 }
 
-function idsAsExisting(items: Array<{ id: string }> | undefined): ApiPost[] {
-  return (items || []).filter((item) => item.id && !isLocalTempId(item.id)).map((item) => ({ id: item.id }) as ApiPost)
+function idsAsExisting(items: Array<{ id: string; corporateOwned?: boolean }> | undefined): ApiPost[] {
+  return (items || [])
+    .filter((item) => item.id && !isLocalTempId(item.id))
+    .map((item) => ({ id: item.id, corporateOwned: Boolean(item.corporateOwned) }) as ApiPost)
 }
 
 function stableJson(value: unknown) {
@@ -150,7 +172,9 @@ export async function syncProfilePosts(options: {
   const keptIds = new Set(items.filter((i) => existingById.has(i.id) && !isLocalTempId(i.id)).map((i) => i.id))
 
   await Promise.all(
-    existing.filter((p) => !keptIds.has(p.id)).map((p) => deletePost({ id: profileId, postId: p.id }).unwrap())
+    existing
+      .filter((p) => !keptIds.has(p.id) && !p.corporateOwned)
+      .map((p) => deleteUnlessCorporateOwned(() => deletePost({ id: profileId, postId: p.id }).unwrap()))
   )
 
   const saved: ApiPost[] = []
@@ -166,7 +190,7 @@ export async function syncProfilePosts(options: {
     }
     if (existingById.has(item.id) && !isLocalTempId(item.id)) {
       const prev = previousById.get(item.id)
-      if (prev && syncItemSignature(prev) === syncItemSignature(item)) {
+      if (item.corporateOwned || (prev && syncItemSignature(prev) === syncItemSignature(item))) {
         saved.push(unchangedSavedPost(item))
         continue
       }
@@ -215,7 +239,9 @@ async function syncDirectBlogs(options: {
   const keptIds = new Set(items.filter((i) => existingById.has(i.id) && !isLocalTempId(i.id)).map((i) => i.id))
 
   await Promise.all(
-    existing.filter((p) => !keptIds.has(p.id)).map((p) => deleteBlog({ id: profileId, blogId: p.id }).unwrap())
+    existing
+      .filter((p) => !keptIds.has(p.id) && !p.corporateOwned)
+      .map((p) => deleteUnlessCorporateOwned(() => deleteBlog({ id: profileId, blogId: p.id }).unwrap()))
   )
 
   const saved: ApiPost[] = []
@@ -234,7 +260,7 @@ async function syncDirectBlogs(options: {
     }
     if (existingById.has(item.id) && !isLocalTempId(item.id)) {
       const prev = previousById.get(item.id)
-      if (prev && syncItemSignature(prev) === syncItemSignature(item)) {
+      if (item.corporateOwned || (prev && syncItemSignature(prev) === syncItemSignature(item))) {
         saved.push(unchangedSavedPost(item))
         continue
       }
@@ -263,8 +289,8 @@ async function syncDirectTabItems(options: {
 
   await Promise.all(
     existing
-      .filter((p) => !keptIds.has(p.id))
-      .map((p) => deleteTabItem({ id: profileId, tabKey, itemId: p.id }).unwrap())
+      .filter((p) => !keptIds.has(p.id) && !p.corporateOwned)
+      .map((p) => deleteUnlessCorporateOwned(() => deleteTabItem({ id: profileId, tabKey, itemId: p.id }).unwrap()))
   )
 
   const saved: ApiPost[] = []
@@ -281,7 +307,7 @@ async function syncDirectTabItems(options: {
     }
     if (existingById.has(item.id) && !isLocalTempId(item.id)) {
       const prev = previousById.get(item.id)
-      if (prev && syncItemSignature(prev) === syncItemSignature(item)) {
+      if (item.corporateOwned || (prev && syncItemSignature(prev) === syncItemSignature(item))) {
         saved.push(unchangedSavedPost(item))
         continue
       }
@@ -306,6 +332,7 @@ export function generalPostsToSyncItems(posts: VCardGeneralPost[]) {
       date: p.date || '',
     },
     sortOrder: index,
+    corporateOwned: Boolean(p.corporateOwned),
   }))
 }
 
@@ -318,6 +345,7 @@ export function faqsToSyncItems(faqs: VCardFaqEntry[]) {
     url: f.url || undefined,
     status: f.active ? '1' : '0',
     sortOrder: index,
+    corporateOwned: Boolean(f.corporateOwned),
   }))
 }
 
@@ -376,6 +404,7 @@ export function sectionPostsToSyncItems(items: VCardSectionPostItem[]): SyncItem
       },
       documents,
       sortOrder: index,
+      corporateOwned: Boolean(p.corporateOwned),
     }
   })
 }
@@ -455,6 +484,7 @@ export function mapApiPostsToSectionPosts(posts: ApiPost[]): VCardSectionPostIte
       price,
       offerPrice: offerPriceMeta || offerPriceCamel || '',
       active: p.status !== '0' && p.status !== 'false',
+      corporateOwned: Boolean(p.corporateOwned),
       ...(Object.keys(rest).length ? { metas: rest } : {}),
     }
   })

@@ -495,7 +495,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       editorHydratedForIdRef.current = profileId
       window.setTimeout(() => {
         setSaveStatus('dirty')
-        void flushSaveRef.current()
+        void flushSaveRef.current().catch(() => undefined)
       }, 0)
       return
     }
@@ -562,7 +562,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       saveGateRef.current.dirty = true
       window.setTimeout(() => {
         setSaveStatus('dirty')
-        void flushSaveRef.current()
+        void flushSaveRef.current().catch(() => undefined)
       }, 0)
     }
   }, [remoteProfile, isCreateMode, dispatch])
@@ -629,7 +629,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         saveGateRef.current.dirty = true
         window.setTimeout(() => {
           setSaveStatus('dirty')
-          void flushSaveRef.current()
+          void flushSaveRef.current().catch(() => undefined)
         }, 0)
       }
     }

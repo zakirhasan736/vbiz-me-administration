@@ -747,7 +747,7 @@ function AboutMeDraftQuickFill({
     setAboutMeDraft(partial)
     if (!profileId) return
     if (mode === 'schedule') scheduleAboutMeUpsert(dispatch, profileId)
-    else void flushAboutMeUpsert(dispatch, profileId)
+    else void flushAboutMeUpsert(dispatch, profileId).catch(() => undefined)
   }
 
   if (fieldKey === 'featuredMediaUrl') {

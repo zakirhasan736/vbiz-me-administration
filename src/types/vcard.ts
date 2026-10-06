@@ -179,6 +179,8 @@ export type VCardGeneralPost = {
   featuredImage: string
   date: string
   active: boolean
+  /** Synced from the corporate team owner. Members can add posts; they cannot delete these. */
+  corporateOwned?: boolean
 }
 
 /** Back office → FAQ tab entries (shown on profile FAQ section, v1 and v2). */
@@ -191,6 +193,8 @@ export type VCardFaqEntry = {
   featuredImage?: string
   url?: string
   active: boolean
+  /** Synced from the corporate team owner. Members can add FAQs; they cannot delete these. */
+  corporateOwned?: boolean
 }
 
 /** Generic posts-backed nav section items (Mission, Reviews, Calendar, etc.). */
@@ -211,6 +215,8 @@ export type VCardSectionPostItem = {
   offerPrice?: string
   active: boolean
   metas?: Record<string, string>
+  /** Synced from the corporate team owner. Members can add items; they cannot delete these. */
+  corporateOwned?: boolean
 }
 
 /** Back office → Portfolio tab entries (shown on public Gallery section). */
