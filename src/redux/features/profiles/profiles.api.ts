@@ -24,6 +24,11 @@ import {
 } from '@/lib/cardLifecycleCache'
 import { resolveCardStatus } from '@/lib/cardStatus'
 import { detectPortfolioType, isVideoUrl } from '@/lib/mediaUrl'
+import {
+  HIDE_OWNER_PHOTOS_SETTING_KEY,
+  HIDE_OWNER_VIDEOS_SETTING_KEY,
+  isHideOwnerMediaSetting,
+} from '@/lib/memberMediaVisibility'
 import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { applyEditorSettingsToThemeConfig, hasDynamicTheme, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
@@ -872,6 +877,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     myInfo: parseMyInfoJson(settingsMap[MY_INFO_SETTING_KEY]),
     seo: parseSeoSettings(settingsMap),
     aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY], profile.slug),
+    hideOwnerPhotos: isHideOwnerMediaSetting(settingsMap[HIDE_OWNER_PHOTOS_SETTING_KEY]),
+    hideOwnerVideos: isHideOwnerMediaSetting(settingsMap[HIDE_OWNER_VIDEOS_SETTING_KEY]),
   })
 
   const status = resolveCardStatus({

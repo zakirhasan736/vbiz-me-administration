@@ -28,6 +28,7 @@ export function normalizePortfolioList(raw?: VCardPortfolioEntry[] | null): VCar
       imageName: entry.imageName ?? '',
       url: entry.url ?? '',
       active: entry.active !== false,
+      ...(entry.corporateOwned ? { corporateOwned: true } : {}),
     }
   })
 }

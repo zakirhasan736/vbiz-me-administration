@@ -10,9 +10,12 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { stripHtml } from '@/lib/htmlText'
+import { mergeHiddenCorporateOwned, withoutCorporateOwned } from '@/lib/memberMediaVisibility'
+import { useVCard } from '@/lib/VCardContext'
 import {
   createDefaultSectionPostItem,
   normalizeSectionPostList,
@@ -136,7 +139,12 @@ export function SectionPostsEditorPanel({
   cardId,
 }: SectionPostsEditorPanelProps) {
   const sectionTitle = useResolvedSectionTitle(undefined, schema.title)
+  const { vCardData, updateData } = useVCard()
   const posts = normalizeSectionPostList(rawPosts)
+  const isVideos = schema.key === 'videos'
+  const hideOwnerVideos = isVideos && Boolean(vCardData.hideOwnerVideos)
+  const hasOwnerVideos = isVideos && posts.some((item) => item.corporateOwned)
+  const visiblePosts = withoutCorporateOwned(posts, hideOwnerVideos)
   const a = accentStyles[resolveAccent(schema.accentClass)]
   const inputClasses = `${baseInput} ${a.focus}`
   const fieldSet = new Set(schema.fields)
@@ -155,9 +163,13 @@ export function SectionPostsEditorPanel({
   }
 
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef } =
-    useExpandableEntryList(posts)
+    useExpandableEntryList(visiblePosts)
 
   const setPosts = (next: VCardSectionPostItem[]) => onPostsChange(next)
+
+  const commitVisible = (nextVisible: VCardSectionPostItem[]) => {
+    setPosts(hideOwnerVideos ? mergeHiddenCorporateOwned(posts, nextVisible) : nextVisible)
+  }
 
   const isSingleItem = schema.maxItems === 1
   const canAdd = !isSingleItem && (schema.maxItems == null || posts.length < schema.maxItems)
@@ -184,6 +196,8 @@ export function SectionPostsEditorPanel({
   }
 
   const removePost = (key: string) => {
+    const target = posts.find((item) => postEntryKey(item) === key)
+    if (target?.corporateOwned) return
     const next = posts.filter((p) => postEntryKey(p) !== key)
     setPosts(next)
     recoverExpandedAfterRemove(key, next)
@@ -222,6 +236,14 @@ export function SectionPostsEditorPanel({
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           {schema.description}
         </p>
+        {hasOwnerVideos ? (
+          <HideOwnerMediaToggle
+            checked={hideOwnerVideos}
+            label="Only show my videos"
+            detail="Corporate owner videos stay saved. This card’s editor and public page show only the videos you added."
+            onChange={(next) => updateData('hideOwnerVideos', next)}
+          />
+        ) : null}
         {canAdd ? (
           <button
             type="button"
@@ -234,7 +256,7 @@ export function SectionPostsEditorPanel({
       </div>
 
       <div className="flex flex-1 flex-col">
-        {posts.length === 0 ? (
+        {visiblePosts.length === 0 ? (
           isSingleItem ? (
             <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-8 text-center text-sm font-medium text-slate-500 shadow-sm dark:border-white/5 dark:bg-white/2 dark:text-slate-400">
               Preparing form…
@@ -258,9 +280,9 @@ export function SectionPostsEditorPanel({
         ) : (
           <div>
             <ReorderList
-              items={posts}
+              items={visiblePosts}
               getKey={(post) => postEntryKey(post)}
-              onReorder={setPosts}
+              onReorder={commitVisible}
               renderItem={(post, index, dragHandleProps) => {
                 const key = postEntryKey(post)
                 const open = isExpanded(key)
@@ -311,7 +333,7 @@ export function SectionPostsEditorPanel({
                       mediaUrl={post.featuredImage}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(key)}
-                      showRemove={!isSingleItem}
+                      showRemove={!isSingleItem && !post.corporateOwned}
                       onRemove={() => removePost(key)}
                       accent={cardAccent}
                       dragHandleProps={isSingleItem ? undefined : dragHandleProps}

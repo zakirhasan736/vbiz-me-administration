@@ -12,10 +12,12 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapPortfolioFromPayload } from '@/lib/ai/applyCardDraft'
 import { stripHtml } from '@/lib/htmlText'
 import { detectPortfolioType, isAudioUrl, isVideoUrl, type PortfolioMediaType } from '@/lib/mediaUrl'
+import { mergeHiddenCorporateOwned, withoutCorporateOwned } from '@/lib/memberMediaVisibility'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultPortfolioEntry, normalizePortfolioList } from '@/lib/vcardPortfolio'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -61,15 +63,22 @@ export function TabPortfolio() {
   const { cardId, vCardData, updateData } = useVCard()
   const sectionTitle = useResolvedSectionTitle(undefined, 'Gallery')
   const portfolios = normalizePortfolioList(vCardData.portfolio)
+  const hideOwnerPhotos = Boolean(vCardData.hideOwnerPhotos)
+  const hasOwnerPhotos = portfolios.some((item) => item.corporateOwned)
+  const visiblePortfolios = withoutCorporateOwned(portfolios, hideOwnerPhotos)
   const portfoliosRef = useRef(portfolios)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef } =
-    useExpandableEntryList(portfolios)
+    useExpandableEntryList(visiblePortfolios)
 
   useEffect(() => {
     portfoliosRef.current = portfolios
   }, [portfolios])
 
   const setPortfolios = (next: VCardPortfolioEntry[]) => updateData('portfolio', next)
+
+  const commitVisible = (nextVisible: VCardPortfolioEntry[]) => {
+    setPortfolios(hideOwnerPhotos ? mergeHiddenCorporateOwned(portfoliosRef.current, nextVisible) : nextVisible)
+  }
 
   const addPortfolio = () => {
     const next = createDefaultPortfolioEntry()
@@ -78,6 +87,8 @@ export function TabPortfolio() {
   }
 
   const removePortfolio = (id: string) => {
+    const target = portfoliosRef.current.find((item) => item.id === id)
+    if (target?.corporateOwned) return
     const next = portfoliosRef.current.filter((p) => p.id !== id)
     setPortfolios(next)
     recoverExpandedAfterRemove(id, next)
@@ -123,6 +134,14 @@ export function TabPortfolio() {
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           Showcase your best work and projects. Saved to the public Gallery section.
         </p>
+        {hasOwnerPhotos ? (
+          <HideOwnerMediaToggle
+            checked={hideOwnerPhotos}
+            label="Only show my photos"
+            detail="Corporate owner photos stay saved. This card’s editor and public page show only the photos you added."
+            onChange={(next) => updateData('hideOwnerPhotos', next)}
+          />
+        ) : null}
         <button
           type="button"
           onClick={addPortfolio}
@@ -144,7 +163,7 @@ export function TabPortfolio() {
       <SectionJumpPills
         accent="teal"
         label="Jump to project"
-        items={portfolios.map((p) => ({
+        items={visiblePortfolios.map((p) => ({
           id: p.id,
           title: p.title || 'Project',
           detail: stripHtml(p.description || '').slice(0, 40),
@@ -152,7 +171,7 @@ export function TabPortfolio() {
       />
 
       <div className="flex flex-1 flex-col">
-        {portfolios.length === 0 ? (
+        {visiblePortfolios.length === 0 ? (
           <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
               <FolderOpen className="h-8 w-8 text-slate-400" />
@@ -170,9 +189,9 @@ export function TabPortfolio() {
         ) : (
           <div>
             <ReorderList
-              items={portfolios}
+              items={visiblePortfolios}
               getKey={(portfolio) => portfolio.id}
-              onReorder={setPortfolios}
+              onReorder={commitVisible}
               renderItem={(portfolio, index, dragHandleProps) => {
                 const open = isExpanded(portfolio.id)
                 return (
@@ -188,7 +207,7 @@ export function TabPortfolio() {
                       mediaUrl={portfolio.imageUrl}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(portfolio.id)}
-                      showRemove
+                      showRemove={!portfolio.corporateOwned}
                       onRemove={() => removePortfolio(portfolio.id)}
                       accent={accent}
                       dragHandleProps={dragHandleProps}

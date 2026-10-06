@@ -325,6 +325,7 @@ export function normalizeSectionPostList(items: VCardSectionPostItem[] | null | 
       price: entry.price ?? '',
       offerPrice: entry.offerPrice ?? '',
       active: entry.active !== false,
+      ...(entry.corporateOwned ? { corporateOwned: true } : {}),
       ...(entry.metas ? { metas: entry.metas } : {}),
     }
   })

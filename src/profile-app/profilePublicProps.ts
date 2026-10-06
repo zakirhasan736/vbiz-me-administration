@@ -1,5 +1,6 @@
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import { withoutCorporateOwned } from '@/lib/memberMediaVisibility'
 import { buildProfilePath } from '@/lib/profileRoutes'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesignFromData } from '@/lib/resolvedProfileDesign'
@@ -8,6 +9,7 @@ import { getVCardContentMedia } from '@/lib/vcardContentMedia'
 import { getDisplaySettingsFromVCard, getHomeMediaUrls, isFieldVisible } from '@/lib/vcardDisplaySettings'
 import { normalizeFaqList } from '@/lib/vcardFaq'
 import { normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
+import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { getVCardResume } from '@/lib/vcardResume'
 import { normalizeServiceList } from '@/lib/vcardServices'
 import { createDefaultVCardSocial } from '@/lib/vcardSocial'
@@ -189,9 +191,14 @@ export function vCardDataToProfileProps(
     experience: data.experience ?? [],
     services: normalizeServiceList(data.services),
     skills: data.skills ?? [],
-    portfolio: data.portfolio ?? [],
+    portfolio: withoutCorporateOwned(data.portfolio ?? [], Boolean(data.hideOwnerPhotos)),
     reviews: data.reviews ?? [],
-    sectionPosts: data.sectionPosts ?? {},
+    sectionPosts: (() => {
+      const posts = data.sectionPosts ?? {}
+      const videoKey = PUBLIC_SECTION_NAMES.videos
+      if (!data.hideOwnerVideos || !posts[videoKey]) return posts
+      return { ...posts, [videoKey]: withoutCorporateOwned(posts[videoKey], true) }
+    })(),
     customTabs: data.customTabs ?? [],
     tabLabelOverrides: data.tabLabelOverrides ?? {},
     tabSectionMeta: data.tabSectionMeta ?? {},

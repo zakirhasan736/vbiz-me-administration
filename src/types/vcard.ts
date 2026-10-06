@@ -332,6 +332,10 @@ export type VCardData = {
   themeConfig?: CardThemeConfig
   /** Guest-facing Live Agent on this card. Default off; persisted as `aiAssistance_checkbox`. */
   aiAssistanceEnabled?: boolean
+  /** Team member card: hide corporate-owner photos on this card's editor and public page. */
+  hideOwnerPhotos?: boolean
+  /** Team member card: hide corporate-owner videos on this card's editor and public page. */
+  hideOwnerVideos?: boolean
   /** Per-card SEO metadata used by the public card head and search previews. */
   seo?: VCardSeo
 }

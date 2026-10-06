@@ -1,4 +1,5 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
+import { HIDE_OWNER_PHOTOS_SETTING_KEY, HIDE_OWNER_VIDEOS_SETTING_KEY } from '@/lib/memberMediaVisibility'
 import { seoToApiSettings } from '@/lib/seo/cardSeo'
 import { mapContentMediaToApiSettings } from '@/lib/vcardContentMedia'
 import { mapMyInfoToApiSettings } from '@/lib/vcardMyInfo'
@@ -302,6 +303,8 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
     ...mapContentMediaToApiSettings(data.contentMedia),
     ...seoToApiSettings(data.seo),
     [AI_ASSISTANCE_SETTING_KEY]: isAiAssistanceEnabled(data.aiAssistanceEnabled) ? '1' : '0',
+    [HIDE_OWNER_PHOTOS_SETTING_KEY]: data.hideOwnerPhotos ? '1' : '0',
+    [HIDE_OWNER_VIDEOS_SETTING_KEY]: data.hideOwnerVideos ? '1' : '0',
   }
 }
 
