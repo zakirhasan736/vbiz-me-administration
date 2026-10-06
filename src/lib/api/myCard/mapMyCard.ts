@@ -474,7 +474,7 @@ function mapPersonal(card: MyCardData): VCardPersonal {
     fullName: decodeHtmlText(p.name ?? ''),
     email: p.email || contactEmail,
     dob: card.my_info.personal?.dob?.value ?? '',
-    gender: decodeHtmlText(p.gender ?? card.my_info.personal?.gender?.value ?? 'Male'),
+    gender: decodeHtmlText(p.gender ?? card.my_info.personal?.gender?.value ?? ''),
     relationship: decodeHtmlText(p.marital_status ?? card.my_info.personal?.marital_status?.value ?? 'Single'),
     profession: decodeHtmlText(p.profession ?? ''),
     designation: decodeHtmlText(p.designation ?? ''),

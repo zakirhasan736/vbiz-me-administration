@@ -912,6 +912,8 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     state: data.personal.state || '',
     zipCode: data.personal.zipCode || '',
     prof: (data.personal.profession || '').trim(),
+    gender: (data.personal.gender || '').trim(),
+    maritalStatus: (data.personal.relationship || '').trim(),
     dob: dob || null,
     isPublic: data.isDraft ? false : data.isPublic,
     isDraft: data.isDraft !== false,
