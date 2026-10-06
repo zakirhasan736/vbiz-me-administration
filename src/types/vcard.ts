@@ -163,6 +163,8 @@ export type VCardServiceEntry = {
   url: string
   featuredImage: string
   active: boolean
+  /** Synced from corporate team owner — locked on team member cards. */
+  corporateOwned?: boolean
 }
 
 /** Back office → Blog tab posts (shown on profile Blog section, v1 and v2). */
@@ -262,6 +264,7 @@ export type VCardPortfolioEntry = {
   imageName?: string
   url: string
   active: boolean
+  corporateOwned?: boolean
 }
 
 /** Back office → Reviews tab entries (shown on public Reviews section). */
@@ -272,6 +275,7 @@ export type VCardReviewEntry = {
   text: string
   imageUrl?: string
   url?: string
+  corporateOwned?: boolean
 }
 
 /** Back office → Skills tab: category + skill tags (persisted as SkillTag rows). */

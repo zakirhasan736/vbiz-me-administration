@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonImage, SkeletonVideo } from '@/components/media/SkeletonMedia'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
 
@@ -36,7 +37,7 @@ export function CardAvatarThumb({
   const initial = initialFromName(name)
   const url = src?.trim() || ''
   const shellClass = cn(
-    'flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/60 bg-slate-50 text-base font-black text-indigo-600 shadow-inner dark:border-white/5 dark:bg-slate-900 dark:text-indigo-400',
+    'relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/60 bg-slate-50 text-base font-black text-indigo-600 shadow-inner dark:border-white/5 dark:bg-slate-900 dark:text-indigo-400',
     className
   )
   const mediaClass = cn('h-full w-full object-cover object-top', mediaClassName)
@@ -50,17 +51,20 @@ export function CardAvatarThumb({
   }
 
   if (forceVideo || isAvatarVideoSrc(url)) {
+    const videoSrc = url.startsWith('blob:') || url.startsWith('data:') ? url : encodeMediaUrl(url)
     return (
       <div className={shellClass} style={{ width: size, height: size }}>
-        <video
-          src={url.startsWith('blob:') || url.startsWith('data:') ? url : encodeMediaUrl(url)}
-          className={mediaClass}
+        <SkeletonVideo
+          src={videoSrc}
+          fill
+          mediaClassName={mediaClass}
           muted
           playsInline
           autoPlay
           loop
           preload="metadata"
           aria-label={name ? `${name} avatar video` : 'Avatar video'}
+          skeletonLabel="Loading avatar"
         />
       </div>
     )
@@ -74,17 +78,20 @@ export function CardAvatarThumb({
     )
   }
 
+  const imageSrc = url.startsWith('blob:') || url.startsWith('data:') ? url : encodeMediaUrl(url)
+
   return (
     <div className={shellClass} style={{ width: size, height: size }}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- remote S3 / CDN avatars */}
-      <img
-        src={url.startsWith('blob:') || url.startsWith('data:') ? url : encodeMediaUrl(url)}
+      <SkeletonImage
+        src={imageSrc}
         alt={name ? `${name} avatar` : 'Avatar'}
-        className={mediaClass}
+        fill
         width={size}
         height={size}
         loading="lazy"
         decoding="async"
+        mediaClassName={mediaClass}
+        skeletonLabel="Loading avatar"
       />
     </div>
   )

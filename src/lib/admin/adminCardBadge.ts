@@ -38,12 +38,19 @@ function isAdminNamedCard(card: AdminCard): boolean {
   return name === 'admin' || slug === 'admin'
 }
 
+/** Corporate team owner = card owned by the corporate parent account. */
+export function isCorporateTeamOwnerCard(card: AdminCard): boolean {
+  if (!isCorporatePortfolioCard(card)) return false
+  if (!card.companyUserId || card.companyUserId === card.ownerId) return true
+  return isCorporateRole(card.ownerRole) && card.ownerId === card.companyUserId
+}
+
 /**
  * Portfolio parent for badges:
  * - companyUserRole / createdByRole from API (preferred)
  * - falls back to ownerRole only when companyUserId === ownerId
  *
- * Corporate member = parent account is a corporate-owner.
+ * Corporate team member = parent account is a corporate-owner.
  * Admin portfolio (Team member) = parent is admin/super-admin.
  * Do NOT use profile ownerRole alone — MC is CORPORATE_OWNER personally but his
  * vBiz Me CEO card sits under SUPER_ADMIN companyUser.
@@ -104,7 +111,10 @@ export function resolveMyCardsBadge(card: AdminCard): AdminCardBadge | null {
     return { label: 'Admin', tone: 'indigo' }
   }
   if (isCorporateCard(card)) {
-    return { label: 'Corporate', tone: 'neutral' }
+    return {
+      label: isCorporateTeamOwnerCard(card) ? 'Corporate Team Owner' : 'Corporate Team Member',
+      tone: 'neutral',
+    }
   }
   return null
 }
@@ -116,7 +126,10 @@ export function resolveDirectoryBadge(card: AdminCard): AdminCardBadge | null {
   }
   // Corporate team cards first — createdBy is often staff when admin provisioned the account
   if (isCorporateCard(card)) {
-    return { label: 'Corporate member', tone: 'neutral' }
+    return {
+      label: isCorporateTeamOwnerCard(card) ? 'Corporate Team Owner' : 'Corporate Team Member',
+      tone: 'neutral',
+    }
   }
   if (isAdminPortfolioCard(card)) {
     return null

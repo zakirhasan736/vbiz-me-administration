@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonMediaShell, useMediaLoadState } from '@/components/media/SkeletonMedia'
 import { useTranslation } from '@/lib/i18n/translationData'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
@@ -82,6 +83,7 @@ const V3_SOCIAL_ITEMS: V3SocialItem[] = [
 
 function ProfileMedia({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const encoded = encodeMediaUrl(src)
+  const { loaded, markLoaded, markError } = useMediaLoadState(encoded)
   if (!encoded) {
     return <div className={`bg-zinc-200 dark:bg-zinc-800 ${className || ''}`} aria-label={alt || 'No profile media'} />
   }
@@ -91,15 +93,21 @@ function ProfileMedia({ src, alt, className }: { src: string; alt: string; class
     )
   }
   return (
-    <Image
-      src={encoded}
-      alt={alt}
-      fill
-      priority
-      sizes="(max-width: 767px) 60vw, 300px"
-      className={`${className || 'h-full w-full object-cover'} object-top`}
-      style={{ objectPosition: 'top' }}
-    />
+    <SkeletonMediaShell loading={!loaded} label="Loading profile photo" className="absolute inset-0 h-full w-full">
+      <Image
+        src={encoded}
+        alt={alt}
+        fill
+        priority
+        sizes="(max-width: 767px) 60vw, 300px"
+        className={`${className || 'h-full w-full object-cover'} object-top transition-opacity duration-300 ${
+          loaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{ objectPosition: 'top' }}
+        onLoadingComplete={markLoaded}
+        onError={markError}
+      />
+    </SkeletonMediaShell>
   )
 }
 

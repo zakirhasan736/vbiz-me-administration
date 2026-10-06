@@ -170,7 +170,7 @@ function downloadCredentialsImage(credentials: ProvisionedCredentials) {
 
 function roleLabel(role: string, linkedCorporate?: AdminUserRow['linkedCorporate']) {
   if (linkedCorporate) return 'Corporate Team Member'
-  if (role === 'corporate-owner') return 'Corporate Card Owner'
+  if (role === 'corporate-owner') return 'Corporate Team Owner'
   if (role === 'super-admin') return 'Super Admin'
   if (role === 'admin') return 'Admin'
   return 'Single Card Owner'
@@ -991,9 +991,9 @@ export default function AdminUsers() {
                       >
                         {corporate ? <Building className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
                         {corporate
-                          ? 'Corporate'
+                          ? 'Corporate Team Owner'
                           : teamMember
-                            ? 'Team member'
+                            ? 'Corporate Team Member'
                             : u.role === 'super-admin'
                               ? 'Super Admin'
                               : u.role === 'admin'

@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonMediaShell, SkeletonVideo, useMediaLoadState } from '@/components/media/SkeletonMedia'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -47,18 +48,37 @@ function FeaturedMedia({ src, alt, forceVideo }: { src: string; alt: string; for
   if (!encoded) return null
   if (forceVideo || isVideoUrl(encoded)) {
     return (
-      <video
+      <SkeletonVideo
         src={encoded}
-        className="h-full w-full object-cover"
+        fill
+        mediaClassName="object-cover"
         controls
         playsInline
         preload="metadata"
         aria-label={alt}
+        skeletonLabel="Loading media"
       />
     )
   }
   if (!isUsableImageSrc(encoded)) return null
-  return <Image src={encoded} alt={alt} fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" />
+  return <FeaturedNextImage src={encoded} alt={alt} />
+}
+
+function FeaturedNextImage({ src, alt }: { src: string; alt: string }) {
+  const { loaded, markLoaded, markError } = useMediaLoadState(src)
+  return (
+    <SkeletonMediaShell loading={!loaded} label="Loading media" className="absolute inset-0 h-full w-full">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        className={`object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        sizes="(max-width: 768px) 100vw, 640px"
+        onLoadingComplete={markLoaded}
+        onError={markError}
+      />
+    </SkeletonMediaShell>
+  )
 }
 
 export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) {

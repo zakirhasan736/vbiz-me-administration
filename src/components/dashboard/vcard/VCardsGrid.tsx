@@ -43,7 +43,7 @@ export function VCardsGrid({
         key={card.id}
         card={card}
         mode={isPersonal ? 'personal' : 'corporate'}
-        badgeLabel={isPersonal ? 'Single' : 'Corporate'}
+        badgeLabel={isPersonal ? 'Single' : 'Corporate Team Member'}
         onOpenQr={onOpenQr}
         onPanel={onPanel ?? (() => undefined)}
         onNotice={onNotice ?? (() => undefined)}

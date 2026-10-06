@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonImage, SkeletonVideo } from '@/components/media/SkeletonMedia'
 import {
   mediaNeedsClientOptimize,
   MediaUploadError,
@@ -372,10 +373,23 @@ export function MediaFileUploader({
           <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch">
             <div className="relative flex h-36 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 sm:h-28 sm:w-40 dark:border-white/10 dark:bg-white/5">
               {kind === 'image' ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={displayUrl} alt={displayName || 'Upload preview'} className="h-full w-full object-cover" />
+                <SkeletonImage
+                  src={displayUrl}
+                  alt={displayName || 'Upload preview'}
+                  fill
+                  mediaClassName="object-cover"
+                  skeletonLabel="Loading preview"
+                />
               ) : kind === 'video' ? (
-                <video src={displayUrl} className="h-full w-full object-cover" controls muted playsInline />
+                <SkeletonVideo
+                  src={displayUrl}
+                  fill
+                  mediaClassName="object-cover"
+                  controls
+                  muted
+                  playsInline
+                  skeletonLabel="Loading preview"
+                />
               ) : kind === 'audio' ? (
                 <div className="flex w-full flex-col items-center gap-2 px-3">
                   <FileAudio className={cn('h-8 w-8', styles.icon)} />

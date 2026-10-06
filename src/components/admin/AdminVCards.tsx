@@ -446,7 +446,7 @@ export default function AdminVCards() {
     if (!card.id || duplicatingCardId) return
     // Corporate / corporate-member cards always require the member login popup
     // so admin can provision the linked vcard-owner user (same as corporate owner).
-    if (isCorporatePortfolioCard(card) || resolveDirectoryBadge(card)?.label === 'Corporate member') {
+    if (isCorporatePortfolioCard(card) || resolveDirectoryBadge(card)?.label === 'Corporate Team Member') {
       setDuplicateSourceCard(card)
       return
     }

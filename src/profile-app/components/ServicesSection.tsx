@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonImage, SkeletonWave } from '@/components/media/SkeletonMedia'
 import { ServiceDetail } from '@/profile-app/components/ServiceDetail'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -21,9 +22,11 @@ function ServiceCardSkeleton({ delay }: { delay: number }) {
       transition={{ duration: 0.4, delay }}
       className="flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50"
     >
-      <div className="mb-4 h-40 w-full animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-      <div className="mb-2 h-6 w-3/4 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
-      <div className="h-16 w-full animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
+      <div className="relative mb-4 h-40 w-full overflow-hidden rounded-xl">
+        <SkeletonWave label="Loading service" />
+      </div>
+      <div className="skeleton mb-2 h-6 w-3/4 rounded-md" />
+      <div className="skeleton h-16 w-full rounded-md" />
     </motion.div>
   )
 }
@@ -112,12 +115,13 @@ export const ServicesSection = () => {
               className={`vbiz-content-card group relative flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 md:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${isClickable ? 'cursor-pointer' : ''}`}
             >
               {imageUrl ? (
-                <div className="mb-4 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                <div className="relative mb-4 min-h-40 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
+                  <SkeletonImage
                     src={imageUrl}
                     alt={service.title.trim() || ''}
-                    className="mx-auto max-h-56 w-full object-contain"
+                    className="min-h-40 w-full"
+                    mediaClassName="mx-auto max-h-56 w-full object-contain"
+                    skeletonLabel="Loading service image"
                   />
                 </div>
               ) : (

@@ -1,5 +1,6 @@
 'use client'
 
+import { SkeletonImage } from '@/components/media/SkeletonMedia'
 import type { GalleryListItem, GalleryMediaKind } from '@/interfaces/api/gallery.interface'
 import { detectGalleryMediaKind, encodeMediaUrl, isDocumentUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
@@ -127,10 +128,13 @@ function ImageWithPlaceholder({
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="absolute inset-0 z-10 flex items-center justify-center overflow-hidden bg-black/20 backdrop-blur-xl"
+            className="skeleton absolute inset-0 z-10 overflow-hidden"
+            aria-label="Loading gallery image"
           >
-            <div className="absolute inset-0 animate-pulse bg-linear-to-tr from-white/5 to-transparent" />
-            <ImageIcon size={32} className="vbiz-pin opacity-40" />
+            <ImageIcon
+              size={32}
+              className="vbiz-pin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-40"
+            />
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -349,8 +353,13 @@ function GalleryLightboxMedia({ item }: { item: GalleryListItem }) {
 
   if (encoded || rawSrc) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={encoded || rawSrc} alt={item.title} className="max-h-[calc(100dvh-11rem)] w-full object-contain" />
+      <SkeletonImage
+        src={encoded || rawSrc}
+        alt={item.title}
+        className="flex min-h-48 w-[min(920px,92vw)] items-center justify-center"
+        mediaClassName="max-h-[calc(100dvh-11rem)] w-full object-contain"
+        skeletonLabel="Loading gallery image"
+      />
     )
   }
 
@@ -364,9 +373,11 @@ function GalleryCardSkeleton({ delay, aspectClass }: { delay: number; aspectClas
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, delay }}
       className={cn(
-        'vbiz-card mb-3 w-full animate-pulse break-inside-avoid overflow-hidden rounded-2xl border',
+        'vbiz-card skeleton mb-3 w-full break-inside-avoid overflow-hidden rounded-2xl border',
         aspectClass
       )}
+      role="status"
+      aria-label="Loading gallery"
     />
   )
 }
