@@ -233,56 +233,79 @@ export function NotificationFollowModal({
 
                   {iosGuide ? (
                     <IosPushHomeScreenSteps className="mb-3" variant={iosChrome ? 'ios-chrome' : 'ios'} />
+                  ) : desktopSafari ? (
+                    <div className="vbiz-description mb-3 space-y-1.5 rounded-2xl border border-white/10 bg-black/20 p-3 text-left text-[12px] leading-relaxed">
+                      <p className="font-semibold">Safari on this computer</p>
+                      <ol className="list-decimal space-y-1.5 pl-5">
+                        <li>
+                          Tap Enable, then choose <strong>Allow</strong>
+                        </li>
+                        <li>
+                          If nothing appears, open Safari → Settings → Websites → Notifications and allow this site
+                        </li>
+                      </ol>
+                    </div>
                   ) : (
-                    <>
-                      <div className="mb-3 space-y-1.5">
-                        <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
-                          <div className="vbiz-pill-icon flex h-6 w-6 items-center justify-center rounded-md border">
-                            <ShieldCheck size={14} />
-                          </div>
-                          <span className="vbiz-description text-xs font-medium">Privacy Focused & Spam Free</span>
-                        </div>
-                        <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
-                          <div className="vbiz-pill-icon flex h-6 w-6 items-center justify-center rounded-md border">
-                            <Sparkles size={14} />
-                          </div>
-                          <span className="vbiz-description text-xs font-medium">Real-time Platform Updates</span>
-                        </div>
-                      </div>
-                      {androidBackup ? <IosPushHomeScreenSteps className="mb-3" variant="android-backup" /> : null}
-                    </>
+                    <div className="vbiz-description mb-3 space-y-1.5 rounded-2xl border border-white/10 bg-black/20 p-3 text-left text-[12px] leading-relaxed">
+                      <p className="font-semibold">Windows, Chrome, or Edge</p>
+                      <ol className="list-decimal space-y-1.5 pl-5">
+                        <li>
+                          Tap Enable, then choose <strong>Allow</strong>
+                        </li>
+                        <li>
+                          If nothing appears, open the lock icon in the address bar and set Notifications to Allow
+                        </li>
+                      </ol>
+                    </div>
                   )}
 
-                  <div className="vbiz-modal-row mb-3 rounded-xl border p-2.5 text-left">
-                    <p className="vbiz-description text-[11px] leading-snug font-semibold">
-                      Account SMS from vBiz Me LLC, only if you tap Enable.
-                    </p>
-                    <ul className="vbiz-description mt-1.5 list-disc space-y-0.5 pl-4 text-[11px] leading-snug font-medium">
-                      <li>Sent to the phone number on the account.</li>
-                      <li>Message frequency varies. Msg & data rates may apply.</li>
-                      <li>Reply STOP to opt out, or HELP for help.</li>
-                      <li>Consent is not required to make a purchase.</li>
-                    </ul>
-                    <p className="mt-1.5 text-[11px] font-semibold">
-                      <a
-                        href="https://www.vbizme.com/privacy-policy"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="vbiz-description underline"
-                      >
-                        Privacy Policy
-                      </a>
-                      <span className="vbiz-description"> · </span>
-                      <a
-                        href="https://www.vbizme.com/terms-and-conditions"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="vbiz-description underline"
-                      >
-                        Terms & Conditions
-                      </a>
-                    </p>
+                  <div className="mb-3 space-y-1.5">
+                    <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
+                      <div className="vbiz-pill-icon flex h-6 w-6 items-center justify-center rounded-md border">
+                        <ShieldCheck size={14} />
+                      </div>
+                      <span className="vbiz-description text-xs font-medium">Privacy Focused & Spam Free</span>
+                    </div>
+                    <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
+                      <div className="vbiz-pill-icon flex h-6 w-6 items-center justify-center rounded-md border">
+                        <Sparkles size={14} />
+                      </div>
+                      <span className="vbiz-description text-xs font-medium">Real-time Platform Updates</span>
+                    </div>
+                    <div className="vbiz-modal-row rounded-xl border p-2 text-left">
+                      <p className="vbiz-description text-[11px] leading-snug font-semibold">
+                        Account SMS from vBiz Me LLC, only if you tap Enable.
+                      </p>
+                      <ul className="vbiz-description mt-1 list-disc space-y-0.5 pl-4 text-[11px] leading-snug font-medium">
+                        <li>Sent to the phone number on the account.</li>
+                        <li>Message frequency varies. Msg & data rates may apply.</li>
+                        <li>Reply STOP to opt out, or HELP for help.</li>
+                        <li>Consent is not required to make a purchase.</li>
+                      </ul>
+                      <p className="mt-1.5 text-[11px] font-semibold">
+                        <a
+                          href="https://www.vbizme.com/privacy-policy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="vbiz-description underline"
+                        >
+                          Privacy Policy
+                        </a>
+                        <span className="vbiz-description"> · </span>
+                        <a
+                          href="https://www.vbizme.com/terms-and-conditions"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="vbiz-description underline"
+                        >
+                          Terms & Conditions
+                        </a>
+                      </p>
+                    </div>
                   </div>
+                  {androidBackup && !iosGuide ? (
+                    <IosPushHomeScreenSteps className="mb-3" variant="android-backup" />
+                  ) : null}
 
                   {error ? (
                     <div className="mb-2 space-y-1 text-center" role="alert">
