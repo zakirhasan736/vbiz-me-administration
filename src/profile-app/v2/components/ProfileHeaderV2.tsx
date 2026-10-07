@@ -7,6 +7,12 @@ import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { RumbleIcon, WhatsAppIcon } from '@/profile-app/components/socialBrandIcons'
+import {
+  HOME_ACTION_XS,
+  HOME_ACTION_XS_ICON,
+  HOME_ACTION_XS_LABEL,
+  HOME_ACTION_XS_LABELED,
+} from '@/profile-app/lib/homeActionButtonClasses'
 import { resolveHomeIdentityColors } from '@/profile-app/lib/homeIdentityColors'
 import { isProfileActionButtonEnabled } from '@/profile-app/lib/profileActionButtons'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -252,7 +258,7 @@ export function ProfileHeaderV2({
         ) : null}
         {designation ? (
           <p
-            className={`vbiz-home-description mb-0 text-center text-base font-bold sm:mb-4 md:text-lg ${identityColors.professionClassName}`}
+            className={`vbiz-home-description mb-0 text-base font-bold sm:mb-4 sm:text-center md:text-lg ${identityColors.professionClassName}`}
             style={identityColors.professionStyle}
           >
             {designation}
@@ -366,7 +372,7 @@ export function ProfileHeaderV2({
             <button
               type="button"
               onClick={onShare}
-              className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              className={`vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 ${HOME_ACTION_XS}`}
               style={shareChrome}
               aria-label="Share"
             >
@@ -379,7 +385,7 @@ export function ProfileHeaderV2({
             <button
               type="button"
               onClick={onNotificationSettings}
-              className="vbiz-icon-btn relative flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              className={`vbiz-icon-btn relative flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 ${HOME_ACTION_XS}`}
               style={notificationsChrome}
               aria-label="Notifications"
             >
@@ -392,7 +398,7 @@ export function ProfileHeaderV2({
           <IconHoverTooltip label="Notes" placement="left">
             <button
               type="button"
-              className="vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              className={`vbiz-icon-btn flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:w-10 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 ${HOME_ACTION_XS}`}
               style={notepadChrome}
               aria-label="Notes"
               onClick={() => {
@@ -408,15 +414,19 @@ export function ProfileHeaderV2({
           <IconHoverTooltip label="1-on-1" placement="left">
             <button
               type="button"
-              className="vbiz-icon-btn flex h-8 items-center gap-1 rounded-full border border-zinc-200 bg-white px-2 text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:px-2.5 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+              className={`vbiz-icon-btn flex h-8 items-center justify-center gap-1 rounded-full border border-zinc-200 bg-white px-2 text-zinc-400 transition-colors hover:bg-zinc-50 md:h-10 md:px-2.5 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 ${HOME_ACTION_XS_LABELED}`}
               style={oneOnOneChrome}
               aria-label="Request 1-on-1"
               onClick={() => {
                 window.dispatchEvent(new CustomEvent('openOneOnOneModal'))
               }}
             >
-              <CalendarDays size={HOME_ICON_SIZE} />
-              <span className="text-[9px] font-black tracking-wide whitespace-nowrap md:text-[10px]">1-ON-1</span>
+              <CalendarDays size={HOME_ICON_SIZE} className={HOME_ACTION_XS_ICON} />
+              <span
+                className={`text-[9px] font-black tracking-wide whitespace-nowrap md:text-[10px] ${HOME_ACTION_XS_LABEL}`}
+              >
+                1-ON-1
+              </span>
             </button>
           </IconHoverTooltip>
         ) : null}

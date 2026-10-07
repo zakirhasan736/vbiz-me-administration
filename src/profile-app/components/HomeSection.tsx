@@ -5,6 +5,12 @@ import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
+import {
+  HOME_ACTION_XS,
+  HOME_ACTION_XS_ICON,
+  HOME_ACTION_XS_LABEL,
+  HOME_ACTION_XS_LABELED,
+} from '@/profile-app/lib/homeActionButtonClasses'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import {
   ArrowUpRight,
@@ -656,7 +662,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                 )}
                 {professionLine ? (
                   <p
-                    className={`vbiz-home-description mx-auto flex w-fit items-center rounded-full border border-black/5 bg-gray-50/80 px-3 py-1.5 text-center text-[9px] font-bold tracking-[0.25em] uppercase backdrop-blur-xl sm:mx-0 sm:px-4 sm:py-2 sm:text-xs dark:border-white/10 dark:bg-white/5 ${identityColors.professionClassName}`}
+                    className={`vbiz-home-description mx-auto flex w-fit items-center rounded-full border border-black/5 bg-gray-50/80 px-3 py-1.5 text-[9px] font-bold tracking-[0.25em] uppercase backdrop-blur-xl sm:mx-0 sm:px-4 sm:py-2 sm:text-center sm:text-xs dark:border-white/10 dark:bg-white/5 ${identityColors.professionClassName}`}
                     style={identityColors.professionStyle}
                   >
                     <TypewriterText text={professionLine} delay={500} speed={120} />
@@ -675,7 +681,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               hover:
                                 '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-blue-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-blue-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-blue-500',
                               onClick: () => triggerAction('share'),
-                              className: 'h-10 w-10',
+                              className: `h-10 w-10 ${HOME_ACTION_XS}`,
                               chrome: shareChrome,
                             },
                           ]
@@ -689,7 +695,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               hover:
                                 '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-amber-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-amber-500',
                               onClick: () => triggerAction('settings'),
-                              className: 'h-10 w-10',
+                              className: `h-10 w-10 ${HOME_ACTION_XS}`,
                               chrome: notificationsChrome,
                             },
                           ]
@@ -703,7 +709,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               hover:
                                 '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-emerald-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-emerald-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-emerald-500',
                               onClick: () => triggerAction('notepad'),
-                              className: 'h-10 w-10',
+                              className: `h-10 w-10 ${HOME_ACTION_XS}`,
                               chrome: notepadChrome,
                             },
                           ]
@@ -717,7 +723,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               hover:
                                 '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-teal-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-teal-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-teal-600',
                               onClick: () => triggerAction('one_on_one'),
-                              className: 'h-10 gap-1.5 px-2.5',
+                              className: `h-10 gap-1.5 px-2.5 ${HOME_ACTION_XS_LABELED}`,
                               chrome: oneOnOneChrome,
                             },
                           ]
@@ -731,9 +737,13 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           className={`vbiz-icon-btn flex items-center justify-center rounded-full border border-black/10 bg-white/80 shadow-md backdrop-blur-xl transition-all duration-300 active:scale-95 dark:border-white/10 dark:bg-gray-900/80 ${item.hover} ${item.className}`}
                           style={item.chrome}
                         >
-                          <item.icon size={22} />
+                          <item.icon size={22} className={item.label ? HOME_ACTION_XS_ICON : undefined} />
                           {item.label ? (
-                            <span className="text-[10px] font-black tracking-wide whitespace-nowrap">{item.label}</span>
+                            <span
+                              className={`text-[10px] font-black tracking-wide whitespace-nowrap ${HOME_ACTION_XS_LABEL}`}
+                            >
+                              {item.label}
+                            </span>
                           ) : null}
                         </button>
                       </IconHoverTooltip>

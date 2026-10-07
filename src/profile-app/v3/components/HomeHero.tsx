@@ -19,6 +19,12 @@ import { ProfileActionButtons } from '@/profile-app/components/ProfileActionButt
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { RumbleIcon, WhatsAppIcon } from '@/profile-app/components/socialBrandIcons'
+import {
+  HOME_ACTION_XS,
+  HOME_ACTION_XS_ICON,
+  HOME_ACTION_XS_LABEL,
+  HOME_ACTION_XS_LABELED,
+} from '@/profile-app/lib/homeActionButtonClasses'
 import { resolveHomeIdentityColors } from '@/profile-app/lib/homeIdentityColors'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { openVbizmeCrm, openVbizmeLogin } from '@/profile-app/lib/profileExternalLinks'
@@ -235,8 +241,7 @@ export const HomeHero: React.FC<{
   /** Right-side utility rail — 40px, matches left social rail. */
   const railButtonClass =
     'vbiz-icon-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110'
-  const midActionBtnClass =
-    'vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-xl border p-2 shadow-md transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110'
+  const midActionBtnClass = `vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-xl border p-2 shadow-md transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 ${HOME_ACTION_XS}`
 
   const triggerHaptic = (duration = 10) => {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -508,15 +513,17 @@ export const HomeHero: React.FC<{
                   <button
                     type="button"
                     aria-label="Request 1-on-1"
-                    className="vbiz-icon-btn group flex h-10 items-center gap-1.5 rounded-xl border px-2.5 transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                    className={`vbiz-icon-btn group flex h-10 items-center justify-center gap-1.5 rounded-xl border px-2.5 transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 ${HOME_ACTION_XS_LABELED}`}
                     style={oneOnOneChrome}
                     onClick={() => {
                       triggerHaptic(10)
                       onAction?.('one_on_one')
                     }}
                   >
-                    <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                    <span className="text-[10px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
+                    <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} className={HOME_ACTION_XS_ICON} />
+                    <span className={`text-[10px] font-black tracking-wide whitespace-nowrap ${HOME_ACTION_XS_LABEL}`}>
+                      1-ON-1
+                    </span>
                   </button>
                 </IconHoverTooltip>
               ) : null}
@@ -532,7 +539,7 @@ export const HomeHero: React.FC<{
             )}
             {designationLine && (
               <p
-                className={`vbiz-home-description notranslate mb-2 text-center text-[16px] font-medium opacity-90 ${identityColors.professionClassName}`}
+                className={`vbiz-home-description notranslate mb-2 text-[16px] font-medium opacity-90 sm:text-center ${identityColors.professionClassName}`}
                 style={identityColors.professionStyle}
               >
                 {designationLine}
@@ -580,7 +587,7 @@ export const HomeHero: React.FC<{
                 )}
                 {designationLine && (
                   <p
-                    className={`vbiz-home-description notranslate mb-5 ml-1 w-fit text-center text-[20px] font-bold xl:text-[24px] ${identityColors.professionClassName}`}
+                    className={`vbiz-home-description notranslate mb-5 ml-1 w-fit text-[20px] font-bold sm:text-center xl:text-[24px] ${identityColors.professionClassName}`}
                     style={identityColors.professionStyle}
                   >
                     {designationLine}
@@ -593,7 +600,7 @@ export const HomeHero: React.FC<{
                       <button
                         type="button"
                         aria-label="Share"
-                        className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                        className={`vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 ${HOME_ACTION_XS}`}
                         style={shareChrome}
                         onClick={() => {
                           triggerHaptic(10)
@@ -609,7 +616,7 @@ export const HomeHero: React.FC<{
                       <button
                         type="button"
                         aria-label="Notifications"
-                        className="vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                        className={`vbiz-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 ${HOME_ACTION_XS}`}
                         style={notificationsChrome}
                         onClick={() => {
                           triggerHaptic(10)
@@ -626,7 +633,7 @@ export const HomeHero: React.FC<{
                       <button
                         type="button"
                         aria-label="Notes"
-                        className="vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                        className={`vbiz-icon-btn flex h-10 w-10 items-center justify-center rounded-full border-2 p-2 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 ${HOME_ACTION_XS}`}
                         style={notepadChrome}
                         onClick={() => {
                           triggerHaptic(10)
@@ -642,15 +649,19 @@ export const HomeHero: React.FC<{
                       <button
                         type="button"
                         aria-label="Request 1-on-1"
-                        className="vbiz-icon-btn flex h-10 items-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110"
+                        className={`vbiz-icon-btn flex h-10 items-center justify-center gap-1.5 rounded-full border-2 px-3 shadow-lg transition-all duration-300 active:scale-95 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 ${HOME_ACTION_XS_LABELED}`}
                         style={oneOnOneChrome}
                         onClick={() => {
                           triggerHaptic(10)
                           onAction?.('one_on_one')
                         }}
                       >
-                        <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} />
-                        <span className="text-[11px] font-black tracking-wide whitespace-nowrap">1-ON-1</span>
+                        <CalendarDays size={HOME_ICON_SIZE} strokeWidth={2.5} className={HOME_ACTION_XS_ICON} />
+                        <span
+                          className={`text-[11px] font-black tracking-wide whitespace-nowrap ${HOME_ACTION_XS_LABEL}`}
+                        >
+                          1-ON-1
+                        </span>
                       </button>
                     </IconHoverTooltip>
                   ) : null}
