@@ -43,9 +43,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     icons: {
       apple: [{ url: icon192, sizes: '192x192', type: 'image/png' }],
       icon: [
-        { url: tabIcon },
         { url: icon192, sizes: '192x192', type: 'image/png' },
         { url: icon512, sizes: '512x512', type: 'image/png' },
+        { url: tabIcon },
       ],
     },
     manifest: buildPwaManifestUrl(trimmed),
@@ -111,12 +111,15 @@ export default async function PublicProfilePage({ params }: Props) {
   const agent = liveAgentEnabled ? liveAgent : null
   const tabIcon = resolvePublicCardFaviconUrl(myCard, origin)
   const icon192 = buildProfileIconPath(trimmed, 192)
+  const icon512 = buildProfileIconPath(trimmed, 512)
 
   return (
     <>
       <link rel="manifest" href={buildPwaManifestUrl(trimmed)} />
-      <link rel="icon" href={tabIcon} />
       <link rel="apple-touch-icon" href={icon192} sizes="192x192" />
+      <link rel="icon" type="image/png" href={icon192} sizes="192x192" />
+      <link rel="icon" type="image/png" href={icon512} sizes="512x512" />
+      <link rel="icon" href={tabIcon} />
       <PublicProfileLayout
         slug={trimmed}
         initialMyCard={myCard}

@@ -117,7 +117,12 @@ async function fetchAvatarBuffer(avatarUrl: string, origin: string): Promise<Buf
 async function resizeAvatarPng(buffer: Buffer, size: number): Promise<Buffer | null> {
   try {
     const sharp = (await import('sharp')).default
-    return await sharp(buffer).rotate().resize(size, size, { fit: 'cover', position: 'centre' }).png().toBuffer()
+    return await sharp(buffer)
+      .rotate()
+      .resize(size, size, { fit: 'cover', position: 'centre' })
+      .flatten({ background: '#0b0f19' })
+      .png()
+      .toBuffer()
   } catch {
     return null
   }

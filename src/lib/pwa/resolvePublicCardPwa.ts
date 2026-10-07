@@ -1,4 +1,5 @@
 import { buildProfileIconPath, buildProfileManifestPath, buildProfilePath } from '@/lib/profileRoutes'
+import { isGenericPublicCardImage } from '@/lib/publicCards/publicCardImage'
 import type { MyCardData } from '@interfaces/api/myCard'
 
 function ownerDisplayName(card: MyCardData | null | undefined): string {
@@ -40,31 +41,47 @@ function isUsablePwaImageUrl(url: string): boolean {
   return /^https?:\/\//i.test(value) || value.startsWith('/')
 }
 
-/** All still-image candidates: profile photo, company logo, featured image. */
+function pushPwaImage(seen: Set<string>, out: string[], url?: string | null) {
+  const value = url?.trim() || ''
+  if (!isUsablePwaImageUrl(value) || isGenericPublicCardImage(value) || seen.has(value)) return
+  seen.add(value)
+  out.push(value)
+}
+
+/**
+ * Home Screen icon stills, in order:
+ * 1. Avatar
+ * 2. About Me image
+ * 3. Open Graph image from Card Settings → SEO
+ * 4. Any other still on the card
+ */
 export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
   const settings = card.settings || {}
   const setting = (key: string) => (typeof settings[key] === 'string' ? settings[key].trim() : '')
-  const raw = [
-    setting('profile_media_url'),
-    card.profile_media?.url?.trim() || '',
-    card.profile_media?.fallback_url?.trim() || '',
-    setting('company_logo'),
-    setting('company_icon_url'),
-    card.profile?.avatar?.trim() || '',
-    setting('featured_image'),
-    setting('featured_image_url'),
-    setting('profile_image'),
-    setting('profile_image_url'),
-    myInfoIcon(card, ['professional', 'personal'], ['company_name', 'company', 'company_office']),
-  ]
-
   const seen = new Set<string>()
   const candidates: string[] = []
-  for (const url of raw) {
-    if (!isUsablePwaImageUrl(url) || seen.has(url)) continue
-    seen.add(url)
-    candidates.push(url)
-  }
+  const push = (url?: string | null) => pushPwaImage(seen, candidates, url)
+  const media = card.profile_media
+  const mediaIsVideo =
+    media?.is_video === true || isPwaVideoUrl(media?.url || '') || isPwaVideoUrl(media?.video_url || '')
+
+  push(card.profile?.avatar)
+  for (const key of ['avatar', 'avatar_url', 'profile_image', 'profile_image_url']) push(setting(key))
+
+  push(setting('about_me_featured_media_url'))
+
+  push(setting('seo_image_url'))
+  push(setting('share_preview_image_url'))
+
+  if (!mediaIsVideo) push(media?.url)
+  push(media?.fallback_url)
+  push(setting('profile_media_url'))
+  push(setting('featured_image'))
+  push(setting('featured_image_url'))
+  push(setting('company_logo'))
+  push(setting('company_icon_url'))
+  push(myInfoIcon(card, ['professional', 'personal'], ['company_name', 'company', 'company_office']))
+
   return candidates
 }
 

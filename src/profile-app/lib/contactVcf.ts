@@ -204,13 +204,11 @@ async function fetchImageAsBase64(imageUrl: string): Promise<VcfPhoto | null> {
 
 export type ContactVcfPlatform = 'apple' | 'android'
 
-const PROFESSION_LABEL = 'Profession'
-const DESIGNATION_LABEL = 'Designation'
 const EMAIL_LABEL = 'Email'
 const PHONE_LABEL = 'Phone'
 const ADDRESS_LABEL = 'Address'
 const WEBSITE_LABEL = 'Website'
-const VCARD_LABEL = 'vCard url'
+const VCARD_LABEL = 'vCard Url'
 
 function cleanContactText(value?: string | null): string {
   return (value || '')
@@ -219,38 +217,36 @@ function cleanContactText(value?: string | null): string {
     .trim()
 }
 
-/** Profession on the public card, then designation only when it is a different value. */
-function contactRoleLines(contact: SaveContactCardData): { profession: string; designation: string } {
+/** Line under the contact name: profession . designation when both differ. */
+function contactRoleLine(contact: SaveContactCardData): string {
   const profession = cleanContactText(contact.profession)
   const designation = cleanContactText(contact.designation)
-  const professionValue = profession || designation
-  const designationValue = designation && designation !== professionValue ? designation : ''
-  return { profession: professionValue, designation: designationValue }
+  if (profession && designation && profession !== designation) {
+    return `${profession} . ${designation}`
+  }
+  return profession || designation
 }
 
 /**
- * iPhone shows the group label from X-ABLabel.
- * A plain URL row is always saved as Website on Android, so the public card
- * link uses X-ANDROID-CUSTOM type 0 with the label in data3.
- * Android splits that row on semicolons only, so the URL keeps its colons.
+ * iPhone shows X-ABLabel. Android treats an unknown URL type as the custom label,
+ * so the public card link is not saved as a second Website.
  */
 function pushAppleLabeledProp(lines: string[], item: number, prop: string, value: string, label: string) {
   lines.push(`item${item}.${prop}:${escapeVcfValue(value)}`)
   lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
 }
 
-function pushAppleLabeledUrl(lines: string[], item: number, url: string, label: string) {
-  pushAppleLabeledProp(lines, item, 'URL', url, label)
+function pushLabeledUrl(lines: string[], item: number, url: string, label: string, customType = false) {
+  if (customType) {
+    lines.push(`item${item}.URL;TYPE="${label}":${escapeVcfValue(url)}`)
+  } else {
+    lines.push(`item${item}.URL:${escapeVcfValue(url)}`)
+  }
+  lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
 }
 
 function pushAppleAddress(lines: string[], item: number, address: string, label: string) {
   lines.push(`item${item}.ADR:;;${escapeVcfValue(address)};;;;`)
-  lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
-}
-
-/** Custom text row. iPhone shows X-ABLabel; the value is not a phone or link. */
-function pushAppleTextLabel(lines: string[], item: number, value: string, label: string) {
-  lines.push(`item${item}.X-ABRELATEDNAMES:${escapeVcfValue(value)}`)
   lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
 }
 
@@ -261,14 +257,6 @@ function escapeAndroidCustomField(value: string): string {
 function pushAndroidCustom(lines: string[], mime: string, data: string[]) {
   const payload = [mime, ...data.map((part) => escapeAndroidCustomField(part))].join(';')
   lines.push(`X-ANDROID-CUSTOM:${payload};;;;;;;;;;;;`)
-}
-
-function pushAndroidCustomUrl(lines: string[], url: string, label: string) {
-  pushAndroidCustom(lines, 'vnd.android.cursor.item/website', [url, '0', label])
-}
-
-function pushAndroidTextLabel(lines: string[], value: string, label: string) {
-  pushAndroidCustom(lines, 'vnd.android.cursor.item/relation', [value, '0', label])
 }
 
 function pushAndroidPhone(lines: string[], phone: string) {
@@ -312,6 +300,8 @@ export function serializeContactVcf(
 
   lines.push(`N:${escapeVcfValue(last)};${escapeVcfValue(first)};;;`)
   lines.push(`FN:${escapeVcfValue(name)}`)
+  const roleLine = contactRoleLine(contact)
+  if (roleLine) lines.push(`TITLE:${escapeVcfValue(roleLine)}`)
 
   const company = cleanContactText(contact.company)
   if (company) lines.push(`ORG:${escapeVcfValue(company)}`)
@@ -319,7 +309,6 @@ export function serializeContactVcf(
   const platform = options?.platform === 'android' ? 'android' : 'apple'
   if (photo?.base64) pushContactPhoto(lines, photo, platform)
 
-  const { profession, designation } = contactRoleLines(contact)
   const email = cleanContactText(contact.email)
   const phone = cleanContactText(contact.phone)
   const address = cleanContactText(contact.address)
@@ -327,23 +316,19 @@ export function serializeContactVcf(
   const profileUrl = cleanContactText(contact.profileUrl)
   const cardLink = profileUrl && profileUrl.replace(/\/$/, '') !== website ? profileUrl : ''
 
+  let item = 1
   if (platform === 'android') {
-    if (profession) pushAndroidTextLabel(lines, profession, PROFESSION_LABEL)
-    if (designation) pushAndroidTextLabel(lines, designation, DESIGNATION_LABEL)
     if (email) pushAndroidEmail(lines, email)
     if (phone) pushAndroidPhone(lines, phone)
-    if (website) lines.push(`URL:${escapeVcfValue(website)}`)
-    if (cardLink) pushAndroidCustomUrl(lines, cardLink, VCARD_LABEL)
-    if (address) pushAndroidAddress(lines, address)
   } else {
-    let item = 1
-    if (profession) pushAppleTextLabel(lines, item++, profession, PROFESSION_LABEL)
-    if (designation) pushAppleTextLabel(lines, item++, designation, DESIGNATION_LABEL)
     if (email) pushAppleLabeledProp(lines, item++, 'EMAIL', email, EMAIL_LABEL)
     if (phone) pushAppleLabeledProp(lines, item++, 'TEL', phone, PHONE_LABEL)
-    if (website) pushAppleLabeledUrl(lines, item++, website, WEBSITE_LABEL)
-    if (cardLink) pushAppleLabeledUrl(lines, item++, cardLink, VCARD_LABEL)
-    if (address) pushAppleAddress(lines, item++, address, ADDRESS_LABEL)
+  }
+  if (website) pushLabeledUrl(lines, item++, website, WEBSITE_LABEL)
+  if (cardLink) pushLabeledUrl(lines, item++, cardLink, VCARD_LABEL, true)
+  if (address) {
+    if (platform === 'android') pushAndroidAddress(lines, address)
+    else pushAppleAddress(lines, item++, address, ADDRESS_LABEL)
   }
 
   const gender = cleanContactText(contact.gender)
