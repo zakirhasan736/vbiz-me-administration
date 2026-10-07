@@ -1,21 +1,10 @@
 'use client'
 
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
+import type { PwaInstallSurface } from '@/lib/pwa/pwaInstallEnv'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
-import { openCardInSafari, shareCurrentCard, usePwaInstall } from '@/profile-app/hooks/usePwaInstall'
-import {
-  Check,
-  Cloud,
-  Home,
-  Loader2,
-  Lock,
-  Share,
-  Smartphone,
-  Sparkles,
-  WifiOff,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
+import { openCardInSafari, usePwaInstall } from '@/profile-app/hooks/usePwaInstall'
+import { Check, Cloud, Home, Loader2, Lock, Smartphone, Sparkles, WifiOff, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 type SaveCardPwaModalProps = {
@@ -35,7 +24,7 @@ export function SaveCardPwaModal({
   cardSlug,
   contactJustSaved = false,
 }: SaveCardPwaModalProps) {
-  const { isInstalled, isIos, surface, installing, promptInstall } = usePwaInstall()
+  const { isInstalled, surface, installing, promptInstall } = usePwaInstall()
   const [installMessage, setInstallMessage] = useState<string | null>(null)
   const [nativeAdded, setNativeAdded] = useState(false)
   const [offlineReady, setOfflineReady] = useState(false)
@@ -84,31 +73,11 @@ export function SaveCardPwaModal({
     }
     if (surface === 'ios-inapp') {
       if (!openCardInSafari()) {
-        setInstallMessage('Open this card in Safari (not Instagram/Facebook), then tap Share → Add to Home Screen.')
+        setInstallMessage('Open this card in Safari, then follow the steps below.')
       }
       return
     }
 
-    if (isIos || surface === 'mac-safari') {
-      const shared = await shareCurrentCard(label)
-      if (shared === 'cancelled') return
-      if (shared === 'shared') {
-        setInstallMessage(
-          surface === 'mac-safari'
-            ? 'In the share menu, choose Add to Dock.'
-            : 'In the share sheet, tap Add to Home Screen, then Add.'
-        )
-        return
-      }
-      setInstallMessage(
-        surface === 'mac-safari'
-          ? 'On Mac Safari: File → Add to Dock, or Share → Add to Dock.'
-          : surface === 'ios-chrome'
-            ? 'On iPhone Chrome, tap Share or the menu, then Add to Home Screen. Safari is more reliable.'
-            : 'Tap Share in Safari, then Add to Home Screen, then Add.'
-      )
-      return
-    }
     const result = await promptInstall()
     if (result.ok) {
       setNativeAdded(true)
@@ -116,16 +85,10 @@ export function SaveCardPwaModal({
       return
     }
     if (result.reason === 'dismissed') {
-      setInstallMessage('Install cancelled. You can try again or use the manual steps below.')
+      setInstallMessage('Install cancelled. You can try again or use the steps below.')
       return
     }
-    setInstallMessage(
-      surface === 'android'
-        ? 'If Install did not open, use the browser menu → Add to Home screen / Install app (Chrome, Edge, or Samsung).'
-        : surface === 'firefox'
-          ? 'Firefox desktop cannot install this as an app. Use Chrome or Edge, or bookmark the card.'
-          : 'Use the install icon in the address bar, or the browser menu → Install app.'
-    )
+    setInstallMessage('The install alert did not open. Follow the steps below.')
   }
 
   return (
@@ -207,83 +170,7 @@ export function SaveCardPwaModal({
                   : 'Add to Home Screen'}
           </button>
 
-          <div className="vbiz-description space-y-1.5 rounded-xl border border-white/10 bg-black/20 p-3 text-[11px] leading-snug">
-            <p className="flex items-start gap-2 font-semibold">
-              <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
-              How to add this card
-            </p>
-            {surface === 'ios-inapp' ? (
-              <ol className="list-decimal space-y-1.5 pl-5">
-                <li>
-                  Tap the browser menu and choose <strong>Open in Safari</strong> (or copy the link into Safari)
-                </li>
-                <li className="flex flex-wrap items-center gap-1">
-                  In Safari, tap <Share className="inline h-3.5 w-3.5" /> <strong>Share</strong>
-                </li>
-                <li>
-                  Tap <strong>Add to Home Screen</strong>, then Add
-                </li>
-              </ol>
-            ) : surface === 'ios-safari' ? (
-              <ol className="list-decimal space-y-1.5 pl-5">
-                <li className="flex flex-wrap items-center gap-1">
-                  Tap <Share className="inline h-3.5 w-3.5" /> <strong>Share</strong>
-                </li>
-                <li>
-                  Scroll and tap <strong>Add to Home Screen</strong>, then Add
-                </li>
-                <li>Open the new Home Screen icon (not the Safari tab)</li>
-              </ol>
-            ) : surface === 'ios-chrome' || surface === 'ios-other' ? (
-              <ol className="list-decimal space-y-1.5 pl-5">
-                <li>
-                  Tap <strong>Share</strong> or the browser menu
-                </li>
-                <li>
-                  Choose <strong>Add to Home Screen</strong>
-                </li>
-                <li>
-                  For the most reliable icon, open this card in <strong>Safari</strong> and add it from there
-                </li>
-              </ol>
-            ) : surface === 'android' ? (
-              <ol className="list-decimal space-y-1.5 pl-5">
-                <li>
-                  Tap <strong>Add to Home Screen</strong> above and accept Install (Chrome, Edge, Samsung)
-                </li>
-                <li>
-                  Or open the browser menu → <strong>Add to Home screen</strong> / <strong>Install app</strong>
-                </li>
-                <li>Confirm, then open the new icon on your phone</li>
-              </ol>
-            ) : surface === 'mac-safari' ? (
-              <ol className="list-decimal space-y-1.5 pl-5">
-                <li>
-                  Mac Safari: <strong>File → Add to Dock</strong> (or Share → Add to Dock)
-                </li>
-                <li>Keep this card tab open while you add it</li>
-                <li>Open the Dock icon once so offline mode can finish</li>
-              </ol>
-            ) : surface === 'firefox' ? (
-              <ol className="list-decimal space-y-1.5 pl-5">
-                <li>Firefox desktop cannot install a Home Screen app for this card</li>
-                <li>
-                  Use <strong>Chrome</strong> or <strong>Edge</strong> and click Add to Home Screen / Install app
-                </li>
-                <li>Or bookmark this tab in Firefox</li>
-              </ol>
-            ) : (
-              <ol className="list-decimal space-y-1.5 pl-5">
-                <li>
-                  Click <strong>Add to Home Screen</strong> above, or the install icon in the address bar
-                </li>
-                <li>
-                  Or use the browser menu → <strong>Install app</strong>
-                </li>
-                <li>Open the installed app once so offline mode can finish</li>
-              </ol>
-            )}
-          </div>
+          <InstallSteps surface={surface} />
 
           {installMessage ? (
             <p className="vbiz-description mt-3 text-center text-[12px] font-medium">{installMessage}</p>
@@ -301,6 +188,89 @@ export function SaveCardPwaModal({
         </div>
       </div>
     </ProfileModalShell>
+  )
+}
+
+function installGuide(surface: PwaInstallSurface): { title: string; steps: string[] } {
+  switch (surface) {
+    case 'ios-inapp':
+      return {
+        title: 'Open Safari, then add it',
+        steps: [
+          'Open this card in Safari.',
+          'Tap the Share button at the bottom.',
+          'Tap Add to Home Screen, then Add.',
+        ],
+      }
+    case 'ios-safari':
+      return {
+        title: 'On iPhone Safari',
+        steps: ['Tap the Share button at the bottom.', 'Tap Add to Home Screen.', 'Tap Add, then open the new icon.'],
+      }
+    case 'ios-chrome':
+    case 'ios-other':
+      return {
+        title: 'On this iPhone browser',
+        steps: [
+          'Tap Share, or the browser menu.',
+          'Tap Add to Home Screen, then Add.',
+          'Safari gives the most reliable icon.',
+        ],
+      }
+    case 'android':
+      return {
+        title: 'On Android',
+        steps: [
+          'Tap Add to Home Screen above.',
+          'In the browser alert, tap Install or Add.',
+          'If no alert shows, open the browser menu and tap Install app.',
+        ],
+      }
+    case 'mac-safari':
+      return {
+        title: 'On Mac Safari',
+        steps: ['Keep this card tab open.', 'Choose File, then Add to Dock.', 'Open the new Dock icon once.'],
+      }
+    case 'firefox':
+      return {
+        title: 'Use Chrome or Edge',
+        steps: [
+          'Firefox cannot install this card.',
+          'Open the card in Chrome or Edge.',
+          'Tap Add to Home Screen, then Install.',
+        ],
+      }
+    default:
+      return {
+        title: 'On this browser',
+        steps: [
+          'Tap Add to Home Screen above.',
+          'Confirm Install in the browser alert.',
+          'Or use the browser menu and choose Install app.',
+        ],
+      }
+  }
+}
+
+function InstallSteps({ surface }: { surface: PwaInstallSurface }) {
+  const guide = installGuide(surface)
+  return (
+    <div className="vbiz-description rounded-xl border border-white/10 bg-black/20 p-3">
+      <p className="mb-2 flex items-center gap-2 text-[12px] font-semibold">
+        <Smartphone className="h-4 w-4 shrink-0" />
+        {guide.title}
+      </p>
+      <ol className="space-y-2">
+        {guide.steps.map((step, index) => (
+          <li key={step} className="flex items-start gap-2 text-[12px] leading-snug">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/15 text-[10px] font-bold">
+              {index + 1}
+            </span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 

@@ -75,18 +75,6 @@ async function ensurePublicCardServiceWorker() {
   }
 }
 
-/** Apple has no install prompt. Share must run inside the tap, before any await. */
-export async function shareCurrentCard(title: string): Promise<'shared' | 'cancelled' | 'unavailable'> {
-  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return 'unavailable'
-  try {
-    await navigator.share({ title: title.trim() || 'vBiz card', url: window.location.href })
-    return 'shared'
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled'
-    return 'unavailable'
-  }
-}
-
 export function openCardInSafari(url = typeof window === 'undefined' ? '' : window.location.href): boolean {
   try {
     const parsed = new URL(url)
@@ -96,28 +84,6 @@ export function openCardInSafari(url = typeof window === 'undefined' ? '' : wind
   } catch {
     return false
   }
-}
-
-function waitForInstallPrompt(timeoutMs: number) {
-  const existing = readStoredPrompt()
-  if (existing) return Promise.resolve(existing)
-
-  return new Promise<BeforeInstallPromptEvent | null>((resolve) => {
-    let settled = false
-    const finish = (value: BeforeInstallPromptEvent | null) => {
-      if (settled) return
-      settled = true
-      window.clearTimeout(timer)
-      window.removeEventListener('beforeinstallprompt', onPrompt)
-      window.removeEventListener('vbiz-pwa-prompt', onCustom)
-      resolve(value)
-    }
-    const onPrompt = (event: Event) => finish(capturePrompt(event))
-    const onCustom = () => finish(readStoredPrompt())
-    const timer = window.setTimeout(() => finish(readStoredPrompt()), timeoutMs)
-    window.addEventListener('beforeinstallprompt', onPrompt)
-    window.addEventListener('vbiz-pwa-prompt', onCustom)
-  })
 }
 
 function listenStandaloneChange(onChange: () => void) {
@@ -200,15 +166,11 @@ export function usePwaInstall() {
   const canNativeInstall = Boolean(deferredPrompt || readStoredPrompt()) && !isInstalled && !isIos
 
   const promptInstall = useCallback(async () => {
-    if (isIosDevice() || resolvePwaInstallSurface() === 'mac-safari') {
-      return { ok: false as const, reason: 'manual' as const }
-    }
+    const event = deferredPrompt ?? readStoredPrompt()
+    if (!event?.prompt) return { ok: false as const, reason: 'unavailable' as const }
     setInstalling(true)
+    void ensurePublicCardServiceWorker()
     try {
-      await ensurePublicCardServiceWorker()
-      const event = deferredPrompt ?? readStoredPrompt() ?? (await waitForInstallPrompt(2500))
-      if (!event?.prompt) return { ok: false as const, reason: 'unavailable' as const }
-      setDeferredPrompt(event)
       await event.prompt()
       const choice = await event.userChoice
       setDeferredPrompt(null)
@@ -216,6 +178,7 @@ export function usePwaInstall() {
       if (choice.outcome === 'accepted') {
         setIsInstalled(true)
         if (window.__vbizPwa) window.__vbizPwa.installed = true
+        markCardOnHomeScreen()
         return { ok: true as const }
       }
       return { ok: false as const, reason: 'dismissed' as const }
