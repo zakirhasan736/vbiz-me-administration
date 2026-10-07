@@ -77,6 +77,7 @@ export function TabSkill() {
   }
 
   const removeSkillGroup = (id: string) => {
+    if (skillGroupsRef.current.some((group) => group.id === id && group.corporateOwned)) return
     const current = commitPendingInputs()
     const filtered = current.filter((grp) => grp.id !== id)
     const resolved = filtered.length ? filtered : [createDefaultSkillGroup()]
@@ -188,11 +189,16 @@ export function TabSkill() {
                 indexLabel={index + 1}
                 title={group.type || 'New Skill Category'}
                 subtitle={
-                  group.skills.length ? `${group.skills.length} skill${group.skills.length === 1 ? '' : 's'}` : null
+                  [
+                    group.skills.length ? `${group.skills.length} skill${group.skills.length === 1 ? '' : 's'}` : '',
+                    group.corporateOwned ? 'Corporate team owner' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || null
                 }
                 isExpanded={open}
                 onToggle={() => toggleExpanded(group.id)}
-                showRemove={skillGroups.length > 1}
+                showRemove={!group.corporateOwned && skillGroups.length > 1}
                 onRemove={() => removeSkillGroup(group.id)}
                 accent={accent}
               />

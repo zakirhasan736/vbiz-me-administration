@@ -25,9 +25,12 @@ import {
 import { resolveCardStatus } from '@/lib/cardStatus'
 import { detectPortfolioType, isVideoUrl } from '@/lib/mediaUrl'
 import {
+  HIDDEN_OWNER_MEDIA_SETTING_KEY,
   HIDE_OWNER_PHOTOS_SETTING_KEY,
   HIDE_OWNER_VIDEOS_SETTING_KEY,
   isHideOwnerMediaSetting,
+  MEMBER_NAV_CUSTOMIZED_SETTING_KEY,
+  parseHiddenOwnerMedia,
 } from '@/lib/memberMediaVisibility'
 import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
@@ -160,6 +163,7 @@ export type ApiProfile = {
     fromDate?: string | null
     toDate?: string | null
     tillNow?: boolean
+    corporateOwned?: boolean
   }>
   experiences?: Array<{
     id: string
@@ -169,6 +173,7 @@ export type ApiProfile = {
     fromDate?: string | null
     toDate?: string | null
     tillNow?: boolean
+    corporateOwned?: boolean
   }>
   services?: Array<{
     id: string
@@ -211,6 +216,7 @@ export type ApiProfile = {
     id: string
     name?: string | null
     level?: string | null
+    corporateOwned?: boolean
   }>
   socialLinks?: Array<{ id: string; name?: string | null; url?: string | null; icon?: string | null }>
   profileSettings?: {
@@ -778,6 +784,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       fromDate: toDateInputValue(e.fromDate),
       toDate: toDateInputValue(e.toDate),
       tillNow: Boolean(e.tillNow),
+      corporateOwned: Boolean(e.corporateOwned),
     })),
     experience: (profile.experiences || []).map((e) => ({
       id: e.id,
@@ -787,6 +794,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       fromDate: toDateInputValue(e.fromDate),
       toDate: toDateInputValue(e.toDate),
       tillNow: Boolean(e.tillNow),
+      corporateOwned: Boolean(e.corporateOwned),
     })),
     services: (profile.services || []).map((s) => ({
       id: s.id,
@@ -879,6 +887,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY], profile.slug),
     hideOwnerPhotos: isHideOwnerMediaSetting(settingsMap[HIDE_OWNER_PHOTOS_SETTING_KEY]),
     hideOwnerVideos: isHideOwnerMediaSetting(settingsMap[HIDE_OWNER_VIDEOS_SETTING_KEY]),
+    hiddenOwnerMedia: parseHiddenOwnerMedia(settingsMap[HIDDEN_OWNER_MEDIA_SETTING_KEY]),
+    memberNavCustomized: isHideOwnerMediaSetting(settingsMap[MEMBER_NAV_CUSTOMIZED_SETTING_KEY]),
   })
 
   const status = resolveCardStatus({

@@ -64,6 +64,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
   }
 
   const removePost = (key: string) => {
+    if (postsRef.current.some((item) => (item.clientKey || item.id) === key && item.corporateOwned)) return
     const next = postsRef.current.filter((p) => (p.clientKey || p.id) !== key)
     setPosts(next)
     recoverExpandedAfterRemove(key, next)
@@ -167,11 +168,18 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                   <ExpandableEntryHeader
                     indexLabel={idx + 1}
                     title={item.title || 'New Post'}
-                    subtitle={item.category || stripHtml(item.description || '').slice(0, 48) || null}
+                    subtitle={
+                      [
+                        item.category || stripHtml(item.description || '').slice(0, 48),
+                        item.corporateOwned ? 'Corporate team owner' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || null
+                    }
                     mediaUrl={item.featuredImage}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(key)}
-                    showRemove
+                    showRemove={!item.corporateOwned}
                     onRemove={() => removePost(key)}
                     accent={accent}
                     dragHandleProps={dragHandleProps}

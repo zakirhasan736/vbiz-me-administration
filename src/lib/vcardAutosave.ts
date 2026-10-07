@@ -430,6 +430,8 @@ function persistableBucketSlice(data: VCardData, bucket: string): unknown {
         aiAssistanceEnabled: data.aiAssistanceEnabled,
         hideOwnerPhotos: data.hideOwnerPhotos,
         hideOwnerVideos: data.hideOwnerVideos,
+        hiddenOwnerMedia: data.hiddenOwnerMedia,
+        memberNavCustomized: data.memberNavCustomized,
         social: {
           handles: data.social?.handles,
           games: data.social?.games,

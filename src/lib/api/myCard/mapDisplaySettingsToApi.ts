@@ -1,5 +1,10 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
-import { HIDE_OWNER_PHOTOS_SETTING_KEY, HIDE_OWNER_VIDEOS_SETTING_KEY } from '@/lib/memberMediaVisibility'
+import {
+  HIDDEN_OWNER_MEDIA_SETTING_KEY,
+  HIDE_OWNER_PHOTOS_SETTING_KEY,
+  HIDE_OWNER_VIDEOS_SETTING_KEY,
+  MEMBER_NAV_CUSTOMIZED_SETTING_KEY,
+} from '@/lib/memberMediaVisibility'
 import { seoToApiSettings } from '@/lib/seo/cardSeo'
 import { mapContentMediaToApiSettings } from '@/lib/vcardContentMedia'
 import { mapMyInfoToApiSettings } from '@/lib/vcardMyInfo'
@@ -305,6 +310,8 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
     [AI_ASSISTANCE_SETTING_KEY]: isAiAssistanceEnabled(data.aiAssistanceEnabled) ? '1' : '0',
     [HIDE_OWNER_PHOTOS_SETTING_KEY]: data.hideOwnerPhotos ? '1' : '0',
     [HIDE_OWNER_VIDEOS_SETTING_KEY]: data.hideOwnerVideos ? '1' : '0',
+    [HIDDEN_OWNER_MEDIA_SETTING_KEY]: JSON.stringify(data.hiddenOwnerMedia || { photos: [], videos: [] }),
+    [MEMBER_NAV_CUSTOMIZED_SETTING_KEY]: data.memberNavCustomized ? '1' : '0',
   }
 }
 

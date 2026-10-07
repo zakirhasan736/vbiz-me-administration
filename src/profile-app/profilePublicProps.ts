@@ -1,6 +1,6 @@
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
-import { withoutCorporateOwned } from '@/lib/memberMediaVisibility'
+import { withoutHiddenOwnerMedia } from '@/lib/memberMediaVisibility'
 import { buildProfilePath } from '@/lib/profileRoutes'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesignFromData } from '@/lib/resolvedProfileDesign'
@@ -191,13 +191,24 @@ export function vCardDataToProfileProps(
     experience: data.experience ?? [],
     services: normalizeServiceList(data.services),
     skills: data.skills ?? [],
-    portfolio: withoutCorporateOwned(data.portfolio ?? [], Boolean(data.hideOwnerPhotos)),
+    portfolio: withoutHiddenOwnerMedia(
+      data.portfolio ?? [],
+      data.hiddenOwnerMedia?.photos || [],
+      Boolean(data.hideOwnerPhotos)
+    ),
     reviews: data.reviews ?? [],
     sectionPosts: (() => {
       const posts = data.sectionPosts ?? {}
       const videoKey = PUBLIC_SECTION_NAMES.videos
-      if (!data.hideOwnerVideos || !posts[videoKey]) return posts
-      return { ...posts, [videoKey]: withoutCorporateOwned(posts[videoKey], true) }
+      if (!posts[videoKey]) return posts
+      return {
+        ...posts,
+        [videoKey]: withoutHiddenOwnerMedia(
+          posts[videoKey],
+          data.hiddenOwnerMedia?.videos || [],
+          Boolean(data.hideOwnerVideos)
+        ),
+      }
     })(),
     customTabs: data.customTabs ?? [],
     tabLabelOverrides: data.tabLabelOverrides ?? {},

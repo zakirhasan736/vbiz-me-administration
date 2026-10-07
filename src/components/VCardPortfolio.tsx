@@ -12,12 +12,18 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideFromPublicCardButton } from '@/components/vcard/HideFromPublicCardButton'
 import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapPortfolioFromPayload } from '@/lib/ai/applyCardDraft'
 import { stripHtml } from '@/lib/htmlText'
 import { detectPortfolioType, isAudioUrl, isVideoUrl, type PortfolioMediaType } from '@/lib/mediaUrl'
-import { mergeHiddenCorporateOwned, withoutCorporateOwned } from '@/lib/memberMediaVisibility'
+import {
+  hiddenOwnerMediaMatches,
+  mergeHiddenCorporateOwned,
+  toggleHiddenOwnerMedia,
+  withoutCorporateOwned,
+} from '@/lib/memberMediaVisibility'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultPortfolioEntry, normalizePortfolioList } from '@/lib/vcardPortfolio'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -64,6 +70,8 @@ export function TabPortfolio() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Gallery')
   const portfolios = normalizePortfolioList(vCardData.portfolio)
   const hideOwnerPhotos = Boolean(vCardData.hideOwnerPhotos)
+  const hiddenPhotos = vCardData.hiddenOwnerMedia?.photos || []
+  const hiddenVideos = vCardData.hiddenOwnerMedia?.videos || []
   const hasOwnerPhotos = portfolios.some((item) => item.corporateOwned)
   const visiblePortfolios = withoutCorporateOwned(portfolios, hideOwnerPhotos)
   const portfoliosRef = useRef(portfolios)
@@ -212,6 +220,31 @@ export function TabPortfolio() {
                       accent={accent}
                       dragHandleProps={dragHandleProps}
                     />
+                    {portfolio.corporateOwned ? (
+                      <div className="border-b border-slate-100 px-4 py-3 sm:px-8 dark:border-white/5">
+                        <HideFromPublicCardButton
+                          hidden={hiddenOwnerMediaMatches(hiddenPhotos, {
+                            id: portfolio.id,
+                            title: portfolio.title,
+                            description: portfolio.description,
+                            url: portfolio.url,
+                            imageUrl: portfolio.imageUrl,
+                          })}
+                          onToggle={() =>
+                            updateData('hiddenOwnerMedia', {
+                              photos: toggleHiddenOwnerMedia(hiddenPhotos, {
+                                id: portfolio.id,
+                                title: portfolio.title,
+                                description: portfolio.description,
+                                url: portfolio.url,
+                                imageUrl: portfolio.imageUrl,
+                              }),
+                              videos: hiddenVideos,
+                            })
+                          }
+                        />
+                      </div>
+                    ) : null}
 
                     <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
                       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">

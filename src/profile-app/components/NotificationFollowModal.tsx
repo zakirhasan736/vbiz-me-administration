@@ -253,6 +253,37 @@ export function NotificationFollowModal({
                     </>
                   )}
 
+                  <div className="vbiz-modal-row mb-3 rounded-xl border p-2.5 text-left">
+                    <p className="vbiz-description text-[11px] leading-snug font-semibold">
+                      Account SMS from vBiz Me LLC, only if you tap Enable.
+                    </p>
+                    <ul className="vbiz-description mt-1.5 list-disc space-y-0.5 pl-4 text-[11px] leading-snug font-medium">
+                      <li>Sent to the phone number on the account.</li>
+                      <li>Message frequency varies. Msg & data rates may apply.</li>
+                      <li>Reply STOP to opt out, or HELP for help.</li>
+                      <li>Consent is not required to make a purchase.</li>
+                    </ul>
+                    <p className="mt-1.5 text-[11px] font-semibold">
+                      <a
+                        href="https://www.vbizme.com/privacy-policy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vbiz-description underline"
+                      >
+                        Privacy Policy
+                      </a>
+                      <span className="vbiz-description"> · </span>
+                      <a
+                        href="https://www.vbizme.com/terms-and-conditions"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vbiz-description underline"
+                      >
+                        Terms & Conditions
+                      </a>
+                    </p>
+                  </div>
+
                   {error ? (
                     <div className="mb-2 space-y-1 text-center" role="alert">
                       <p className="text-xs text-red-400">{error}</p>

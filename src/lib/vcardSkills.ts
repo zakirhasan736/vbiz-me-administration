@@ -24,6 +24,7 @@ export function normalizeSkillGroups(raw?: VCardSkillGroup[] | null): VCardSkill
     id: entry.id || `sk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     type: entry.type ?? '',
     skills: Array.isArray(entry.skills) ? entry.skills.filter(Boolean) : [],
+    ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),
   }))
 }
 
@@ -43,7 +44,7 @@ export function skillGroupsToApiItems(groups: VCardSkillGroup[]): Array<{ name: 
 
 /** Group API SkillTag rows back into editor categories. */
 export function skillTagsToGroups(
-  tags: Array<{ id?: string; name?: string | null; level?: string | null }> | undefined | null
+  tags: Array<{ id?: string; name?: string | null; level?: string | null; corporateOwned?: boolean }> | undefined | null
 ): VCardSkillGroup[] {
   if (!tags?.length) return []
   const byLevel = new Map<string, VCardSkillGroup>()
@@ -61,6 +62,7 @@ export function skillTagsToGroups(
       byLevel.set(level, group)
     }
     if (!group.skills.includes(name)) group.skills.push(name)
+    if (tag.corporateOwned) group.corporateOwned = true
   }
   return Array.from(byLevel.values())
 }

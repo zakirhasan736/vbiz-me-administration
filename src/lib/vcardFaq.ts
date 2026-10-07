@@ -25,6 +25,7 @@ export function normalizeFaqList(raw?: VCardFaqEntry[] | null): VCardFaqEntry[] 
       featuredImage: entry.featuredImage ?? '',
       url: entry.url ?? '',
       active: entry.active !== false,
+      ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),
     }
   })
 }

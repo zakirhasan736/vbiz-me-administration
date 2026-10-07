@@ -727,7 +727,6 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     nextIds,
     customTabs,
     labelOverrides,
-    navOrderCustomized,
   }: {
     nextIds: string[]
     customTabs: NonNullable<typeof vCardData.customTabs>
@@ -736,11 +735,12 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   }) => {
     const normalized = nextIds
     const next = applyEnabledNavOrderToDisplaySettings(display, normalized, {
-      preserveCustom: Boolean(navOrderCustomized),
+      preserveCustom: true,
     })
     updateData('displaySettings', next)
     updateData('customTabs', customTabs)
     updateData('tabLabelOverrides', labelOverrides)
+    updateData('memberNavCustomized', true)
     setNavOrderIds(normalized)
     localStorage.setItem(storageKeyForEditorNavOrder(cardKey), JSON.stringify(normalized))
 

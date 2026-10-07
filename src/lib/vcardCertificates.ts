@@ -11,6 +11,7 @@ export type CertItem = {
   issuer: string
   year: string
   documents: UploadedDoc[]
+  corporateOwned?: boolean
 }
 
 export function createEmptyCert(): CertItem {
@@ -75,6 +76,7 @@ export function sectionPostsToCertItems(posts: VCardSectionPostItem[] | undefine
       issuer: typeof metas.issuer === 'string' ? metas.issuer : '',
       year,
       documents: parseDocuments(metas.documents, p.featuredImage),
+      ...(p.corporateOwned ? { corporateOwned: true as const } : {}),
     }
   })
 }
@@ -107,6 +109,7 @@ export function certItemsToSectionPosts(items: CertItem[]): VCardSectionPostItem
       rating: '',
       location: '',
       active: true,
+      ...(item.corporateOwned ? { corporateOwned: true as const } : {}),
       ...(Object.keys(metas).length ? { metas } : {}),
     }
   })

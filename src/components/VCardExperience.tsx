@@ -46,6 +46,7 @@ export function TabExperience() {
   }
 
   const removeExperience = (id: string) => {
+    if (experiences.some((exp) => exp.id === id && exp.corporateOwned)) return
     const next = experiences.filter((exp) => exp.id !== id)
     const resolved = next.length ? next : [createDefaultExperienceEntry()]
     setExperiences(resolved)
@@ -111,10 +112,12 @@ export function TabExperience() {
               <ExpandableEntryHeader
                 indexLabel={index + 1}
                 title={exp.company || 'New Experience Entry'}
-                subtitle={exp.jobTitle}
+                subtitle={
+                  [exp.jobTitle, exp.corporateOwned ? 'Corporate team owner' : ''].filter(Boolean).join(' · ') || null
+                }
                 isExpanded={open}
                 onToggle={() => toggleExpanded(exp.id)}
-                showRemove={experiences.length > 1}
+                showRemove={!exp.corporateOwned && experiences.length > 1}
                 onRemove={() => removeExperience(exp.id)}
                 accent={accent}
               />

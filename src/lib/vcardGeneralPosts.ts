@@ -29,6 +29,7 @@ export function normalizeGeneralPostList(raw?: VCardGeneralPost[] | null): VCard
       featuredImage: entry.featuredImage ?? '',
       date: entry.date ?? '',
       active: entry.active !== false,
+      ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),
     }
   })
 }

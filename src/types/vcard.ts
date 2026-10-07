@@ -1,3 +1,4 @@
+import type { HiddenOwnerMediaLists } from '@/lib/memberMediaVisibility'
 import type { CardThemeConfig } from '@/lib/theme/cardThemeContract'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
@@ -141,6 +142,8 @@ export type VCardEducationEntry = {
   fromDate: string
   toDate: string
   tillNow: boolean
+  /** Synced from the corporate team owner. Members can add entries; they cannot delete these. */
+  corporateOwned?: boolean
 }
 
 /** Back office → Experience tab entries (shown on profile Work Experience section). */
@@ -152,6 +155,8 @@ export type VCardExperienceEntry = {
   fromDate: string
   toDate: string
   tillNow: boolean
+  /** Synced from the corporate team owner. Members can add entries; they cannot delete these. */
+  corporateOwned?: boolean
 }
 
 /** Back office → Services tab entries (shown on profile Services section). */
@@ -289,6 +294,8 @@ export type VCardSkillGroup = {
   id: string
   type: string
   skills: string[]
+  /** Synced from the corporate team owner. Members can add categories; they cannot delete these. */
+  corporateOwned?: boolean
 }
 
 export type VCardData = {
@@ -336,6 +343,10 @@ export type VCardData = {
   hideOwnerPhotos?: boolean
   /** Team member card: hide corporate-owner videos on this card's editor and public page. */
   hideOwnerVideos?: boolean
+  /** Per owner photo or video hidden from this member's public card. The file stays on the owner card. */
+  hiddenOwnerMedia?: HiddenOwnerMediaLists
+  /** This member chose their own navbar and tabs. Owner sync does not overwrite that choice. */
+  memberNavCustomized?: boolean
   /** Per-card SEO metadata used by the public card head and search previews. */
   seo?: VCardSeo
 }

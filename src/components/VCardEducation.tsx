@@ -45,6 +45,7 @@ export function TabEducation() {
   }
 
   const removeEducation = (id: string) => {
+    if (educations.some((edu) => edu.id === id && edu.corporateOwned)) return
     const next = educations.filter((edu) => edu.id !== id)
     const resolved = next.length ? next : [createDefaultEducationEntry()]
     setEducations(resolved)
@@ -110,10 +111,12 @@ export function TabEducation() {
               <ExpandableEntryHeader
                 indexLabel={index + 1}
                 title={edu.institute || 'New Education Entry'}
-                subtitle={edu.degree}
+                subtitle={
+                  [edu.degree, edu.corporateOwned ? 'Corporate team owner' : ''].filter(Boolean).join(' · ') || null
+                }
                 isExpanded={open}
                 onToggle={() => toggleExpanded(edu.id)}
-                showRemove={educations.length > 1}
+                showRemove={!edu.corporateOwned && educations.length > 1}
                 onRemove={() => removeEducation(edu.id)}
                 accent={accent}
               />

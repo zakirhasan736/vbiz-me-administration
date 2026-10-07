@@ -54,6 +54,7 @@ export function TabReviews() {
   }
 
   const removeReview = (id: string) => {
+    if (reviewsRef.current.some((item) => item.id === id && item.corporateOwned)) return
     const next = reviewsRef.current.filter((r) => r.id !== id)
     setReviews(next)
     recoverExpandedAfterRemove(id, next)
@@ -147,11 +148,15 @@ export function TabReviews() {
                   <ExpandableEntryHeader
                     indexLabel={idx + 1}
                     title={item.author || 'New Review'}
-                    subtitle={stripHtml(item.text || '').slice(0, 48) || null}
+                    subtitle={
+                      [stripHtml(item.text || '').slice(0, 48), item.corporateOwned ? 'Corporate team owner' : '']
+                        .filter(Boolean)
+                        .join(' · ') || null
+                    }
                     mediaUrl={item.imageUrl}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(item.id)}
-                    showRemove
+                    showRemove={!item.corporateOwned}
                     onRemove={() => removeReview(item.id)}
                     accent={accent}
                     dragHandleProps={dragHandleProps}

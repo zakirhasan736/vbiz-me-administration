@@ -20,6 +20,7 @@ export function normalizeEducationList(raw?: VCardEducationEntry[] | null): VCar
     fromDate: entry.fromDate ?? '',
     toDate: entry.toDate ?? '',
     tillNow: Boolean(entry.tillNow),
+    ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),
   }))
 }
 

@@ -63,6 +63,7 @@ export function TabCertificates() {
   }
 
   const removeCert = (id: string) => {
+    if (itemsRef.current.some((item) => item.id === id && item.corporateOwned)) return
     const next = itemsRef.current.filter((c) => c.id !== id)
     persist(next)
     recoverExpandedAfterRemove(id, next)
@@ -148,11 +149,15 @@ export function TabCertificates() {
                   <ExpandableEntryHeader
                     indexLabel={idx + 1}
                     title={item.name || 'New Certificate'}
-                    subtitle={item.issuer || item.year || null}
+                    subtitle={
+                      [item.issuer || item.year, item.corporateOwned ? 'Corporate team owner' : '']
+                        .filter(Boolean)
+                        .join(' · ') || null
+                    }
                     mediaUrl={previewDoc?.url}
                     isExpanded={open}
                     onToggle={() => toggleExpanded(item.id)}
-                    showRemove
+                    showRemove={!item.corporateOwned}
                     onRemove={() => removeCert(item.id)}
                     accent={accent}
                     dragHandleProps={dragHandleProps}

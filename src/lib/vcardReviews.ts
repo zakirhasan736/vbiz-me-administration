@@ -24,6 +24,7 @@ export function normalizeReviewList(raw?: VCardReviewEntry[] | null): VCardRevie
       text: entry.text ?? '',
       imageUrl: entry.imageUrl ?? '',
       url: entry.url ?? '',
+      ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),
     }
   })
 }

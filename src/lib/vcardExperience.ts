@@ -22,6 +22,7 @@ export function normalizeExperienceList(raw?: VCardExperienceEntry[] | null): VC
     fromDate: entry.fromDate ?? '',
     toDate: entry.toDate ?? '',
     tillNow: Boolean(entry.tillNow),
+    ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),
   }))
 }
 

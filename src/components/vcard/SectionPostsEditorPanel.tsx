@@ -10,11 +10,17 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideFromPublicCardButton } from '@/components/vcard/HideFromPublicCardButton'
 import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { stripHtml } from '@/lib/htmlText'
-import { mergeHiddenCorporateOwned, withoutCorporateOwned } from '@/lib/memberMediaVisibility'
+import {
+  hiddenOwnerMediaMatches,
+  mergeHiddenCorporateOwned,
+  toggleHiddenOwnerMedia,
+  withoutCorporateOwned,
+} from '@/lib/memberMediaVisibility'
 import { useVCard } from '@/lib/VCardContext'
 import {
   createDefaultSectionPostItem,
@@ -143,6 +149,8 @@ export function SectionPostsEditorPanel({
   const posts = normalizeSectionPostList(rawPosts)
   const isVideos = schema.key === 'videos'
   const hideOwnerVideos = isVideos && Boolean(vCardData.hideOwnerVideos)
+  const hiddenPhotos = vCardData.hiddenOwnerMedia?.photos || []
+  const hiddenVideos = vCardData.hiddenOwnerMedia?.videos || []
   const hasOwnerVideos = isVideos && posts.some((item) => item.corporateOwned)
   const visiblePosts = withoutCorporateOwned(posts, hideOwnerVideos)
   const a = accentStyles[resolveAccent(schema.accentClass)]
@@ -338,6 +346,31 @@ export function SectionPostsEditorPanel({
                       accent={cardAccent}
                       dragHandleProps={isSingleItem ? undefined : dragHandleProps}
                     />
+                    {isVideos && post.corporateOwned ? (
+                      <div className="border-b border-slate-100 px-4 py-3 sm:px-8 dark:border-white/5">
+                        <HideFromPublicCardButton
+                          hidden={hiddenOwnerMediaMatches(hiddenVideos, {
+                            id: post.id,
+                            title: post.title,
+                            description: post.description,
+                            url: post.url,
+                            featuredImage: post.featuredImage,
+                          })}
+                          onToggle={() =>
+                            updateData('hiddenOwnerMedia', {
+                              photos: hiddenPhotos,
+                              videos: toggleHiddenOwnerMedia(hiddenVideos, {
+                                id: post.id,
+                                title: post.title,
+                                description: post.description,
+                                url: post.url,
+                                featuredImage: post.featuredImage,
+                              }),
+                            })
+                          }
+                        />
+                      </div>
+                    ) : null}
 
                     <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
                       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">

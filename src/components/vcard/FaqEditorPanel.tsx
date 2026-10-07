@@ -61,6 +61,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
   }
 
   const removeFaq = (key: string) => {
+    if (faqsRef.current.some((item) => (item.clientKey || item.id) === key && item.corporateOwned)) return
     const next = faqsRef.current.filter((f) => (f.clientKey || f.id) !== key)
     setFaqs(next)
     recoverExpandedAfterRemove(key, next)
@@ -169,11 +170,15 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                     <ExpandableEntryHeader
                       indexLabel={index + 1}
                       title={faq.question || 'New Question'}
-                      subtitle={stripHtml(faq.answer || '').slice(0, 64) || null}
+                      subtitle={
+                        [stripHtml(faq.answer || '').slice(0, 64), faq.corporateOwned ? 'Corporate team owner' : '']
+                          .filter(Boolean)
+                          .join(' · ') || null
+                      }
                       mediaUrl={faq.featuredImage}
                       isExpanded={open}
                       onToggle={() => toggleExpanded(key)}
-                      showRemove
+                      showRemove={!faq.corporateOwned}
                       onRemove={() => removeFaq(key)}
                       accent={accent}
                       dragHandleProps={dragHandleProps}
