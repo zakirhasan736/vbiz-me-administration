@@ -24,7 +24,7 @@ export function SaveCardPwaModal({
   cardSlug,
   contactJustSaved = false,
 }: SaveCardPwaModalProps) {
-  const { isInstalled, surface, installing, promptInstall } = usePwaInstall()
+  const { isInstalled, isAndroid, surface, installing, promptInstall } = usePwaInstall()
   const [installMessage, setInstallMessage] = useState<string | null>(null)
   const [nativeAdded, setNativeAdded] = useState(false)
   const [offlineReady, setOfflineReady] = useState(false)
@@ -81,7 +81,11 @@ export function SaveCardPwaModal({
     const result = await promptInstall()
     if (result.ok) {
       setNativeAdded(true)
-      setInstallMessage('Added. Open the new icon once so offline mode can finish.')
+      setInstallMessage(
+        isAndroid
+          ? 'Installed. If the icon is only in your app list, follow the steps below to put it on your Home screen.'
+          : 'Added. Open the new icon once so offline mode can finish.'
+      )
       return
     }
     if (result.reason === 'dismissed') {
@@ -170,7 +174,7 @@ export function SaveCardPwaModal({
                   : 'Add to Home Screen'}
           </button>
 
-          <InstallSteps surface={surface} />
+          {isAndroid && added ? <AndroidHomeScreenPlacement label={label} /> : <InstallSteps surface={surface} />}
 
           {installMessage ? (
             <p className="vbiz-description mt-3 text-center text-[12px] font-medium">{installMessage}</p>
@@ -221,9 +225,9 @@ function installGuide(surface: PwaInstallSurface): { title: string; steps: strin
       return {
         title: 'On Android',
         steps: [
-          'Tap Add to Home Screen above.',
-          'In the browser alert, tap Install or Add.',
-          'If no alert shows, open the browser menu and tap Install app.',
+          'Tap Add to Home Screen above, then tap Install.',
+          'If the icon only shows in your app list, press and hold it and drag it to your Home screen.',
+          'Or open the Chrome menu (⋮), tap Add to home screen, choose Create shortcut, then Add.',
         ],
       }
     case 'mac-safari':
@@ -270,6 +274,40 @@ function InstallSteps({ surface }: { surface: PwaInstallSurface }) {
           </li>
         ))}
       </ol>
+    </div>
+  )
+}
+
+/**
+ * Android launchers decide where a newly installed app goes; many only add it to the
+ * app list. A Chrome shortcut or a drag from the app list puts it on the main screen.
+ */
+function AndroidHomeScreenPlacement({ label }: { label: string }) {
+  const steps = [
+    `Open your app list (swipe up on the Home screen) and find ${label}.`,
+    'Press and hold the icon, then drag it onto your Home screen.',
+    'Or in Chrome tap the menu (⋮), Add to home screen, Create shortcut, then Add.',
+  ]
+  return (
+    <div className="vbiz-description rounded-xl border border-white/10 bg-black/20 p-3">
+      <p className="mb-2 flex items-center gap-2 text-[12px] font-semibold">
+        <Home className="h-4 w-4 shrink-0" />
+        Put it on your main Home screen
+      </p>
+      <ol className="space-y-2">
+        {steps.map((step, index) => (
+          <li key={step} className="flex items-start gap-2 text-[12px] leading-snug">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/15 text-[10px] font-bold">
+              {index + 1}
+            </span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-[11px] leading-snug opacity-80">
+        Samsung: Home screen settings, turn on Add new apps to Home screen. Pixel: long-press the Home screen, Home
+        settings, turn on Add app icons to Home screen.
+      </p>
     </div>
   )
 }
