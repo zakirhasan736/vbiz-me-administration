@@ -1,3 +1,7 @@
+import { parseProfileMediaFrame, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
+
+export type { ProfileMediaFrame }
+
 /** Per-theme-mode button/social colors from Card Settings. */
 export type DisplayFieldModeColors = {
   textColor?: string
@@ -21,6 +25,8 @@ export type DisplayFieldConfig = {
   dark?: DisplayFieldModeColors
   /** Home page URL / text overrides */
   customValue?: string
+  /** Avatar image/video crop: drag position, zoom, and frame height. */
+  mediaFrame?: ProfileMediaFrame
 }
 
 export type VCardDisplaySettings = {
@@ -80,6 +86,8 @@ export function normalizeFieldConfig(config: DisplayFieldConfig): DisplayFieldCo
   const dark = normalizeModeColors(config.dark)
   if (light) next.light = light
   if (dark) next.dark = dark
+
+  if (config.mediaFrame) next.mediaFrame = parseProfileMediaFrame(config.mediaFrame)
 
   return next
 }

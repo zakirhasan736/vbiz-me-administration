@@ -2,6 +2,13 @@
 
 import { SkeletonMediaShell, useMediaLoadState } from '@/components/media/SkeletonMedia'
 import { useTranslation } from '@/lib/i18n/translationData'
+import {
+  parseProfileMediaFrame,
+  profileFrameDesktopHeight,
+  profileFramePhoneAspect,
+  profileMediaFitStyle,
+  type ProfileMediaFrame,
+} from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
 import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
@@ -81,15 +88,33 @@ const V3_SOCIAL_ITEMS: V3SocialItem[] = [
   { label: 'Website', title: 'Website', icon: Globe },
 ]
 
-function ProfileMedia({ src, alt, className }: { src: string; alt: string; className?: string }) {
+function ProfileMedia({
+  src,
+  alt,
+  className,
+  mediaFrame,
+}: {
+  src: string
+  alt: string
+  className?: string
+  mediaFrame?: ProfileMediaFrame | null
+}) {
   const encoded = encodeMediaUrl(src)
   const { loaded, markLoaded, markError } = useMediaLoadState(encoded)
+  const fit = mediaFrame ? profileMediaFitStyle(mediaFrame) : null
   if (!encoded) {
     return <div className={`bg-zinc-200 dark:bg-zinc-800 ${className || ''}`} aria-label={alt || 'No profile media'} />
   }
   if (isVideoUrl(encoded)) {
     return (
-      <CustomVideoPlayer src={encoded} imageAlt={alt} controlsMode="owner" showSeekBar={false} className={className} />
+      <CustomVideoPlayer
+        src={encoded}
+        imageAlt={alt}
+        controlsMode="owner"
+        showSeekBar={false}
+        className={className}
+        mediaFrame={mediaFrame}
+      />
     )
   }
   return (
@@ -100,10 +125,12 @@ function ProfileMedia({ src, alt, className }: { src: string; alt: string; class
         fill
         priority
         sizes="(max-width: 767px) 60vw, 300px"
-        className={`${className || 'h-full w-full object-cover'} object-top transition-opacity duration-300 ${
-          loaded ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{ objectPosition: 'top' }}
+        className={
+          fit
+            ? `${className || 'h-full w-full object-cover'} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`
+            : `${className || 'h-full w-full object-cover'} object-top transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`
+        }
+        style={fit ?? { objectPosition: 'top' }}
         onLoadingComplete={markLoaded}
         onError={markError}
       />
@@ -147,6 +174,8 @@ export const HomeHero: React.FC<{
   const coverMediaUrl = encodeMediaUrl(homeMedia.bgMedia || '')
   const coverIsVideo = wallpaper.style === 'video' || isVideoUrl(homeMedia.bgMedia || '')
   const profileIsVideo = Boolean(profileSrc) && isVideoUrl(profileSrc)
+  const avatarFrame = parseProfileMediaFrame(field('Profile Image/Video').mediaFrame)
+  const avatarHeightAdjusted = avatarFrame.height !== 1
   const showName = isVisible('MyInfo section Name') && Boolean(personal.fullName?.trim())
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showCrm = isVisible('CRM')
@@ -411,14 +440,16 @@ export const HomeHero: React.FC<{
           )}
 
           <div
-            className={`relative z-20 mx-auto mb-2 aspect-4/4.5 max-w-60 border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
-              compact ? 'w-[52%]' : 'w-[56%] sm:w-[60%] md:w-[65%]'
-            }`}
+            className={`relative z-20 mx-auto mb-2 max-w-60 overflow-hidden border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
+              avatarHeightAdjusted ? '' : 'aspect-4/4.5'
+            } ${compact ? 'w-[52%]' : 'w-[56%] sm:w-[60%] md:w-[65%]'}`}
+            style={avatarHeightAdjusted ? { aspectRatio: profileFramePhoneAspect(avatarFrame) } : undefined}
           >
             <ProfileMedia
               src={profileSrc}
               alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
               className="h-full w-full object-cover object-top"
+              mediaFrame={field('Profile Image/Video').mediaFrame}
             />
           </div>
 
@@ -516,11 +547,17 @@ export const HomeHero: React.FC<{
         {compact ? null : (
           <div className="relative z-20 mx-auto hidden h-full w-full max-w-258 flex-col justify-between gap-8 px-6 pb-24 md:flex">
             <div className="mt-16 flex items-start gap-12 xl:gap-20">
-              <div className="group relative mt-4 h-80 w-70 shrink-0 overflow-hidden rounded-2xl border-4 border-white/20 bg-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md xl:h-87.5 xl:w-75">
+              <div
+                className={`group relative mt-4 shrink-0 overflow-hidden rounded-2xl border-4 border-white/20 bg-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md ${
+                  avatarHeightAdjusted ? 'w-70 xl:w-75' : 'h-80 w-70 xl:h-87.5 xl:w-75'
+                }`}
+                style={avatarHeightAdjusted ? { height: profileFrameDesktopHeight(avatarFrame) } : undefined}
+              >
                 <ProfileMedia
                   src={profileSrc}
                   alt={personal.fullName ? `${personal.fullName} profile` : 'Profile'}
                   className="h-full w-full object-cover object-top opacity-90 transition-opacity hover:opacity-100"
+                  mediaFrame={field('Profile Image/Video').mediaFrame}
                 />
                 {profileIsVideo && (
                   <div className="border-gold/40 absolute top-3 right-3 z-30 flex items-center gap-1.5 rounded-full border bg-black/60 px-3 py-1.5 shadow-lg backdrop-blur-md transition-colors group-hover:bg-black/80">

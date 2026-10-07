@@ -1,3 +1,4 @@
+import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import Image from 'next/image'
@@ -13,9 +14,12 @@ interface CustomVideoPlayerProps {
    */
   controlsMode?: 'hover' | 'owner'
   showSeekBar?: boolean
+  /** When set, crop uses this position and zoom instead of the default top crop. */
+  mediaFrame?: ProfileMediaFrame | null
 }
 
-function ProfileMediaImage({ src, className = '', imageAlt = 'Profile' }: CustomVideoPlayerProps) {
+function ProfileMediaImage({ src, className = '', imageAlt = 'Profile', mediaFrame }: CustomVideoPlayerProps) {
+  const fit = mediaFrame ? profileMediaFitStyle(mediaFrame) : null
   return (
     <div className={`relative overflow-hidden ${className}`}>
       <Image
@@ -23,8 +27,12 @@ function ProfileMediaImage({ src, className = '', imageAlt = 'Profile' }: Custom
         height={800}
         src={src}
         alt={imageAlt}
-        className="h-full w-full object-cover object-top opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100"
-        style={{ objectPosition: 'top' }}
+        className={
+          fit
+            ? 'h-full w-full object-cover opacity-90'
+            : 'h-full w-full object-cover object-top opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100'
+        }
+        style={fit ?? { objectPosition: 'top' }}
       />
     </div>
   )
@@ -52,6 +60,7 @@ function ProfileVideoPlayer({
   className = '',
   controlsMode = 'hover',
   showSeekBar = true,
+  mediaFrame,
 }: CustomVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -59,6 +68,7 @@ function ProfileVideoPlayer({
   const [isMuted, setIsMuted] = useState(true)
   const [isHovering, setIsHovering] = useState(false)
   const coarsePointer = useCoarsePointer()
+  const fit = mediaFrame ? profileMediaFitStyle(mediaFrame) : null
 
   const isOwnerLayout = controlsMode === 'owner'
   // Touch devices have no hover — keep mute/play reachable on first tap.
@@ -176,7 +186,12 @@ function ProfileVideoPlayer({
         muted={isMuted}
         playsInline
         preload="metadata"
-        className="h-full w-full cursor-pointer object-cover object-top opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100"
+        className={
+          fit
+            ? 'h-full w-full cursor-pointer object-cover opacity-90'
+            : 'h-full w-full cursor-pointer object-cover object-top opacity-90 transition-all duration-700 group-hover/profile:scale-105 group-hover/profile:opacity-100'
+        }
+        style={fit ?? undefined}
         {...{
           'webkit-playsinline': 'true',
           'x5-playsinline': 'true',

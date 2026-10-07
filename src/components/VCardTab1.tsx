@@ -19,7 +19,7 @@ const FIELD_AVATAR = 'Profile Image/Video'
 
 export function Tab1MediaProfile() {
   const { cardId, vCardData, updateData, updateMeta, avatarImageUrl } = useVCard()
-  const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
+  const { display, getCustomValue, setCustomValue, patchField } = useVCardDisplayEditor()
   const templateId = vCardData.appearance?.profileTemplate ?? 'v3'
 
   const profileMediaUrl = getCustomValue(FIELD_BG)
@@ -81,7 +81,10 @@ export function Tab1MediaProfile() {
         <VCardMediaField
           value={profilePicUrl}
           onChange={(url) => {
-            setCustomValue(FIELD_AVATAR, url || '')
+            patchField(FIELD_AVATAR, {
+              customValue: url || '',
+              ...(url ? {} : { mediaFrame: undefined }),
+            })
             updateMeta({ avatarImageUrl: url || '' })
           }}
           profileId={profileId}
@@ -89,13 +92,15 @@ export function Tab1MediaProfile() {
           accept="image/*,video/*"
           allowVideo
           title="Avatar"
-          subtitle="Image or video • no size limit"
+          subtitle="Image or video • drag, zoom, and height"
           icon={<User className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
           iconWrapperClassName="border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"
           selectPlaceholder="Select image"
           previewKind="auto"
           videoAutoPlay
           previewClassName="h-75"
+          mediaFrame={display.fields[FIELD_AVATAR]?.mediaFrame}
+          onMediaFrameChange={(mediaFrame) => patchField(FIELD_AVATAR, { mediaFrame })}
         >
           <MediaSourceActions
             mode="both"

@@ -2,6 +2,8 @@
 
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
+import { AvatarMediaFramePreview } from '@/components/vcard/AvatarMediaFramePreview'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import {
   isVideoFile,
   mediaNeedsClientOptimize,
@@ -43,6 +45,9 @@ export type VCardMediaFieldProps = {
   locked?: boolean
   allowVideo?: boolean
   allowAudio?: boolean
+  /** Avatar crop. When set, the preview is draggable and shows zoom and height controls. */
+  mediaFrame?: ProfileMediaFrame | null
+  onMediaFrameChange?: (frame: ProfileMediaFrame) => void
 }
 
 export function mediaLabel(url: string, fallback: string, fileName?: string | null) {
@@ -124,6 +129,8 @@ export function VCardMediaField({
   locked = false,
   allowVideo = true,
   allowAudio = true,
+  mediaFrame = null,
+  onMediaFrameChange,
 }: VCardMediaFieldProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -188,7 +195,15 @@ export function VCardMediaField({
       const controller = new AbortController()
       abortRef.current = controller
 
-      clearLocalPreview()
+      if (onMediaFrameChange) {
+        const blob = URL.createObjectURL(file)
+        setLocalPreview((prev) => {
+          if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
+          return blob
+        })
+      } else {
+        clearLocalPreview()
+      }
       setLocalFileName(file.name)
       setUploading(true)
       setUploadStage(mediaNeedsClientOptimize(file) ? 'preparing' : 'uploading')
@@ -218,7 +233,7 @@ export function VCardMediaField({
         setUploadStage(null)
       }
     },
-    [allowAudio, allowVideo, attachmentType, clearLocalPreview, onChange, profileId, uploadBlocked]
+    [allowAudio, allowVideo, attachmentType, clearLocalPreview, onChange, onMediaFrameChange, profileId, uploadBlocked]
   )
 
   const clear = async () => {
@@ -352,81 +367,100 @@ export function VCardMediaField({
     </div>
   )
 
-  const previewPanel = (
-    <div
-      className={cn(
-        'group relative flex items-center justify-center overflow-hidden rounded-3xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2',
-        variant === 'column' && !previewClassName && 'aspect-video',
-        variant === 'inset' && !previewClassName && 'min-h-40',
-        previewClassName
-      )}
-    >
-      {uploading ? (
-        <div className="flex w-full flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-          <Loader2 className="text-primary-500 h-10 w-10 animate-spin" />
-          <div>
-            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-              {uploadStage === 'preparing' ? 'Optimizing video…' : 'Uploading…'}
-            </p>
-            <p className="mt-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
-              {uploadStage === 'preparing'
-                ? 'Compressing in the background — preview stays hidden until ready.'
-                : 'Sending to your card…'}
-            </p>
-          </div>
-        </div>
-      ) : displayUrl && resolvedKind === 'video' ? (
-        <video
-          src={displayUrl}
-          controls={!videoAutoPlay}
-          autoPlay={videoAutoPlay}
-          loop={videoAutoPlay}
-          muted={videoAutoPlay}
-          playsInline
-          preload="metadata"
-          className="h-full w-full object-cover"
-        />
-      ) : displayUrl && resolvedKind === 'audio' ? (
-        <div className="flex w-full items-center gap-3 p-6">
-          <Music className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <audio src={displayUrl} controls className="w-full" />
-        </div>
-      ) : displayUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={displayUrl} alt={title || 'Media preview'} className="h-full w-full object-cover" />
-      ) : placeholderImage ? (
-        <>
-          <Image
-            src={placeholderImage}
-            alt=""
-            className="h-full w-full object-cover opacity-10 grayscale transition-all duration-500 group-hover:opacity-20"
-            width={800}
-            height={800}
-          />
-          <PreviewBadge />
-        </>
-      ) : (
-        <>
-          <div className="flex h-full w-full items-center justify-center bg-slate-50/50 dark:bg-white/2">
-            {emptyIcon || <Film className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
-          </div>
-          <PreviewBadge />
-        </>
-      )}
+  const canAdjustFrame =
+    Boolean(onMediaFrameChange) && Boolean(displayUrl) && (resolvedKind === 'image' || resolvedKind === 'video')
 
-      {displayUrl ? (
-        <button
-          type="button"
-          onClick={() => setConfirmOpen(true)}
-          disabled={disabled || uploading}
-          className="absolute top-4 right-4 rounded-full border border-slate-200 bg-white/90 p-2.5 text-slate-900 shadow-lg backdrop-blur-md transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500 active:scale-95 disabled:opacity-50 dark:border-white/10 dark:bg-black/50 dark:text-white dark:hover:border-red-500/50 dark:hover:bg-red-500/20"
-          aria-label="Remove media"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      ) : null}
-    </div>
-  )
+  const previewPanel =
+    canAdjustFrame && onMediaFrameChange ? (
+      <div className="space-y-2">
+        <AvatarMediaFramePreview
+          src={displayUrl}
+          kind={resolvedKind === 'video' ? 'video' : 'image'}
+          frame={mediaFrame}
+          onChange={onMediaFrameChange}
+          alt={title || 'Avatar preview'}
+          removing={disabled || uploading}
+          onRemove={() => setConfirmOpen(true)}
+        />
+        {uploading ? (
+          <UploadProgressBar progress={progress} label={uploadStage === 'preparing' ? 'Optimizing…' : 'Uploading…'} />
+        ) : null}
+      </div>
+    ) : (
+      <div
+        className={cn(
+          'group relative flex items-center justify-center overflow-hidden rounded-3xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2',
+          variant === 'column' && !previewClassName && 'aspect-video',
+          variant === 'inset' && !previewClassName && 'min-h-40',
+          previewClassName
+        )}
+      >
+        {uploading ? (
+          <div className="flex w-full flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+            <Loader2 className="text-primary-500 h-10 w-10 animate-spin" />
+            <div>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                {uploadStage === 'preparing' ? 'Optimizing video…' : 'Uploading…'}
+              </p>
+              <p className="mt-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                {uploadStage === 'preparing'
+                  ? 'Compressing in the background — preview stays hidden until ready.'
+                  : 'Sending to your card…'}
+              </p>
+            </div>
+          </div>
+        ) : displayUrl && resolvedKind === 'video' ? (
+          <video
+            src={displayUrl}
+            controls={!videoAutoPlay}
+            autoPlay={videoAutoPlay}
+            loop={videoAutoPlay}
+            muted={videoAutoPlay}
+            playsInline
+            preload="metadata"
+            className="h-full w-full object-cover"
+          />
+        ) : displayUrl && resolvedKind === 'audio' ? (
+          <div className="flex w-full items-center gap-3 p-6">
+            <Music className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <audio src={displayUrl} controls className="w-full" />
+          </div>
+        ) : displayUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={displayUrl} alt={title || 'Media preview'} className="h-full w-full object-cover" />
+        ) : placeholderImage ? (
+          <>
+            <Image
+              src={placeholderImage}
+              alt=""
+              className="h-full w-full object-cover opacity-10 grayscale transition-all duration-500 group-hover:opacity-20"
+              width={800}
+              height={800}
+            />
+            <PreviewBadge />
+          </>
+        ) : (
+          <>
+            <div className="flex h-full w-full items-center justify-center bg-slate-50/50 dark:bg-white/2">
+              {emptyIcon || <Film className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
+            </div>
+            <PreviewBadge />
+          </>
+        )}
+
+        {displayUrl ? (
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            disabled={disabled || uploading}
+            className="absolute top-4 right-4 rounded-full border border-slate-200 bg-white/90 p-2.5 text-slate-900 shadow-lg backdrop-blur-md transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500 active:scale-95 disabled:opacity-50 dark:border-white/10 dark:bg-black/50 dark:text-white dark:hover:border-red-500/50 dark:hover:bg-red-500/20"
+            aria-label="Remove media"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
+    )
 
   if (variant === 'inset') {
     return (

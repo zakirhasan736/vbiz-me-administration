@@ -454,6 +454,7 @@ export function patchDisplayField(
   if ('iconColor' in patch && patch.iconColor === undefined) delete merged.iconColor
   if ('light' in patch && patch.light === undefined) delete merged.light
   if ('dark' in patch && patch.dark === undefined) delete merged.dark
+  if ('mediaFrame' in patch && patch.mediaFrame === undefined) delete merged.mediaFrame
 
   return {
     ...settings,

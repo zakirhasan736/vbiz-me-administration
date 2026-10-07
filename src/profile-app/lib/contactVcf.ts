@@ -228,20 +228,16 @@ function contactRoleLine(contact: SaveContactCardData): string {
 }
 
 /**
- * iPhone shows X-ABLabel. Android treats an unknown URL type as the custom label,
- * so the public card link is not saved as a second Website.
+ * iPhone shows X-ABLabel. A URL property is what gives the link icon.
+ * Both Website and vCard Url stay URL rows so they share that icon.
  */
 function pushAppleLabeledProp(lines: string[], item: number, prop: string, value: string, label: string) {
   lines.push(`item${item}.${prop}:${escapeVcfValue(value)}`)
   lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
 }
 
-function pushLabeledUrl(lines: string[], item: number, url: string, label: string, customType = false) {
-  if (customType) {
-    lines.push(`item${item}.URL;TYPE="${label}":${escapeVcfValue(url)}`)
-  } else {
-    lines.push(`item${item}.URL:${escapeVcfValue(url)}`)
-  }
+function pushAppleUrl(lines: string[], item: number, url: string, label: string) {
+  lines.push(`item${item}.URL:${escapeVcfValue(url)}`)
   lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
 }
 
@@ -269,6 +265,22 @@ function pushAndroidEmail(lines: string[], email: string) {
 
 function pushAndroidAddress(lines: string[], address: string) {
   lines.push(`ADR;TYPE=${ADDRESS_LABEL}:;;${escapeVcfValue(address)};;;;`)
+}
+
+/**
+ * Website mime keeps the link icon. Type 0 plus the label is the only way
+ * Android shows "Website" and "vCard Url" instead of two Homepage rows.
+ */
+function pushAndroidWebsite(lines: string[], url: string, label: string) {
+  pushAndroidCustom(lines, 'vnd.android.cursor.item/website', [url, '0', label])
+}
+
+function absoluteProfileUrl(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed) return ''
+  if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/$/, '')
+  if (trimmed.startsWith('/')) return `https://app.vbizme.com${trimmed.replace(/\/$/, '')}`
+  return normalizeWebsite(trimmed)
 }
 
 /**
@@ -313,22 +325,22 @@ export function serializeContactVcf(
   const phone = cleanContactText(contact.phone)
   const address = cleanContactText(contact.address)
   const website = cleanContactText(contact.website) ? normalizeWebsite(contact.website || '') : ''
-  const profileUrl = cleanContactText(contact.profileUrl)
+  const profileUrl = absoluteProfileUrl(cleanContactText(contact.profileUrl))
   const cardLink = profileUrl && profileUrl.replace(/\/$/, '') !== website ? profileUrl : ''
 
   let item = 1
   if (platform === 'android') {
-    if (email) pushAndroidEmail(lines, email)
     if (phone) pushAndroidPhone(lines, phone)
+    if (email) pushAndroidEmail(lines, email)
+    if (address) pushAndroidAddress(lines, address)
+    if (website) pushAndroidWebsite(lines, website, WEBSITE_LABEL)
+    if (cardLink) pushAndroidWebsite(lines, cardLink, VCARD_LABEL)
   } else {
-    if (email) pushAppleLabeledProp(lines, item++, 'EMAIL', email, EMAIL_LABEL)
     if (phone) pushAppleLabeledProp(lines, item++, 'TEL', phone, PHONE_LABEL)
-  }
-  if (website) pushLabeledUrl(lines, item++, website, WEBSITE_LABEL)
-  if (cardLink) pushLabeledUrl(lines, item++, cardLink, VCARD_LABEL, true)
-  if (address) {
-    if (platform === 'android') pushAndroidAddress(lines, address)
-    else pushAppleAddress(lines, item++, address, ADDRESS_LABEL)
+    if (email) pushAppleLabeledProp(lines, item++, 'EMAIL', email, EMAIL_LABEL)
+    if (address) pushAppleAddress(lines, item++, address, ADDRESS_LABEL)
+    if (website) pushAppleUrl(lines, item++, website, WEBSITE_LABEL)
+    if (cardLink) pushAppleUrl(lines, item++, cardLink, VCARD_LABEL)
   }
 
   const gender = cleanContactText(contact.gender)
