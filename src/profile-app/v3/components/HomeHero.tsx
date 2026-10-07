@@ -539,7 +539,7 @@ export const HomeHero: React.FC<{
             )}
             {designationLine && (
               <p
-                className={`vbiz-home-description notranslate mb-2 text-[16px] font-medium opacity-90 sm:text-center ${identityColors.professionClassName}`}
+                className={`vbiz-home-description notranslate mb-2 text-center text-[16px] font-medium opacity-90 sm:text-left ${identityColors.professionClassName}`}
                 style={identityColors.professionStyle}
               >
                 {designationLine}
