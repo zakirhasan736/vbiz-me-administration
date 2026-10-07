@@ -181,54 +181,38 @@ export function NotificationFollowModal({
 
               {!showSuccess ? (
                 <>
-                  <div className="mt-1.5 mb-3 flex justify-center">
+                  <div className="mt-1 mb-2 flex justify-center">
                     <div className="relative">
-                      <div className="vbiz-pill-icon flex h-16 w-16 items-center justify-center rounded-2xl border shadow-sm">
-                        <Bell size={28} className="animate-bounce" />
+                      <div className="vbiz-pill-icon flex h-10 w-10 items-center justify-center rounded-xl border shadow-sm">
+                        <Bell size={18} className="animate-bounce" />
                       </div>
-                      <div className="vbiz-modal-icon-chip absolute -top-1.5 -right-1.5 rounded-full p-1 shadow-sm">
-                        <Sparkles size={12} />
+                      <div className="vbiz-modal-icon-chip absolute -top-1 -right-1 rounded-full p-0.5 shadow-sm">
+                        <Sparkles size={9} />
                       </div>
                     </div>
                   </div>
 
                   <div className="mb-3 text-center">
-                    <h3 className="vbiz-title notranslate mb-1 text-xl font-bold tracking-tight">
-                      {iosGuide
-                        ? iosChrome
-                          ? 'Enable Chrome notifications'
-                          : 'Enable iPhone notifications'
-                        : `Follow ${firstName}`}
-                    </h3>
-                    <p className="vbiz-description text-sm leading-relaxed font-medium">
-                      {iosGuide ? (
-                        iosChrome ? (
-                          <>
-                            We&apos;ll ask Chrome to <strong>Allow</strong> notifications, then guide you to Add to Home
-                            Screen so push keeps working on iPhone.
-                          </>
-                        ) : canPromptAllow ? (
-                          <>
-                            You may see Allow in Safari — still add this card to your Home Screen so push keeps working.
-                          </>
-                        ) : (
-                          <>
-                            Safari may not show Allow in the browser tab. Add to Home Screen first, then Allow when you
-                            open the icon.
-                          </>
-                        )
-                      ) : desktopSafari ? (
-                        <>
-                          Tap Enable, then choose <strong>Allow</strong> in Safari. If nothing appears, open Safari →
-                          Settings → Websites → Notifications and allow this site.
-                        </>
-                      ) : (
-                        <>
-                          Be the first to know when <span className="notranslate">{ownerName}</span> card is updated.
-                          Get instant notifications for new links, services, and media.
-                        </>
-                      )}
+                    <h3 className="vbiz-title notranslate mb-1 text-xl font-bold tracking-tight">Follow {firstName}</h3>
+                    <p className="vbiz-description text-xs leading-snug font-medium">
+                      Push notifications and account SMS when <span className="notranslate">{ownerName}</span> updates
+                      this card.
                     </p>
+                  </div>
+
+                  <div className="mb-3 space-y-1.5">
+                    <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
+                      <div className="vbiz-pill-icon flex h-5 w-5 items-center justify-center rounded-md border">
+                        <ShieldCheck size={12} />
+                      </div>
+                      <span className="vbiz-description text-xs font-medium">Privacy Focused & Spam Free</span>
+                    </div>
+                    <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
+                      <div className="vbiz-pill-icon flex h-5 w-5 items-center justify-center rounded-md border">
+                        <Sparkles size={12} />
+                      </div>
+                      <span className="vbiz-description text-xs font-medium">Real-time Platform Updates</span>
+                    </div>
                   </div>
 
                   {iosGuide ? (
@@ -258,51 +242,6 @@ export function NotificationFollowModal({
                       </ol>
                     </div>
                   )}
-
-                  <div className="mb-3 space-y-1.5">
-                    <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
-                      <div className="vbiz-pill-icon flex h-6 w-6 items-center justify-center rounded-md border">
-                        <ShieldCheck size={14} />
-                      </div>
-                      <span className="vbiz-description text-xs font-medium">Privacy Focused & Spam Free</span>
-                    </div>
-                    <div className="vbiz-modal-row flex items-center gap-2 rounded-xl border p-2">
-                      <div className="vbiz-pill-icon flex h-6 w-6 items-center justify-center rounded-md border">
-                        <Sparkles size={14} />
-                      </div>
-                      <span className="vbiz-description text-xs font-medium">Real-time Platform Updates</span>
-                    </div>
-                    <div className="vbiz-modal-row rounded-xl border p-2 text-left">
-                      <p className="vbiz-description text-[11px] leading-snug font-semibold">
-                        Account SMS from vBiz Me LLC, only if you tap Enable.
-                      </p>
-                      <ul className="vbiz-description mt-1 list-disc space-y-0.5 pl-4 text-[11px] leading-snug font-medium">
-                        <li>Sent to the phone number on the account.</li>
-                        <li>Message frequency varies. Msg & data rates may apply.</li>
-                        <li>Reply STOP to opt out, or HELP for help.</li>
-                        <li>Consent is not required to make a purchase.</li>
-                      </ul>
-                      <p className="mt-1.5 text-[11px] font-semibold">
-                        <a
-                          href="https://www.vbizme.com/privacy-policy"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="vbiz-description underline"
-                        >
-                          Privacy Policy
-                        </a>
-                        <span className="vbiz-description"> · </span>
-                        <a
-                          href="https://www.vbizme.com/terms-and-conditions"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="vbiz-description underline"
-                        >
-                          Terms & Conditions
-                        </a>
-                      </p>
-                    </div>
-                  </div>
                   {androidBackup && !iosGuide ? (
                     <IosPushHomeScreenSteps className="mb-3" variant="android-backup" />
                   ) : null}
@@ -345,6 +284,35 @@ export function NotificationFollowModal({
                     >
                       Not Now
                     </button>
+                  </div>
+
+                  <div className="vbiz-modal-row mt-3 rounded-xl border p-2 text-left">
+                    <p className="vbiz-description text-[11px] leading-snug font-semibold">
+                      Account SMS from vBiz Me LLC
+                    </p>
+                    <ul className="vbiz-description mt-1 list-disc space-y-0.5 pl-4 text-[11px] leading-snug font-medium">
+                      <li>Only if you tap Enable. Frequency varies. Msg & data rates may apply.</li>
+                      <li>Reply STOP to opt out or HELP for help. Consent is not required to buy.</li>
+                    </ul>
+                    <p className="mt-1.5 text-[11px] font-semibold">
+                      <a
+                        href="https://www.vbizme.com/privacy-policy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vbiz-description underline"
+                      >
+                        Privacy Policy
+                      </a>
+                      <span className="vbiz-description"> · </span>
+                      <a
+                        href="https://www.vbizme.com/terms-and-conditions"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vbiz-description underline"
+                      >
+                        Terms & Conditions
+                      </a>
+                    </p>
                   </div>
 
                   <p className="vbiz-pin mt-2.5 text-center text-[10px] font-semibold tracking-wider uppercase opacity-80">
