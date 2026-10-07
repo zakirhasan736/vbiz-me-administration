@@ -258,7 +258,7 @@ export function ProfileHeaderV2({
         ) : null}
         {designation ? (
           <p
-            className={`vbiz-home-description mb-0 text-base font-bold sm:mb-4 sm:text-center md:text-lg ${identityColors.professionClassName}`}
+            className={`vbiz-home-description mb-0 text-center text-base font-bold sm:mb-4 sm:text-left md:text-lg ${identityColors.professionClassName}`}
             style={identityColors.professionStyle}
           >
             {designation}

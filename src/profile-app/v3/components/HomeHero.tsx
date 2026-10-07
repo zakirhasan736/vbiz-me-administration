@@ -306,7 +306,7 @@ export const HomeHero: React.FC<{
         >
           <div className="relative h-0 w-full max-w-258">
             <div
-              className={`pointer-events-auto absolute flex flex-col gap-1 ${compact ? 'top-20 right-1' : 'top-4 right-1 md:right-6'}`}
+              className={`pointer-events-auto absolute flex flex-col gap-1 sm:gap-2 ${compact ? 'top-20 right-1' : 'top-4 right-1 md:right-6'}`}
             >
               {/* Fixed rail: Eye → World (website) → Language → CRM → Theme */}
               <IconHoverTooltip label="Total views" placement="left">
@@ -587,7 +587,7 @@ export const HomeHero: React.FC<{
                 )}
                 {designationLine && (
                   <p
-                    className={`vbiz-home-description notranslate mb-5 ml-1 w-fit text-[20px] font-bold sm:text-center xl:text-[24px] ${identityColors.professionClassName}`}
+                    className={`vbiz-home-description notranslate mb-5 ml-1 w-fit text-center text-[20px] font-bold sm:text-left xl:text-[24px] ${identityColors.professionClassName}`}
                     style={identityColors.professionStyle}
                   >
                     {designationLine}
