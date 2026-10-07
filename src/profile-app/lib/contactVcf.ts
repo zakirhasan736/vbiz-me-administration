@@ -204,19 +204,37 @@ async function fetchImageAsBase64(imageUrl: string): Promise<VcfPhoto | null> {
 
 export type ContactVcfPlatform = 'apple' | 'android'
 
+const WEBSITE_LABEL = 'Website'
+const VCARD_LABEL = 'vCard'
+
 /**
  * iPhone and Mac Contacts show the group label from X-ABLabel.
- * Android Contacts ignores that label and saves every URL row as Website.
- * Android only keeps a custom name from X-ANDROID-CUSTOM (type 0 = custom label).
+ * A plain URL row is always saved as Website on Android, so the card link
+ * uses X-ANDROID-CUSTOM type 0 (custom) with the label in data3.
+ * Colons in the URL are escaped; Android unescapes \: when it imports.
  */
 function pushAppleLabeledUrl(lines: string[], item: number, url: string, label: string) {
   lines.push(`item${item}.URL:${escapeVcfValue(url)}`)
   lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
 }
 
+function escapeAndroidCustomField(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n')
+    .replace(/:/g, '\\:')
+}
+
 function pushAndroidCustomUrl(lines: string[], url: string, label: string) {
-  const fields = ['vnd.android.cursor.item/website', url, '0', label].map(escapeVcfValue)
-  lines.push(`X-ANDROID-CUSTOM:${fields.join(';')}`)
+  const payload = [
+    'vnd.android.cursor.item/website',
+    escapeAndroidCustomField(url),
+    '0',
+    escapeAndroidCustomField(label),
+  ].join(';')
+  lines.push(`X-ANDROID-CUSTOM:${payload};;;;;;;;;;;;`)
 }
 
 /**
@@ -245,11 +263,11 @@ export function serializeContactVcf(
   const cardLink = profileUrl && profileUrl.replace(/\/$/, '') !== website ? profileUrl : ''
   if (platform === 'android') {
     if (website) lines.push(`URL:${escapeVcfValue(website)}`)
-    if (cardLink) pushAndroidCustomUrl(lines, cardLink, 'vCard URL')
+    if (cardLink) pushAndroidCustomUrl(lines, cardLink, VCARD_LABEL)
   } else {
     let urlItem = 1
-    if (website) pushAppleLabeledUrl(lines, urlItem++, website, 'Website')
-    if (cardLink) pushAppleLabeledUrl(lines, urlItem, cardLink, 'vCard URL')
+    if (website) pushAppleLabeledUrl(lines, urlItem++, website, WEBSITE_LABEL)
+    if (cardLink) pushAppleLabeledUrl(lines, urlItem, cardLink, VCARD_LABEL)
   }
   if (contact.address?.trim()) {
     lines.push(`ADR;TYPE=WORK:;;${escapeVcfValue(contact.address.trim())};;;;`)

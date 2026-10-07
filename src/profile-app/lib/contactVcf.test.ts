@@ -69,7 +69,7 @@ describe('contact VCF photo', () => {
     expect(vcf).toContain('item1.URL:https://analytical.example')
     expect(vcf).toContain('item1.X-ABLabel:Website')
     expect(vcf).toContain('item2.URL:https://vbiz.me/v/ada')
-    expect(vcf).toContain('item2.X-ABLabel:vCard URL')
+    expect(vcf).toContain('item2.X-ABLabel:vCard')
     expect(vcf).not.toMatch(/^URL:/m)
     expect(vcf).toContain('ADR;TYPE=WORK:;;London\\, UK;;;;')
     expect(vcf).not.toContain('NOTE:')
@@ -78,7 +78,7 @@ describe('contact VCF photo', () => {
     expect(vcf.startsWith('BEGIN:VCARD\r\nVERSION:3.0')).toBe(true)
   })
 
-  it('labels the card link vCard URL and the site Website in an Android contact file', () => {
+  it('labels the card link vCard and the site Website in an Android contact file', () => {
     const vcf = serializeContactVcf(
       {
         name: 'Ada Lovelace',
@@ -98,7 +98,7 @@ describe('contact VCF photo', () => {
 
     expect(vcf).toContain('URL:https://www.vbizme.com')
     expect(vcf).toContain(
-      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://app.vbizme.com/vCard/ada;0;vCard URL'
+      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https\\://app.vbizme.com/vCard/ada;0;vCard;;;;;;;;;;;;'
     )
     expect(vcf).not.toContain('item1.URL:https://app.vbizme.com/vCard/ada')
     expect(vcf).not.toContain('X-ABLabel:Website')

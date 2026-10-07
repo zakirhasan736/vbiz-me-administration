@@ -63,9 +63,10 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     title: 'Mission Statement',
     description: 'Share your company mission and purpose on the public profile.',
     addLabel: 'Add Mission',
-    emptyTitle: 'No mission entries yet',
-    emptyHint: 'Add a mission statement for your public profile.',
+    emptyTitle: 'No mission statement yet',
+    emptyHint: 'Add the mission statement for your public profile.',
     accentClass: 'violet',
+    maxItems: 1,
   }),
   additional: schema({
     key: 'additional',

@@ -15,6 +15,7 @@ import { HideFromPublicCardButton } from '@/components/vcard/HideFromPublicCardB
 import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
 import { stripHtml } from '@/lib/htmlText'
 import {
   hiddenOwnerMediaMatches,
@@ -181,11 +182,18 @@ export function SectionPostsEditorPanel({
   }
 
   const isSingleItem = schema.maxItems === 1
-  const canAdd = !isSingleItem && (schema.maxItems == null || posts.length < schema.maxItems)
+  const memberCard = isCorporateGroupMemberCard({
+    duplicatedFrom: (vCardData as { duplicatedFrom?: string | null }).duplicatedFrom,
+    profileUserId: (vCardData as { profileUserId?: string | null }).profileUserId,
+    companyUserId: (vCardData as { companyUserId?: string | null }).companyUserId,
+  })
+  const lockOwnerForm = memberCard && isSingleItem
+  const canAdd = !lockOwnerForm && !isSingleItem && (schema.maxItems == null || posts.length < schema.maxItems)
 
-  // Single-item sections (e.g. 2D Explainer): always keep one form — no Add button.
+  // Single-item sections (e.g. 2D Explainer): the corporate owner keeps one form.
+  // A corporate member only views that form.
   useEffect(() => {
-    if (!isSingleItem) return
+    if (!isSingleItem || lockOwnerForm) return
     if (posts.length === 0) {
       const next = createDefaultSectionPostItem()
       onPostsChange([next])
@@ -195,7 +203,7 @@ export function SectionPostsEditorPanel({
     if (posts.length > 1) {
       onPostsChange(posts.slice(0, 1))
     }
-  }, [isSingleItem, posts, onPostsChange, expandNew])
+  }, [isSingleItem, lockOwnerForm, posts, onPostsChange, expandNew])
 
   const addPost = () => {
     if (!canAdd) return
@@ -267,7 +275,27 @@ export function SectionPostsEditorPanel({
       </div>
 
       <div className="flex flex-1 flex-col">
-        {visiblePosts.length === 0 ? (
+        {lockOwnerForm ? (
+          posts.length === 0 ? (
+            <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-8 text-center text-sm font-medium text-slate-500 shadow-sm dark:border-white/5 dark:bg-white/2 dark:text-slate-400">
+              The corporate owner has not added this yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <section
+                  key={post.id}
+                  className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6 dark:border-white/10 dark:bg-[#0b0f19]"
+                >
+                  <CorporateOwnerContentView
+                    lines={[post.title, stripHtml(post.description || ''), post.url]}
+                    imageUrl={post.featuredImage}
+                  />
+                </section>
+              ))}
+            </div>
+          )
+        ) : visiblePosts.length === 0 ? (
           isSingleItem ? (
             <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-8 text-center text-sm font-medium text-slate-500 shadow-sm dark:border-white/5 dark:bg-white/2 dark:text-slate-400">
               Preparing form…
