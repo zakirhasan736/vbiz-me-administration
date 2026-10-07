@@ -44,7 +44,7 @@ export function isInAppBrowser(ua = readUserAgent()) {
 
 export function isStandaloneDisplay() {
   if (typeof window === 'undefined') return false
-  const media = window.matchMedia('(display-mode: standalone)').matches
+  const media = typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches
   const iosStandalone =
     'standalone' in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
   return media || iosStandalone
@@ -53,27 +53,37 @@ export function isStandaloneDisplay() {
 const HOME_SCREEN_ADDED_KEY = 'vbiz_home_screen_added'
 const HOME_SCREEN_AFTER_CONTACT_KEY = 'vbiz_home_screen_after_contact'
 
-export function markCardOnHomeScreen(): void {
+/** Drop the old "already added" flag. Deleting the Home Screen icon cannot clear it. */
+function forgetStaleHomeScreenFlag(): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(HOME_SCREEN_ADDED_KEY, '1')
+    window.localStorage.removeItem(HOME_SCREEN_ADDED_KEY)
   } catch {
     /* private mode */
   }
 }
 
-/** True once this browser has opened the card from the Home Screen icon, or finished Install. */
+export function markCardOnHomeScreen(): void {
+  forgetStaleHomeScreenFlag()
+  if (typeof window === 'undefined') return
+  window.__vbizPwa = window.__vbizPwa || { prompt: null, installed: false, available: false }
+  window.__vbizPwa.installed = true
+}
+
+/**
+ * True only while this visit can see the icon is still installed:
+ * opened from the Home Screen, or Install just finished on this page.
+ * A saved flag is never trusted — removing the icon must bring the popup back.
+ */
 export function isCardOnHomeScreen(): boolean {
   if (typeof window === 'undefined') return false
-  if (isStandaloneDisplay() || window.__vbizPwa?.installed === true) {
-    markCardOnHomeScreen()
-    return true
-  }
-  try {
-    return window.localStorage.getItem(HOME_SCREEN_ADDED_KEY) === '1'
-  } catch {
+  forgetStaleHomeScreenFlag()
+  if (isStandaloneDisplay()) return true
+  if (window.__vbizPwa?.available === true || window.__vbizPwa?.prompt) {
+    window.__vbizPwa.installed = false
     return false
   }
+  return window.__vbizPwa?.installed === true
 }
 
 export function markHomeScreenPromptAfterContact(): void {

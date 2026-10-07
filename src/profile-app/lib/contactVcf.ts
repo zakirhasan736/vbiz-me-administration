@@ -204,37 +204,96 @@ async function fetchImageAsBase64(imageUrl: string): Promise<VcfPhoto | null> {
 
 export type ContactVcfPlatform = 'apple' | 'android'
 
+const PROFESSION_LABEL = 'Profession'
+const DESIGNATION_LABEL = 'Designation'
+const EMAIL_LABEL = 'Email'
+const PHONE_LABEL = 'Phone'
+const ADDRESS_LABEL = 'Address'
 const WEBSITE_LABEL = 'Website'
-const VCARD_LABEL = 'vCard'
+const VCARD_LABEL = 'vCard url'
+
+function cleanContactText(value?: string | null): string {
+  return (value || '')
+    .replace(/\s*\|\|\s*/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+/** Profession on the public card, then designation only when it is a different value. */
+function contactRoleLines(contact: SaveContactCardData): { profession: string; designation: string } {
+  const profession = cleanContactText(contact.profession)
+  const designation = cleanContactText(contact.designation)
+  const professionValue = profession || designation
+  const designationValue = designation && designation !== professionValue ? designation : ''
+  return { profession: professionValue, designation: designationValue }
+}
 
 /**
- * iPhone and Mac Contacts show the group label from X-ABLabel.
- * A plain URL row is always saved as Website on Android, so the card link
- * uses X-ANDROID-CUSTOM type 0 (custom) with the label in data3.
- * Colons in the URL are escaped; Android unescapes \: when it imports.
+ * iPhone shows the group label from X-ABLabel.
+ * A plain URL row is always saved as Website on Android, so the public card
+ * link uses X-ANDROID-CUSTOM type 0 with the label in data3.
+ * Android splits that row on semicolons only, so the URL keeps its colons.
  */
+function pushAppleLabeledProp(lines: string[], item: number, prop: string, value: string, label: string) {
+  lines.push(`item${item}.${prop}:${escapeVcfValue(value)}`)
+  lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
+}
+
 function pushAppleLabeledUrl(lines: string[], item: number, url: string, label: string) {
-  lines.push(`item${item}.URL:${escapeVcfValue(url)}`)
+  pushAppleLabeledProp(lines, item, 'URL', url, label)
+}
+
+function pushAppleAddress(lines: string[], item: number, address: string, label: string) {
+  lines.push(`item${item}.ADR:;;${escapeVcfValue(address)};;;;`)
+  lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
+}
+
+/** Custom text row. iPhone shows X-ABLabel; the value is not a phone or link. */
+function pushAppleTextLabel(lines: string[], item: number, value: string, label: string) {
+  lines.push(`item${item}.X-ABRELATEDNAMES:${escapeVcfValue(value)}`)
   lines.push(`item${item}.X-ABLabel:${escapeVcfValue(label)}`)
 }
 
 function escapeAndroidCustomField(value: string): string {
-  return value
-    .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\\;')
-    .replace(/,/g, '\\,')
-    .replace(/\r?\n/g, '\\n')
-    .replace(/:/g, '\\:')
+  return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
+}
+
+function pushAndroidCustom(lines: string[], mime: string, data: string[]) {
+  const payload = [mime, ...data.map((part) => escapeAndroidCustomField(part))].join(';')
+  lines.push(`X-ANDROID-CUSTOM:${payload};;;;;;;;;;;;`)
 }
 
 function pushAndroidCustomUrl(lines: string[], url: string, label: string) {
-  const payload = [
-    'vnd.android.cursor.item/website',
-    escapeAndroidCustomField(url),
-    '0',
-    escapeAndroidCustomField(label),
-  ].join(';')
-  lines.push(`X-ANDROID-CUSTOM:${payload};;;;;;;;;;;;`)
+  pushAndroidCustom(lines, 'vnd.android.cursor.item/website', [url, '0', label])
+}
+
+function pushAndroidTextLabel(lines: string[], value: string, label: string) {
+  pushAndroidCustom(lines, 'vnd.android.cursor.item/relation', [value, '0', label])
+}
+
+function pushAndroidPhone(lines: string[], phone: string) {
+  pushAndroidCustom(lines, 'vnd.android.cursor.item/phone_v2', [phone, '0', PHONE_LABEL])
+}
+
+function pushAndroidEmail(lines: string[], email: string) {
+  pushAndroidCustom(lines, 'vnd.android.cursor.item/email_v2', [email, '0', EMAIL_LABEL])
+}
+
+function pushAndroidAddress(lines: string[], address: string) {
+  lines.push(`ADR;TYPE=${ADDRESS_LABEL}:;;${escapeVcfValue(address)};;;;`)
+}
+
+/**
+ * Android Contacts appends folded PHOTO lines onto the address.
+ * One BASE64 line stays the picture. iPhone still needs folded ENCODING=b.
+ */
+function pushContactPhoto(lines: string[], photo: VcfPhoto, platform: ContactVcfPlatform) {
+  const base64 = photo.base64.replace(/\s+/g, '')
+  if (platform === 'android') {
+    lines.push(`PHOTO;ENCODING=BASE64;TYPE=${photo.type}:${base64}`)
+    return
+  }
+  lines.push(foldVcfLine(`PHOTO;ENCODING=b;TYPE=${photo.type}:${base64}`))
 }
 
 /**
@@ -247,37 +306,48 @@ export function serializeContactVcf(
   photo?: VcfPhoto | null,
   options?: { platform?: ContactVcfPlatform }
 ): string {
-  const { first, last } = splitFullName(contact.name)
+  const name = cleanContactText(contact.name)
+  const { first, last } = splitFullName(name)
   const lines: string[] = ['BEGIN:VCARD', 'VERSION:3.0', 'PRODID:-//vBiz Me//Save Contact//EN']
 
   lines.push(`N:${escapeVcfValue(last)};${escapeVcfValue(first)};;;`)
-  lines.push(`FN:${escapeVcfValue(contact.name)}`)
+  lines.push(`FN:${escapeVcfValue(name)}`)
 
-  if (contact.company?.trim()) lines.push(`ORG:${escapeVcfValue(contact.company.trim())}`)
-  if (contact.profession?.trim()) lines.push(`TITLE:${escapeVcfValue(contact.profession.trim())}`)
-  if (contact.phone?.trim()) lines.push(`TEL;TYPE=CELL:${escapeVcfValue(contact.phone.trim())}`)
-  if (contact.email?.trim()) lines.push(`EMAIL;TYPE=INTERNET:${escapeVcfValue(contact.email.trim())}`)
+  const company = cleanContactText(contact.company)
+  if (company) lines.push(`ORG:${escapeVcfValue(company)}`)
+
   const platform = options?.platform === 'android' ? 'android' : 'apple'
-  const website = contact.website?.trim() ? normalizeWebsite(contact.website) : ''
-  const profileUrl = contact.profileUrl?.trim() || ''
+  if (photo?.base64) pushContactPhoto(lines, photo, platform)
+
+  const { profession, designation } = contactRoleLines(contact)
+  const email = cleanContactText(contact.email)
+  const phone = cleanContactText(contact.phone)
+  const address = cleanContactText(contact.address)
+  const website = cleanContactText(contact.website) ? normalizeWebsite(contact.website || '') : ''
+  const profileUrl = cleanContactText(contact.profileUrl)
   const cardLink = profileUrl && profileUrl.replace(/\/$/, '') !== website ? profileUrl : ''
+
   if (platform === 'android') {
+    if (profession) pushAndroidTextLabel(lines, profession, PROFESSION_LABEL)
+    if (designation) pushAndroidTextLabel(lines, designation, DESIGNATION_LABEL)
+    if (email) pushAndroidEmail(lines, email)
+    if (phone) pushAndroidPhone(lines, phone)
     if (website) lines.push(`URL:${escapeVcfValue(website)}`)
     if (cardLink) pushAndroidCustomUrl(lines, cardLink, VCARD_LABEL)
+    if (address) pushAndroidAddress(lines, address)
   } else {
-    let urlItem = 1
-    if (website) pushAppleLabeledUrl(lines, urlItem++, website, WEBSITE_LABEL)
-    if (cardLink) pushAppleLabeledUrl(lines, urlItem, cardLink, VCARD_LABEL)
-  }
-  if (contact.address?.trim()) {
-    lines.push(`ADR;TYPE=WORK:;;${escapeVcfValue(contact.address.trim())};;;;`)
+    let item = 1
+    if (profession) pushAppleTextLabel(lines, item++, profession, PROFESSION_LABEL)
+    if (designation) pushAppleTextLabel(lines, item++, designation, DESIGNATION_LABEL)
+    if (email) pushAppleLabeledProp(lines, item++, 'EMAIL', email, EMAIL_LABEL)
+    if (phone) pushAppleLabeledProp(lines, item++, 'TEL', phone, PHONE_LABEL)
+    if (website) pushAppleLabeledUrl(lines, item++, website, WEBSITE_LABEL)
+    if (cardLink) pushAppleLabeledUrl(lines, item++, cardLink, VCARD_LABEL)
+    if (address) pushAppleAddress(lines, item++, address, ADDRESS_LABEL)
   }
 
-  if (contact.gender?.trim()) lines.push(`X-GENDER:${escapeVcfValue(contact.gender.trim())}`)
-
-  if (photo?.base64) {
-    lines.push(foldVcfLine(`PHOTO;ENCODING=b;TYPE=${photo.type}:${photo.base64.replace(/\s+/g, '')}`))
-  }
+  const gender = cleanContactText(contact.gender)
+  if (gender) lines.push(`X-GENDER:${escapeVcfValue(gender)}`)
 
   lines.push(
     `REV:${new Date()

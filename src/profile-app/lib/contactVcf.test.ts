@@ -64,21 +64,120 @@ describe('contact VCF photo', () => {
     expect(vcf).toContain('VERSION:3.0')
     expect(vcf).toContain('FN:Ada Lovelace')
     expect(vcf).toContain('ORG:Analytical')
-    expect(vcf).toContain('TEL;TYPE=CELL:+15555550100')
-    expect(vcf).toContain('EMAIL;TYPE=INTERNET:ada@example.com')
-    expect(vcf).toContain('item1.URL:https://analytical.example')
-    expect(vcf).toContain('item1.X-ABLabel:Website')
-    expect(vcf).toContain('item2.URL:https://vbiz.me/v/ada')
-    expect(vcf).toContain('item2.X-ABLabel:vCard')
+    expect(vcf).toContain('item1.X-ABRELATEDNAMES:Mathematician')
+    expect(vcf).toContain('item1.X-ABLabel:Profession')
+    expect(vcf).toContain('item2.EMAIL:ada@example.com')
+    expect(vcf).toContain('item2.X-ABLabel:Email')
+    expect(vcf).toContain('item3.TEL:+15555550100')
+    expect(vcf).toContain('item3.X-ABLabel:Phone')
+    expect(vcf).toContain('item4.URL:https://analytical.example')
+    expect(vcf).toContain('item4.X-ABLabel:Website')
+    expect(vcf).toContain('item5.URL:https://vbiz.me/v/ada')
+    expect(vcf).toContain('item5.X-ABLabel:vCard url')
     expect(vcf).not.toMatch(/^URL:/m)
-    expect(vcf).toContain('ADR;TYPE=WORK:;;London\\, UK;;;;')
+    expect(vcf).toContain('item6.ADR:;;London\\, UK;;;;')
+    expect(vcf).toContain('item6.X-ABLabel:Address')
     expect(vcf).not.toContain('NOTE:')
+    expect(vcf).not.toContain('TITLE:')
     expect(vcf).toContain('PHOTO;ENCODING=b;TYPE=JPEG:abc123')
     expect(vcf).not.toContain('CHARSET=UTF-8')
     expect(vcf.startsWith('BEGIN:VCARD\r\nVERSION:3.0')).toBe(true)
   })
 
-  it('labels the card link vCard and the site Website in an Android contact file', () => {
+  it('uses public-card labels and does not repeat designation when it is the profession', () => {
+    const contact = {
+      name: 'Mike Donnelly',
+      email: 'mdonnelly@thepaddockcars.com',
+      phone: '(860) 918-5253',
+      company: 'The Paddock Classic Car Restoration',
+      profession: 'President',
+      designation: 'President',
+      gender: '',
+      website: 'www.thepaddockcars.com',
+      slug: 'paddock',
+      profileUrl: 'https://app.vbizme.com/vCard/paddock',
+      imageUrl: '',
+      address: '285 Columbus Boulevard, New Britain, Connecticut, 06051',
+    }
+    const apple = serializeContactVcf(contact, { base64: 'abc123', type: 'JPEG' })
+    expect(apple).toContain('FN:Mike Donnelly')
+    expect(apple).toContain('PHOTO;ENCODING=b;TYPE=JPEG:abc123')
+    expect(apple).toContain('item1.X-ABRELATEDNAMES:President')
+    expect(apple).toContain('item1.X-ABLabel:Profession')
+    expect(apple).not.toContain('X-ABLabel:Designation')
+    expect(apple).toContain('ORG:The Paddock Classic Car Restoration')
+    expect(apple).toContain('item2.X-ABLabel:Email')
+    expect(apple).toContain('item2.EMAIL:mdonnelly@thepaddockcars.com')
+    expect(apple).toContain('item3.X-ABLabel:Phone')
+    expect(apple).toContain('item3.TEL:(860) 918-5253')
+    expect(apple).toContain('item4.X-ABLabel:Website')
+    expect(apple).toContain('item4.URL:https://www.thepaddockcars.com')
+    expect(apple).toContain('item5.X-ABLabel:vCard url')
+    expect(apple).toContain('item5.URL:https://app.vbizme.com/vCard/paddock')
+    expect(apple).toContain('item6.X-ABLabel:Address')
+    expect(apple).toContain('item6.ADR:;;285 Columbus Boulevard\\, New Britain\\, Connecticut\\, 06051;;;;')
+
+    const android = serializeContactVcf(contact, null, { platform: 'android' })
+    expect(android).toContain('X-ANDROID-CUSTOM:vnd.android.cursor.item/relation;President;0;Profession;;;;;;;;;;;;')
+    expect(android).not.toContain('Designation')
+    expect(android).toContain(
+      'X-ANDROID-CUSTOM:vnd.android.cursor.item/email_v2;mdonnelly@thepaddockcars.com;0;Email;;;;;;;;;;;;'
+    )
+    expect(android).toContain('X-ANDROID-CUSTOM:vnd.android.cursor.item/phone_v2;(860) 918-5253;0;Phone;;;;;;;;;;;;')
+    expect(android).toContain('URL:https://www.thepaddockcars.com')
+    expect(android).toContain(
+      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://app.vbizme.com/vCard/paddock;0;vCard url;;;;;;;;;;;;'
+    )
+    expect(android).toContain('ADR;TYPE=Address:;;285 Columbus Boulevard\\, New Britain\\, Connecticut\\, 06051;;;;')
+    expect(android).not.toContain('postal-address_v2')
+  })
+
+  it('keeps photo data out of the address on Android', () => {
+    const vcf = serializeContactVcf(
+      {
+        name: 'Mike Donnelly',
+        email: '',
+        phone: '',
+        company: '',
+        profession: '',
+        gender: '',
+        website: '',
+        slug: 'paddock',
+        profileUrl: '',
+        imageUrl: '',
+        address: '285 Columbus Boulevard, New Britain, Connecticut, 06051',
+      },
+      { base64: `AAgAAYdpAAQA${'A'.repeat(180)}`, type: 'JPEG' },
+      { platform: 'android' }
+    )
+    const adr = vcf.split(/\r?\n/).find((line) => line.startsWith('ADR'))
+    expect(adr).toBe('ADR;TYPE=Address:;;285 Columbus Boulevard\\, New Britain\\, Connecticut\\, 06051;;;;')
+    expect(adr).not.toContain('AAgAAYdpAAQA')
+    const photoLines = vcf.split(/\r?\n/).filter((line) => line.startsWith('PHOTO') || line.startsWith(' '))
+    expect(photoLines).toEqual([expect.stringMatching(/^PHOTO;ENCODING=BASE64;TYPE=JPEG:AAgAAYdpAAQA/)])
+  })
+
+  it('keeps designation when it is different from profession', () => {
+    const vcf = serializeContactVcf({
+      name: 'Ada Lovelace',
+      email: '',
+      phone: '',
+      company: '',
+      profession: 'Mathematician',
+      designation: 'President',
+      gender: '',
+      website: '',
+      slug: 'ada',
+      profileUrl: '',
+      imageUrl: '',
+    })
+    expect(vcf).toContain('item1.X-ABLabel:Profession')
+    expect(vcf).toContain('item1.X-ABRELATEDNAMES:Mathematician')
+    expect(vcf).toContain('item2.X-ABLabel:Designation')
+    expect(vcf).toContain('item2.X-ABRELATEDNAMES:President')
+  })
+
+  it('labels the public card link vCard url and the site Website in an Android contact file', () => {
     const vcf = serializeContactVcf(
       {
         name: 'Ada Lovelace',
@@ -98,8 +197,9 @@ describe('contact VCF photo', () => {
 
     expect(vcf).toContain('URL:https://www.vbizme.com')
     expect(vcf).toContain(
-      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https\\://app.vbizme.com/vCard/ada;0;vCard;;;;;;;;;;;;'
+      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://app.vbizme.com/vCard/ada;0;vCard url;;;;;;;;;;;;'
     )
+    expect(vcf).not.toContain('X-ABLabel:vCard url')
     expect(vcf).not.toContain('item1.URL:https://app.vbizme.com/vCard/ada')
     expect(vcf).not.toContain('X-ABLabel:Website')
   })

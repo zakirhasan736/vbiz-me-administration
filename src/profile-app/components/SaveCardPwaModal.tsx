@@ -166,9 +166,11 @@ export function SaveCardPwaModal({
               Add this card to your Home Screen
             </h3>
             <p className="vbiz-description mt-1 text-xs leading-snug">
-              {contactJustSaved
-                ? 'Contact saved. Open it in one tap, even offline.'
-                : 'Open it in one tap, keep it offline, and get the latest updates.'}
+              {isInstalled || added
+                ? 'This card is already on your Home Screen. Open it from the icon.'
+                : contactJustSaved
+                  ? 'Contact saved. Add this card to your Home Screen to open it in one tap, even offline.'
+                  : 'Open it in one tap, keep it offline, and get the latest updates.'}
             </p>
           </div>
 

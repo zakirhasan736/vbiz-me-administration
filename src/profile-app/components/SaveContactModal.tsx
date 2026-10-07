@@ -1,6 +1,6 @@
 'use client'
 
-import { isCardOnHomeScreen, markHomeScreenPromptAfterContact } from '@/lib/pwa/pwaInstallEnv'
+import { markHomeScreenPromptAfterContact } from '@/lib/pwa/pwaInstallEnv'
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { hasSavedContact, markContactSaved } from '@/profile-app/lib/contactSaveState'
@@ -87,12 +87,11 @@ export const SaveContactModal = ({
     const trimmedId = profileId?.trim()
     setSubmitting(true)
     setSubmitError(null)
-    const showHomeScreen = !isCardOnHomeScreen()
 
     try {
       if (!trimmedId || trimmedId === 'preview') {
         notify.success('Contact file ready.')
-        finishSuccess({ continueFlow: showHomeScreen })
+        finishSuccess({ continueFlow: true })
         return
       }
 
@@ -109,7 +108,7 @@ export const SaveContactModal = ({
         /* VCF download still records the lead server-side */
       }
 
-      if (showHomeScreen) markHomeScreenPromptAfterContact()
+      markHomeScreenPromptAfterContact()
       openContactVcfFromApi(trimmedId, vcfFilenameFromName(ownerName), {
         fullName: formData.fullName,
         phone: formData.phone,
@@ -123,7 +122,7 @@ export const SaveContactModal = ({
       })
       setAlreadySaved(true)
       notify.success('Contact file downloading.')
-      finishSuccess({ continueFlow: showHomeScreen })
+      finishSuccess({ continueFlow: true })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to download contact. Please try again.'
       setSubmitError(message)

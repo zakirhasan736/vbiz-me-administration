@@ -3,11 +3,7 @@
 import { RequestOneOnOneModal } from '@/components/public/RequestOneOnOneModal'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { writeContactFlowAsked } from '@/lib/push/config'
-import {
-  clearHomeScreenPromptAfterContact,
-  homeScreenPromptAfterContactPending,
-  isCardOnHomeScreen,
-} from '@/lib/pwa/pwaInstallEnv'
+import { clearHomeScreenPromptAfterContact, homeScreenPromptAfterContactPending } from '@/lib/pwa/pwaInstallEnv'
 import { DoneModal } from '@/profile-app/components/DoneModal'
 import { InfoModal } from '@/profile-app/components/InfoModal'
 import { NotificationAskModal } from '@/profile-app/components/NotificationAskModal'
@@ -66,13 +62,7 @@ export function ProfileHomeModals({
   const [pwaOpenedAfterContactSave, setPwaOpenedAfterContactSave] = useState(false)
   const [returnTick, setReturnTick] = useState(0)
   const promptPending = homeScreenPromptAfterContactPending()
-  const alreadyOnHomeScreen = isCardOnHomeScreen()
-
-  if (promptPending && alreadyOnHomeScreen) {
-    clearHomeScreenPromptAfterContact()
-  }
-
-  const offerAfterDownload = promptPending && !alreadyOnHomeScreen && returnTick >= 0
+  const offerAfterDownload = promptPending && returnTick >= 0
   if (offerAfterDownload && !pwaOpenedAfterContactSave) {
     setPwaOpenedAfterContactSave(true)
   }
@@ -101,11 +91,6 @@ export function ProfileHomeModals({
         isOpen={activeModal === 'contact'}
         onClose={onClose}
         onSuccess={() => {
-          if (isCardOnHomeScreen()) {
-            clearHomeScreenPromptAfterContact()
-            onClose()
-            return
-          }
           setPwaOpenedAfterContactSave(true)
           onSetModal('pwa')
         }}

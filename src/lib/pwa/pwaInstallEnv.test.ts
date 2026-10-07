@@ -1,5 +1,6 @@
 import {
   isAndroidDevice,
+  isCardOnHomeScreen,
   isFirefoxBrowser,
   isInAppBrowser,
   isIosChrome,
@@ -7,7 +8,7 @@ import {
   isSafariBrowser,
   resolvePwaInstallSurface,
 } from '@/lib/pwa/pwaInstallEnv'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 describe('PWA install surface', () => {
   it('sends Instagram/Facebook iPhone traffic to open-in-Safari', () => {
@@ -49,5 +50,25 @@ describe('PWA install surface', () => {
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
       )
     ).toBe('mac-safari')
+  })
+})
+
+describe('home screen install memory', () => {
+  afterEach(() => {
+    window.localStorage.removeItem('vbiz_home_screen_added')
+    delete window.__vbizPwa
+  })
+
+  it('shows the add prompt again after the icon is deleted', () => {
+    window.localStorage.setItem('vbiz_home_screen_added', '1')
+    window.__vbizPwa = { prompt: null, installed: false, available: false }
+    expect(isCardOnHomeScreen()).toBe(false)
+    expect(window.localStorage.getItem('vbiz_home_screen_added')).toBeNull()
+  })
+
+  it('treats a browser install offer as not installed', () => {
+    window.__vbizPwa = { prompt: {} as never, installed: true, available: true }
+    expect(isCardOnHomeScreen()).toBe(false)
+    expect(window.__vbizPwa?.installed).toBe(false)
   })
 })

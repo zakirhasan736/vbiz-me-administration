@@ -3,7 +3,10 @@ export type SaveContactCardData = {
   email: string
   phone: string
   company: string
+  /** Public-card Profession line (profession, or designation when profession is empty). */
   profession: string
+  /** Personal-info designation. Omitted from the file when it matches Profession. */
+  designation?: string
   gender: string
   website: string
   slug: string

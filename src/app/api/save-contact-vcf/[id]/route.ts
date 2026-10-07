@@ -1,54 +1,12 @@
+import { isAllowedContactImageHost, jpegPhotoFromImageBytes } from '@/app/api/save-contact-vcf/loadVcfPhoto'
 import type { SaveContactCardData, SaveContactResponse } from '@/interfaces/api/saveContact'
 import { fetchPublicCardResponse, getApiBaseUrl } from '@/lib/api/serverApi'
 import { visitorForwardHeaders, visitorMetaFromRequest } from '@/lib/visitorRequestHeaders'
-import { serializeContactVcf, type VcfPhoto } from '@/profile-app/lib/contactVcf'
+import { contactPhotoCandidateUrls, serializeContactVcf, type VcfPhoto } from '@/profile-app/lib/contactVcf'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-const MAX_VCF_PHOTO_BYTES = 1_200_000
-
-const EXACT_HOSTS = new Set([
-  'app.vbizme.com',
-  'www.app.vbizme.com',
-  'vbiz.me',
-  'www.vbiz.me',
-  'vbizme.com',
-  'www.vbizme.com',
-  'localhost',
-  '127.0.0.1',
-])
-
-function hostFromEnv(raw?: string | null): string | null {
-  const value = raw?.trim()
-  if (!value) return null
-  try {
-    return new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase()
-  } catch {
-    return null
-  }
-}
-
-function isAllowedImageHost(hostname: string): boolean {
-  const host = hostname.trim().toLowerCase()
-  if (!host) return false
-  if (EXACT_HOSTS.has(host)) return true
-  if (host.endsWith('.vbizme.com') || host.endsWith('.vbiz.me')) return true
-  const apiHost = hostFromEnv(process.env.NEXT_PUBLIC_API_URL)
-  const appHost = hostFromEnv(process.env.NEXT_PUBLIC_APP_URL)
-  if (apiHost && host === apiHost) return true
-  if (appHost && host === appHost) return true
-  return host.endsWith('.amazonaws.com') || host.includes('.s3.') || host.endsWith('.cloudfront.net')
-}
-
-function sniffImageType(bytes: Uint8Array): 'JPEG' | 'PNG' | null {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'JPEG'
-  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
-    return 'PNG'
-  }
-  return null
-}
 
 function vcfFilenameFromName(name?: string | null): string {
   const safe = (name?.trim() || 'contact')
@@ -71,14 +29,16 @@ async function fetchPhoto(url: string): Promise<VcfPhoto | null> {
   try {
     const parsed = new URL(url)
     if (!['https:', 'http:'].includes(parsed.protocol)) return null
-    if (!isAllowedImageHost(parsed.hostname)) return null
-    const response = await fetch(parsed.toString(), { cache: 'no-store' })
+    if (!isAllowedContactImageHost(parsed.hostname)) return null
+    const response = await fetch(parsed.toString(), {
+      cache: 'no-store',
+      redirect: 'follow',
+      headers: { Accept: 'image/avif,image/webp,image/apng,image/png,image/jpeg,image/*,*/*;q=0.8' },
+      signal: AbortSignal.timeout(8000),
+    })
     if (!response.ok) return null
     const buffer = Buffer.from(await response.arrayBuffer())
-    if (buffer.length > MAX_VCF_PHOTO_BYTES) return null
-    const type = sniffImageType(buffer)
-    if (!type) return null
-    return { base64: buffer.toString('base64'), type }
+    return jpegPhotoFromImageBytes(buffer)
   } catch {
     return null
   }
@@ -158,12 +118,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     ])
 
     let photo: VcfPhoto | null = null
-    for (const raw of [contact.imageUrl, ...(contact.imageUrls || [])]) {
-      const url = String(raw || '').trim()
-      if (!url || /\.(mp4|webm|mov)(\?|#|$)/i.test(url)) continue
-      const absolute = url.startsWith('//') ? `https:${url}` : url
-      if (!/^https?:\/\//i.test(absolute)) continue
-      photo = await fetchPhoto(absolute)
+    for (const url of contactPhotoCandidateUrls(contact)) {
+      photo = await fetchPhoto(url)
       if (photo) break
     }
 
