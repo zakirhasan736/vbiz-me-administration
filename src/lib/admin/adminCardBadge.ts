@@ -38,6 +38,11 @@ function isAdminNamedCard(card: AdminCard): boolean {
   return name === 'admin' || slug === 'admin'
 }
 
+/** Corporate team member = a card in a corporate group that is not the owner's card. */
+export function isCorporateTeamMemberCard(card: AdminCard): boolean {
+  return isCorporatePortfolioCard(card) && !isCorporateTeamOwnerCard(card)
+}
+
 /** Corporate team owner = card owned by the corporate parent account. */
 export function isCorporateTeamOwnerCard(card: AdminCard): boolean {
   if (!isCorporatePortfolioCard(card)) return false

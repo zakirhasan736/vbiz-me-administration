@@ -1,6 +1,7 @@
 'use client'
 
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -123,87 +124,101 @@ export function TabEducation() {
 
               <ExpandableEntryBody
                 isExpanded={open}
-                className="grid grid-cols-1 gap-x-6 gap-y-8 p-4 sm:p-8 md:grid-cols-2"
+                className={
+                  edu.corporateOwned ? 'p-4 sm:p-8' : 'grid grid-cols-1 gap-x-6 gap-y-8 p-4 sm:p-8 md:grid-cols-2'
+                }
               >
-                <div className="group flex flex-col space-y-1.5 md:col-span-2">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Institute Name
-                  </label>
-                  <input
-                    type="text"
-                    value={edu.institute}
-                    onChange={(e) => updateEducation(edu.id, 'institute', e.target.value)}
-                    placeholder="e.g. Harvard University"
-                    className={inputClasses}
+                {edu.corporateOwned ? (
+                  <CorporateOwnerContentView
+                    lines={[
+                      edu.institute,
+                      edu.degree,
+                      [edu.fromDate, edu.tillNow ? 'Present' : edu.toDate].filter(Boolean).join(' – '),
+                    ]}
                   />
-                </div>
-                <div className="group flex flex-col space-y-1.5 md:col-span-2">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Degree Title
-                  </label>
-                  <input
-                    type="text"
-                    value={edu.degree}
-                    onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
-                    placeholder="e.g. Bachelor of Science in Computer Science"
-                    className={inputClasses}
-                  />
-                </div>
-                <div className="group flex flex-col space-y-1.5">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Start Date
-                  </label>
-                  <VCardDateInput
-                    value={edu.fromDate}
-                    onChange={(e) => updateEducation(edu.id, 'fromDate', e.target.value)}
-                    className={inputClasses}
-                  />
-                </div>
-                <div className="group flex flex-col space-y-1.5">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    End Date
-                  </label>
-                  <VCardDateInput
-                    value={edu.toDate}
-                    onChange={(e) => updateEducation(edu.id, 'toDate', e.target.value)}
-                    disabled={edu.tillNow}
-                    className={cn(
-                      inputClasses,
-                      edu.tillNow ? 'cursor-not-allowed border-transparent bg-black/5 opacity-50' : ''
-                    )}
-                  />
-                </div>
-                <div className="flex items-center gap-3 pt-2 md:col-span-2">
-                  <label className="group flex cursor-pointer items-center gap-3">
-                    <div className="relative flex items-center justify-center">
+                ) : (
+                  <div className="contents">
+                    <div className="group flex flex-col space-y-1.5 md:col-span-2">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Institute Name
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={edu.tillNow}
-                        onChange={(e) => updateEducation(edu.id, 'tillNow', e.target.checked)}
-                        className="peer sr-only"
+                        type="text"
+                        value={edu.institute}
+                        onChange={(e) => updateEducation(edu.id, 'institute', e.target.value)}
+                        placeholder="e.g. Harvard University"
+                        className={inputClasses}
                       />
-                      <div className="peer-checked:bg-primary-600 peer-checked:border-primary-600 flex h-5 w-5 items-center justify-center rounded-md border-[1.5px] border-slate-600 shadow-inner transition-colors group-hover:border-slate-400">
-                        <svg
-                          className={cn(
-                            'h-3 w-3 scale-0 text-slate-900 transition-transform peer-checked:scale-100',
-                            edu.tillNow ? 'scale-100' : ''
-                          )}
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                      </div>
                     </div>
-                    <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
-                      I currently study here
-                    </span>
-                  </label>
-                </div>
+                    <div className="group flex flex-col space-y-1.5 md:col-span-2">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Degree Title
+                      </label>
+                      <input
+                        type="text"
+                        value={edu.degree}
+                        onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
+                        placeholder="e.g. Bachelor of Science in Computer Science"
+                        className={inputClasses}
+                      />
+                    </div>
+                    <div className="group flex flex-col space-y-1.5">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Start Date
+                      </label>
+                      <VCardDateInput
+                        value={edu.fromDate}
+                        onChange={(e) => updateEducation(edu.id, 'fromDate', e.target.value)}
+                        className={inputClasses}
+                      />
+                    </div>
+                    <div className="group flex flex-col space-y-1.5">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        End Date
+                      </label>
+                      <VCardDateInput
+                        value={edu.toDate}
+                        onChange={(e) => updateEducation(edu.id, 'toDate', e.target.value)}
+                        disabled={edu.tillNow}
+                        className={cn(
+                          inputClasses,
+                          edu.tillNow ? 'cursor-not-allowed border-transparent bg-black/5 opacity-50' : ''
+                        )}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 pt-2 md:col-span-2">
+                      <label className="group flex cursor-pointer items-center gap-3">
+                        <div className="relative flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={edu.tillNow}
+                            onChange={(e) => updateEducation(edu.id, 'tillNow', e.target.checked)}
+                            className="peer sr-only"
+                          />
+                          <div className="peer-checked:bg-primary-600 peer-checked:border-primary-600 flex h-5 w-5 items-center justify-center rounded-md border-[1.5px] border-slate-600 shadow-inner transition-colors group-hover:border-slate-400">
+                            <svg
+                              className={cn(
+                                'h-3 w-3 scale-0 text-slate-900 transition-transform peer-checked:scale-100',
+                                edu.tillNow ? 'scale-100' : ''
+                              )}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </div>
+                        </div>
+                        <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
+                          I currently study here
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </ExpandableEntryBody>
             </section>
           )

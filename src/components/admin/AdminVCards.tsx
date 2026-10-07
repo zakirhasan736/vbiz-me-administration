@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
-import { isCorporatePortfolioCard, resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
+import { isCorporatePortfolioCard, isCorporateTeamMemberCard, resolveDirectoryBadge } from '@/lib/admin/adminCardBadge'
 import { adminCardAvatarUrl, type AdminCard } from '@/lib/admin/adminCardShape'
 import { ADMIN_VCARDS_PATH, setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
 import { canAdminContactCard } from '@/lib/admin/canAdminContactCard'
@@ -28,6 +28,7 @@ import {
   readLocalCardNotice,
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
+import { CORPORATE_MEMBER_DUPLICATE_REASON } from '@/lib/corporateCardDuplicate'
 import { MIN_IDENTITY_SEARCH_CHARACTERS, normalizedSearchQuery } from '@/lib/identitySearch'
 import { deriveOwnerAudience } from '@/lib/meetingScope'
 import { appendAuditLog } from '@/lib/mockStore'
@@ -444,6 +445,10 @@ export default function AdminVCards() {
 
   const handleDuplicateCard = (card: AdminCard) => {
     if (!card.id || duplicatingCardId) return
+    if (isCorporateTeamMemberCard(card)) {
+      notify.warning(CORPORATE_MEMBER_DUPLICATE_REASON)
+      return
+    }
     // Corporate / corporate-member cards always require the member login popup
     // so admin can provision the linked vcard-owner user (same as corporate owner).
     if (isCorporatePortfolioCard(card) || resolveDirectoryBadge(card)?.label === 'Corporate Team Member') {
@@ -1043,6 +1048,8 @@ export default function AdminVCards() {
                   )
                 }
                 onDuplicate={() => void handleDuplicateCard(card)}
+                duplicateDisabled={isCorporateTeamMemberCard(card)}
+                duplicateTitle={isCorporateTeamMemberCard(card) ? CORPORATE_MEMBER_DUPLICATE_REASON : undefined}
                 isDuplicating={duplicatingCardId === card.id}
                 isNewlyDuplicated={
                   isNewCardHighlight(typeof card.createdAt === 'string' ? card.createdAt : undefined) ||

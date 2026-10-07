@@ -6,6 +6,7 @@ import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -206,124 +207,127 @@ export function ServicesEditorPanel({
 
                   <ExpandableEntryBody isExpanded={open} className="p-8">
                     {locked ? (
-                      <p className="mb-6 rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-[13px] font-medium text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
-                        This service was added by the corporate team owner. You can add your own services below, but you
-                        cannot edit or remove owner-synced items.
-                      </p>
-                    ) : null}
-                    <div className={cn('mb-8 grid grid-cols-1 gap-6 md:grid-cols-2', locked && 'pointer-events-none')}>
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                          <LayoutGrid className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Service Type
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={service.type}
-                            onChange={(e) => updateService(service.id, 'type', e.target.value)}
-                            className={selectClasses}
-                          >
-                            <option value="" disabled>
-                              Select Type
-                            </option>
-                            <option value="Web Development">Web Development</option>
-                            <option value="App Design">App Design</option>
-                            <option value="SEO">SEO</option>
-                            <option value="Marketing">Marketing</option>
-                            <option value="Other">Other</option>
-                          </select>
-                          <div className="pointer-events-none absolute inset-y-0 right-5 flex items-center text-slate-500 dark:text-slate-400">
-                            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                              <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                            </svg>
+                      <CorporateOwnerContentView
+                        lines={[service.type, service.title, stripHtml(service.description || ''), service.url]}
+                        imageUrl={service.featuredImage}
+                      />
+                    ) : (
+                      <>
+                        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                          <div className="group flex flex-col space-y-1.5">
+                            <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                              <LayoutGrid className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Service Type
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={service.type}
+                                onChange={(e) => updateService(service.id, 'type', e.target.value)}
+                                className={selectClasses}
+                              >
+                                <option value="" disabled>
+                                  Select Type
+                                </option>
+                                <option value="Web Development">Web Development</option>
+                                <option value="App Design">App Design</option>
+                                <option value="SEO">SEO</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Other">Other</option>
+                              </select>
+                              <div className="pointer-events-none absolute inset-y-0 right-5 flex items-center text-slate-500 dark:text-slate-400">
+                                <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                                </svg>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                          <Type className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Title
-                        </label>
-                        <input
-                          type="text"
-                          value={service.title}
-                          onChange={(e) => updateService(service.id, 'title', e.target.value)}
-                          placeholder="Enter service title"
-                          className={inputClasses}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="group mb-8 flex flex-col space-y-1.5">
-                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                        Service Description
-                      </label>
-                      <RichTextEditor
-                        value={service.description}
-                        onChange={(html) => updateService(service.id, 'description', html)}
-                        placeholder="Write your service description here..."
-                        minHeightClassName="min-h-44"
-                      />
-                    </div>
-
-                    <div className="group mb-8 flex flex-col space-y-1.5">
-                      <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                        <LinkIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> URL
-                      </label>
-                      <input
-                        type="text"
-                        value={service.url}
-                        onChange={(e) => updateService(service.id, 'url', e.target.value)}
-                        placeholder="Enter URL"
-                        className={inputClasses}
-                      />
-                    </div>
-
-                    <div className="mb-8 space-y-1.5">
-                      <MediaFileUploader
-                        label="Featured Image"
-                        accent="primary"
-                        profileId={profileId}
-                        attachmentType="Service Featured"
-                        accept="image/*"
-                        allowUrlPaste={false}
-                        hint="Image or video • no size limit"
-                        value={service.featuredImage}
-                        onChange={(next) => updateService(service.id, 'featuredImage', next?.url || '')}
-                      />
-                      <MediaSourceActions
-                        mode="image"
-                        compact
-                        onSelect={(asset) => updateService(service.id, 'featuredImage', asset.url)}
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-4 pt-2">
-                      <label className="group flex cursor-pointer items-center gap-3">
-                        <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
-                          Active Status
-                        </span>
-                        <div className="relative flex items-center justify-center">
-                          <input
-                            type="checkbox"
-                            role="switch"
-                            aria-checked={service.active}
-                            checked={service.active}
-                            onChange={(e) => updateService(service.id, 'active', e.target.checked)}
-                            className="sr-only"
-                          />
-                          <div
-                            className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
-                              service.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
-                            }`}
-                          >
-                            <div
-                              className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
-                                service.active ? 'translate-x-4' : 'translate-x-0'
-                              }`}
+                          <div className="group flex flex-col space-y-1.5">
+                            <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                              <Type className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Title
+                            </label>
+                            <input
+                              type="text"
+                              value={service.title}
+                              onChange={(e) => updateService(service.id, 'title', e.target.value)}
+                              placeholder="Enter service title"
+                              className={inputClasses}
                             />
                           </div>
                         </div>
-                      </label>
-                    </div>
+
+                        <div className="group mb-8 flex flex-col space-y-1.5">
+                          <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                            Service Description
+                          </label>
+                          <RichTextEditor
+                            value={service.description}
+                            onChange={(html) => updateService(service.id, 'description', html)}
+                            placeholder="Write your service description here..."
+                            minHeightClassName="min-h-44"
+                          />
+                        </div>
+
+                        <div className="group mb-8 flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                            <LinkIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> URL
+                          </label>
+                          <input
+                            type="text"
+                            value={service.url}
+                            onChange={(e) => updateService(service.id, 'url', e.target.value)}
+                            placeholder="Enter URL"
+                            className={inputClasses}
+                          />
+                        </div>
+
+                        <div className="mb-8 space-y-1.5">
+                          <MediaFileUploader
+                            label="Featured Image"
+                            accent="primary"
+                            profileId={profileId}
+                            attachmentType="Service Featured"
+                            accept="image/*"
+                            allowUrlPaste={false}
+                            hint="Image or video • no size limit"
+                            value={service.featuredImage}
+                            onChange={(next) => updateService(service.id, 'featuredImage', next?.url || '')}
+                          />
+                          <MediaSourceActions
+                            mode="image"
+                            compact
+                            onSelect={(asset) => updateService(service.id, 'featuredImage', asset.url)}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-4 pt-2">
+                          <label className="group flex cursor-pointer items-center gap-3">
+                            <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
+                              Active Status
+                            </span>
+                            <div className="relative flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                role="switch"
+                                aria-checked={service.active}
+                                checked={service.active}
+                                onChange={(e) => updateService(service.id, 'active', e.target.checked)}
+                                className="sr-only"
+                              />
+                              <div
+                                className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
+                                  service.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
+                                }`}
+                              >
+                                <div
+                                  className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
+                                    service.active ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      </>
+                    )}
                   </ExpandableEntryBody>
                 </section>
               )

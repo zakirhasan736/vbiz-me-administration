@@ -12,7 +12,7 @@ import { StatNumber } from '@/components/ui/StatNumber'
 import { CreateCardLauncher } from '@/components/vcard/create-agent/CreateCardLauncher'
 import { useAppSelector } from '@/hooks/redux'
 import { useVCardContactActions } from '@/hooks/useVCardContactActions'
-import { resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
+import { isCorporateTeamMemberCard, resolveMyCardsBadge } from '@/lib/admin/adminCardBadge'
 import { adminCardAvatarUrl, toAdminCardShape, type AdminCard } from '@/lib/admin/adminCardShape'
 import { ADMIN_MY_CARDS_PATH, setAdminEditorReturnPath } from '@/lib/admin/adminEditorReturnPath'
 import { useVCard } from '@/lib/admin/AdminVCardListContext'
@@ -24,6 +24,7 @@ import {
   readLocalCardNotice,
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
+import { CORPORATE_MEMBER_DUPLICATE_REASON } from '@/lib/corporateCardDuplicate'
 import { resolveDashboardContactSaves } from '@/lib/dashboardContactSaves'
 import { notify } from '@/lib/toast/toast'
 import { buildEditorSectionPath, buildEditorSettingsPath } from '@/lib/vcardEditorRoutes'
@@ -183,6 +184,10 @@ export default function AdminMyCards() {
 
   const handleDuplicate = async (card: AdminCard) => {
     if (!card.id || duplicatingCardId) return
+    if (isCorporateTeamMemberCard(card)) {
+      notify.warning(CORPORATE_MEMBER_DUPLICATE_REASON)
+      return
+    }
     setDuplicatingCardId(card.id)
     try {
       const created = await duplicateProfile(card.id).unwrap()
@@ -455,6 +460,8 @@ export default function AdminMyCards() {
                       )
                     }
                     onDuplicate={() => void handleDuplicate(card)}
+                    duplicateDisabled={isCorporateTeamMemberCard(card)}
+                    duplicateTitle={isCorporateTeamMemberCard(card) ? CORPORATE_MEMBER_DUPLICATE_REASON : undefined}
                     isDuplicating={duplicatingCardId === card.id}
                     isNewlyDuplicated={
                       isNewCardHighlight(typeof card.createdAt === 'string' ? card.createdAt : undefined) ||

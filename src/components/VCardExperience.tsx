@@ -2,6 +2,7 @@
 
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -10,6 +11,7 @@ import {
 } from '@/components/vcard/ExpandableEntryChrome'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { stripHtml } from '@/lib/htmlText'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultExperienceEntry, normalizeExperienceList } from '@/lib/vcardExperience'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -124,100 +126,115 @@ export function TabExperience() {
 
               <ExpandableEntryBody
                 isExpanded={open}
-                className="grid grid-cols-1 gap-x-6 gap-y-8 p-4 sm:p-8 md:grid-cols-2"
+                className={
+                  exp.corporateOwned ? 'p-4 sm:p-8' : 'grid grid-cols-1 gap-x-6 gap-y-8 p-4 sm:p-8 md:grid-cols-2'
+                }
               >
-                <div className="group flex flex-col space-y-1.5 md:col-span-2">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Company Name
-                  </label>
-                  <input
-                    type="text"
-                    value={exp.company}
-                    onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
-                    placeholder="e.g. Google"
-                    className={inputClasses}
+                {exp.corporateOwned ? (
+                  <CorporateOwnerContentView
+                    lines={[
+                      exp.company,
+                      exp.jobTitle,
+                      [exp.fromDate, exp.tillNow ? 'Present' : exp.toDate].filter(Boolean).join(' – '),
+                      stripHtml(exp.description || ''),
+                    ]}
                   />
-                </div>
-                <div className="group flex flex-col space-y-1.5 md:col-span-2">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Job Title
-                  </label>
-                  <input
-                    type="text"
-                    value={exp.jobTitle}
-                    onChange={(e) => updateExperience(exp.id, 'jobTitle', e.target.value)}
-                    placeholder="e.g. Senior Frontend Engineer"
-                    className={inputClasses}
-                  />
-                </div>
-                <div className="group flex flex-col space-y-1.5 md:col-span-2">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Description
-                  </label>
-                  <RichTextEditor
-                    value={exp.description}
-                    onChange={(html) => updateExperience(exp.id, 'description', html)}
-                    placeholder="Describe your responsibilities and achievements..."
-                    minHeightClassName="min-h-48"
-                  />
-                </div>
-                <div className="group flex flex-col space-y-1.5">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Start Date
-                  </label>
-                  <VCardDateInput
-                    value={exp.fromDate}
-                    onChange={(e) => updateExperience(exp.id, 'fromDate', e.target.value)}
-                    className={inputClasses}
-                  />
-                </div>
-                <div className="group flex flex-col space-y-1.5">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    End Date
-                  </label>
-                  <VCardDateInput
-                    value={exp.toDate}
-                    onChange={(e) => updateExperience(exp.id, 'toDate', e.target.value)}
-                    disabled={exp.tillNow}
-                    className={cn(
-                      inputClasses,
-                      exp.tillNow
-                        ? 'cursor-not-allowed border-transparent bg-slate-200/50 opacity-50 dark:bg-white/5'
-                        : ''
-                    )}
-                  />
-                </div>
-                <div className="flex items-center gap-3 pt-2 md:col-span-2">
-                  <label className="group flex cursor-pointer items-center gap-3">
-                    <div className="relative flex items-center justify-center">
+                ) : (
+                  <div className="contents">
+                    <div className="group flex flex-col space-y-1.5 md:col-span-2">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Company Name
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={exp.tillNow}
-                        onChange={(e) => updateExperience(exp.id, 'tillNow', e.target.checked)}
-                        className="peer sr-only"
+                        type="text"
+                        value={exp.company}
+                        onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
+                        placeholder="e.g. Google"
+                        className={inputClasses}
                       />
-                      <div className="flex h-5 w-5 items-center justify-center rounded-md border-[1.5px] border-slate-600 shadow-inner transition-colors group-hover:border-slate-400 peer-checked:border-orange-500 peer-checked:bg-orange-500">
-                        <svg
-                          className={cn(
-                            'h-3 w-3 scale-0 text-slate-900 transition-transform peer-checked:scale-100',
-                            exp.tillNow ? 'scale-100' : ''
-                          )}
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                      </div>
                     </div>
-                    <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
-                      I currently work here
-                    </span>
-                  </label>
-                </div>
+                    <div className="group flex flex-col space-y-1.5 md:col-span-2">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Job Title
+                      </label>
+                      <input
+                        type="text"
+                        value={exp.jobTitle}
+                        onChange={(e) => updateExperience(exp.id, 'jobTitle', e.target.value)}
+                        placeholder="e.g. Senior Frontend Engineer"
+                        className={inputClasses}
+                      />
+                    </div>
+                    <div className="group flex flex-col space-y-1.5 md:col-span-2">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Description
+                      </label>
+                      <RichTextEditor
+                        value={exp.description}
+                        onChange={(html) => updateExperience(exp.id, 'description', html)}
+                        placeholder="Describe your responsibilities and achievements..."
+                        minHeightClassName="min-h-48"
+                      />
+                    </div>
+                    <div className="group flex flex-col space-y-1.5">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Start Date
+                      </label>
+                      <VCardDateInput
+                        value={exp.fromDate}
+                        onChange={(e) => updateExperience(exp.id, 'fromDate', e.target.value)}
+                        className={inputClasses}
+                      />
+                    </div>
+                    <div className="group flex flex-col space-y-1.5">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        End Date
+                      </label>
+                      <VCardDateInput
+                        value={exp.toDate}
+                        onChange={(e) => updateExperience(exp.id, 'toDate', e.target.value)}
+                        disabled={exp.tillNow}
+                        className={cn(
+                          inputClasses,
+                          exp.tillNow
+                            ? 'cursor-not-allowed border-transparent bg-slate-200/50 opacity-50 dark:bg-white/5'
+                            : ''
+                        )}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 pt-2 md:col-span-2">
+                      <label className="group flex cursor-pointer items-center gap-3">
+                        <div className="relative flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={exp.tillNow}
+                            onChange={(e) => updateExperience(exp.id, 'tillNow', e.target.checked)}
+                            className="peer sr-only"
+                          />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-md border-[1.5px] border-slate-600 shadow-inner transition-colors group-hover:border-slate-400 peer-checked:border-orange-500 peer-checked:bg-orange-500">
+                            <svg
+                              className={cn(
+                                'h-3 w-3 scale-0 text-slate-900 transition-transform peer-checked:scale-100',
+                                exp.tillNow ? 'scale-100' : ''
+                              )}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </div>
+                        </div>
+                        <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
+                          I currently work here
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </ExpandableEntryBody>
             </section>
           )

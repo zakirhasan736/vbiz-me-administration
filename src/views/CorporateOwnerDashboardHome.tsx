@@ -44,6 +44,7 @@ import {
 import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { corporateCardCreateBlockedReason } from '@/lib/corporateCardCapacity'
+import { CORPORATE_MEMBER_DUPLICATE_REASON, isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
 import { resolveDashboardContactSaves } from '@/lib/dashboardContactSaves'
 import { notify } from '@/lib/toast/toast'
@@ -304,6 +305,10 @@ export default function CorporateOwnerDashboardHome() {
         notify.warning(createDisabledReason)
         return
       }
+      if (isCorporateGroupMemberCard(card)) {
+        notify.warning(CORPORATE_MEMBER_DUPLICATE_REASON)
+        return
+      }
       if (isOwnerCardLocked(card.status)) {
         notify.error(SUSPENDED_CARD_MESSAGE)
         return
@@ -544,9 +549,11 @@ export default function CorporateOwnerDashboardHome() {
         onCall={openCallForCard}
         onSchedule={openScheduleForCard}
         onNotice={openNotice}
-        onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
-        canDuplicate={canCreate}
-        duplicateDisabledReason={createDisabledReason}
+        onDuplicate={() => panelCard && !isCorporateGroupMemberCard(panelCard) && void handleDuplicate(panelCard)}
+        canDuplicate={Boolean(panelCard && canCreate && !isCorporateGroupMemberCard(panelCard))}
+        duplicateDisabledReason={
+          panelCard && isCorporateGroupMemberCard(panelCard) ? CORPORATE_MEMBER_DUPLICATE_REASON : createDisabledReason
+        }
         isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
       />
 

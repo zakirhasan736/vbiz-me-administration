@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
 import { noticeForCard, noticeTypeFromTeamNotice } from '@/lib/cardNotice'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
+import { CORPORATE_MEMBER_DUPLICATE_REASON, isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
 import type { DashboardSocialChannel, TeamNotice } from '@/redux/features/profiles/profiles.api'
 import {
   useCreateTeamNoticeMutation,
@@ -367,9 +368,11 @@ export function CorporateControlsHub({
                     noticeVersion={noticeVersion}
                     cardNoticeText={serverNotice?.text ?? null}
                     cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
-                    canDuplicate={canCreate}
-                    duplicateDisabledReason={createDisabledReason}
-                    onDuplicate={() => onDuplicate(card)}
+                    canDuplicate={canCreate && !isCorporateGroupMemberCard(card)}
+                    duplicateDisabledReason={
+                      isCorporateGroupMemberCard(card) ? CORPORATE_MEMBER_DUPLICATE_REASON : createDisabledReason
+                    }
+                    onDuplicate={isCorporateGroupMemberCard(card) ? undefined : () => onDuplicate(card)}
                     isDuplicating={duplicatingCardId === card.id}
                     isNewlyDuplicated={
                       isNewCardHighlight(card.createdAt) ||

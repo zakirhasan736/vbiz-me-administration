@@ -6,6 +6,7 @@ import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -185,61 +186,70 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                     />
 
                     <ExpandableEntryBody isExpanded={open} className="space-y-6 p-4 sm:p-8">
-                      <div>
-                        <label className="mb-2 flex items-center gap-2 text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-                          <HelpCircle className="h-3.5 w-3.5" /> Question
-                        </label>
-                        <input
-                          type="text"
-                          value={faq.question}
-                          onChange={(e) => updateFaq(faq.id, 'question', e.target.value)}
-                          placeholder="e.g. What exactly is vBiz Me?"
-                          className={inputClasses}
+                      {faq.corporateOwned ? (
+                        <CorporateOwnerContentView
+                          lines={[faq.question, stripHtml(faq.answer || '')]}
+                          imageUrl={faq.featuredImage}
                         />
-                      </div>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="mb-2 flex items-center gap-2 text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                              <HelpCircle className="h-3.5 w-3.5" /> Question
+                            </label>
+                            <input
+                              type="text"
+                              value={faq.question}
+                              onChange={(e) => updateFaq(faq.id, 'question', e.target.value)}
+                              placeholder="e.g. What exactly is vBiz Me?"
+                              className={inputClasses}
+                            />
+                          </div>
 
-                      <div>
-                        <label className="mb-2 block text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-                          Answer
-                        </label>
-                        <RichTextEditor
-                          value={faq.answer}
-                          onChange={(html) => updateFaq(faq.id, 'answer', html)}
-                          placeholder="Write a clear, helpful answer..."
-                          minHeightClassName="min-h-48"
-                        />
-                      </div>
+                          <div>
+                            <label className="mb-2 block text-[12px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                              Answer
+                            </label>
+                            <RichTextEditor
+                              value={faq.answer}
+                              onChange={(html) => updateFaq(faq.id, 'answer', html)}
+                              placeholder="Write a clear, helpful answer..."
+                              minHeightClassName="min-h-48"
+                            />
+                          </div>
 
-                      <div className="space-y-3">
-                        <MediaFileUploader
-                          label="Image or attachment"
-                          accent="primary"
-                          profileId={profileId}
-                          attachmentType="Featured Image"
-                          value={faq.featuredImage || ''}
-                          accept="image/*,application/pdf,.pdf,.doc,.docx"
-                          hint="Optional image or file shown with this answer"
-                          onChange={(next) => updateFaq(faq.id, 'featuredImage', next?.url || '')}
-                        />
-                        <MediaSourceActions
-                          mode="both"
-                          compact
-                          profileId={profileId}
-                          onSelect={(asset) => updateFaq(faq.id, 'featuredImage', asset.url)}
-                        />
-                      </div>
+                          <div className="space-y-3">
+                            <MediaFileUploader
+                              label="Image or attachment"
+                              accent="primary"
+                              profileId={profileId}
+                              attachmentType="Featured Image"
+                              value={faq.featuredImage || ''}
+                              accept="image/*,application/pdf,.pdf,.doc,.docx"
+                              hint="Optional image or file shown with this answer"
+                              onChange={(next) => updateFaq(faq.id, 'featuredImage', next?.url || '')}
+                            />
+                            <MediaSourceActions
+                              mode="both"
+                              compact
+                              profileId={profileId}
+                              onSelect={(asset) => updateFaq(faq.id, 'featuredImage', asset.url)}
+                            />
+                          </div>
 
-                      <label className="flex cursor-pointer items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={faq.active}
-                          onChange={(e) => updateFaq(faq.id, 'active', e.target.checked)}
-                          className="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-slate-300 dark:border-white/20 dark:bg-[#0b0f19]"
-                        />
-                        <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
-                          Show on public profile
-                        </span>
-                      </label>
+                          <label className="flex cursor-pointer items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={faq.active}
+                              onChange={(e) => updateFaq(faq.id, 'active', e.target.checked)}
+                              className="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded border-slate-300 dark:border-white/20 dark:bg-[#0b0f19]"
+                            />
+                            <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
+                              Show on public profile
+                            </span>
+                          </label>
+                        </>
+                      )}
                     </ExpandableEntryBody>
                   </section>
                 )

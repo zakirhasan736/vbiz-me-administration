@@ -903,6 +903,8 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     createdAt: profile.createdAt || new Date().toISOString(),
     updatedAt: profile.updatedAt || new Date().toISOString(),
     duplicatedFrom: settingsMap.duplicated_from || '',
+    profileUserId: profile.userId || null,
+    companyUserId: profile.companyUserId || null,
     views: profile.viewCount || 0,
     saves: Number(profile.saveCount) || 0,
     clickCount: Number(profile.clickCount) || 0,

@@ -4,6 +4,7 @@ import { DocumentUploadArea } from '@/components/DocumentUploadArea'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -11,6 +12,7 @@ import {
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { stripHtml } from '@/lib/htmlText'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import {
   CERTIFICATES_POST_TYPE,
@@ -164,75 +166,88 @@ export function TabCertificates() {
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-4 p-6">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <label className="block space-y-1.5 sm:col-span-2">
-                        <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-                          Certificate name
-                        </span>
-                        <input
-                          value={item.name}
-                          onChange={(e) =>
-                            persist(
-                              itemsRef.current.map((c) => (c.id === item.id ? { ...c, name: e.target.value } : c))
-                            )
-                          }
-                          placeholder="e.g. AWS Solutions Architect"
-                          className={inputClasses}
-                        />
-                      </label>
-                      <label className="block space-y-1.5 sm:col-span-2">
-                        <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-                          Description
-                        </span>
-                        <RichTextEditor
-                          value={item.description}
-                          onChange={(html) =>
-                            persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, description: html } : c)))
-                          }
-                          placeholder="Short summary of this credential"
-                          minHeightClassName="min-h-48"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Issuer</span>
-                        <input
-                          value={item.issuer}
-                          onChange={(e) =>
-                            persist(
-                              itemsRef.current.map((c) => (c.id === item.id ? { ...c, issuer: e.target.value } : c))
-                            )
-                          }
-                          placeholder="Organization"
-                          className={inputClasses}
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Year</span>
-                        <input
-                          value={item.year}
-                          onChange={(e) =>
-                            persist(
-                              itemsRef.current.map((c) => (c.id === item.id ? { ...c, year: e.target.value } : c))
-                            )
-                          }
-                          placeholder="2024"
-                          className={inputClasses}
-                        />
-                      </label>
-                    </div>
+                    {item.corporateOwned ? (
+                      <CorporateOwnerContentView
+                        lines={[item.name, item.issuer, item.year, stripHtml(item.description || '')]}
+                        imageUrl={previewDoc?.url}
+                      />
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <label className="block space-y-1.5 sm:col-span-2">
+                            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+                              Certificate name
+                            </span>
+                            <input
+                              value={item.name}
+                              onChange={(e) =>
+                                persist(
+                                  itemsRef.current.map((c) => (c.id === item.id ? { ...c, name: e.target.value } : c))
+                                )
+                              }
+                              placeholder="e.g. AWS Solutions Architect"
+                              className={inputClasses}
+                            />
+                          </label>
+                          <label className="block space-y-1.5 sm:col-span-2">
+                            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+                              Description
+                            </span>
+                            <RichTextEditor
+                              value={item.description}
+                              onChange={(html) =>
+                                persist(
+                                  itemsRef.current.map((c) => (c.id === item.id ? { ...c, description: html } : c))
+                                )
+                              }
+                              placeholder="Short summary of this credential"
+                              minHeightClassName="min-h-48"
+                            />
+                          </label>
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+                              Issuer
+                            </span>
+                            <input
+                              value={item.issuer}
+                              onChange={(e) =>
+                                persist(
+                                  itemsRef.current.map((c) => (c.id === item.id ? { ...c, issuer: e.target.value } : c))
+                                )
+                              }
+                              placeholder="Organization"
+                              className={inputClasses}
+                            />
+                          </label>
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Year</span>
+                            <input
+                              value={item.year}
+                              onChange={(e) =>
+                                persist(
+                                  itemsRef.current.map((c) => (c.id === item.id ? { ...c, year: e.target.value } : c))
+                                )
+                              }
+                              placeholder="2024"
+                              className={inputClasses}
+                            />
+                          </label>
+                        </div>
 
-                    <DocumentUploadArea
-                      files={item.documents}
-                      onChange={(documents) =>
-                        persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, documents } : c)))
-                      }
-                      multiple
-                      label="Certificate document"
-                      hint="Upload image, PDF, TXT, or DOC"
-                      accent="indigo"
-                      mediaAssist={false}
-                      profileId={cardId}
-                    />
+                        <DocumentUploadArea
+                          files={item.documents}
+                          onChange={(documents) =>
+                            persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, documents } : c)))
+                          }
+                          multiple
+                          label="Certificate document"
+                          hint="Upload image, PDF, TXT, or DOC"
+                          accent="indigo"
+                          mediaAssist={false}
+                          profileId={cardId}
+                        />
+                      </>
+                    )}
                   </ExpandableEntryBody>
                 </section>
               )

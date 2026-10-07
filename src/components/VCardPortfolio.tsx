@@ -6,6 +6,7 @@ import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -221,189 +222,202 @@ export function TabPortfolio() {
                       dragHandleProps={dragHandleProps}
                     />
                     {portfolio.corporateOwned ? (
-                      <div className="border-b border-slate-100 px-4 py-3 sm:px-8 dark:border-white/5">
-                        <HideFromPublicCardButton
-                          hidden={hiddenOwnerMediaMatches(hiddenPhotos, {
-                            id: portfolio.id,
-                            title: portfolio.title,
-                            description: portfolio.description,
-                            url: portfolio.url,
-                            imageUrl: portfolio.imageUrl,
-                          })}
-                          onToggle={() =>
-                            updateData('hiddenOwnerMedia', {
-                              photos: toggleHiddenOwnerMedia(hiddenPhotos, {
-                                id: portfolio.id,
-                                title: portfolio.title,
-                                description: portfolio.description,
-                                url: portfolio.url,
-                                imageUrl: portfolio.imageUrl,
-                              }),
-                              videos: hiddenVideos,
-                            })
-                          }
-                        />
-                      </div>
-                    ) : null}
-
-                    <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
-                      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <div className="group flex flex-col space-y-1.5">
-                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                            <LayoutGrid className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Portfolio Type
-                          </label>
-                          <div className="relative">
-                            <select
-                              value={portfolio.type}
-                              onChange={(e) => updatePortfolio(portfolio.id, 'type', e.target.value)}
-                              className={selectClasses}
-                            >
-                              <option value="Image">Image</option>
-                              <option value="Video">Video</option>
-                              <option value="Link">Link</option>
-                              <option value="Document">Document</option>
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-5 flex items-center text-slate-500 dark:text-slate-400">
-                              <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                              </svg>
+                      open ? (
+                        <div className="p-4 sm:p-6">
+                          <CorporateOwnerContentView
+                            lines={[
+                              portfolio.title,
+                              portfolio.type,
+                              stripHtml(portfolio.description || ''),
+                              portfolio.url,
+                            ]}
+                            imageUrl={portfolio.imageUrl}
+                            extra={
+                              <HideFromPublicCardButton
+                                hidden={hiddenOwnerMediaMatches(hiddenPhotos, {
+                                  id: portfolio.id,
+                                  title: portfolio.title,
+                                  description: portfolio.description,
+                                  url: portfolio.url,
+                                  imageUrl: portfolio.imageUrl,
+                                })}
+                                onToggle={() =>
+                                  updateData('hiddenOwnerMedia', {
+                                    photos: toggleHiddenOwnerMedia(hiddenPhotos, {
+                                      id: portfolio.id,
+                                      title: portfolio.title,
+                                      description: portfolio.description,
+                                      url: portfolio.url,
+                                      imageUrl: portfolio.imageUrl,
+                                    }),
+                                    videos: hiddenVideos,
+                                  })
+                                }
+                              />
+                            }
+                          />
+                        </div>
+                      ) : null
+                    ) : (
+                      <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
+                        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                          <div className="group flex flex-col space-y-1.5">
+                            <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                              <LayoutGrid className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Portfolio Type
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={portfolio.type}
+                                onChange={(e) => updatePortfolio(portfolio.id, 'type', e.target.value)}
+                                className={selectClasses}
+                              >
+                                <option value="Image">Image</option>
+                                <option value="Video">Video</option>
+                                <option value="Link">Link</option>
+                                <option value="Document">Document</option>
+                              </select>
+                              <div className="pointer-events-none absolute inset-y-0 right-5 flex items-center text-slate-500 dark:text-slate-400">
+                                <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                                </svg>
+                              </div>
                             </div>
                           </div>
+                          <div className="group flex flex-col space-y-1.5">
+                            <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                              <FileText className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Title
+                            </label>
+                            <input
+                              type="text"
+                              value={portfolio.title}
+                              onChange={(e) => updatePortfolio(portfolio.id, 'title', e.target.value)}
+                              placeholder="Enter portfolio title"
+                              className={inputClasses}
+                            />
+                          </div>
                         </div>
-                        <div className="group flex flex-col space-y-1.5">
+
+                        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                          <div className="group order-2 flex min-h-0 flex-col space-y-1.5 md:order-1">
+                            <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                              Description
+                            </label>
+                            <RichTextEditor
+                              value={portfolio.description}
+                              onChange={(html) => updatePortfolio(portfolio.id, 'description', html)}
+                              placeholder="Write a description for your portfolio..."
+                              minHeightClassName="min-h-48"
+                            />
+                          </div>
+                          <div className="order-1 space-y-3 md:order-2">
+                            <MediaFileUploader
+                              label="Featured media"
+                              accent="teal"
+                              profileId={cardId}
+                              attachmentType="Portfolio Gallery"
+                              value={portfolio.imageUrl}
+                              fileName={portfolio.imageName}
+                              accept={PORTFOLIO_MEDIA_ACCEPT}
+                              hint="Upload image, video, or a document - type is detected automatically (audio not allowed)"
+                              onChange={(next) => {
+                                if (!next) {
+                                  patchPortfolio(portfolio.id, {
+                                    imageUrl: '',
+                                    imageName: '',
+                                  })
+                                  return
+                                }
+                                if (isRejectedPortfolioAudio(next.url, next.mimeType, next.fileName)) {
+                                  return
+                                }
+                                patchPortfolio(portfolio.id, {
+                                  imageUrl: next.url,
+                                  imageName: next.fileName,
+                                  type: detectGalleryPortfolioType(next.url, next.mimeType, next.fileName),
+                                })
+                              }}
+                            />
+                            <MediaSourceActions
+                              mode="both"
+                              compact
+                              profileId={cardId}
+                              onSelect={(asset) => {
+                                if (isRejectedPortfolioAudio(asset.url, null, asset.name)) return
+                                patchPortfolio(portfolio.id, {
+                                  imageUrl: asset.url,
+                                  imageName: asset.name,
+                                  type: detectGalleryPortfolioType(asset.url, null, asset.name),
+                                })
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="group mb-8 flex flex-col space-y-1.5">
                           <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                            <FileText className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" /> Title
+                            {portfolio.type === 'Video' ? (
+                              <Youtube className="h-3.5 w-3.5 text-red-500" />
+                            ) : (
+                              <LinkIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                            )}
+                            {portfolio.type === 'Video' ? 'YouTube / Video URL' : 'Project / Link URL'}
                           </label>
                           <input
                             type="text"
-                            value={portfolio.title}
-                            onChange={(e) => updatePortfolio(portfolio.id, 'title', e.target.value)}
-                            placeholder="Enter portfolio title"
+                            value={portfolio.url}
+                            onChange={(e) => {
+                              const nextUrl = e.target.value
+                              const hasFeatured = Boolean(portfolio.imageUrl?.trim())
+                              if (!hasFeatured && nextUrl.trim()) {
+                                if (isRejectedPortfolioAudio(nextUrl)) {
+                                  updatePortfolio(portfolio.id, 'url', nextUrl)
+                                  return
+                                }
+                                const detected = detectGalleryPortfolioType(nextUrl)
+                                const type: GalleryPortfolioType =
+                                  detected === 'Video' || isVideoUrl(nextUrl)
+                                    ? 'Video'
+                                    : detected === 'Link' || /^https?:\/\//i.test(nextUrl.trim())
+                                      ? 'Link'
+                                      : detected
+                                patchPortfolio(portfolio.id, { url: nextUrl, type })
+                                return
+                              }
+                              updatePortfolio(portfolio.id, 'url', nextUrl)
+                            }}
+                            placeholder={portfolio.type === 'Video' ? 'Enter YouTube video URL' : 'https://…'}
                             className={inputClasses}
                           />
                         </div>
-                      </div>
 
-                      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <div className="group order-2 flex min-h-0 flex-col space-y-1.5 md:order-1">
-                          <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                            Description
-                          </label>
-                          <RichTextEditor
-                            value={portfolio.description}
-                            onChange={(html) => updatePortfolio(portfolio.id, 'description', html)}
-                            placeholder="Write a description for your portfolio..."
-                            minHeightClassName="min-h-48"
-                          />
-                        </div>
-                        <div className="order-1 space-y-3 md:order-2">
-                          <MediaFileUploader
-                            label="Featured media"
-                            accent="teal"
-                            profileId={cardId}
-                            attachmentType="Portfolio Gallery"
-                            value={portfolio.imageUrl}
-                            fileName={portfolio.imageName}
-                            accept={PORTFOLIO_MEDIA_ACCEPT}
-                            hint="Upload image, video, or a document - type is detected automatically (audio not allowed)"
-                            onChange={(next) => {
-                              if (!next) {
-                                patchPortfolio(portfolio.id, {
-                                  imageUrl: '',
-                                  imageName: '',
-                                })
-                                return
-                              }
-                              if (isRejectedPortfolioAudio(next.url, next.mimeType, next.fileName)) {
-                                return
-                              }
-                              patchPortfolio(portfolio.id, {
-                                imageUrl: next.url,
-                                imageName: next.fileName,
-                                type: detectGalleryPortfolioType(next.url, next.mimeType, next.fileName),
-                              })
-                            }}
-                          />
-                          <MediaSourceActions
-                            mode="both"
-                            compact
-                            profileId={cardId}
-                            onSelect={(asset) => {
-                              if (isRejectedPortfolioAudio(asset.url, null, asset.name)) return
-                              patchPortfolio(portfolio.id, {
-                                imageUrl: asset.url,
-                                imageName: asset.name,
-                                type: detectGalleryPortfolioType(asset.url, null, asset.name),
-                              })
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="group mb-8 flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                          {portfolio.type === 'Video' ? (
-                            <Youtube className="h-3.5 w-3.5 text-red-500" />
-                          ) : (
-                            <LinkIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                          )}
-                          {portfolio.type === 'Video' ? 'YouTube / Video URL' : 'Project / Link URL'}
-                        </label>
-                        <input
-                          type="text"
-                          value={portfolio.url}
-                          onChange={(e) => {
-                            const nextUrl = e.target.value
-                            const hasFeatured = Boolean(portfolio.imageUrl?.trim())
-                            if (!hasFeatured && nextUrl.trim()) {
-                              if (isRejectedPortfolioAudio(nextUrl)) {
-                                updatePortfolio(portfolio.id, 'url', nextUrl)
-                                return
-                              }
-                              const detected = detectGalleryPortfolioType(nextUrl)
-                              const type: GalleryPortfolioType =
-                                detected === 'Video' || isVideoUrl(nextUrl)
-                                  ? 'Video'
-                                  : detected === 'Link' || /^https?:\/\//i.test(nextUrl.trim())
-                                    ? 'Link'
-                                    : detected
-                              patchPortfolio(portfolio.id, { url: nextUrl, type })
-                              return
-                            }
-                            updatePortfolio(portfolio.id, 'url', nextUrl)
-                          }}
-                          placeholder={portfolio.type === 'Video' ? 'Enter YouTube video URL' : 'https://…'}
-                          className={inputClasses}
-                        />
-                      </div>
-
-                      <div className="mt-4 flex items-center gap-4 pt-2">
-                        <label className="group flex cursor-pointer items-center gap-3">
-                          <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
-                            Active Status
-                          </span>
-                          <div className="relative flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              checked={portfolio.active}
-                              onChange={(e) => updatePortfolio(portfolio.id, 'active', e.target.checked)}
-                              className="sr-only"
-                            />
-                            <div
-                              className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
-                                portfolio.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
-                              }`}
-                            >
-                              <div
-                                className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
-                                  portfolio.active ? 'translate-x-4' : 'translate-x-0'
-                                }`}
+                        <div className="mt-4 flex items-center gap-4 pt-2">
+                          <label className="group flex cursor-pointer items-center gap-3">
+                            <span className="text-[13px] font-bold text-slate-500 transition-colors group-hover:text-slate-700 dark:text-slate-400">
+                              Active Status
+                            </span>
+                            <div className="relative flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={portfolio.active}
+                                onChange={(e) => updatePortfolio(portfolio.id, 'active', e.target.checked)}
+                                className="sr-only"
                               />
+                              <div
+                                className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
+                                  portfolio.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
+                                }`}
+                              >
+                                <div
+                                  className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
+                                    portfolio.active ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        </label>
-                      </div>
-                    </ExpandableEntryBody>
+                          </label>
+                        </div>
+                      </ExpandableEntryBody>
+                    )}
                   </section>
                 )
               }}

@@ -5,6 +5,7 @@ import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -163,48 +164,62 @@ export function TabReviews() {
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-3 p-5">
-                    <input
-                      value={item.author}
-                      onChange={(e) => updateReview(item.id, { author: e.target.value })}
-                      placeholder="Reviewer name"
-                      className={inputClasses}
-                    />
-                    <MediaFileUploader
-                      label="Reviewer photo"
-                      accent="primary"
-                      profileId={cardId}
-                      attachmentType="Featured Image"
-                      value={item.imageUrl || ''}
-                      accept="image/*"
-                      hint="Shown on the public Reviews tab"
-                      onChange={(next) => updateReview(item.id, { imageUrl: next?.url || '' })}
-                    />
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button
-                          key={n}
-                          type="button"
-                          onClick={() => updateReview(item.id, { rating: n })}
-                          className="p-1"
-                        >
-                          <Star
-                            className={`h-5 w-5 ${n <= item.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                    <RichTextEditor
-                      value={item.text}
-                      onChange={(html) => updateReview(item.id, { text: html })}
-                      placeholder="What they said…"
-                      minHeightClassName="min-h-48"
-                    />
-                    <input
-                      value={item.url || ''}
-                      onChange={(e) => updateReview(item.id, { url: e.target.value })}
-                      placeholder="Original review URL (optional — whole card opens this link)"
-                      className={inputClasses}
-                    />
+                    {item.corporateOwned ? (
+                      <CorporateOwnerContentView
+                        lines={[
+                          item.author,
+                          item.rating ? `${item.rating} / 5` : '',
+                          stripHtml(item.text || ''),
+                          item.url,
+                        ]}
+                        imageUrl={item.imageUrl}
+                      />
+                    ) : (
+                      <>
+                        <input
+                          value={item.author}
+                          onChange={(e) => updateReview(item.id, { author: e.target.value })}
+                          placeholder="Reviewer name"
+                          className={inputClasses}
+                        />
+                        <MediaFileUploader
+                          label="Reviewer photo"
+                          accent="primary"
+                          profileId={cardId}
+                          attachmentType="Featured Image"
+                          value={item.imageUrl || ''}
+                          accept="image/*"
+                          hint="Shown on the public Reviews tab"
+                          onChange={(next) => updateReview(item.id, { imageUrl: next?.url || '' })}
+                        />
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => updateReview(item.id, { rating: n })}
+                              className="p-1"
+                            >
+                              <Star
+                                className={`h-5 w-5 ${n <= item.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                        <RichTextEditor
+                          value={item.text}
+                          onChange={(html) => updateReview(item.id, { text: html })}
+                          placeholder="What they said…"
+                          minHeightClassName="min-h-48"
+                        />
+                        <input
+                          value={item.url || ''}
+                          onChange={(e) => updateReview(item.id, { url: e.target.value })}
+                          placeholder="Original review URL (optional — whole card opens this link)"
+                          className={inputClasses}
+                        />
+                      </>
+                    )}
                   </ExpandableEntryBody>
                 </section>
               )

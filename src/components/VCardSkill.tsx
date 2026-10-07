@@ -1,6 +1,7 @@
 'use client'
 
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -204,57 +205,63 @@ export function TabSkill() {
               />
 
               <ExpandableEntryBody isExpanded={open} className="space-y-8 p-4 sm:p-8">
-                <div className="group flex flex-col space-y-1.5">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Skill Category
-                  </label>
-                  <input
-                    type="text"
-                    value={group.type}
-                    onChange={(e) => updateSkillGroupType(group.id, e.target.value)}
-                    placeholder="e.g. Frontend Development"
-                    className={inputClasses}
-                  />
-                </div>
+                {group.corporateOwned ? (
+                  <CorporateOwnerContentView lines={[group.type, group.skills.join(', ')]} />
+                ) : (
+                  <>
+                    <div className="group flex flex-col space-y-1.5">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Skill Category
+                      </label>
+                      <input
+                        type="text"
+                        value={group.type}
+                        onChange={(e) => updateSkillGroupType(group.id, e.target.value)}
+                        placeholder="e.g. Frontend Development"
+                        className={inputClasses}
+                      />
+                    </div>
 
-                <div className="group flex flex-col space-y-1.5">
-                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
-                    Skills
-                  </label>
-                  <div className="flex min-h-15 w-full flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm transition-all focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 dark:border-white/10 dark:bg-[#0b0f19]">
-                    {group.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-2.5">
-                        {group.skills.map((skill, sIdx) => (
-                          <span
-                            key={sIdx}
-                            className="flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50/50 px-4 py-2 text-[13px] font-bold text-purple-600 shadow-sm dark:border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-400"
-                          >
-                            {skill}
-                            <button
-                              type="button"
-                              onClick={() => removeSkillFromGroup(group.id, skill)}
-                              className="ml-1 rounded-md p-0.5 transition-colors hover:bg-purple-100 hover:text-purple-700 dark:hover:bg-purple-500/20 dark:hover:text-purple-300"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </span>
-                        ))}
+                    <div className="group flex flex-col space-y-1.5">
+                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase transition-colors group-focus-within:text-slate-500 dark:text-slate-400">
+                        Skills
+                      </label>
+                      <div className="flex min-h-15 w-full flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm transition-all focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500 dark:border-white/10 dark:bg-[#0b0f19]">
+                        {group.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2.5">
+                            {group.skills.map((skill, sIdx) => (
+                              <span
+                                key={sIdx}
+                                className="flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50/50 px-4 py-2 text-[13px] font-bold text-purple-600 shadow-sm dark:border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-400"
+                              >
+                                {skill}
+                                <button
+                                  type="button"
+                                  onClick={() => removeSkillFromGroup(group.id, skill)}
+                                  className="ml-1 rounded-md p-0.5 transition-colors hover:bg-purple-100 hover:text-purple-700 dark:hover:bg-purple-500/20 dark:hover:text-purple-300"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <input
+                          type="text"
+                          value={inputValues[group.id] || ''}
+                          onChange={(e) => updateInputValue(group.id, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(group.id, e)}
+                          onBlur={() => {
+                            const typed = (inputValuesRef.current[group.id] || '').trim()
+                            if (typed) addSkillToGroup(group.id, typed)
+                          }}
+                          placeholder="Type a skill and press Enter..."
+                          className="mt-1 w-full bg-transparent py-1 text-[13px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white"
+                        />
                       </div>
-                    )}
-                    <input
-                      type="text"
-                      value={inputValues[group.id] || ''}
-                      onChange={(e) => updateInputValue(group.id, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(group.id, e)}
-                      onBlur={() => {
-                        const typed = (inputValuesRef.current[group.id] || '').trim()
-                        if (typed) addSkillToGroup(group.id, typed)
-                      }}
-                      placeholder="Type a skill and press Enter..."
-                      className="mt-1 w-full bg-transparent py-1 text-[13px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white"
-                    />
-                  </div>
-                </div>
+                    </div>
+                  </>
+                )}
               </ExpandableEntryBody>
             </section>
           )

@@ -367,6 +367,10 @@ export type VCardListMeta = {
   status?: string
   /** Source profile id when this card was duplicated. */
   duplicatedFrom?: string | null
+  /** Profile login user. On a corporate member card this is the member, not the corporate owner. */
+  profileUserId?: string | null
+  /** Corporate group parent. Set on member cards and on the owner card when it is linked to that account. */
+  companyUserId?: string | null
 }
 
 export type VCardRecord = VCardData &

@@ -32,6 +32,7 @@ import {
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
+import { CORPORATE_MEMBER_DUPLICATE_REASON, isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
 import { notify } from '@/lib/toast/toast'
 import {
   useCreateTeamNoticeMutation,
@@ -277,9 +278,11 @@ export default function TeamVCardsView() {
                 noticeVersion={noticeVersion}
                 cardNoticeText={serverNotice?.text ?? null}
                 cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
-                canDuplicate={directory.canCreate}
-                duplicateDisabledReason={directory.createDisabledReason}
-                onDuplicate={() => void handleDuplicate(card)}
+                canDuplicate={directory.canCreate && !isCorporateGroupMemberCard(card)}
+                duplicateDisabledReason={
+                  isCorporateGroupMemberCard(card) ? CORPORATE_MEMBER_DUPLICATE_REASON : directory.createDisabledReason
+                }
+                onDuplicate={isCorporateGroupMemberCard(card) ? undefined : () => void handleDuplicate(card)}
                 isDuplicating={duplicatingCardId === card.id}
                 isNewlyDuplicated={
                   isNewCardHighlight(card.createdAt) ||
@@ -335,9 +338,13 @@ export default function TeamVCardsView() {
         onCall={openCallForCard}
         onSchedule={openScheduleForCard}
         onNotice={openNotice}
-        onDuplicate={() => panelCard && void handleDuplicate(panelCard)}
-        canDuplicate={directory.canCreate}
-        duplicateDisabledReason={directory.createDisabledReason}
+        onDuplicate={() => panelCard && !isCorporateGroupMemberCard(panelCard) && void handleDuplicate(panelCard)}
+        canDuplicate={Boolean(panelCard && directory.canCreate && !isCorporateGroupMemberCard(panelCard))}
+        duplicateDisabledReason={
+          panelCard && isCorporateGroupMemberCard(panelCard)
+            ? CORPORATE_MEMBER_DUPLICATE_REASON
+            : directory.createDisabledReason
+        }
         isDuplicating={Boolean(panelCard?.id && duplicatingCardId === panelCard.id)}
       />
 

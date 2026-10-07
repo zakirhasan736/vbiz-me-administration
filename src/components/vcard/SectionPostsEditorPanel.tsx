@@ -4,6 +4,7 @@ import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -216,6 +217,8 @@ export function SectionPostsEditorPanel({
     field: keyof VCardSectionPostItem,
     value: VCardSectionPostItem[keyof VCardSectionPostItem]
   ) => {
+    const target = posts.find((item) => item.id === id)
+    if (target?.corporateOwned) return
     setPosts(posts.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
   }
 
@@ -346,207 +349,217 @@ export function SectionPostsEditorPanel({
                       accent={cardAccent}
                       dragHandleProps={isSingleItem ? undefined : dragHandleProps}
                     />
-                    {isVideos && post.corporateOwned ? (
-                      <div className="border-b border-slate-100 px-4 py-3 sm:px-8 dark:border-white/5">
-                        <HideFromPublicCardButton
-                          hidden={hiddenOwnerMediaMatches(hiddenVideos, {
-                            id: post.id,
-                            title: post.title,
-                            description: post.description,
-                            url: post.url,
-                            featuredImage: post.featuredImage,
-                          })}
-                          onToggle={() =>
-                            updateData('hiddenOwnerMedia', {
-                              photos: hiddenPhotos,
-                              videos: toggleHiddenOwnerMedia(hiddenVideos, {
-                                id: post.id,
-                                title: post.title,
-                                description: post.description,
-                                url: post.url,
-                                featuredImage: post.featuredImage,
-                              }),
-                            })
-                          }
-                        />
-                      </div>
-                    ) : null}
-
-                    <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
-                      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-                        {fieldSet.has('title') ? (
-                          <div className="group flex flex-col space-y-1.5">
-                            <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                              <FileText className={`h-3.5 w-3.5 ${a.iconText}`} /> Title
-                            </label>
-                            <input
-                              type="text"
-                              value={post.title}
-                              onChange={(e) => updatePost(post.id, 'title', e.target.value)}
-                              placeholder="Enter title"
-                              className={inputClasses}
-                            />
-                          </div>
-                        ) : null}
-                        {fieldSet.has('url') ? (
-                          <div className="group flex flex-col space-y-1.5">
-                            <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                              <LinkIcon className={`h-3.5 w-3.5 ${a.iconText}`} /> URL
-                            </label>
-                            <input
-                              type="url"
-                              value={post.url}
-                              onChange={(e) => updatePost(post.id, 'url', e.target.value)}
-                              placeholder="https://example.com"
-                              className={inputClasses}
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-
-                      {fieldSet.has('description') ||
-                      fieldSet.has('featuredImage') ||
-                      fieldSet.has('date') ||
-                      fieldSet.has('rating') ||
-                      fieldSet.has('location') ||
-                      fieldSet.has('price') ||
-                      fieldSet.has('offerPrice') ? (
-                        <div
-                          className={cn(
-                            'mb-8 grid grid-cols-1 gap-6 md:items-start',
-                            fieldSet.has('featuredImage') && hasLeftColumn ? 'md:grid-cols-2' : null,
-                            fieldSet.has('active') && hasLeftColumn ? 'md:mb-0' : null
-                          )}
-                        >
-                          {hasLeftColumn ? (
-                            <div className="flex min-w-0 flex-col gap-6">
-                              {fieldSet.has('description') ? (
-                                <div className="group flex min-h-0 flex-1 flex-col space-y-1.5">
-                                  <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                    Description
-                                  </label>
-                                  <RichTextEditor
-                                    value={post.description}
-                                    onChange={(html) => updatePost(post.id, 'description', html)}
-                                    placeholder="Write a description..."
-                                    minHeightClassName="min-h-44"
-                                  />
-                                </div>
-                              ) : null}
-                              {fieldSet.has('price') || fieldSet.has('offerPrice') ? (
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                  {fieldSet.has('price') ? (
-                                    <div className="group flex flex-col space-y-1.5">
-                                      <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                        <DollarSign className={`h-3.5 w-3.5 ${a.iconText}`} /> Price
-                                      </label>
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={post.price || ''}
-                                        onChange={(e) => updatePost(post.id, 'price', e.target.value)}
-                                        placeholder="e.g. $49.99"
-                                        className={inputClasses}
-                                      />
-                                      <p className="pl-1 text-[10px] font-medium text-slate-400">
-                                        Regular / seller list price (struck through when an offer price is set).
-                                      </p>
-                                    </div>
-                                  ) : null}
-                                  {fieldSet.has('offerPrice') ? (
-                                    <div className="group flex flex-col space-y-1.5">
-                                      <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                        <Tag className={`h-3.5 w-3.5 ${a.iconText}`} /> Offer price
-                                      </label>
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={post.offerPrice || ''}
-                                        onChange={(e) => updatePost(post.id, 'offerPrice', e.target.value)}
-                                        placeholder="e.g. $39.99"
-                                        className={inputClasses}
-                                      />
-                                      <p className="pl-1 text-[10px] font-medium text-slate-400">
-                                        Sale / offer price shown as the active price on the public card.
-                                      </p>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              ) : null}
-                              {fieldSet.has('date') ? (
-                                <div className="group flex flex-col space-y-1.5">
-                                  <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                    <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} /> Date
-                                  </label>
-                                  <VCardDateInput
-                                    value={post.date}
-                                    onChange={(e) => updatePost(post.id, 'date', e.target.value)}
-                                    className={inputClasses}
-                                  />
-                                </div>
-                              ) : null}
-                              {fieldSet.has('location') ? (
-                                <div className="group flex flex-col space-y-1.5">
-                                  <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                    <MapPin className={`h-3.5 w-3.5 ${a.iconText}`} /> Location
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={post.location}
-                                    onChange={(e) => updatePost(post.id, 'location', e.target.value)}
-                                    placeholder="City, venue, or address"
-                                    className={inputClasses}
-                                  />
-                                </div>
-                              ) : null}
-                              {fieldSet.has('rating') ? (
-                                <div className="group flex flex-col space-y-1.5">
-                                  <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                    <Star className={`h-3.5 w-3.5 ${a.iconText}`} /> Rating
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={post.rating}
-                                    onChange={(e) => updatePost(post.id, 'rating', e.target.value)}
-                                    placeholder="e.g. 5"
-                                    className={inputClasses}
-                                  />
-                                </div>
-                              ) : null}
-                              {renderActiveToggle('hidden md:flex')}
+                    {post.corporateOwned ? (
+                      open ? (
+                        <div className="p-4 sm:p-6">
+                          <CorporateOwnerContentView
+                            lines={[post.title, stripHtml(post.description || ''), post.url]}
+                            imageUrl={post.featuredImage}
+                            extra={
+                              isVideos ? (
+                                <HideFromPublicCardButton
+                                  hidden={hiddenOwnerMediaMatches(hiddenVideos, {
+                                    id: post.id,
+                                    title: post.title,
+                                    description: post.description,
+                                    url: post.url,
+                                    featuredImage: post.featuredImage,
+                                  })}
+                                  onToggle={() =>
+                                    updateData('hiddenOwnerMedia', {
+                                      photos: hiddenPhotos,
+                                      videos: toggleHiddenOwnerMedia(hiddenVideos, {
+                                        id: post.id,
+                                        title: post.title,
+                                        description: post.description,
+                                        url: post.url,
+                                        featuredImage: post.featuredImage,
+                                      }),
+                                    })
+                                  }
+                                />
+                              ) : null
+                            }
+                          />
+                        </div>
+                      ) : null
+                    ) : (
+                      <ExpandableEntryBody isExpanded={open} className="p-4 sm:p-8">
+                        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                          {fieldSet.has('title') ? (
+                            <div className="group flex flex-col space-y-1.5">
+                              <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                <FileText className={`h-3.5 w-3.5 ${a.iconText}`} /> Title
+                              </label>
+                              <input
+                                type="text"
+                                value={post.title}
+                                onChange={(e) => updatePost(post.id, 'title', e.target.value)}
+                                placeholder="Enter title"
+                                className={inputClasses}
+                              />
                             </div>
                           ) : null}
-                          {fieldSet.has('featuredImage') ? (
-                            <div className="min-w-0 space-y-3">
-                              <MediaFileUploader
-                                label={schema.featuredMediaMode === 'video' ? 'Featured video' : 'Featured media'}
-                                accent={uploaderAccent}
-                                profileId={cardId}
-                                attachmentType={schema.title}
-                                value={post.featuredImage}
-                                accept={
-                                  schema.featuredMediaMode === 'video' ? 'video/*' : 'image/*,video/*,application/pdf'
-                                }
-                                hint={
-                                  schema.featuredMediaMode === 'video'
-                                    ? 'Upload a video file only - preview appears here'
-                                    : 'Upload an image, video, or PDF - preview appears here'
-                                }
-                                onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
-                              />
-                              <MediaSourceActions
-                                mode={schema.featuredMediaMode === 'video' ? 'video' : 'both'}
-                                compact
-                                profileId={cardId}
-                                onSelect={(asset) => updatePost(post.id, 'featuredImage', asset.url)}
+                          {fieldSet.has('url') ? (
+                            <div className="group flex flex-col space-y-1.5">
+                              <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                <LinkIcon className={`h-3.5 w-3.5 ${a.iconText}`} /> URL
+                              </label>
+                              <input
+                                type="url"
+                                value={post.url}
+                                onChange={(e) => updatePost(post.id, 'url', e.target.value)}
+                                placeholder="https://example.com"
+                                className={inputClasses}
                               />
                             </div>
                           ) : null}
                         </div>
-                      ) : null}
 
-                      {renderActiveToggle(hasLeftColumn ? 'flex md:hidden' : 'flex')}
-                    </ExpandableEntryBody>
+                        {fieldSet.has('description') ||
+                        fieldSet.has('featuredImage') ||
+                        fieldSet.has('date') ||
+                        fieldSet.has('rating') ||
+                        fieldSet.has('location') ||
+                        fieldSet.has('price') ||
+                        fieldSet.has('offerPrice') ? (
+                          <div
+                            className={cn(
+                              'mb-8 grid grid-cols-1 gap-6 md:items-start',
+                              fieldSet.has('featuredImage') && hasLeftColumn ? 'md:grid-cols-2' : null,
+                              fieldSet.has('active') && hasLeftColumn ? 'md:mb-0' : null
+                            )}
+                          >
+                            {hasLeftColumn ? (
+                              <div className="flex min-w-0 flex-col gap-6">
+                                {fieldSet.has('description') ? (
+                                  <div className="group flex min-h-0 flex-1 flex-col space-y-1.5">
+                                    <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                      Description
+                                    </label>
+                                    <RichTextEditor
+                                      value={post.description}
+                                      onChange={(html) => updatePost(post.id, 'description', html)}
+                                      placeholder="Write a description..."
+                                      minHeightClassName="min-h-44"
+                                    />
+                                  </div>
+                                ) : null}
+                                {fieldSet.has('price') || fieldSet.has('offerPrice') ? (
+                                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    {fieldSet.has('price') ? (
+                                      <div className="group flex flex-col space-y-1.5">
+                                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                          <DollarSign className={`h-3.5 w-3.5 ${a.iconText}`} /> Price
+                                        </label>
+                                        <input
+                                          type="text"
+                                          inputMode="decimal"
+                                          value={post.price || ''}
+                                          onChange={(e) => updatePost(post.id, 'price', e.target.value)}
+                                          placeholder="e.g. $49.99"
+                                          className={inputClasses}
+                                        />
+                                        <p className="pl-1 text-[10px] font-medium text-slate-400">
+                                          Regular / seller list price (struck through when an offer price is set).
+                                        </p>
+                                      </div>
+                                    ) : null}
+                                    {fieldSet.has('offerPrice') ? (
+                                      <div className="group flex flex-col space-y-1.5">
+                                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                          <Tag className={`h-3.5 w-3.5 ${a.iconText}`} /> Offer price
+                                        </label>
+                                        <input
+                                          type="text"
+                                          inputMode="decimal"
+                                          value={post.offerPrice || ''}
+                                          onChange={(e) => updatePost(post.id, 'offerPrice', e.target.value)}
+                                          placeholder="e.g. $39.99"
+                                          className={inputClasses}
+                                        />
+                                        <p className="pl-1 text-[10px] font-medium text-slate-400">
+                                          Sale / offer price shown as the active price on the public card.
+                                        </p>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                                {fieldSet.has('date') ? (
+                                  <div className="group flex flex-col space-y-1.5">
+                                    <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                      <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} /> Date
+                                    </label>
+                                    <VCardDateInput
+                                      value={post.date}
+                                      onChange={(e) => updatePost(post.id, 'date', e.target.value)}
+                                      className={inputClasses}
+                                    />
+                                  </div>
+                                ) : null}
+                                {fieldSet.has('location') ? (
+                                  <div className="group flex flex-col space-y-1.5">
+                                    <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                      <MapPin className={`h-3.5 w-3.5 ${a.iconText}`} /> Location
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={post.location}
+                                      onChange={(e) => updatePost(post.id, 'location', e.target.value)}
+                                      placeholder="City, venue, or address"
+                                      className={inputClasses}
+                                    />
+                                  </div>
+                                ) : null}
+                                {fieldSet.has('rating') ? (
+                                  <div className="group flex flex-col space-y-1.5">
+                                    <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                                      <Star className={`h-3.5 w-3.5 ${a.iconText}`} /> Rating
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={post.rating}
+                                      onChange={(e) => updatePost(post.id, 'rating', e.target.value)}
+                                      placeholder="e.g. 5"
+                                      className={inputClasses}
+                                    />
+                                  </div>
+                                ) : null}
+                                {renderActiveToggle('hidden md:flex')}
+                              </div>
+                            ) : null}
+                            {fieldSet.has('featuredImage') ? (
+                              <div className="min-w-0 space-y-3">
+                                <MediaFileUploader
+                                  label={schema.featuredMediaMode === 'video' ? 'Featured video' : 'Featured media'}
+                                  accent={uploaderAccent}
+                                  profileId={cardId}
+                                  attachmentType={schema.title}
+                                  value={post.featuredImage}
+                                  accept={
+                                    schema.featuredMediaMode === 'video' ? 'video/*' : 'image/*,video/*,application/pdf'
+                                  }
+                                  hint={
+                                    schema.featuredMediaMode === 'video'
+                                      ? 'Upload a video file only - preview appears here'
+                                      : 'Upload an image, video, or PDF - preview appears here'
+                                  }
+                                  onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
+                                />
+                                <MediaSourceActions
+                                  mode={schema.featuredMediaMode === 'video' ? 'video' : 'both'}
+                                  compact
+                                  profileId={cardId}
+                                  onSelect={(asset) => updatePost(post.id, 'featuredImage', asset.url)}
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {renderActiveToggle(hasLeftColumn ? 'flex md:hidden' : 'flex')}
+                      </ExpandableEntryBody>
+                    )}
                   </section>
                 )
               }}

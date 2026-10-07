@@ -6,6 +6,7 @@ import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { ReorderList } from '@/components/ReorderList'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
   ExpandableEntryHeader,
@@ -186,107 +187,118 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                   />
 
                   <ExpandableEntryBody isExpanded={open} className="space-y-4 p-5">
-                    <div className="group flex flex-col space-y-1.5">
-                      <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                        <LayoutGrid className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" /> Category
-                      </label>
-                      <select
-                        value={item.category}
-                        onChange={(e) => updatePost(item.id, 'category', e.target.value)}
-                        className={selectClasses}
-                      >
-                        <option value="" disabled>
-                          Select category
-                        </option>
-                        <option value="News">News</option>
-                        <option value="Announcement">Announcement</option>
-                        <option value="Event">Event</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-
-                    <input
-                      value={item.title}
-                      onChange={(e) => updatePost(item.id, 'title', e.target.value)}
-                      placeholder="Headline"
-                      className={`${inputClasses} font-semibold`}
-                    />
-
-                    <div className="group flex flex-col space-y-1.5">
-                      <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                        Description
-                      </label>
-                      <RichTextEditor
-                        value={item.description}
-                        onChange={(html) => updatePost(item.id, 'description', html)}
-                        placeholder="Write the full article with formatting, links, and lists…"
+                    {item.corporateOwned ? (
+                      <CorporateOwnerContentView
+                        lines={[item.title, item.category, stripHtml(item.description || '')]}
+                        imageUrl={item.featuredImage}
                       />
-                    </div>
+                    ) : (
+                      <>
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                            <LayoutGrid className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" /> Category
+                          </label>
+                          <select
+                            value={item.category}
+                            onChange={(e) => updatePost(item.id, 'category', e.target.value)}
+                            className={selectClasses}
+                          >
+                            <option value="" disabled>
+                              Select category
+                            </option>
+                            <option value="News">News</option>
+                            <option value="Announcement">Announcement</option>
+                            <option value="Event">Event</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
 
-                    <input
-                      type="url"
-                      value={item.customUrl}
-                      onChange={(e) => updatePost(item.id, 'customUrl', e.target.value)}
-                      placeholder="https://… (optional link)"
-                      className={inputClasses}
-                    />
+                        <input
+                          value={item.title}
+                          onChange={(e) => updatePost(item.id, 'title', e.target.value)}
+                          placeholder="Headline"
+                          className={`${inputClasses} font-semibold`}
+                        />
 
-                    <div className="space-y-3">
-                      <MediaFileUploader
-                        label="Featured image"
-                        accent="violet"
-                        profileId={profileId}
-                        attachmentType="Blog Featured"
-                        accept="image/*,video/*"
-                        allowUrlPaste={false}
-                        hint="Upload an image or video - preview appears below"
-                        value={item.featuredImage}
-                        onChange={(next) => updatePost(item.id, 'featuredImage', next?.url || '')}
-                      />
-                      <MediaSourceActions
-                        mode="both"
-                        compact
-                        profileId={profileId}
-                        onSelect={(asset) => updatePost(item.id, 'featuredImage', asset.url)}
-                      />
-                    </div>
+                        <div className="group flex flex-col space-y-1.5">
+                          <label className="pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                            Description
+                          </label>
+                          <RichTextEditor
+                            value={item.description}
+                            onChange={(html) => updatePost(item.id, 'description', html)}
+                            placeholder="Write the full article with formatting, links, and lists…"
+                          />
+                        </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
-                      <div className="group flex flex-col space-y-1.5">
-                        <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                          <Calendar className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" /> Date
-                        </label>
-                        <VCardDateInput
-                          value={item.date}
-                          onChange={(e) => updatePost(item.id, 'date', e.target.value)}
+                        <input
+                          type="url"
+                          value={item.customUrl}
+                          onChange={(e) => updatePost(item.id, 'customUrl', e.target.value)}
+                          placeholder="https://… (optional link)"
                           className={inputClasses}
                         />
-                      </div>
-                      <div className="flex items-center gap-4 pb-1">
-                        <label className="group flex cursor-pointer items-center gap-3">
-                          <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">Published</span>
-                          <div className="relative flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              checked={item.active}
-                              onChange={(e) => updatePost(item.id, 'active', e.target.checked)}
-                              className="sr-only"
+
+                        <div className="space-y-3">
+                          <MediaFileUploader
+                            label="Featured image"
+                            accent="violet"
+                            profileId={profileId}
+                            attachmentType="Blog Featured"
+                            accept="image/*,video/*"
+                            allowUrlPaste={false}
+                            hint="Upload an image or video - preview appears below"
+                            value={item.featuredImage}
+                            onChange={(next) => updatePost(item.id, 'featuredImage', next?.url || '')}
+                          />
+                          <MediaSourceActions
+                            mode="both"
+                            compact
+                            profileId={profileId}
+                            onSelect={(asset) => updatePost(item.id, 'featuredImage', asset.url)}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+                          <div className="group flex flex-col space-y-1.5">
+                            <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                              <Calendar className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" /> Date
+                            </label>
+                            <VCardDateInput
+                              value={item.date}
+                              onChange={(e) => updatePost(item.id, 'date', e.target.value)}
+                              className={inputClasses}
                             />
-                            <div
-                              className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
-                                item.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
-                              }`}
-                            >
-                              <div
-                                className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
-                                  item.active ? 'translate-x-4' : 'translate-x-0'
-                                }`}
-                              />
-                            </div>
                           </div>
-                        </label>
-                      </div>
-                    </div>
+                          <div className="flex items-center gap-4 pb-1">
+                            <label className="group flex cursor-pointer items-center gap-3">
+                              <span className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                                Published
+                              </span>
+                              <div className="relative flex items-center justify-center">
+                                <input
+                                  type="checkbox"
+                                  checked={item.active}
+                                  onChange={(e) => updatePost(item.id, 'active', e.target.checked)}
+                                  className="sr-only"
+                                />
+                                <div
+                                  className={`relative h-5.5 w-9.5 rounded-xl shadow-inner transition-colors ${
+                                    item.active ? 'bg-green-500' : 'bg-slate-200 dark:bg-white/10'
+                                  }`}
+                                >
+                                  <div
+                                    className={`absolute top-0.75 left-0.75 h-4 w-4 rounded-[10px] bg-white shadow transition-transform ${
+                                      item.active ? 'translate-x-4' : 'translate-x-0'
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </ExpandableEntryBody>
                 </section>
               )
