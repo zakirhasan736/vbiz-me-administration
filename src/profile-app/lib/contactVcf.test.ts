@@ -73,10 +73,9 @@ describe('contact VCF photo', () => {
     expect(vcf).toContain('item3.ADR:;;London\\, UK;;;;')
     expect(vcf).toContain('item3.X-ABLabel:Address')
     expect(vcf).toContain('item4.URL:https://analytical.example')
-    expect(vcf).toContain('item4.X-ABLabel:Website')
+    expect(vcf).toContain('item4.X-ABLabel:Website URL')
     expect(vcf).toContain('item5.URL:https://vbiz.me/v/ada')
-    expect(vcf).toContain('item5.X-ABLabel:vCard Url')
-    expect(vcf).not.toContain('TYPE="vCard Url"')
+    expect(vcf).toContain('item5.X-ABLabel:vCard URL')
     expect(vcf).not.toMatch(/^URL:/m)
     expect(vcf).not.toContain('NOTE:')
     expect(vcf).toContain('PHOTO;ENCODING=b;TYPE=JPEG:abc123')
@@ -113,11 +112,10 @@ describe('contact VCF photo', () => {
     expect(apple).toContain('item2.EMAIL:mdonnelly@thepaddockcars.com')
     expect(apple).toContain('item3.X-ABLabel:Address')
     expect(apple).toContain('item3.ADR:;;285 Columbus Boulevard\\, New Britain\\, Connecticut\\, 06051;;;;')
-    expect(apple).toContain('item4.X-ABLabel:Website')
+    expect(apple).toContain('item4.X-ABLabel:Website URL')
     expect(apple).toContain('item4.URL:https://www.thepaddockcars.com')
-    expect(apple).toContain('item5.X-ABLabel:vCard Url')
+    expect(apple).toContain('item5.X-ABLabel:vCard URL')
     expect(apple).toContain('item5.URL:https://app.vbizme.com/vCard/paddock')
-    expect(apple).not.toContain('TYPE="vCard Url"')
 
     const android = serializeContactVcf(contact, null, { platform: 'android' })
     expect(android).toContain('TITLE:President')
@@ -128,12 +126,11 @@ describe('contact VCF photo', () => {
       'X-ANDROID-CUSTOM:vnd.android.cursor.item/email_v2;mdonnelly@thepaddockcars.com;0;Email;;;;;;;;;;;;'
     )
     expect(android).toContain('ADR;TYPE=Address:;;285 Columbus Boulevard\\, New Britain\\, Connecticut\\, 06051;;;;')
-    expect(android).toContain(
-      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://www.thepaddockcars.com;0;Website;;;;;;;;;;;;'
-    )
-    expect(android).toContain(
-      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://app.vbizme.com/vCard/paddock;0;vCard Url;;;;;;;;;;;;'
-    )
+    expect(android).toContain('item1.URL:https://www.thepaddockcars.com')
+    expect(android).toContain('item1.X-ABLabel:Website URL')
+    expect(android).toContain('item2.URL:https://app.vbizme.com/vCard/paddock')
+    expect(android).toContain('item2.X-ABLabel:vCard URL')
+    expect(android).not.toContain('vnd.android.cursor.item/website')
     expect(android).not.toMatch(/^URL[:;]/m)
     expect(android).not.toContain('postal-address_v2')
   })
@@ -183,7 +180,7 @@ describe('contact VCF photo', () => {
     expect(vcf).not.toContain('X-ABLabel:Designation')
   })
 
-  it('labels the public card link vCard Url and the site Website in an Android contact file', () => {
+  it('labels the site Website URL and the public card link vCard URL in an Android contact file', () => {
     const vcf = serializeContactVcf(
       {
         name: 'Ada Lovelace',
@@ -201,14 +198,12 @@ describe('contact VCF photo', () => {
       { platform: 'android' }
     )
 
-    expect(vcf).toContain(
-      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://www.vbizme.com;0;Website;;;;;;;;;;;;'
-    )
-    expect(vcf).toContain(
-      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://app.vbizme.com/vCard/ada;0;vCard Url;;;;;;;;;;;;'
-    )
+    expect(vcf).toContain('item1.URL:https://www.vbizme.com')
+    expect(vcf).toContain('item1.X-ABLabel:Website URL')
+    expect(vcf).toContain('item2.URL:https://app.vbizme.com/vCard/ada')
+    expect(vcf).toContain('item2.X-ABLabel:vCard URL')
+    expect(vcf).not.toContain('X-ABLabel:Website\r')
     expect(vcf).not.toMatch(/^URL[:;]/m)
-    expect(vcf).not.toContain('X-ABLabel:Website')
   })
 
   it('embeds the first reachable still image into the vCard', async () => {

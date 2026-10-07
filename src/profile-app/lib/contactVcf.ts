@@ -207,8 +207,8 @@ export type ContactVcfPlatform = 'apple' | 'android'
 const EMAIL_LABEL = 'Email'
 const PHONE_LABEL = 'Phone'
 const ADDRESS_LABEL = 'Address'
-const WEBSITE_LABEL = 'Website'
-const VCARD_LABEL = 'vCard Url'
+const WEBSITE_LABEL = 'Website URL'
+const VCARD_LABEL = 'vCard URL'
 
 function cleanContactText(value?: string | null): string {
   return (value || '')
@@ -228,8 +228,8 @@ function contactRoleLine(contact: SaveContactCardData): string {
 }
 
 /**
- * iPhone shows X-ABLabel. A URL property is what gives the link icon.
- * Both Website and vCard Url stay URL rows so they share that icon.
+ * iPhone and Google Contacts both read the itemN.X-ABLabel group label.
+ * A URL property is what gives the link icon, so both links stay URL rows.
  */
 function pushAppleLabeledProp(lines: string[], item: number, prop: string, value: string, label: string) {
   lines.push(`item${item}.${prop}:${escapeVcfValue(value)}`)
@@ -265,14 +265,6 @@ function pushAndroidEmail(lines: string[], email: string) {
 
 function pushAndroidAddress(lines: string[], address: string) {
   lines.push(`ADR;TYPE=${ADDRESS_LABEL}:;;${escapeVcfValue(address)};;;;`)
-}
-
-/**
- * Website mime keeps the link icon. Type 0 plus the label is the only way
- * Android shows "Website" and "vCard Url" instead of two Homepage rows.
- */
-function pushAndroidWebsite(lines: string[], url: string, label: string) {
-  pushAndroidCustom(lines, 'vnd.android.cursor.item/website', [url, '0', label])
 }
 
 function absoluteProfileUrl(url: string): string {
@@ -333,8 +325,9 @@ export function serializeContactVcf(
     if (phone) pushAndroidPhone(lines, phone)
     if (email) pushAndroidEmail(lines, email)
     if (address) pushAndroidAddress(lines, address)
-    if (website) pushAndroidWebsite(lines, website, WEBSITE_LABEL)
-    if (cardLink) pushAndroidWebsite(lines, cardLink, VCARD_LABEL)
+    // Google Contacts drops the X-ANDROID-CUSTOM website label and shows "Website".
+    if (website) pushAppleUrl(lines, item++, website, WEBSITE_LABEL)
+    if (cardLink) pushAppleUrl(lines, item++, cardLink, VCARD_LABEL)
   } else {
     if (phone) pushAppleLabeledProp(lines, item++, 'TEL', phone, PHONE_LABEL)
     if (email) pushAppleLabeledProp(lines, item++, 'EMAIL', email, EMAIL_LABEL)
