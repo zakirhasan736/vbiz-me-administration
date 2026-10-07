@@ -275,6 +275,14 @@ function pushAndroidWebsite(lines: string[], url: string, label: string) {
   pushAndroidCustom(lines, 'vnd.android.cursor.item/website', [url, '0', label])
 }
 
+/**
+ * Google Contacts "Custom field" row: data1 = custom label, data2 = value.
+ * Website rows always show the fixed "Website" heading, so the card link uses this instead.
+ */
+function pushAndroidCustomField(lines: string[], label: string, value: string) {
+  pushAndroidCustom(lines, 'vnd.com.google.cursor.item/contact_user_defined_field', [label, value])
+}
+
 function absoluteProfileUrl(url: string): string {
   const trimmed = url.trim()
   if (!trimmed) return ''
@@ -334,7 +342,7 @@ export function serializeContactVcf(
     if (email) pushAndroidEmail(lines, email)
     if (address) pushAndroidAddress(lines, address)
     if (website) pushAndroidWebsite(lines, website, WEBSITE_LABEL)
-    if (cardLink) pushAndroidWebsite(lines, cardLink, VCARD_LABEL)
+    if (cardLink) pushAndroidCustomField(lines, VCARD_LABEL, cardLink)
   } else {
     if (phone) pushAppleLabeledProp(lines, item++, 'TEL', phone, PHONE_LABEL)
     if (email) pushAppleLabeledProp(lines, item++, 'EMAIL', email, EMAIL_LABEL)

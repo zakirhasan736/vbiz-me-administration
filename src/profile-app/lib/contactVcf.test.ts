@@ -130,7 +130,7 @@ describe('contact VCF photo', () => {
       'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://www.thepaddockcars.com;0;Website;;;;;;;;;;;;'
     )
     expect(android).toContain(
-      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://app.vbizme.com/vCard/paddock;0;vCard URL;;;;;;;;;;;;'
+      'X-ANDROID-CUSTOM:vnd.com.google.cursor.item/contact_user_defined_field;vCard URL;https://app.vbizme.com/vCard/paddock;;;;;;;;;;;;'
     )
     expect(android).not.toContain('X-ABLabel')
     expect(android).not.toMatch(/^(item\d+\.)?URL[:;]/m)
@@ -204,7 +204,7 @@ describe('contact VCF photo', () => {
       'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://www.vbizme.com;0;Website;;;;;;;;;;;;'
     )
     expect(vcf).toContain(
-      'X-ANDROID-CUSTOM:vnd.android.cursor.item/website;https://app.vbizme.com/vCard/ada;0;vCard URL;;;;;;;;;;;;'
+      'X-ANDROID-CUSTOM:vnd.com.google.cursor.item/contact_user_defined_field;vCard URL;https://app.vbizme.com/vCard/ada;;;;;;;;;;;;'
     )
     expect(vcf).not.toContain('X-ABLabel')
     expect(vcf).not.toMatch(/^(item\d+\.)?URL[:;]/m)
