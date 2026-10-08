@@ -19,3 +19,14 @@ export function isCorporateGroupMemberCard(card: {
   const companyUserId = String(card.companyUserId || '').trim()
   return Boolean(companyUserId && userId && companyUserId !== userId)
 }
+
+/** Card builder: owner-content locks and "Only show my" controls exist only on corporate team member cards. */
+export function isCorporateMemberEditorCard(data: unknown): boolean {
+  const card = (data || {}) as {
+    corporateMemberCard?: boolean | null
+    duplicatedFrom?: string | null
+    profileUserId?: string | null
+    companyUserId?: string | null
+  }
+  return isCorporateGroupMemberCard(card)
+}

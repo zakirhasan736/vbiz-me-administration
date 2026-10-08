@@ -15,7 +15,7 @@ import { HideFromPublicCardButton } from '@/components/vcard/HideFromPublicCardB
 import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
-import { isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
+import { isCorporateMemberEditorCard } from '@/lib/corporateCardDuplicate'
 import { stripHtml } from '@/lib/htmlText'
 import {
   hiddenOwnerMediaMatches,
@@ -150,10 +150,11 @@ export function SectionPostsEditorPanel({
   const { vCardData, updateData } = useVCard()
   const posts = normalizeSectionPostList(rawPosts)
   const isVideos = schema.key === 'videos'
-  const hideOwnerVideos = isVideos && Boolean(vCardData.hideOwnerVideos)
+  const memberCard = isCorporateMemberEditorCard(vCardData)
+  const hideOwnerVideos = memberCard && isVideos && Boolean(vCardData.hideOwnerVideos)
   const hiddenPhotos = vCardData.hiddenOwnerMedia?.photos || []
   const hiddenVideos = vCardData.hiddenOwnerMedia?.videos || []
-  const hasOwnerVideos = isVideos && posts.some((item) => item.corporateOwned)
+  const hasOwnerVideos = memberCard && isVideos && posts.some((item) => item.corporateOwned)
   const visiblePosts = withoutCorporateOwned(posts, hideOwnerVideos)
   const a = accentStyles[resolveAccent(schema.accentClass)]
   const inputClasses = `${baseInput} ${a.focus}`
@@ -182,12 +183,6 @@ export function SectionPostsEditorPanel({
   }
 
   const isSingleItem = schema.maxItems === 1
-  const memberCard = isCorporateGroupMemberCard({
-    corporateMemberCard: (vCardData as { corporateMemberCard?: boolean }).corporateMemberCard,
-    duplicatedFrom: (vCardData as { duplicatedFrom?: string | null }).duplicatedFrom,
-    profileUserId: (vCardData as { profileUserId?: string | null }).profileUserId,
-    companyUserId: (vCardData as { companyUserId?: string | null }).companyUserId,
-  })
   const lockOwnerForm = memberCard && isSingleItem
   const canAdd = !lockOwnerForm && !isSingleItem && (schema.maxItems == null || posts.length < schema.maxItems)
 

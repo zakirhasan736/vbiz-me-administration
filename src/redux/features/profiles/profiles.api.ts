@@ -689,6 +689,27 @@ export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
   }))
 }
 
+function stripCorporateOwnedFlags(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripCorporateOwnedFlags)
+  if (!value || typeof value !== 'object') return value
+  const out: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (key === 'corporateOwned') continue
+    out[key] = stripCorporateOwnedFlags(child)
+  }
+  return out
+}
+
+/** Single and corporate owner cards: no owner-content locks and no member hide settings. */
+function withoutCorporateMemberState<T extends VCardData>(data: T): T {
+  return {
+    ...(stripCorporateOwnedFlags(data) as T),
+    hideOwnerPhotos: false,
+    hideOwnerVideos: false,
+    hiddenOwnerMedia: { photos: [], videos: [] },
+  }
+}
+
 export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
   const {
     displaySettings,
@@ -899,15 +920,17 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     isPublic: profile.isPublic,
   })
 
+  const corporateMemberCard = typeof profile.corporateMemberCard === 'boolean' ? profile.corporateMemberCard : undefined
+
   return {
-    ...data,
+    ...(corporateMemberCard === false ? withoutCorporateMemberState(data) : data),
     id: profile.id,
     createdAt: profile.createdAt || new Date().toISOString(),
     updatedAt: profile.updatedAt || new Date().toISOString(),
     duplicatedFrom: settingsMap.duplicated_from || '',
     profileUserId: profile.userId || null,
     companyUserId: profile.companyUserId || null,
-    corporateMemberCard: profile.corporateMemberCard === true,
+    corporateMemberCard,
     views: profile.viewCount || 0,
     saves: Number(profile.saveCount) || 0,
     clickCount: Number(profile.clickCount) || 0,

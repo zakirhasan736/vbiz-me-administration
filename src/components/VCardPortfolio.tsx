@@ -17,6 +17,7 @@ import { HideFromPublicCardButton } from '@/components/vcard/HideFromPublicCardB
 import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { mapPortfolioFromPayload } from '@/lib/ai/applyCardDraft'
+import { isCorporateMemberEditorCard } from '@/lib/corporateCardDuplicate'
 import { stripHtml } from '@/lib/htmlText'
 import { detectPortfolioType, isAudioUrl, isVideoUrl, type PortfolioMediaType } from '@/lib/mediaUrl'
 import {
@@ -70,10 +71,11 @@ export function TabPortfolio() {
   const { cardId, vCardData, updateData } = useVCard()
   const sectionTitle = useResolvedSectionTitle(undefined, 'Gallery')
   const portfolios = normalizePortfolioList(vCardData.portfolio)
-  const hideOwnerPhotos = Boolean(vCardData.hideOwnerPhotos)
+  const memberCard = isCorporateMemberEditorCard(vCardData)
+  const hideOwnerPhotos = memberCard && Boolean(vCardData.hideOwnerPhotos)
   const hiddenPhotos = vCardData.hiddenOwnerMedia?.photos || []
   const hiddenVideos = vCardData.hiddenOwnerMedia?.videos || []
-  const hasOwnerPhotos = portfolios.some((item) => item.corporateOwned)
+  const hasOwnerPhotos = memberCard && portfolios.some((item) => item.corporateOwned)
   const visiblePortfolios = withoutCorporateOwned(portfolios, hideOwnerPhotos)
   const portfoliosRef = useRef(portfolios)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef } =
