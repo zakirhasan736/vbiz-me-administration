@@ -4,9 +4,10 @@ import { notify } from '@/lib/toast/toast'
 import {
   useListCardChangeHistoryQuery,
   useRestoreCardChangeMutation,
+  type CardMediaSlot,
   type CardTabCount,
 } from '@/redux/features/profiles/profiles.api'
-import { History, Loader2, RotateCcw } from 'lucide-react'
+import { Film, History, ImageIcon, ImageOff, Loader2, RotateCcw } from 'lucide-react'
 
 function formatWhen(iso: string) {
   const date = new Date(iso)
@@ -22,27 +23,77 @@ function tabLine(tab: CardTabCount) {
   return tab.count === 1 ? '1 item' : `${tab.count} items`
 }
 
-function TabCountList({ tabs }: { tabs: CardTabCount[] }) {
-  if (!tabs.length) {
+const MEDIA_KIND_LABEL: Record<CardMediaSlot['kind'], string> = {
+  image: 'Image',
+  video: 'Video',
+  none: 'Not set',
+}
+
+function ImageSplit({ tab }: { tab: CardTabCount }) {
+  if (tab.empty || typeof tab.withImage !== 'number') return null
+  const withoutImage = tab.withoutImage ?? Math.max(0, tab.count - tab.withImage)
+  return (
+    <span className="flex flex-wrap gap-1.5 text-[11px] font-bold">
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+        <ImageIcon className="h-3 w-3" /> {tab.withImage} with image
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+        <ImageOff className="h-3 w-3" /> {withoutImage} no image
+      </span>
+    </span>
+  )
+}
+
+function TabCountList({ tabs, personalMedia }: { tabs: CardTabCount[]; personalMedia?: CardMediaSlot[] }) {
+  if (!tabs.length && !personalMedia?.length) {
     return <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No tabs on this card.</p>
   }
   return (
     <ul className="grid gap-2 sm:grid-cols-2">
+      {personalMedia?.length ? (
+        <li className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm sm:col-span-2 dark:border-white/10 dark:bg-white/5">
+          <span className="font-semibold text-slate-800 dark:text-slate-100">Personal info media</span>
+          <span className="flex flex-wrap gap-1.5 text-[11px] font-bold">
+            {personalMedia.map((slot) => (
+              <span
+                key={slot.id}
+                className={
+                  slot.kind === 'none'
+                    ? 'inline-flex items-center gap-1 rounded-full bg-slate-200/70 px-2 py-0.5 text-slate-500 dark:bg-white/10 dark:text-slate-400'
+                    : 'inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
+                }
+              >
+                {slot.kind === 'video' ? (
+                  <Film className="h-3 w-3" />
+                ) : slot.kind === 'image' ? (
+                  <ImageIcon className="h-3 w-3" />
+                ) : (
+                  <ImageOff className="h-3 w-3" />
+                )}
+                {slot.label}: {MEDIA_KIND_LABEL[slot.kind]}
+              </span>
+            ))}
+          </span>
+        </li>
+      ) : null}
       {tabs.map((tab) => (
         <li
           key={tab.id}
-          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
+          className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
         >
-          <span className="min-w-0 truncate font-semibold text-slate-800 dark:text-slate-100">{tab.label}</span>
-          <span
-            className={
-              tab.empty
-                ? 'shrink-0 text-xs font-bold tracking-wide text-slate-400 uppercase'
-                : 'shrink-0 text-xs font-bold text-slate-700 dark:text-slate-200'
-            }
-          >
-            {tabLine(tab)}
+          <span className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate font-semibold text-slate-800 dark:text-slate-100">{tab.label}</span>
+            <span
+              className={
+                tab.empty
+                  ? 'shrink-0 text-xs font-bold tracking-wide text-slate-400 uppercase'
+                  : 'shrink-0 text-xs font-bold text-slate-700 dark:text-slate-200'
+              }
+            >
+              {tabLine(tab)}
+            </span>
           </span>
+          <ImageSplit tab={tab} />
         </li>
       ))}
     </ul>
@@ -98,9 +149,10 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
           {inventory ? `${tabCount} ${tabCount === 1 ? 'tab' : 'tabs'} now` : 'Tabs now'}
         </h3>
         <p className="mt-1 mb-3 text-[12px] font-medium text-slate-500 dark:text-slate-400">
-          Each tab on this card, and how many items it has. A tab with nothing stored is marked Empty.
+          Each tab on this card, how many items it has, and how many of those have an image. A tab with nothing stored
+          is marked Empty.
         </p>
-        <TabCountList tabs={inventory?.tabs || []} />
+        <TabCountList tabs={inventory?.tabs || []} personalMedia={inventory?.personalMedia} />
       </section>
 
       <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#070a13]">
@@ -115,7 +167,7 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
                 <p className="mb-2 text-sm font-bold text-slate-800 dark:text-slate-100">
                   {backup.backupDate} · {backup.tabCount} {backup.tabCount === 1 ? 'tab' : 'tabs'}
                 </p>
-                <TabCountList tabs={backup.tabs} />
+                <TabCountList tabs={backup.tabs} personalMedia={backup.personalMedia} />
               </article>
             ))}
           </div>

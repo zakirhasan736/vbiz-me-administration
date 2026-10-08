@@ -64,6 +64,15 @@ export type CardTabCount = {
   label: string
   count: number
   empty: boolean
+  /** Present only on tabs whose items carry an image. */
+  withImage?: number
+  withoutImage?: number
+}
+
+export type CardMediaSlot = {
+  id: 'avatar' | 'intro' | 'background'
+  label: string
+  kind: 'image' | 'video' | 'none'
 }
 
 export type CardDailyBackupSummary = {
@@ -71,6 +80,7 @@ export type CardDailyBackupSummary = {
   backupDate: string
   tabCount: number
   tabs: CardTabCount[]
+  personalMedia?: CardMediaSlot[]
 }
 
 export type CardChangeHistoryItem = {
@@ -1455,7 +1465,7 @@ const profilesApi = api.injectEndpoints({
       {
         items: CardChangeHistoryItem[]
         total: number
-        inventory?: { tabCount: number; tabs: CardTabCount[] }
+        inventory?: { tabCount: number; tabs: CardTabCount[]; personalMedia?: CardMediaSlot[] }
         backups?: CardDailyBackupSummary[]
       },
       { id: string }
@@ -1465,7 +1475,7 @@ const profilesApi = api.injectEndpoints({
         res: Envelope<{
           items: CardChangeHistoryItem[]
           total: number
-          inventory?: { tabCount: number; tabs: CardTabCount[] }
+          inventory?: { tabCount: number; tabs: CardTabCount[]; personalMedia?: CardMediaSlot[] }
           backups?: CardDailyBackupSummary[]
         }>
       ) => res.data || { items: [], total: 0 },

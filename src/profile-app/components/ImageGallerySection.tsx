@@ -19,6 +19,10 @@ const SKELETON_CARD_COUNT = 6
 /** Equal-width columns; each card keeps its natural height (flexible masonry). */
 const FLEXIBLE_GRID_CLASS = 'w-full columns-2 gap-3 md:columns-3 xl:columns-4'
 
+/** Row-by-row grid with equal-height cards. */
+const UNIFORM_GRID_BASE = 'grid w-full grid-cols-1 items-stretch gap-3'
+const UNIFORM_GRID_COLS = 'sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
+
 const SKELETON_ASPECTS = [
   'aspect-[4/5]',
   'aspect-video',
@@ -428,11 +432,14 @@ function GalleryCard({
   idx,
   onOpen,
   fullWidth,
+  uniform,
 }: {
   item: GalleryListItem
   idx: number
   onOpen: (item: GalleryListItem) => void
   fullWidth?: boolean
+  /** Equal-height row grid (some items have no image). */
+  uniform?: boolean
 }) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [isHovered, setIsHovered] = useState(false)
@@ -473,10 +480,13 @@ function GalleryCard({
       }}
       className={cn(
         'vbiz-card group relative w-full cursor-pointer overflow-hidden rounded-2xl border shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308]',
-        fullWidth ? 'h-[min(58dvh,calc(100dvh-18rem))]' : 'mb-3 break-inside-avoid'
+        fullWidth ? 'h-[min(58dvh,calc(100dvh-18rem))]' : uniform ? 'flex h-full flex-col' : 'mb-3 break-inside-avoid'
       )}
     >
-      <GalleryMediaPreview item={item} lockedAspect={fullWidth ? 'h-full' : undefined} />
+      <GalleryMediaPreview
+        item={item}
+        lockedAspect={fullWidth ? 'h-full' : uniform && resolveMediaSrc(item) ? 'aspect-4/3' : undefined}
+      />
 
       <AnimatePresence>
         {isHovered ? (
@@ -603,7 +613,9 @@ export const ImageGallerySection = () => {
   )
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Gallery')
   const isSingle = items.length === 1
-  const isFlexible = items.length > 1
+  /** Text-only items share one fixed height, so masonry columns would leave holes; use row grid. */
+  const isUniform = items.length > 1 && items.some((item) => !resolveMediaSrc(item))
+  const isFlexible = items.length > 1 && !isUniform
 
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0
@@ -659,7 +671,11 @@ export const ImageGallerySection = () => {
       <div
         className={cn(
           'vbiz-bento-grid relative z-20 w-full pt-2',
-          isFlexible ? FLEXIBLE_GRID_CLASS : contentGridClass(items.length, 'grid-cols-2', 'grid grid-cols-1 gap-3')
+          isFlexible
+            ? FLEXIBLE_GRID_CLASS
+            : isUniform
+              ? contentGridClass(items.length, UNIFORM_GRID_COLS, UNIFORM_GRID_BASE)
+              : contentGridClass(items.length, 'grid-cols-2', 'grid grid-cols-1 gap-3')
         )}
       >
         <AnimatePresence>
@@ -670,6 +686,7 @@ export const ImageGallerySection = () => {
               idx={idx}
               onOpen={setPreviewItem}
               fullWidth={isSingle}
+              uniform={isUniform}
             />
           ))}
         </AnimatePresence>
