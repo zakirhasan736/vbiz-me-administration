@@ -138,6 +138,8 @@ export type ApiProfile = {
   socialClicks?: Array<{ channel: string; label: string; clickCount: number }>
   userId?: string | null
   companyUserId?: string | null
+  /** True only for a corporate team member card. Single cards and the owner card are false. */
+  corporateMemberCard?: boolean
   createdById?: string | null
   user?: { id?: string; name?: string | null; email?: string; role?: string | null } | null
   companyUser?: { id?: string; name?: string | null; role?: string | null } | null
@@ -905,6 +907,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     duplicatedFrom: settingsMap.duplicated_from || '',
     profileUserId: profile.userId || null,
     companyUserId: profile.companyUserId || null,
+    corporateMemberCard: profile.corporateMemberCard === true,
     views: profile.viewCount || 0,
     saves: Number(profile.saveCount) || 0,
     clickCount: Number(profile.clickCount) || 0,

@@ -371,6 +371,8 @@ export type VCardListMeta = {
   profileUserId?: string | null
   /** Corporate group parent. Set on member cards and on the owner card when it is linked to that account. */
   companyUserId?: string | null
+  /** From the API: true only for a corporate team member card. Single cards and the owner card are false. */
+  corporateMemberCard?: boolean
 }
 
 export type VCardRecord = VCardData &

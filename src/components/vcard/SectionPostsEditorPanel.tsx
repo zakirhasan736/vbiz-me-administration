@@ -183,6 +183,7 @@ export function SectionPostsEditorPanel({
 
   const isSingleItem = schema.maxItems === 1
   const memberCard = isCorporateGroupMemberCard({
+    corporateMemberCard: (vCardData as { corporateMemberCard?: boolean }).corporateMemberCard,
     duplicatedFrom: (vCardData as { duplicatedFrom?: string | null }).duplicatedFrom,
     profileUserId: (vCardData as { profileUserId?: string | null }).profileUserId,
     companyUserId: (vCardData as { companyUserId?: string | null }).companyUserId,
