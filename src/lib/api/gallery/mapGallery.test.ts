@@ -24,6 +24,23 @@ describe('mapGalleryItemToListItem', () => {
     expect(item?.imageUrl).toContain('youtube')
   })
 
+  it('keeps text-only rows so the public card shows a photo placeholder', () => {
+    const item = mapGalleryItemToListItem({
+      id: 4,
+      title: 'Kitchen deep clean',
+      description: '<p>Before and after</p>',
+      featured_image: null,
+    })
+    expect(item).not.toBeNull()
+    expect(item?.imageUrl).toBe('')
+    expect(item?.title).toBe('Kitchen deep clean')
+    expect(item?.description).toBe('Before and after')
+  })
+
+  it('drops rows with no media, title, or description', () => {
+    expect(mapGalleryItemToListItem({ id: 5, title: '', featured_image: null })).toBeNull()
+  })
+
   it('maps link-only rows', () => {
     const item = mapGalleryItemToListItem({
       id: 3,

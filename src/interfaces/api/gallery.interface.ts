@@ -9,6 +9,7 @@ export type GalleryImageAsset = {
 export type GalleryItem = {
   id?: string | number
   title: string
+  description?: string | null
   created_at?: string
   type?: string
   featured_image: GalleryImageAsset | GalleryImageAsset[] | string | null
@@ -42,6 +43,8 @@ export type GalleryMediaKind = 'image' | 'video' | 'audio' | 'document' | 'link'
 export type GalleryListItem = {
   id: string | number
   title: string
+  /** Plain text. Shown on the card when there is no image. */
+  description?: string
   imageUrl: string
   createdAt: string
   mediaKind?: GalleryMediaKind

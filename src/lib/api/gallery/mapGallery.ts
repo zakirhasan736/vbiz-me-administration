@@ -5,7 +5,7 @@ import type {
   GalleryQueryResult,
   GallerySectionResponse,
 } from '@/interfaces/api/gallery.interface'
-import { decodeHtmlText } from '@/lib/htmlText'
+import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
 import { detectGalleryMediaKind, isVideoUrl } from '@/lib/mediaUrl'
 
 function assetFromUnknown(value: unknown): GalleryImageAsset | null {
@@ -58,15 +58,26 @@ function resolveLinkUrl(item: GalleryItem): string {
 
 export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryListItem | null {
   const featured = resolveFeaturedImage(item)
-  const linkUrl = resolveLinkUrl(item)
+  const rawLinkUrl = resolveLinkUrl(item)
   const featuredUrl = featured?.url?.trim() || ''
+  const rawTitle = item.title?.trim() || ''
+  const description = stripHtml(decodeHtmlText(item.description?.trim() || '')).trim()
+  const linkUrl = rawLinkUrl && (isVideoUrl(rawLinkUrl) || /^https?:\/\//i.test(rawLinkUrl)) ? rawLinkUrl : ''
 
-  // Allow YouTube/link-only rows when there is no featured media file.
-  if (!featuredUrl && !linkUrl) return null
-  if (!featuredUrl && linkUrl && !isVideoUrl(linkUrl) && !/^https?:\/\//i.test(linkUrl)) return null
+  // Text-only rows (title or description, no media) still show with a photo placeholder.
+  if (!featuredUrl && !linkUrl) {
+    if (!rawTitle && !description) return null
+    return {
+      id: item.id ?? index + 1,
+      title: decodeHtmlText(rawTitle),
+      ...(description ? { description } : {}),
+      imageUrl: '',
+      createdAt: item.created_at ?? '',
+      mediaKind: 'image',
+    }
+  }
 
   const mediaUrl = featuredUrl || (isVideoUrl(linkUrl) ? linkUrl : '')
-  const rawTitle = item.title?.trim() || ''
 
   const mediaKind = detectGalleryMediaKind(mediaUrl || linkUrl, {
     type: item.type,
@@ -76,6 +87,7 @@ export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryL
   return {
     id: item.id ?? featured?.id ?? index + 1,
     title: decodeHtmlText(rawTitle),
+    ...(description ? { description } : {}),
     imageUrl: mediaUrl || (mediaKind === 'link' ? '' : linkUrl),
     createdAt: item.created_at ?? '',
     mediaKind: mediaUrl ? mediaKind : linkUrl ? (isVideoUrl(linkUrl) ? 'video' : 'link') : mediaKind,

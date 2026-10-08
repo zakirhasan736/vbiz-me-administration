@@ -170,12 +170,42 @@ function ImageWithPlaceholder({
   )
 }
 
+/** Text-only photo row: photo icon at image height, then the title and description. */
+function GalleryNoImagePreview({ item, lockedAspect }: { item: GalleryListItem; lockedAspect?: string }) {
+  const title = item.title.trim()
+  const description = item.description?.trim() || ''
+  return (
+    <div className={cn('flex w-full flex-col', lockedAspect)}>
+      <div
+        className={cn(
+          'flex w-full items-center justify-center bg-zinc-100 dark:bg-zinc-900/70',
+          lockedAspect ? 'min-h-40 flex-1' : 'aspect-4/3'
+        )}
+      >
+        <div className="vbiz-card-icon flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-200 bg-white text-[#eab308] shadow-sm dark:border-zinc-700 dark:bg-zinc-800/80">
+          <ImageIcon size={22} />
+        </div>
+      </div>
+      {title || description ? (
+        <div className="space-y-1 p-4">
+          {title ? <p className="vbiz-title text-sm leading-tight font-bold">{title}</p> : null}
+          {description ? (
+            <p className="vbiz-description line-clamp-3 text-xs leading-relaxed font-medium">{description}</p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function GalleryMediaPreview({ item, lockedAspect }: { item: GalleryListItem; lockedAspect?: string }) {
   const kind = resolveItemKind(item)
   const rawSrc = resolveMediaSrc(item)
   const encoded = encodeMediaUrl(rawSrc)
   const youtube = youtubeEmbedSrc(rawSrc)
   const vimeo = vimeoEmbedSrc(rawSrc)
+
+  if (!rawSrc) return <GalleryNoImagePreview item={item} lockedAspect={lockedAspect} />
 
   if (kind === 'video' || isVideoUrl(rawSrc)) {
     if (youtube || vimeo) {
@@ -267,6 +297,17 @@ function GalleryLightboxMedia({ item }: { item: GalleryListItem }) {
   const youtube = youtubeEmbedSrc(rawSrc)
   const vimeo = vimeoEmbedSrc(rawSrc)
   const openHref = (item.linkUrl || rawSrc).trim()
+
+  if (!rawSrc) {
+    return (
+      <div className="flex min-h-48 w-[min(560px,90vw)] flex-col items-center justify-center gap-4 bg-zinc-950 px-6 py-10 text-center">
+        <ImageIcon size={40} className="text-white/70" />
+        {item.description?.trim() ? (
+          <p className="max-w-md text-sm leading-relaxed text-white/80">{item.description}</p>
+        ) : null}
+      </div>
+    )
+  }
 
   if (kind === 'video' || isVideoUrl(rawSrc)) {
     if (youtube || vimeo) {
@@ -550,7 +591,14 @@ export const ImageGallerySection = () => {
   const { data, isLoading, isError } = useGetGalleryQuery(profileId, { skip: !profileId })
 
   const items = useMemo(
-    () => (data?.items ?? []).filter((item) => Boolean(item.imageUrl?.trim()) || Boolean(item.linkUrl?.trim())),
+    () =>
+      (data?.items ?? []).filter(
+        (item) =>
+          Boolean(item.imageUrl?.trim()) ||
+          Boolean(item.linkUrl?.trim()) ||
+          Boolean(item.title?.trim()) ||
+          Boolean(item.description?.trim())
+      ),
     [data?.items]
   )
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, 'Gallery')
