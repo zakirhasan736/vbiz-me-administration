@@ -120,7 +120,7 @@ function buildDraftNavBarLinks(input: {
     pushUnique(draftPostType('skills', 'skills', resolveDraftNavSectionTitle('skills', overrides)))
   }
   if ((input.generalPosts || []).some((p) => p.active !== false && p.title?.trim())) {
-    pushUnique(draftPostType('blog', 'Blogs and Media', resolveDraftNavSectionTitle('blog', overrides)))
+    pushUnique(draftPostType('blog', 'Blogs', resolveDraftNavSectionTitle('blog', overrides)))
   }
   if ((input.faqs || []).some((f) => f.active !== false && f.question?.trim())) {
     pushUnique(draftPostType('faq', 'Faq', resolveDraftNavSectionTitle('faq', overrides)))
@@ -396,17 +396,14 @@ export function EmbeddedDraftCacheSync({
     }
 
     if (generalPosts) {
-      upsertIfChanged(
-        'blog',
-        generalPostsToDynamic(generalPosts, sectionTitleFor('blog', 'Blogs and Media')),
-        (result) =>
-          dispatch(
-            dynamicSectionApi.util.upsertQueryData(
-              'getDynamicSection',
-              { profileId, sectionName: PUBLIC_SECTION_NAMES.blog },
-              result
-            )
+      upsertIfChanged('blog', generalPostsToDynamic(generalPosts, sectionTitleFor('blog', 'Blogs')), (result) =>
+        dispatch(
+          dynamicSectionApi.util.upsertQueryData(
+            'getDynamicSection',
+            { profileId, sectionName: PUBLIC_SECTION_NAMES.blog },
+            result
           )
+        )
       )
     }
 

@@ -232,7 +232,7 @@ const NAV_ITEM_DEFS: NavBarNavItem[] = [
   {
     id: 'blog',
     label: 'Blog',
-    displayLabel: 'Blogs and Media',
+    displayLabel: 'Blogs',
     icon: FileEdit,
     profileContent: 'blog',
     editorPanel: { kind: 'blog' },

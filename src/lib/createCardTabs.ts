@@ -126,10 +126,10 @@ export const CREATE_CARD_DEFAULT_TABS: CreateCardTabDef[] = [
   },
   { name: 'Skill', navId: 'skills', icon: Star, description: 'Skill groups and proficiency', aiPriority: 'content' },
   {
-    name: 'Blogs and Media',
+    name: 'Blogs',
     navId: 'blog',
     icon: Newspaper,
-    description: 'Articles, blog posts, and media',
+    description: 'Articles and blog posts',
     aiPriority: 'content',
   },
   {
@@ -190,6 +190,10 @@ export function resolveCreateCardTabName(tab: string): CreateCardTabDef | undefi
   if (tab === 'FAQ' || tab === 'Faqs') return CREATE_CARD_TAB_BY_NAME.FAQs
   if (tab === 'Portfolio' || tab === 'Gallery') return CREATE_CARD_TAB_BY_NAV_ID.gallery
   if (tab === 'BBB' || tab === 'Better Business Bureau (BBB)') return CREATE_CARD_TAB_BY_NAV_ID.bbb
+  // Legacy display names for the blog tab
+  if (tab === 'Blogs and Media' || tab === 'Blog' || tab === 'News/Blogs') {
+    return CREATE_CARD_TAB_BY_NAV_ID.blog
+  }
   return CREATE_CARD_TAB_BY_NAV_ID[tab]
 }
 

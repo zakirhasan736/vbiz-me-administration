@@ -54,7 +54,7 @@ const API_NAV_TO_LABELS: Record<string, string[]> = {
   serviceNav_checkbox: ['Services'],
   galleryNav_checkbox: ['Gallery'],
   portfolioNav_checkbox: ['Gallery'],
-  blogNav_checkbox: ['Blogs and Media', 'Blog'],
+  blogNav_checkbox: ['Blogs', 'Blogs and Media', 'Blog'],
   faqNav_checkbox: ['Faq'],
   pCardsNav_checkbox: ['Public Cards'],
   contactNav_checkbox: ['Contact Us'],

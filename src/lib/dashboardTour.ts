@@ -246,7 +246,7 @@ export const CREATE_CARD_TOUR_STEPS: DashboardTourStep[] = [
       'On multi-entry tabs, AI Auto-fill lets you drop a .txt/.md file or paste text. Separate items with a blank line or --- and the editor fills titles and details into entries.',
     tips: [
       'Example block: first line = title, next lines = description.',
-      'Also available on Portfolio, Reviews, and Blogs and Media.',
+      'Also available on Portfolio, Reviews, and Blogs.',
       'This is different from the green Generate button (website scrape).',
     ],
     activateTab: 'Services',
@@ -289,11 +289,11 @@ export const CREATE_CARD_TOUR_STEPS: DashboardTourStep[] = [
     id: 'news',
     target: "[data-tour='tab-form']",
     placement: 'top',
-    title: 'Blogs and Media',
+    title: 'Blogs',
     description:
       'Share updates, posts, or links to articles. Great for thought leadership and keeping the card feeling current.',
     tips: ['Link out to your blog or LinkedIn posts when you don’t host full articles here.'],
-    activateTab: 'Blogs and Media',
+    activateTab: 'Blogs',
     scrollTarget: true,
   },
   {

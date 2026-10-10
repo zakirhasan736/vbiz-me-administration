@@ -301,7 +301,7 @@ type AiCardAgentWizardProps = {
 const SECTION_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'personal', label: 'Personal / contact' },
   { id: 'services', label: 'Services' },
-  { id: 'blogs', label: 'Blogs and Media' },
+  { id: 'blogs', label: 'Blogs' },
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'reviews', label: 'Reviews' },
   { id: 'skills', label: 'Skills' },
@@ -715,7 +715,7 @@ function buildLaunchTabs(data: VCardData, navIds: string[]): LaunchTab[] {
       )
     } else if (navId === 'blog') {
       fields.push(
-        { label: 'Blogs and media posts', filled: Boolean(data.generalPosts?.length), addKind: 'blogs' },
+        { label: 'Blog posts', filled: Boolean(data.generalPosts?.length), addKind: 'blogs' },
         { label: 'Post descriptions', filled: Boolean(data.generalPosts?.some((item) => hasText(item.description))) },
         {
           label: 'Featured images',

@@ -984,7 +984,7 @@ export function getEditorPanelCompletionFields(
         return [
           {
             id: 'generalPosts.seed',
-            label: 'Blogs and media posts',
+            label: 'Blog posts',
             filled: false,
             edit: { type: 'seed-list', collection: 'generalPosts', label: 'Post' },
           },

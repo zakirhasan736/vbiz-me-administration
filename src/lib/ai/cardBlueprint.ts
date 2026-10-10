@@ -363,7 +363,7 @@ export function mapBlueprintToVCardData(
   if (services.length) tabNames.add('Services')
   if (portfolio.length) tabNames.add('Portfolio')
   if (reviews.length) tabNames.add('Reviews')
-  if (generalPosts.length) tabNames.add('Blogs and Media')
+  if (generalPosts.length) tabNames.add('Blogs')
   if (faqs.length) tabNames.add('FAQs')
   // Profile mirrors personal — enable when we have a solid personal draft
   if (blueprint.personal.fullName && blueprint.personal.about) tabNames.add('Profile')
@@ -413,4 +413,4 @@ export const BLUEPRINT_JSON_INSTRUCTION = `Return a single JSON object matching 
   }
 }
 Only include arrays when you have credible content from the sources. When a website crawl includes services, portfolio, blog, FAQ, or review pages, populate those arrays with real extracted items. Never invent customer reviews. If no real reviews exist, return an empty reviews array. Creative wording is allowed for about, FAQs, and blog ideas, but never invent factual claims. Missing facts stay empty. Dates as YYYY-MM-DD when known.
-enabledTabs = ONLY tabs that have content (do NOT dump a full default tab set). Always imply Personal is present. Never put Global Connection or My Info in enabledTabs — the product pins those last automatically. Use recommendedTabs for useful content tabs still missing data (Education, Experience, Skill, Services, Reviews, Blogs and Media, Profile, Portfolio, Certifications/Licenses, FAQ).`
+enabledTabs = ONLY tabs that have content (do NOT dump a full default tab set). Always imply Personal is present. Never put Global Connection or My Info in enabledTabs — the product pins those last automatically. Use recommendedTabs for useful content tabs still missing data (Education, Experience, Skill, Services, Reviews, Blogs, Profile, Portfolio, Certifications/Licenses, FAQ).`

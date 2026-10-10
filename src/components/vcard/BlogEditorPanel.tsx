@@ -143,7 +143,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
           </div>
           <h4 className="mb-2 text-[16px] font-black text-slate-900 dark:text-white">No blog posts yet</h4>
           <p className="mx-auto mb-6 max-w-md text-[13px] text-slate-500 dark:text-slate-400">
-            Click &quot;Add post&quot; to publish your first article on the profile Blogs and Media section.
+            Click &quot;Add post&quot; to publish your first article on the profile Blogs section.
           </p>
           <button
             type="button"
