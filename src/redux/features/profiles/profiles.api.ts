@@ -1013,7 +1013,8 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
 }
 
 function isLocalTempId(id: string): boolean {
-  return /^(pf_|sk_|post_|faq_|svc_|sec_|rev_|edu_|exp_|cert_|custom_item_)/.test(id)
+  // Keep in sync with isEditorDraftId in vcardAutosave.ts (AI paste uses blog_/port_ too).
+  return /^(pf_|sk_|post_|blog_|faq_|svc_|sec_|rev_|port_|edu_|exp_|cert_|custom_item_)/.test(id)
 }
 
 type VisibilityPatchTarget = {

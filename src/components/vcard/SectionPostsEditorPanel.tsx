@@ -44,7 +44,7 @@ import {
   Star,
   Tag,
 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 type Accent = 'amber' | 'teal' | 'violet'
 
@@ -149,6 +149,7 @@ export function SectionPostsEditorPanel({
   const sectionTitle = useResolvedSectionTitle(undefined, schema.title)
   const { vCardData, updateData } = useVCard()
   const posts = normalizeSectionPostList(rawPosts)
+  const postsRef = useRef(posts)
   const isVideos = schema.key === 'videos'
   const memberCard = isCorporateMemberEditorCard(vCardData)
   const hideOwnerVideos = memberCard && isVideos && Boolean(vCardData.hideOwnerVideos)
@@ -176,10 +177,20 @@ export function SectionPostsEditorPanel({
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef } =
     useExpandableEntryList(visiblePosts)
 
-  const setPosts = (next: VCardSectionPostItem[]) => onPostsChange(next)
+  useEffect(() => {
+    postsRef.current = posts
+  }, [posts])
+
+  const setPosts = useCallback(
+    (next: VCardSectionPostItem[]) => {
+      postsRef.current = next
+      onPostsChange(next)
+    },
+    [onPostsChange]
+  )
 
   const commitVisible = (nextVisible: VCardSectionPostItem[]) => {
-    setPosts(hideOwnerVideos ? mergeHiddenCorporateOwned(posts, nextVisible) : nextVisible)
+    setPosts(hideOwnerVideos ? mergeHiddenCorporateOwned(postsRef.current, nextVisible) : nextVisible)
   }
 
   const isSingleItem = schema.maxItems === 1
@@ -192,26 +203,26 @@ export function SectionPostsEditorPanel({
     if (!isSingleItem || lockOwnerForm) return
     if (posts.length === 0) {
       const next = createDefaultSectionPostItem()
-      onPostsChange([next])
+      setPosts([next])
       expandNew(postEntryKey(next))
       return
     }
     if (posts.length > 1) {
-      onPostsChange(posts.slice(0, 1))
+      setPosts(posts.slice(0, 1))
     }
-  }, [isSingleItem, lockOwnerForm, posts, onPostsChange, expandNew])
+  }, [isSingleItem, lockOwnerForm, posts, expandNew, setPosts])
 
   const addPost = () => {
     if (!canAdd) return
     const next = createDefaultSectionPostItem()
-    setPosts([...posts, next])
+    setPosts([...postsRef.current, next])
     expandNew(postEntryKey(next))
   }
 
   const removePost = (key: string) => {
-    const target = posts.find((item) => postEntryKey(item) === key)
+    const target = postsRef.current.find((item) => postEntryKey(item) === key)
     if (target?.corporateOwned) return
-    const next = posts.filter((p) => postEntryKey(p) !== key)
+    const next = postsRef.current.filter((p) => postEntryKey(p) !== key)
     setPosts(next)
     recoverExpandedAfterRemove(key, next)
   }
@@ -221,9 +232,9 @@ export function SectionPostsEditorPanel({
     field: keyof VCardSectionPostItem,
     value: VCardSectionPostItem[keyof VCardSectionPostItem]
   ) => {
-    const target = posts.find((item) => item.id === id)
+    const target = postsRef.current.find((item) => item.id === id)
     if (target?.corporateOwned) return
-    setPosts(posts.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+    setPosts(postsRef.current.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
   }
 
   return (

@@ -167,7 +167,8 @@ export function createAutosaveScheduler(options?: { idleMs?: number; maxMs?: num
   }
 }
 
-const LOCAL_DRAFT_ID_RE = /^(pf_|sk_|post_|faq_|svc_|sec_|rev_|edu_|exp_|cert_|custom_item_)/
+/** Keep in sync with `isLocalTempId` in profiles.api.ts (AI paste uses blog_/port_ too). */
+const LOCAL_DRAFT_ID_RE = /^(pf_|sk_|post_|blog_|faq_|svc_|sec_|rev_|port_|edu_|exp_|cert_|custom_item_)/
 
 export function isEditorDraftId(id: string | undefined | null): boolean {
   return Boolean(id && LOCAL_DRAFT_ID_RE.test(id))
@@ -509,19 +510,75 @@ export function mergeSyncedListPreservingClientKeys<T extends { id: string; clie
   const empties = local.filter((item) => isEditorDraftId(item.id) && isEmpty(item))
   const localFilled = local.filter((item) => !(isEditorDraftId(item.id) && isEmpty(item)))
 
-  const merged = localFilled.map((localItem, index) => {
-    const saved = savedItems[index]
+  const savedSlots = savedItems.map((item) => ({ item, used: false }))
+  const takeSaved = (predicate: (item: T) => boolean): T | undefined => {
+    const hit = savedSlots.find((slot) => !slot.used && predicate(slot.item))
+    if (!hit) return undefined
+    hit.used = true
+    return hit.item
+  }
+
+  const merged = localFilled.map((localItem) => {
+    const localKey = String(localItem.clientKey || localItem.id || '').trim()
+    // Prefer stable identity so mid-flight deletes do not shift later rows onto the wrong server id.
+    let saved =
+      localKey.length > 0
+        ? takeSaved(
+            (item) => item.id === localKey || item.clientKey === localKey || (item.clientKey || item.id) === localKey
+          )
+        : undefined
+    if (!saved && !isEditorDraftId(localItem.id)) {
+      saved = takeSaved((item) => item.id === localItem.id)
+    }
+    if (!saved) {
+      saved = takeSaved(() => true)
+    }
     if (!saved) return localItem
     const clientKey = localItem.clientKey || localItem.id
     // Keep editor content; only remap durable identity from the server response.
     return { ...localItem, id: saved.id, clientKey }
   })
 
-  if (savedItems.length > localFilled.length) {
-    for (const extra of savedItems.slice(localFilled.length)) {
-      merged.push({ ...extra, clientKey: extra.clientKey || extra.id })
+  // Never re-append unmatched saved rows. A shorter local list means the owner deleted
+  // items (often while autosave was in flight). Re-adding them caused instant duplicates.
+
+  return empties.length ? [...merged, ...empties] : merged
+}
+
+/**
+ * After posts autosave: keep the live editor list (adds/deletes/typing during the request)
+ * and only remap durable server ids using the save-time row pairing.
+ */
+export function remapLiveListAfterSync<T extends { id: string; clientKey?: string }>(
+  liveItems: T[] | undefined,
+  saveTimeItems: T[] | undefined,
+  savedItems: T[],
+  isEmpty: (item: T) => boolean
+): T[] {
+  const live = liveItems || []
+  const empties = live.filter((item) => isEditorDraftId(item.id) && isEmpty(item))
+  const liveFilled = live.filter((item) => !(isEditorDraftId(item.id) && isEmpty(item)))
+  const saveTimeFilled = (saveTimeItems || []).filter((item) => !(isEditorDraftId(item.id) && isEmpty(item)))
+
+  const serverIdByKey = new Map<string, string>()
+  saveTimeFilled.forEach((localItem, index) => {
+    const saved = savedItems[index]
+    if (!saved) return
+    for (const key of [localItem.clientKey, localItem.id]) {
+      const normalized = String(key || '').trim()
+      if (normalized) serverIdByKey.set(normalized, saved.id)
     }
-  }
+  })
+
+  const merged = liveFilled.map((localItem) => {
+    const key = String(localItem.clientKey || localItem.id || '').trim()
+    const fromPairing = key ? serverIdByKey.get(key) : undefined
+    const fromDurable = !isEditorDraftId(localItem.id)
+      ? savedItems.find((item) => item.id === localItem.id)?.id
+      : undefined
+    const id = fromPairing || fromDurable || localItem.id
+    return { ...localItem, id, clientKey: localItem.clientKey || localItem.id }
+  })
 
   return empties.length ? [...merged, ...empties] : merged
 }

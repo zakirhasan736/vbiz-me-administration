@@ -46,7 +46,11 @@ export function TabReviews() {
     reviewsRef.current = reviews
   }, [reviews])
 
-  const setReviews = (next: VCardReviewEntry[]) => updateData('reviews', next)
+  const setReviews = (next: VCardReviewEntry[]) => {
+    // Keep the ref in sync immediately so rapid delete/add does not read a stale list.
+    reviewsRef.current = next
+    updateData('reviews', next)
+  }
 
   const addReview = () => {
     const next = createDefaultReviewEntry()

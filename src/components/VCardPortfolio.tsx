@@ -85,7 +85,11 @@ export function TabPortfolio() {
     portfoliosRef.current = portfolios
   }, [portfolios])
 
-  const setPortfolios = (next: VCardPortfolioEntry[]) => updateData('portfolio', next)
+  const setPortfolios = (next: VCardPortfolioEntry[]) => {
+    // Keep the ref in sync immediately so rapid delete/add does not read a stale list.
+    portfoliosRef.current = next
+    updateData('portfolio', next)
+  }
 
   const commitVisible = (nextVisible: VCardPortfolioEntry[]) => {
     setPortfolios(hideOwnerPhotos ? mergeHiddenCorporateOwned(portfoliosRef.current, nextVisible) : nextVisible)

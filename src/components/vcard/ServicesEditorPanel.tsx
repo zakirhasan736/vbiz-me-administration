@@ -21,6 +21,7 @@ import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import type { VCardServiceEntry } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { BellRing, LayoutGrid, Link as LinkIcon, Plus, Type, Wrench } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white transition-all outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm'
@@ -46,21 +47,31 @@ export function ServicesEditorPanel({
 }) {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Services')
   const services = normalizeServiceList(rawServices)
+  const servicesRef = useRef(services)
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
     useExpandableEntryList(services)
 
+  useEffect(() => {
+    servicesRef.current = services
+  }, [services])
+
+  const setServices = (next: VCardServiceEntry[]) => {
+    servicesRef.current = next
+    onServicesChange(next)
+  }
+
   const addService = () => {
     const next = createDefaultServiceEntry()
-    onServicesChange([...services, next])
+    setServices([...servicesRef.current, next])
     expandNew(next.id)
   }
 
   const reorderServices = (next: VCardServiceEntry[]) => {
     // Keep owner-synced items editable only for order among themselves if needed;
     // never drop corporateOwned flags while reordering member-local items.
-    onServicesChange(
+    setServices(
       next.map((item) => {
-        const prev = services.find((s) => s.id === item.id)
+        const prev = servicesRef.current.find((s) => s.id === item.id)
         if (!prev) return item
         return prev.corporateOwned ? { ...item, corporateOwned: true } : item
       })
@@ -68,10 +79,10 @@ export function ServicesEditorPanel({
   }
 
   const removeService = (id: string) => {
-    const target = services.find((s) => s.id === id)
+    const target = servicesRef.current.find((s) => s.id === id)
     if (target?.corporateOwned) return
-    const next = services.filter((s) => s.id !== id)
-    onServicesChange(next)
+    const next = servicesRef.current.filter((s) => s.id !== id)
+    setServices(next)
     recoverExpandedAfterRemove(id, next)
   }
 
@@ -80,8 +91,8 @@ export function ServicesEditorPanel({
     field: keyof VCardServiceEntry,
     value: VCardServiceEntry[keyof VCardServiceEntry]
   ) => {
-    onServicesChange(
-      services.map((s) => {
+    setServices(
+      servicesRef.current.map((s) => {
         if (s.id !== id) return s
         if (s.corporateOwned) return s
         return { ...s, [field]: value }
@@ -92,7 +103,7 @@ export function ServicesEditorPanel({
   const applyFilled = (result: AiFilledResult) => {
     const mapped = mapServicesFromPayload(result.payload)
     if (!mapped.length) return
-    onServicesChange([...mapped, ...services])
+    setServices([...mapped, ...servicesRef.current])
     expandNew(mapped[0]!.id)
   }
 

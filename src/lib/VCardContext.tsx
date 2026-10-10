@@ -51,6 +51,7 @@ import {
   persistableSkills,
   preferFilledList,
   readPendingCardSave,
+  remapLiveListAfterSync,
   resolveInitialPostSync,
   setByPath,
   writePendingCardSave,
@@ -1044,22 +1045,22 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
             )
           }
 
-          // Prefer live editor rows so typing during the request is not wiped; only remap ids.
+          // Prefer live editor rows so typing/deletes during the request are kept; only remap ids
+          // via the save-time pairing (never re-append deleted rows from the sync response).
           const live = editDataRef.current ?? saveTimeData
+          const syncedBlogs = synced.blog ? mapApiPostsToGeneralPosts(synced.blog) : []
+          const syncedFaqs = synced.faqs ? mapApiPostsToFaqs(synced.faqs) : []
           const generalPosts = synced.blog
-            ? mergeSyncedListPreservingClientKeys(
-                live.generalPosts,
-                mapApiPostsToGeneralPosts(synced.blog),
-                isEmptyGeneralPost
-              )
+            ? remapLiveListAfterSync(live.generalPosts, saveTimeData.generalPosts, syncedBlogs, isEmptyGeneralPost)
             : live.generalPosts || []
           const faqs = synced.faqs
-            ? mergeSyncedListPreservingClientKeys(live.faqs, mapApiPostsToFaqs(synced.faqs), isEmptyFaq)
+            ? remapLiveListAfterSync(live.faqs, saveTimeData.faqs, syncedFaqs, isEmptyFaq)
             : live.faqs || []
           const sectionPosts: Record<string, VCardSectionPostItem[]> = { ...(live.sectionPosts || {}) }
           for (const [postTypeName, apiPosts] of Object.entries(synced.sectionPosts || {})) {
-            sectionPosts[postTypeName] = mergeSyncedListPreservingClientKeys(
+            sectionPosts[postTypeName] = remapLiveListAfterSync(
               live.sectionPosts?.[postTypeName],
+              saveTimeData.sectionPosts?.[postTypeName],
               mapApiPostsToSectionPosts(apiPosts),
               isEmptySectionPost
             )

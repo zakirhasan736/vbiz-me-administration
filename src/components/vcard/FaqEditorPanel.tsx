@@ -52,6 +52,8 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
   }, [faqs])
 
   const setFaqs = (next: VCardFaqEntry[]) => {
+    // Keep the ref in sync immediately so rapid delete/add does not read a stale list.
+    faqsRef.current = next
     onFaqsChange(next)
   }
 

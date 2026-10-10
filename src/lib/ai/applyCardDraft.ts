@@ -78,7 +78,7 @@ export function mapPortfolioFromPayload(payload: SectionFillPayload): VCardPortf
     const description = plainTextToRichHtml(String(p.description || '').trim())
     if (!title && !description) continue
     out.push({
-      id: uid('port'),
+      id: uid('pf'),
       type: 'Image',
       title: title || 'Project',
       description,
@@ -137,8 +137,11 @@ export function mapBlogsFromPayload(payload: SectionFillPayload): VCardGeneralPo
     const title = String(b.title || '').trim()
     const description = plainTextToRichHtml(String(b.description || '').trim())
     if (!title && !description) continue
+    // Use post_ so autosave treats AI rows as local drafts (same as manual Add post).
+    const id = uid('post')
     out.push({
-      id: uid('blog'),
+      id,
+      clientKey: id,
       category: String(b.category || 'News').trim() || 'News',
       title: title || 'Post',
       description,
@@ -160,8 +163,10 @@ export function mapFaqsFromPayload(payload: SectionFillPayload): VCardFaqEntry[]
     const question = String(f.question || '').trim()
     const answer = plainTextToRichHtml(String(f.answer || '').trim())
     if (!question && !answer) continue
+    const id = uid('faq')
     out.push({
-      id: uid('faq'),
+      id,
+      clientKey: id,
       question,
       answer,
       featuredImage: String(f.imageUrl || '').trim(),

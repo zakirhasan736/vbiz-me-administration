@@ -55,6 +55,8 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
   }, [posts])
 
   const setPosts = (next: VCardGeneralPost[]) => {
+    // Keep the ref in sync immediately so rapid delete/add does not read a stale list.
+    postsRef.current = next
     onPostsChange(next)
   }
 
