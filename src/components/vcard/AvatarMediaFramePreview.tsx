@@ -1,11 +1,12 @@
 'use client'
 
 import {
+  DEFAULT_FEATURE_MEDIA_FRAME,
+  parseProfileMediaFrame,
   PROFILE_FRAME_HEIGHT_MAX,
   PROFILE_FRAME_HEIGHT_MIN,
   PROFILE_FRAME_ZOOM_MAX,
   PROFILE_FRAME_ZOOM_MIN,
-  parseProfileMediaFrame,
   profileFramePreviewHeight,
   profileMediaFitStyle,
   type ProfileMediaFrame,
@@ -21,6 +22,8 @@ type AvatarMediaFramePreviewProps = {
   alt?: string
   onRemove?: () => void
   removing?: boolean
+  /** Portrait avatar frame, or a landscape crop used by featured media. */
+  layout?: 'avatar' | 'feature'
 }
 
 export function AvatarMediaFramePreview({
@@ -31,11 +34,17 @@ export function AvatarMediaFramePreview({
   alt = 'Avatar preview',
   onRemove,
   removing = false,
+  layout = 'avatar',
 }: AvatarMediaFramePreviewProps) {
   const boxRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ x: number; y: number; focusX: number; focusY: number } | null>(null)
   const [dragging, setDragging] = useState(false)
-  const resolved = parseProfileMediaFrame(frame)
+  const resolved = frame
+    ? parseProfileMediaFrame(frame)
+    : layout === 'feature'
+      ? { ...DEFAULT_FEATURE_MEDIA_FRAME }
+      : parseProfileMediaFrame(null)
+  const featureLayout = layout === 'feature'
   const fit = profileMediaFitStyle(resolved)
 
   const updateFromPointer = (clientX: number, clientY: number) => {
@@ -58,14 +67,16 @@ export function AvatarMediaFramePreview({
   return (
     <div className="space-y-3">
       <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">
-        Drag the photo or video to set top, center, or bottom, and left or right. The preview uses that position.
+        {featureLayout
+          ? 'Drag the image or video left, right, up, or down. The public card uses that position.'
+          : 'Drag the photo or video to set top, center, or bottom, and left or right. The preview uses that position.'}
       </p>
       <div
         ref={boxRef}
         className={`relative w-full cursor-grab touch-none overflow-hidden rounded-3xl border border-slate-200/80 bg-black select-none dark:border-white/10 ${
-          dragging ? 'cursor-grabbing ring-2 ring-emerald-500/60' : ''
-        }`}
-        style={{ height: profileFramePreviewHeight(resolved) }}
+          featureLayout ? 'aspect-video' : ''
+        } ${dragging ? 'cursor-grabbing ring-2 ring-emerald-500/60' : ''}`}
+        style={featureLayout ? undefined : { height: profileFramePreviewHeight(resolved) }}
         onPointerDown={(event) => {
           if ((event.target as HTMLElement).closest('button')) return
           event.preventDefault()
@@ -94,7 +105,7 @@ export function AvatarMediaFramePreview({
           setDragging(false)
         }}
         role="application"
-        aria-label="Drag avatar position"
+        aria-label={featureLayout ? 'Drag featured media position' : 'Drag avatar position'}
       >
         {kind === 'video' ? (
           <video
@@ -163,19 +174,23 @@ export function AvatarMediaFramePreview({
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        <label className="flex min-w-[180px] flex-1 items-center gap-2 text-[12px] font-bold text-slate-600 dark:text-slate-300">
-          Height
-          <input
-            type="range"
-            min={PROFILE_FRAME_HEIGHT_MIN}
-            max={PROFILE_FRAME_HEIGHT_MAX}
-            step={0.05}
-            value={resolved.height}
-            aria-label="Adjust avatar height"
-            onChange={(event) => onChange(parseProfileMediaFrame({ ...resolved, height: Number(event.target.value) }))}
-            className="w-full accent-emerald-600"
-          />
-        </label>
+        {featureLayout ? null : (
+          <label className="flex min-w-[180px] flex-1 items-center gap-2 text-[12px] font-bold text-slate-600 dark:text-slate-300">
+            Height
+            <input
+              type="range"
+              min={PROFILE_FRAME_HEIGHT_MIN}
+              max={PROFILE_FRAME_HEIGHT_MAX}
+              step={0.05}
+              value={resolved.height}
+              aria-label="Adjust avatar height"
+              onChange={(event) =>
+                onChange(parseProfileMediaFrame({ ...resolved, height: Number(event.target.value) }))
+              }
+              className="w-full accent-emerald-600"
+            />
+          </label>
+        )}
       </div>
     </div>
   )

@@ -2,6 +2,7 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { formatGeneralPostDate } from '@/lib/vcardGeneralPosts'
+import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
@@ -164,9 +165,10 @@ function FeaturedPostCard({
       {imageUrl ? (
         <div className="vcard-blog-card-media flex w-full items-center justify-center overflow-hidden bg-zinc-100 dark:bg-zinc-950">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <PositionedFeatureMedia
             src={imageUrl}
             alt={post.title.trim() || ''}
+            frame={post.mediaFrame}
             className="h-auto max-h-[280px] w-full object-contain object-center sm:max-h-[320px]"
           />
         </div>
@@ -261,9 +263,10 @@ function PostCard({
   const mediaBlock = imageUrl ? (
     <div className="vcard-blog-card-media mb-4 flex w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <PositionedFeatureMedia
         src={imageUrl}
         alt={post.title.trim() || ''}
+        frame={post.mediaFrame}
         className="h-auto max-h-48 w-full object-contain object-center"
       />
     </div>

@@ -192,9 +192,11 @@ export function TabReviews() {
                           profileId={cardId}
                           attachmentType="Featured Image"
                           value={item.imageUrl || ''}
+                          mediaFrame={item.mediaFrame}
+                          onMediaFrameChange={(mediaFrame) => updateReview(item.id, { mediaFrame })}
                           accept="image/*"
                           hint="Shown on the public Reviews tab"
-                          onChange={(next) => updateReview(item.id, { imageUrl: next?.url || '' })}
+                          onChange={(next) => updateReview(item.id, { imageUrl: next?.url || '', mediaFrame: null })}
                         />
                         <div className="flex items-center gap-1">
                           {[1, 2, 3, 4, 5].map((n) => (

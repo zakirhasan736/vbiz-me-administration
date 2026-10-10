@@ -1,5 +1,7 @@
 'use client'
 
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
+import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle, useSectionBanner } from '@/profile-app/lib/sectionTitleContext'
 import {
@@ -19,17 +21,31 @@ type FaqItem = {
   question: string
   answer: string
   imageUrl: string
+  mediaFrame?: ProfileMediaFrame | null
   attachments: Array<{ url: string; name: string }>
 }
 
-function FaqMedia({ imageUrl, attachments }: { imageUrl: string; attachments: Array<{ url: string; name: string }> }) {
+function FaqMedia({
+  imageUrl,
+  attachments,
+  mediaFrame,
+}: {
+  imageUrl: string
+  attachments: Array<{ url: string; name: string }>
+  mediaFrame?: ProfileMediaFrame | null
+}) {
   const extra = attachments.filter((a) => a.url !== imageUrl)
   if (!imageUrl && extra.length === 0) return null
   return (
     <div className="mt-4 space-y-3">
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="" className="h-auto w-full rounded-2xl object-cover" />
+        <PositionedFeatureMedia
+          src={imageUrl}
+          alt=""
+          frame={mediaFrame}
+          className="h-auto w-full rounded-2xl object-cover"
+        />
       ) : null}
       {extra.length > 0 ? (
         <div className="flex flex-wrap gap-2">
@@ -73,6 +89,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
         question: item.title,
         answer: item.description,
         imageUrl: item.featuredImage.trim(),
+        mediaFrame: item.mediaFrame,
         attachments: (item.attachments || [])
           .filter((a) => a.url?.trim())
           .map((a) => ({ url: a.url.trim(), name: a.doc_name || 'Attachment' })),
@@ -213,7 +230,11 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                         >
                           <div className="vbiz-faq-answer vcard-faq-answer vcard-rich-html prose prose-sm max-w-none border-t border-zinc-200 px-4 pt-1 pb-4 text-[13.3px] leading-relaxed font-medium sm:text-[14.5px] dark:border-zinc-800/40">
                             <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
-                            <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
+                            <FaqMedia
+                              imageUrl={faq.imageUrl}
+                              attachments={faq.attachments}
+                              mediaFrame={faq.mediaFrame}
+                            />
                           </div>
                         </motion.div>
                       )}
@@ -300,7 +321,7 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                       >
                         <div className="vbiz-faq-answer vcard-faq-answer vcard-rich-html prose prose-sm max-w-none border-t border-zinc-200 px-5 py-3 text-[16.9px] leading-relaxed font-medium md:text-[19.4px] lg:px-6 lg:py-4 dark:border-zinc-800/50">
                           <div dangerouslySetInnerHTML={{ __html: faq.answer }} />
-                          <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} />
+                          <FaqMedia imageUrl={faq.imageUrl} attachments={faq.attachments} mediaFrame={faq.mediaFrame} />
                         </div>
                       </motion.div>
                     )}

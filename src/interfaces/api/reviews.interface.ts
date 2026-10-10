@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 
 export type ReviewLink = {
   url: string | null
@@ -23,6 +24,7 @@ export type ReviewItem = {
   review_link?: ReviewLink | null
   rating?: number | null
   general_info_url?: string | null
+  media_frame?: unknown
 }
 
 export type ReviewsSectionPostType = {
@@ -52,6 +54,7 @@ export type ReviewListItem = {
   plainDescription: string
   htmlDescription: string
   image: string
+  mediaFrame?: ProfileMediaFrame | null
   linkUrl: string | null
   isLinkCard: boolean
   rating: number

@@ -6,6 +6,7 @@ import type {
   GallerySectionResponse,
 } from '@/interfaces/api/gallery.interface'
 import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import { detectGalleryMediaKind, isVideoUrl } from '@/lib/mediaUrl'
 
 function assetFromUnknown(value: unknown): GalleryImageAsset | null {
@@ -72,6 +73,7 @@ export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryL
       title: decodeHtmlText(rawTitle),
       ...(description ? { description } : {}),
       imageUrl: '',
+      mediaFrame: readOptionalMediaFrame(item.media_frame),
       createdAt: item.created_at ?? '',
       mediaKind: 'image',
     }
@@ -89,6 +91,7 @@ export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryL
     title: decodeHtmlText(rawTitle),
     ...(description ? { description } : {}),
     imageUrl: mediaUrl || (mediaKind === 'link' ? '' : linkUrl),
+    mediaFrame: readOptionalMediaFrame(item.media_frame),
     createdAt: item.created_at ?? '',
     mediaKind: mediaUrl ? mediaKind : linkUrl ? (isVideoUrl(linkUrl) ? 'video' : 'link') : mediaKind,
     linkUrl: linkUrl || undefined,

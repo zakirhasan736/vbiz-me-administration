@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 
 export type ServiceReviewLink = {
   url: string | null
@@ -15,6 +16,7 @@ export type ServiceItem = {
   /** Laravel: string URL. Node may send string or [{ url }]. */
   featured_image: string | null | Array<{ url?: string | null }> | { url?: string | null }
   review_link: ServiceReviewLink
+  media_frame?: unknown
 }
 
 export type ServicesSectionPostType = {
@@ -44,6 +46,7 @@ export type ServiceListItem = {
   description: string
   htmlDescription: string
   featuredImage: string
+  mediaFrame?: ProfileMediaFrame | null
   url: string
 }
 

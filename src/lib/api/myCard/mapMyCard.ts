@@ -12,6 +12,7 @@ import {
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { decodeHtmlText } from '@/lib/htmlText'
 import { sameMediaUrl } from '@/lib/media/attachmentTypeMatch'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import { isGenericPublicCardImage } from '@/lib/publicCards/publicCardImage'
 import { resolvePublicCardSeo } from '@/lib/seo/resolvePublicCardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
@@ -206,6 +207,7 @@ function parseCustomTabs(raw?: string): VCardCustomTab[] {
                 description: typeof item.description === 'string' ? item.description : '',
                 url: typeof item.url === 'string' ? item.url : '',
                 mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
+                mediaFrame: readOptionalMediaFrame(item.mediaFrame),
                 mediaName: typeof item.mediaName === 'string' ? item.mediaName : '',
                 mediaKind: item.mediaKind as VCardCustomTab['items'][number]['mediaKind'],
                 gallery: Array.isArray(item.gallery) ? item.gallery : [],

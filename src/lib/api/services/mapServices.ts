@@ -6,6 +6,7 @@ import type {
 } from '@/interfaces/api/services.interface'
 import { isPublishedStatus } from '@/lib/api/resolveFeaturedImageUrl'
 import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isUsableImageSrc } from '@/lib/mediaUrl'
 
 function toPlainDescription(description: string | null): { plain: string; html: string } {
@@ -44,6 +45,7 @@ export function mapServiceItemToListItem(item: ServiceItem): ServiceListItem {
     description: plain,
     htmlDescription: html,
     featuredImage: resolveFeaturedImageUrl(item.featured_image),
+    mediaFrame: readOptionalMediaFrame(item.media_frame),
     url,
   }
 }

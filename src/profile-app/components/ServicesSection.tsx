@@ -2,6 +2,7 @@
 
 import { SkeletonImage, SkeletonWave } from '@/components/media/SkeletonMedia'
 import { normalizeRichTextHtml } from '@/lib/editor/normalizeRichTextHtml'
+import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { ServiceDetail } from '@/profile-app/components/ServiceDetail'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -117,13 +118,22 @@ export const ServicesSection = () => {
             >
               {imageUrl ? (
                 <div className="relative mb-4 min-h-40 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
-                  <SkeletonImage
-                    src={imageUrl}
-                    alt={service.title.trim() || ''}
-                    className="min-h-40 w-full"
-                    mediaClassName="mx-auto max-h-56 w-full object-contain"
-                    skeletonLabel="Loading service image"
-                  />
+                  {service.mediaFrame ? (
+                    <PositionedFeatureMedia
+                      src={imageUrl}
+                      alt={service.title.trim() || ''}
+                      frame={service.mediaFrame}
+                      className="mx-auto max-h-56 w-full object-contain"
+                    />
+                  ) : (
+                    <SkeletonImage
+                      src={imageUrl}
+                      alt={service.title.trim() || ''}
+                      className="min-h-40 w-full"
+                      mediaClassName="mx-auto max-h-56 w-full object-contain"
+                      skeletonLabel="Loading service image"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="mb-4 flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">

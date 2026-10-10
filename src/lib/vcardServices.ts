@@ -1,3 +1,4 @@
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import type { VCardServiceEntry } from '@/types/vcard'
 
 /** Matches the Services editor dropdown — AI fill must use these exact values. */
@@ -39,6 +40,7 @@ export function normalizeServiceList(raw?: VCardServiceEntry[] | null): VCardSer
     description: entry.description ?? '',
     url: entry.url ?? '',
     featuredImage: entry.featuredImage ?? '',
+    mediaFrame: readOptionalMediaFrame(entry.mediaFrame),
     active: entry.active !== false,
     corporateOwned: Boolean(entry.corporateOwned),
   }))

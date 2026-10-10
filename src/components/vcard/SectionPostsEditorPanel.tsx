@@ -571,6 +571,8 @@ export function SectionPostsEditorPanel({
                                   profileId={cardId}
                                   attachmentType={schema.title}
                                   value={post.featuredImage}
+                                  mediaFrame={post.mediaFrame}
+                                  onMediaFrameChange={(mediaFrame) => updatePost(post.id, 'mediaFrame', mediaFrame)}
                                   accept={
                                     schema.featuredMediaMode === 'video' ? 'video/*' : 'image/*,video/*,application/pdf'
                                   }
@@ -579,13 +581,19 @@ export function SectionPostsEditorPanel({
                                       ? 'Upload a video file only - preview appears here'
                                       : 'Upload an image, video, or PDF - preview appears here'
                                   }
-                                  onChange={(next) => updatePost(post.id, 'featuredImage', next?.url || '')}
+                                  onChange={(next) => {
+                                    updatePost(post.id, 'featuredImage', next?.url || '')
+                                    updatePost(post.id, 'mediaFrame', null)
+                                  }}
                                 />
                                 <MediaSourceActions
                                   mode={schema.featuredMediaMode === 'video' ? 'video' : 'both'}
                                   compact
                                   profileId={cardId}
-                                  onSelect={(asset) => updatePost(post.id, 'featuredImage', asset.url)}
+                                  onSelect={(asset) => {
+                                    updatePost(post.id, 'featuredImage', asset.url)
+                                    updatePost(post.id, 'mediaFrame', null)
+                                  }}
                                 />
                               </div>
                             ) : null}

@@ -6,6 +6,7 @@ import type {
 } from '@/interfaces/api/reviews.interface'
 import { isPublishedStatus, resolveFeaturedImageUrl } from '@/lib/api/resolveFeaturedImageUrl'
 import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 
 function toPlainDescription(description: string | null): { plain: string; html: string } {
   const html = description?.trim() ?? ''
@@ -79,6 +80,7 @@ export function mapReviewItemToListItem(item: ReviewItem): ReviewListItem {
     htmlDescription: html,
     image:
       (typeof item.imageUrl === 'string' ? item.imageUrl.trim() : '') || resolveFeaturedImageUrl(item.featured_image),
+    mediaFrame: readOptionalMediaFrame(item.media_frame),
     linkUrl,
     isLinkCard,
     rating: normalizeRating(item.rating),

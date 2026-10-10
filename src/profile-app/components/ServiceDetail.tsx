@@ -1,6 +1,7 @@
 'use client'
 
 import type { ServiceListItem } from '@/interfaces/api/services.interface'
+import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { ArrowLeft, ExternalLink, Layers } from 'lucide-react'
 import { motion } from 'motion/react'
 
@@ -34,7 +35,20 @@ export function ServiceDetail({ service, sectionTitle, onBack }: ServiceDetailPr
         {heroImage ? (
           <div className="vbiz-media-hero relative w-full overflow-hidden bg-zinc-950">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={heroImage} alt={service.title.trim() || ''} className="mx-auto max-h-72 w-full object-contain" />
+            {service.mediaFrame ? (
+              <PositionedFeatureMedia
+                src={heroImage}
+                alt={service.title.trim() || ''}
+                frame={service.mediaFrame}
+                className="mx-auto max-h-72 w-full object-contain"
+              />
+            ) : (
+              <img
+                src={heroImage}
+                alt={service.title.trim() || ''}
+                className="mx-auto max-h-72 w-full object-contain"
+              />
+            )}
             <div className="absolute inset-0 bg-linear-to-t from-zinc-950/90 via-zinc-950/45 to-zinc-950/15" />
             <div className="absolute right-0 bottom-0 left-0 p-8 lg:p-10">
               <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/30 px-3 py-1.5 text-[10px] font-bold tracking-wider text-white uppercase backdrop-blur-sm">

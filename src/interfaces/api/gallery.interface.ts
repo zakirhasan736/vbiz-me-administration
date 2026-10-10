@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 
 export type GalleryImageAsset = {
   id: string | number
@@ -16,6 +17,7 @@ export type GalleryItem = {
   gallery?: GalleryImageAsset[] | null
   general_info_url?: string | null
   url?: string | null
+  media_frame?: unknown
 }
 
 export type GallerySectionPostType = {
@@ -46,6 +48,7 @@ export type GalleryListItem = {
   /** Plain text. Shown on the card when there is no image. */
   description?: string
   imageUrl: string
+  mediaFrame?: ProfileMediaFrame | null
   createdAt: string
   mediaKind?: GalleryMediaKind
   linkUrl?: string

@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 
 export type ClientReviewLink = {
   url: string | null
@@ -17,6 +18,7 @@ export type ClientItem = {
   review_link: ClientReviewLink
   general_info_url?: string | null
   url?: string | null
+  media_frame?: unknown
 }
 
 export type ClientsSectionPostType = {
@@ -44,6 +46,7 @@ export type ClientListItem = {
   id: number | string
   name: string
   logo: string
+  mediaFrame?: ProfileMediaFrame | null
   since: string
   description: string
   linkUrl: string | null

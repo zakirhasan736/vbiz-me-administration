@@ -227,15 +227,23 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                               profileId={profileId}
                               attachmentType="Featured Image"
                               value={faq.featuredImage || ''}
+                              mediaFrame={faq.mediaFrame}
+                              onMediaFrameChange={(mediaFrame) => updateFaq(faq.id, 'mediaFrame', mediaFrame)}
                               accept="image/*,application/pdf,.pdf,.doc,.docx"
                               hint="Optional image or file shown with this answer"
-                              onChange={(next) => updateFaq(faq.id, 'featuredImage', next?.url || '')}
+                              onChange={(next) => {
+                                updateFaq(faq.id, 'featuredImage', next?.url || '')
+                                updateFaq(faq.id, 'mediaFrame', null)
+                              }}
                             />
                             <MediaSourceActions
                               mode="both"
                               compact
                               profileId={profileId}
-                              onSelect={(asset) => updateFaq(faq.id, 'featuredImage', asset.url)}
+                              onSelect={(asset) => {
+                                updateFaq(faq.id, 'featuredImage', asset.url)
+                                updateFaq(faq.id, 'mediaFrame', null)
+                              }}
                             />
                           </div>
 

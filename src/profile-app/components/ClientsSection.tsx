@@ -1,5 +1,6 @@
 'use client'
 
+import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
@@ -150,6 +151,7 @@ export const ClientsSection = () => {
                       src={client.logo}
                       alt={client.name}
                       className="h-full w-full object-cover object-top opacity-80 grayscale-50 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90 group-hover:grayscale-0"
+                      style={client.mediaFrame ? profileMediaFitStyle(client.mediaFrame) : undefined}
                     />
                   ) : (
                     <div

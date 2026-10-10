@@ -3,6 +3,7 @@
 import { SkeletonMediaShell, useMediaLoadState } from '@/components/media/SkeletonMedia'
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -20,7 +21,7 @@ function resolveTeamMemberImage(item: DynamicPostListItem): string {
   return item.attachments.find((attachment) => attachment.url?.trim())?.url?.trim() ?? ''
 }
 
-function TeamMemberPhoto({ src, alt }: { src: string; alt: string }) {
+function TeamMemberPhoto({ src, alt, frame }: { src: string; alt: string; frame?: ProfileMediaFrame | null }) {
   const { loaded, markLoaded, markError } = useMediaLoadState(src)
   return (
     <SkeletonMediaShell loading={!loaded} label="Loading photo" className="absolute inset-0 h-full w-full">
@@ -34,6 +35,7 @@ function TeamMemberPhoto({ src, alt }: { src: string; alt: string }) {
         className={`h-full w-full object-cover object-top transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0 ${
           loaded ? 'opacity-80 grayscale-30 group-hover:opacity-100' : 'opacity-0'
         }`}
+        style={frame ? profileMediaFitStyle(frame) : undefined}
       />
     </SkeletonMediaShell>
   )
@@ -81,7 +83,7 @@ function TeamMemberCard({
       <div className={cn('relative overflow-hidden bg-zinc-100 dark:bg-zinc-950', tallImage ? 'h-80' : 'h-56')}>
         <div className="absolute inset-x-0 bottom-0 z-10 h-1/3 bg-linear-to-t from-white/40 via-white/10 to-transparent dark:from-zinc-900/40 dark:via-zinc-900/10" />
         {imageUrl ? (
-          <TeamMemberPhoto src={imageUrl} alt={item.title.trim() || ''} />
+          <TeamMemberPhoto src={imageUrl} alt={item.title.trim() || ''} frame={item.mediaFrame} />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
             <UsersRound size={40} className="text-zinc-400 dark:text-zinc-500" />

@@ -1,5 +1,6 @@
 'use client'
 
+import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { UserRound } from 'lucide-react'
 import Image from 'next/image'
 
@@ -14,12 +15,19 @@ function legitimateImageUrl(value: string): string | null {
 
 type ReviewAvatarProps = {
   imageUrl?: string | null
+  mediaFrame?: ProfileMediaFrame | null
   alt?: string
   className?: string
   imageClassName?: string
 }
 
-export function ReviewAvatar({ imageUrl, alt, className = 'h-12 w-12', imageClassName = '' }: ReviewAvatarProps) {
+export function ReviewAvatar({
+  imageUrl,
+  mediaFrame,
+  alt,
+  className = 'h-12 w-12',
+  imageClassName = '',
+}: ReviewAvatarProps) {
   const src = imageUrl ? legitimateImageUrl(imageUrl) : null
   const label = alt?.trim() || 'Reviewer'
 
@@ -34,6 +42,7 @@ export function ReviewAvatar({ imageUrl, alt, className = 'h-12 w-12', imageClas
           src={src}
           alt={label}
           className={`h-full w-full object-cover ${imageClassName}`}
+          style={mediaFrame ? profileMediaFitStyle(mediaFrame) : undefined}
         />
       ) : (
         <UserRound aria-hidden="true" className="h-1/2 w-1/2" />

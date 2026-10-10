@@ -5,6 +5,7 @@ import type {
   VideosQueryResult,
 } from '@/interfaces/api/videos.interface'
 import { decodeHtmlText } from '@/lib/htmlText'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl } from '@/lib/mediaUrl'
 
 function normalizeSafeUrl(value: string | null | undefined): string {
@@ -56,6 +57,7 @@ function mapVideoItem(item: VideoSectionItem, idx: number): VideoListItem {
     type: item.type?.trim().toLowerCase() || 'video',
     createdAt: item.created_at,
     featuredImage,
+    mediaFrame: readOptionalMediaFrame(item.media_frame),
     videoUrl: resolveVideoUrl(item),
     galleryCount,
     galleryImages,

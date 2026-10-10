@@ -323,6 +323,8 @@ export function TabPortfolio() {
                               attachmentType="Portfolio Gallery"
                               value={portfolio.imageUrl}
                               fileName={portfolio.imageName}
+                              mediaFrame={portfolio.mediaFrame}
+                              onMediaFrameChange={(mediaFrame) => patchPortfolio(portfolio.id, { mediaFrame })}
                               accept={PORTFOLIO_MEDIA_ACCEPT}
                               hint="Upload image, video, or a document - type is detected automatically (audio not allowed)"
                               onChange={(next) => {
@@ -330,6 +332,7 @@ export function TabPortfolio() {
                                   patchPortfolio(portfolio.id, {
                                     imageUrl: '',
                                     imageName: '',
+                                    mediaFrame: null,
                                   })
                                   return
                                 }
@@ -339,6 +342,7 @@ export function TabPortfolio() {
                                 patchPortfolio(portfolio.id, {
                                   imageUrl: next.url,
                                   imageName: next.fileName,
+                                  mediaFrame: null,
                                   type: detectGalleryPortfolioType(next.url, next.mimeType, next.fileName),
                                 })
                               }}
@@ -352,6 +356,7 @@ export function TabPortfolio() {
                                 patchPortfolio(portfolio.id, {
                                   imageUrl: asset.url,
                                   imageName: asset.name,
+                                  mediaFrame: null,
                                   type: detectGalleryPortfolioType(asset.url, null, asset.name),
                                 })
                               }}

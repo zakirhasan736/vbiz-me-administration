@@ -2,6 +2,7 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { resolveCalendarItemUrl, stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -54,6 +55,7 @@ function CalendarItemCard({ item, idx }: { item: DynamicPostListItem; idx: numbe
             src={imageUrl}
             alt={item.title.trim() || ''}
             className="h-full w-full object-contain"
+            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
           />
         </div>
       ) : (

@@ -2,6 +2,7 @@
 
 import { SkeletonImage } from '@/components/media/SkeletonMedia'
 import type { GalleryListItem, GalleryMediaKind } from '@/interfaces/api/gallery.interface'
+import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { detectGalleryMediaKind, encodeMediaUrl, isDocumentUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -105,6 +106,7 @@ function ImageWithPlaceholder({
   className,
   objectFit = 'cover',
   lockedAspect,
+  frame,
 }: {
   src: string
   alt: string
@@ -112,6 +114,7 @@ function ImageWithPlaceholder({
   objectFit?: 'contain' | 'cover'
   /** When set, skip natural-ratio sizing (used for single full-width card). */
   lockedAspect?: string
+  frame?: ProfileMediaFrame | null
 }) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [hasError, setHasError] = useState(false)
@@ -163,6 +166,7 @@ function ImageWithPlaceholder({
             objectFit === 'cover' ? 'object-cover' : 'object-contain',
             isLoaded ? 'opacity-100' : 'opacity-0'
           )}
+          style={frame && objectFit === 'cover' ? profileMediaFitStyle(frame) : undefined}
         />
       ) : null}
       {hasError ? (
@@ -232,6 +236,7 @@ function GalleryMediaPreview({ item, lockedAspect }: { item: GalleryListItem; lo
             playsInline
             preload="metadata"
             className="absolute inset-0 h-full w-full object-cover"
+            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
             aria-label={item.title}
           />
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
@@ -290,6 +295,7 @@ function GalleryMediaPreview({ item, lockedAspect }: { item: GalleryListItem; lo
       alt={item.title}
       objectFit="cover"
       lockedAspect={lockedAspect}
+      frame={item.mediaFrame}
     />
   )
 }

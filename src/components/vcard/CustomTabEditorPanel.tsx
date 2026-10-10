@@ -34,6 +34,7 @@ function normalizeItem(item: VCardCustomTabItem): VCardCustomTabItem {
     description: item.description ?? '',
     url: item.url ?? '',
     mediaUrl: item.mediaUrl ?? '',
+    mediaFrame: item.mediaFrame ?? null,
     mediaName: item.mediaName ?? '',
     mediaKind: item.mediaKind ?? 'upload',
     gallery: item.gallery ?? [],
@@ -74,6 +75,7 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
               ...item,
               mediaUrl: asset.url,
               mediaName: asset.name,
+              mediaFrame: null,
               mediaKind: asset.id.startsWith('gal_') ? 'gallery' : asset.kind,
               gallery: [
                 ...(item.gallery || []),
@@ -227,6 +229,8 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                     attachmentType={tab.label || 'Custom tab'}
                     value={item.mediaUrl}
                     fileName={item.mediaName}
+                    mediaFrame={item.mediaFrame}
+                    onMediaFrameChange={(mediaFrame) => patchItem(item.id, { mediaFrame })}
                     accept="image/*,video/*"
                     hint="Upload image/video, paste URL, or choose from Canva/Gallery below"
                     onChange={(next) => {
@@ -234,6 +238,7 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                         mediaUrl: next?.url || '',
                         mediaName: next?.fileName || '',
                         mediaKind: 'upload',
+                        mediaFrame: null,
                       })
                     }}
                   />

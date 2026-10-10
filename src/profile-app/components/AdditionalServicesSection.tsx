@@ -3,12 +3,12 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { V3ErrorState, V3PreviewAwareText, V3SectionHeader } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { Layers, ShieldCheck } from 'lucide-react'
-import Image from 'next/image'
 import type { CSSProperties } from 'react'
 
 function resolveServiceImage(item: DynamicPostListItem): string {
@@ -47,13 +47,11 @@ function ServiceCard({ item, accent }: { item: DynamicPostListItem; accent: stri
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         {imageUrl ? (
           <div className="mb-6 w-full overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-md transition-transform duration-300 group-hover:scale-[1.01] sm:mb-8 dark:border-zinc-700 dark:bg-zinc-950">
-            <Image
+            <PositionedFeatureMedia
               src={imageUrl}
               alt={item.title.trim() || ''}
-              width={768}
-              height={432}
+              frame={item.mediaFrame}
               className="mx-auto h-auto max-h-56 w-full object-contain"
-              sizes="(max-width: 768px) 100vw, 768px"
             />
           </div>
         ) : null}

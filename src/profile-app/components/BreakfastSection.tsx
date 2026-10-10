@@ -2,6 +2,7 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -69,6 +70,7 @@ function BreakfastCard({ item, idx, accent, onSelect }: BreakfastCardProps) {
             src={imageUrl}
             alt={item.title}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
@@ -143,7 +145,15 @@ function BreakfastItemDetail({ item, sectionTitle, accent, onBack }: BreakfastIt
       <article className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
         {heroImage ? (
           <div className="relative aspect-21/9 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-            <Image src={heroImage} alt={item.title} fill className="object-cover" priority sizes="100vw" />
+            <Image
+              src={heroImage}
+              alt={item.title}
+              fill
+              className="object-cover"
+              priority
+              sizes="100vw"
+              style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            />
             <div className="absolute inset-0 bg-linear-to-t from-zinc-950/70 via-zinc-950/20 to-transparent" />
             <div className="absolute right-0 bottom-0 left-0 p-8 lg:p-10">
               <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/30 px-3 py-1.5 text-[10px] font-bold tracking-wider text-white uppercase backdrop-blur-sm">

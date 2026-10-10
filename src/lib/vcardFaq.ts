@@ -1,3 +1,4 @@
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import type { VCardFaqEntry } from '@/types/vcard'
 
 export function createDefaultFaqEntry(): VCardFaqEntry {
@@ -23,6 +24,7 @@ export function normalizeFaqList(raw?: VCardFaqEntry[] | null): VCardFaqEntry[] 
       question: entry.question ?? '',
       answer: entry.answer ?? '',
       featuredImage: entry.featuredImage ?? '',
+      mediaFrame: readOptionalMediaFrame(entry.mediaFrame),
       url: entry.url ?? '',
       active: entry.active !== false,
       ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),

@@ -1,4 +1,5 @@
 import { stripHtml } from '@/lib/htmlText'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import type { VCardReviewEntry } from '@/types/vcard'
 
 export function createDefaultReviewEntry(): VCardReviewEntry {
@@ -23,6 +24,7 @@ export function normalizeReviewList(raw?: VCardReviewEntry[] | null): VCardRevie
       rating,
       text: entry.text ?? '',
       imageUrl: entry.imageUrl ?? '',
+      mediaFrame: readOptionalMediaFrame(entry.mediaFrame),
       url: entry.url ?? '',
       ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),
     }

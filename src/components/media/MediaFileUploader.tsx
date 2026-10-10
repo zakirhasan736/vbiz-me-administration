@@ -1,6 +1,8 @@
 'use client'
 
 import { SkeletonImage, SkeletonVideo } from '@/components/media/SkeletonMedia'
+import { AvatarMediaFramePreview } from '@/components/vcard/AvatarMediaFramePreview'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import {
   mediaNeedsClientOptimize,
   MediaUploadError,
@@ -33,6 +35,9 @@ export type MediaFileUploaderProps = {
   allowUrlPaste?: boolean
   /** Visual accent for borders/focus (matches section themes). */
   accent?: 'teal' | 'primary' | 'violet' | 'sky' | 'rose'
+  /** Drag crop for featured images and videos. */
+  mediaFrame?: ProfileMediaFrame | null
+  onMediaFrameChange?: (frame: ProfileMediaFrame | null) => void
 }
 
 const DEFAULT_ACCEPT = [
@@ -179,6 +184,8 @@ export function MediaFileUploader({
   disabled = false,
   allowUrlPaste = true,
   accent = 'primary',
+  mediaFrame = null,
+  onMediaFrameChange,
 }: MediaFileUploaderProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -531,6 +538,17 @@ export function MediaFileUploader({
       ) : null}
 
       {error ? <p className="pl-1 text-[12px] font-medium text-rose-600 dark:text-rose-400">{error}</p> : null}
+
+      {onMediaFrameChange && displayUrl && (kind === 'image' || kind === 'video') ? (
+        <AvatarMediaFramePreview
+          src={displayUrl}
+          kind={kind === 'video' ? 'video' : 'image'}
+          frame={mediaFrame}
+          layout="feature"
+          onChange={onMediaFrameChange}
+          alt={label || 'Featured media'}
+        />
+      ) : null}
     </div>
   )
 }

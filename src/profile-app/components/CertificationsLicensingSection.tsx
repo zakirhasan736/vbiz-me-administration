@@ -2,6 +2,7 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isUsableImageSrc } from '@/lib/mediaUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import {
@@ -103,6 +104,7 @@ function CertificationCard({
             src={mediaSrc}
             alt={item.title}
             className="h-full w-full object-cover opacity-70 grayscale-40 transition-all duration-700 group-hover:scale-105 group-hover:opacity-100 group-hover:grayscale-0"
+            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
           />
         ) : showPdf ? (
           <iframe

@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 
 export type DynamicPostAttachment = {
   id: number | string
@@ -38,6 +39,7 @@ export type DynamicPostItem = {
   review_link?: { url?: string | null } | null
   attachments?: DynamicPostAttachment[]
   metas?: Record<string, string | null | undefined>
+  media_frame?: unknown
   type?: string
 }
 
@@ -68,6 +70,7 @@ export type DynamicPostListItem = {
   title: string
   description: string
   featuredImage: string
+  mediaFrame?: ProfileMediaFrame | null
   generalInfoUrl: string
   date: string
   issuer: string

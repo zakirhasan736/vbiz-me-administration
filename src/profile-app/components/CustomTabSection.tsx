@@ -1,6 +1,7 @@
 'use client'
 
 import { SkeletonMediaShell, SkeletonVideo, useMediaLoadState } from '@/components/media/SkeletonMedia'
+import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -30,7 +31,17 @@ function youtubeEmbedSrc(url: string): string | null {
   return match ? `https://www.youtube.com/embed/${match[1]}` : null
 }
 
-function FeaturedMedia({ src, alt, forceVideo }: { src: string; alt: string; forceVideo?: boolean }) {
+function FeaturedMedia({
+  src,
+  alt,
+  forceVideo,
+  frame,
+}: {
+  src: string
+  alt: string
+  forceVideo?: boolean
+  frame?: ProfileMediaFrame | null
+}) {
   const encoded = encodeMediaUrl(src)
   if (!encoded && !youtubeEmbedSrc(src)) return null
   const youtube = youtubeEmbedSrc(src)
@@ -46,12 +57,14 @@ function FeaturedMedia({ src, alt, forceVideo }: { src: string; alt: string; for
     )
   }
   if (!encoded) return null
+  const fit = frame ? profileMediaFitStyle(frame) : undefined
   if (forceVideo || isVideoUrl(encoded)) {
     return (
       <SkeletonVideo
         src={encoded}
         fill
         mediaClassName="object-cover"
+        style={fit}
         controls
         playsInline
         preload="metadata"
@@ -61,10 +74,10 @@ function FeaturedMedia({ src, alt, forceVideo }: { src: string; alt: string; for
     )
   }
   if (!isUsableImageSrc(encoded)) return null
-  return <FeaturedNextImage src={encoded} alt={alt} />
+  return <FeaturedNextImage src={encoded} alt={alt} frame={frame} />
 }
 
-function FeaturedNextImage({ src, alt }: { src: string; alt: string }) {
+function FeaturedNextImage({ src, alt, frame }: { src: string; alt: string; frame?: ProfileMediaFrame | null }) {
   const { loaded, markLoaded, markError } = useMediaLoadState(src)
   return (
     <SkeletonMediaShell loading={!loaded} label="Loading media" className="absolute inset-0 h-full w-full">
@@ -73,6 +86,7 @@ function FeaturedNextImage({ src, alt }: { src: string; alt: string }) {
         alt={alt}
         fill
         className={`object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        style={frame ? profileMediaFitStyle(frame) : undefined}
         sizes="(max-width: 768px) 100vw, 640px"
         onLoadingComplete={markLoaded}
         onError={markError}
@@ -113,7 +127,12 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
               >
                 {media ? (
                   <div className="relative h-[240px] w-full overflow-hidden bg-zinc-900 md:h-[360px]">
-                    <FeaturedMedia src={media} alt={item.title || sectionTitle} forceVideo={forceVideo} />
+                    <FeaturedMedia
+                      src={media}
+                      alt={item.title || sectionTitle}
+                      forceVideo={forceVideo}
+                      frame={item.mediaFrame}
+                    />
                   </div>
                 ) : link ? (
                   <a

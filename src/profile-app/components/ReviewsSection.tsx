@@ -367,6 +367,7 @@ export const ReviewsSection = () => {
                 <div className="relative z-10 mt-auto flex items-center gap-4 border-t border-zinc-200 pt-5 dark:border-zinc-800/80">
                   <ReviewAvatar
                     imageUrl={item.image}
+                    mediaFrame={item.mediaFrame}
                     alt={item.title || 'Reviewer'}
                     className={isFeatured ? 'h-14 w-14 shadow-sm' : 'h-10 w-10 shadow-sm'}
                     imageClassName="grayscale-30 transition-all duration-300 group-hover:grayscale-0"

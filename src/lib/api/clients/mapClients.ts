@@ -5,6 +5,7 @@ import type {
   ClientsSectionResponse,
 } from '@/interfaces/api/clients.interface'
 import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 
 function formatPartnerSince(createdAt?: string): string {
   if (!createdAt) return ''
@@ -45,6 +46,7 @@ export function mapClientItemToListItem(item: ClientItem): ClientListItem {
     id: item.id,
     name: decodeHtmlText(item.title.trim() || 'Client'),
     logo,
+    mediaFrame: readOptionalMediaFrame(item.media_frame),
     since: formatPartnerSince(item.created_at),
     description: stripHtml(item.description?.trim() ?? ''),
     linkUrl: linkUrl || null,

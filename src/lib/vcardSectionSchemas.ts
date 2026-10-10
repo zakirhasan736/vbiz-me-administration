@@ -1,3 +1,4 @@
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import type { VCardSectionPostItem } from '@/types/vcard'
 
@@ -320,6 +321,7 @@ export function normalizeSectionPostList(items: VCardSectionPostItem[] | null | 
       description: entry.description ?? '',
       url: entry.url ?? '',
       featuredImage: entry.featuredImage ?? '',
+      mediaFrame: readOptionalMediaFrame(entry.mediaFrame),
       date: entry.date ?? '',
       rating: entry.rating ?? '',
       location: entry.location ?? '',

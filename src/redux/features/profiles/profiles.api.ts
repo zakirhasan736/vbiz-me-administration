@@ -23,6 +23,7 @@ import {
   shouldRemoveFromLifecycleList,
 } from '@/lib/cardLifecycleCache'
 import { resolveCardStatus } from '@/lib/cardStatus'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import { detectPortfolioType, isVideoUrl } from '@/lib/mediaUrl'
 import {
   HIDDEN_OWNER_MEDIA_SETTING_KEY,
@@ -192,6 +193,7 @@ export type ApiProfile = {
     title?: string | null
     description?: string | null
     imageUrl?: string | null
+    mediaFrame?: unknown
     reviewUrl?: string | null
     status?: number | null
     corporateOwned?: boolean
@@ -203,6 +205,8 @@ export type ApiProfile = {
     url?: string | null
     imageUrl?: string | null
     featuredImage?: string | null
+    mediaFrame?: unknown
+    metas?: unknown
     status?: number | string | null
     corporateOwned?: boolean
   }>
@@ -212,6 +216,8 @@ export type ApiProfile = {
     description?: string | null
     url?: string | null
     featuredImage?: string | null
+    mediaFrame?: unknown
+    metas?: unknown
     status?: string | null
   }>
   reviews?: Array<{
@@ -221,6 +227,7 @@ export type ApiProfile = {
     rating?: number | null
     status?: number | null
     imageUrl?: string | null
+    mediaFrame?: unknown
     reviewUrl?: string | null
     corporateOwned?: boolean
   }>
@@ -257,6 +264,7 @@ export type ApiPost = {
   description?: string | null
   url?: string | null
   featuredImage?: string | null
+  mediaFrame?: unknown
   status?: string | null
   sortOrder?: number | null
   postType?: { id?: string; name?: string | null; title?: string | null } | null
@@ -625,6 +633,7 @@ function parseCustomTabs(raw?: string): VCardCustomTab[] {
                 description: typeof item.description === 'string' ? item.description : '',
                 url: typeof item.url === 'string' ? item.url : '',
                 mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
+                mediaFrame: readOptionalMediaFrame(item.mediaFrame),
                 mediaName: typeof item.mediaName === 'string' ? item.mediaName : '',
                 mediaKind: item.mediaKind as VCardCustomTab['items'][number]['mediaKind'],
                 gallery: Array.isArray(item.gallery) ? item.gallery : [],
@@ -679,6 +688,7 @@ export function mapApiPostsToGeneralPosts(posts: ApiPost[]): VCardGeneralPost[] 
       description: p.description || '',
       customUrl: p.url || '',
       featuredImage: p.featuredImage || '',
+      mediaFrame: readOptionalMediaFrame(p.mediaFrame),
       date: toDateInputValue(metas.date || p.date || (p.createdAt ? String(p.createdAt) : '')),
       active: p.status !== '0' && p.status !== 'false',
       corporateOwned: Boolean(p.corporateOwned),
@@ -693,6 +703,7 @@ export function mapApiPostsToFaqs(posts: ApiPost[]): VCardFaqEntry[] {
     question: p.title || '',
     answer: p.description || '',
     featuredImage: p.featuredImage || '',
+    mediaFrame: readOptionalMediaFrame(p.mediaFrame),
     url: p.url || '',
     active: p.status !== '0' && p.status !== 'false',
     corporateOwned: Boolean(p.corporateOwned),
@@ -836,6 +847,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       description: s.description || '',
       url: s.reviewUrl || '',
       featuredImage: s.imageUrl || '',
+      mediaFrame: readOptionalMediaFrame(s.mediaFrame),
       active: s.status !== 0,
       corporateOwned: Boolean(s.corporateOwned),
     })),
@@ -889,6 +901,12 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
           title: p.title || '',
           description: p.description || '',
           imageUrl,
+          mediaFrame: readOptionalMediaFrame(
+            ('mediaFrame' in p ? p.mediaFrame : undefined) ||
+              ('metas' in p && p.metas && typeof p.metas === 'object' && !Array.isArray(p.metas)
+                ? (p.metas as { mediaFrame?: unknown }).mediaFrame
+                : undefined)
+          ),
           imageName: '',
           url: linkUrl,
           active,
@@ -905,6 +923,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
         text: r.text || '',
         rating,
         imageUrl: r.imageUrl || '',
+        mediaFrame: readOptionalMediaFrame(r.mediaFrame),
         url: r.reviewUrl || '',
         corporateOwned: Boolean(r.corporateOwned),
       }

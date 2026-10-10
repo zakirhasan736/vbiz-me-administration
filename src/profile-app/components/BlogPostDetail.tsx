@@ -2,10 +2,9 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { formatGeneralPostDate } from '@/lib/vcardGeneralPosts'
+import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { ArrowLeft, Calendar, FileEdit } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
-
 type BlogPostDetailProps = {
   post: DynamicPostListItem
   sectionTitle: string
@@ -38,14 +37,11 @@ export function BlogPostDetail({ post, sectionTitle, onBack }: BlogPostDetailPro
       <article className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
         {heroImage ? (
           <div className="vcard-blog-hero-media flex w-full items-center justify-center overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-            <Image
+            <PositionedFeatureMedia
               src={heroImage}
               alt={post.title.trim() || ''}
-              width={1600}
-              height={900}
+              frame={post.mediaFrame}
               className="h-auto max-h-[280px] w-full object-contain object-center sm:max-h-[380px] md:max-h-[440px]"
-              priority
-              sizes="(max-width: 1152px) 100vw, 1152px"
             />
           </div>
         ) : null}

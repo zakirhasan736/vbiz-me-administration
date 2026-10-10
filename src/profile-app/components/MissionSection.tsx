@@ -3,6 +3,7 @@
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -17,8 +18,6 @@ import {
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { ArrowUpRight, BookOpen, Quote } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
-
 function resolveMissionImage(item: DynamicPostListItem): string {
   const featured = item.featuredImage.trim()
   if (featured) return featured
@@ -60,13 +59,11 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
       <div className="relative z-10 flex w-full flex-col">
         {heroImage ? (
           <div className="vcard-mission-media flex w-full items-center justify-center overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-            <Image
+            <PositionedFeatureMedia
               src={heroImage}
               alt={item.title.trim() || sectionTitle}
-              width={1600}
-              height={900}
+              frame={item.mediaFrame}
               className="h-auto max-h-[280px] w-full object-contain object-center sm:max-h-[340px] md:max-h-[400px]"
-              sizes="(max-width: 1152px) 100vw, 1152px"
             />
           </div>
         ) : null}

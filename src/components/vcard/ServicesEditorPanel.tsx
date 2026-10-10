@@ -300,12 +300,20 @@ export function ServicesEditorPanel({
                             allowUrlPaste={false}
                             hint="Image or video • no size limit"
                             value={service.featuredImage}
-                            onChange={(next) => updateService(service.id, 'featuredImage', next?.url || '')}
+                            mediaFrame={service.mediaFrame}
+                            onMediaFrameChange={(mediaFrame) => updateService(service.id, 'mediaFrame', mediaFrame)}
+                            onChange={(next) => {
+                              updateService(service.id, 'featuredImage', next?.url || '')
+                              updateService(service.id, 'mediaFrame', null)
+                            }}
                           />
                           <MediaSourceActions
                             mode="image"
                             compact
-                            onSelect={(asset) => updateService(service.id, 'featuredImage', asset.url)}
+                            onSelect={(asset) => {
+                              updateService(service.id, 'featuredImage', asset.url)
+                              updateService(service.id, 'mediaFrame', null)
+                            }}
                           />
                         </div>
 

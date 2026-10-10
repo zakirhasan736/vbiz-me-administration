@@ -1,3 +1,4 @@
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { persistableFaqs, persistableGeneralPosts, persistableSectionPosts } from '@/lib/vcardAutosave'
 import { VCARD_SECTION_SCHEMAS } from '@/lib/vcardSectionSchemas'
@@ -62,6 +63,7 @@ type SyncItem = {
   description: string
   url?: string
   featuredImage?: string
+  mediaFrame?: ReturnType<typeof readOptionalMediaFrame>
   status: string
   metas?: Record<string, string>
   documents?: PostDocumentPayload[]
@@ -106,6 +108,7 @@ function syncItemSignature(item: SyncItem) {
     description: item.description || '',
     url: item.url || '',
     featuredImage: item.featuredImage || '',
+    mediaFrame: item.mediaFrame || null,
     status: String(item.status ?? '1'),
     sortOrder: item.sortOrder ?? 0,
     metas: item.metas || {},
@@ -120,6 +123,7 @@ function unchangedSavedPost(item: SyncItem): ApiPost {
     description: item.description,
     url: item.url,
     featuredImage: item.featuredImage,
+    mediaFrame: item.mediaFrame ?? null,
     status: item.status,
     sortOrder: item.sortOrder,
     metas: Object.entries(metas).map(([metaKey, metaValue]) => ({
@@ -185,6 +189,7 @@ export async function syncProfilePosts(options: {
       description: item.description,
       url: item.url,
       featuredImage: item.featuredImage,
+      mediaFrame: item.mediaFrame ?? null,
       status: item.status,
       documents: item.documents,
     }
@@ -252,6 +257,7 @@ async function syncDirectBlogs(options: {
       description: item.description,
       url: item.url,
       featuredImage: item.featuredImage,
+      mediaFrame: item.mediaFrame ?? null,
       status: item.status,
       sortOrder: item.sortOrder,
       metas: item.metas,
@@ -301,6 +307,7 @@ async function syncDirectTabItems(options: {
       description: item.description,
       url: item.url,
       featuredImage: item.featuredImage,
+      mediaFrame: item.mediaFrame ?? null,
       status: item.status,
       sortOrder: item.sortOrder,
       metas: item.metas,
@@ -326,6 +333,7 @@ export function generalPostsToSyncItems(posts: VCardGeneralPost[]) {
     description: p.description,
     url: p.customUrl || undefined,
     featuredImage: p.featuredImage || undefined,
+    mediaFrame: p.mediaFrame ?? null,
     status: p.active ? '1' : '0',
     metas: {
       category: p.category || '',
@@ -342,6 +350,7 @@ export function faqsToSyncItems(faqs: VCardFaqEntry[]) {
     title: f.question,
     description: f.answer,
     featuredImage: f.featuredImage || undefined,
+    mediaFrame: f.mediaFrame ?? null,
     url: f.url || undefined,
     status: f.active ? '1' : '0',
     sortOrder: index,
@@ -393,6 +402,7 @@ export function sectionPostsToSyncItems(items: VCardSectionPostItem[]): SyncItem
       description: p.description,
       url: p.url || undefined,
       featuredImage: p.featuredImage || documents?.[0]?.url || undefined,
+      mediaFrame: p.mediaFrame ?? null,
       status: p.active ? '1' : '0',
       metas: {
         ...metas,
@@ -478,6 +488,7 @@ export function mapApiPostsToSectionPosts(posts: ApiPost[]): VCardSectionPostIte
       description: p.description || '',
       url: p.url || '',
       featuredImage: p.featuredImage || '',
+      mediaFrame: readOptionalMediaFrame((p as ApiPost & { mediaFrame?: unknown }).mediaFrame),
       date: toDateInputValue(date),
       rating,
       location,

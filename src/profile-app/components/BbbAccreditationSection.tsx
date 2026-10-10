@@ -1,6 +1,7 @@
 'use client'
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
+import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -33,7 +34,14 @@ function BbbAccreditationCard({ item, buttonLabel }: { item: DynamicPostListItem
     <div className="flex flex-col items-start gap-6 md:flex-row md:items-center md:gap-10">
       {imageUrl ? (
         <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm md:h-40 md:w-40 dark:border-zinc-700 dark:bg-zinc-950">
-          <Image src={imageUrl} alt={item.title} fill className="object-contain p-2" sizes="160px" />
+          <Image
+            src={imageUrl}
+            alt={item.title}
+            fill
+            className="object-contain p-2"
+            sizes="160px"
+            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+          />
         </div>
       ) : null}
 

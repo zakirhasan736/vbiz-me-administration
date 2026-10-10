@@ -1,7 +1,7 @@
 import type { HiddenOwnerMediaLists } from '@/lib/memberMediaVisibility'
 import type { CardThemeConfig } from '@/lib/theme/cardThemeContract'
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
-import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
+import type { ProfileMediaFrame, VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
 export type VCardTheme = {
   primaryColor: string
@@ -167,6 +167,8 @@ export type VCardServiceEntry = {
   description: string
   url: string
   featuredImage: string
+  /** Drag crop for the featured image or video. */
+  mediaFrame?: ProfileMediaFrame | null
   active: boolean
   /** Synced from corporate team owner — locked on team member cards. */
   corporateOwned?: boolean
@@ -182,6 +184,8 @@ export type VCardGeneralPost = {
   description: string
   customUrl: string
   featuredImage: string
+  /** Drag crop for the featured image or video. */
+  mediaFrame?: ProfileMediaFrame | null
   date: string
   active: boolean
   /** Synced from the corporate team owner. Members can add posts; they cannot delete these. */
@@ -196,6 +200,8 @@ export type VCardFaqEntry = {
   question: string
   answer: string
   featuredImage?: string
+  /** Drag crop for the featured image or video. */
+  mediaFrame?: ProfileMediaFrame | null
   url?: string
   active: boolean
   /** Synced from the corporate team owner. Members can add FAQs; they cannot delete these. */
@@ -211,6 +217,8 @@ export type VCardSectionPostItem = {
   description: string
   url: string
   featuredImage: string
+  /** Drag crop for the featured image or video. */
+  mediaFrame?: ProfileMediaFrame | null
   date: string
   rating: string
   location: string
@@ -240,6 +248,8 @@ export type VCardCustomTabItem = {
   description: string
   url: string
   mediaUrl: string
+  /** Drag crop for the featured image or video. */
+  mediaFrame?: ProfileMediaFrame | null
   mediaName?: string
   mediaKind?: VCardCustomTabMediaKind
   gallery?: VCardCustomTabGalleryItem[]
@@ -272,6 +282,8 @@ export type VCardPortfolioEntry = {
   title: string
   description: string
   imageUrl: string
+  /** Drag crop for the featured image or video. */
+  mediaFrame?: ProfileMediaFrame | null
   imageName?: string
   url: string
   active: boolean
@@ -285,6 +297,8 @@ export type VCardReviewEntry = {
   rating: number
   text: string
   imageUrl?: string
+  /** Drag crop for the reviewer photo. */
+  mediaFrame?: ProfileMediaFrame | null
   url?: string
   corporateOwned?: boolean
 }

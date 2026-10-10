@@ -251,13 +251,21 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                             allowUrlPaste={false}
                             hint="Upload an image or video - preview appears below"
                             value={item.featuredImage}
-                            onChange={(next) => updatePost(item.id, 'featuredImage', next?.url || '')}
+                            mediaFrame={item.mediaFrame}
+                            onMediaFrameChange={(mediaFrame) => updatePost(item.id, 'mediaFrame', mediaFrame)}
+                            onChange={(next) => {
+                              updatePost(item.id, 'featuredImage', next?.url || '')
+                              updatePost(item.id, 'mediaFrame', null)
+                            }}
                           />
                           <MediaSourceActions
                             mode="both"
                             compact
                             profileId={profileId}
-                            onSelect={(asset) => updatePost(item.id, 'featuredImage', asset.url)}
+                            onSelect={(asset) => {
+                              updatePost(item.id, 'featuredImage', asset.url)
+                              updatePost(item.id, 'mediaFrame', null)
+                            }}
                           />
                         </div>
 

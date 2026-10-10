@@ -17,6 +17,14 @@ export const DEFAULT_PROFILE_MEDIA_FRAME: ProfileMediaFrame = {
   height: 1,
 }
 
+/** Featured cards start centered until the user drags. */
+export const DEFAULT_FEATURE_MEDIA_FRAME: ProfileMediaFrame = {
+  focusX: 50,
+  focusY: 50,
+  zoom: 1,
+  height: 1,
+}
+
 export const PROFILE_FRAME_ZOOM_MIN = 1
 export const PROFILE_FRAME_ZOOM_MAX = 2.5
 export const PROFILE_FRAME_HEIGHT_MIN = 0.7
@@ -32,6 +40,24 @@ function readNumber(value: unknown, fallback: number, min: number, max: number, 
   if (!Number.isFinite(n)) return fallback
   const factor = 10 ** decimals
   return clamp(Math.round(n * factor) / factor, min, max)
+}
+
+/** Null when nothing was saved, so public cards keep their original fit. */
+export function readOptionalMediaFrame(value: unknown): ProfileMediaFrame | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed === '[object Object]') return null
+    try {
+      return readOptionalMediaFrame(JSON.parse(trimmed))
+    } catch {
+      return null
+    }
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) return null
+  const raw = value as Record<string, unknown>
+  if (raw.focusX == null && raw.focusY == null && raw.zoom == null && raw.height == null) return null
+  return parseProfileMediaFrame(value)
 }
 
 export function parseProfileMediaFrame(value: unknown): ProfileMediaFrame {

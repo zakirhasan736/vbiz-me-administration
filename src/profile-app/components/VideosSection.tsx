@@ -1,6 +1,7 @@
 'use client'
 
 import type { VideoListItem } from '@/interfaces/api/videos.interface'
+import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { isDirectVideoFileUrl, resolvePlayableVideo, type PlayableVideo } from '@/lib/videoEmbed'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -287,7 +288,17 @@ function VideoLightbox({ preview, onClose }: { preview: VideoPreview; onClose: (
  * Muted autoplay preview on the card.
  * Main click / play opens the popup player; mic only toggles preview sound.
  */
-function InlineCardVideo({ src, paused, onOpenPlayer }: { src: string; paused?: boolean; onOpenPlayer: () => void }) {
+function InlineCardVideo({
+  src,
+  paused,
+  onOpenPlayer,
+  frame,
+}: {
+  src: string
+  paused?: boolean
+  onOpenPlayer: () => void
+  frame?: ProfileMediaFrame | null
+}) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isMuted, setIsMuted] = useState(true)
 
@@ -351,6 +362,7 @@ function InlineCardVideo({ src, paused, onOpenPlayer }: { src: string; paused?: 
         playsInline
         preload="metadata"
         className="h-full w-full object-cover"
+        style={frame ? profileMediaFitStyle(frame) : undefined}
         {...{
           'webkit-playsinline': 'true',
           'x5-playsinline': 'true',
@@ -434,7 +446,7 @@ function VideoCard({
     >
       <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
         {featuredIsDirectVideo ? (
-          <InlineCardVideo src={featuredImage} paused={playerOpen} onOpenPlayer={openVideo} />
+          <InlineCardVideo src={featuredImage} paused={playerOpen} onOpenPlayer={openVideo} frame={item.mediaFrame} />
         ) : hasFeatured ? (
           <>
             <Image
@@ -443,6 +455,7 @@ function VideoCard({
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover transition-transform duration-700 group-hover:scale-105"
+              style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
             {canOpenPlayer || videoUrl ? (

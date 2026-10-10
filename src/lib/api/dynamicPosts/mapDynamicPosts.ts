@@ -6,6 +6,7 @@ import type {
   DynamicPostsSectionResponse,
 } from '@/interfaces/api/dynamicPosts.interface'
 import { decodeHtmlText } from '@/lib/htmlText'
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 
 /** Treat missing status as published; accept common active flags. */
 function isActiveItem(status: unknown): boolean {
@@ -135,6 +136,7 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
     title: decodeHtmlText(item.title?.trim() || ''),
     description,
     featuredImage: featured.url,
+    mediaFrame: readOptionalMediaFrame(item.media_frame),
     generalInfoUrl: resolveGeneralInfoUrl(item, metas),
     date: year || item.created_at || item.updated_at || '',
     issuer: decodeHtmlText(issuer),

@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 
 export type VideoSectionPostType = {
   name: string
@@ -30,6 +31,7 @@ export type VideoSectionItem = {
   general_info_url?: string | null
   video_url?: string | null
   review_link?: { url?: string | null } | null
+  media_frame?: unknown
 }
 
 export type VideoSectionData = {
@@ -53,6 +55,7 @@ export type VideoListItem = {
   type: string
   createdAt: string
   featuredImage: string
+  mediaFrame?: ProfileMediaFrame | null
   videoUrl: string
   galleryCount: number
   galleryImages: string[]

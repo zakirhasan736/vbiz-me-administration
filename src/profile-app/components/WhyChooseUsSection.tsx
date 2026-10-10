@@ -2,6 +2,7 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
+import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -54,7 +55,14 @@ function WhyChooseUsCard({
         {imageUrl ? (
           <div className="mb-8 flex justify-center">
             <div className="relative h-40 w-40 overflow-hidden rounded-4xl border border-zinc-200 bg-white shadow-xl transition-all duration-500 group-hover:-translate-y-2 lg:h-56 lg:w-56 dark:border-zinc-800/80 dark:bg-zinc-950 dark:shadow-2xl">
-              <Image src={imageUrl} alt={item.title} width={256} height={256} className="h-full w-full object-cover" />
+              <Image
+                src={imageUrl}
+                alt={item.title}
+                width={256}
+                height={256}
+                className="h-full w-full object-cover"
+                style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+              />
             </div>
           </div>
         ) : null}

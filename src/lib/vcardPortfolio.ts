@@ -1,3 +1,4 @@
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import type { VCardPortfolioEntry } from '@/types/vcard'
 
 export function createDefaultPortfolioEntry(): VCardPortfolioEntry {
@@ -25,6 +26,7 @@ export function normalizePortfolioList(raw?: VCardPortfolioEntry[] | null): VCar
       title: entry.title ?? '',
       description: entry.description ?? '',
       imageUrl: entry.imageUrl ?? '',
+      mediaFrame: readOptionalMediaFrame(entry.mediaFrame),
       imageName: entry.imageName ?? '',
       url: entry.url ?? '',
       active: entry.active !== false,

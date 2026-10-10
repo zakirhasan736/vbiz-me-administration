@@ -1,3 +1,4 @@
+import { readOptionalMediaFrame } from '@/lib/media/profileMediaFrame'
 import type { VCardGeneralPost } from '@/types/vcard'
 
 export function createDefaultGeneralPost(): VCardGeneralPost {
@@ -27,6 +28,7 @@ export function normalizeGeneralPostList(raw?: VCardGeneralPost[] | null): VCard
       description: entry.description ?? '',
       customUrl: entry.customUrl ?? '',
       featuredImage: entry.featuredImage ?? '',
+      mediaFrame: readOptionalMediaFrame(entry.mediaFrame),
       date: entry.date ?? '',
       active: entry.active !== false,
       ...(entry.corporateOwned ? { corporateOwned: true as const } : {}),
