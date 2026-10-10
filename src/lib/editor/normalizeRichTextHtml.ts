@@ -11,22 +11,70 @@ function compactColor(raw: string): string {
     .replace(/['"]/g, '')
 }
 
+/** Near-black / near-white hexes TipTap and card settings often bake in as “default” text. */
+const NEUTRAL_HEX = new Set([
+  '000',
+  '000000',
+  'fff',
+  'ffffff',
+  '0f172a',
+  '111111',
+  '1a1a1a',
+  '18181b',
+  '09090b',
+  '0b0b0d',
+  '020617',
+  '171717',
+  '27272a',
+  '3f3f46',
+  'fafafa',
+  'f4f4f5',
+  'f8fafc',
+  'e4e4e7',
+])
+
+function isNearBlackOrWhiteRgb(r: number, g: number, b: number): boolean {
+  if (r === 15 && g === 23 && b === 42) return true
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const chroma = max - min
+  // Near-black body text (incl. #1a1a1a) — keep theme toggle free to paint light/dark.
+  if (max <= 70 && chroma <= 24) return true
+  // Near-white body text
+  if (min >= 232 && chroma <= 24) return true
+  return false
+}
+
 /** Default / theme-clobbering colors TipTap bakes into spans under p / headings. */
 export function isThemeNeutralColor(raw: string | null | undefined): boolean {
   if (!raw) return true
   const value = compactColor(raw)
   if (!value) return true
   if (NAMED_NEUTRAL.has(value)) return true
-  if (/^#(?:000|000000|fff|ffffff|0f172a)$/i.test(value)) return true
+
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
+  if (hex && NEUTRAL_HEX.has(hex[1].toLowerCase())) return true
 
   const rgb = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
   if (rgb) {
     const r = Number(rgb[1])
     const g = Number(rgb[2])
     const b = Number(rgb[3])
-    if (r === 0 && g === 0 && b === 0) return true
-    if (r >= 250 && g >= 250 && b >= 250) return true
-    if (r === 15 && g === 23 && b === 42) return true
+    if (isNearBlackOrWhiteRgb(r, g, b)) return true
+  }
+
+  if (hex) {
+    let h = hex[1].toLowerCase()
+    if (h.length === 3) {
+      h = h
+        .split('')
+        .map((c) => c + c)
+        .join('')
+    }
+    const r = parseInt(h.slice(0, 2), 16)
+    const g = parseInt(h.slice(2, 4), 16)
+    const b = parseInt(h.slice(4, 6), 16)
+    if (isNearBlackOrWhiteRgb(r, g, b)) return true
   }
 
   return false

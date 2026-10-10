@@ -34,14 +34,14 @@ describe('AI section payloads match editor fields', () => {
     expect(mapped).toHaveLength(2)
     expect(mapped[0]).toMatchObject({
       author: 'Real client',
-      text: 'Excellent service',
+      text: '<p>Excellent service</p>',
       rating: 4,
       imageUrl: '/client.jpg',
       url: '/source',
     })
     expect(mapped[1]).toMatchObject({
       author: 'Example guest',
-      text: 'Friendly staff and a smooth visit',
+      text: '<p>Friendly staff and a smooth visit</p>',
       rating: 5,
     })
   })
@@ -58,7 +58,7 @@ describe('AI section payloads match editor fields', () => {
     expect(mapped).toHaveLength(7)
     expect(mapped[0]).toMatchObject({
       question: 'Question 0',
-      answer: 'Answer 0',
+      answer: '<p>Answer 0</p>',
       featuredImage: '/faq-0.jpg',
       url: '/faq-0',
       active: true,

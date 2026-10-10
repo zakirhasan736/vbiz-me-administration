@@ -117,7 +117,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
         profileId={profileId}
         currentDraft={{ blogs: posts }}
         accent="violet"
-        hint="Drop or paste posts — AI extracts title, summary, and category (OCR for images)"
+        hint="Drop or paste a post — AI sets the title and fills the full description (OCR for images)"
         onFilled={applyFilled}
       />
 

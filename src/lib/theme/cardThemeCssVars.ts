@@ -155,7 +155,8 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
     /* Semantic typography & surfaces */
     '--vbiz-title': set.text,
     '--vbiz-pin': set.accent,
-    '--vbiz-description': set.textMuted,
+    /* Body copy follows theme text (dark → white, light → black), not muted gray */
+    '--vbiz-description': set.text,
     '--vbiz-modal-bg': `color-mix(in srgb, ${set.surface} 98%, transparent)`,
     '--vbiz-modal-border': set.border,
   }
@@ -201,7 +202,7 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   vars['--vbiz-content-card-border'] = contentCard.border || set.border
   vars['--vbiz-content-card-title'] = contentCard.title || set.text
   vars['--vbiz-content-card-text'] = contentCard.text || set.text
-  vars['--vbiz-content-card-desc'] = contentCard.description || set.textMuted
+  vars['--vbiz-content-card-desc'] = contentCard.description || set.text
   vars['--vbiz-content-card-icon'] = contentCard.icon || set.accent
   vars['--vbiz-content-card-image-radius'] = `${cornerStyleToRadius(contentCard.imageCorner || 'round')}px`
   vars['--vbiz-content-card-image-fit'] = contentCard.imageFit || 'cover'
@@ -618,8 +619,12 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-content-card-title, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root .vbiz-content-card .vbiz-description,
-.vbiz-profile-root .vbiz-card .vbiz-description {
-  color: var(--vbiz-content-card-desc, var(--vbiz-text-muted)) !important;
+.vbiz-profile-root .vbiz-card .vbiz-description,
+.vbiz-profile-root .vbiz-content-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root .vbiz-content-card .vcard-rich-html.vbiz-description,
+.vbiz-profile-root .vbiz-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root .vbiz-card .vcard-rich-html.vbiz-description {
+  color: var(--vbiz-content-card-desc, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root .vbiz-content-card img,
 .vbiz-profile-root .vbiz-card img {
@@ -818,10 +823,32 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
-/* Body titles only — skip light-surface chips/pills (filters, card labels) */
+/* Body titles only — skip light-surface chips/pills (filters, card labels).
+   Content / review / FAQ cards keep their own tokens (Card Settings panels). */
 .vbiz-profile-root .text-zinc-900:not(.vbiz-btn):not(.vbiz-live-agent-fab):not(.vbiz-social):not(.vbiz-filter-chip-active):not(.vbiz-card-pill):not(.vbiz-on-light-surface),
 .vbiz-profile-root .dark\\:text-zinc-100 {
   color: var(--vbiz-text) !important;
+}
+.vbiz-profile-root .vbiz-content-card .text-zinc-900,
+.vbiz-profile-root .vbiz-content-card .dark\\:text-zinc-100,
+.vbiz-profile-root .vbiz-card .text-zinc-900,
+.vbiz-profile-root .vbiz-card .dark\\:text-zinc-100,
+.vbiz-profile-root .vbiz-review-card .text-zinc-900,
+.vbiz-profile-root .vbiz-review-card .dark\\:text-zinc-100 {
+  color: var(--vbiz-content-card-title, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root .vbiz-content-card .vbiz-description.text-zinc-900,
+.vbiz-profile-root .vbiz-content-card .vbiz-description.dark\\:text-zinc-100,
+.vbiz-profile-root .vbiz-content-card .text-zinc-600,
+.vbiz-profile-root .vbiz-content-card .text-zinc-500,
+.vbiz-profile-root .vbiz-content-card .dark\\:text-zinc-400,
+.vbiz-profile-root .vbiz-content-card .dark\\:text-zinc-300,
+.vbiz-profile-root .vbiz-content-card .dark\\:text-zinc-500,
+.vbiz-profile-root .vbiz-card .vbiz-description.text-zinc-900,
+.vbiz-profile-root .vbiz-card .vbiz-description.dark\\:text-zinc-100,
+.vbiz-profile-root .vbiz-card .text-zinc-600,
+.vbiz-profile-root .vbiz-card .text-zinc-500 {
+  color: var(--vbiz-content-card-desc, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root .text-zinc-600,
 .vbiz-profile-root .text-zinc-500,
@@ -1009,10 +1036,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-description {
   color: var(--vbiz-description, var(--vbiz-text-muted)) !important;
 }
-/* TipTap/editor HTML often ships inline black/white — force theme description color */
+/* TipTap/editor HTML often ships inline black/white — force theme description color.
+   Content cards opt into --vbiz-content-card-desc below so Card Settings overrides win. */
 .vbiz-profile-root .vbiz-description.vcard-rich-html,
 .vbiz-profile-root .vcard-rich-html.vbiz-description {
-  color: var(--vbiz-description, var(--vbiz-text-muted)) !important;
+  color: var(--vbiz-description, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root .vbiz-description.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
 .vbiz-profile-root .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
@@ -1045,7 +1073,7 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
-/* Extra <span style="color: black"> under p/headings must not lock light/dark text */
+/* Extra <span style="color: …"> under p/headings must not lock light/dark text */
 .vbiz-profile-root .vcard-rich-html [style*='color: rgb(0, 0, 0)'],
 .vbiz-profile-root .vcard-rich-html [style*='color:rgb(0, 0, 0)'],
 .vbiz-profile-root .vcard-rich-html [style*='color: rgb(0,0,0)'],
@@ -1057,12 +1085,37 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root .vcard-rich-html [style*='color: rgb(15, 23, 42)'],
 .vbiz-profile-root .vcard-rich-html [style*='color:#0f172a'],
 .vbiz-profile-root .vcard-rich-html [style*='color: #0f172a'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#111'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #111111'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#111111'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#1a1a1a'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #1a1a1a'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#18181b'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #18181b'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#09090b'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #09090b'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#0b0b0d'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #0b0b0d'],
+.vbiz-profile-root .vcard-rich-html [style*='color: rgb(26, 26, 26)'],
+.vbiz-profile-root .vcard-rich-html [style*='color:rgb(26, 26, 26)'],
+.vbiz-profile-root .vcard-rich-html [style*='color: rgb(24, 24, 27)'],
 .vbiz-profile-root .vcard-rich-html [style*='color: rgb(255, 255, 255)'],
 .vbiz-profile-root .vcard-rich-html [style*='color:rgb(255, 255, 255)'],
 .vbiz-profile-root .vcard-rich-html [style*='color: #ffffff'],
 .vbiz-profile-root .vcard-rich-html [style*='color:#ffffff'],
 .vbiz-profile-root .vcard-rich-html [style*='color: white'],
-.vbiz-profile-root .vcard-rich-html [style*='color:white'] {
+.vbiz-profile-root .vcard-rich-html [style*='color:white'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#fafafa'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #fafafa'],
+.vbiz-profile-root .vcard-rich-html [style*='color:#f4f4f5'],
+.vbiz-profile-root .vcard-rich-html [style*='color: #f4f4f5'] {
+  color: inherit !important;
+}
+/* Headings inside content descriptions follow the same theme text token */
+.vbiz-profile-root .vbiz-description.vcard-rich-html :where(h1, h2, h3, h4, h5, h6),
+.vbiz-profile-root .vcard-rich-html.vbiz-description :where(h1, h2, h3, h4, h5, h6),
+.vbiz-profile-root .vbiz-content-card .vcard-rich-html :where(h1, h2, h3, h4, h5, h6),
+.vbiz-profile-root .vbiz-card .vcard-rich-html :where(h1, h2, h3, h4, h5, h6) {
   color: inherit !important;
 }
 .vbiz-profile-root .vbiz-description.vcard-rich-html a,
@@ -1688,16 +1741,97 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
 .vbiz-profile-root.dark .rounded-2xl.border.bg-white h3 {
   color: var(--vbiz-content-card-title, var(--vbiz-text)) !important;
 }
+/* Card Settings → Content cards: beat global .vbiz-description / text-zinc / prose rules */
 .vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-description,
 .vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-description,
 .vbiz-profile-root.dark .vbiz-content-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vcard-rich-html.vbiz-description,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vcard-rich-html.vbiz-description,
+.vbiz-profile-root.dark .vbiz-content-card .vcard-rich-html.vbiz-description,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .text-zinc-600,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .text-zinc-600,
+.vbiz-profile-root.dark .vbiz-content-card .text-zinc-600,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .text-zinc-500,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .text-zinc-500,
+.vbiz-profile-root.dark .vbiz-content-card .text-zinc-500,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .dark\\:text-zinc-400,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .dark\\:text-zinc-400,
+.vbiz-profile-root.dark .vbiz-content-card .dark\\:text-zinc-400,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .dark\\:text-zinc-300,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .dark\\:text-zinc-300,
+.vbiz-profile-root.dark .vbiz-content-card .dark\\:text-zinc-300,
 .vbiz-profile-root.vbiz-theme-light .rounded-3xl.border.bg-white\\/50 .vbiz-description,
 .vbiz-profile-root.vbiz-theme-dark .rounded-3xl.border.bg-white\\/50 .vbiz-description,
 .vbiz-profile-root.dark .rounded-3xl.border.bg-white\\/50 .vbiz-description,
 .vbiz-profile-root.vbiz-theme-light .rounded-3xl.border.bg-white\\/50 p,
 .vbiz-profile-root.vbiz-theme-dark .rounded-3xl.border.bg-white\\/50 p,
 .vbiz-profile-root.dark .rounded-3xl.border.bg-white\\/50 p {
-  color: var(--vbiz-content-card-desc, var(--vbiz-text-muted)) !important;
+  color: var(--vbiz-content-card-desc, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-description.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-description.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-description.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.dark .vbiz-content-card .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
+  color: inherit !important;
+}
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-title,
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-title.text-zinc-900,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-title.text-zinc-900,
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-title.text-zinc-900,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-title.dark\\:text-zinc-100,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-title.dark\\:text-zinc-100,
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-title.dark\\:text-zinc-100,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card h1.vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card h1.vbiz-title,
+.vbiz-profile-root.dark .vbiz-content-card h1.vbiz-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card h2.vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card h2.vbiz-title,
+.vbiz-profile-root.dark .vbiz-content-card h2.vbiz-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card h3.vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card h3.vbiz-title,
+.vbiz-profile-root.dark .vbiz-content-card h3.vbiz-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card h4.vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card h4.vbiz-title,
+.vbiz-profile-root.dark .vbiz-content-card h4.vbiz-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .text-zinc-900:not(.vbiz-description),
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .text-zinc-900:not(.vbiz-description),
+.vbiz-profile-root.dark .vbiz-content-card .text-zinc-900:not(.vbiz-description),
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .dark\\:text-zinc-100:not(.vbiz-description),
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .dark\\:text-zinc-100:not(.vbiz-description),
+.vbiz-profile-root.dark .vbiz-content-card .dark\\:text-zinc-100:not(.vbiz-description) {
+  color: var(--vbiz-content-card-title, var(--vbiz-text)) !important;
+}
+/* Description must beat the title/zinc rules above (same element often has both classes). */
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-description,
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-description.text-zinc-900,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-description.text-zinc-900,
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-description.text-zinc-900,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-description.dark\\:text-zinc-100,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-description.dark\\:text-zinc-100,
+.vbiz-profile-root.dark .vbiz-content-card .vbiz-description.dark\\:text-zinc-100 {
+  color: var(--vbiz-content-card-desc, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card,
+.vbiz-profile-root.dark .vbiz-content-card,
+.vbiz-profile-root.vbiz-theme-light .vbiz-content-card:hover,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-content-card:hover,
+.vbiz-profile-root.dark .vbiz-content-card:hover {
+  background-color: var(--vbiz-content-card-bg, var(--vbiz-surface)) !important;
+  background-image: none !important;
+  color: var(--vbiz-content-card-text, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root.vbiz-theme-light .vbiz-content-card .vbiz-card-icon,
 .vbiz-profile-root.vbiz-theme-dark .vbiz-content-card .vbiz-card-icon,

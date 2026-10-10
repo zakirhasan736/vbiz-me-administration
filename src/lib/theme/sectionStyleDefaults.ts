@@ -128,18 +128,27 @@ export function deriveContentCardMode(
   override?: ContentCardModeColors | null
 ): ContentCardModeColors {
   const bg = override?.bg || set.surface
+  // Body/title/description default to theme text (light → black, dark → white),
+  // not muted gray — so Who We Are / content cards stay readable when toggling.
   const base: ContentCardModeColors = {
     bg,
     border: set.border,
     title: ensureReadableText(bg, override?.title || set.text, CONTRAST_LARGE_MIN),
     text: ensureReadableText(bg, override?.text || set.text, CONTRAST_BODY_MIN),
-    description: ensureReadableText(bg, override?.description || set.textMuted, 3),
+    description: ensureReadableText(bg, override?.description || set.text, 3),
     icon: set.accent,
     imageCorner: 'round',
     imageFit: 'cover',
     imagePosition: 'center',
   }
-  return pick(base, override)
+  const merged = pick(base, override)
+  // Stored overrides can bake light-theme #1a1a1a into dark mode — re-check after merge.
+  if (merged.bg) {
+    merged.title = ensureReadableText(merged.bg, merged.title, CONTRAST_LARGE_MIN)
+    merged.text = ensureReadableText(merged.bg, merged.text, CONTRAST_BODY_MIN)
+    merged.description = ensureReadableText(merged.bg, merged.description, 3)
+  }
+  return merged
 }
 
 export function deriveReviewCardMode(set: ThemeColorSet, override?: ReviewCardModeColors | null): ReviewCardModeColors {

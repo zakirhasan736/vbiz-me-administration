@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
+import { decodeHtmlText, plainTextToRichHtml, stripHtml } from '@/lib/htmlText'
 
 describe('htmlText', () => {
   it('decodes ampersands and double-encoded entities', () => {
@@ -13,5 +13,10 @@ describe('htmlText', () => {
       'Area Manager — Sales & Marketing'
     )
     expect(decodeHtmlText('Trusted&trade;&nbsp;&mdash;&nbsp;ready&hellip;')).toBe('Trusted™ — ready…')
+  })
+
+  it('wraps pasted plain paragraphs for rich-text description fields', () => {
+    expect(plainTextToRichHtml('First para.\n\nSecond para.')).toBe('<p>First para.</p><p>Second para.</p>')
+    expect(plainTextToRichHtml('<p>Already html</p>')).toBe('<p>Already html</p>')
   })
 })

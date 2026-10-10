@@ -61,6 +61,36 @@ export function decodeHtmlText(value: string): string {
   return decoded
 }
 
+/** Escape plain text before wrapping as rich-text HTML. */
+export function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+/**
+ * Turn pasted plain text into HTML paragraphs for TipTap / rich-text fields.
+ * Leaves existing HTML alone.
+ */
+export function plainTextToRichHtml(value: string): string {
+  const text = value.replace(/\r\n/g, '\n').trim()
+  if (!text) return ''
+  if (/<[a-z][\s\S]*>/i.test(text)) return text
+
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+
+  if (blocks.length <= 1) {
+    const lines = text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+    return lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('')
+  }
+
+  return blocks.map((block) => `<p>${escapeHtml(block.replace(/\n+/g, ' '))}</p>`).join('')
+}
+
 export function stripHtml(html: string): string {
   let decoded = html
 

@@ -118,7 +118,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
         profileId={profileId}
         currentDraft={{ faqs }}
         accent="amber"
-        hint="Paste or upload FAQs — AI maps questions and answers from that text (OCR for images)"
+        hint="Paste or upload FAQs — AI maps questions and keeps the full answers (OCR for images)"
         onFilled={applyFilled}
       />
 

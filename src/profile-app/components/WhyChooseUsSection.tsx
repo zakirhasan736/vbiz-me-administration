@@ -48,19 +48,8 @@ function WhyChooseUsCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.6, delay: idx * 0.1, ease: 'easeOut' }}
-      className="group relative flex min-h-[240px] flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white p-5 md:p-6 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900"
+      className="vbiz-content-card group relative flex min-h-[240px] flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-5 md:p-6 lg:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50"
     >
-      <div className="absolute inset-0 h-full w-full bg-zinc-100 dark:bg-zinc-950">
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-zinc-100 via-zinc-100/90 to-zinc-100/60 dark:from-zinc-950 dark:via-zinc-900/90 dark:to-zinc-900/60" />
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-100/80 to-transparent dark:from-zinc-950/80" />
-      </div>
-
-      <div
-        className="pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110"
-        style={{ backgroundColor: `${accent}18` }}
-      />
-      <div className="pointer-events-none absolute bottom-0 left-0 -mb-24 -ml-24 rounded-full bg-black/5 p-24 blur-3xl transition-transform delay-100 duration-1000 group-hover:scale-110 dark:bg-white/5" />
-
       <div className="relative z-10">
         {imageUrl ? (
           <div className="mb-8 flex justify-center">
@@ -77,7 +66,7 @@ function WhyChooseUsCard({
         <div className="relative">
           <Quote size={40} className="absolute -top-4 -left-4 -rotate-12 text-zinc-300 dark:text-zinc-800/50" />
           {item.title.trim() ? (
-            <h2 className="relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+            <h2 className="vbiz-title relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight sm:text-4xl lg:text-4xl">
               {item.title}
             </h2>
           ) : null}
@@ -96,7 +85,7 @@ function WhyChooseUsCard({
               href={detailUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-zinc-900 transition-opacity hover:opacity-90"
+              className="vbiz-on-light-surface inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-zinc-900 transition-opacity hover:opacity-90"
               style={{ backgroundColor: accent }}
             >
               Learn more <ArrowUpRight size={16} />

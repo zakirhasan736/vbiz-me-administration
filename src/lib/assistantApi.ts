@@ -119,9 +119,18 @@ export function buildAssistantTrainingForm(businessText: string, files: File[]):
   return form
 }
 
-export function buildAssistantSectionForm(section: string, businessText: string, files: File[]): FormData {
+/** How pasted body text should land in description / answer / quote fields. */
+export type TabFillBodyMode = 'as_written' | 'summarize'
+
+export function buildAssistantSectionForm(
+  section: string,
+  businessText: string,
+  files: File[],
+  bodyMode: TabFillBodyMode = 'as_written'
+): FormData {
   const form = new FormData()
   form.set('section', section)
+  form.set('bodyMode', bodyMode)
   if (businessText.trim()) {
     form.set('businessText', businessText.trim())
     form.set('text', businessText.trim())
@@ -138,8 +147,9 @@ export async function fillAssistantSection<T>(
   profileId: string,
   section: string,
   businessText: string,
-  files: File[]
+  files: File[],
+  bodyMode: TabFillBodyMode = 'as_written'
 ): Promise<T> {
-  const form = buildAssistantSectionForm(section, businessText, files)
+  const form = buildAssistantSectionForm(section, businessText, files, bodyMode)
   return assistantRequest<T>(assistantProfilePath(profileId, 'fill-section'), { method: 'POST', body: form })
 }

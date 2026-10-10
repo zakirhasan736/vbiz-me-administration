@@ -134,7 +134,17 @@ const EDITOR_ACCENT_CSS = `
 .vcard-rich-editor [style*='color: rgb(0,0,0)'],
 .vcard-rich-editor [style*='color:#000'],
 .vcard-rich-editor [style*='color: #000000'],
-.vcard-rich-editor [style*='color: black'] { color: inherit !important; }
+.vcard-rich-editor [style*='color: black'],
+.vcard-rich-editor [style*='color:#111111'],
+.vcard-rich-editor [style*='color: #111111'],
+.vcard-rich-editor [style*='color:#1a1a1a'],
+.vcard-rich-editor [style*='color: #1a1a1a'],
+.vcard-rich-editor [style*='color:#18181b'],
+.vcard-rich-editor [style*='color: #18181b'],
+.vcard-rich-editor [style*='color: rgb(26, 26, 26)'],
+.vcard-rich-editor [style*='color:#ffffff'],
+.vcard-rich-editor [style*='color: #ffffff'],
+.vcard-rich-editor [style*='color: white'] { color: inherit !important; }
 .vcard-rich-editor strong, .vcard-rich-editor b {
   color: inherit;
   font-weight: 700 !important;

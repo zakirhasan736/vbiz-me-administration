@@ -17,6 +17,9 @@ describe('isThemeNeutralColor', () => {
     expect(isThemeNeutralColor('rgb(15, 23, 42)')).toBe(true)
     expect(isThemeNeutralColor('#ffffff')).toBe(true)
     expect(isThemeNeutralColor('white')).toBe(true)
+    expect(isThemeNeutralColor('#1a1a1a')).toBe(true)
+    expect(isThemeNeutralColor('#111111')).toBe(true)
+    expect(isThemeNeutralColor('rgb(26, 26, 26)')).toBe(true)
   })
 
   it('keeps explicit picker colors', () => {
@@ -43,6 +46,7 @@ describe('normalizeRichTextHtml', () => {
     expect(normalizeRichTextHtml('<h2><span style="color: rgb(0, 0, 0)">Title</span></h2>')).toBe('<h2>Title</h2>')
     expect(normalizeRichTextHtml('<p><span style="color: #000000">Body</span></p>')).toBe('<p>Body</p>')
     expect(normalizeRichTextHtml('<p><span style="color: rgb(0, 0, 0)">Answer</span></p>')).toBe('<p>Answer</p>')
+    expect(normalizeRichTextHtml('<p><span style="color: #1a1a1a">Who we are</span></p>')).toBe('<p>Who we are</p>')
   })
 
   it('leaves existing blocks alone when they have no theme-clobbering color', () => {

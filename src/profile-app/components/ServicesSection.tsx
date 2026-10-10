@@ -1,6 +1,7 @@
 'use client'
 
 import { SkeletonImage, SkeletonWave } from '@/components/media/SkeletonMedia'
+import { normalizeRichTextHtml } from '@/lib/editor/normalizeRichTextHtml'
 import { ServiceDetail } from '@/profile-app/components/ServiceDetail'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -132,14 +133,14 @@ export const ServicesSection = () => {
                 </div>
               )}
               {service.title.trim() ? (
-                <h3 className="vbiz-title mb-2 text-xl leading-tight font-bold text-zinc-900 dark:text-zinc-100">
-                  {service.title}
-                </h3>
+                <h3 className="vbiz-title mb-2 text-xl leading-tight font-bold">{service.title}</h3>
               ) : null}
               {service.htmlDescription || service.description ? (
                 <div
-                  className="vbiz-description vcard-rich-html prose prose-zinc dark:prose-invert mb-4 line-clamp-4 max-w-none flex-1 text-sm leading-relaxed font-medium text-zinc-600 dark:text-zinc-400"
-                  dangerouslySetInnerHTML={{ __html: service.htmlDescription || service.description }}
+                  className="vbiz-description vcard-rich-html prose prose-zinc dark:prose-invert mb-4 line-clamp-4 max-w-none flex-1 text-sm leading-relaxed font-medium"
+                  dangerouslySetInnerHTML={{
+                    __html: normalizeRichTextHtml(service.htmlDescription || service.description),
+                  }}
                 />
               ) : null}
               {service.url ? (

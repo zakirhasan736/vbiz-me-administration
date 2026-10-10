@@ -2,10 +2,11 @@
 
 import { countFillPayloadEntries, type SectionFillPayload } from '@/lib/ai/applyCardDraft'
 import { cardAgentForm } from '@/lib/ai/cardAgentClient'
-import { fillAssistantSection, scopeAssistantSectionPayload } from '@/lib/assistantApi'
+import { fillAssistantSection, scopeAssistantSectionPayload, type TabFillBodyMode } from '@/lib/assistantApi'
+import { plainTextToRichHtml } from '@/lib/htmlText'
 import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
-import { Loader2, Sparkles, Upload } from 'lucide-react'
+import { FileText, Loader2, Sparkles, Upload } from 'lucide-react'
 import { useRef, useState, type ClipboardEvent } from 'react'
 
 export type ParsedEntry = {
@@ -57,7 +58,8 @@ export function parseEntriesFromText(raw: string): ParsedEntry[] {
       .map((l) => l.trim())
       .filter(Boolean)
     const title = lines[0]?.replace(/^[-*•]\s+/, '') || 'Untitled'
-    const description = lines.slice(1).join(' ').trim()
+    // Keep paragraph breaks so rich-text description gets the full pasted body.
+    const description = plainTextToRichHtml(lines.slice(1).join('\n').trim())
     return { title, description }
   })
 }
@@ -200,9 +202,21 @@ export function AiDropFillZone({
   const [phase, setPhase] = useState<BusyPhase>('idle')
   const [pasteOpen, setPasteOpen] = useState(false)
   const [paste, setPaste] = useState('')
+  /** Default: keep the owner's full wording. Summarize is optional. */
+  const [bodyMode, setBodyMode] = useState<TabFillBodyMode>('as_written')
   const [msg, setMsg] = useState<{ tone: 'ok' | 'err' | 'info'; text: string } | null>(null)
 
   const busy = phase !== 'idle'
+
+  const openPasteWithText = (text: string) => {
+    setPaste(text)
+    setPasteOpen(true)
+    setBodyMode('as_written')
+    setMsg({
+      tone: 'info',
+      text: 'Choose how to use this text, then fill. Default keeps your wording as written.',
+    })
+  }
 
   const deliver = (payload: SectionFillPayload, source: AiFillSource, note?: string) => {
     const count = countFillPayloadEntries(section, payload)
@@ -262,7 +276,7 @@ export function AiDropFillZone({
     deliver(payload, 'local')
   }
 
-  const fillViaAgent = async (text: string, files: File[]) => {
+  const fillViaAgent = async (text: string, files: File[], mode: TabFillBodyMode = bodyMode) => {
     const hasFiles = files.length > 0
     const hasText = Boolean(text.trim())
     setMsg(null)
@@ -281,10 +295,11 @@ export function AiDropFillZone({
             data?: SectionFillPayload
             message?: string
             section?: string
-          }>(profileId, section, text, files)
+          }>(profileId, section, text, files, mode)
         : await (() => {
             const form = new FormData()
             form.set('section', section)
+            form.set('bodyMode', mode)
             if (hasText) form.set('text', text.trim())
             form.set('currentDraft', JSON.stringify(currentDraft || {}))
             for (const file of files) form.append('files', file)
@@ -306,8 +321,8 @@ export function AiDropFillZone({
 
       const count = countFillPayloadEntries(section, payload)
       if (!count) {
-        // Paste-only: allow local heuristic fallback when AI returns empty
-        if (hasText && !hasFiles) {
+        // Paste-only + as-written: allow local heuristic fallback when AI returns empty
+        if (hasText && !hasFiles && mode === 'as_written') {
           applyLocalPaste(text)
           return
         }
@@ -322,8 +337,8 @@ export function AiDropFillZone({
       deliver(payload, 'ai', typeof json.message === 'string' ? json.message : undefined)
     } catch (err) {
       const clarified = clarifyAiError(err)
-      // Local fallback only for paste (never invent structure from failed uploads)
-      if (hasText && !hasFiles) {
+      // Local full-text fallback only for paste in as-written mode
+      if (hasText && !hasFiles && mode === 'as_written') {
         applyLocalPaste(text, clarified)
         return
       }
@@ -350,8 +365,7 @@ export function AiDropFillZone({
     const text = e.clipboardData.getData('text/plain')
     if (text.trim()) {
       e.preventDefault()
-      setPaste(text)
-      void fillViaAgent(text, [])
+      openPasteWithText(text)
     }
   }
 
@@ -373,7 +387,7 @@ export function AiDropFillZone({
           if (dropped.length) void readFiles(dropped)
           else {
             const text = e.dataTransfer.getData('text/plain')
-            if (text) void fillViaAgent(text, [])
+            if (text.trim()) openPasteWithText(text)
           }
         }}
         className={cn(
@@ -439,7 +453,7 @@ export function AiDropFillZone({
       </div>
 
       {pasteOpen && (
-        <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#0b0f19]">
           <textarea
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
@@ -447,20 +461,94 @@ export function AiDropFillZone({
               if (busy) return
               const text = e.clipboardData.getData('text/plain')
               if (!text.trim()) return
-              e.preventDefault()
-              setPaste(text)
-              void fillViaAgent(text, [])
+              // Let the native paste land in the box; do not auto-fill — ask body mode first.
+              window.setTimeout(() => {
+                setBodyMode('as_written')
+                setMsg({
+                  tone: 'info',
+                  text: 'Choose how to use this text, then fill. Default keeps your wording as written.',
+                })
+              }, 0)
             }}
             rows={5}
             disabled={busy}
             placeholder={'Title one\nDescription…\n\n---\n\nTitle two\nDescription…'}
             className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-medium text-slate-900 outline-none focus:border-indigo-500 disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white"
           />
+
+          {paste.trim() ? (
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                After paste — how should the description be filled?
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setBodyMode('as_written')}
+                  className={cn(
+                    'flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition',
+                    bodyMode === 'as_written'
+                      ? 'border-indigo-500 bg-indigo-50 shadow-sm dark:border-indigo-400 dark:bg-indigo-500/15'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-white/10 dark:bg-white/5'
+                  )}
+                >
+                  <FileText
+                    className={cn(
+                      'mt-0.5 h-4 w-4 shrink-0',
+                      bodyMode === 'as_written' ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400'
+                    )}
+                  />
+                  <span>
+                    <span className="block text-[12px] font-black text-slate-900 dark:text-white">
+                      Take as I wrote
+                      <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-emerald-700 uppercase dark:bg-emerald-500/20 dark:text-emerald-200">
+                        Default
+                      </span>
+                    </span>
+                    <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                      Keep your full pasted text in the rich description.
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setBodyMode('summarize')}
+                  className={cn(
+                    'flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition',
+                    bodyMode === 'summarize'
+                      ? 'border-violet-500 bg-violet-50 shadow-sm dark:border-violet-400 dark:bg-violet-500/15'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-white/10 dark:bg-white/5'
+                  )}
+                >
+                  <Sparkles
+                    className={cn(
+                      'mt-0.5 h-4 w-4 shrink-0',
+                      bodyMode === 'summarize' ? 'text-violet-600 dark:text-violet-300' : 'text-slate-400'
+                    )}
+                  />
+                  <span>
+                    <span className="block text-[12px] font-black text-slate-900 dark:text-white">
+                      Summarize with AI
+                    </span>
+                    <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                      Optional — AI writes a short polished summary from your text.
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex justify-end gap-2">
             <button
               type="button"
               disabled={busy}
-              onClick={() => setPasteOpen(false)}
+              onClick={() => {
+                setPasteOpen(false)
+                setBodyMode('as_written')
+              }}
               className="rounded-xl px-3 py-2 text-[12px] font-bold text-slate-500"
             >
               Cancel
@@ -468,11 +556,11 @@ export function AiDropFillZone({
             <button
               type="button"
               disabled={busy || !paste.trim()}
-              onClick={() => void fillViaAgent(paste, [])}
+              onClick={() => void fillViaAgent(paste, [], bodyMode)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              {busy ? phaseLabel(phase) : 'Fill entries'}
+              {busy ? phaseLabel(phase) : bodyMode === 'summarize' ? 'Fill with summary' : 'Fill as written'}
             </button>
           </div>
         </div>

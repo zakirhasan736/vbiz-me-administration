@@ -32,6 +32,43 @@ describe('sectionStyleDefaults', () => {
     const card = deriveContentCardMode(dark)
     expect(card.bg).toBe(dark.surface)
     expect(card.title).toBeTruthy()
+    expect(card.description?.toLowerCase()).not.toBe('#1a1a1a')
+  })
+
+  it('rewrites baked light-theme description black to white on dark surfaces', () => {
+    const card = deriveContentCardMode(dark, {
+      bg: dark.surface,
+      title: '#1a1a1a',
+      text: '#1a1a1a',
+      description: '#1a1a1a',
+    })
+    expect(card.title?.toLowerCase()).toBe('#ffffff')
+    expect(card.text?.toLowerCase()).toBe('#ffffff')
+    expect(card.description?.toLowerCase()).toBe('#ffffff')
+  })
+
+  it('keeps black description on light content cards', () => {
+    const light = stock.colors.light
+    const card = deriveContentCardMode(light, {
+      bg: '#ffffff',
+      description: '#1a1a1a',
+    })
+    expect(card.description?.toLowerCase()).toBe('#1a1a1a')
+  })
+
+  it('publishes Content Cards panel colors into public stylesheet vars', async () => {
+    const { buildCardThemeStyleSheet } = await import('@/lib/theme/cardThemeCssVars')
+    const patched = patchSectionStyleMode(stock, 'contentCard', 'dark', {
+      bg: '#112233',
+      title: '#abcdef',
+      description: '#fedcba',
+    }) as typeof stock
+    const css = buildCardThemeStyleSheet(patched, 'dark')
+    expect(css).toContain('--vbiz-content-card-bg: #112233')
+    expect(css).toContain('--vbiz-content-card-title: #abcdef')
+    expect(css).toContain('--vbiz-content-card-desc: #fedcba')
+    expect(css).toContain('.vbiz-content-card .vbiz-description')
+    expect(css).toContain('var(--vbiz-content-card-desc')
   })
 
   it('patch + reset section override round-trips', () => {

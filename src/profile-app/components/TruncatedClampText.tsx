@@ -1,7 +1,17 @@
 'use client'
 
+import { normalizeRichTextHtml } from '@/lib/editor/normalizeRichTextHtml'
 import { ArrowUpRight } from 'lucide-react'
-import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode, type Ref } from 'react'
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+  type Ref,
+} from 'react'
 
 type TruncatedClampTextProps = {
   /** Plain text body (mutually exclusive with `html`). */
@@ -87,10 +97,11 @@ export function TruncatedClampText({
   seeLessLabel = 'See less',
   maxLines = 4,
 }: TruncatedClampTextProps) {
-  const hasHtml = Boolean(html?.trim())
+  const normalizedHtml = useMemo(() => (html?.trim() ? normalizeRichTextHtml(html) : ''), [html])
+  const hasHtml = Boolean(normalizedHtml)
   const plainText = plain?.trim() ?? ''
   const hasContent = hasHtml || Boolean(plainText)
-  const contentKey = `${maxLines}:${hasHtml ? html : plainText}`
+  const contentKey = `${maxLines}:${hasHtml ? normalizedHtml : plainText}`
 
   const [expanded, setExpanded] = useState(false)
   const [needsClamp, setNeedsClamp] = useState(false)
@@ -123,7 +134,7 @@ export function TruncatedClampText({
       cancelAnimationFrame(frame)
       ro.disconnect()
     }
-  }, [plain, html, maxLines, onReadMore, hasContent])
+  }, [plain, normalizedHtml, maxLines, onReadMore, hasContent])
 
   if (!hasContent) return null
 
@@ -157,7 +168,7 @@ export function TruncatedClampText({
           ref={contentRef as Ref<HTMLDivElement>}
           className={`vcard-rich-html mb-4 max-w-2xl ${textClassName}`}
           style={clampStyle}
-          dangerouslySetInnerHTML={{ __html: html! }}
+          dangerouslySetInnerHTML={{ __html: normalizedHtml }}
         />
       ) : (
         <p

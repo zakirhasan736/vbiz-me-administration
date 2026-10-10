@@ -296,13 +296,12 @@ function PostCard({
           <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-500">{dateLabel}</span>
         ) : null}
       </div>
-      {post.title.trim() ? (
-        <h3 className="vbiz-title mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100">{post.title}</h3>
-      ) : null}
+      {post.title.trim() ? <h3 className="vbiz-title mb-2 text-lg font-bold">{post.title}</h3> : null}
       <TruncatedClampText
         html={hasHtml ? description : undefined}
         plain={!hasHtml ? description : undefined}
         className="mb-4"
+        textClassName="vbiz-description text-sm leading-relaxed font-medium"
         minLength={150}
         onReadMore={
           onPostClick

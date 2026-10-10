@@ -167,7 +167,7 @@ export function TabPortfolio() {
         profileId={cardId}
         currentDraft={{ portfolio: portfolios }}
         accent="violet"
-        hint="Paste or upload projects — AI fills title, description, and URL (OCR for images)"
+        hint="Paste or upload projects — AI fills title, the full description, and URL (OCR for images)"
         onFilled={applyFilled}
       />
 

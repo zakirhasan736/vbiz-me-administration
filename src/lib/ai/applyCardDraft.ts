@@ -1,5 +1,6 @@
 import { setAboutMeDraft } from '@/lib/aboutMeDraft'
 import { mapBlueprintToVCardData, type CardBlueprint } from '@/lib/ai/cardBlueprint'
+import { plainTextToRichHtml } from '@/lib/htmlText'
 import { normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
 import { syncMyInfoFromPersonal } from '@/lib/vcardMyInfo'
 import { normalizeServiceType } from '@/lib/vcardServices'
@@ -38,6 +39,13 @@ function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+function stripTagsForMatch(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 /** Map fill-section services payload → editor entries (type/title/description/url). */
 export function mapServicesFromPayload(payload: SectionFillPayload): VCardServiceEntry[] {
   if (!Array.isArray(payload.services)) return []
@@ -45,7 +53,7 @@ export function mapServicesFromPayload(payload: SectionFillPayload): VCardServic
   for (const row of payload.services) {
     const s = row as { type?: string; title?: string; description?: string; url?: string }
     const title = String(s.title || '').trim()
-    const description = String(s.description || '').trim()
+    const description = plainTextToRichHtml(String(s.description || '').trim())
     if (!title && !description) continue
     out.push({
       id: uid('svc'),
@@ -67,7 +75,7 @@ export function mapPortfolioFromPayload(payload: SectionFillPayload): VCardPortf
   for (const row of payload.portfolio) {
     const p = row as { title?: string; description?: string; url?: string }
     const title = String(p.title || '').trim()
-    const description = String(p.description || '').trim()
+    const description = plainTextToRichHtml(String(p.description || '').trim())
     if (!title && !description) continue
     out.push({
       id: uid('port'),
@@ -103,9 +111,9 @@ export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewE
     )
       continue
     const author = String(r.author || '').trim()
-    const text = String(r.text || '').trim()
+    const text = plainTextToRichHtml(String(r.text || '').trim())
     if (!author && !text) continue
-    if (`${author} ${text}`.toLowerCase().includes('draft / sample')) continue
+    if (`${author} ${stripTagsForMatch(text)}`.toLowerCase().includes('draft / sample')) continue
     const ratingRaw = typeof r.rating === 'number' ? r.rating : Number(r.rating)
     const rating = Number.isFinite(ratingRaw) ? Math.min(5, Math.max(1, Math.round(ratingRaw))) : 5
     out.push({
@@ -127,7 +135,7 @@ export function mapBlogsFromPayload(payload: SectionFillPayload): VCardGeneralPo
   for (const row of payload.blogs) {
     const b = row as { title?: string; description?: string; category?: string; url?: string; imageUrl?: string }
     const title = String(b.title || '').trim()
-    const description = String(b.description || '').trim()
+    const description = plainTextToRichHtml(String(b.description || '').trim())
     if (!title && !description) continue
     out.push({
       id: uid('blog'),
@@ -150,7 +158,7 @@ export function mapFaqsFromPayload(payload: SectionFillPayload): VCardFaqEntry[]
   for (const row of payload.faqs) {
     const f = row as { question?: string; answer?: string; imageUrl?: string; url?: string }
     const question = String(f.question || '').trim()
-    const answer = String(f.answer || '').trim()
+    const answer = plainTextToRichHtml(String(f.answer || '').trim())
     if (!question && !answer) continue
     out.push({
       id: uid('faq'),
@@ -243,7 +251,7 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
     if (mapped.length) {
       const seen = new Set<string>()
       next.generalPosts = [...(next.generalPosts || []), ...mapped].filter((item) => {
-        const key = `${item.title.trim().toLowerCase()}|${item.description.trim().toLowerCase()}`
+        const key = `${item.title.trim().toLowerCase()}|${stripTagsForMatch(item.description).toLowerCase()}`
         if (!key.replace('|', '') || seen.has(key)) return false
         seen.add(key)
         return true
@@ -261,7 +269,7 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
     if (mapped.length) {
       const seen = new Set<string>()
       next.reviews = [...(next.reviews || []), ...mapped].filter((item) => {
-        const key = `${item.author.trim().toLowerCase()}|${item.text.trim().toLowerCase()}`
+        const key = `${item.author.trim().toLowerCase()}|${stripTagsForMatch(item.text).toLowerCase()}`
         if (!key.replace('|', '') || seen.has(key)) return false
         seen.add(key)
         return true
@@ -335,7 +343,7 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
     const generated = mapFaqsFromPayload(payload)
     const seen = new Set<string>()
     next.faqs = [...(next.faqs || []), ...generated].filter((item) => {
-      const key = `${item.question.trim().toLowerCase()}|${item.answer.trim().toLowerCase()}`
+      const key = `${item.question.trim().toLowerCase()}|${stripTagsForMatch(item.answer).toLowerCase()}`
       if (!key.replace('|', '') || seen.has(key)) return false
       seen.add(key)
       return true
@@ -390,12 +398,14 @@ function mergeListSections(base: VCardData | undefined, next: VCardData): VCardD
   if (!base) return next
   return {
     ...next,
-    faqs: mergeSourcedDraftList(base.faqs, next.faqs, (item) => `${item.question}|${item.answer}`.trim().toLowerCase()),
+    faqs: mergeSourcedDraftList(base.faqs, next.faqs, (item) =>
+      `${item.question}|${stripTagsForMatch(item.answer)}`.trim().toLowerCase()
+    ),
     generalPosts: mergeSourcedDraftList(base.generalPosts, next.generalPosts, (item) =>
-      `${item.title}|${item.description}`.trim().toLowerCase()
+      `${item.title}|${stripTagsForMatch(item.description)}`.trim().toLowerCase()
     ),
     reviews: mergeSourcedDraftList(base.reviews, next.reviews, (item) =>
-      `${item.author}|${item.text}`.trim().toLowerCase()
+      `${item.author}|${stripTagsForMatch(item.text)}`.trim().toLowerCase()
     ),
   }
 }

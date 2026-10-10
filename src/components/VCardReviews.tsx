@@ -107,7 +107,7 @@ export function TabReviews() {
         profileId={cardId}
         currentDraft={{ reviews }}
         accent="amber"
-        hint="Paste or upload reviews — AI maps author, quote, and rating (OCR for images)"
+        hint="Paste or upload reviews — AI maps author, the full quote, and rating (OCR for images)"
         onFilled={applyFilled}
       />
 

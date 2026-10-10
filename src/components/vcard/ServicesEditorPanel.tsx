@@ -140,7 +140,7 @@ export function ServicesEditorPanel({
         section="services"
         profileId={profileId}
         currentDraft={{ services }}
-        hint="Drop or paste a service list — AI fills type, title, and description (OCR for images)"
+        hint="Drop or paste services — AI fills type, title, and the full description (OCR for images)"
         onFilled={applyFilled}
       />
 
