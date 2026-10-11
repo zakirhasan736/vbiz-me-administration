@@ -508,6 +508,37 @@
   max-height: 24rem;
 }
 
+/* Native color input: the whole circle is the click target, not a clipped corner of the control. */
+.vbiz-color-swatch-input {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.vbiz-color-swatch-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.vbiz-color-swatch-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 9999px;
+}
+.vbiz-color-swatch-input::-moz-color-swatch {
+  border: none;
+  border-radius: 9999px;
+}
+.vbiz-color-swatch-input-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+
 @keyframes ai-confetti-fall {
   0% {
     opacity: 1;

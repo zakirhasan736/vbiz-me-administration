@@ -206,16 +206,14 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                       className="flex w-full items-center justify-between p-4 pr-5 text-left focus:outline-none"
                     >
                       {faq.question.trim() ? (
-                        <h4
-                          className={`pr-3 text-[14.5px] leading-tight font-black ${isOpen ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-300'}`}
-                        >
+                        <h4 className="vbiz-faq-question pr-3 text-[14.5px] leading-tight font-black">
                           {faq.question}
                         </h4>
                       ) : (
                         <span className="flex-1" />
                       )}
                       <div
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-all ${isOpen ? 'rotate-180 bg-zinc-950 text-white dark:bg-zinc-100 dark:text-zinc-950' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800'}`}
+                        className={`vbiz-faq-icon flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-all ${isOpen ? 'rotate-180' : ''}`}
                       >
                         <ChevronDown size={12} strokeWidth={2.5} />
                       </div>
@@ -297,16 +295,14 @@ export const FAQSection = ({ sectionName = 'Faq' }: FAQSectionProps) => {
                     className="relative z-10 flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left focus:outline-none lg:px-6 lg:py-4"
                   >
                     {faq.question.trim() ? (
-                      <h4
-                        className={`pr-8 text-[19.4px] font-bold transition-colors md:text-[21.8px] ${isOpen ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-300'}`}
-                      >
+                      <h4 className="vbiz-faq-question pr-8 text-[19.4px] font-bold transition-colors md:text-[21.8px]">
                         {faq.question}
                       </h4>
                     ) : (
                       <span className="flex-1" />
                     )}
                     <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${isOpen ? 'rotate-180 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950' : 'border border-zinc-200 bg-zinc-100 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800'}`}
+                      className={`vbiz-faq-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 transition-all duration-300 dark:border-zinc-700 dark:bg-zinc-800 ${isOpen ? 'rotate-180' : ''}`}
                     >
                       <ChevronDown size={18} strokeWidth={2.5} />
                     </div>

@@ -5,7 +5,14 @@ import type { CardThemeConfig, ThemeMode } from '@/lib/theme/cardThemeContract'
 import { buildCardThemeStyleSheet } from '@/lib/theme/cardThemeCssVars'
 import { logCardThemeSettings } from '@/lib/theme/logCardThemeSettings'
 import { resolveBannerStyle, resolveTopNavBarStyle } from '@/lib/theme/sectionStyleDefaults'
-import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react'
+
+const CardColorModeContext = createContext<ThemeMode | null>(null)
+
+/** Active card light/dark. The eye preview and the public card both read this, not the admin page theme. */
+export function CardColorModeProvider({ mode, children }: { mode: ThemeMode; children: ReactNode }) {
+  return <CardColorModeContext.Provider value={mode}>{children}</CardColorModeContext.Provider>
+}
 
 function readDocumentThemeMode(fallback: ThemeMode): ThemeMode {
   if (typeof document === 'undefined') return fallback
@@ -27,13 +34,18 @@ function subscribeNoop() {
   return () => {}
 }
 
-/** Live light/dark mode from `<html class="dark">` — re-renders when the visitor toggles theme. */
+/**
+ * Card light/dark. Inside a profile shell this is the card's own mode (preview toggle or public toggle).
+ * Outside that shell it follows `<html class="dark">`.
+ */
 export function useDocumentThemeMode(fallback: ThemeMode = 'dark'): ThemeMode {
-  return useSyncExternalStore(
+  const cardMode = useContext(CardColorModeContext)
+  const documentMode = useSyncExternalStore(
     subscribeToDocumentTheme,
     () => readDocumentThemeMode(fallback),
     () => fallback
   )
+  return cardMode ?? documentMode
 }
 
 /**

@@ -1,4 +1,5 @@
 import { setAboutMeDraft } from '@/lib/aboutMeDraft'
+import { alignLabelAndBody, cleanShortLabel } from '@/lib/ai/alignPastedFields'
 import { mapBlueprintToVCardData, type CardBlueprint } from '@/lib/ai/cardBlueprint'
 import { plainTextToRichHtml } from '@/lib/htmlText'
 import { normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
@@ -52,8 +53,9 @@ export function mapServicesFromPayload(payload: SectionFillPayload): VCardServic
   const out: VCardServiceEntry[] = []
   for (const row of payload.services) {
     const s = row as { type?: string; title?: string; description?: string; url?: string }
-    const title = String(s.title || '').trim()
-    const description = plainTextToRichHtml(String(s.description || '').trim())
+    const aligned = alignLabelAndBody(String(s.title || '').trim(), String(s.description || '').trim())
+    const title = aligned.label.trim()
+    const description = plainTextToRichHtml(aligned.body.trim())
     if (!title && !description) continue
     out.push({
       id: uid('svc'),
@@ -74,8 +76,9 @@ export function mapPortfolioFromPayload(payload: SectionFillPayload): VCardPortf
   const out: VCardPortfolioEntry[] = []
   for (const row of payload.portfolio) {
     const p = row as { title?: string; description?: string; url?: string }
-    const title = String(p.title || '').trim()
-    const description = plainTextToRichHtml(String(p.description || '').trim())
+    const aligned = alignLabelAndBody(String(p.title || '').trim(), String(p.description || '').trim())
+    const title = aligned.label.trim()
+    const description = plainTextToRichHtml(aligned.body.trim())
     if (!title && !description) continue
     out.push({
       id: uid('pf'),
@@ -110,8 +113,9 @@ export function mapReviewsFromPayload(payload: SectionFillPayload): VCardReviewE
         .includes('SAMPLE')
     )
       continue
-    const author = String(r.author || '').trim()
-    const text = plainTextToRichHtml(String(r.text || '').trim())
+    const aligned = alignLabelAndBody(String(r.author || '').trim(), String(r.text || '').trim(), true)
+    const author = cleanShortLabel(aligned.label)
+    const text = plainTextToRichHtml(aligned.body.trim())
     if (!author && !text) continue
     if (`${author} ${stripTagsForMatch(text)}`.toLowerCase().includes('draft / sample')) continue
     const ratingRaw = typeof r.rating === 'number' ? r.rating : Number(r.rating)
@@ -134,8 +138,9 @@ export function mapBlogsFromPayload(payload: SectionFillPayload): VCardGeneralPo
   const out: VCardGeneralPost[] = []
   for (const row of payload.blogs) {
     const b = row as { title?: string; description?: string; category?: string; url?: string; imageUrl?: string }
-    const title = String(b.title || '').trim()
-    const description = plainTextToRichHtml(String(b.description || '').trim())
+    const aligned = alignLabelAndBody(String(b.title || '').trim(), String(b.description || '').trim())
+    const title = aligned.label.trim()
+    const description = plainTextToRichHtml(aligned.body.trim())
     if (!title && !description) continue
     // Use post_ so autosave treats AI rows as local drafts (same as manual Add post).
     const id = uid('post')
@@ -160,8 +165,9 @@ export function mapFaqsFromPayload(payload: SectionFillPayload): VCardFaqEntry[]
   const out: VCardFaqEntry[] = []
   for (const row of payload.faqs) {
     const f = row as { question?: string; answer?: string; imageUrl?: string; url?: string }
-    const question = String(f.question || '').trim()
-    const answer = plainTextToRichHtml(String(f.answer || '').trim())
+    const aligned = alignLabelAndBody(String(f.question || '').trim(), String(f.answer || '').trim())
+    const question = aligned.label.trim()
+    const answer = plainTextToRichHtml(aligned.body.trim())
     if (!question && !answer) continue
     const id = uid('faq')
     out.push({

@@ -1,5 +1,6 @@
 'use client'
 
+import { alignLabelAndBody, cleanShortLabel } from '@/lib/ai/alignPastedFields'
 import { countFillPayloadEntries, type SectionFillPayload } from '@/lib/ai/applyCardDraft'
 import { cardAgentForm } from '@/lib/ai/cardAgentClient'
 import { fillAssistantSection, scopeAssistantSectionPayload, type TabFillBodyMode } from '@/lib/assistantApi'
@@ -57,10 +58,12 @@ export function parseEntriesFromText(raw: string): ParsedEntry[] {
       .split('\n')
       .map((l) => l.trim())
       .filter(Boolean)
-    const title = lines[0]?.replace(/^[-*•]\s+/, '') || 'Untitled'
+    const rawTitle = lines[0]?.replace(/^[-*•]\s+/, '') || 'Untitled'
+    const rawBody = lines.slice(1).join('\n').trim()
+    const aligned = alignLabelAndBody(rawTitle, rawBody)
     // Keep paragraph breaks so rich-text description gets the full pasted body.
-    const description = plainTextToRichHtml(lines.slice(1).join('\n').trim())
-    return { title, description }
+    const description = plainTextToRichHtml(aligned.body.trim())
+    return { title: aligned.label.trim() || 'Untitled', description }
   })
 }
 
@@ -88,7 +91,7 @@ export function localPayloadFromEntries(section: AiDropFillSection, entries: Par
     case 'reviews':
       return {
         reviews: entries.map((e) => ({
-          author: e.title,
+          author: cleanShortLabel(e.title) || e.title,
           text: e.description,
           rating: 5,
         })),

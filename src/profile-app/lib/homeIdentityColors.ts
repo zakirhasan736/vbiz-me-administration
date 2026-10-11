@@ -3,9 +3,11 @@ import { resolveFieldModeColors } from '@/lib/vcardDisplaySettings'
 import type { DisplayFieldConfig } from '@/types/vcardDisplaySettings'
 import type { CSSProperties } from 'react'
 
+type StyleWithVars = CSSProperties & { [name: `--${string}`]: string | undefined }
+
 type IdentityColors = {
-  nameStyle: CSSProperties
-  professionStyle: CSSProperties
+  nameStyle: StyleWithVars
+  professionStyle: StyleWithVars
   /** Tailwind-friendly class for name when styling alongside inline color. */
   nameClassName: string
   /** Tailwind-friendly class for designation when styling alongside inline color. */
@@ -34,23 +36,30 @@ export function resolveHomeIdentityColors(options: {
   headingField?: DisplayFieldConfig
   /** Card Settings → Home → Home Description Color */
   descriptionField?: DisplayFieldConfig
+  /** Card Settings → Home → vCard Header Color */
+  headerField?: DisplayFieldConfig
   /** Legacy header color from Home settings (applies to name). */
   headerTextColor?: string
 }): IdentityColors {
   const mode = options.mode === 'dark' ? 'dark' : 'light'
-  const header = options.headerTextColor?.trim() || ''
+  const header = fieldTextColor(options.headerField, mode) || options.headerTextColor?.trim() || ''
 
   const homeHeading = fieldTextColor(options.headingField, mode)
   const homeDescription = fieldTextColor(options.descriptionField, mode)
 
-  const nameStyle: CSSProperties = {}
-  if (homeHeading) nameStyle.color = homeHeading
-  else if (header) nameStyle.color = header
-  else nameStyle.color = mode === 'light' ? 'var(--vbiz-secondary)' : '#ffffff'
+  const nameStyle: StyleWithVars = {}
+  if (homeHeading) {
+    nameStyle.color = homeHeading
+    nameStyle['--vbiz-home-heading'] = homeHeading
+  } else if (header) {
+    nameStyle.color = header
+    nameStyle['--vbiz-home-heading'] = header
+  } else nameStyle.color = mode === 'light' ? 'var(--vbiz-secondary)' : '#ffffff'
 
-  const professionStyle: CSSProperties = {}
+  const professionStyle: StyleWithVars = {}
   if (homeDescription) {
     professionStyle.color = homeDescription
+    professionStyle['--vbiz-home-description'] = homeDescription
     professionStyle.backgroundImage = 'none'
     professionStyle.WebkitTextFillColor = 'unset'
   } else {

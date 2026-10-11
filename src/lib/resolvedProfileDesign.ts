@@ -95,10 +95,19 @@ export function resolveProfileDesign(
     designSettings.fontFamily ||
     'inter'
 
+  // theme_config light/dark is the shared source for the eye preview and the public card.
+  // Flat theme colors apply only when that config is absent.
+  const fromConfig = Boolean(options?.themeConfig)
   return {
-    primaryColor: livePrimary || configBrand.primaryColor || staticTheme.primaryColor,
-    secondaryColor: liveSecondary || configBrand.secondaryColor || staticTheme.secondaryColor,
-    accentColor: liveAccent || configBrand.accentColor || staticTheme.accentColor,
+    primaryColor: fromConfig
+      ? configBrand.primaryColor || staticTheme.primaryColor
+      : livePrimary || staticTheme.primaryColor,
+    secondaryColor: fromConfig
+      ? configBrand.secondaryColor || staticTheme.secondaryColor
+      : liveSecondary || staticTheme.secondaryColor,
+    accentColor: fromConfig
+      ? configBrand.accentColor || staticTheme.accentColor
+      : liveAccent || staticTheme.accentColor,
     fontFamily,
     profileTemplate: appearance.profileTemplate,
     layoutStyle: appearance.layoutStyle,

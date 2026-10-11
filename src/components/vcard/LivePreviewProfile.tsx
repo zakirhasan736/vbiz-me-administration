@@ -74,6 +74,7 @@ function LivePreviewProfileInner({ previewTheme, onPreviewThemeChange, previewAc
     })
     const design = resolveProfileDesign(designSettings, previewData.theme, previewData.appearance, {
       themeConfig,
+      colorMode: previewTheme,
     })
     return {
       ...base,
@@ -90,7 +91,7 @@ function LivePreviewProfileInner({ previewTheme, onPreviewThemeChange, previewAc
       },
       profileSlug: previewData.slug?.trim() || undefined,
     }
-  }, [previewData, designSettings, cardId, record?.avatarImageUrl, record?.views, themeConfig, fromApi])
+  }, [previewData, designSettings, cardId, record?.avatarImageUrl, record?.views, themeConfig, fromApi, previewTheme])
 
   useGoogleFont(profileProps.design?.fontFamily)
 

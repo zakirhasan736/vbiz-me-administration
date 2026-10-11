@@ -1,6 +1,7 @@
 import { normalizeNavOrderWithPinnedEnds, normalizeNavOrderWithRequiredTabs } from '@/lib/createCardTabs'
 import type { ThemeMode } from '@/lib/theme/cardThemeContract'
 import { readableForeground } from '@/lib/theme/resolveCardTheme'
+import { canonicalCssColor } from '@/lib/theme/sectionStyleDefaults'
 import {
   LOCKED_NAV_ITEM_IDS,
   NAV_BAR_FIELDS,
@@ -159,28 +160,27 @@ export function getFieldModePickerValues(
   return defaults
 }
 
-/** Patch light or dark colors; auto-fills readable text when only bg is set. */
+function storedCssColor(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined
+  return canonicalCssColor(value, true) || undefined
+}
+
+/** Patch light or dark colors. A chosen text or icon color is kept. Readable text is filled only when none is set. */
 export function buildModeColorPatch(
   config: DisplayFieldConfig,
   mode: ThemeMode,
   patch: Partial<DisplayFieldModeColors>
 ): Partial<DisplayFieldConfig> {
   const current = { ...(mode === 'dark' ? config.dark : config.light) }
-  const next: DisplayFieldModeColors = { ...current, ...patch }
+  const next: DisplayFieldModeColors = { ...current }
+  if ('backgroundColor' in patch)
+    next.backgroundColor = storedCssColor(patch.backgroundColor) ?? current.backgroundColor
+  if ('textColor' in patch) next.textColor = storedCssColor(patch.textColor) ?? current.textColor
+  if ('iconColor' in patch) next.iconColor = storedCssColor(patch.iconColor) ?? current.iconColor
 
-  if (patch.backgroundColor?.trim()) {
-    const fill = patch.backgroundColor.trim()
-    if (!next.textColor?.trim() && !next.iconColor?.trim()) {
-      next.textColor = readableForeground(fill)
-    } else {
-      const fg = (next.iconColor || next.textColor || '').trim()
-      const fillLum = luminanceOrNull(fill)
-      const fgLum = luminanceOrNull(fg)
-      if (fillLum != null && fgLum != null) {
-        if (fillLum > 0.55 && fgLum > 0.85) next.textColor = readableForeground(fill)
-        if (fillLum <= 0.45 && fgLum < 0.15) next.textColor = readableForeground(fill)
-      }
-    }
+  if (patch.backgroundColor?.trim() && !next.textColor?.trim() && !next.iconColor?.trim()) {
+    const fill = storedCssColor(patch.backgroundColor)
+    if (fill) next.textColor = readableForeground(fill)
   }
 
   const cleanedMode = normalizeFieldConfig({
@@ -269,7 +269,7 @@ export const ICON_FIELDS = [
   'My Info Whatsapp',
 ] as const
 
-/** Public My Info tab Call / Text / Email action pills (Card Settings → General). */
+/** Public My Info tab Call / Text / Email pills (Card Settings → My Info Buttons). */
 export const MY_INFO_ACTION_FIELDS = ['My Info Call Btn', 'My Info Text Btn', 'My Info Email Btn'] as const
 
 export const GENERAL_SETTINGS_FIELDS = [
@@ -280,23 +280,29 @@ export const GENERAL_SETTINGS_FIELDS = [
   'My vCard Btn',
   'Theme Toggle',
   'Get your VCard Now',
-  ...MY_INFO_ACTION_FIELDS,
 ] as const
 
 /**
- * Defaults for My Info Call / Text / Email pills — secondary fill + readable text
- * (v3: #0f2c4d bg, #ffffff text/icon) for light and dark.
+ * Defaults for My Info Call / Text / Email.
+ * Light and dark follow that mode’s Template primary. A saved field color replaces it.
  */
 export function getMyInfoActionButtonColorDefaults(
   theme?: ThemeBrandColors,
-  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2',
+  modes?: { lightPrimary?: string; darkPrimary?: string }
 ): { light: { text: string; bg: string; icon: string }; dark: { text: string; bg: string; icon: string } } {
-  const secondary =
+  const fallback =
+    theme?.primaryColor?.trim() ||
     theme?.secondaryColor?.trim() ||
-    (profileTemplate === 'v1' ? '#1a1a2e' : profileTemplate === 'v3' ? '#0f2c4d' : '#0f172a')
-  const fg = readableForeground(secondary)
-  const mode = { bg: secondary, text: fg, icon: fg }
-  return { light: mode, dark: { ...mode } }
+    (profileTemplate === 'v1' ? '#dcc969' : profileTemplate === 'v3' ? '#0f2c4d' : '#eab308')
+  const lightBg = modes?.lightPrimary?.trim() || fallback
+  const darkBg = modes?.darkPrimary?.trim() || theme?.accentColor?.trim() || lightBg
+  const lightFg = readableForeground(lightBg)
+  const darkFg = readableForeground(darkBg)
+  return {
+    light: { bg: lightBg, text: lightFg, icon: lightFg },
+    dark: { bg: darkBg, text: darkFg, icon: darkFg },
+  }
 }
 
 /** Legacy key kept for API/visibility sync; colors live on Social → Share. */
@@ -337,6 +343,7 @@ export const ALL_DISPLAY_FIELD_KEYS = [
   ...SOCIAL_LINK_FIELDS,
   ...ICON_FIELDS,
   ...GENERAL_SETTINGS_FIELDS,
+  ...MY_INFO_ACTION_FIELDS,
   LEGACY_SHARE_BTN_FIELD,
   ...HOME_PAGE_FIELDS,
   ...NAV_BAR_FIELDS,
@@ -573,10 +580,14 @@ export function syncEditorNavOrderAfterNavVisibilityChange(
 }
 
 /** Page-level colors from Card Settings → Home / Nav Bar. Home BG/banner retired in favor of Wallpaper. */
-export function getPageColors(settings: VCardDisplaySettings) {
+export function getPageColors(settings: VCardDisplaySettings, mode: ThemeMode = 'light') {
   const headerField = getFieldConfig(settings, 'vCard Header Color')
+  const resolved = resolveFieldModeColors(headerField, mode, { preferText: true })
   const headerColor = isFieldVisible(settings, 'vCard Header Color')
-    ? headerField.textColor || headerField.backgroundColor || undefined
+    ? storedCssColor(resolved.fg) ||
+      storedCssColor(resolved.fill) ||
+      storedCssColor(headerField.textColor) ||
+      storedCssColor(headerField.backgroundColor)
     : undefined
   const navBg = getFieldConfig(settings, 'Nav Background Color').backgroundColor || undefined
   return {
@@ -637,16 +648,21 @@ export function displaySocialChromeStyle(
   mode: ThemeMode = 'light'
 ): CSSProperties | undefined {
   const { fill, fg } = resolveFieldModeColors(config, mode)
-  if (!fill && !fg) return undefined
+  const paintFill = storedCssColor(fill)
+  const paintFg = storedCssColor(fg)
+  if (!paintFill && !paintFg) return undefined
   const style: CSSPropertiesWithVariables = {}
-  if (fill) {
-    style['--vbiz-social-fill'] = fill
-    style['--vbiz-social-border-color'] = fill
-    style.backgroundColor = fill
+  if (paintFill) {
+    style['--vbiz-control-fill'] = paintFill
+    style['--vbiz-control-border'] = paintFill
+    style['--vbiz-social-fill'] = paintFill
+    style['--vbiz-social-border-color'] = paintFill
+    style.backgroundColor = paintFill
   }
-  if (fg) {
-    style['--vbiz-social-fg'] = fg
-    style.color = fg
+  if (paintFg) {
+    style['--vbiz-control-fg'] = paintFg
+    style['--vbiz-social-fg'] = paintFg
+    style.color = paintFg
   }
   return style
 }
@@ -656,16 +672,21 @@ export function displayIconChromeStyle(
   mode: ThemeMode = 'light'
 ): CSSProperties | undefined {
   const { fill, fg } = resolveFieldModeColors(config, mode)
-  if (!fill && !fg) return undefined
+  const paintFill = storedCssColor(fill)
+  const paintFg = storedCssColor(fg)
+  if (!paintFill && !paintFg) return undefined
   const style: CSSPropertiesWithVariables = {}
-  if (fill) {
-    style['--vbiz-btn-secondary-fill'] = fill
-    style['--vbiz-btn-secondary-border-color'] = fill
-    style.backgroundColor = fill
+  if (paintFill) {
+    style['--vbiz-control-fill'] = paintFill
+    style['--vbiz-control-border'] = paintFill
+    style['--vbiz-btn-secondary-fill'] = paintFill
+    style['--vbiz-btn-secondary-border-color'] = paintFill
+    style.backgroundColor = paintFill
   }
-  if (fg) {
-    style['--vbiz-btn-secondary-fg'] = fg
-    style.color = fg
+  if (paintFg) {
+    style['--vbiz-control-fg'] = paintFg
+    style['--vbiz-btn-secondary-fg'] = paintFg
+    style.color = paintFg
   }
   return style
 }
@@ -675,26 +696,31 @@ export function displayCtaChromeStyle(
   mode: ThemeMode = 'light'
 ): CSSProperties | undefined {
   const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
-  if (!fill && !fg) return undefined
+  const paintFill = storedCssColor(fill)
+  const paintFg = storedCssColor(fg)
+  if (!paintFill && !paintFg) return undefined
   const style: CSSPropertiesWithVariables = {}
-  if (fill) {
-    style['--vbiz-btn-fill'] = fill
-    style['--vbiz-btn-accent-fill'] = fill
-    style['--vbiz-btn-primary-fill'] = fill
-    style['--vbiz-btn-secondary-fill'] = fill
+  if (paintFill) {
+    style['--vbiz-control-fill'] = paintFill
+    style['--vbiz-control-border'] = paintFill
+    style['--vbiz-btn-fill'] = paintFill
+    style['--vbiz-btn-accent-fill'] = paintFill
+    style['--vbiz-btn-primary-fill'] = paintFill
+    style['--vbiz-btn-secondary-fill'] = paintFill
   }
-  if (fg) {
-    style['--vbiz-btn-fg'] = fg
-    style['--vbiz-btn-accent-fg'] = fg
-    style['--vbiz-btn-primary-fg'] = fg
-    style['--vbiz-btn-secondary-fg'] = fg
+  if (paintFg) {
+    style['--vbiz-control-fg'] = paintFg
+    style['--vbiz-btn-fg'] = paintFg
+    style['--vbiz-btn-accent-fg'] = paintFg
+    style['--vbiz-btn-primary-fg'] = paintFg
+    style['--vbiz-btn-secondary-fg'] = paintFg
   }
   return style
 }
 
 /**
  * Solid pill chrome for My Info Call / Text / Email.
- * Uses saved light/dark overrides when set; otherwise Template secondary + readable fg.
+ * A saved light/dark color replaces the Template primary default for that button only.
  */
 export function displayMyInfoActionChromeStyle(
   config: DisplayFieldConfig | undefined,
@@ -702,9 +728,18 @@ export function displayMyInfoActionChromeStyle(
   defaults: { bg: string; text: string }
 ): CSSProperties {
   const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
-  const backgroundColor = fill || defaults.bg
-  const color = fg || defaults.text
-  return { backgroundColor, color, backgroundImage: 'none' }
+  const backgroundColor = storedCssColor(fill) || storedCssColor(defaults.bg) || defaults.bg
+  const color = storedCssColor(fg) || storedCssColor(defaults.text) || defaults.text
+  const style: CSSPropertiesWithVariables = {
+    backgroundColor,
+    color,
+    backgroundImage: 'none',
+  }
+  style['--vbiz-control-fill'] = backgroundColor
+  style['--vbiz-control-fg'] = color
+  style['--vbiz-my-info-fill'] = backgroundColor
+  style['--vbiz-my-info-fg'] = color
+  return style
 }
 
 export function displayLiveAgentChromeStyle(
@@ -740,13 +775,15 @@ export function displayGeneralRootStyle(
   const homeHeading = getFieldConfig(settings, 'Home Heading Color')
   if (homeHeading.visible !== false) {
     const { fg } = resolveFieldModeColors(homeHeading, mode, { preferText: true })
-    if (fg) style['--vbiz-home-heading'] = fg
+    const paint = storedCssColor(fg)
+    if (paint) style['--vbiz-home-heading'] = paint
   }
 
   const homeDescription = getFieldConfig(settings, 'Home Description Color')
   if (homeDescription.visible !== false) {
     const { fg } = resolveFieldModeColors(homeDescription, mode, { preferText: true })
-    if (fg) style['--vbiz-home-description'] = fg
+    const paint = storedCssColor(fg)
+    if (paint) style['--vbiz-home-description'] = paint
   }
 
   return Object.keys(style).length > 0 ? style : undefined

@@ -366,8 +366,8 @@ export const CARD_THEME_UTILITY_CSS = `
 ${themeUi('.vbiz-btn')},
 ${themeUi(".vbiz-btn[data-role='accent']")} {
   border-radius: var(--vbiz-btn-radius, 16px) !important;
-  background: var(--vbiz-btn-accent-fill, var(--vbiz-btn-fill)) !important;
-  color: var(--vbiz-btn-accent-fg, var(--vbiz-btn-fg)) !important;
+  background: var(--vbiz-control-fill, var(--vbiz-btn-accent-fill, var(--vbiz-btn-fill))) !important;
+  color: var(--vbiz-control-fg, var(--vbiz-btn-accent-fg, var(--vbiz-btn-fg))) !important;
   border: var(--vbiz-btn-accent-border-width, var(--vbiz-btn-border-width, 0px)) solid var(--vbiz-btn-accent-border-color, var(--vbiz-btn-border-color, transparent)) !important;
   backdrop-filter: blur(var(--vbiz-btn-accent-blur, var(--vbiz-btn-blur, 0px)));
   box-shadow: var(--vbiz-btn-shadow, none) !important;
@@ -378,14 +378,14 @@ ${themeUi('.vbiz-btn svg')} {
   stroke: currentColor;
 }
 ${themeUi(".vbiz-btn[data-role='primary']")} {
-  background: var(--vbiz-btn-primary-fill) !important;
-  color: var(--vbiz-btn-primary-fg) !important;
+  background: var(--vbiz-control-fill, var(--vbiz-btn-primary-fill)) !important;
+  color: var(--vbiz-control-fg, var(--vbiz-btn-primary-fg)) !important;
   border: var(--vbiz-btn-primary-border-width, 0px) solid var(--vbiz-btn-primary-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-btn-primary-blur, 0px));
 }
 ${themeUi(".vbiz-btn[data-role='secondary']")} {
-  background: var(--vbiz-btn-secondary-fill) !important;
-  color: var(--vbiz-btn-secondary-fg) !important;
+  background: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill)) !important;
+  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg)) !important;
   border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 0px));
 }
@@ -412,9 +412,9 @@ ${themeUi('.vbiz-social')} {
   min-width: var(--vbiz-social-size, 40px) !important;
   min-height: var(--vbiz-social-size, 40px) !important;
   border-radius: var(--vbiz-social-radius, 9999px) !important;
-  background-color: var(--vbiz-social-fill) !important;
-  color: var(--vbiz-social-fg) !important;
-  border: var(--vbiz-social-border-width, 1px) solid var(--vbiz-social-border-color, transparent) !important;
+  background-color: var(--vbiz-control-fill, var(--vbiz-social-fill)) !important;
+  color: var(--vbiz-control-fg, var(--vbiz-social-fg)) !important;
+  border: var(--vbiz-social-border-width, 1px) solid var(--vbiz-control-border, var(--vbiz-social-border-color, transparent)) !important;
   backdrop-filter: blur(var(--vbiz-social-blur, 0px));
   font-family: var(--vbiz-font, inherit);
 }
@@ -450,9 +450,9 @@ ${themeUi('.vbiz-social:hover')} {
 
 /* ---------- Toolbar / icon buttons — theme colors + button style, default corners from markup ---------- */
 ${themeUi('.vbiz-icon-btn')} {
-  border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, var(--vbiz-accent-border)) !important;
-  background-color: var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle)) !important;
-  color: var(--vbiz-btn-secondary-fg, var(--vbiz-accent)) !important;
+  border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-control-border, var(--vbiz-btn-secondary-border-color, var(--vbiz-accent-border))) !important;
+  background-color: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle))) !important;
+  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg, var(--vbiz-accent))) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 8px));
   font-family: var(--vbiz-font, inherit);
 }
@@ -1126,7 +1126,7 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 /* Reviews body: theme text (white in dark, dark in light) — override TipTap black */
 .vbiz-profile-root .vbiz-review-body,
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html {
-  color: var(--vbiz-text) !important;
+  color: var(--vbiz-review-text, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
@@ -1264,12 +1264,11 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html a {
   color: var(--vbiz-accent) !important;
 }
-/* FAQ answers: black in light, white in dark. Bold and highlight stay accent. */
-.vbiz-profile-root .vcard-faq-answer {
-  color: #000000 !important;
-}
-html.dark .vbiz-profile-root .vcard-faq-answer {
-  color: #ffffff !important;
+/* FAQ answers follow Card Settings → FAQ. Bold and highlight stay accent. */
+.vbiz-profile-root .vcard-faq-answer,
+.vbiz-profile-root .vbiz-faq-answer {
+  color: var(--vbiz-faq-answer-fg, var(--vbiz-text)) !important;
+  background-color: var(--vbiz-faq-answer-bg, transparent) !important;
 }
 .vbiz-profile-root .vcard-faq-answer :where(p, h1, h2, h3, h4, h5, h6, li, ul, ol, blockquote, div) {
   color: inherit !important;
@@ -1311,8 +1310,8 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
 .vbiz-preloader-btn {
   border-radius: var(--vbiz-btn-radius, 16px) !important;
   border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, transparent) !important;
-  background: var(--vbiz-btn-secondary-fill) !important;
-  color: var(--vbiz-btn-secondary-fg) !important;
+  background: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill)) !important;
+  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg)) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 8px));
 }
 .vbiz-preloader-btn:hover {
@@ -1412,8 +1411,8 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
   color: var(--vbiz-btn-primary-fg, var(--vbiz-secondary)) !important;
 }
 .vbiz-modal-btn-secondary {
-  background: var(--vbiz-btn-secondary-fill) !important;
-  color: var(--vbiz-btn-secondary-fg) !important;
+  background: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill)) !important;
+  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg)) !important;
   border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 8px));
 }
@@ -1855,5 +1854,24 @@ html.dark .vbiz-profile-root .vcard-faq-answer {
   background-color: var(--vbiz-faq-question-bg, var(--vbiz-surface)) !important;
   border-color: var(--vbiz-faq-border, var(--vbiz-border)) !important;
   color: var(--vbiz-faq-question-fg, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root .vbiz-faq-item h4,
+.vbiz-profile-root .vbiz-faq-item .vbiz-faq-question {
+  color: var(--vbiz-faq-question-fg, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root .vbiz-faq-item .vbiz-faq-icon,
+.vbiz-profile-root .vbiz-faq-item .vbiz-faq-icon svg {
+  color: var(--vbiz-faq-icon, var(--vbiz-accent)) !important;
+}
+.vbiz-profile-root .vbiz-my-info-action {
+  background-color: var(--vbiz-my-info-fill, var(--vbiz-control-fill, var(--vbiz-primary))) !important;
+  color: var(--vbiz-my-info-fg, var(--vbiz-control-fg, #ffffff)) !important;
+  background-image: none !important;
+}
+.vbiz-profile-root .vbiz-review-slider-fill {
+  background-color: var(--vbiz-review-slider-fill, var(--vbiz-accent)) !important;
+}
+.vbiz-profile-root .vbiz-review-slider-track {
+  background-color: var(--vbiz-review-slider-track, var(--vbiz-border)) !important;
 }
 `.trim()

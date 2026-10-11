@@ -22,6 +22,8 @@ describe('vCard editor settings routes', () => {
     expect(buildEditorSettingsPath('/vcards/edit', 'integration')).toBe('/vcards/edit/settings/integration')
     expect(buildEditorSettingsPath('/vcards/edit', 'ai-assistance')).toBe('/vcards/edit/settings/integration')
     expect(parseEditorSegments(['settings', 'history']).settingsTab).toBe('history')
+    expect(parseEditorSegments(['settings', 'my-info-buttons']).settingsTab).toBe('my-info-buttons')
+    expect(buildEditorSettingsPath('/vcards/edit', 'my-info-buttons')).toBe('/vcards/edit/settings/my-info-buttons')
     expect(buildEditorSettingsPath('/vcards/edit', 'history')).toBe('/vcards/edit/settings/history')
     expect(
       buildIntegrationSettingsPath('/vcards/edit', {

@@ -149,26 +149,52 @@ describe('resetBrandThemeColors', () => {
 })
 
 describe('resolveProfileDesign', () => {
-  it('prefers live theme colors over stale theme_config', () => {
-    const themeConfig = applyEditorSettingsToThemeConfig(
-      getDefaultThemeConfig('v3'),
-      {
-        primaryColor: '#aaaaaa',
-        accentColor: '#bbbbbb',
+  it('uses the active theme_config palette for preview and public card', () => {
+    const stock = getDefaultThemeConfig('v3')
+    const themeConfig = {
+      ...stock,
+      colors: {
+        ...stock.colors,
+        light: { ...stock.colors.light, primary: '#112233', accent: '#abcdef' },
+        dark: { ...stock.colors.dark, primary: '#00ff00', accent: '#0000ff' },
       },
-      null
+    }
+
+    const appearance = {
+      profileTemplate: 'v3' as const,
+      buttonStyle: 'solid' as const,
+      cornerStyle: 'round' as const,
+      layoutStyle: 'classic' as const,
+    }
+    const light = resolveProfileDesign(
+      designSettings,
+      { primaryColor: '#00ff00', accentColor: '#0000ff', fontFamily: 'outfit' },
+      appearance,
+      { themeConfig, colorMode: 'light' }
+    )
+    const dark = resolveProfileDesign(
+      designSettings,
+      { primaryColor: '#00ff00', accentColor: '#0000ff', fontFamily: 'outfit' },
+      appearance,
+      { themeConfig, colorMode: 'dark' }
     )
 
+    expect(light.primaryColor).toBe('#112233')
+    expect(light.accentColor).toBe('#abcdef')
+    expect(dark.primaryColor).toBe('#00ff00')
+    expect(dark.accentColor).toBe('#0000ff')
+    expect(light.fontFamily).toBe('outfit')
+  })
+
+  it('uses flat theme colors when theme_config is absent', () => {
     const design = resolveProfileDesign(
       designSettings,
       { primaryColor: '#00ff00', accentColor: '#0000ff', fontFamily: 'outfit' },
-      { profileTemplate: 'v3', buttonStyle: 'solid', cornerStyle: 'round', layoutStyle: 'classic' },
-      { themeConfig }
+      { profileTemplate: 'v3', buttonStyle: 'solid', cornerStyle: 'round', layoutStyle: 'classic' }
     )
 
     expect(design.primaryColor).toBe('#00ff00')
     expect(design.accentColor).toBe('#0000ff')
-    expect(design.fontFamily).toBe('outfit')
   })
 
   it('does not freeze brand colors onto inline vars so light/dark can swap surfaces', () => {

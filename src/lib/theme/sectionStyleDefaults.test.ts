@@ -2,6 +2,7 @@ import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
 import { buildPreviewMatchedThemeConfig, resetBrandThemeColors } from '@/lib/theme/resolveCardTheme'
 import {
   buildSoftBannerGradient,
+  canonicalCssColor,
   clearOneSectionStyleOverride,
   deriveBannerMode,
   deriveContentCardMode,
@@ -10,6 +11,16 @@ import {
   resolveBannerStyle,
 } from '@/lib/theme/sectionStyleDefaults'
 import { describe, expect, it } from 'vitest'
+
+describe('canonicalCssColor', () => {
+  it('accepts a pasted hex with or without a hash and keeps short hex until blur', () => {
+    expect(canonicalCssColor('A5D49B')).toBe('#a5d49b')
+    expect(canonicalCssColor('#A5D49B')).toBe('#a5d49b')
+    expect(canonicalCssColor('#fff')).toBeNull()
+    expect(canonicalCssColor('#fff', true)).toBe('#ffffff')
+    expect(canonicalCssColor('rgb(255, 64, 255)')).toBe('#ff40ff')
+  })
+})
 
 describe('sectionStyleDefaults', () => {
   const stock = getDefaultThemeConfig('v3')
@@ -35,16 +46,16 @@ describe('sectionStyleDefaults', () => {
     expect(card.description?.toLowerCase()).not.toBe('#1a1a1a')
   })
 
-  it('rewrites baked light-theme description black to white on dark surfaces', () => {
+  it('keeps a content-card color the owner picked, including a dark color on a dark card', () => {
     const card = deriveContentCardMode(dark, {
       bg: dark.surface,
       title: '#1a1a1a',
-      text: '#1a1a1a',
+      text: '#ff40ff',
       description: '#1a1a1a',
     })
-    expect(card.title?.toLowerCase()).toBe('#ffffff')
-    expect(card.text?.toLowerCase()).toBe('#ffffff')
-    expect(card.description?.toLowerCase()).toBe('#ffffff')
+    expect(card.title?.toLowerCase()).toBe('#1a1a1a')
+    expect(card.text?.toLowerCase()).toBe('#ff40ff')
+    expect(card.description?.toLowerCase()).toBe('#1a1a1a')
   })
 
   it('keeps black description on light content cards', () => {
@@ -69,6 +80,9 @@ describe('sectionStyleDefaults', () => {
     expect(css).toContain('--vbiz-content-card-desc: #fedcba')
     expect(css).toContain('.vbiz-content-card .vbiz-description')
     expect(css).toContain('var(--vbiz-content-card-desc')
+    expect(css).toContain('var(--vbiz-review-text, var(--vbiz-text))')
+    expect(css).toContain('var(--vbiz-faq-answer-fg, var(--vbiz-text))')
+    expect(css).not.toContain('.vcard-faq-answer {\n  color: #000000')
   })
 
   it('patch + reset section override round-trips', () => {

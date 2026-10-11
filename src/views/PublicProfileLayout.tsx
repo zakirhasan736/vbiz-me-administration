@@ -9,6 +9,7 @@ import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { collectPublicCardShareImageCandidates, resolvePublicCardShareImageUrl } from '@/lib/seo/resolvePublicCardSeo'
 import { applyEditorSettingsToThemeConfig } from '@/lib/theme/resolveCardTheme'
 import { ProfileApp } from '@/profile-app/ProfileApp'
+import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import { ProfileLoadingScreen } from '@/profile-app/components/ProfileLoadingScreen'
 import { ProfileThemeShell } from '@/profile-app/components/ProfileThemeShell'
 import { PublicCardPwaRuntime } from '@/profile-app/components/PublicCardPwaRuntime'
@@ -76,6 +77,8 @@ export default function PublicProfileLayout({
     })
   }, [record, settingsThemeConfig, settingsAppearance])
 
+  const colorMode = useDocumentThemeMode(themeConfig.colors.defaultMode === 'light' ? 'light' : 'dark')
+
   const profileProps = useMemo(() => {
     if (!record) return null
     const base = vCardRecordToProfileProps(record, designSettings, actionButtons)
@@ -85,6 +88,7 @@ export default function PublicProfileLayout({
     }
     const design = resolveProfileDesign(designSettings, record.theme, appearance, {
       themeConfig,
+      colorMode,
     })
 
     return {
@@ -94,7 +98,17 @@ export default function PublicProfileLayout({
       themeFromApi: fromApi,
       teamNotices: myCard?.team_notices ?? initialMyCard?.team_notices ?? null,
     }
-  }, [record, designSettings, actionButtons, settingsAppearance, themeConfig, fromApi, myCard, initialMyCard])
+  }, [
+    record,
+    designSettings,
+    actionButtons,
+    settingsAppearance,
+    themeConfig,
+    fromApi,
+    myCard,
+    initialMyCard,
+    colorMode,
+  ])
 
   const resolvedLiveAgentCardData = useMemo<LiveAgentCardData | undefined>(() => {
     if (liveAgentCardData) {

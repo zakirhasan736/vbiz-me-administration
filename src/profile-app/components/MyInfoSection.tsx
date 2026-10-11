@@ -5,6 +5,7 @@ import { DEFAULT_VCARD_MY_INFO, resolveMyInfoContact } from '@/lib/vcardMyInfo'
 import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import { toMailtoHref, toSmsHref, toTelHref } from '@/profile-app/lib/openExternalIntent'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useProfileTheme as useCardThemeConfig } from '@/profile-app/providers/ProfileThemeProvider'
 import { V3EmptyState, V3SectionShell } from '@/profile-app/sections'
 import { Mail, MessageCircle, Phone, type LucideIcon } from 'lucide-react'
 import type { CSSProperties } from 'react'
@@ -21,6 +22,7 @@ type ActionRow = {
 export function MyInfoSection() {
   const { personal, myInfo, design, embedded, field, isVisible } = useProfileDisplay()
   const themeMode = useDocumentThemeMode('dark')
+  const cardTheme = useCardThemeConfig()
   const info = myInfo ?? DEFAULT_VCARD_MY_INFO
   const { phone, email, smsNumber } = resolveMyInfoContact(personal, info)
   const template = design?.profileTemplate === 'v1' || design?.profileTemplate === 'v2' ? design.profileTemplate : 'v3'
@@ -31,7 +33,11 @@ export function MyInfoSection() {
       secondaryColor: design?.secondaryColor,
       accentColor: design?.accentColor,
     },
-    template
+    template,
+    {
+      lightPrimary: cardTheme?.themeConfig.colors.light.primary,
+      darkPrimary: cardTheme?.themeConfig.colors.dark.primary,
+    }
   )
   const modeDefaults = themeMode === 'dark' ? actionDefaults.dark : actionDefaults.light
 
@@ -119,7 +125,7 @@ export function MyInfoSection() {
                 key={action.id}
                 href={action.href}
                 {...(action.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                className="group flex items-center gap-4 rounded-full px-5 py-4 shadow-lg transition-transform active:scale-[0.98] sm:px-6 sm:py-4.5"
+                className="vbiz-my-info-action group flex items-center gap-4 rounded-full px-5 py-4 shadow-lg transition-transform active:scale-[0.98] sm:px-6 sm:py-4.5"
                 style={chrome as CSSProperties}
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-current/15 ring-1 ring-current/25">

@@ -114,4 +114,19 @@ describe('getPageColors header visibility', () => {
     expect(getPageColors(visible).headerColor).toBe('#112233')
     expect(getPageColors(hidden).headerColor).toBeUndefined()
   })
+
+  it('reads the light or dark header color the owner picked', () => {
+    const settings: VCardDisplaySettings = {
+      globalEnabled: true,
+      fields: {
+        'vCard Header Color': {
+          visible: true,
+          light: { textColor: '#112233' },
+          dark: { textColor: '#ff40ff' },
+        },
+      },
+    }
+    expect(getPageColors(settings, 'light').headerColor).toBe('#112233')
+    expect(getPageColors(settings, 'dark').headerColor).toBe('#ff40ff')
+  })
 })

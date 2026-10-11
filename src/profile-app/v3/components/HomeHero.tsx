@@ -208,6 +208,7 @@ export const HomeHero: React.FC<{
     designationField: field('MyInfo Designation'),
     headingField: field('Home Heading Color'),
     descriptionField: field('Home Description Color'),
+    headerField: field('vCard Header Color'),
   })
 
   const contactItems = useMemo(

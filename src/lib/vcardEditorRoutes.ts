@@ -16,6 +16,7 @@ export const SETTINGS_TAB_IDS = [
   'content-cards',
   'reviews-style',
   'faq-style',
+  'my-info-buttons',
   'seo',
   'history',
   'ai-assistance',

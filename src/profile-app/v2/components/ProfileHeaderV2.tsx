@@ -184,6 +184,7 @@ export function ProfileHeaderV2({
     designationField: field('MyInfo Designation'),
     headingField: field('Home Heading Color'),
     descriptionField: field('Home Description Color'),
+    headerField: field('vCard Header Color'),
     headerTextColor,
   })
 

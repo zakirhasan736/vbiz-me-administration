@@ -54,6 +54,30 @@ export function colorToHex(input: string, fallback = '#000000'): string {
   return `#${hex(parts.r)}${hex(parts.g)}${hex(parts.b)}`
 }
 
+/**
+ * Normalize a picker value to a CSS color.
+ * Accepts #rgb, #rrggbb, #rrggbbaa, rgb()/rgba(), and hex pasted without '#'.
+ * 3-digit hex stays uncommitted while typing (`allowShort` on blur) so `#fff` can grow into `#ffffff`.
+ */
+export function canonicalCssColor(input: string, allowShort = false): string | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+  const body = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
+  let candidate = trimmed
+  if (/^[0-9a-f]+$/i.test(body)) {
+    if (body.length === 3 || body.length === 4) {
+      if (!allowShort) return null
+    } else if (body.length !== 6 && body.length !== 8) {
+      return null
+    }
+    candidate = `#${body}`
+  }
+  const parts = readCssColor(candidate)
+  if (!parts) return null
+  if (parts.a >= 0.995) return colorToHex(candidate)
+  return colorWithAlpha(candidate, parts.a)
+}
+
 export function colorWithAlpha(input: string, alpha: number): string {
   const parts = readCssColor(input)
   if (!parts) return input
@@ -112,12 +136,12 @@ export function deriveBannerMode(
     imagePosition: 'center',
   }
   const merged = pick(base, override)
-  // Re-check title/desc against solid bg when variant is solid.
+  // Readable defaults only. A color the owner picked for this field stays as chosen.
   if (merged.variant === 'solid' && merged.bg) {
-    merged.title = ensureReadableText(merged.bg, merged.title, CONTRAST_LARGE_MIN)
-    merged.description = ensureReadableText(merged.bg, merged.description, 3)
-    merged.text = ensureReadableText(merged.bg, merged.text, CONTRAST_BODY_MIN)
-    merged.note = ensureReadableText(merged.bg, merged.note, 3)
+    if (!override?.title?.trim()) merged.title = ensureReadableText(merged.bg, merged.title, CONTRAST_LARGE_MIN)
+    if (!override?.description?.trim()) merged.description = ensureReadableText(merged.bg, merged.description, 3)
+    if (!override?.text?.trim()) merged.text = ensureReadableText(merged.bg, merged.text, CONTRAST_BODY_MIN)
+    if (!override?.note?.trim()) merged.note = ensureReadableText(merged.bg, merged.note, 3)
   }
   void mode
   return merged
@@ -142,11 +166,10 @@ export function deriveContentCardMode(
     imagePosition: 'center',
   }
   const merged = pick(base, override)
-  // Stored overrides can bake light-theme #1a1a1a into dark mode — re-check after merge.
   if (merged.bg) {
-    merged.title = ensureReadableText(merged.bg, merged.title, CONTRAST_LARGE_MIN)
-    merged.text = ensureReadableText(merged.bg, merged.text, CONTRAST_BODY_MIN)
-    merged.description = ensureReadableText(merged.bg, merged.description, 3)
+    if (!override?.title?.trim()) merged.title = ensureReadableText(merged.bg, merged.title, CONTRAST_LARGE_MIN)
+    if (!override?.text?.trim()) merged.text = ensureReadableText(merged.bg, merged.text, CONTRAST_BODY_MIN)
+    if (!override?.description?.trim()) merged.description = ensureReadableText(merged.bg, merged.description, 3)
   }
   return merged
 }

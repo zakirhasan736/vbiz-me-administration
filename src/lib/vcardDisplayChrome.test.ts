@@ -1,4 +1,5 @@
 import {
+  buildModeColorPatch,
   displayCtaChromeStyle,
   displayGeneralRootStyle,
   displayIconChromeStyle,
@@ -37,9 +38,34 @@ describe('display chrome styles', () => {
     const dark = displayIconChromeStyle(config, 'dark') as Record<string, string>
 
     expect(light['--vbiz-btn-secondary-fill']).toBe('#ffffff')
+    expect(light['--vbiz-control-fill']).toBe('#ffffff')
     expect(light['--vbiz-btn-secondary-fg']).toBe('#111111')
     expect(dark['--vbiz-btn-secondary-fill']).toBe('#0b0b0d')
-    expect(dark['--vbiz-btn-secondary-fg']).toBe('#f5f5f5')
+    expect(dark['--vbiz-control-fg']).toBe('#f5f5f5')
+  })
+
+  it('paints a hex pasted without a hash onto the control variables the preview reads', () => {
+    const style = displayIconChromeStyle(
+      {
+        visible: true,
+        dark: { backgroundColor: 'A5D49B', textColor: '291426' },
+      },
+      'dark'
+    ) as Record<string, string>
+
+    expect(style['--vbiz-control-fill']).toBe('#a5d49b')
+    expect(style['--vbiz-control-fg']).toBe('#291426')
+  })
+
+  it('keeps an explicit text color when the background is set', () => {
+    const patch = buildModeColorPatch(
+      { visible: true, dark: { backgroundColor: '#a5d49b', textColor: '#ffffff' } },
+      'dark',
+      { backgroundColor: '#a5d49b' }
+    )
+
+    expect(patch.dark?.backgroundColor).toBe('#a5d49b')
+    expect(patch.dark?.textColor).toBe('#ffffff')
   })
 
   it('does not apply legacy flat colors in dark mode so theme tokens stay readable', () => {

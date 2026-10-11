@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui'
+import { ColorSwatchInput, useLiveCssColor } from '@/components/vcard/HexColorControl'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import type {
   BannerModeColors,
@@ -34,9 +35,7 @@ import {
 import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
 import { RotateCcw, Sparkles, Upload } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-
-const COLOR_COMMIT_MS = 120
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 function ColorField({
   label,
@@ -49,63 +48,23 @@ function ColorField({
   onChange: (val: string) => void
   withOpacity?: boolean
 }) {
-  const [localValue, setLocalValue] = useState(value || '#000000')
   const [opacityOpen, setOpacityOpen] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingRef = useRef<string | null>(null)
-  const onChangeRef = useRef(onChange)
-
-  useEffect(() => {
-    onChangeRef.current = onChange
-  }, [onChange])
-
-  const flush = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-    const pending = pendingRef.current
-    if (pending === null) return
-    pendingRef.current = null
-    onChangeRef.current?.(pending)
-  }, [])
-
-  useEffect(() => () => flush(), [flush])
-
-  useEffect(() => {
-    if (pendingRef.current !== null) return
-    setLocalValue(value || '#000000')
-  }, [value])
-
-  const handleChange = (val: string) => {
-    setLocalValue(val)
-    pendingRef.current = val
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null
-      const pending = pendingRef.current
-      if (pending === null) return
-      pendingRef.current = null
-      onChangeRef.current?.(pending)
-    }, COLOR_COMMIT_MS)
-  }
-
-  const parsed = readCssColor(localValue)
-  const hex = parsed ? colorToHex(localValue) : '#000000'
+  const live = useLiveCssColor(value || '#000000', onChange)
+  const parsed = readCssColor(live.text)
   const alpha = parsed ? parsed.a : 1
   const alphaPct = Math.round(alpha * 100)
 
   const paint = (nextHex: string, nextAlpha: number) => {
     const safeHex = colorToHex(nextHex, '#000000')
-    if (!withOpacity || nextAlpha >= 0.995) handleChange(safeHex)
-    else handleChange(colorWithAlpha(safeHex, nextAlpha))
+    const next = !withOpacity || nextAlpha >= 0.995 ? safeHex : colorWithAlpha(safeHex, nextAlpha)
+    live.onTextChange(next)
   }
 
   return (
     <div
       className="hover:border-primary-500/50 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-white/10 dark:bg-[#070a13]"
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) flush()
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) live.onBlur()
       }}
     >
       <div className="flex items-center justify-between gap-2">
@@ -113,11 +72,13 @@ function ColorField({
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={localValue}
-            onChange={(e) => handleChange(e.target.value)}
+            aria-label={`${label} hex`}
+            value={live.text}
+            onChange={(e) => live.onTextChange(e.target.value)}
+            spellCheck={false}
             className={cn(
               'focus:text-primary-600 dark:focus:text-primary-400 bg-transparent text-right font-mono text-[.7rem] font-medium text-slate-500 outline-none dark:text-slate-400',
-              withOpacity ? 'w-28 normal-case' : 'w-20 uppercase'
+              withOpacity ? 'w-28 normal-case' : 'w-24 uppercase'
             )}
           />
           {withOpacity ? (
@@ -136,23 +97,25 @@ function ColorField({
               {parsed ? `${alphaPct}%` : 'Opacity'}
             </button>
           ) : null}
-          <div
-            className="relative h-7 w-7 shrink-0 cursor-pointer overflow-hidden rounded-full border border-slate-200 shadow-sm dark:border-white/20"
-            style={{
-              backgroundImage:
-                'linear-gradient(45deg, #cbd5e1 25%, transparent 25%), linear-gradient(-45deg, #cbd5e1 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #cbd5e1 75%), linear-gradient(-45deg, transparent 75%, #cbd5e1 75%)',
-              backgroundSize: '8px 8px',
-              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0',
-            }}
-          >
-            <span className="absolute inset-0" style={{ backgroundColor: parsed ? localValue : hex }} />
-            <input
-              type="color"
-              value={hex}
-              onChange={(e) => (withOpacity ? paint(e.target.value, alpha) : handleChange(e.target.value))}
-              className="absolute -inset-2.5 h-14 w-14 cursor-pointer opacity-0"
-            />
-          </div>
+          {withOpacity ? (
+            <div
+              className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full border border-slate-200 shadow-sm dark:border-white/20"
+              style={{
+                backgroundImage:
+                  'linear-gradient(45deg, #cbd5e1 25%, transparent 25%), linear-gradient(-45deg, #cbd5e1 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #cbd5e1 75%), linear-gradient(-45deg, transparent 75%, #cbd5e1 75%)',
+                backgroundSize: '8px 8px',
+                backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0',
+              }}
+            >
+              <span
+                className="pointer-events-none absolute inset-0"
+                style={{ backgroundColor: parsed ? live.text : live.swatch }}
+              />
+              <ColorSwatchInput label={label} swatch={live.swatch} overlay onChange={(hex) => paint(hex, alpha)} />
+            </div>
+          ) : (
+            <ColorSwatchInput label={label} swatch={live.swatch} onChange={live.onPicker} />
+          )}
         </div>
       </div>
       {withOpacity && opacityOpen ? (
@@ -163,7 +126,7 @@ function ColorField({
             min={0}
             max={100}
             value={parsed ? alphaPct : 100}
-            onChange={(e) => paint(hex, Number(e.target.value) / 100)}
+            onChange={(e) => paint(live.swatch, Number(e.target.value) / 100)}
             className="h-1.5 flex-1 accent-slate-700 dark:accent-slate-200"
           />
           <span className="w-8 text-right font-mono">{parsed ? alphaPct : 100}</span>
@@ -249,6 +212,10 @@ export function ThemeBrandColorsPanel({
   onReset: () => void
 }) {
   const [mode, setMode] = useState<ThemeMode>(themeConfig.colors.defaultMode === 'light' ? 'light' : 'dark')
+  const configRef = useRef(themeConfig)
+  useEffect(() => {
+    configRef.current = themeConfig
+  }, [themeConfig])
   const set = themeConfig.colors[mode]
   const suggestions = useMemo(
     () => suggestBrandCompanions(set.primary, set.background, mode),
@@ -256,11 +223,12 @@ export function ThemeBrandColorsPanel({
   )
 
   const patchRole = (role: 'primary' | 'secondary' | 'accent', value: string) => {
-    let next = patchModeBrandColor(themeConfig, mode, role, value)
+    const current = configRef.current
+    let next = patchModeBrandColor(current, mode, role, value)
     if (role === 'primary') {
       const companions = suggestBrandCompanions(value, next.colors[mode].background, mode)
       // Soft-suggest: only fill secondary/accent when still matching previous companions or identical to primary.
-      const cur = themeConfig.colors[mode]
+      const cur = current.colors[mode]
       if (cur.secondary === cur.primary || cur.secondary === suggestions.secondary) {
         next = patchModeBrandColor(next, mode, 'secondary', companions.secondary)
       }
@@ -268,8 +236,9 @@ export function ThemeBrandColorsPanel({
         next = patchModeBrandColor(next, mode, 'accent', companions.accent)
       }
     }
+    configRef.current = next
     onThemeConfigChange(next)
-    if (mode === (themeConfig.colors.defaultMode === 'light' ? 'light' : 'dark')) {
+    if (mode === (current.colors.defaultMode === 'light' ? 'light' : 'dark')) {
       syncFlatFromMode(next, onFlatThemePath, mode)
     }
   }
@@ -326,14 +295,22 @@ function useSectionModeEditor(
   key: SectionStyleKey
 ) {
   const [mode, setMode] = useState<ThemeMode>(themeConfig.colors.defaultMode === 'light' ? 'light' : 'dark')
+  const configRef = useRef(themeConfig)
+  useEffect(() => {
+    configRef.current = themeConfig
+  }, [themeConfig])
   const colorSet = themeConfig.colors[mode]
 
   const patch = (fields: Record<string, unknown>) => {
-    onThemeConfigChange(patchSectionStyleMode(themeConfig, key, mode, fields) as CardThemeConfig)
+    const next = patchSectionStyleMode(configRef.current, key, mode, fields) as CardThemeConfig
+    configRef.current = next
+    onThemeConfigChange(next)
   }
 
   const reset = () => {
-    onThemeConfigChange(clearOneSectionStyleOverride(themeConfig, key) as CardThemeConfig)
+    const next = clearOneSectionStyleOverride(configRef.current, key) as CardThemeConfig
+    configRef.current = next
+    onThemeConfigChange(next)
   }
 
   return { mode, setMode, colorSet, patch, reset }

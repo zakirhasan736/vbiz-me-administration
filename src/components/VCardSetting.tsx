@@ -6,6 +6,7 @@ import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { Button, Modal, Switch } from '@/components/ui'
 import { CardChangeHistoryPanel } from '@/components/vcard/CardChangeHistoryPanel'
 import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiProvider'
+import { ColorSwatchInput, useLiveCssColor } from '@/components/vcard/HexColorControl'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import {
   BannerStylePanel,
@@ -110,6 +111,7 @@ import {
   Loader2,
   Menu,
   MessageSquareQuote,
+  Phone,
   Plug,
   RotateCcw,
   Search,
@@ -135,6 +137,7 @@ const settingTabs = [
   { id: 'content-cards', label: 'Content Cards', icon: Layers },
   { id: 'reviews-style', label: 'Reviews', icon: MessageSquareQuote },
   { id: 'faq-style', label: 'FAQ', icon: CircleHelp },
+  { id: 'my-info-buttons', label: 'My Info Buttons', icon: Phone },
   { id: 'seo', label: 'SEO', icon: Search },
   { id: 'history', label: 'History', icon: History },
 ]
@@ -152,7 +155,7 @@ const TABS_WITHOUT_ENABLE_ALL = new Set([
   'ai-assistance',
   'history',
 ])
-const FIELD_CARD_TABS = new Set(['info', 'social', 'icons', 'general', 'home'])
+const FIELD_CARD_TABS = new Set(['info', 'social', 'icons', 'general', 'home', 'my-info-buttons'])
 
 const settingTabTourIds: Record<string, string> = {
   home: 'tour-card-home-tab',
@@ -168,6 +171,7 @@ const CATEGORY_FIELDS: Record<string, readonly string[]> = {
   social: SOCIAL_LINK_FIELDS,
   icons: ICON_FIELDS,
   general: GENERAL_SETTINGS_FIELDS,
+  'my-info-buttons': MY_INFO_ACTION_FIELDS,
   home: HOME_PAGE_FIELDS,
 }
 
@@ -219,8 +223,6 @@ function OptionCard({
   )
 }
 
-const COLOR_COMMIT_MS = 500
-
 function PackageLockedNote() {
   return <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{PACKAGE_FEATURE_LOCKED_MESSAGE}</p>
 }
@@ -236,77 +238,26 @@ function ColorPicker({
   onChange?: (val: string) => void
   defaultValue?: string
 }) {
-  const [localValue, setLocalValue] = useState(value ?? defaultValue ?? '#000000')
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingRef = useRef<string | null>(null)
-  const onChangeRef = useRef(onChange)
-
-  useEffect(() => {
-    onChangeRef.current = onChange
-  }, [onChange])
-
-  const flush = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-    const pending = pendingRef.current
-    if (pending === null) return
-    pendingRef.current = null
-    onChangeRef.current?.(pending)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      flush()
-    }
-  }, [flush])
-
-  useEffect(() => {
-    if (value === undefined) return
-    if (pendingRef.current !== null) return
-    setLocalValue(value)
-  }, [value])
-
-  const handleChange = (val: string) => {
-    setLocalValue(val)
-    if (!onChangeRef.current) return
-    pendingRef.current = val
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null
-      const pending = pendingRef.current
-      if (pending === null) return
-      pendingRef.current = null
-      onChangeRef.current?.(pending)
-    }, COLOR_COMMIT_MS)
-  }
+  const live = useLiveCssColor(value ?? defaultValue ?? '#000000', onChange)
 
   return (
     <div
       className="hover:border-primary-500/50 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-white/10 dark:bg-[#070a13]"
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-          flush()
-        }
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) live.onBlur()
       }}
     >
       <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">{label}</span>
       <div className="flex items-center gap-3">
         <input
           type="text"
-          value={localValue}
-          onChange={(e) => handleChange(e.target.value)}
-          className="focus:text-primary-600 dark:focus:text-primary-400 w-20 bg-transparent text-right font-mono text-[.75rem] font-medium text-slate-500 uppercase outline-none dark:text-slate-400"
+          aria-label={`${label} hex`}
+          value={live.text}
+          onChange={(e) => live.onTextChange(e.target.value)}
+          spellCheck={false}
+          className="focus:text-primary-600 dark:focus:text-primary-400 w-24 bg-transparent text-right font-mono text-[.75rem] font-medium text-slate-500 uppercase outline-none dark:text-slate-400"
         />
-        <div className="relative h-7 w-7 shrink-0 cursor-pointer overflow-hidden rounded-full border border-slate-200 shadow-sm dark:border-white/20">
-          <input
-            type="color"
-            value={localValue}
-            onChange={(e) => handleChange(e.target.value)}
-            className="absolute -inset-2.5 h-14 w-14 cursor-pointer"
-          />
-        </div>
+        <ColorSwatchInput label={label} swatch={live.swatch} onChange={live.onPicker} />
       </div>
     </div>
   )
@@ -638,6 +589,7 @@ function TemplateDesigner() {
             )
             const allColorFields = [
               ...GENERAL_SETTINGS_FIELDS,
+              ...MY_INFO_ACTION_FIELDS,
               ...HOME_PAGE_FIELDS,
               ...SOCIAL_LINK_FIELDS,
               ...ICON_FIELDS,
@@ -931,9 +883,18 @@ const FieldCard: React.FC<{
   const lightValues = getFieldModePickerValues(config, 'light', themeDefaults.light)
   const darkValues = getFieldModePickerValues(config, 'dark', themeDefaults.dark)
   const hasOverrides = fieldHasColorOverrides(config)
+  const configRef = useRef(config)
+  useEffect(() => {
+    configRef.current = config
+  }, [config])
 
   const patchMode = (mode: 'light' | 'dark', patch: Partial<DisplayFieldModeColors>) => {
-    onPatch(buildModeColorPatch(config, mode, patch))
+    const nextPatch = buildModeColorPatch(configRef.current, mode, patch)
+    configRef.current = {
+      ...configRef.current,
+      ...nextPatch,
+    }
+    onPatch(nextPatch)
   }
 
   return (
@@ -1907,6 +1868,10 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const { vCardData, updateData, cardId: contextCardId, isCreateMode } = useVCard()
   const { allow_seo: canUseSeo } = usePackageAccess()
   const display = getDisplaySettingsFromVCard(vCardData)
+  const displayRef = useRef(display)
+  useEffect(() => {
+    displayRef.current = display
+  }, [display])
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const { isActive: isTourActive, editorAssist, currentStep, startTour } = useDashboardTour()
   const { showAgent } = useCreateAgentUi()
@@ -1917,7 +1882,9 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const patchDisplay = (next: VCardDisplaySettings) => updateData('displaySettings', next)
 
   const patchField = (key: string, patch: Partial<DisplayFieldConfig>) => {
-    patchDisplay(patchDisplayField(display, key, patch))
+    const next = patchDisplayField(displayRef.current, key, patch)
+    displayRef.current = next
+    patchDisplay(next)
   }
 
   const categoryKeys = CATEGORY_FIELDS[activeTab] ?? []
@@ -1927,12 +1894,15 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
 
   const profileTemplate = (vCardData.appearance?.profileTemplate ?? 'v2') as 'v1' | 'v2' | 'v3'
   const themeDefaults = getFieldThemeColorDefaults(vCardData.theme, profileTemplate)
-  const myInfoActionDefaults = getMyInfoActionButtonColorDefaults(vCardData.theme, profileTemplate)
-  const myInfoActionFieldSet = new Set<string>(MY_INFO_ACTION_FIELDS)
   const resolvedThemeConfig = resolveCardThemeConfig(
     vCardData.themeConfig ?? getDefaultThemeConfig(profileTemplate),
     profileTemplate
   )
+  const myInfoActionDefaults = getMyInfoActionButtonColorDefaults(vCardData.theme, profileTemplate, {
+    lightPrimary: resolvedThemeConfig.colors.light.primary,
+    darkPrimary: resolvedThemeConfig.colors.dark.primary,
+  })
+  const myInfoActionFieldSet = new Set<string>(MY_INFO_ACTION_FIELDS)
   const settingsProfileId =
     (cardId || contextCardId) && !isLocalTempId(cardId || contextCardId || '') && !isCreateMode
       ? cardId || contextCardId || undefined
@@ -2004,6 +1974,8 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
             onThemeConfigChange={(next) => updateData('themeConfig', next)}
           />
         )
+      case 'my-info-buttons':
+        return renderFieldCards(MY_INFO_ACTION_FIELDS, { showTextCol: true, showBgCol: true })
       case 'home':
         return HOME_PAGE_FIELDS.map((key) => {
           const isColorField = HOME_PAGE_COLOR_FIELDS.has(key)
@@ -2078,7 +2050,9 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
                 ? 'Style review cards, stars, and user chrome for light and dark mode.'
                 : activeTab === 'faq-style'
                   ? 'Style FAQ question and answer surfaces for light and dark mode.'
-                  : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
+                  : activeTab === 'my-info-buttons'
+                    ? 'Style the public My Info Call, Text, and Email buttons. Template colors apply until you set a color on a button.'
+                    : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
 
   const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)
 

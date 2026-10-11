@@ -5,6 +5,7 @@ import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { v3DesignToCssVars } from '@/lib/v3Theme'
 import { displayGeneralRootStyle, isPagesHeaderVisible } from '@/lib/vcardDisplaySettings'
+import { CardColorModeProvider } from '@/profile-app/components/CardThemeStyles'
 import { LiveAgent } from '@/profile-app/components/LiveAgent'
 import { ProfileBackgroundAudio } from '@/profile-app/components/ProfileBackgroundAudio'
 import { ProfileFloatingNav } from '@/profile-app/components/ProfileFloatingNav'
@@ -143,114 +144,116 @@ export function VBizProfileAppV1({
     : 'vbiz-profile-root vbiz-profile-v1 no-scrollbar relative flex min-h-dvh w-full flex-col items-center overflow-x-clip transition-colors duration-500'
 
   return (
-    <div
-      data-embedded={embedded ? '' : undefined}
-      data-profile-template="v1"
-      data-theme={theme}
-      data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
-      className={`${shellClass} selection:bg-yellow-primary/30 font-sans selection:text-gray-900 dark:selection:text-white ${profileRootThemeClass(theme)} ${theme === 'dark' ? 'bg-[#050505] text-[#e0e0e0]' : 'bg-white text-gray-900'} ${embedded ? 'min-h-full max-w-full' : ''}`}
-      style={rootStyle}
-    >
-      <ProfileThemeStyles design={design} />
-
-      {showPreloader && !hasVideo && (
-        <div className="fixed inset-0 z-200 flex flex-col items-center justify-center bg-[#050505] text-zinc-100">
-          <div
-            className="border-yellow-primary h-10 w-10 animate-spin rounded-full border-2 border-t-transparent"
-            style={{ borderTopColor: 'transparent' }}
-          />
-          <p className="mt-4 text-xs font-bold tracking-[0.3em] text-zinc-500 uppercase">Preparing</p>
-        </div>
-      )}
-
-      <SiteGeometricGrid />
-      {/* v3 navbar layout */}
-      <ProfileFloatingNav theme={theme} embedded={embedded}>
-        <Navigation
-          tabs={navTabs}
-          activeTab={activeSectionId}
-          setActiveTab={goToSection}
-          theme={theme}
-          slugForPersistence={cardSlug}
-        />
-      </ProfileFloatingNav>
-
+    <CardColorModeProvider mode={theme}>
       <div
-        className={`vbiz-profile-nav-clearance relative z-20 mt-0 flex h-full w-full flex-1 flex-col px-0 ${embedded ? '' : 'md:mt-18'}`}
+        data-embedded={embedded ? '' : undefined}
+        data-profile-template="v1"
+        data-theme={theme}
+        data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
+        className={`${shellClass} selection:bg-yellow-primary/30 font-sans selection:text-gray-900 dark:selection:text-white ${profileRootThemeClass(theme)} ${theme === 'dark' ? 'bg-[#050505] text-[#e0e0e0]' : 'bg-white text-gray-900'} ${embedded ? 'min-h-full max-w-full' : ''}`}
+        style={rootStyle}
       >
-        <main
-          className="no-scrollbar relative flex w-full flex-1 flex-col overflow-x-hidden md:overflow-x-visible"
-          role="tabpanel"
-          id={`panel-${activeSectionId}`}
-          aria-labelledby={`tab-${activeSectionId}`}
-          style={{ perspective: '1600px', transformStyle: 'preserve-3d' }}
+        <ProfileThemeStyles design={design} />
+
+        {showPreloader && !hasVideo && (
+          <div className="fixed inset-0 z-200 flex flex-col items-center justify-center bg-[#050505] text-zinc-100">
+            <div
+              className="border-yellow-primary h-10 w-10 animate-spin rounded-full border-2 border-t-transparent"
+              style={{ borderTopColor: 'transparent' }}
+            />
+            <p className="mt-4 text-xs font-bold tracking-[0.3em] text-zinc-500 uppercase">Preparing</p>
+          </div>
+        )}
+
+        <SiteGeometricGrid />
+        {/* v3 navbar layout */}
+        <ProfileFloatingNav theme={theme} embedded={embedded}>
+          <Navigation
+            tabs={navTabs}
+            activeTab={activeSectionId}
+            setActiveTab={goToSection}
+            theme={theme}
+            slugForPersistence={cardSlug}
+          />
+        </ProfileFloatingNav>
+
+        <div
+          className={`vbiz-profile-nav-clearance relative z-20 mt-0 flex h-full w-full flex-1 flex-col px-0 ${embedded ? '' : 'md:mt-18'}`}
         >
-          {(() => {
-            const sectionPane =
-              activeSectionId === 'home' ? (
-                <ProfileSectionOutlet sectionId={activeSectionId} template="v1" homeHeroProps={homeHeroProps} />
-              ) : (
-                <div
-                  className={`mx-auto mb-10 min-h-auto w-full max-w-258 ${embedded ? 'mt-2 px-2.5' : 'mt-10 px-4 md:mt-15 md:px-6'}`}
-                >
-                  <ProfileSectionOutlet sectionId={activeSectionId} template="v1" />
-                </div>
+          <main
+            className="no-scrollbar relative flex w-full flex-1 flex-col overflow-x-hidden md:overflow-x-visible"
+            role="tabpanel"
+            id={`panel-${activeSectionId}`}
+            aria-labelledby={`tab-${activeSectionId}`}
+            style={{ perspective: '1600px', transformStyle: 'preserve-3d' }}
+          >
+            {(() => {
+              const sectionPane =
+                activeSectionId === 'home' ? (
+                  <ProfileSectionOutlet sectionId={activeSectionId} template="v1" homeHeroProps={homeHeroProps} />
+                ) : (
+                  <div
+                    className={`mx-auto mb-10 min-h-auto w-full max-w-258 ${embedded ? 'mt-2 px-2.5' : 'mt-10 px-4 md:mt-15 md:px-6'}`}
+                  >
+                    <ProfileSectionOutlet sectionId={activeSectionId} template="v1" />
+                  </div>
+                )
+
+              if (embedded) {
+                return <div className="flex h-full w-full flex-1 flex-col">{sectionPane}</div>
+              }
+
+              const anim = motionReady
+                ? getV3AnimationProps(activeSectionId, animationPreset, animationDuration, isMobile)
+                : STATIC_ANIMATION_PROPS
+              return (
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={activeSectionId}
+                    initial={anim.initial}
+                    animate={anim.animate}
+                    exit={anim.exit}
+                    transition={anim.transition}
+                    style={{
+                      ...anim.style,
+                      width: '100%',
+                      height: '100%',
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                    }}
+                    className="flex h-full w-full flex-1 flex-col"
+                  >
+                    {sectionPane}
+                  </motion.div>
+                </AnimatePresence>
               )
+            })()}
+          </main>
+        </div>
 
-            if (embedded) {
-              return <div className="flex h-full w-full flex-1 flex-col">{sectionPane}</div>
-            }
+        <LiveAgent
+          enabled={liveAgentEnabled}
+          embedded={embedded}
+          accentColor={design.accentColor}
+          cardData={liveAgentCardData}
+          systemInstruction={liveAgentSystemPrompt}
+          readyToConnect={introAllowed}
+          wrapperClassName={LIVE_AGENT_PUBLIC_PLACEMENT}
+        />
 
-            const anim = motionReady
-              ? getV3AnimationProps(activeSectionId, animationPreset, animationDuration, isMobile)
-              : STATIC_ANIMATION_PROPS
-            return (
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={activeSectionId}
-                  initial={anim.initial}
-                  animate={anim.animate}
-                  exit={anim.exit}
-                  transition={anim.transition}
-                  style={{
-                    ...anim.style,
-                    width: '100%',
-                    height: '100%',
-                    backfaceVisibility: 'hidden',
-                    WebkitBackfaceVisibility: 'hidden',
-                  }}
-                  className="flex h-full w-full flex-1 flex-col"
-                >
-                  {sectionPane}
-                </motion.div>
-              </AnimatePresence>
-            )
-          })()}
-        </main>
+        <ProfileHomeModals
+          activeModal={activeModal}
+          onClose={() => setActiveModal(null)}
+          onSetModal={setActiveModal}
+          theme={theme}
+          cardOwnerId={cardOwnerId}
+          cardSlug={cardSlug}
+          ownerName={liveAgentCardData?.ownerName ?? ownerName}
+          avatarUrl={avatarVideoUrl}
+        />
+
+        <ProfileBackgroundAudio profileSlug={profileSlug} shareSlug={shareSlug} />
       </div>
-
-      <LiveAgent
-        enabled={liveAgentEnabled}
-        embedded={embedded}
-        accentColor={design.accentColor}
-        cardData={liveAgentCardData}
-        systemInstruction={liveAgentSystemPrompt}
-        readyToConnect={introAllowed}
-        wrapperClassName={LIVE_AGENT_PUBLIC_PLACEMENT}
-      />
-
-      <ProfileHomeModals
-        activeModal={activeModal}
-        onClose={() => setActiveModal(null)}
-        onSetModal={setActiveModal}
-        theme={theme}
-        cardOwnerId={cardOwnerId}
-        cardSlug={cardSlug}
-        ownerName={liveAgentCardData?.ownerName ?? ownerName}
-        avatarUrl={avatarVideoUrl}
-      />
-
-      <ProfileBackgroundAudio profileSlug={profileSlug} shareSlug={shareSlug} />
-    </div>
+    </CardColorModeProvider>
   )
 }

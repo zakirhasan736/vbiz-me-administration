@@ -1,6 +1,12 @@
 import { createDefaultVCardData } from '@/types/vcard'
 import { describe, expect, it } from 'vitest'
-import { mapBlogsFromPayload, mapFaqsFromPayload, mapReviewsFromPayload, mergeSectionPayload } from './applyCardDraft'
+import {
+  mapBlogsFromPayload,
+  mapFaqsFromPayload,
+  mapReviewsFromPayload,
+  mapServicesFromPayload,
+  mergeSectionPayload,
+} from './applyCardDraft'
 
 describe('AI section payloads match editor fields', () => {
   it('keeps every sourced blog instead of capping at five', () => {
@@ -44,6 +50,27 @@ describe('AI section payloads match editor fields', () => {
       text: '<p>Friendly staff and a smooth visit</p>',
       rating: 5,
     })
+  })
+
+  it('puts the review paragraph in the quote when the paste put it in the name', () => {
+    const quote =
+      'I had no idea how much stress I was carrying until I finally started getting a clearer picture of my business finances. Gigi has a way of making complicated things feel manageable.'
+    const mapped = mapReviewsFromPayload({
+      reviews: [{ author: quote, text: '— Michelle R.', rating: 5 }],
+    })
+    expect(mapped[0]?.author).toBe('Michelle R.')
+    expect(mapped[0]?.text).toContain('no idea how much stress')
+    expect(mapped[0]?.text).not.toContain('Michelle')
+  })
+
+  it('puts a short service title back in the title when the write-up was first', () => {
+    const writeup =
+      'Create a professional interactive card that brings contact information, services, videos, and booking together in one place for every client meeting.'
+    const mapped = mapServicesFromPayload({
+      services: [{ title: writeup, description: 'Digital Business Card Design', type: 'Other' }],
+    })
+    expect(mapped[0]?.title).toBe('Digital Business Card Design')
+    expect(mapped[0]?.description).toContain('interactive card')
   })
 
   it('maps every sourced FAQ into the exact FAQ editor fields', () => {

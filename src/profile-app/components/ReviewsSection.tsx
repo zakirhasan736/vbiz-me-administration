@@ -565,9 +565,7 @@ export const ReviewsSection = () => {
                   }}
                   aria-label={`Go to review ${idx + 1}`}
                   className={`h-1.5 shrink-0 rounded-full transition-all duration-300 ${
-                    idx === clampedActiveIndex
-                      ? 'w-5 bg-[#eed677]'
-                      : 'w-1.5 bg-zinc-400 hover:bg-zinc-500 dark:bg-zinc-700'
+                    idx === clampedActiveIndex ? 'vbiz-review-slider-fill w-5' : 'vbiz-review-slider-track w-1.5'
                   }`}
                 />
               ))}

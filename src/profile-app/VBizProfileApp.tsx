@@ -3,7 +3,13 @@
 import { resolveNotificationModalTarget } from '@/lib/push/notificationRouting'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { designToCssVars, resolveProfileDesign } from '@/lib/resolvedProfileDesign'
-import { displayGeneralRootStyle, displayIconChromeStyle, isPagesHeaderVisible } from '@/lib/vcardDisplaySettings'
+import {
+  displayGeneralRootStyle,
+  displayIconChromeStyle,
+  isPagesHeaderVisible,
+  resolveFieldModeColors,
+} from '@/lib/vcardDisplaySettings'
+import { CardColorModeProvider } from '@/profile-app/components/CardThemeStyles'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { ProfileHomeModals, type ProfileHomeModalId } from '@/profile-app/components/ProfileHomeModals'
 import { useProfileHomeModalEvents } from '@/profile-app/hooks/useProfileHomeModalEvents'
@@ -59,11 +65,6 @@ export function VBizProfileApp({
   const { openLanguageModal } = useTranslationUi()
   const { isScrolled } = useProfileSectionScroll(activeSectionId)
 
-  const headerTextColor =
-    pageColors.headerColor ||
-    field('vCard Header Color').textColor ||
-    field('MyInfo section Name').textColor ||
-    undefined
   const design: ResolvedProfileDesign =
     designProp ??
     resolveProfileDesign(
@@ -91,6 +92,9 @@ export function VBizProfileApp({
       light: 'bg-zinc-50 text-zinc-900 transition-colors duration-500 ease-in-out',
     },
   })
+  const themeMode = theme === 'dark' ? 'dark' : 'light'
+  const headerFromSettings = resolveFieldModeColors(field('vCard Header Color'), themeMode, { preferText: true })
+  const headerTextColor = headerFromSettings.fg || headerFromSettings.fill || pageColors.headerColor || undefined
   const [activeModal, setActiveModal] = useState<V2ModalState>(null)
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
   const { showPreloader, introAllowed, hasVideo } = useProfileIntroContext()
@@ -129,174 +133,176 @@ export function VBizProfileApp({
   }
 
   return (
-    <div
-      data-profile-template="v2"
-      data-embedded={embedded ? '' : undefined}
-      data-theme={theme}
-      data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
-      className={`vbiz-profile-root w-full font-sans ${embedded ? 'relative isolate flex min-h-full max-w-full grow flex-col overflow-x-clip pb-0' : 'flex min-h-screen w-screen justify-center overflow-x-clip pb-24'} ${profileRootThemeClass(theme)} ${theme === 'dark' ? 'bg-[#09090b] text-zinc-200' : 'bg-zinc-50 text-zinc-900'} relative transition-colors duration-500 ease-in-out selection:bg-yellow-500/30 selection:text-white`}
-      style={rootStyle}
-    >
-      <ProfileThemeStyles design={design} />
-      {showPreloader && !hasVideo && (
-        <div className="fixed inset-0 z-200 flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 dark:bg-black">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent" />
-          <p className="mt-4 text-xs font-bold tracking-[0.3em] text-zinc-500 uppercase">Preparing</p>
-        </div>
-      )}
-      {!embedded && (
-        <div className="absolute top-4 right-4 z-100 flex items-center gap-2 sm:fixed">
-          <ProfileLanguageButton
-            theme={theme}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-          />
-          {isVisible('Theme Toggle') ? (
-            <IconHoverTooltip label={theme === 'dark' ? 'Light mode' : 'Dark mode'} placement="left">
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.1, rotate: 15 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={toggleTheme}
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-700/50 bg-zinc-800 p-1.5 text-yellow-400 shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-blur-md transition-colors md:h-10 md:w-10 md:p-2.5 dark:border-zinc-200 dark:bg-white dark:text-zinc-800"
-                style={displayIconChromeStyle(field('Theme Toggle'), theme === 'dark' ? 'dark' : 'light')}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={theme}
-                    initial={{ y: -15, opacity: 0, scale: 0.5, rotate: -45 }}
-                    animate={{ y: 0, opacity: 1, scale: 1, rotate: 0 }}
-                    exit={{ y: 15, opacity: 0, scale: 0.5, rotate: 45 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                  >
-                    {theme === 'dark' ? (
-                      <Sun size={16} className="stroke-[2.5] md:h-5 md:w-5" />
-                    ) : (
-                      <Moon size={16} className="stroke-[2.5] md:h-5 md:w-5" />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </motion.button>
-            </IconHoverTooltip>
-          ) : null}
-        </div>
-      )}
-
-      <div className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden">
-        <motion.div
-          animate={{ x: [0, 60, 0], y: [0, -30, 0], scale: [1, 1.1, 1] }}
-          transition={{ duration: 70, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-[-20%] left-[-10%] aspect-square w-[70vw] rounded-full bg-[#eab308]/5 blur-[140px]"
-        />
-        <motion.div
-          animate={{ x: [0, -40, 0], y: [0, 50, 0], scale: [1, 1.2, 1] }}
-          transition={{ duration: 80, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute right-[-10%] bottom-[-20%] aspect-square w-[60vw] rounded-full bg-zinc-800/10 blur-[140px]"
-        />
-      </div>
-
-      <ProfileCoverMedia
-        persistenceId={coverPersistenceId}
-        coverVideoUrl={coverVideoUrl}
-        ownerName={ownerName}
-        isHeroLayout={false}
-      />
-
+    <CardColorModeProvider mode={theme}>
       <div
-        className={`vbiz-profile-main relative z-20 mx-auto flex w-full max-w-258 flex-col ${activeSectionId === 'home' ? 'vbiz-home-canvas' : ''} ${embedded ? 'min-h-full max-w-full px-3.5 pt-24' : 'min-h-screen px-5 pt-16 sm:px-8 sm:pt-44'}`}
+        data-profile-template="v2"
+        data-embedded={embedded ? '' : undefined}
+        data-theme={theme}
+        data-pages-header={isPagesHeaderVisible(settings) ? undefined : 'off'}
+        className={`vbiz-profile-root w-full font-sans ${embedded ? 'relative isolate flex min-h-full max-w-full grow flex-col overflow-x-clip pb-0' : 'flex min-h-screen w-screen justify-center overflow-x-clip pb-24'} ${profileRootThemeClass(theme)} ${theme === 'dark' ? 'bg-[#09090b] text-zinc-200' : 'bg-zinc-50 text-zinc-900'} relative transition-colors duration-500 ease-in-out selection:bg-yellow-500/30 selection:text-white`}
+        style={rootStyle}
       >
-        <ProfileHeaderV2
-          avatarVideoUrl={avatarVideoUrl}
-          explainerVideoUrl={explainerVideoUrl ?? undefined}
+        <ProfileThemeStyles design={design} />
+        {showPreloader && !hasVideo && (
+          <div className="fixed inset-0 z-200 flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 dark:bg-black">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent" />
+            <p className="mt-4 text-xs font-bold tracking-[0.3em] text-zinc-500 uppercase">Preparing</p>
+          </div>
+        )}
+        {!embedded && (
+          <div className="absolute top-4 right-4 z-100 flex items-center gap-2 sm:fixed">
+            <ProfileLanguageButton
+              theme={theme}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            />
+            {isVisible('Theme Toggle') ? (
+              <IconHoverTooltip label={theme === 'dark' ? 'Light mode' : 'Dark mode'} placement="left">
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.1, rotate: 15 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={toggleTheme}
+                  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-700/50 bg-zinc-800 p-1.5 text-yellow-400 shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-blur-md transition-colors md:h-10 md:w-10 md:p-2.5 dark:border-zinc-200 dark:bg-white dark:text-zinc-800"
+                  style={displayIconChromeStyle(field('Theme Toggle'), theme === 'dark' ? 'dark' : 'light')}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={theme}
+                      initial={{ y: -15, opacity: 0, scale: 0.5, rotate: -45 }}
+                      animate={{ y: 0, opacity: 1, scale: 1, rotate: 0 }}
+                      exit={{ y: 15, opacity: 0, scale: 0.5, rotate: 45 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                    >
+                      {theme === 'dark' ? (
+                        <Sun size={16} className="stroke-[2.5] md:h-5 md:w-5" />
+                      ) : (
+                        <Moon size={16} className="stroke-[2.5] md:h-5 md:w-5" />
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </motion.button>
+              </IconHoverTooltip>
+            ) : null}
+          </div>
+        )}
+
+        <div className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden">
+          <motion.div
+            animate={{ x: [0, 60, 0], y: [0, -30, 0], scale: [1, 1.1, 1] }}
+            transition={{ duration: 70, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute top-[-20%] left-[-10%] aspect-square w-[70vw] rounded-full bg-[#eab308]/5 blur-[140px]"
+          />
+          <motion.div
+            animate={{ x: [0, -40, 0], y: [0, 50, 0], scale: [1, 1.2, 1] }}
+            transition={{ duration: 80, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute right-[-10%] bottom-[-20%] aspect-square w-[60vw] rounded-full bg-zinc-800/10 blur-[140px]"
+          />
+        </div>
+
+        <ProfileCoverMedia
+          persistenceId={coverPersistenceId}
+          coverVideoUrl={coverVideoUrl}
           ownerName={ownerName}
-          tagline={tagline}
-          headerTextColor={headerTextColor ?? undefined}
-          theme={theme}
-          embedded={embedded}
-          onShare={() => (isVisible('Share Btn') ? setActiveModal('share') : void handleShare())}
-          onNotificationSettings={() => {
-            void resolveNotificationModalTarget(cardSlug).then(setActiveModal)
-          }}
-          onOpenNotepad={() => setActiveModal('notepad')}
-          onLanguage={openLanguageModal}
+          isHeroLayout={false}
         />
 
-        <ProfileNavigationV2 slugForPersistence={slugForPersistence} embedded={embedded} />
-
-        <main
-          id="content-pane"
-          className="relative isolate w-full contain-[layout]"
-          role="tabpanel"
-          aria-labelledby={`tab-${activeSectionId}`}
+        <div
+          className={`vbiz-profile-main relative z-20 mx-auto flex w-full max-w-258 flex-col ${activeSectionId === 'home' ? 'vbiz-home-canvas' : ''} ${embedded ? 'min-h-full max-w-full px-3.5 pt-24' : 'min-h-screen px-5 pt-16 sm:px-8 sm:pt-44'}`}
         >
-          {activeSectionId === 'home' ? (
-            <ProfileSectionOutlet sectionId={activeSectionId} template="v2" />
-          ) : (
-            <div className={`mx-auto w-full max-w-258 ${embedded ? '' : 'lg:px-6'}`}>
+          <ProfileHeaderV2
+            avatarVideoUrl={avatarVideoUrl}
+            explainerVideoUrl={explainerVideoUrl ?? undefined}
+            ownerName={ownerName}
+            tagline={tagline}
+            headerTextColor={headerTextColor ?? undefined}
+            theme={theme}
+            embedded={embedded}
+            onShare={() => (isVisible('Share Btn') ? setActiveModal('share') : void handleShare())}
+            onNotificationSettings={() => {
+              void resolveNotificationModalTarget(cardSlug).then(setActiveModal)
+            }}
+            onOpenNotepad={() => setActiveModal('notepad')}
+            onLanguage={openLanguageModal}
+          />
+
+          <ProfileNavigationV2 slugForPersistence={slugForPersistence} embedded={embedded} />
+
+          <main
+            id="content-pane"
+            className="relative isolate w-full contain-[layout]"
+            role="tabpanel"
+            aria-labelledby={`tab-${activeSectionId}`}
+          >
+            {activeSectionId === 'home' ? (
               <ProfileSectionOutlet sectionId={activeSectionId} template="v2" />
-            </div>
-          )}
-        </main>
-      </div>
-
-      <AnimatePresence>
-        {!isScrolled && !embedded && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="pointer-events-none fixed top-[60%] left-0 z-40 -translate-y-1/2 md:hidden"
-          >
-            <div className="flex flex-col items-center gap-2 rounded-r-xl border-y border-r border-[#eab308] bg-linear-to-b from-[#fef08a] to-[#eab308] px-1 py-3 text-zinc-950 shadow-[4px_0_16px_rgba(234,179,8,0.3)]">
-              <span
-                className="text-[8px] font-black tracking-[0.2em] uppercase"
-                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-              >
-                Scroll For More
-              </span>
-              <div className="mt-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-zinc-950 text-[#eab308]">
-                <ArrowDown size={10} strokeWidth={3} />
+            ) : (
+              <div className={`mx-auto w-full max-w-258 ${embedded ? '' : 'lg:px-6'}`}>
+                <ProfileSectionOutlet sectionId={activeSectionId} template="v2" />
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            )}
+          </main>
+        </div>
 
-      <AnimatePresence>
-        {shareFeedback && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            className="fixed bottom-24 left-1/2 z-250 -translate-x-1/2 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            {shareFeedback}
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {!isScrolled && !embedded && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="pointer-events-none fixed top-[60%] left-0 z-40 -translate-y-1/2 md:hidden"
+            >
+              <div className="flex flex-col items-center gap-2 rounded-r-xl border-y border-r border-[#eab308] bg-linear-to-b from-[#fef08a] to-[#eab308] px-1 py-3 text-zinc-950 shadow-[4px_0_16px_rgba(234,179,8,0.3)]">
+                <span
+                  className="text-[8px] font-black tracking-[0.2em] uppercase"
+                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                >
+                  Scroll For More
+                </span>
+                <div className="mt-1 flex h-4 w-4 animate-bounce items-center justify-center rounded-full bg-zinc-950 text-[#eab308]">
+                  <ArrowDown size={10} strokeWidth={3} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <LiveAgent
-        enabled={liveAgentEnabled}
-        embedded={embedded}
-        accentColor={design.accentColor}
-        cardData={liveAgentCardData}
-        systemInstruction={liveAgentSystemPrompt}
-        readyToConnect={introAllowed}
-        wrapperClassName={LIVE_AGENT_V2_PUBLIC_PLACEMENT}
-      />
+        <AnimatePresence>
+          {shareFeedback && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 16 }}
+              className="fixed bottom-24 left-1/2 z-250 -translate-x-1/2 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              {shareFeedback}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <ProfileHomeModals
-        activeModal={activeModal}
-        onClose={() => setActiveModal(null)}
-        onSetModal={setActiveModal}
-        theme={theme}
-        cardOwnerId={cardOwnerId}
-        cardSlug={profileSlug ?? shareSlug ?? 'preview'}
-        ownerName={ownerName}
-        avatarUrl={avatarVideoUrl}
-      />
+        <LiveAgent
+          enabled={liveAgentEnabled}
+          embedded={embedded}
+          accentColor={design.accentColor}
+          cardData={liveAgentCardData}
+          systemInstruction={liveAgentSystemPrompt}
+          readyToConnect={introAllowed}
+          wrapperClassName={LIVE_AGENT_V2_PUBLIC_PLACEMENT}
+        />
 
-      <ProfileBackgroundAudio profileSlug={profileSlug} shareSlug={shareSlug} />
-    </div>
+        <ProfileHomeModals
+          activeModal={activeModal}
+          onClose={() => setActiveModal(null)}
+          onSetModal={setActiveModal}
+          theme={theme}
+          cardOwnerId={cardOwnerId}
+          cardSlug={profileSlug ?? shareSlug ?? 'preview'}
+          ownerName={ownerName}
+          avatarUrl={avatarVideoUrl}
+        />
+
+        <ProfileBackgroundAudio profileSlug={profileSlug} shareSlug={shareSlug} />
+      </div>
+    </CardColorModeProvider>
   )
 }

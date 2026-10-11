@@ -297,6 +297,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
     designationField: field('MyInfo Designation'),
     headingField: field('Home Heading Color'),
     descriptionField: field('Home Description Color'),
+    headerField: field('vCard Header Color'),
   })
 
   const theme = useProfileTheme()
