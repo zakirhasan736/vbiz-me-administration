@@ -91,7 +91,7 @@ export function Tab1MediaProfile() {
           attachmentType={FIELD_AVATAR}
           accept="image/*,video/*"
           allowVideo
-          title="Avatar"
+          title="Profile image/videos"
           subtitle="Image or video • drag, zoom, and height"
           icon={<User className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
           iconWrapperClassName="border-emerald-100 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10"

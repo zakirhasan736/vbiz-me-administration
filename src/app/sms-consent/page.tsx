@@ -34,6 +34,25 @@ export default function SmsConsentPage() {
         </a>
       </p>
       <SmsOptInForm />
+      <h2 className="mt-10 text-lg font-semibold text-slate-950 dark:text-white">Opt-in screenshots</h2>
+      <p className="mt-2 text-sm leading-relaxed">
+        The consent checkbox is unchecked until the person checks it. These are the Save Contact and 1-on-1 popups on a
+        public vBiz Me card.
+      </p>
+      <figure className="mt-4">
+        <img
+          src="/sms-opt-in/save-contact.png"
+          alt="Save Contact popup with an unchecked SMS consent checkbox, phone field, Privacy Policy, and Terms."
+          className="w-full rounded-xl border border-slate-200 dark:border-white/10"
+        />
+      </figure>
+      <figure className="mt-4">
+        <img
+          src="/sms-opt-in/one-on-one.png"
+          alt="1-on-1 popup with an unchecked SMS consent checkbox, phone field, Privacy Policy, and Terms."
+          className="w-full rounded-xl border border-slate-200 dark:border-white/10"
+        />
+      </figure>
     </main>
   )
 }
