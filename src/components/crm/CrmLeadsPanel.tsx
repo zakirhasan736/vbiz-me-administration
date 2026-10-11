@@ -20,6 +20,7 @@ import {
   useDeleteCrmLeadMutation,
   useGetCrmDashboardQuery,
   useGetCrmLeadsQuery,
+  usePatchCrmLeadMutation,
   type CrmLeadRow,
   type LeadEventRow,
   type LeadScheduleRow,
@@ -42,6 +43,7 @@ import {
   MapPin,
   MessageSquare,
   Monitor,
+  Pencil,
   Phone,
   Plus,
   Search,
@@ -129,6 +131,7 @@ export function CrmLeadsPanel({
   const [search, setSearch] = useState('')
   const [accum, setAccum] = useState<CrmLeadRow[]>([])
   const [addOpen, setAddOpen] = useState(false)
+  const [editingLead, setEditingLead] = useState<CrmLeadRow | null>(null)
   const [scheduleLead, setScheduleLead] = useState<CrmLeadRow | null>(null)
   const [eventLead, setEventLead] = useState<CrmLeadRow | null>(null)
   const [notesLeadId, setNotesLeadId] = useState<string | null>(null)
@@ -150,6 +153,7 @@ export function CrmLeadsPanel({
   const { data: dashboard } = useGetCrmDashboardQuery()
   const { data: page, isLoading, isFetching, isError, error } = useGetCrmLeadsQuery(listQuery)
   const [createLead, { isLoading: isCreating }] = useCreateCrmLeadMutation()
+  const [patchLead, { isLoading: isPatching }] = usePatchCrmLeadMutation()
   const [deleteLead, { isLoading: isDeleting }] = useDeleteCrmLeadMutation()
   const [createMeeting, { isLoading: isScheduling }] = useCreateMeetingMutation()
   const [createCrmEvent, { isLoading: isCreatingEvent }] = useCreateCrmEventMutation()
@@ -248,6 +252,23 @@ export function CrmLeadsPanel({
     setSchedulesLeadId(null)
     setEventsLeadId(null)
     setDetailsLeadId(null)
+  }
+
+  const handleEdit = async (payload: { fullName: string; email?: string; phone?: string; notes?: string }) => {
+    if (!editingLead) return
+    await patchLead({
+      id: editingLead.id,
+      body: {
+        fullName: payload.fullName,
+        email: payload.email ?? '',
+        phone: payload.phone ?? '',
+        notes: payload.notes ?? '',
+      },
+    }).unwrap()
+    notify.success('Lead updated.')
+    setEditingLead(null)
+    setSkip(0)
+    setAccum([])
   }
 
   const handleDeleteLead = async () => {
@@ -403,15 +424,6 @@ export function CrmLeadsPanel({
                             <span className="text-[10px] font-semibold whitespace-nowrap text-slate-400">
                               {formatWhen(lead.submittedAt)}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => setPendingDeleteLead(lead)}
-                              className="rounded-lg p-1.5 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600 active:scale-95 dark:hover:bg-rose-500/10"
-                              title="Delete lead"
-                              aria-label="Delete lead"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
                           </div>
                         </div>
 
@@ -439,6 +451,25 @@ export function CrmLeadsPanel({
                           </span>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingLead(lead)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black tracking-wide text-slate-700 uppercase transition hover:border-indigo-300 hover:text-indigo-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:text-indigo-300"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeleteLead(lead)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-black tracking-wide text-rose-700 uppercase transition hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
                     </div>
 
                     {preview ? (
@@ -612,6 +643,18 @@ export function CrmLeadsPanel({
         onClose={() => setAddOpen(false)}
         isSubmitting={isCreating}
         onSubmit={handleCreate}
+      />
+      <AddCrmLeadModal
+        open={Boolean(editingLead)}
+        mode="edit"
+        onClose={() => setEditingLead(null)}
+        isSubmitting={isPatching}
+        initialFullName={editingLead?.fullName || ''}
+        initialEmail={editingLead?.email || ''}
+        initialPhone={editingLead?.phoneNumber || ''}
+        initialNotes={editingLead?.privateNotes || editingLead?.guestMessage || ''}
+        subtitle="Update this person’s name, phone, email, or add more information."
+        onSubmit={handleEdit}
       />
 
       <ScheduleMeetingModal

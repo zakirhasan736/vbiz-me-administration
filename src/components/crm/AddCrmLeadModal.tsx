@@ -16,7 +16,11 @@ type AddCrmLeadModalProps = {
   isSubmitting?: boolean
   /** Use a higher stack when this sheet opens over another modal (e.g. Book a time). */
   overlayClassName?: string
+  mode?: 'create' | 'edit'
   initialFullName?: string
+  initialEmail?: string
+  initialPhone?: string
+  initialNotes?: string
   subtitle?: string
   onSubmit: (payload: {
     fullName: string
@@ -33,7 +37,11 @@ export function AddCrmLeadModal({
   isSubmitting,
   onSubmit,
   overlayClassName = 'z-200',
+  mode = 'create',
   initialFullName = '',
+  initialEmail = '',
+  initialPhone = '',
+  initialNotes = '',
   subtitle = 'This person stays in CRM as an external lead. They won’t show on your card dashboard.',
 }: AddCrmLeadModalProps) {
   const role = useAppSelector((state) => state.user.user?.role)
@@ -53,6 +61,9 @@ export function AddCrmLeadModal({
     setWasOpen(open)
     if (open) {
       setFullName(initialFullName)
+      setEmail(initialEmail)
+      setPhone(initialPhone)
+      setNotes(initialNotes)
     }
   }
 
@@ -61,7 +72,7 @@ export function AddCrmLeadModal({
   if (!open) return null
 
   const profileId = isStaff ? owner?.profileId : ownerCardId || cards[0]?.id || ''
-  const canSubmit = fullName.trim().length > 0 && Boolean(profileId) && !isSubmitting
+  const canSubmit = fullName.trim().length > 0 && (mode === 'edit' || Boolean(profileId)) && !isSubmitting
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -69,10 +80,10 @@ export function AddCrmLeadModal({
     try {
       await onSubmit({
         fullName: fullName.trim(),
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        notes: notes.trim() || undefined,
-        profileId,
+        email: email.trim(),
+        phone: phone.trim(),
+        notes: notes.trim(),
+        profileId: profileId || '',
       })
       setFullName('')
       setEmail('')
@@ -103,9 +114,11 @@ export function AddCrmLeadModal({
           <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-5 dark:border-white/5">
             <div>
               <p className="text-[10px] font-semibold tracking-[0.16em] text-indigo-600 uppercase dark:text-indigo-300">
-                New contact
+                {mode === 'edit' ? 'Update contact' : 'New contact'}
               </p>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">Add a lead</h2>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">
+                {mode === 'edit' ? 'Edit lead' : 'Add a lead'}
+              </h2>
               <p className="mt-1 text-xs font-medium text-slate-500">{subtitle}</p>
             </div>
             <button
@@ -156,10 +169,10 @@ export function AddCrmLeadModal({
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 className="h-20 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 dark:border-white/10 dark:bg-slate-900"
-                placeholder="A private note only you can see"
+                placeholder="Update details or add more information only you can see"
               />
             </label>
-            {isStaff ? (
+            {mode === 'edit' ? null : isStaff ? (
               <ProfileOwnerPicker value={owner} onChange={setOwner} required label="Which card?" />
             ) : (
               <label className="block space-y-1.5">
@@ -191,7 +204,7 @@ export function AddCrmLeadModal({
               )}
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Save lead
+              {mode === 'edit' ? 'Save changes' : 'Save lead'}
             </button>
           </div>
         </form>

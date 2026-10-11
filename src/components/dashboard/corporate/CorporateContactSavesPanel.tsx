@@ -44,7 +44,7 @@ type CorporateContactSavesPanelProps = {
   subtitle?: string
   className?: string
   compact?: boolean
-  onDelete?: (id: string) => void
+  onDelete?: (id: string) => void | Promise<void>
 }
 
 function formatWhen(iso?: string) {
@@ -313,8 +313,14 @@ export function CorporateContactSavesPanel({
                     <button
                       type="button"
                       onClick={() => {
-                        if (onDelete) onDelete(r.id)
-                        else setRecords((prev) => prev.filter((x) => x.id !== r.id))
+                        void (async () => {
+                          try {
+                            if (onDelete) await onDelete(r.id)
+                            setRecords((prev) => prev.filter((x) => x.id !== r.id))
+                          } catch {
+                            /* parent already reported the error */
+                          }
+                        })()
                       }}
                       className="shrink-0 rounded-xl p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
                       title="Delete save"

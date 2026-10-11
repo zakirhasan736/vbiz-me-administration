@@ -2,9 +2,9 @@
 
 import type { CorporateLeadRecord } from '@/components/dashboard/corporate/CorporateContactSavesPanel'
 import { notify } from '@/lib/toast/toast'
-import { usePatchContactMutation } from '@/redux/features/profiles/profiles.api'
+import { useDeleteContactMutation, usePatchContactMutation } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
-import { AlertTriangle, MessageCircle, Save, Search, StickyNote } from 'lucide-react'
+import { AlertTriangle, MessageCircle, Save, Search, StickyNote, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 type CorporateLeadNotesRepliesPanelProps = {
@@ -24,6 +24,19 @@ export function CorporateLeadNotesRepliesPanel({ contacts = [], className }: Cor
   const [noteMap, setNoteMap] = useState<Record<string, string>>({})
   const [replyMap, setReplyMap] = useState<Record<string, string>>({})
   const [patchContact, { isLoading: saving }] = usePatchContactMutation()
+  const [deleteContact] = useDeleteContactMutation()
+
+  const removeLead = async (id: string) => {
+    if (!window.confirm('Delete this lead? This cannot be undone.')) return
+    try {
+      await deleteContact(id).unwrap()
+      setRecords((prev) => prev.filter((item) => item.id !== id))
+      if (activeId === id) setActiveId(null)
+      notify.success('Lead deleted.')
+    } catch {
+      notify.error('Couldn’t delete this lead.')
+    }
+  }
 
   if (contacts !== prevContacts) {
     setPrevContacts(contacts)
@@ -161,6 +174,14 @@ export function CorporateLeadNotesRepliesPanel({ contacts = [], className }: Cor
                   <div className="min-w-0 overflow-hidden">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className="text-sm font-black wrap-break-word text-slate-900 dark:text-white">{name}</p>
+                      <button
+                        type="button"
+                        onClick={() => void removeLead(id)}
+                        className="ml-auto inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black tracking-wide text-rose-700 uppercase hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </button>
                       {needsReply ? (
                         <span className="rounded-md bg-rose-500/15 px-2 py-0.5 text-[9px] font-black tracking-wider text-rose-600 uppercase dark:text-rose-300">
                           Needs reply

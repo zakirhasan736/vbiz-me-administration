@@ -1,9 +1,9 @@
 'use client'
 
 import { notify } from '@/lib/toast/toast'
-import { usePatchContactMutation } from '@/redux/features/profiles/profiles.api'
+import { useDeleteContactMutation, usePatchContactMutation } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
-import { Loader2, MessageCircle, Search, StickyNote } from 'lucide-react'
+import { Loader2, MessageCircle, Search, StickyNote, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { DashboardContact } from './ContactSavesPanel'
 
@@ -39,6 +39,19 @@ export function LeadNotesPanel({
   const [privateNotes, setPrivateNotes] = useState<Record<string, string>>({})
   const [replyMap, setReplyMap] = useState<Record<string, string>>({})
   const [patchContact, { isLoading: saving }] = usePatchContactMutation()
+  const [deleteContact, { isLoading: isDeleting }] = useDeleteContactMutation()
+
+  const removeContact = async (id: string) => {
+    if (!window.confirm('Delete this lead? This cannot be undone.')) return
+    try {
+      await deleteContact(id).unwrap()
+      setRecords((prev) => prev.filter((item) => item.id !== id))
+      if (activeId === id) setActiveId(null)
+      notify.success('Lead deleted.')
+    } catch {
+      notify.error('Couldn’t delete this lead.')
+    }
+  }
 
   if (contacts !== prevContacts) {
     setPrevContacts(contacts)
@@ -165,10 +178,17 @@ export function LeadNotesPanel({
                   key={contact.id}
                   className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-white/5"
                 >
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setActiveId(open ? null : contact.id)}
-                    className="flex w-full items-start gap-3 px-3 py-3 text-left sm:px-4"
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setActiveId(open ? null : contact.id)
+                      }
+                    }}
+                    className="flex w-full cursor-pointer items-start gap-3 px-3 py-3 text-left sm:px-4"
                   >
                     <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
                       <MessageCircle className="h-4 w-4" />
@@ -178,6 +198,18 @@ export function LeadNotesPanel({
                         <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
                           {contact.name || 'Guest'}
                         </p>
+                        <button
+                          type="button"
+                          disabled={isDeleting}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            void removeContact(contact.id)
+                          }}
+                          className="ml-auto inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black tracking-wide text-rose-700 uppercase hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Delete
+                        </button>
                         {contact.lastReply ? (
                           <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-emerald-600 uppercase dark:text-emerald-300">
                             Replied
@@ -197,7 +229,7 @@ export function LeadNotesPanel({
                         </p>
                       ) : null}
                     </div>
-                  </button>
+                  </div>
                   {open && (
                     <div className="space-y-3 border-t border-slate-100 px-4 py-3 dark:border-white/5">
                       {guestNote ? (

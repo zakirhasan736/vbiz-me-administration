@@ -1,7 +1,9 @@
 'use client'
 
+import { notify } from '@/lib/toast/toast'
+import { useDeleteContactMutation } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
-import { ChevronDown, ChevronUp, Mail, Phone, Search, User } from 'lucide-react'
+import { ChevronDown, ChevronUp, Mail, Phone, Search, Trash2, User } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 export type DashboardContact = {
@@ -62,6 +64,18 @@ export function ContactSavesPanel({
 }: ContactSavesPanelProps) {
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [deleteContact, { isLoading: isDeleting }] = useDeleteContactMutation()
+
+  const removeContact = async (id: string) => {
+    if (!window.confirm('Delete this lead? This cannot be undone.')) return
+    try {
+      await deleteContact(id).unwrap()
+      if (expandedId === id) setExpandedId(null)
+      notify.success('Lead deleted.')
+    } catch {
+      notify.error('Couldn’t delete this lead.')
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -144,6 +158,26 @@ export function ContactSavesPanel({
                     ) : (
                       <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
                     )}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void removeContact(contact.id)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          void removeContact(contact.id)
+                        }
+                      }}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black tracking-wide text-rose-700 uppercase hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                      aria-disabled={isDeleting}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Delete
+                    </span>
                   </button>
                   {open && (
                     <div className="space-y-2 border-t border-slate-100 px-4 py-3 dark:border-white/5">

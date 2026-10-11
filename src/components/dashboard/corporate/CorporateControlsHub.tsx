@@ -13,9 +13,11 @@ import { isNewCardHighlight, newCardHighlightLabel } from '@/lib/cardHighlight'
 import { noticeForCard, noticeTypeFromTeamNotice } from '@/lib/cardNotice'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { CORPORATE_MEMBER_DUPLICATE_REASON, isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
+import { notify } from '@/lib/toast/toast'
 import type { DashboardSocialChannel, TeamNotice } from '@/redux/features/profiles/profiles.api'
 import {
   useCreateTeamNoticeMutation,
+  useDeleteContactMutation,
   useDeleteTeamNoticeMutation,
   useExportContactsCsvMutation,
 } from '@/redux/features/profiles/profiles.api'
@@ -137,8 +139,19 @@ export function CorporateControlsHub({
   const [deleteBroadcastId, setDeleteBroadcastId] = useState<string | null>(null)
 
   const [createTeamNotice, { isLoading: creatingNotice }] = useCreateTeamNoticeMutation()
+  const [deleteContact] = useDeleteContactMutation()
   const [deleteTeamNotice] = useDeleteTeamNoticeMutation()
   const [exportContactsCsv, { isLoading: exportingCsv }] = useExportContactsCsvMutation()
+
+  const handleDeleteLead = async (id: string) => {
+    try {
+      await deleteContact(id).unwrap()
+      notify.success('Lead deleted.')
+    } catch {
+      notify.error('Couldn’t delete this lead.')
+      throw new Error('delete failed')
+    }
+  }
 
   const resolvedBroadcastCardFilter = broadcastCardFilter || cards[0]?.id || ''
 
@@ -627,7 +640,11 @@ export function CorporateControlsHub({
 
               <div className="p-3 sm:p-5">
                 {leadsInboxTab === 'saves' ? (
-                  <CorporateContactSavesPanel contacts={savesContacts} className="rounded-2xl border-0 shadow-none" />
+                  <CorporateContactSavesPanel
+                    contacts={savesContacts}
+                    className="rounded-2xl border-0 shadow-none"
+                    onDelete={handleDeleteLead}
+                  />
                 ) : (
                   <CorporateLeadNotesRepliesPanel contacts={notesContacts} />
                 )}

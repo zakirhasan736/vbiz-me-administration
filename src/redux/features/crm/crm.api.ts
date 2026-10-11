@@ -144,6 +144,10 @@ export type CreateCrmLeadBody = {
 }
 
 export type PatchCrmLeadBody = {
+  fullName?: string
+  email?: string
+  phone?: string
+  notes?: string
   privateNotes?: string
   lastReply?: string
 }

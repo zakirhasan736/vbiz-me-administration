@@ -1889,6 +1889,14 @@ const profilesApi = api.injectEndpoints({
       transformResponse: (res: Envelope<ProfileContact>) => res.data,
       invalidatesTags: ['dashboard'],
     }),
+    deleteContact: builder.mutation<{ id: string; deleted: boolean }, string>({
+      query: (id) => ({
+        url: `/profiles/contacts/${encodeURIComponent(id)}`,
+        method: 'DELETE',
+      }),
+      transformResponse: (res: Envelope<{ id: string; deleted: boolean }>) => res.data,
+      invalidatesTags: ['dashboard'],
+    }),
     exportContactsCsv: builder.mutation<Blob, string | void>({
       query: (profileId) => ({
         url: profileId
@@ -1994,6 +2002,7 @@ export const {
   useGetEntitlementsQuery,
   useGetContactsQuery,
   usePatchContactMutation,
+  useDeleteContactMutation,
   useExportContactsCsvMutation,
   useGetTeamNoticesQuery,
   useCreateTeamNoticeMutation,

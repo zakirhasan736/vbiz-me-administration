@@ -8,6 +8,7 @@ import { isIdentitySearchReady } from '@/lib/identitySearch'
 import { notify } from '@/lib/toast/toast'
 import {
   type AdminLeadRow,
+  useDeleteAdminLeadNoteMutation,
   useDeleteAdminLeadSaveMutation,
   useGetAdminLeadsNotesQuery,
   useGetAdminLeadsSavesQuery,
@@ -42,6 +43,7 @@ export default function AdminLeads() {
   const [savesAccum, setSavesAccum] = useState<AdminLeadRow[]>([])
   const [notesAccum, setNotesAccum] = useState<AdminLeadRow[]>([])
   const [omittedSaveIds, setOmittedSaveIds] = useState<string[]>([])
+  const [omittedNoteIds, setOmittedNoteIds] = useState<string[]>([])
 
   const savesQuery = useMemo(
     () => ({
@@ -65,6 +67,7 @@ export default function AdminLeads() {
   const { data: notesPage, isLoading: notesLoading, isFetching: notesFetching } = useGetAdminLeadsNotesQuery(notesQuery)
 
   const [deleteSave] = useDeleteAdminLeadSaveMutation()
+  const [deleteNote] = useDeleteAdminLeadNoteMutation()
   const [patchNote] = usePatchAdminLeadNoteMutation()
 
   const savesRows = useMemo(() => {
@@ -73,10 +76,12 @@ export default function AdminLeads() {
     const omit = new Set(omittedSaveIds)
     return merged.filter((row) => !omit.has(row.id))
   }, [savesSkip, savesAccum, savesPage?.items, omittedSaveIds])
-  const notesRows = useMemo(
-    () => mergePagedRows(notesSkip, notesAccum, notesPage?.items),
-    [notesSkip, notesAccum, notesPage?.items]
-  )
+  const notesRows = useMemo(() => {
+    const merged = mergePagedRows(notesSkip, notesAccum, notesPage?.items)
+    if (!omittedNoteIds.length) return merged
+    const omit = new Set(omittedNoteIds)
+    return merged.filter((row) => !omit.has(row.id))
+  }, [notesSkip, notesAccum, notesPage?.items, omittedNoteIds])
   const saves = useMemo(() => savesRows.map(mapAdminLeadRow), [savesRows])
   const notes = useMemo(() => notesRows.map(mapAdminLeadRow), [notesRows])
 
@@ -88,6 +93,17 @@ export default function AdminLeads() {
   const sourceCards = stats?.sourceProfiles ?? 0
   const savesHasMore = Boolean(savesPage?.hasMore ?? savesRows.length < listTotalSaves)
   const notesHasMore = Boolean(notesPage?.hasMore ?? notesRows.length < listTotalNotes)
+
+  const handleDeleteNote = async (id: string) => {
+    try {
+      await deleteNote(id).unwrap()
+      setNotesAccum((prev) => prev.filter((row) => row.id !== id))
+      setOmittedNoteIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+      notify.info('Lead note deleted.')
+    } catch {
+      notify.error('Failed to delete lead note.')
+    }
+  }
 
   const handleDeleteSave = async (id: string) => {
     try {
@@ -303,9 +319,11 @@ export default function AdminLeads() {
                 setNotesSearch(value)
                 setNotesSkip(0)
                 setNotesAccum([])
+                setOmittedNoteIds([])
               }}
               onSaveNote={(leadId, text, lead) => handleSaveNote(leadId, text, lead?.kind)}
               onSendReply={(lead, text) => handleSendReply(lead, text)}
+              onDelete={handleDeleteNote}
             />
           )}
         </div>

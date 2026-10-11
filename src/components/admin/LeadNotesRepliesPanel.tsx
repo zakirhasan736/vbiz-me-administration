@@ -18,7 +18,7 @@ import {
 import { MIN_IDENTITY_SEARCH_CHARACTERS, matchesIdentitySearch } from '@/lib/identitySearch'
 import { notify } from '@/lib/toast/toast'
 import { cn } from '@/utils/cn'
-import { AlertTriangle, MessageCircle, Save, Search, StickyNote } from 'lucide-react'
+import { AlertTriangle, MessageCircle, Save, Search, StickyNote, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 type RoleScope = 'single' | 'corporate' | 'admin'
@@ -60,6 +60,7 @@ type LeadNotesRepliesPanelProps = {
   loading?: boolean
   onSaveNote?: (leadId: string, text: string, lead?: LeadNoteItem) => void | Promise<void>
   onSendReply?: (lead: LeadNoteItem, text: string) => void | Promise<void>
+  onDelete?: (leadId: string) => void | Promise<void>
   totalCount?: number
   hasMore?: boolean
   loadingMore?: boolean
@@ -90,6 +91,7 @@ export default function LeadNotesRepliesPanel({
   loading = false,
   onSaveNote,
   onSendReply,
+  onDelete,
   totalCount,
   hasMore = false,
   loadingMore = false,
@@ -301,6 +303,16 @@ export default function LeadNotesRepliesPanel({
                   <div className="min-w-0 overflow-hidden">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className="text-sm font-black wrap-break-word text-slate-900 dark:text-white">{name}</p>
+                      {onDelete ? (
+                        <button
+                          type="button"
+                          onClick={() => void onDelete(id)}
+                          className="ml-auto inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black tracking-wide text-rose-700 uppercase hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Delete
+                        </button>
+                      ) : null}
                       {messageOnly && (
                         <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[9px] font-black tracking-wider text-amber-700 uppercase dark:text-amber-300">
                           Note only
