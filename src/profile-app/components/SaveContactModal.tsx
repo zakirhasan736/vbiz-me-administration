@@ -1,5 +1,6 @@
 'use client'
 
+import { SmsPhoneConsent, smsConsentRequired } from '@/components/sms/SmsPhoneConsent'
 import { markHomeScreenPromptAfterContact } from '@/lib/pwa/pwaInstallEnv'
 import { notify } from '@/lib/toast/toast'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
@@ -39,6 +40,7 @@ export const SaveContactModal = ({
   ownerName,
 }: SaveContactModalProps) => {
   const [formData, setFormData] = useState<SaveContactFormData>(EMPTY_FORM)
+  const [smsAgreed, setSmsAgreed] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -55,6 +57,7 @@ export const SaveContactModal = ({
       setShowSuccess(false)
       setSubmitError(null)
       setSubmitting(false)
+      setSmsAgreed(false)
     }
   }
 
@@ -138,6 +141,11 @@ export const SaveContactModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (smsConsentRequired(formData.phone, smsAgreed)) {
+      const message = 'Check the box to agree to text messages at this mobile number.'
+      setSubmitError(message)
+      return
+    }
     startContactDownload()
   }
 
@@ -200,16 +208,22 @@ export const SaveContactModal = ({
                 autoComplete="name"
                 className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
               />
-              <input
-                type="tel"
-                placeholder="Your phone number (optional)"
-                aria-label="Your phone number (optional)"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                disabled={submitting}
-                autoComplete="tel"
-                className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
-              />
+              <label className="block">
+                <span className="vbiz-description mb-1.5 block text-xs font-semibold">Mobile phone number</span>
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="Your phone number (optional)"
+                  aria-label="Your phone number (optional)"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  disabled={submitting}
+                  autoComplete="tel"
+                  inputMode="tel"
+                  className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
+                />
+              </label>
+              <SmsPhoneConsent checked={smsAgreed} onChange={setSmsAgreed} disabled={submitting} />
               <input
                 type="email"
                 placeholder="Your email address (optional)"

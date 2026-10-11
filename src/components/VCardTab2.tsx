@@ -3,6 +3,7 @@
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { minCardAgeCutoffDate } from '@/lib/cardActivation'
+import { SMS_CONSENT_TEXT, SMS_PRIVACY_URL, SMS_TERMS_URL } from '@/lib/sms/smsConsentCopy'
 import { GENDER_OPTIONS, RELATIONSHIP_OPTIONS } from '@/lib/vcardCompletion'
 import { useVCard } from '@/lib/VCardContext'
 import {
@@ -229,14 +230,28 @@ export function Tab2PersonalInfo() {
               />
             </FieldGroup>
 
-            <FieldGroup label="Phone" icon={<Phone className="h-4 w-4" />}>
-              <input
-                type="text"
-                value={vCardData.personal.phone}
-                onChange={(e) => updateData('personal.phone', e.target.value)}
-                className={`${inputClasses} pl-10`}
-              />
-            </FieldGroup>
+            <div className="flex flex-col space-y-1.5">
+              <FieldGroup label="Phone" icon={<Phone className="h-4 w-4" />}>
+                <input
+                  type="tel"
+                  name="phone"
+                  autoComplete="tel"
+                  value={vCardData.personal.phone}
+                  onChange={(e) => updateData('personal.phone', e.target.value)}
+                  className={`${inputClasses} pl-10`}
+                />
+              </FieldGroup>
+              <p className="pl-1 text-[11px] leading-snug font-medium text-slate-500 dark:text-slate-400">
+                {SMS_CONSENT_TEXT}{' '}
+                <a href={SMS_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline">
+                  Privacy Policy
+                </a>
+                {' · '}
+                <a href={SMS_TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline">
+                  Terms
+                </a>
+              </p>
+            </div>
 
             <FieldGroup label="WhatsApp" icon={<MessageCircle className="h-4 w-4" />}>
               <input

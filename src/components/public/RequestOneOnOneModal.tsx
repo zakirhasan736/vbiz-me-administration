@@ -1,6 +1,7 @@
 'use client'
 
 import { ModalPortal } from '@/components/ModalPortal'
+import { SmsPhoneConsent, smsConsentRequired } from '@/components/sms/SmsPhoneConsent'
 import { Button, Input } from '@/components/ui'
 import { readSavedGuestContact } from '@/profile-app/lib/contactSaveState'
 import { useCreatePublicOneOnOneRequestMutation } from '@/redux/features/oneOnOne/oneOnOne.api'
@@ -37,6 +38,7 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
   const [guestEmail, setGuestEmail] = useState(saved?.email ?? '')
   const [guestPhone, setGuestPhone] = useState(saved?.phone ?? '')
   const [message, setMessage] = useState('')
+  const [smsAgreed, setSmsAgreed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createPublicRequest] = useCreatePublicOneOnOneRequestMutation()
@@ -46,6 +48,10 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
     setError(null)
     if (!guestName.trim() || !guestEmail.trim()) {
       setError('Guest name and email are required')
+      return
+    }
+    if (smsConsentRequired(guestPhone, smsAgreed)) {
+      setError('Check the box to agree to text messages at this mobile number.')
       return
     }
     setIsSubmitting(true)
@@ -115,14 +121,19 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
           />
         </label>
         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-          Phone
+          Mobile phone number
           <Input
+            type="tel"
+            name="phone"
+            autoComplete="tel"
+            inputMode="tel"
             value={guestPhone}
             onChange={(e) => setGuestPhone(e.target.value)}
             className="mt-1"
             disabled={isSubmitting}
           />
         </label>
+        <SmsPhoneConsent checked={smsAgreed} onChange={setSmsAgreed} disabled={isSubmitting} />
         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
           Message
           <textarea

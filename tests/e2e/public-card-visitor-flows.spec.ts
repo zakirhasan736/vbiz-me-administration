@@ -89,6 +89,7 @@ test.describe('Public card visitor flows', () => {
 
     await page.getByLabel('Your full name (optional)').fill('E2E Visitor')
     await page.getByLabel('Your phone number (optional)').fill('+15551230000')
+    await page.getByRole('checkbox', { name: /I agree to receive text messages/i }).check()
     await page.getByLabel('Your email address (optional)').fill('visitor@example.com')
 
     const vcfHit = page
