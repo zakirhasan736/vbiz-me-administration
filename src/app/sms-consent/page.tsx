@@ -1,5 +1,4 @@
-import { SmsOptInForm } from '@/components/sms/SmsOptInForm'
-import { SMS_MESSAGE_TYPES, SMS_PRIVACY_URL, SMS_TERMS_URL } from '@/lib/sms/smsConsentCopy'
+import { SMS_PRIVACY_URL, SMS_TERMS_URL, SMS_VISITOR_CONSENT_TEXT } from '@/lib/sms/smsConsentCopy'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -16,40 +15,68 @@ export default function SmsConsentPage() {
       </p>
       <h1 className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">Account notification texts</h1>
       <p className="mt-3 text-sm leading-relaxed">
-        On a public vBiz Me card, tap Save Contact or 1-on-1. Each popup has a mobile phone number field. vBiz Me texts
-        that number about {SMS_MESSAGE_TYPES}. Message frequency varies. Message and data rates may apply. Reply STOP to
-        unsubscribe. Reply HELP for help.
+        Enter your mobile number and check the box to agree to text messages from vBiz Me LLC. The box is not
+        pre-checked. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe. Reply HELP
+        for help. Consent is not required to buy or use vBiz Me.
       </p>
-      <p className="mt-3 text-sm leading-relaxed">
-        Example: “vBiz Me 1-on-1: A visitor requested a 1-on-1. Reply from your backoffice.” Consent is not required to
-        buy or use vBiz Me.
-      </p>
-      <p className="mt-3 text-sm">
-        <a href={SMS_PRIVACY_URL} className="underline" target="_blank" rel="noopener noreferrer">
-          Privacy Policy
-        </a>
-        {' · '}
-        <a href={SMS_TERMS_URL} className="underline" target="_blank" rel="noopener noreferrer">
-          Terms & Conditions
-        </a>
-      </p>
-      <SmsOptInForm />
-      <h2 className="mt-10 text-lg font-semibold text-slate-950 dark:text-white">Opt-in screenshots</h2>
+      <form className="mt-6 space-y-4" action="/sms-consent" method="get">
+        <div>
+          <label htmlFor="sms-phone" className="block text-sm font-semibold text-slate-900 dark:text-white">
+            Mobile phone number
+          </label>
+          <input
+            id="sms-phone"
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            required
+            placeholder="+1 555 000 0000"
+            className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none focus:border-teal-600 dark:border-white/15 dark:bg-[#0b1018] dark:text-white"
+          />
+        </div>
+        <label className="flex items-start gap-3 text-sm leading-snug text-slate-700 dark:text-slate-200">
+          <input
+            type="checkbox"
+            name="sms-consent"
+            value="yes"
+            required
+            className="mt-1 h-4 w-4 shrink-0 accent-teal-700"
+          />
+          <span>
+            {SMS_VISITOR_CONSENT_TEXT}{' '}
+            <a href={SMS_PRIVACY_URL} className="underline">
+              Privacy Policy
+            </a>
+            {' · '}
+            <a href={SMS_TERMS_URL} className="underline">
+              Terms & Conditions
+            </a>
+          </span>
+        </label>
+        <button
+          type="submit"
+          className="rounded-full bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
+        >
+          Agree and opt in
+        </button>
+      </form>
+      <h2 className="mt-10 text-lg font-semibold text-slate-950 dark:text-white">Consent screenshots</h2>
       <p className="mt-2 text-sm leading-relaxed">
-        The consent checkbox is unchecked until the person checks it. These are the Save Contact and 1-on-1 popups on a
-        public vBiz Me card.
+        The same unchecked consent checkbox appears on a public vBiz Me card when a visitor opens Save Contact or
+        1-on-1.
       </p>
       <figure className="mt-4">
         <img
           src="/sms-opt-in/save-contact.png"
-          alt="Save Contact popup with an unchecked SMS consent checkbox, phone field, Privacy Policy, and Terms."
+          alt="Save Contact screen with an unchecked SMS consent checkbox, phone field, Privacy Policy, and Terms."
           className="w-full rounded-xl border border-slate-200 dark:border-white/10"
         />
       </figure>
       <figure className="mt-4">
         <img
           src="/sms-opt-in/one-on-one.png"
-          alt="1-on-1 popup with an unchecked SMS consent checkbox, phone field, Privacy Policy, and Terms."
+          alt="1-on-1 screen with an unchecked SMS consent checkbox, phone field, Privacy Policy, and Terms."
           className="w-full rounded-xl border border-slate-200 dark:border-white/10"
         />
       </figure>

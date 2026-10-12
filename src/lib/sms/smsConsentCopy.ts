@@ -1,5 +1,5 @@
-export const SMS_PRIVACY_URL = 'https://www.vbizme.com/privacy-policy'
-export const SMS_TERMS_URL = 'https://www.vbizme.com/terms-and-conditions'
+export const SMS_PRIVACY_URL = 'https://app.vbizme.com/privacy-policy#sms'
+export const SMS_TERMS_URL = 'https://app.vbizme.com/terms-and-conditions#sms-terms'
 
 export const SMS_MESSAGE_TYPES = 'a confirmation when you save a contact, 1-on-1 time options, and schedule reminders'
 

@@ -7,7 +7,15 @@ import type { MetadataRoute } from 'next'
  * - Keep admin, auth, and API routes out of the index
  * - AI crawlers get the same public cards. They are not blocked.
  */
-const PUBLIC_PATHS = ['/vcard/', '/vCard/', '/sms-consent', '/llms.txt', '/sitemap.xml']
+const PUBLIC_PATHS = [
+  '/vcard/',
+  '/vCard/',
+  '/sms-consent',
+  '/privacy-policy',
+  '/terms-and-conditions',
+  '/llms.txt',
+  '/sitemap.xml',
+]
 
 const PRIVATE_PATHS = [
   '/api/',
