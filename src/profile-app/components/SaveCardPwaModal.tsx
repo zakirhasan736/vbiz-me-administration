@@ -1,11 +1,16 @@
 'use client'
 
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
+import {
+  getPwaBadgeCountSnapshot,
+  getServerPwaBadgeCountSnapshot,
+  subscribePwaBadgeCount,
+} from '@/lib/push/pwaBadgeCount'
 import type { PwaInstallSurface } from '@/lib/pwa/pwaInstallEnv'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { openCardInSafari, usePwaInstall } from '@/profile-app/hooks/usePwaInstall'
 import { Check, Cloud, Home, Loader2, Lock, Smartphone, Sparkles, WifiOff, X, type LucideIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 
 type SaveCardPwaModalProps = {
   isOpen: boolean
@@ -124,6 +129,7 @@ export function SaveCardPwaModal({
                 alt=""
                 className="h-12 w-12 rounded-2xl border border-white/20 object-cover shadow-lg shadow-black/15"
               />
+              <PwaIconBadge />
               <span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md">
                 <Sparkles size={11} />
               </span>
@@ -192,6 +198,16 @@ export function SaveCardPwaModal({
         </div>
       </div>
     </ProfileModalShell>
+  )
+}
+
+function PwaIconBadge() {
+  const count = useSyncExternalStore(subscribePwaBadgeCount, getPwaBadgeCountSnapshot, getServerPwaBadgeCountSnapshot)
+  if (count <= 0) return null
+  return (
+    <span className="absolute -top-1.5 -right-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-md shadow-black/20">
+      {count > 99 ? '99+' : count}
+    </span>
   )
 }
 

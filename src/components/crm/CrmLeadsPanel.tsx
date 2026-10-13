@@ -234,15 +234,15 @@ export function CrmLeadsPanel({
         guestUserDataId: eventLead?.id ?? payload.guestUserDataId ?? null,
       })
       const created = await createCrmEvent(body).unwrap()
-      notify.info('Event created. It will show on Schedules and Wish & Outreach.')
-      setEventLead(null)
+      notify.success('Wish & outreach created. It will show on Schedules and Wish & Outreach.')
+      // Modal closes itself after success; clear lead context when it closes via onClose.
       return created
     } catch (error) {
       const message =
         error && typeof error === 'object' && 'data' in error
           ? String((error as { data?: { message?: string } }).data?.message || '')
           : ''
-      notify.error(message || 'Couldn’t create this event.')
+      notify.error(message || 'Couldn’t create this wish.')
       throw error
     }
   }
@@ -688,13 +688,7 @@ export function CrmLeadsPanel({
         initialType="Follow-up Message"
         title="Create event"
         subtitle="Wish or outreach for this lead — attachments optional."
-        onSubmit={async (payload) => {
-          try {
-            return await handleCreateEvent(payload)
-          } catch {
-            return undefined
-          }
-        }}
+        onSubmit={handleCreateEvent}
       />
 
       <ConfirmModal

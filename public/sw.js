@@ -726,6 +726,19 @@ self.addEventListener('push', (event) => {
           })
         }
       }
+
+      // Home-screen / installed PWA icon badge (supported on Chromium; ignored elsewhere).
+      try {
+        const existing = await self.registration.getNotifications()
+        const count = Math.max(1, existing.length)
+        if (typeof self.registration.setAppBadge === 'function') {
+          await self.registration.setAppBadge(count)
+        } else if (typeof self.navigator?.setAppBadge === 'function') {
+          await self.navigator.setAppBadge(count)
+        }
+      } catch {
+        /* badge unsupported */
+      }
     })()
   )
 })

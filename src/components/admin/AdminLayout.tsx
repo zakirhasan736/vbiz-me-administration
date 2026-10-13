@@ -1,5 +1,6 @@
 'use client'
 
+import AnnouncementBanner from '@/components/AnnouncementBanner'
 import { VbizBrandMark } from '@/components/brand/VbizBrandMark'
 import { DashboardPushPrompt } from '@/components/DashboardPushPrompt'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
@@ -296,7 +297,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <div className="flex items-center gap-4">
-              <NotificationCenter audience="admin" title="Admin Alerts" />
+              <NotificationCenter
+                audience="admin"
+                topic={pathname.startsWith('/crm') ? 'crm' : 'card'}
+                title={pathname.startsWith('/crm') ? 'CRM Alerts' : 'Admin Alerts'}
+              />
 
               <button
                 type="button"
@@ -316,6 +321,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </header>
 
           <main className="relative z-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <AnnouncementBanner enabled />
             <div className="pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] mix-blend-multiply dark:mix-blend-overlay" />
             {renderBody()}
           </main>

@@ -1,6 +1,10 @@
 import { hasNotificationApi, readNotificationPermission } from '@/lib/push/iosPushGuidance'
+import { writePwaBadgeCount } from '@/lib/push/pwaBadgeCount'
 
 export type NotificationAudience = 'single' | 'corporate' | 'admin'
+
+/** Which backoffice surface should show this alert in the shared bell. */
+export type NotificationTopic = 'card' | 'crm'
 
 export type NotificationCategory =
   | 'contact_save'
@@ -26,6 +30,26 @@ export type AppNotification = {
   read: boolean
   createdAt: string
   meta?: Record<string, string>
+}
+
+const CRM_CATEGORIES = new Set<NotificationCategory>(['event', 'weekly_insight'])
+
+/** Resolve card vs CRM topic for filtering the shared notification bell. */
+export function resolveNotificationTopic(n: Pick<AppNotification, 'category' | 'href' | 'meta'>): NotificationTopic {
+  const explicit = n.meta?.topic?.trim().toLowerCase()
+  if (explicit === 'crm' || explicit === 'card') return explicit
+  if (n.meta?.category === 'event') return 'crm'
+  if (n.href?.startsWith('/crm')) return 'crm'
+  if (CRM_CATEGORIES.has(n.category)) return 'crm'
+  // Card-area public notes use category `note` with topic=card from server; CRM notes set topic=crm.
+  if (n.category === 'note' && n.meta?.href?.startsWith('/crm')) return 'crm'
+  return 'card'
+}
+
+export function syncAppBadge(count: number) {
+  if (typeof navigator === 'undefined') return
+  // Keep the Add-to-Home-Screen / PWA icon pill + OS badge in sync with bell unread.
+  writePwaBadgeCount(count)
 }
 
 export type NotificationPrefs = {
@@ -136,10 +160,16 @@ function persist(list: AppNotification[]) {
 
 export function listNotifications(
   audience: NotificationAudience,
-  opts?: { userId?: string | null; ownedProfileIds?: string[] | null }
+  opts?: {
+    userId?: string | null
+    ownedProfileIds?: string[] | null
+    /** When set, only show card-area or CRM-area alerts in the shared bell. */
+    topic?: NotificationTopic | null
+  }
 ): AppNotification[] {
   const userId = opts?.userId?.trim() || ''
   const owned = new Set((opts?.ownedProfileIds || []).filter(Boolean))
+  const topic = opts?.topic || null
 
   return loadNotifications()
     .filter((n) => {
@@ -147,8 +177,9 @@ export function listNotifications(
       const metaUserId = n.meta?.userId?.trim() || ''
       const metaProfileId = n.meta?.profileId?.trim() || ''
       // Exact identity: when a notice is tagged to a user/card, only that owner sees it.
-      if (metaUserId) return Boolean(userId && metaUserId === userId)
-      if (metaProfileId && owned.size) return owned.has(metaProfileId)
+      if (metaUserId && !(userId && metaUserId === userId)) return false
+      if (!metaUserId && metaProfileId && owned.size && !owned.has(metaProfileId)) return false
+      if (topic && resolveNotificationTopic(n) !== topic) return false
       return true
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -156,7 +187,11 @@ export function listNotifications(
 
 export function unreadCount(
   audience: NotificationAudience,
-  opts?: { userId?: string | null; ownedProfileIds?: string[] | null }
+  opts?: {
+    userId?: string | null
+    ownedProfileIds?: string[] | null
+    topic?: NotificationTopic | null
+  }
 ): number {
   return listNotifications(audience, opts).filter((n) => !n.read).length
 }
@@ -441,13 +476,15 @@ export function notifyCardOwner(input: {
  * Never re-seed after the user deleted/dismissed that announcement.
  */
 export function seedActiveAnnouncementNotification(input: {
-  audience: 'single' | 'corporate'
+  audience: NotificationAudience
   announcementId: string
   title: string
   body: string
   profileId?: string
   userId?: string
   href?: string
+  topic?: NotificationTopic
+  category?: NotificationCategory
 }) {
   const announcementId = input.announcementId.trim()
   if (!announcementId) return null
@@ -458,14 +495,19 @@ export function seedActiveAnnouncementNotification(input: {
   )
   if (already) return null
 
+  const category = input.category || (input.topic === 'crm' ? 'event' : 'system')
+  const href =
+    input.href || (input.topic === 'crm' ? '/crm' : input.profileId ? `/vcards/edit/home/${input.profileId}` : '/')
+
   return pushNotification({
     audience: input.audience,
-    category: 'system',
+    category,
     title: input.title,
     body: input.body,
-    href: input.href || (input.profileId ? `/vcards/edit/home/${input.profileId}` : '/'),
+    href,
     meta: {
       announcementId,
+      topic: input.topic || (category === 'event' ? 'crm' : 'card'),
       ...(input.profileId ? { profileId: input.profileId } : {}),
       ...(input.userId?.trim() ? { userId: input.userId.trim() } : {}),
     },

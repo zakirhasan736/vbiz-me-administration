@@ -1521,7 +1521,8 @@ export default function AdminVCards() {
                         profileId: noticeCard.id,
                         source: 'card_notice',
                         showPublic: '1',
-                        sendPush: '1',
+                        // Push already sent by createTeamNotice (owner + opted-in savers).
+                        sendPush: '0',
                       },
                     }).unwrap()
                     published = true
@@ -1537,7 +1538,13 @@ export default function AdminVCards() {
                       status: 'active',
                       targetType: 'specific',
                       targetEmails,
-                      meta: { profileId: noticeCard.id, source: 'card_notice', onlyBackoffice: '1' },
+                      meta: {
+                        profileId: noticeCard.id,
+                        source: 'card_notice',
+                        onlyBackoffice: '1',
+                        sendPush: '1',
+                        channel: 'inbox',
+                      },
                     }).unwrap()
                     published = true
                   } catch (error) {

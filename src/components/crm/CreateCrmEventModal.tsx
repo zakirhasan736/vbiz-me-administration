@@ -271,36 +271,41 @@ function CreateCrmEventModalContent({
     e.preventDefault()
     if (!canSubmit || isSubmitting || mediaBusy) return
 
-    const created = await onSubmit({
-      scope,
-      owner: scope === 'global' ? null : owner,
-      groupProfileIds:
-        scope === 'group'
-          ? includeTeamGroup && groupCompanyUserId
-            ? undefined
-            : groupProfileIds.length
-              ? groupProfileIds
-              : owner
-                ? [owner.profileId]
-                : []
-          : undefined,
-      companyUserId:
-        scope === 'group' && includeTeamGroup
-          ? groupCompanyUserId || (useOwnCards ? sessionUserId || null : null)
-          : null,
-      type: eventType,
-      date: eventDate,
-      time: eventTime,
-      description: description.trim(),
-      attachments,
-      globalHost: scope === 'global' ? globalHost.trim() : undefined,
-    })
-    if (created) {
-      setSaved(true)
-      setTimeout(() => {
-        setSaved(false)
-        onClose()
-      }, 1200)
+    try {
+      const created = await onSubmit({
+        scope,
+        owner: scope === 'global' ? null : owner,
+        groupProfileIds:
+          scope === 'group'
+            ? includeTeamGroup && groupCompanyUserId
+              ? undefined
+              : groupProfileIds.length
+                ? groupProfileIds
+                : owner
+                  ? [owner.profileId]
+                  : []
+            : undefined,
+        companyUserId:
+          scope === 'group' && includeTeamGroup
+            ? groupCompanyUserId || (useOwnCards ? sessionUserId || null : null)
+            : null,
+        type: eventType,
+        date: eventDate,
+        time: eventTime,
+        description: description.trim(),
+        attachments,
+        globalHost: scope === 'global' ? globalHost.trim() : undefined,
+      })
+      // Success → brief confirmation, then auto-close. Errors keep the popup open.
+      if (created !== undefined && created !== null) {
+        setSaved(true)
+        window.setTimeout(() => {
+          setSaved(false)
+          onClose()
+        }, 500)
+      }
+    } catch {
+      // Parent already shows the error toast; leave the form open so the user can fix and retry.
     }
   }
 

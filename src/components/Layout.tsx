@@ -63,6 +63,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const { ownerMode, isCorporateBackOffice } = useOwnerMode()
   const { isSuspended, isPaused } = useAccountStatus()
   const audience = roleToAudience(role, ownerMode)
+  const notificationTopic = pathname.startsWith('/crm') ? ('crm' as const) : ('card' as const)
   const isAdminRoute = pathname.startsWith('/admin')
   const isEditorRoute = pathname.startsWith('/vcards/create') || pathname.startsWith('/vcards/edit')
   const showOwnerStatusBanner = Boolean(ownerMode) && (isPaused || isSuspended)
@@ -194,8 +195,15 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             >
               <NotificationCenter
                 audience={audience}
+                topic={notificationTopic}
                 title={
-                  audience === 'corporate' ? 'Corporate Alerts' : audience === 'admin' ? 'Admin Alerts' : 'Your Alerts'
+                  notificationTopic === 'crm'
+                    ? 'CRM Alerts'
+                    : audience === 'corporate'
+                      ? 'Corporate Alerts'
+                      : audience === 'admin'
+                        ? 'Admin Alerts'
+                        : 'Your Alerts'
                 }
               />
             </div>
