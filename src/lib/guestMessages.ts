@@ -98,6 +98,8 @@ export function createGuestMessage(input: {
     adminBody: `${input.fullName} left a note on ${input.vCardName}.`,
     ownerHref: '/',
     adminHref: '/admin/leads',
+    profileId: input.vCardId,
+    ownerUserId: input.ownerId,
   })
 
   return record
@@ -110,11 +112,14 @@ export function updateGuestMessageNotes(id: string, privateNotes: string) {
   list[idx] = { ...list[idx], privateNotes }
   persist(list)
   if (getCurrentUserRole() === 'admin') {
+    const audience = list[idx].vCardId === list[idx].ownerId ? 'single' : 'corporate'
     notifyOwners({
+      audience,
       category: 'note',
       title: 'Admin note reply',
       body: `Admin updated a note on guest message from ${list[idx].fullName}: ${privateNotes.slice(0, 80)}`,
       forceBrowser: true,
+      meta: { profileId: list[idx].vCardId, userId: list[idx].ownerId },
     })
   }
   return true
@@ -131,11 +136,14 @@ export function updateGuestMessageReply(id: string, replyText: string) {
   }
   persist(list)
   if (getCurrentUserRole() === 'admin') {
+    const audience = list[idx].vCardId === list[idx].ownerId ? 'single' : 'corporate'
     notifyOwners({
+      audience,
       category: 'reply',
       title: 'Admin message reply',
       body: `Admin replied to guest note from ${list[idx].fullName}: ${replyText.slice(0, 80)}`,
       forceBrowser: true,
+      meta: { profileId: list[idx].vCardId, userId: list[idx].ownerId },
     })
   } else {
     pushNotification({
@@ -144,6 +152,10 @@ export function updateGuestMessageReply(id: string, replyText: string) {
       title: 'Reply sent to guest note',
       body: `Reply to ${list[idx].fullName}: ${replyText.slice(0, 80)}`,
       href: '/',
+      meta: {
+        profileId: list[idx].vCardId,
+        userId: list[idx].ownerId,
+      },
     })
   }
   return true

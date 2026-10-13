@@ -9,13 +9,14 @@ import {
   NOTIFICATIONS_EVENT,
 } from '@/lib/notifications'
 import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
+import { registerOwnerPushForCurrentUser } from '@/lib/push/registerOwnerPush'
 import { Bell, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 /**
  * After login, ask admin / corporate / single-card owners to allow browser
- * notifications until they grant them. Denied sites cannot re-open the native
- * prompt; we still show this panel every login so they can try again.
+ * notifications, then register this device as an **owner** Web Push target
+ * for their cards (separate from public-card saver/follower push).
  */
 export function DashboardPushPrompt() {
   const [open, setOpen] = useState(false)
@@ -41,16 +42,24 @@ export function DashboardPushPrompt() {
 
   useEffect(() => {
     const permission = readNotificationPermission()
-    if (permission === 'unsupported' || permission === 'granted') return
+    if (permission === 'unsupported') return
     if (!getNotificationPrefs().browserPush) return
+
+    // Already granted: silently register owner-device push for owned cards.
+    if (permission === 'granted') {
+      void registerOwnerPushForCurrentUser()
+      return
+    }
+
     if (dashboardPushPromptSeenThisSession()) return
 
     const timer = window.setTimeout(() => {
       maybeOpen()
       if (readNotificationPermission() === 'default') {
-        void ensureNotificationPermission().then((permission) => {
+        void ensureNotificationPermission().then((next) => {
           window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
-          if (permission === 'granted') {
+          if (next === 'granted') {
+            void registerOwnerPushForCurrentUser()
             markDashboardPushPromptSeenThisSession()
             setOpen(false)
           }
@@ -74,6 +83,7 @@ export function DashboardPushPrompt() {
       const permission = await ensureNotificationPermission()
       window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
       if (permission === 'granted') {
+        await registerOwnerPushForCurrentUser()
         markDashboardPushPromptSeenThisSession()
         setOpen(false)
         return
@@ -116,8 +126,8 @@ export function DashboardPushPrompt() {
           Allow notifications
         </h2>
         <p className="mt-2 text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Stay updated on card saves, replies, and admin alerts. Choose Allow in the browser prompt so we can reach you
-          after you leave this tab.
+          Stay updated on card saves, replies, and admin alerts for <strong>your cards only</strong>. Choose Allow so we
+          can reach you after you leave this tab.
         </p>
         {hint ? (
           <p className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

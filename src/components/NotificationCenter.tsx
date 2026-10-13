@@ -15,6 +15,7 @@ import {
   type NotificationCategory,
 } from '@/lib/notifications'
 import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
+import { useAuth } from '@/providers/AuthProvider'
 import { clearActiveAnnouncementBannerCache } from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
 import { cn } from '@/utils/cn'
 import {
@@ -71,7 +72,7 @@ function formatWhen(iso: string) {
 }
 
 let notificationStoreVersion = 0
-const notificationSnapshots = new Map<NotificationAudience, { version: number; items: AppNotification[] }>()
+const notificationSnapshots = new Map<string, { version: number; items: AppNotification[] }>()
 
 function subscribeToNotifications(onStoreChange: () => void) {
   const onUpdate = () => {
@@ -86,11 +87,12 @@ function subscribeToNotifications(onStoreChange: () => void) {
   }
 }
 
-function getNotificationsSnapshot(audience: NotificationAudience): AppNotification[] {
-  const cached = notificationSnapshots.get(audience)
+function getNotificationsSnapshot(audience: NotificationAudience, userId?: string | null): AppNotification[] {
+  const key = `${audience}:${userId || ''}`
+  const cached = notificationSnapshots.get(key)
   if (cached && cached.version === notificationStoreVersion) return cached.items
-  const items = listNotifications(audience)
-  notificationSnapshots.set(audience, { version: notificationStoreVersion, items })
+  const items = listNotifications(audience, { userId })
+  notificationSnapshots.set(key, { version: notificationStoreVersion, items })
   return items
 }
 
@@ -114,13 +116,15 @@ function getServerNotificationPermissionSnapshot(): NotificationPermission | 'un
 export function NotificationCenter({ audience, title = 'Your Alerts', className }: NotificationCenterProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
+  const { user } = useAuth()
+  const userId = user?.uid || null
   const btnRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 12, width: 320 })
 
   const storedItems = useSyncExternalStore(
     subscribeToNotifications,
-    () => getNotificationsSnapshot(audience),
+    () => getNotificationsSnapshot(audience, userId),
     getServerNotificationsSnapshot
   )
   const [readOverrides, setReadOverrides] = useState<Set<string>>(() => new Set())

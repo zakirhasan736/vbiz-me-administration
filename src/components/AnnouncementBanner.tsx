@@ -122,6 +122,7 @@ export default function AnnouncementBanner({ enabled = true }: AnnouncementBanne
         title: item.title,
         body: item.body,
         profileId: item.meta?.profileId,
+        userId: item.meta?.userId,
         href:
           item.meta?.kind === 'birthday' && item.meta?.profileId
             ? `/vcards/edit/home/${item.meta.profileId}`

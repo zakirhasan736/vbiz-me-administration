@@ -645,11 +645,25 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           }
           const generalPosts = mapApiPostsToGeneralPosts(bundle.blogs || [])
           const faqs = mapApiPostsToFaqs(bundle.tabs.faqs || [])
+          // editor-sections only returns direct TAB_REGISTRY tabs. Post-backed
+          // sections (e.g. Contact Us / "Schedule A Service") live in Post +
+          // PostType and must still be loaded via /posts, or the builder shows
+          // empty while the public card keeps rendering those rows.
           const sectionPosts: Record<string, VCardSectionPostItem[]> = {}
-          schemas.forEach((schema) => {
-            const tabKey = publicNameToTabKey(schema.postTypeName)
-            sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts((tabKey && bundle.tabs[tabKey]) || [])
-          })
+          await Promise.all(
+            schemas.map(async (schema) => {
+              const tabKey = publicNameToTabKey(schema.postTypeName)
+              if (tabKey && TAB_REGISTRY[tabKey]?.architecture === 'direct') {
+                sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts(bundle.tabs[tabKey] || [])
+                return
+              }
+              const rows = await listPosts({ id: profileId, postType: schema.postTypeName })
+                .unwrap()
+                .catch(() => [])
+              sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts(Array.isArray(rows) ? rows : [])
+            })
+          )
+          if (cancelled) return
           applyHydratedPosts(generalPosts, faqs, sectionPosts)
           return
         } catch {
