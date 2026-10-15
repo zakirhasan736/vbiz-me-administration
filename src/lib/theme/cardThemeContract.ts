@@ -325,7 +325,7 @@ export function defaultButtonComponents(): ButtonComponents {
   }
 }
 
-/** Social icons: accent (gold) bg + secondary (dark blue) icon — prior brand concept. */
+/** Social icons: primary fill + readable icon (matches Card Settings Social defaults). */
 export function defaultSocialIconComponent(): SocialIconComponent {
   return {
     style: 'filled',
@@ -334,13 +334,13 @@ export function defaultSocialIconComponent(): SocialIconComponent {
     cornerRadius: 9999,
     colors: {
       light: {
-        fill: 'accent',
+        fill: 'primary',
         foreground: 'secondary',
         borderColor: 'auto',
         hoverOverlay: 'rgba(0,0,0,0.10)',
       },
       dark: {
-        fill: 'accent',
+        fill: 'primary',
         foreground: 'secondary',
         borderColor: 'auto',
         hoverOverlay: 'rgba(255,255,255,0.12)',

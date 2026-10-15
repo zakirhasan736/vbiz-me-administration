@@ -15,6 +15,7 @@ import {
   displayIconChromeStyle,
   displaySocialChromeStyle,
   mergeDisplayFieldConfigs,
+  primaryChromeDefaultsForMode,
   secondaryChromeDefaultsForMode,
 } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
@@ -192,15 +193,13 @@ export const HomeHero: React.FC<{
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showCrm = isVisible('CRM')
   const mode = (theme === 'dark' ? 'dark' : 'light') as 'light' | 'dark'
-  const iconDefaults = secondaryChromeDefaultsForMode(
-    {
-      primaryColor: design?.primaryColor,
-      secondaryColor: design?.secondaryColor,
-      accentColor: design?.accentColor,
-    },
-    mode,
-    design?.profileTemplate
-  )
+  const brandTheme = {
+    primaryColor: design?.primaryColor,
+    secondaryColor: design?.secondaryColor,
+    accentColor: design?.accentColor,
+  }
+  const iconDefaults = secondaryChromeDefaultsForMode(brandTheme, mode, design?.profileTemplate)
+  const socialDefaults = primaryChromeDefaultsForMode(brandTheme, mode, design?.profileTemplate)
   const shareChrome = displayIconChromeStyle(
     mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
     mode,
@@ -278,7 +277,7 @@ export const HomeHero: React.FC<{
     return <Icon size={size} strokeWidth={2.5} />
   }
 
-  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), mode)
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), mode, socialDefaults)
 
   return (
     <div

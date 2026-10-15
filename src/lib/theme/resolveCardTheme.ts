@@ -146,12 +146,28 @@ function mergeComponentAppearance(base: ComponentAppearance, raw: unknown): Comp
   }
 }
 
+function migrateSocialFillToPrimary(appearance: ComponentAppearance): ComponentAppearance {
+  // Legacy default was accent; Card Settings + public rails now share Template primary.
+  const lightFill = appearance.colors.light.fill === 'accent' ? 'primary' : appearance.colors.light.fill
+  const darkFill = appearance.colors.dark.fill === 'accent' ? 'primary' : appearance.colors.dark.fill
+  if (lightFill === appearance.colors.light.fill && darkFill === appearance.colors.dark.fill) {
+    return appearance
+  }
+  return {
+    ...appearance,
+    colors: {
+      light: { ...appearance.colors.light, fill: lightFill },
+      dark: { ...appearance.colors.dark, fill: darkFill },
+    },
+  }
+}
+
 function mergeSocialIcon(
   base: SocialIconComponent,
   raw: unknown,
   cornerStyle: CornerStyle = 'round'
 ): SocialIconComponent {
-  const appearance = mergeComponentAppearance(base, raw)
+  const appearance = migrateSocialFillToPrimary(mergeComponentAppearance(base, raw))
   if (!raw || typeof raw !== 'object') {
     return {
       ...base,

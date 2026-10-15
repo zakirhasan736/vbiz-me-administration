@@ -51,28 +51,39 @@ export type FieldThemeColorDefaults = {
   dark: { text: string; bg: string; icon: string }
 }
 
-/** Defaults for primary-fill controls (social networks, My vCard, Get your VCard Now). */
+export type ThemeModeColorSets = {
+  light: { primary: string; secondary: string; accent: string }
+  dark: { primary: string; secondary: string; accent: string }
+}
+
+function fallbackPrimary(profileTemplate: 'v1' | 'v2' | 'v3') {
+  return profileTemplate === 'v1' ? '#dcc969' : profileTemplate === 'v3' ? '#eed677' : '#eab308'
+}
+
+function fallbackSecondary(profileTemplate: 'v1' | 'v2' | 'v3') {
+  return profileTemplate === 'v1' ? '#0a0a0a' : profileTemplate === 'v3' ? '#0f2c4d' : '#18181b'
+}
+
+/**
+ * Defaults for primary-fill controls (social networks, My vCard, Get your VCard Now).
+ * Prefer per-mode theme_config colors so Card Settings pickers match the public card.
+ */
 export function getFieldThemeColorDefaults(
   theme?: ThemeBrandColors,
-  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2',
+  modeSets?: Partial<ThemeModeColorSets>
 ): FieldThemeColorDefaults {
-  const primary = theme?.primaryColor?.trim() || (profileTemplate === 'v1' ? '#dcc969' : '#eab308')
-  const secondary = theme?.secondaryColor?.trim() || primary
-  const accent = theme?.accentColor?.trim() || primary
-  const lightFg = readableForeground(primary)
-  const darkFill = accent || primary
-  const darkFg = readableForeground(darkFill)
+  const flatPrimary = theme?.primaryColor?.trim() || fallbackPrimary(profileTemplate)
+  const flatSecondary = theme?.secondaryColor?.trim() || fallbackSecondary(profileTemplate)
+  const lightPrimary = modeSets?.light?.primary?.trim() || flatPrimary
+  const darkPrimary = modeSets?.dark?.primary?.trim() || flatPrimary
+  const lightSecondary = modeSets?.light?.secondary?.trim() || flatSecondary
+  const darkSecondary = modeSets?.dark?.secondary?.trim() || flatSecondary
+  const lightFg = contrastSafeForeground(lightPrimary, lightSecondary, readableForeground(lightPrimary))
+  const darkFg = contrastSafeForeground(darkPrimary, darkSecondary, readableForeground(darkPrimary))
   return {
-    light: {
-      bg: primary,
-      text: contrastSafeForeground(primary, secondary, lightFg),
-      icon: contrastSafeForeground(primary, secondary, lightFg),
-    },
-    dark: {
-      bg: darkFill,
-      text: contrastSafeForeground(darkFill, secondary, darkFg),
-      icon: contrastSafeForeground(darkFill, secondary, darkFg),
-    },
+    light: { bg: lightPrimary, text: lightFg, icon: lightFg },
+    dark: { bg: darkPrimary, text: darkFg, icon: darkFg },
   }
 }
 
@@ -82,19 +93,82 @@ export function getFieldThemeColorDefaults(
  */
 export function getFieldSecondaryThemeColorDefaults(
   theme?: ThemeBrandColors,
-  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2',
+  modeSets?: Partial<ThemeModeColorSets>
 ): FieldThemeColorDefaults {
-  const primary = theme?.primaryColor?.trim() || (profileTemplate === 'v1' ? '#dcc969' : '#eab308')
-  const secondary =
-    theme?.secondaryColor?.trim() ||
-    (profileTemplate === 'v1' ? '#0a0a0a' : profileTemplate === 'v3' ? '#0f2c4d' : '#18181b')
-  const accent = theme?.accentColor?.trim() || primary
-  const lightFg = contrastSafeForeground(secondary, primary, readableForeground(secondary))
-  const darkFg = contrastSafeForeground(secondary, accent, readableForeground(secondary))
+  const flatPrimary = theme?.primaryColor?.trim() || fallbackPrimary(profileTemplate)
+  const flatSecondary = theme?.secondaryColor?.trim() || fallbackSecondary(profileTemplate)
+  const lightPrimary = modeSets?.light?.primary?.trim() || flatPrimary
+  const darkPrimary = modeSets?.dark?.primary?.trim() || flatPrimary
+  const lightSecondary = modeSets?.light?.secondary?.trim() || flatSecondary
+  const darkSecondary = modeSets?.dark?.secondary?.trim() || flatSecondary
+  const lightFg = contrastSafeForeground(lightSecondary, lightPrimary, readableForeground(lightSecondary))
+  const darkFg = contrastSafeForeground(darkSecondary, darkPrimary, readableForeground(darkSecondary))
   return {
-    light: { bg: secondary, text: lightFg, icon: lightFg },
-    dark: { bg: secondary, text: darkFg, icon: darkFg },
+    light: { bg: lightSecondary, text: lightFg, icon: lightFg },
+    dark: { bg: darkSecondary, text: darkFg, icon: darkFg },
   }
+}
+
+/** Build picker defaults from the same theme_config the public card CSS uses. */
+export function fieldThemeDefaultsFromThemeConfig(
+  themeConfig: {
+    colors: {
+      light: { primary: string; secondary: string; accent: string }
+      dark: { primary: string; secondary: string; accent: string }
+    }
+  },
+  theme?: ThemeBrandColors,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): { primary: FieldThemeColorDefaults; secondary: FieldThemeColorDefaults } {
+  const modeSets: ThemeModeColorSets = {
+    light: {
+      primary: themeConfig.colors.light.primary,
+      secondary: themeConfig.colors.light.secondary,
+      accent: themeConfig.colors.light.accent,
+    },
+    dark: {
+      primary: themeConfig.colors.dark.primary,
+      secondary: themeConfig.colors.dark.secondary,
+      accent: themeConfig.colors.dark.accent,
+    },
+  }
+  return {
+    primary: getFieldThemeColorDefaults(theme, profileTemplate, modeSets),
+    secondary: getFieldSecondaryThemeColorDefaults(theme, profileTemplate, modeSets),
+  }
+}
+
+/**
+ * Home Page Settings text colors — same tokens the public card paints:
+ * `--vbiz-home-heading` = light secondary / dark white
+ * `--vbiz-home-description` = mode primary
+ * `vCard Header Color` falls back to the heading token on the public card.
+ */
+export function homePageIdentityDefaultsFromThemeConfig(themeConfig: {
+  colors: {
+    light: { primary: string; secondary: string; accent: string }
+    dark: { primary: string; secondary: string; accent: string }
+  }
+}): {
+  heading: FieldThemeColorDefaults
+  description: FieldThemeColorDefaults
+  header: FieldThemeColorDefaults
+} {
+  const lightPrimary = themeConfig.colors.light.primary.trim()
+  const darkPrimary = themeConfig.colors.dark.primary.trim()
+  const lightSecondary = themeConfig.colors.light.secondary.trim()
+  const darkHeading = '#ffffff'
+
+  const heading: FieldThemeColorDefaults = {
+    light: { bg: lightSecondary, text: lightSecondary, icon: lightSecondary },
+    dark: { bg: darkHeading, text: darkHeading, icon: darkHeading },
+  }
+  const description: FieldThemeColorDefaults = {
+    light: { bg: lightPrimary, text: lightPrimary, icon: lightPrimary },
+    dark: { bg: darkPrimary, text: darkPrimary, icon: darkPrimary },
+  }
+  return { heading, description, header: heading }
 }
 
 /** Prefer brand secondary when it stays readable on the fill; otherwise WCAG pair. */
@@ -260,7 +334,8 @@ export const MY_INFO_FIELDS = [
   'About Me',
 ] as const
 
-export const SOCIAL_LINK_FIELDS = [
+/** Social network icons — Template primary BG on the public card. */
+export const SOCIAL_NETWORK_FIELDS = [
   'FaceBook',
   'Twitter',
   'Instagram',
@@ -271,6 +346,10 @@ export const SOCIAL_LINK_FIELDS = [
   'Rumble',
   'Truth',
   'Pinterest',
+] as const
+
+export const SOCIAL_LINK_FIELDS = [
+  ...SOCIAL_NETWORK_FIELDS,
   'Share',
   'Notifications',
   'Notepad',
@@ -280,6 +359,15 @@ export const SOCIAL_LINK_FIELDS = [
   'CRM',
   'Website',
 ] as const
+
+/** Primary-fill CTAs in General Settings (same primary BG as social network icons). */
+export const PRIMARY_BG_GENERAL_FIELDS = ['My vCard Btn', 'Get your VCard Now'] as const
+
+export const PRIMARY_BG_DISPLAY_FIELD_SET = new Set<string>([...SOCIAL_NETWORK_FIELDS, ...PRIMARY_BG_GENERAL_FIELDS])
+
+export function isPrimaryBgDisplayField(key: string): boolean {
+  return PRIMARY_BG_DISPLAY_FIELD_SET.has(key)
+}
 
 export const ICON_FIELDS = [
   'Profession Icon',

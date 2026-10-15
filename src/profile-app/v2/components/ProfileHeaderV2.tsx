@@ -5,6 +5,7 @@ import {
   displayIconChromeStyle,
   displaySocialChromeStyle,
   mergeDisplayFieldConfigs,
+  primaryChromeDefaultsForMode,
   secondaryChromeDefaultsForMode,
 } from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
@@ -144,15 +145,13 @@ export function ProfileHeaderV2({
   const showViewCounter = isProfileActionButtonEnabled('view_counter', actionButtons, isVisible)
   const showLanguage = isProfileActionButtonEnabled('language', actionButtons, isVisible)
   const viewCounterCount = actionButtons?.view_counter?.count ?? profileViews
-  const iconDefaults = secondaryChromeDefaultsForMode(
-    {
-      primaryColor: design?.primaryColor,
-      secondaryColor: design?.secondaryColor,
-      accentColor: design?.accentColor,
-    },
-    theme,
-    design?.profileTemplate
-  )
+  const brandTheme = {
+    primaryColor: design?.primaryColor,
+    secondaryColor: design?.secondaryColor,
+    accentColor: design?.accentColor,
+  }
+  const iconDefaults = secondaryChromeDefaultsForMode(brandTheme, theme, design?.profileTemplate)
+  const socialDefaults = primaryChromeDefaultsForMode(brandTheme, theme, design?.profileTemplate)
   const shareChrome = displayIconChromeStyle(
     mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
     theme,
@@ -189,7 +188,7 @@ export function ProfileHeaderV2({
     return <Icon size={HOME_ICON_SIZE} />
   }
 
-  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), theme)
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), theme, socialDefaults)
 
   const socialBtnClass =
     'vbiz-social vbiz-social-rail-sm flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10'

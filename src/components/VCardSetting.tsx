@@ -66,16 +66,17 @@ import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
 import {
   buildModeColorPatch,
   fieldHasColorOverrides,
+  fieldThemeDefaultsFromThemeConfig,
   GENERAL_SETTINGS_FIELDS,
   getDisplaySettingsFromVCard,
   getFieldModePickerValues,
-  getFieldSecondaryThemeColorDefaults,
-  getFieldThemeColorDefaults,
   getMyInfoActionButtonColorDefaults,
   HOME_PAGE_COLOR_FIELDS,
   HOME_PAGE_FIELDS,
   HOME_PAGE_URL_FIELDS,
+  homePageIdentityDefaultsFromThemeConfig,
   ICON_FIELDS,
+  isPrimaryBgDisplayField,
   isSecondaryBgDisplayField,
   MY_INFO_ACTION_FIELDS,
   MY_INFO_FIELDS,
@@ -1896,10 +1897,14 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const contentTourId = settingContentTourIds[activeTab]
 
   const profileTemplate = (vCardData.appearance?.profileTemplate ?? 'v2') as 'v1' | 'v2' | 'v3'
-  const themeDefaults = getFieldThemeColorDefaults(vCardData.theme, profileTemplate)
-  const secondaryThemeDefaults = getFieldSecondaryThemeColorDefaults(vCardData.theme, profileTemplate)
   const resolvedThemeConfig = resolveCardThemeConfig(
     vCardData.themeConfig ?? getDefaultThemeConfig(profileTemplate),
+    profileTemplate
+  )
+  // Same light/dark primary + secondary the public card CSS uses — keep pickers in sync.
+  const { primary: themeDefaults, secondary: secondaryThemeDefaults } = fieldThemeDefaultsFromThemeConfig(
+    resolvedThemeConfig,
+    vCardData.theme,
     profileTemplate
   )
   const myInfoActionDefaults = getMyInfoActionButtonColorDefaults(vCardData.theme, profileTemplate, {
@@ -1915,6 +1920,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const fieldThemeDefaultsFor = (key: string) => {
     if (myInfoActionFieldSet.has(key)) return myInfoActionDefaults
     if (isSecondaryBgDisplayField(key)) return secondaryThemeDefaults
+    if (isPrimaryBgDisplayField(key)) return themeDefaults
     return themeDefaults
   }
 
@@ -1986,29 +1992,23 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         )
       case 'my-info-buttons':
         return renderFieldCards(MY_INFO_ACTION_FIELDS, { showTextCol: true, showBgCol: true })
-      case 'home':
+      case 'home': {
+        // Exact public-card identity tokens (--vbiz-home-heading / --vbiz-home-description).
+        const homeIdentityDefaults = homePageIdentityDefaultsFromThemeConfig(resolvedThemeConfig)
         return HOME_PAGE_FIELDS.map((key) => {
           const isColorField = HOME_PAGE_COLOR_FIELDS.has(key)
           const isHeading = key === 'Home Heading Color'
           const isDescription = key === 'Home Description Color'
+          const isHeader = key === 'vCard Header Color'
           const isHeadingDesc = isHeading || isDescription
           const showInput = HOME_PAGE_URL_FIELDS.has(key)
-          const primary =
-            vCardData.theme.primaryColor?.trim() || resolvedThemeConfig.colors.dark.primary || themeDefaults.light.bg
-          const secondary =
-            vCardData.theme.secondaryColor?.trim() || resolvedThemeConfig.colors.dark.secondary || primary
-          // Global home defaults: dark title white + primary desc; light title secondary + primary desc.
           const homeColorDefaults = isHeading
-            ? {
-                light: { ...themeDefaults.light, text: secondary, icon: secondary },
-                dark: { ...themeDefaults.dark, text: '#ffffff', icon: '#ffffff' },
-              }
+            ? homeIdentityDefaults.heading
             : isDescription
-              ? {
-                  light: { ...themeDefaults.light, text: primary, icon: primary },
-                  dark: { ...themeDefaults.dark, text: primary, icon: primary },
-                }
-              : themeDefaults
+              ? homeIdentityDefaults.description
+              : isHeader
+                ? homeIdentityDefaults.header
+                : themeDefaults
           return (
             <FieldCard
               key={key}
@@ -2018,19 +2018,18 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
               themeDefaults={homeColorDefaults}
               showInput={showInput}
               showTextCol={isColorField}
-              showBgCol={isColorField && !isHeadingDesc}
+              showBgCol={false}
               toggleLabel={
                 showInput
                   ? 'Visibility and media URL'
-                  : isHeadingDesc
-                    ? 'Light/dark text color for home name or description'
-                    : isColorField
-                      ? 'Visibility and header colors'
-                      : 'Visibility only'
+                  : isHeadingDesc || isHeader
+                    ? 'Light/dark text color matching the public home name / description'
+                    : 'Visibility only'
               }
             />
           )
         })
+      }
       case 'template':
         return <TemplateDesigner />
       case 'integration':

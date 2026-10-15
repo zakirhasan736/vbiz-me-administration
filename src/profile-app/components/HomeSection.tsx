@@ -6,6 +6,7 @@ import {
   displayIconChromeStyle,
   displaySocialChromeStyle,
   mergeDisplayFieldConfigs,
+  primaryChromeDefaultsForMode,
   secondaryChromeDefaultsForMode,
 } from '@/lib/vcardDisplaySettings'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
@@ -283,15 +284,14 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const showLanguage = isVisible('Language')
   const showThemeToggle = isVisible('Theme Toggle')
   const cardTheme = homeHeroProps?.theme ?? 'light'
-  const iconDefaults = secondaryChromeDefaultsForMode(
-    {
-      primaryColor: design?.primaryColor,
-      secondaryColor: design?.secondaryColor,
-      accentColor: design?.accentColor,
-    },
-    cardTheme === 'dark' ? 'dark' : 'light',
-    design?.profileTemplate
-  )
+  const brandTheme = {
+    primaryColor: design?.primaryColor,
+    secondaryColor: design?.secondaryColor,
+    accentColor: design?.accentColor,
+  }
+  const chromeMode = cardTheme === 'dark' ? 'dark' : 'light'
+  const iconDefaults = secondaryChromeDefaultsForMode(brandTheme, chromeMode, design?.profileTemplate)
+  const socialDefaults = primaryChromeDefaultsForMode(brandTheme, chromeMode, design?.profileTemplate)
   const shareChrome = displayIconChromeStyle(
     mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
     cardTheme,
@@ -523,7 +523,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               {visibleSocials.length > 0 || (social.games && Object.values(social.games).some((v) => v?.trim())) ? (
                 <div className="absolute top-0 left-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
                   {visibleSocials.map((item, idx) => {
-                    const socialInlineStyle = displaySocialChromeStyle(field(item.label), cardTheme)
+                    const socialInlineStyle = displaySocialChromeStyle(field(item.label), cardTheme, socialDefaults)
                     const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
                     return (
                       <IconHoverTooltip key={`${item.label}-${idx}`} label={tip} placement="right">
@@ -874,7 +874,11 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                     {visibleSocials.length > 0 && (
                       <div className="grid grid-cols-5 gap-1">
                         {visibleSocials.map((item, idx) => {
-                          const socialInlineStyle = displaySocialChromeStyle(field(item.label), cardTheme)
+                          const socialInlineStyle = displaySocialChromeStyle(
+                            field(item.label),
+                            cardTheme,
+                            socialDefaults
+                          )
                           const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
                           const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
                           return (

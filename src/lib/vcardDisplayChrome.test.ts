@@ -101,6 +101,17 @@ describe('display chrome styles', () => {
     expect(style['--vbiz-control-fg']).toBe('#ffffff')
   })
 
+  it('paints Template primary defaults onto social chrome when no override is saved', () => {
+    const style = displaySocialChromeStyle({ visible: true }, 'light', {
+      bg: '#eed677',
+      text: '#0f2c4d',
+    }) as Record<string, string>
+
+    expect(style['--vbiz-control-fill']).toBe('#eed677')
+    expect(style['--vbiz-social-fill']).toBe('#eed677')
+    expect(style['--vbiz-control-fg']).toBe('#0f2c4d')
+  })
+
   it('merges Share + Share Btn colors with the first non-empty value winning', () => {
     const merged = mergeDisplayFieldConfigs(
       { visible: true, textColor: '#111111' },

@@ -4,6 +4,7 @@ import { useTranslation } from '@/lib/i18n/translationData'
 import {
   displayCtaChromeStyle,
   mergeDisplayFieldConfigs,
+  primaryChromeDefaultsForMode,
   secondaryChromeDefaultsForMode,
 } from '@/lib/vcardDisplaySettings'
 import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
@@ -115,12 +116,12 @@ function CtaButtonGrid({
     accentColor: design?.accentColor,
   }
   const chromeFor = (button: ResolvedHomeCtaButton) => {
-    // Secondary CTAs (Save Contact / Wallet / My Info) default to Template secondary fill.
-    // Primary/accent CTAs keep theme tokens unless Card Settings overrides are saved.
+    // Secondary CTAs → Template secondary; primary/accent CTAs → Template primary
+    // (same defaults Card Settings General / Social pickers show).
     const defaults =
       button.role === 'secondary'
         ? secondaryChromeDefaultsForMode(brandTheme, themeMode, design?.profileTemplate)
-        : undefined
+        : primaryChromeDefaultsForMode(brandTheme, themeMode, design?.profileTemplate)
     return displayCtaChromeStyle(
       mergeDisplayFieldConfigs(...HOME_CTA_SETTING_KEYS[button.key].map((key) => field(key))),
       themeMode,
