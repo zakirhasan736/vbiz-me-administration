@@ -8,11 +8,13 @@ import {
   PROFILE_FRAME_ZOOM_MAX,
   PROFILE_FRAME_ZOOM_MIN,
   profileFramePreviewHeight,
+  profileMediaCoverLayoutStyle,
   profileMediaFitStyle,
+  type MediaPixelSize,
   type ProfileMediaFrame,
 } from '@/lib/media/profileMediaFrame'
 import { Minus, Move, Plus, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type AvatarMediaFramePreviewProps = {
   src: string
@@ -39,13 +41,42 @@ export function AvatarMediaFramePreview({
   const boxRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ x: number; y: number; focusX: number; focusY: number } | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [mediaSizeState, setMediaSizeState] = useState<{ src: string; size: MediaPixelSize | null }>({
+    src,
+    size: null,
+  })
+  const [boxSize, setBoxSize] = useState<MediaPixelSize | null>(null)
+  // Reset measured pixels when the media URL changes (render-time, not an effect).
+  if (mediaSizeState.src !== src) {
+    setMediaSizeState({ src, size: null })
+  }
+  const mediaSize = mediaSizeState.src === src ? mediaSizeState.size : null
+  const setMediaSize = (size: MediaPixelSize) => setMediaSizeState({ src, size })
   const resolved = frame
     ? parseProfileMediaFrame(frame)
     : layout === 'feature'
       ? { ...DEFAULT_FEATURE_MEDIA_FRAME }
       : parseProfileMediaFrame(null)
   const featureLayout = layout === 'feature'
-  const fit = profileMediaFitStyle(resolved)
+  const fit =
+    mediaSize && boxSize
+      ? profileMediaCoverLayoutStyle(resolved, mediaSize, boxSize)
+      : { ...profileMediaFitStyle(resolved), width: '100%', height: '100%' }
+
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box || typeof ResizeObserver === 'undefined') return
+    const sync = () => {
+      const rect = box.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) {
+        setBoxSize({ width: rect.width, height: rect.height })
+      }
+    }
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [featureLayout, resolved.height])
 
   const updateFromPointer = (clientX: number, clientY: number) => {
     const start = dragRef.current
@@ -53,6 +84,7 @@ export function AvatarMediaFramePreview({
     if (!start || !box) return
     const rect = box.getBoundingClientRect()
     if (rect.width <= 0 || rect.height <= 0) return
+    // Invert drag so the image follows the pointer (grab semantics).
     const dx = ((clientX - start.x) / rect.width) * 100
     const dy = ((clientY - start.y) / rect.height) * 100
     onChange(
@@ -68,8 +100,8 @@ export function AvatarMediaFramePreview({
     <div className="space-y-3">
       <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">
         {featureLayout
-          ? 'Drag the image or video left, right, up, or down. The public card uses that position.'
-          : 'Drag the photo or video to set top, center, or bottom, and left or right. The preview uses that position.'}
+          ? 'Drag the image or video left, right, up, or down. Zoom in or out — the public card uses this position.'
+          : 'Drag the photo or video to set top, center, or bottom, and left or right. Zoom in or out — the preview uses that position.'}
       </p>
       <div
         ref={boxRef}
@@ -110,7 +142,7 @@ export function AvatarMediaFramePreview({
         {kind === 'video' ? (
           <video
             src={src}
-            className="pointer-events-none h-full w-full"
+            className="pointer-events-none"
             style={fit}
             muted
             loop
@@ -118,10 +150,28 @@ export function AvatarMediaFramePreview({
             playsInline
             preload="metadata"
             aria-label={alt}
+            onLoadedMetadata={(event) => {
+              const video = event.currentTarget
+              if (video.videoWidth > 0 && video.videoHeight > 0) {
+                setMediaSize({ width: video.videoWidth, height: video.videoHeight })
+              }
+            }}
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={alt} draggable={false} className="pointer-events-none h-full w-full" style={fit} />
+          <img
+            src={src}
+            alt={alt}
+            draggable={false}
+            className="pointer-events-none"
+            style={fit}
+            onLoad={(event) => {
+              const image = event.currentTarget
+              if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                setMediaSize({ width: image.naturalWidth, height: image.naturalHeight })
+              }
+            }}
+          />
         )}
         <div
           className="pointer-events-none absolute inset-y-0 border-l border-dashed border-white/70"

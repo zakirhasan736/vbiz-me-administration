@@ -876,13 +876,22 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
                 ) || portfolios[index]
               return {
                 ...gallery,
-                featuredImage: gallery.featuredImage || legacy?.imageUrl || gallery.featuredImage,
-                imageUrl: ('imageUrl' in gallery ? gallery.imageUrl : undefined) || legacy?.imageUrl,
+                // Keep explicit empty featuredImage (user removed it) — do not rehydrate from legacy.
+                featuredImage:
+                  typeof gallery.featuredImage === 'string'
+                    ? gallery.featuredImage
+                    : legacy?.imageUrl || gallery.featuredImage || '',
+                imageUrl:
+                  typeof gallery.featuredImage === 'string'
+                    ? gallery.featuredImage
+                    : ('imageUrl' in gallery ? gallery.imageUrl : undefined) || legacy?.imageUrl,
               }
             })
           : portfolios
       return rows.map((p) => {
-        const imageUrl = String(('featuredImage' in p && p.featuredImage) || ('imageUrl' in p && p.imageUrl) || '')
+        const imageUrl = String(
+          typeof p.featuredImage === 'string' ? p.featuredImage : ('imageUrl' in p && p.imageUrl) || ''
+        )
         const linkUrl = String(p.url || '')
         const status = p.status
         const active = status !== 0 && status !== '0'

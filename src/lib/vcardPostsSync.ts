@@ -326,13 +326,18 @@ async function syncDirectTabItems(options: {
   return saved
 }
 
+/** Persist clears as '' — never coerce to undefined (that skips the DB column update). */
+function syncFeaturedImage(value?: string | null): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 export function generalPostsToSyncItems(posts: VCardGeneralPost[]) {
   return posts.map((p, index) => ({
     id: p.id,
     title: p.title,
     description: p.description,
     url: p.customUrl || undefined,
-    featuredImage: p.featuredImage || undefined,
+    featuredImage: syncFeaturedImage(p.featuredImage),
     mediaFrame: p.mediaFrame ?? null,
     status: p.active ? '1' : '0',
     metas: {
@@ -349,7 +354,7 @@ export function faqsToSyncItems(faqs: VCardFaqEntry[]) {
     id: f.id,
     title: f.question,
     description: f.answer,
-    featuredImage: f.featuredImage || undefined,
+    featuredImage: syncFeaturedImage(f.featuredImage),
     mediaFrame: f.mediaFrame ?? null,
     url: f.url || undefined,
     status: f.active ? '1' : '0',
@@ -388,20 +393,21 @@ export function sectionPostsToSyncItems(items: VCardSectionPostItem[]): SyncItem
     const metas = { ...(p.metas || {}) }
     const documentsFromMeta = parseDocumentsMeta(metas.documents)
     delete metas.documents
+    const featuredImage = syncFeaturedImage(p.featuredImage)
 
-    const documents =
-      documentsFromMeta.length > 0
+    // Cleared featured media must not keep document stubs that would recreate the attachment.
+    const documents = featuredImage
+      ? documentsFromMeta.length > 0
         ? documentsFromMeta
-        : p.featuredImage?.trim()
-          ? [{ url: p.featuredImage.trim(), name: 'document' }]
-          : undefined
+        : [{ url: featuredImage, name: 'document' }]
+      : []
 
     return {
       id: p.id,
       title: p.title,
       description: p.description,
       url: p.url || undefined,
-      featuredImage: p.featuredImage || documents?.[0]?.url || undefined,
+      featuredImage,
       mediaFrame: p.mediaFrame ?? null,
       status: p.active ? '1' : '0',
       metas: {
