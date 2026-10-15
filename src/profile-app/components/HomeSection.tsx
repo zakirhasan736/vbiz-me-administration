@@ -2,7 +2,12 @@
 
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
-import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import {
+  displayIconChromeStyle,
+  displaySocialChromeStyle,
+  mergeDisplayFieldConfigs,
+  secondaryChromeDefaultsForMode,
+} from '@/lib/vcardDisplaySettings'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import {
@@ -278,14 +283,27 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const showLanguage = isVisible('Language')
   const showThemeToggle = isVisible('Theme Toggle')
   const cardTheme = homeHeroProps?.theme ?? 'light'
-  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), cardTheme)
-  const languageChrome = displayIconChromeStyle(field('Language'), cardTheme)
-  const websiteChrome = displayIconChromeStyle(field('Website'), cardTheme)
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), cardTheme)
-  const notificationsChrome = displayIconChromeStyle(field('Notifications'), cardTheme)
-  const notepadChrome = displayIconChromeStyle(field('Notepad'), cardTheme)
-  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), cardTheme)
-  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), cardTheme)
+  const iconDefaults = secondaryChromeDefaultsForMode(
+    {
+      primaryColor: design?.primaryColor,
+      secondaryColor: design?.secondaryColor,
+      accentColor: design?.accentColor,
+    },
+    cardTheme === 'dark' ? 'dark' : 'light',
+    design?.profileTemplate
+  )
+  const shareChrome = displayIconChromeStyle(
+    mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
+    cardTheme,
+    iconDefaults
+  )
+  const languageChrome = displayIconChromeStyle(field('Language'), cardTheme, iconDefaults)
+  const websiteChrome = displayIconChromeStyle(field('Website'), cardTheme, iconDefaults)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), cardTheme, iconDefaults)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), cardTheme, iconDefaults)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), cardTheme, iconDefaults)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), cardTheme, iconDefaults)
+  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), cardTheme, iconDefaults)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')

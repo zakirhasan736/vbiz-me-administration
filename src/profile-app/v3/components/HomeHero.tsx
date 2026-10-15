@@ -11,7 +11,12 @@ import {
 } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
-import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import {
+  displayIconChromeStyle,
+  displaySocialChromeStyle,
+  mergeDisplayFieldConfigs,
+  secondaryChromeDefaultsForMode,
+} from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
@@ -162,6 +167,7 @@ export const HomeHero: React.FC<{
     cardOwnerId,
     cardSlug,
     embedded,
+    design,
   } = useProfileDisplay()
 
   /**
@@ -186,15 +192,28 @@ export const HomeHero: React.FC<{
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showCrm = isVisible('CRM')
   const mode = (theme === 'dark' ? 'dark' : 'light') as 'light' | 'dark'
-  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), mode)
-  const crmChrome = displayIconChromeStyle(field('CRM'), mode)
-  const languageChrome = displayIconChromeStyle(field('Language'), mode)
-  const websiteChrome = displayIconChromeStyle(field('Website'), mode)
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), mode)
-  const notificationsChrome = displayIconChromeStyle(field('Notifications'), mode)
-  const notepadChrome = displayIconChromeStyle(field('Notepad'), mode)
-  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), mode)
-  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), mode)
+  const iconDefaults = secondaryChromeDefaultsForMode(
+    {
+      primaryColor: design?.primaryColor,
+      secondaryColor: design?.secondaryColor,
+      accentColor: design?.accentColor,
+    },
+    mode,
+    design?.profileTemplate
+  )
+  const shareChrome = displayIconChromeStyle(
+    mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
+    mode,
+    iconDefaults
+  )
+  const crmChrome = displayIconChromeStyle(field('CRM'), mode, iconDefaults)
+  const languageChrome = displayIconChromeStyle(field('Language'), mode, iconDefaults)
+  const websiteChrome = displayIconChromeStyle(field('Website'), mode, iconDefaults)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), mode, iconDefaults)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), mode, iconDefaults)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), mode, iconDefaults)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), mode, iconDefaults)
+  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), mode, iconDefaults)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')

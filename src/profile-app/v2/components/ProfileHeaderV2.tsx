@@ -1,7 +1,12 @@
 'use client'
 
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
-import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import {
+  displayIconChromeStyle,
+  displaySocialChromeStyle,
+  mergeDisplayFieldConfigs,
+  secondaryChromeDefaultsForMode,
+} from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
@@ -121,7 +126,7 @@ export function ProfileHeaderV2({
   onLanguage,
   embedded,
 }: ProfileHeaderV2Props) {
-  const { personal, social, isVisible, field, socialHref, profileViews, actionButtons, cardOwnerId, cardSlug } =
+  const { personal, social, isVisible, field, socialHref, profileViews, actionButtons, cardOwnerId, cardSlug, design } =
     useProfileDisplay()
   const avatarDisplaySrc = useMemo(
     () => resolveProfileAvatarSrc(avatarVideoUrl, explainerVideoUrl),
@@ -139,14 +144,27 @@ export function ProfileHeaderV2({
   const showViewCounter = isProfileActionButtonEnabled('view_counter', actionButtons, isVisible)
   const showLanguage = isProfileActionButtonEnabled('language', actionButtons, isVisible)
   const viewCounterCount = actionButtons?.view_counter?.count ?? profileViews
-  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), theme)
-  const crmChrome = displayIconChromeStyle(field('CRM'), theme)
-  const languageChrome = displayIconChromeStyle(field('Language'), theme)
-  const websiteChrome = displayIconChromeStyle(field('Website'), theme)
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), theme)
-  const notificationsChrome = displayIconChromeStyle(field('Notifications'), theme)
-  const notepadChrome = displayIconChromeStyle(field('Notepad'), theme)
-  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), theme)
+  const iconDefaults = secondaryChromeDefaultsForMode(
+    {
+      primaryColor: design?.primaryColor,
+      secondaryColor: design?.secondaryColor,
+      accentColor: design?.accentColor,
+    },
+    theme,
+    design?.profileTemplate
+  )
+  const shareChrome = displayIconChromeStyle(
+    mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
+    theme,
+    iconDefaults
+  )
+  const crmChrome = displayIconChromeStyle(field('CRM'), theme, iconDefaults)
+  const languageChrome = displayIconChromeStyle(field('Language'), theme, iconDefaults)
+  const websiteChrome = displayIconChromeStyle(field('Website'), theme, iconDefaults)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), theme, iconDefaults)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), theme, iconDefaults)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), theme, iconDefaults)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), theme, iconDefaults)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')

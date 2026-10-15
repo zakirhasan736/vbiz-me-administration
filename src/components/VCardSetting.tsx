@@ -69,12 +69,14 @@ import {
   GENERAL_SETTINGS_FIELDS,
   getDisplaySettingsFromVCard,
   getFieldModePickerValues,
+  getFieldSecondaryThemeColorDefaults,
   getFieldThemeColorDefaults,
   getMyInfoActionButtonColorDefaults,
   HOME_PAGE_COLOR_FIELDS,
   HOME_PAGE_FIELDS,
   HOME_PAGE_URL_FIELDS,
   ICON_FIELDS,
+  isSecondaryBgDisplayField,
   MY_INFO_ACTION_FIELDS,
   MY_INFO_FIELDS,
   NAV_BAR_FIELDS,
@@ -254,6 +256,7 @@ function ColorPicker({
           aria-label={`${label} hex`}
           value={live.text}
           onChange={(e) => live.onTextChange(e.target.value)}
+          onPaste={live.onPaste}
           spellCheck={false}
           className="focus:text-primary-600 dark:focus:text-primary-400 w-24 bg-transparent text-right font-mono text-[.75rem] font-medium text-slate-500 uppercase outline-none dark:text-slate-400"
         />
@@ -1894,6 +1897,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
 
   const profileTemplate = (vCardData.appearance?.profileTemplate ?? 'v2') as 'v1' | 'v2' | 'v3'
   const themeDefaults = getFieldThemeColorDefaults(vCardData.theme, profileTemplate)
+  const secondaryThemeDefaults = getFieldSecondaryThemeColorDefaults(vCardData.theme, profileTemplate)
   const resolvedThemeConfig = resolveCardThemeConfig(
     vCardData.themeConfig ?? getDefaultThemeConfig(profileTemplate),
     profileTemplate
@@ -1908,6 +1912,12 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
       ? cardId || contextCardId || undefined
       : undefined
 
+  const fieldThemeDefaultsFor = (key: string) => {
+    if (myInfoActionFieldSet.has(key)) return myInfoActionDefaults
+    if (isSecondaryBgDisplayField(key)) return secondaryThemeDefaults
+    return themeDefaults
+  }
+
   const renderFieldCards = (
     keys: readonly string[],
     options: { showTextCol?: boolean; showBgCol?: boolean; iconColLabel?: string; showInput?: boolean }
@@ -1918,7 +1928,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         title={key}
         config={display.fields[key] ?? { visible: true }}
         onPatch={(patch) => patchField(key, patch)}
-        themeDefaults={myInfoActionFieldSet.has(key) ? myInfoActionDefaults : themeDefaults}
+        themeDefaults={fieldThemeDefaultsFor(key)}
         {...options}
       />
     ))

@@ -1,7 +1,11 @@
 'use client'
 
 import { useTranslation } from '@/lib/i18n/translationData'
-import { displayCtaChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import {
+  displayCtaChromeStyle,
+  mergeDisplayFieldConfigs,
+  secondaryChromeDefaultsForMode,
+} from '@/lib/vcardDisplaySettings'
 import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import {
   buildHomeCtaInlineStyle,
@@ -102,14 +106,27 @@ function CtaButtonGrid({
   themeMode: 'light' | 'dark'
   onClick: (button: ResolvedHomeCtaButton) => void
 }) {
-  const { field } = useProfileDisplay()
+  const { field, design } = useProfileDisplay()
   const gap = isDesktop ? (template === 'v1' ? 'gap-4' : 'gap-3') : 'gap-2'
   const rowGap = isDesktop ? 'gap-3' : 'gap-2'
-  const chromeFor = (button: ResolvedHomeCtaButton) =>
-    displayCtaChromeStyle(
+  const brandTheme = {
+    primaryColor: design?.primaryColor,
+    secondaryColor: design?.secondaryColor,
+    accentColor: design?.accentColor,
+  }
+  const chromeFor = (button: ResolvedHomeCtaButton) => {
+    // Secondary CTAs (Save Contact / Wallet / My Info) default to Template secondary fill.
+    // Primary/accent CTAs keep theme tokens unless Card Settings overrides are saved.
+    const defaults =
+      button.role === 'secondary'
+        ? secondaryChromeDefaultsForMode(brandTheme, themeMode, design?.profileTemplate)
+        : undefined
+    return displayCtaChromeStyle(
       mergeDisplayFieldConfigs(...HOME_CTA_SETTING_KEYS[button.key].map((key) => field(key))),
-      themeMode
+      themeMode,
+      defaults
     )
+  }
 
   return (
     <div className={`flex flex-col ${gap}`}>

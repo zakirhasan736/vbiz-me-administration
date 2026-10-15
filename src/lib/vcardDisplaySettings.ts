@@ -46,11 +46,16 @@ type ThemeBrandColors = {
   accentColor?: string
 }
 
-/** Defaults shown in Card Settings pickers — from Template primary / secondary / accent. */
+export type FieldThemeColorDefaults = {
+  light: { text: string; bg: string; icon: string }
+  dark: { text: string; bg: string; icon: string }
+}
+
+/** Defaults for primary-fill controls (social networks, My vCard, Get your VCard Now). */
 export function getFieldThemeColorDefaults(
   theme?: ThemeBrandColors,
   profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
-): { light: { text: string; bg: string; icon: string }; dark: { text: string; bg: string; icon: string } } {
+): FieldThemeColorDefaults {
   const primary = theme?.primaryColor?.trim() || (profileTemplate === 'v1' ? '#dcc969' : '#eab308')
   const secondary = theme?.secondaryColor?.trim() || primary
   const accent = theme?.accentColor?.trim() || primary
@@ -68,6 +73,27 @@ export function getFieldThemeColorDefaults(
       text: contrastSafeForeground(darkFill, secondary, darkFg),
       icon: contrastSafeForeground(darkFill, secondary, darkFg),
     },
+  }
+}
+
+/**
+ * Defaults for secondary-fill controls (Share, Notes, Save Contact, Theme Toggle, rails…).
+ * Card Settings pickers and public chrome both use Template secondary as the solid BG.
+ */
+export function getFieldSecondaryThemeColorDefaults(
+  theme?: ThemeBrandColors,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): FieldThemeColorDefaults {
+  const primary = theme?.primaryColor?.trim() || (profileTemplate === 'v1' ? '#dcc969' : '#eab308')
+  const secondary =
+    theme?.secondaryColor?.trim() ||
+    (profileTemplate === 'v1' ? '#0a0a0a' : profileTemplate === 'v3' ? '#0f2c4d' : '#18181b')
+  const accent = theme?.accentColor?.trim() || primary
+  const lightFg = contrastSafeForeground(secondary, primary, readableForeground(secondary))
+  const darkFg = contrastSafeForeground(secondary, accent, readableForeground(secondary))
+  return {
+    light: { bg: secondary, text: lightFg, icon: lightFg },
+    dark: { bg: secondary, text: darkFg, icon: darkFg },
   }
 }
 
@@ -307,6 +333,29 @@ export function getMyInfoActionButtonColorDefaults(
 
 /** Legacy key kept for API/visibility sync; colors live on Social → Share. */
 export const LEGACY_SHARE_BTN_FIELD = 'Share Btn' as const
+
+/** Utility / action fields that default to Template secondary as background. */
+export const SECONDARY_BG_DISPLAY_FIELDS = [
+  'Share',
+  LEGACY_SHARE_BTN_FIELD,
+  'Notifications',
+  'Notepad',
+  '1-on-1',
+  'Vcard View Counter',
+  'Language',
+  'CRM',
+  'Website',
+  'Save Contact',
+  'Save to Wallet',
+  'My Info Btn',
+  'Theme Toggle',
+] as const
+
+export const SECONDARY_BG_DISPLAY_FIELD_SET = new Set<string>(SECONDARY_BG_DISPLAY_FIELDS)
+
+export function isSecondaryBgDisplayField(key: string): boolean {
+  return SECONDARY_BG_DISPLAY_FIELD_SET.has(key)
+}
 
 export const HOME_PAGE_FIELDS = [
   'Intro vCard Video',
@@ -637,19 +686,37 @@ export function mergeDisplayFieldConfigs(...configs: Array<DisplayFieldConfig | 
   })
 }
 
+type ChromeColorDefaults = { bg: string; text: string }
+
+function resolveChromePaint(
+  config: DisplayFieldConfig | undefined,
+  mode: ThemeMode,
+  defaults?: ChromeColorDefaults,
+  options?: { preferText?: boolean }
+): { paintFill?: string; paintFg?: string } {
+  const { fill, fg } = resolveFieldModeColors(config, mode, options)
+  const paintFill =
+    storedCssColor(fill) || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
+  const paintFg =
+    storedCssColor(fg) || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
+  return {
+    paintFill: paintFill || undefined,
+    paintFg: paintFg || undefined,
+  }
+}
+
 /**
  * Per-button colors from Card Settings. Sets CSS variables the themed
  * `.vbiz-social` / `.vbiz-icon-btn` / `.vbiz-btn` rules already read, so
  * `!important` theme tokens still apply — but use the owner's color when set.
- * Unset fields keep light/dark theme tokens.
+ * Pass `defaults` so Template primary/secondary fills paint before a custom override.
  */
 export function displaySocialChromeStyle(
   config?: DisplayFieldConfig,
-  mode: ThemeMode = 'light'
+  mode: ThemeMode = 'light',
+  defaults?: ChromeColorDefaults
 ): CSSProperties | undefined {
-  const { fill, fg } = resolveFieldModeColors(config, mode)
-  const paintFill = storedCssColor(fill)
-  const paintFg = storedCssColor(fg)
+  const { paintFill, paintFg } = resolveChromePaint(config, mode, defaults)
   if (!paintFill && !paintFg) return undefined
   const style: CSSPropertiesWithVariables = {}
   if (paintFill) {
@@ -669,11 +736,10 @@ export function displaySocialChromeStyle(
 
 export function displayIconChromeStyle(
   config?: DisplayFieldConfig,
-  mode: ThemeMode = 'light'
+  mode: ThemeMode = 'light',
+  defaults?: ChromeColorDefaults
 ): CSSProperties | undefined {
-  const { fill, fg } = resolveFieldModeColors(config, mode)
-  const paintFill = storedCssColor(fill)
-  const paintFg = storedCssColor(fg)
+  const { paintFill, paintFg } = resolveChromePaint(config, mode, defaults)
   if (!paintFill && !paintFg) return undefined
   const style: CSSPropertiesWithVariables = {}
   if (paintFill) {
@@ -693,11 +759,10 @@ export function displayIconChromeStyle(
 
 export function displayCtaChromeStyle(
   config?: DisplayFieldConfig,
-  mode: ThemeMode = 'light'
+  mode: ThemeMode = 'light',
+  defaults?: ChromeColorDefaults
 ): CSSProperties | undefined {
-  const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
-  const paintFill = storedCssColor(fill)
-  const paintFg = storedCssColor(fg)
+  const { paintFill, paintFg } = resolveChromePaint(config, mode, defaults, { preferText: true })
   if (!paintFill && !paintFg) return undefined
   const style: CSSPropertiesWithVariables = {}
   if (paintFill) {
@@ -716,6 +781,28 @@ export function displayCtaChromeStyle(
     style['--vbiz-btn-secondary-fg'] = paintFg
   }
   return style
+}
+
+/** Mode slice of Template secondary defaults for public icon / secondary CTA chrome. */
+export function secondaryChromeDefaultsForMode(
+  theme: ThemeBrandColors | undefined,
+  mode: ThemeMode,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): ChromeColorDefaults {
+  const defaults = getFieldSecondaryThemeColorDefaults(theme, profileTemplate)
+  const slice = mode === 'dark' ? defaults.dark : defaults.light
+  return { bg: slice.bg, text: slice.text }
+}
+
+/** Mode slice of Template primary defaults for social / primary CTA chrome. */
+export function primaryChromeDefaultsForMode(
+  theme: ThemeBrandColors | undefined,
+  mode: ThemeMode,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): ChromeColorDefaults {
+  const defaults = getFieldThemeColorDefaults(theme, profileTemplate)
+  const slice = mode === 'dark' ? defaults.dark : defaults.light
+  return { bg: slice.bg, text: slice.text }
 }
 
 /**

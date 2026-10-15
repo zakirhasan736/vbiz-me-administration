@@ -319,24 +319,8 @@ export function defaultButtonComponents(): ButtonComponents {
   return {
     // Filled brand CTAs: gold/primary fill + dark-blue (secondary) icons/text
     primary: roleButton('filled', 'primary', 'secondary'),
-    // Outline with opacity surface (readable in light + dark — not gold-on-transparent).
-    secondary: {
-      style: 'outlined',
-      colors: {
-        light: {
-          fill: 'accent',
-          foreground: 'auto',
-          borderColor: 'accent',
-          hoverOverlay: 'rgba(0,0,0,0.06)',
-        },
-        dark: {
-          fill: 'secondary',
-          foreground: 'auto',
-          borderColor: 'accent',
-          hoverOverlay: 'rgba(255,255,255,0.10)',
-        },
-      },
-    },
+    // Utility / outline-role CTAs: solid secondary (navy) fill — Share, Save Contact, rails, etc.
+    secondary: roleButton('filled', 'secondary', 'auto'),
     accent: roleButton('filled', 'accent', 'secondary'),
   }
 }

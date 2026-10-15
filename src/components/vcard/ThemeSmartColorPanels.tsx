@@ -75,6 +75,7 @@ function ColorField({
             aria-label={`${label} hex`}
             value={live.text}
             onChange={(e) => live.onTextChange(e.target.value)}
+            onPaste={live.onPaste}
             spellCheck={false}
             className={cn(
               'focus:text-primary-600 dark:focus:text-primary-400 bg-transparent text-right font-mono text-[.7rem] font-medium text-slate-500 outline-none dark:text-slate-400',

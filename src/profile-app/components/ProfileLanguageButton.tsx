@@ -1,6 +1,6 @@
 'use client'
 
-import { displayIconChromeStyle } from '@/lib/vcardDisplaySettings'
+import { displayIconChromeStyle, secondaryChromeDefaultsForMode } from '@/lib/vcardDisplaySettings'
 import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import { SelectedLanguageMark } from '@/profile-app/components/SelectedLanguageMark'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -22,7 +22,7 @@ export function ProfileLanguageButton({
   onFallbackClick,
 }: ProfileLanguageButtonProps) {
   const translationUi = useOptionalTranslationUi()
-  const { isVisible, field } = useProfileDisplay()
+  const { isVisible, field, design } = useProfileDisplay()
   const documentMode = useDocumentThemeMode('light')
   const mode = theme ?? documentMode
 
@@ -36,13 +36,23 @@ export function ProfileLanguageButton({
     onFallbackClick?.()
   }
 
+  const iconDefaults = secondaryChromeDefaultsForMode(
+    {
+      primaryColor: design?.primaryColor,
+      secondaryColor: design?.secondaryColor,
+      accentColor: design?.accentColor,
+    },
+    mode,
+    design?.profileTemplate
+  )
+
   return (
     <button
       type="button"
       onClick={handleClick}
       aria-label={label}
       className={`vbiz-icon-btn inline-flex items-center justify-center gap-1.5 transition-all active:scale-95 ${className}`}
-      style={displayIconChromeStyle(field('Language'), mode)}
+      style={displayIconChromeStyle(field('Language'), mode, iconDefaults)}
     >
       <SelectedLanguageMark
         showName={false}

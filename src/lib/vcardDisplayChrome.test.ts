@@ -84,10 +84,21 @@ describe('display chrome styles', () => {
     ).toBeUndefined()
   })
 
-  it('leaves theme tokens alone when the owner has not set a color', () => {
+  it('leaves theme tokens alone when the owner has not set a color and no defaults are passed', () => {
     expect(displaySocialChromeStyle({ visible: true })).toBeUndefined()
     expect(displayIconChromeStyle({ visible: true })).toBeUndefined()
     expect(displayCtaChromeStyle({ visible: true })).toBeUndefined()
+  })
+
+  it('paints Template secondary defaults onto icon chrome when no override is saved', () => {
+    const style = displayIconChromeStyle({ visible: true }, 'dark', {
+      bg: '#0f2c4d',
+      text: '#ffffff',
+    }) as Record<string, string>
+
+    expect(style['--vbiz-control-fill']).toBe('#0f2c4d')
+    expect(style['--vbiz-btn-secondary-fill']).toBe('#0f2c4d')
+    expect(style['--vbiz-control-fg']).toBe('#ffffff')
   })
 
   it('merges Share + Share Btn colors with the first non-empty value winning', () => {
