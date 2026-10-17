@@ -243,6 +243,7 @@ export type ApiProfile = {
     layoutStyle?: string | null
     buttonStyle?: string | null
     cornerStyle?: string | null
+    buttonShadow?: string | null
     themeConfig?: unknown
   } | null
   /** Legacy / top-level theme config mirror when present on profile payloads. */
@@ -798,9 +799,14 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     })(),
     appearance: {
       profileTemplate,
-      layoutStyle: profile.profileSettings?.layoutStyle || 'classic',
-      buttonStyle: profile.profileSettings?.buttonStyle || 'solid',
-      cornerStyle: profile.profileSettings?.cornerStyle || 'round',
+      layoutStyle: profile.profileSettings?.layoutStyle || themeConfig?.appearance.layoutStyle || 'classic',
+      buttonStyle: normalizeEditorButtonStyle(
+        profile.profileSettings?.buttonStyle || themeConfig?.appearance.buttonStyle
+      ),
+      cornerStyle: profile.profileSettings?.cornerStyle || themeConfig?.appearance.cornerStyle || 'round',
+      buttonShadow: normalizeEditorButtonShadow(
+        profile.profileSettings?.buttonShadow || themeConfig?.appearance.buttonShadow
+      ),
     },
     social: {
       handles: {
@@ -1033,11 +1039,26 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
             layoutStyle: data.appearance.layoutStyle,
             buttonStyle: data.appearance.buttonStyle,
             cornerStyle: data.appearance.cornerStyle,
+            buttonShadow: data.appearance.buttonShadow ?? 'none',
           }
         : {}),
       ...(themeConfig ? { themeConfig } : {}),
     },
   }
+}
+
+function normalizeEditorButtonStyle(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return 'solid'
+  const v = value.trim().toLowerCase()
+  if (v === 'filled') return 'solid'
+  if (v === 'outlined') return 'outline'
+  if (v === 'solid' || v === 'soft' || v === 'outline' || v === 'glass') return v
+  return 'solid'
+}
+
+function normalizeEditorButtonShadow(value: unknown): 'none' | 'soft' | 'strong' | 'hard' {
+  if (value === 'soft' || value === 'strong' || value === 'hard' || value === 'none') return value
+  return 'none'
 }
 
 function isLocalTempId(id: string): boolean {

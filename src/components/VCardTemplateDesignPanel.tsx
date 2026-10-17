@@ -161,18 +161,17 @@ export function VCardTemplateDesignPanel({
 
   const customSelected = !isPresetFontFamily(fontFamily)
 
-  const setBtnStyle = (label: string) => {
-    onAppearanceChange({ buttonStyle: label.toLowerCase() })
-  }
-
-  const setBtnRadius = (label: string) => {
-    const mapped = label === 'Square' ? 'square' : label === 'Rounder' ? 'soft' : label === 'Full' ? 'pill' : 'round'
-    onAppearanceChange({ cornerStyle: mapped })
-  }
-
-  const btnStyleLabel = buttonStyle.charAt(0).toUpperCase() + buttonStyle.slice(1)
-  const btnRadiusLabel =
-    cornerStyle === 'square' ? 'Square' : cornerStyle === 'soft' ? 'Rounder' : cornerStyle === 'pill' ? 'Full' : 'Round'
+  const normalizedButtonStyle = String(buttonStyle).trim().toLowerCase()
+  const activeButtonStyle =
+    normalizedButtonStyle === 'filled'
+      ? 'solid'
+      : normalizedButtonStyle === 'outlined'
+        ? 'outline'
+        : normalizedButtonStyle === 'glass' || normalizedButtonStyle === 'outline' || normalizedButtonStyle === 'soft'
+          ? normalizedButtonStyle
+          : 'solid'
+  const activeCorner =
+    cornerStyle === 'square' || cornerStyle === 'soft' || cornerStyle === 'pill' ? cornerStyle : 'round'
 
   return (
     <div className="mb-8 space-y-8" data-tour-id="tour-card-template-design">
@@ -187,17 +186,30 @@ export function VCardTemplateDesignPanel({
       <div className="space-y-6 border-t border-slate-200/60 pt-8 dark:border-white/10">
         <SettingSection title="Button style">
           <div className="grid grid-cols-3 gap-4">
-            <OptionCard label="Solid" selected={btnStyleLabel === 'Solid'} onClick={() => setBtnStyle('Solid')}>
+            <OptionCard
+              label="Solid"
+              selected={activeButtonStyle === 'solid'}
+              onClick={() => onAppearanceChange({ buttonStyle: 'solid' })}
+            >
               <div className="flex h-7 w-16 items-center justify-center rounded-lg bg-slate-200 dark:bg-[#1e2333]">
                 <div className="h-1.5 w-6 rounded-full bg-slate-400/80" />
               </div>
             </OptionCard>
-            <OptionCard label="Glass" selected={btnStyleLabel === 'Glass'} onClick={() => setBtnStyle('Glass')} isPro>
+            <OptionCard
+              label="Glass"
+              selected={activeButtonStyle === 'glass'}
+              onClick={() => onAppearanceChange({ buttonStyle: 'glass' })}
+              isPro
+            >
               <div className="flex h-7 w-16 items-center justify-center rounded-lg border border-black/20 bg-black/5 shadow-sm backdrop-blur-md dark:border-white/20 dark:bg-white/5">
                 <div className="h-1.5 w-6 rounded-full bg-white/30" />
               </div>
             </OptionCard>
-            <OptionCard label="Outline" selected={btnStyleLabel === 'Outline'} onClick={() => setBtnStyle('Outline')}>
+            <OptionCard
+              label="Outline"
+              selected={activeButtonStyle === 'outline'}
+              onClick={() => onAppearanceChange({ buttonStyle: 'outline' })}
+            >
               <div className="flex h-7 w-16 items-center justify-center rounded-lg border-2 border-slate-600 bg-transparent">
                 <div className="h-1.5 w-6 rounded-full bg-slate-600" />
               </div>
@@ -207,16 +219,32 @@ export function VCardTemplateDesignPanel({
 
         <SettingSection title="Corner roundness">
           <div className="grid grid-cols-4 gap-4">
-            <OptionCard label="Square" selected={btnRadiusLabel === 'Square'} onClick={() => setBtnRadius('Square')}>
+            <OptionCard
+              label="Square"
+              selected={activeCorner === 'square'}
+              onClick={() => onAppearanceChange({ cornerStyle: 'square' })}
+            >
               <div className="h-6 w-6 border-t-[.1875rem] border-l-[.1875rem] border-slate-400" />
             </OptionCard>
-            <OptionCard label="Round" selected={btnRadiusLabel === 'Round'} onClick={() => setBtnRadius('Round')}>
+            <OptionCard
+              label="Round"
+              selected={activeCorner === 'round'}
+              onClick={() => onAppearanceChange({ cornerStyle: 'round' })}
+            >
               <div className="h-6 w-6 rounded-tl-md border-t-[.1875rem] border-l-[.1875rem] border-slate-400" />
             </OptionCard>
-            <OptionCard label="Rounder" selected={btnRadiusLabel === 'Rounder'} onClick={() => setBtnRadius('Rounder')}>
+            <OptionCard
+              label="Rounder"
+              selected={activeCorner === 'soft'}
+              onClick={() => onAppearanceChange({ cornerStyle: 'soft' })}
+            >
               <div className="h-6 w-6 rounded-tl-xl border-t-[.1875rem] border-l-[.1875rem] border-slate-400" />
             </OptionCard>
-            <OptionCard label="Full" selected={btnRadiusLabel === 'Full'} onClick={() => setBtnRadius('Full')}>
+            <OptionCard
+              label="Full"
+              selected={activeCorner === 'pill'}
+              onClick={() => onAppearanceChange({ cornerStyle: 'pill' })}
+            >
               <div className="h-6 w-6 rounded-tl-full border-t-[.1875rem] border-l-[.1875rem] border-slate-400" />
             </OptionCard>
           </div>

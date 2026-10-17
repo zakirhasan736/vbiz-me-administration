@@ -219,6 +219,11 @@ function mergeServerProfileData(current: VCardData, server: VCardData): VCardDat
   return {
     ...current,
     ...server,
+    // Keep Template Settings / Global Color from the editor — server remaps can lag or drop fields
+    // (e.g. buttonShadow) and would reset Solid/Glass/Outline + corner + shadow mid-edit.
+    appearance: current.appearance ?? server.appearance,
+    theme: current.theme ?? server.theme,
+    themeConfig: current.themeConfig ?? server.themeConfig,
     education: current.education,
     experience: current.experience,
     services: current.services,
@@ -1321,7 +1326,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     (path: string, value: unknown) => {
       if (isCreateMode) {
         const prev = createDraftRef.current
-        let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+        const nextValue =
+          path === 'appearance' && value && typeof value === 'object' && !Array.isArray(value)
+            ? { ...(prev.appearance ?? {}), ...(value as Record<string, unknown>) }
+            : value
+        let next = setByPath(prev as unknown as Record<string, unknown>, path, nextValue) as unknown as VCardData
         next = applyNameSlugAutofill(prev, next, path)
         if (isAppearanceOrThemePath(path)) {
           next = {
@@ -1343,7 +1352,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (!cardId) return
       const base = editDataRef.current ?? (record ? toVCardData(record) : null)
       if (!base) return
-      let next = setByPath(base as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+      const nextValue =
+        path === 'appearance' && value && typeof value === 'object' && !Array.isArray(value)
+          ? { ...(base.appearance ?? {}), ...(value as Record<string, unknown>) }
+          : value
+      let next = setByPath(base as unknown as Record<string, unknown>, path, nextValue) as unknown as VCardData
       next = applyNameSlugAutofill(base, next, path)
       if (isAppearanceOrThemePath(path)) {
         next = {

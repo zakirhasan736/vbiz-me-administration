@@ -553,12 +553,31 @@ function resolveTheme(card: MyCardData): VCardTheme {
 function resolveAppearance(card: MyCardData): VCardData['appearance'] {
   const template = resolveTemplate(card)
   const cfg = hasDynamicTheme(card.theme_config) ? resolveCardThemeConfig(card.theme_config, template) : null
+  const buttonStyleRaw = String(cfg?.appearance.buttonStyle || '')
+    .trim()
+    .toLowerCase()
+  const buttonStyle =
+    buttonStyleRaw === 'filled'
+      ? 'solid'
+      : buttonStyleRaw === 'outlined'
+        ? 'outline'
+        : buttonStyleRaw === 'solid' ||
+            buttonStyleRaw === 'soft' ||
+            buttonStyleRaw === 'outline' ||
+            buttonStyleRaw === 'glass'
+          ? buttonStyleRaw
+          : 'solid'
+  const shadowRaw = String(cfg?.appearance.buttonShadow || '')
+    .trim()
+    .toLowerCase()
+  const buttonShadow =
+    shadowRaw === 'soft' || shadowRaw === 'strong' || shadowRaw === 'hard' || shadowRaw === 'none' ? shadowRaw : 'none'
   return {
     profileTemplate: template,
     layoutStyle: cfg?.appearance.layoutStyle ?? 'classic',
-    buttonStyle: cfg?.appearance.buttonStyle ?? 'solid',
+    buttonStyle,
     cornerStyle: cfg?.appearance.cornerStyle ?? 'round',
-    buttonShadow: cfg?.appearance.buttonShadow ?? 'none',
+    buttonShadow,
   }
 }
 

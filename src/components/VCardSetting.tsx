@@ -297,7 +297,9 @@ function TemplateDesigner() {
   const cardAppearance: VCardAppearance = vCardData.appearance ?? appearanceFromDesignSettings(accountDesign)
 
   const patchAppearance = (patch: Partial<VCardAppearance>) => {
-    updateData('appearance', { ...cardAppearance, ...patch })
+    // Pass the patch only — VCardContext merges onto the live draft so rapid Template
+    // Settings clicks (style / corner / shadow) never drop the previous selection.
+    updateData('appearance', patch)
   }
 
   const layoutStyle = cardAppearance.layoutStyle
