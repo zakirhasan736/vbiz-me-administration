@@ -42,8 +42,10 @@ const PRODUCT_MESSAGES: Record<string, string> = {
   NETWORK_ERROR: "I couldn't reach the vBiz Me AI service. Your existing card is safe. Try again.",
   WEBSITE_FETCH_FAILED:
     "I couldn't read that website or seller/storefront page. Your existing card is safe. Try the URL again, paste the seller/product details, or upload a document.",
-  DOCUMENT_READ_FAILED: "I couldn't finish reading that document. Try uploading it again or use another file.",
-  OCR_FAILED: "I couldn't finish reading that document. Try uploading it again or use another file.",
+  DOCUMENT_READ_FAILED:
+    "I couldn't finish reading that document all the way through. Try again — large PDFs/text are read in sections before the card is built.",
+  OCR_FAILED:
+    "I couldn't finish reading that document all the way through. Try again — large scanned files are read in multiple passes.",
   AI_PLANNING_FAILED:
     "I read your source, but the AI couldn't finish planning the update. Your current card is unchanged. Try again.",
   TIMEOUT: 'That source took too long to analyze. Your card is unchanged. Try again or use a smaller source.',

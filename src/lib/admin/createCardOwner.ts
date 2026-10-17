@@ -3,6 +3,48 @@ export type CreateCardOwnerSession = {
   name: string
   email: string
   role: 'vcard-owner' | 'corporate-owner' | string
+  /** Optional — Users accounts may not store phone; AI can fill from sources if blank. */
+  phone?: string
+}
+
+/** Personal identity already on the Users account — AI/custom builder must not invent a different login email. */
+export type AccountOwnerPersonalSeed = {
+  fullName: string
+  email: string
+  phone: string
+}
+
+export type AccountOwnerIdentityInput = {
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+}
+
+export function accountOwnerPersonalSeed(owner?: AccountOwnerIdentityInput | null): AccountOwnerPersonalSeed | null {
+  if (!owner) return null
+  const email = typeof owner.email === 'string' ? owner.email.trim() : ''
+  const fullName = typeof owner.name === 'string' ? owner.name.trim() : ''
+  const phone = typeof owner.phone === 'string' ? owner.phone.trim() : ''
+  if (!email && !fullName && !phone) return null
+  return { fullName, email, phone }
+}
+
+/** Merge account identity into a draft personal block without wiping AI-filled marketing fields. */
+export function mergeAccountOwnerIntoPersonal<T extends object>(
+  personal: T | undefined,
+  owner?: AccountOwnerIdentityInput | null
+): T {
+  const seed = accountOwnerPersonalSeed(owner)
+  const base = { ...(personal || {}) } as T
+  if (!seed) return base
+  if (seed.email) (base as Record<string, unknown>).email = seed.email
+  if (seed.fullName && !String((base as Record<string, unknown>).fullName || '').trim()) {
+    ;(base as Record<string, unknown>).fullName = seed.fullName
+  }
+  if (seed.phone && !String((base as Record<string, unknown>).phone || '').trim()) {
+    ;(base as Record<string, unknown>).phone = seed.phone
+  }
+  return base
 }
 
 const STORAGE_KEY = 'vbiz.createCardOwner'

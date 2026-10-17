@@ -8,7 +8,7 @@ import {
   setAboutMeDraft,
 } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
-import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
+import { clearCreateCardOwner, getCreateCardOwner, mergeAccountOwnerIntoPersonal } from '@/lib/admin/createCardOwner'
 import { omitUnchangedCorporateSharedSettings } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
 import {
@@ -236,12 +236,21 @@ function mergeServerProfileData(current: VCardData, server: VCardData): VCardDat
   }
 }
 
-function buildCreateDraft(design: RootState['designSettings']): VCardData {
+function buildCreateDraft(
+  design: RootState['designSettings'],
+  accountOwner?: { name?: string; email?: string; phone?: string } | null
+): VCardData {
   const defaults = designSettingsToVCardDefaults(design)
-  return createDefaultVCardData({
+  const assigned = getCreateCardOwner()
+  const seedOwner = assigned || accountOwner || null
+  const base = createDefaultVCardData({
     theme: defaults.theme,
     appearance: defaults.appearance,
   })
+  return {
+    ...base,
+    personal: mergeAccountOwnerIntoPersonal(base.personal, seedOwner),
+  }
 }
 
 function designDefaultsSignature(design: RootState['designSettings']): string {
@@ -336,9 +345,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const mode = useCardScopeMode()
   const isCreateMode = mode === 'create'
   const design = useAppSelector((s) => s.designSettings)
+  const authUser = useAppSelector((s) => s.user.user)
   const record = useAppSelector((s: RootState) => selectVCardById(s, cardId))
   const recordRef = useRef(record)
   recordRef.current = record
+  const selfAccountOwner = authUser?.id ? { name: authUser.name || '', email: authUser.email || '', phone: '' } : null
 
   const { data: remoteProfile, isFetching } = useGetProfileQuery(cardId || '', {
     skip: isCreateMode || !cardId,
@@ -727,13 +738,32 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   }, [cardId, isCreateMode, dispatch, listPosts, listBlogs, listTabItems, listEditorSections, record])
 
   const accountDefaultsSig = designDefaultsSignature(design)
-  const [createDraft, setCreateDraft] = useState<VCardData>(() => buildCreateDraft(design))
+  const [createDraft, setCreateDraft] = useState<VCardData>(() => buildCreateDraft(design, selfAccountOwner))
   const [appliedDefaultsSig, setAppliedDefaultsSig] = useState(accountDefaultsSig)
   const createDraftRef = useRef(createDraft)
+  const seededAccountEmailRef = useRef('')
 
   useEffect(() => {
     createDraftRef.current = createDraft
   }, [createDraft])
+
+  // Users area account (or assigned create-card owner) wins for email/name on new cards.
+  useEffect(() => {
+    if (!isCreateMode) return
+    const assigned = getCreateCardOwner()
+    const seed = assigned || selfAccountOwner
+    const email = (seed?.email || '').trim().toLowerCase()
+    if (!email || seededAccountEmailRef.current === email) return
+    seededAccountEmailRef.current = email
+    setCreateDraft((prev) => {
+      const next = {
+        ...prev,
+        personal: mergeAccountOwnerIntoPersonal(prev.personal, seed),
+      }
+      createDraftRef.current = next
+      return next
+    })
+  }, [isCreateMode, selfAccountOwner?.email, selfAccountOwner?.name])
 
   if (isCreateMode && accountDefaultsSig !== appliedDefaultsSig) {
     setAppliedDefaultsSig(accountDefaultsSig)
@@ -743,6 +773,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         theme: { ...prev.theme, ...defaults.theme },
         appearance: defaults.appearance,
+        personal: mergeAccountOwnerIntoPersonal(prev.personal, getCreateCardOwner() || selfAccountOwner),
       }
       createDraftRef.current = next
       return next
