@@ -434,7 +434,7 @@ export function applyAnalyzeToDraft(response: AnalyzeResponse, base?: VCardData)
 
 /** Paths to write via updateData for a full draft replace. */
 export function draftFieldWrites(data: VCardData): Array<{ path: string; value: unknown }> {
-  return [
+  const writes: Array<{ path: string; value: unknown }> = [
     { path: 'slug', value: data.slug },
     { path: 'personal', value: data.personal },
     { path: 'social', value: data.social },
@@ -449,4 +449,9 @@ export function draftFieldWrites(data: VCardData): Array<{ path: string; value: 
     { path: 'seo', value: data.seo },
     { path: 'myInfo', value: data.myInfo },
   ]
+  // Brand colors from AI builder (website/PDF) must persist on Create & activate / Save draft.
+  if (data.themeConfig) writes.push({ path: 'themeConfig', value: data.themeConfig })
+  if (data.theme) writes.push({ path: 'theme', value: data.theme })
+  if (data.appearance) writes.push({ path: 'appearance', value: data.appearance })
+  return writes
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
+import { AiBuilderBrandColorsPanel } from '@/components/vcard/create-agent/AiBuilderBrandColorsPanel'
 import { LaunchTabReviewModal } from '@/components/vcard/create-agent/LaunchTabReviewModal'
 import { useAppSelector } from '@/hooks/redux'
 import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
@@ -28,6 +29,13 @@ import { TAB_NAV_MAP } from '@/lib/ai/cardBlueprint'
 import { gapFieldToSection, type GapItem } from '@/lib/ai/gapReport'
 import { MAX_FILES, MAX_UPLOAD_BYTES } from '@/lib/ai/openai'
 import { mergeParsedPersonal, parseOwnerPersonalFromText, patchDraftFromFieldKey } from '@/lib/ai/ownerPersonalParse'
+import {
+  applyThemeRecommendationToConfig,
+  flatThemeFromConfig,
+  readThemeRecommendationFromJob,
+  shouldApplyBrandThemeConfig,
+  type ThemeRecommendation,
+} from '@/lib/ai/themeFromRecommendation'
 import { looksLikeStorefrontUrl } from '@/lib/ai/websiteCrawlMode'
 import { SESSION_FLUSH_DRAFT_EVENT } from '@/lib/auth/sessionPolicy'
 import {
@@ -42,6 +50,7 @@ import {
 } from '@/lib/createCardTabs'
 import { ensureNotificationPermission, saveNotificationPrefs } from '@/lib/notifications'
 import { normalizeCardSeo, normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
+import { getDefaultThemeConfig, type CardThemeConfig } from '@/lib/theme/cardThemeContract'
 import { getOverallCardCompletionPercent } from '@/lib/vcardCompletion'
 import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import type { SettingsTabId } from '@/lib/vcardEditorRoutes'
@@ -167,6 +176,8 @@ type JobSnapshot = AnalyzeResponse & {
   profileId?: string | null
   blueprint?: AnalyzeResponse['blueprint']
   assembledDraft?: unknown
+  businessProfile?: { themeRecommendation?: ThemeRecommendation | null } | null
+  themeRecommendation?: ThemeRecommendation | null
 }
 
 function sleep(ms: number) {
@@ -937,6 +948,10 @@ export function AiCardAgentWizard({
   const [dragNavId, setDragNavId] = useState<string | null>(null)
   const [dragOverNavId, setDragOverNavId] = useState<string | null>(null)
   const [openLaunchTabs, setOpenLaunchTabs] = useState<string[]>([])
+  const [brandRecommendation, setBrandRecommendation] = useState<ThemeRecommendation | null>(null)
+  const [launchThemeConfig, setLaunchThemeConfig] = useState<CardThemeConfig>(
+    () => vCardData.themeConfig || getDefaultThemeConfig(vCardData.appearance?.profileTemplate || 'v3')
+  )
   const [activeFeatureGuideKey, setActiveFeatureGuideKey] = useState<keyof OptionalFeatures | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -1057,6 +1072,8 @@ export function AiCardAgentWizard({
     setDragNavId(null)
     setDragOverNavId(null)
     setOpenLaunchTabs([])
+    setBrandRecommendation(null)
+    setLaunchThemeConfig(vCardData.themeConfig || getDefaultThemeConfig(vCardData.appearance?.profileTemplate || 'v3'))
     setActiveFeatureGuideKey(null)
     setActiveNav(enabledNavIds)
   }, [open, cardLoading, isEdit]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when newly opened
@@ -1123,6 +1140,7 @@ export function AiCardAgentWizard({
       draftRef.current = synced
       const nextNav = normalizeNavOrderWithPinnedEnds(navIds)
       setActiveNav(nextNav)
+      if (synced.themeConfig) setLaunchThemeConfig(synced.themeConfig)
       if (!editorUnlockedRef.current) return
       for (const write of draftFieldWrites(synced)) {
         updateData(write.path, write.value)
@@ -1130,6 +1148,48 @@ export function AiCardAgentWizard({
       onEnableNavIds(nextNav)
     },
     [updateData, onEnableNavIds]
+  )
+
+  const persistLaunchThemeConfig = useCallback(
+    (next: CardThemeConfig) => {
+      setLaunchThemeConfig(next)
+      const flat = flatThemeFromConfig(next)
+      const merged: VCardData = {
+        ...draftRef.current,
+        themeConfig: next,
+        theme: {
+          ...(draftRef.current.theme || {
+            primaryColor: flat.primaryColor,
+            secondaryColor: flat.secondaryColor,
+            accentColor: flat.accentColor,
+            darkMode: true,
+          }),
+          ...flat,
+        },
+      }
+      draftRef.current = merged
+      if (!editorUnlockedRef.current) return
+      updateData('themeConfig', next)
+      updateData('theme', merged.theme)
+    },
+    [updateData]
+  )
+
+  const applyBrandThemeFromJob = useCallback(
+    (job: JobSnapshot) => {
+      const recommendation = readThemeRecommendationFromJob(job)
+      setBrandRecommendation(recommendation)
+      if (!shouldApplyBrandThemeConfig(recommendation)) {
+        setLaunchThemeConfig(
+          draftRef.current.themeConfig || getDefaultThemeConfig(draftRef.current.appearance?.profileTemplate || 'v3')
+        )
+        return
+      }
+      const next = applyThemeRecommendationToConfig(draftRef.current.themeConfig, recommendation)
+      if (!next) return
+      persistLaunchThemeConfig(next)
+    },
+    [persistLaunchThemeConfig]
   )
 
   const refreshGaps = useCallback(async (navIds: string[], draft?: VCardData) => {
@@ -1715,13 +1775,15 @@ export function AiCardAgentWizard({
         )
         applyDraft(mapped.data, job.selectedNavIds || mapped.enabledNavIds)
       }
+      // Website/PDF brand colors → themeConfig (Global Color) before Create & activate / Save draft.
+      applyBrandThemeFromJob(job)
       if (job.selectedNavIds?.length) {
         const nextNav = normalizeNavOrderWithPinnedEnds(job.selectedNavIds)
         setActiveNav(nextNav)
         if (editorUnlockedRef.current) onEnableNavIds(nextNav)
       }
     },
-    [applyDraft, onEnableNavIds, activeNav]
+    [applyDraft, applyBrandThemeFromJob, onEnableNavIds, activeNav]
   )
 
   const continueFieldFlow = async (job: JobSnapshot) => {
@@ -2537,9 +2599,12 @@ export function AiCardAgentWizard({
         .map((tab) => tab.navId)
     )
     setPhase('preview')
+    const brandNote = shouldApplyBrandThemeConfig(brandRecommendation)
+      ? ' Brand colors from your website/PDF are ready in the checklist — change Primary / Secondary / Accent before you save if you want.'
+      : ' Review Brand colors in the checklist (defaults stay unless you change them).'
     pushMsg(
       'assistant',
-      `You’re at about ${score}% content completeness. Preview your card below. When it looks right, confirm and I’ll create it.`
+      `You’re at about ${score}% content completeness. Preview your card below. When it looks right, confirm and I’ll create it.${brandNote}`
     )
   }
 
@@ -3836,6 +3901,12 @@ export function AiCardAgentWizard({
                   later.
                 </p>
               )}
+
+              <AiBuilderBrandColorsPanel
+                themeConfig={launchThemeConfig}
+                recommendation={brandRecommendation}
+                onThemeConfigChange={persistLaunchThemeConfig}
+              />
 
               {!isEdit ? (
                 <div className="rounded-2xl border border-white/80 bg-white/80 p-2 dark:border-white/10 dark:bg-slate-900/70">
