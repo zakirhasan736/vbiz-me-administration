@@ -52,7 +52,10 @@ export function ProfileLanguageButton({
       onClick={handleClick}
       aria-label={label}
       className={`vbiz-icon-btn inline-flex items-center justify-center gap-1.5 transition-all active:scale-95 ${className}`}
-      style={displayIconChromeStyle(field('Language'), mode, iconDefaults)}
+      style={displayIconChromeStyle(field('Language'), mode, iconDefaults, {
+        buttonStyle: design?.buttonStyle,
+        outlineCompanion: design?.secondaryColor,
+      })}
     >
       <SelectedLanguageMark
         showName={false}

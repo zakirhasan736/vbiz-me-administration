@@ -793,31 +793,79 @@ function resolveChromePaint(
   }
 }
 
+export type ChromeButtonStyle = 'solid' | 'soft' | 'outline' | 'glass' | 'filled' | 'outlined' | string
+
 /**
- * Per-button colors from Card Settings. Sets CSS variables the themed
- * `.vbiz-social` / `.vbiz-icon-btn` / `.vbiz-btn` rules already read, so
- * `!important` theme tokens still apply — but use the owner's color when set.
- * Pass `defaults` so Template primary/secondary fills paint before a custom override.
+ * Adapt a solid brand/custom paint to Template Settings button style (Solid / Glass / Outline / Soft).
+ * Keeps Glass/Outline readable when a per-control color override is present.
+ */
+export function styleAwareChromePaint(
+  paintFill: string | undefined,
+  paintFg: string | undefined,
+  buttonStyle: ChromeButtonStyle | undefined,
+  mode: ThemeMode,
+  outlineCompanion?: string
+): { fill?: string; fg?: string } {
+  if (!paintFill && !paintFg) return {}
+  const style = String(buttonStyle || 'solid')
+    .trim()
+    .toLowerCase()
+  if (!paintFill) return { fill: undefined, fg: paintFg }
+
+  if (style === 'glass') {
+    return {
+      fill: `color-mix(in srgb, ${paintFill} 28%, transparent)`,
+      fg: paintFg || '#ffffff',
+    }
+  }
+  if (style === 'outline' || style === 'outlined') {
+    const fill =
+      mode === 'light'
+        ? `color-mix(in srgb, ${paintFill} 10%, transparent)`
+        : `color-mix(in srgb, ${outlineCompanion || paintFill} 55%, transparent)`
+    return { fill, fg: paintFg || '#ffffff' }
+  }
+  if (style === 'soft') {
+    return {
+      fill: `color-mix(in srgb, ${paintFill} 18%, transparent)`,
+      fg: paintFg || paintFill,
+    }
+  }
+  return { fill: paintFill, fg: paintFg }
+}
+
+type ChromeStyleOptions = {
+  /** Template Settings → Button style. Defaults stay on theme CSS vars when omitted. */
+  buttonStyle?: ChromeButtonStyle
+  /** Dark outline companion (usually secondary). */
+  outlineCompanion?: string
+}
+
+/**
+ * Per-button colors from Card Settings. Only emits overrides when the owner saved a
+ * custom color — otherwise theme CSS vars (Solid/Glass/Outline + corner + shadow) apply.
  */
 export function displaySocialChromeStyle(
   config?: DisplayFieldConfig,
   mode: ThemeMode = 'light',
-  defaults?: ChromeColorDefaults
+  defaults?: ChromeColorDefaults,
+  options?: ChromeStyleOptions
 ): CSSProperties | undefined {
-  const { paintFill, paintFg } = resolveChromePaint(config, mode, defaults)
-  if (!paintFill && !paintFg) return undefined
+  // Ignore template defaults here — CardThemeStyles already paints social from appearance.buttonStyle.
+  const { fill, fg } = resolveFieldModeColors(config, mode)
+  const userFill = storedCssColor(fill)
+  const userFg = storedCssColor(fg)
+  if (!userFill && !userFg) return undefined
+  const brandFill = userFill || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
+  const brandFg = userFg || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
+  const painted = styleAwareChromePaint(brandFill, brandFg, options?.buttonStyle, mode, options?.outlineCompanion)
   const style: CSSPropertiesWithVariables = {}
-  if (paintFill) {
-    style['--vbiz-control-fill'] = paintFill
-    style['--vbiz-control-border'] = paintFill
-    style['--vbiz-social-fill'] = paintFill
-    style['--vbiz-social-border-color'] = paintFill
-    style.backgroundColor = paintFill
+  if (painted.fill) {
+    style['--vbiz-social-fill'] = painted.fill
+    style['--vbiz-social-border-color'] = painted.fill
   }
-  if (paintFg) {
-    style['--vbiz-control-fg'] = paintFg
-    style['--vbiz-social-fg'] = paintFg
-    style.color = paintFg
+  if (painted.fg) {
+    style['--vbiz-social-fg'] = painted.fg
   }
   return style
 }
@@ -825,22 +873,23 @@ export function displaySocialChromeStyle(
 export function displayIconChromeStyle(
   config?: DisplayFieldConfig,
   mode: ThemeMode = 'light',
-  defaults?: ChromeColorDefaults
+  defaults?: ChromeColorDefaults,
+  options?: ChromeStyleOptions
 ): CSSProperties | undefined {
-  const { paintFill, paintFg } = resolveChromePaint(config, mode, defaults)
-  if (!paintFill && !paintFg) return undefined
+  const { fill, fg } = resolveFieldModeColors(config, mode)
+  const userFill = storedCssColor(fill)
+  const userFg = storedCssColor(fg)
+  if (!userFill && !userFg) return undefined
+  const brandFill = userFill || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
+  const brandFg = userFg || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
+  const painted = styleAwareChromePaint(brandFill, brandFg, options?.buttonStyle, mode, options?.outlineCompanion)
   const style: CSSPropertiesWithVariables = {}
-  if (paintFill) {
-    style['--vbiz-control-fill'] = paintFill
-    style['--vbiz-control-border'] = paintFill
-    style['--vbiz-btn-secondary-fill'] = paintFill
-    style['--vbiz-btn-secondary-border-color'] = paintFill
-    style.backgroundColor = paintFill
+  if (painted.fill) {
+    style['--vbiz-btn-secondary-fill'] = painted.fill
+    style['--vbiz-btn-secondary-border-color'] = painted.fill
   }
-  if (paintFg) {
-    style['--vbiz-control-fg'] = paintFg
-    style['--vbiz-btn-secondary-fg'] = paintFg
-    style.color = paintFg
+  if (painted.fg) {
+    style['--vbiz-btn-secondary-fg'] = painted.fg
   }
   return style
 }
@@ -848,25 +897,28 @@ export function displayIconChromeStyle(
 export function displayCtaChromeStyle(
   config?: DisplayFieldConfig,
   mode: ThemeMode = 'light',
-  defaults?: ChromeColorDefaults
+  defaults?: ChromeColorDefaults,
+  options?: ChromeStyleOptions
 ): CSSProperties | undefined {
-  const { paintFill, paintFg } = resolveChromePaint(config, mode, defaults, { preferText: true })
-  if (!paintFill && !paintFg) return undefined
+  const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
+  const userFill = storedCssColor(fill)
+  const userFg = storedCssColor(fg)
+  if (!userFill && !userFg) return undefined
+  const brandFill = userFill || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
+  const brandFg = userFg || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
+  const painted = styleAwareChromePaint(brandFill, brandFg, options?.buttonStyle, mode, options?.outlineCompanion)
   const style: CSSPropertiesWithVariables = {}
-  if (paintFill) {
-    style['--vbiz-control-fill'] = paintFill
-    style['--vbiz-control-border'] = paintFill
-    style['--vbiz-btn-fill'] = paintFill
-    style['--vbiz-btn-accent-fill'] = paintFill
-    style['--vbiz-btn-primary-fill'] = paintFill
-    style['--vbiz-btn-secondary-fill'] = paintFill
+  if (painted.fill) {
+    style['--vbiz-btn-fill'] = painted.fill
+    style['--vbiz-btn-accent-fill'] = painted.fill
+    style['--vbiz-btn-primary-fill'] = painted.fill
+    style['--vbiz-btn-secondary-fill'] = painted.fill
   }
-  if (paintFg) {
-    style['--vbiz-control-fg'] = paintFg
-    style['--vbiz-btn-fg'] = paintFg
-    style['--vbiz-btn-accent-fg'] = paintFg
-    style['--vbiz-btn-primary-fg'] = paintFg
-    style['--vbiz-btn-secondary-fg'] = paintFg
+  if (painted.fg) {
+    style['--vbiz-btn-fg'] = painted.fg
+    style['--vbiz-btn-accent-fg'] = painted.fg
+    style['--vbiz-btn-primary-fg'] = painted.fg
+    style['--vbiz-btn-secondary-fg'] = painted.fg
   }
   return style
 }

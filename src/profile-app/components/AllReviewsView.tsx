@@ -82,7 +82,7 @@ function ReviewCardContent({ item, compact }: { item: ReviewListItem; compact: b
         />
         <div>
           {item.title.trim() ? (
-            <p className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{item.title}</p>
+            <p className="vbiz-review-user-name text-base font-bold tracking-tight">{item.title}</p>
           ) : null}
         </div>
       </div>
@@ -215,7 +215,7 @@ export function SliderReviewCard({ item, compact = false }: { item: ReviewListIt
         <div className="min-w-0 flex-1">
           {item.title.trim() ? (
             <p
-              className={`truncate text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100 ${
+              className={`vbiz-review-user-name truncate text-sm font-bold tracking-tight ${
                 compact ? '' : 'md:text-base'
               }`}
             >

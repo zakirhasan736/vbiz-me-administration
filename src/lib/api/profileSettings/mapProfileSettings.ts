@@ -6,7 +6,7 @@ import type {
 } from '@/interfaces/api/profileSettings.interface'
 import { getDefaultThemeConfig, type CardThemeConfig, type ProfileTemplateId } from '@/lib/theme/cardThemeContract'
 import { brandColorsFromThemeConfig, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
-import type { VCardAppearance } from '@/types/vcard'
+import type { ButtonShadowId, VCardAppearance } from '@/types/vcard'
 
 function unwrapSettingsPayload(
   raw: ProfileSettingsResponse | ProfileSettingsData | null | undefined
@@ -36,6 +36,11 @@ function mapButtonStyleToAppearance(style: string | undefined): string {
   if (style === 'filled') return 'solid'
   if (style === 'outlined') return 'outline'
   return style
+}
+
+function mapButtonShadowToAppearance(value: unknown, fallback?: ButtonShadowId): ButtonShadowId | undefined {
+  if (value === 'none' || value === 'soft' || value === 'strong' || value === 'hard') return value
+  return fallback
 }
 
 /**
@@ -86,7 +91,7 @@ export function mapProfileSettings(
     buttonStyle: mapButtonStyleToAppearance(appearanceRaw.buttonStyle ?? themeConfig.appearance.buttonStyle),
     cornerStyle:
       typeof appearanceRaw.cornerStyle === 'string' ? appearanceRaw.cornerStyle : defaults.appearance.cornerStyle,
-    buttonShadow: themeConfig.appearance.buttonShadow,
+    buttonShadow: mapButtonShadowToAppearance(appearanceRaw.buttonShadow, themeConfig.appearance.buttonShadow),
   }
 
   const hasThemeConfig = Boolean(payload?.theme_config && typeof payload.theme_config === 'object')

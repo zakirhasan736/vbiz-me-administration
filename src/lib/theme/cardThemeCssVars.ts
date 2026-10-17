@@ -363,11 +363,13 @@ export const CARD_THEME_UTILITY_CSS = `
 }
 
 /* ---------- Buttons: primary | secondary | accent (all screens + preloaders) ---------- */
+/* Prefer style-resolved --vbiz-btn-*-fill (Solid/Glass/Outline) over --vbiz-control-fill
+   so Template Settings button style is not flattened to a solid paint. */
 ${themeUi('.vbiz-btn')},
 ${themeUi(".vbiz-btn[data-role='accent']")} {
   border-radius: var(--vbiz-btn-radius, 16px) !important;
-  background: var(--vbiz-control-fill, var(--vbiz-btn-accent-fill, var(--vbiz-btn-fill))) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-btn-accent-fg, var(--vbiz-btn-fg))) !important;
+  background: var(--vbiz-btn-accent-fill, var(--vbiz-btn-fill)) !important;
+  color: var(--vbiz-btn-accent-fg, var(--vbiz-btn-fg)) !important;
   border: var(--vbiz-btn-accent-border-width, var(--vbiz-btn-border-width, 0px)) solid var(--vbiz-btn-accent-border-color, var(--vbiz-btn-border-color, transparent)) !important;
   backdrop-filter: blur(var(--vbiz-btn-accent-blur, var(--vbiz-btn-blur, 0px)));
   box-shadow: var(--vbiz-btn-shadow, none) !important;
@@ -378,14 +380,14 @@ ${themeUi('.vbiz-btn svg')} {
   stroke: currentColor;
 }
 ${themeUi(".vbiz-btn[data-role='primary']")} {
-  background: var(--vbiz-control-fill, var(--vbiz-btn-primary-fill)) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-btn-primary-fg)) !important;
+  background: var(--vbiz-btn-primary-fill) !important;
+  color: var(--vbiz-btn-primary-fg) !important;
   border: var(--vbiz-btn-primary-border-width, 0px) solid var(--vbiz-btn-primary-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-btn-primary-blur, 0px));
 }
 ${themeUi(".vbiz-btn[data-role='secondary']")} {
-  background: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill)) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg)) !important;
+  background: var(--vbiz-btn-secondary-fill) !important;
+  color: var(--vbiz-btn-secondary-fg) !important;
   border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 0px));
 }
@@ -412,10 +414,11 @@ ${themeUi('.vbiz-social')} {
   min-width: var(--vbiz-social-size, 40px) !important;
   min-height: var(--vbiz-social-size, 40px) !important;
   border-radius: var(--vbiz-social-radius, 9999px) !important;
-  background-color: var(--vbiz-control-fill, var(--vbiz-social-fill)) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-social-fg)) !important;
-  border: var(--vbiz-social-border-width, 1px) solid var(--vbiz-control-border, var(--vbiz-social-border-color, transparent)) !important;
+  background-color: var(--vbiz-social-fill) !important;
+  color: var(--vbiz-social-fg) !important;
+  border: var(--vbiz-social-border-width, 1px) solid var(--vbiz-social-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-social-blur, 0px));
+  box-shadow: var(--vbiz-btn-shadow, none) !important;
   font-family: var(--vbiz-font, inherit);
 }
 /* Side rails next to Views/Website/CRM — match .vbiz-icon-btn diameter (ignore theme social size). */
@@ -448,12 +451,14 @@ ${themeUi('.vbiz-social:hover')} {
 }
 }
 
-/* ---------- Toolbar / icon buttons — theme colors + button style, default corners from markup ---------- */
+/* ---------- Toolbar / icon buttons — Template Settings style + corner + shadow ---------- */
 ${themeUi('.vbiz-icon-btn')} {
-  border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-control-border, var(--vbiz-btn-secondary-border-color, var(--vbiz-accent-border))) !important;
-  background-color: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle))) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg, var(--vbiz-accent))) !important;
+  border-radius: var(--vbiz-btn-radius, 9999px) !important;
+  border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, var(--vbiz-accent-border)) !important;
+  background-color: var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle)) !important;
+  color: var(--vbiz-btn-secondary-fg, var(--vbiz-accent)) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 8px));
+  box-shadow: var(--vbiz-btn-shadow, none) !important;
   font-family: var(--vbiz-font, inherit);
 }
 ${themeUi('.vbiz-icon-btn svg')},
@@ -1046,33 +1051,6 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
-.vbiz-profile-root [data-section-id='mission'] .vcard-mission-card {
-  background-image: none !important;
-}
-.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card,
-html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card {
-  background-color: #ffffff !important;
-}
-.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-title,
-html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
-  color: #18181b !important;
-}
-.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card .vbiz-description,
-.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card p,
-html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card .vbiz-description,
-html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card p {
-  color: #3f3f46 !important;
-}
-.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-title,
-html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
-  color: #f4f4f5 !important;
-}
-.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html {
-  color: inherit !important;
-}
-.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
-  color: inherit !important;
-}
 /* Extra <span style="color: …"> under p/headings must not lock light/dark text */
 .vbiz-profile-root .vcard-rich-html [style*='color: rgb(0, 0, 0)'],
 .vbiz-profile-root .vcard-rich-html [style*='color:rgb(0, 0, 0)'],
@@ -1123,12 +1101,16 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html a {
   color: var(--vbiz-accent) !important;
 }
-/* Reviews body: theme text (white in dark, dark in light) — override TipTap black */
+/* Reviews body fallback (mode-specific rules above win for light/dark card) */
 .vbiz-profile-root .vbiz-review-body,
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html {
   color: var(--vbiz-review-text, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
+  color: inherit !important;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
 .vbiz-profile-root .vcard-rich-html h1,
@@ -1873,5 +1855,109 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 }
 .vbiz-profile-root .vbiz-review-slider-track {
   background-color: var(--vbiz-review-slider-track, var(--vbiz-border)) !important;
+}
+
+/* Mission + Reviews — LAST so eye preview matches public.
+   Scope ONLY to card data-theme / vbiz-theme-* (never html.dark). */
+.vbiz-profile-root [data-section-id='mission'] .vcard-mission-card,
+.vbiz-profile-root .vbiz-card.vcard-mission-card {
+  background-image: none !important;
+  background-color: var(--vbiz-content-card-bg, var(--vbiz-surface)) !important;
+  border-color: var(--vbiz-content-card-border, var(--vbiz-border)) !important;
+  color: var(--vbiz-content-card-text, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card .vbiz-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card .vbiz-title {
+  color: var(--vbiz-content-card-title, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card p,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card p {
+  color: var(--vbiz-content-card-desc, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root.dark [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root.dark [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card .vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card .vbiz-title,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card .vbiz-title {
+  color: var(--vbiz-content-card-title, #ffffff) !important;
+}
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root.dark [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root.dark [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.dark [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card p,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card p,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card p {
+  color: #ffffff !important;
+}
+.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html,
+.vbiz-profile-root .vbiz-card.vcard-mission-card .vcard-rich-html {
+  color: inherit !important;
+}
+.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root .vbiz-card.vcard-mission-card .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
+  color: inherit !important;
+}
+.vbiz-profile-root[data-theme='light'] .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root.vbiz-theme-light .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root[data-theme='light'] .vbiz-review-card .vbiz-review-body.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-light .vbiz-review-card .vbiz-review-body.vcard-rich-html {
+  color: var(--vbiz-review-text, var(--vbiz-content-card-desc, var(--vbiz-text))) !important;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root.dark .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-body.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body.vcard-rich-html,
+.vbiz-profile-root.dark .vbiz-review-card .vbiz-review-body.vcard-rich-html {
+  color: #ffffff !important;
+}
+.vbiz-profile-root[data-theme='light'] .vbiz-review-card .vbiz-review-user-name,
+.vbiz-profile-root.vbiz-theme-light .vbiz-review-card .vbiz-review-user-name {
+  color: var(--vbiz-review-user-name, var(--vbiz-content-card-title, var(--vbiz-text))) !important;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-user-name,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-user-name,
+.vbiz-profile-root.dark .vbiz-review-card .vbiz-review-user-name {
+  color: var(--vbiz-review-user-name, #ffffff) !important;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.dark .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
+  color: inherit !important;
 }
 `.trim()

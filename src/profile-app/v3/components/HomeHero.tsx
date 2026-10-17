@@ -200,19 +200,24 @@ export const HomeHero: React.FC<{
   }
   const iconDefaults = secondaryChromeDefaultsForMode(brandTheme, mode, design?.profileTemplate)
   const socialDefaults = primaryChromeDefaultsForMode(brandTheme, mode, design?.profileTemplate)
+  const chromeOpts = {
+    buttonStyle: design?.buttonStyle,
+    outlineCompanion: design?.secondaryColor,
+  }
   const shareChrome = displayIconChromeStyle(
     mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
     mode,
-    iconDefaults
+    iconDefaults,
+    chromeOpts
   )
-  const crmChrome = displayIconChromeStyle(field('CRM'), mode, iconDefaults)
-  const languageChrome = displayIconChromeStyle(field('Language'), mode, iconDefaults)
-  const websiteChrome = displayIconChromeStyle(field('Website'), mode, iconDefaults)
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), mode, iconDefaults)
-  const notificationsChrome = displayIconChromeStyle(field('Notifications'), mode, iconDefaults)
-  const notepadChrome = displayIconChromeStyle(field('Notepad'), mode, iconDefaults)
-  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), mode, iconDefaults)
-  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), mode, iconDefaults)
+  const crmChrome = displayIconChromeStyle(field('CRM'), mode, iconDefaults, chromeOpts)
+  const languageChrome = displayIconChromeStyle(field('Language'), mode, iconDefaults, chromeOpts)
+  const websiteChrome = displayIconChromeStyle(field('Website'), mode, iconDefaults, chromeOpts)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), mode, iconDefaults, chromeOpts)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), mode, iconDefaults, chromeOpts)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), mode, iconDefaults, chromeOpts)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), mode, iconDefaults, chromeOpts)
+  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), mode, iconDefaults, chromeOpts)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')
@@ -277,7 +282,7 @@ export const HomeHero: React.FC<{
     return <Icon size={size} strokeWidth={2.5} />
   }
 
-  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), mode, socialDefaults)
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), mode, socialDefaults, chromeOpts)
 
   return (
     <div

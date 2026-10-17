@@ -292,18 +292,23 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const chromeMode = cardTheme === 'dark' ? 'dark' : 'light'
   const iconDefaults = secondaryChromeDefaultsForMode(brandTheme, chromeMode, design?.profileTemplate)
   const socialDefaults = primaryChromeDefaultsForMode(brandTheme, chromeMode, design?.profileTemplate)
+  const chromeOpts = {
+    buttonStyle: design?.buttonStyle,
+    outlineCompanion: design?.secondaryColor,
+  }
   const shareChrome = displayIconChromeStyle(
     mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
     cardTheme,
-    iconDefaults
+    iconDefaults,
+    chromeOpts
   )
-  const languageChrome = displayIconChromeStyle(field('Language'), cardTheme, iconDefaults)
-  const websiteChrome = displayIconChromeStyle(field('Website'), cardTheme, iconDefaults)
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), cardTheme, iconDefaults)
-  const notificationsChrome = displayIconChromeStyle(field('Notifications'), cardTheme, iconDefaults)
-  const notepadChrome = displayIconChromeStyle(field('Notepad'), cardTheme, iconDefaults)
-  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), cardTheme, iconDefaults)
-  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), cardTheme, iconDefaults)
+  const languageChrome = displayIconChromeStyle(field('Language'), cardTheme, iconDefaults, chromeOpts)
+  const websiteChrome = displayIconChromeStyle(field('Website'), cardTheme, iconDefaults, chromeOpts)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), cardTheme, iconDefaults, chromeOpts)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), cardTheme, iconDefaults, chromeOpts)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), cardTheme, iconDefaults, chromeOpts)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), cardTheme, iconDefaults, chromeOpts)
+  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), cardTheme, iconDefaults, chromeOpts)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')
@@ -523,7 +528,12 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               {visibleSocials.length > 0 || (social.games && Object.values(social.games).some((v) => v?.trim())) ? (
                 <div className="absolute top-0 left-0 z-50 flex shrink-0 flex-col gap-2 sm:hidden">
                   {visibleSocials.map((item, idx) => {
-                    const socialInlineStyle = displaySocialChromeStyle(field(item.label), cardTheme, socialDefaults)
+                    const socialInlineStyle = displaySocialChromeStyle(
+                      field(item.label),
+                      cardTheme,
+                      socialDefaults,
+                      chromeOpts
+                    )
                     const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label
                     return (
                       <IconHoverTooltip key={`${item.label}-${idx}`} label={tip} placement="right">
@@ -877,7 +887,8 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                           const socialInlineStyle = displaySocialChromeStyle(
                             field(item.label),
                             cardTheme,
-                            socialDefaults
+                            socialDefaults,
+                            chromeOpts
                           )
                           const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
                           const tip = V1_SOCIAL_TOOLTIP[item.label] ?? item.label

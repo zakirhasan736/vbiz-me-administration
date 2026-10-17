@@ -152,18 +152,23 @@ export function ProfileHeaderV2({
   }
   const iconDefaults = secondaryChromeDefaultsForMode(brandTheme, theme, design?.profileTemplate)
   const socialDefaults = primaryChromeDefaultsForMode(brandTheme, theme, design?.profileTemplate)
+  const chromeOpts = {
+    buttonStyle: design?.buttonStyle,
+    outlineCompanion: design?.secondaryColor,
+  }
   const shareChrome = displayIconChromeStyle(
     mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
     theme,
-    iconDefaults
+    iconDefaults,
+    chromeOpts
   )
-  const crmChrome = displayIconChromeStyle(field('CRM'), theme, iconDefaults)
-  const languageChrome = displayIconChromeStyle(field('Language'), theme, iconDefaults)
-  const websiteChrome = displayIconChromeStyle(field('Website'), theme, iconDefaults)
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), theme, iconDefaults)
-  const notificationsChrome = displayIconChromeStyle(field('Notifications'), theme, iconDefaults)
-  const notepadChrome = displayIconChromeStyle(field('Notepad'), theme, iconDefaults)
-  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), theme, iconDefaults)
+  const crmChrome = displayIconChromeStyle(field('CRM'), theme, iconDefaults, chromeOpts)
+  const languageChrome = displayIconChromeStyle(field('Language'), theme, iconDefaults, chromeOpts)
+  const websiteChrome = displayIconChromeStyle(field('Website'), theme, iconDefaults, chromeOpts)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), theme, iconDefaults, chromeOpts)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), theme, iconDefaults, chromeOpts)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), theme, iconDefaults, chromeOpts)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), theme, iconDefaults, chromeOpts)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')
@@ -188,7 +193,7 @@ export function ProfileHeaderV2({
     return <Icon size={HOME_ICON_SIZE} />
   }
 
-  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), theme, socialDefaults)
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), theme, socialDefaults, chromeOpts)
 
   const socialBtnClass =
     'vbiz-social vbiz-social-rail-sm flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10'

@@ -81,6 +81,24 @@ describe('applyEditorSettingsToThemeConfig', () => {
     expect(next.components.socialIcon.style).toBe('outlined')
   })
 
+  it('overwrites default solid component styles when Template Settings choose glass', () => {
+    const stock = getDefaultThemeConfig('v3')
+    expect(stock.components.button.primary.style).toBe('filled')
+    const next = applyEditorSettingsToThemeConfig(stock, null, {
+      buttonStyle: 'glass',
+      cornerStyle: 'soft',
+      buttonShadow: 'strong',
+    })
+    expect(next.appearance.buttonStyle).toBe('glass')
+    expect(next.appearance.cornerStyle).toBe('soft')
+    expect(next.appearance.buttonShadow).toBe('strong')
+    expect(next.components.button.primary.style).toBe('glass')
+    expect(next.components.button.secondary.style).toBe('glass')
+    expect(next.components.button.accent.style).toBe('glass')
+    expect(next.components.socialIcon.style).toBe('glass')
+    expect(next.components.socialIcon.cornerRadius).toBe(8)
+  })
+
   it('stores the selected font on theme_config so public cards can load it', () => {
     const next = applyEditorSettingsToThemeConfig(
       getDefaultThemeConfig('v3'),

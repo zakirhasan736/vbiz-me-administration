@@ -60,7 +60,8 @@ function getCtaButtonClasses(template: ProfileTemplateId, isDesktop: boolean): s
   }
 
   if (template === 'v2') {
-    return `${base} ${isDesktop ? 'text-[13px] sm:text-sm' : mobileText} font-semibold tracking-wide shadow-sm`
+    // Shadow comes from Template Settings → Button shadow (--vbiz-btn-shadow), not Tailwind.
+    return `${base} ${isDesktop ? 'text-[13px] sm:text-sm' : mobileText} font-semibold tracking-wide`
   }
 
   return `${base} ${isDesktop ? 'text-[13px] font-bold' : `${mobileText} font-semibold`} duration-300 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.02]`
@@ -116,8 +117,8 @@ function CtaButtonGrid({
     accentColor: design?.accentColor,
   }
   const chromeFor = (button: ResolvedHomeCtaButton) => {
-    // Secondary CTAs → Template secondary; primary/accent CTAs → Template primary
-    // (same defaults Card Settings General / Social pickers show).
+    // Only emit when the owner saved a custom CTA color. Otherwise theme CSS vars
+    // apply Template Settings button style / corner / shadow (Solid·Glass·Outline).
     const defaults =
       button.role === 'secondary'
         ? secondaryChromeDefaultsForMode(brandTheme, themeMode, design?.profileTemplate)
@@ -125,7 +126,11 @@ function CtaButtonGrid({
     return displayCtaChromeStyle(
       mergeDisplayFieldConfigs(...HOME_CTA_SETTING_KEYS[button.key].map((key) => field(key))),
       themeMode,
-      defaults
+      defaults,
+      {
+        buttonStyle: design?.buttonStyle,
+        outlineCompanion: design?.secondaryColor,
+      }
     )
   }
 
