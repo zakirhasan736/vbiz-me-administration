@@ -6,7 +6,7 @@ import type {
 } from '@/interfaces/api/profileSettings.interface'
 import { getDefaultThemeConfig, type CardThemeConfig, type ProfileTemplateId } from '@/lib/theme/cardThemeContract'
 import { brandColorsFromThemeConfig, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
-import type { ButtonShadowId, VCardAppearance } from '@/types/vcard'
+import type { ButtonShadowId, ButtonTypeId, VCardAppearance } from '@/types/vcard'
 
 function unwrapSettingsPayload(
   raw: ProfileSettingsResponse | ProfileSettingsData | null | undefined
@@ -41,6 +41,11 @@ function mapButtonStyleToAppearance(style: string | undefined): string {
 function mapButtonShadowToAppearance(value: unknown, fallback?: ButtonShadowId): ButtonShadowId | undefined {
   if (value === 'none' || value === 'soft' || value === 'strong' || value === 'hard') return value
   return fallback
+}
+
+function mapButtonTypeToAppearance(value: unknown, fallback?: ButtonTypeId): ButtonTypeId {
+  if (value === 'primary' || value === 'secondary' || value === 'default') return value
+  return fallback ?? 'default'
 }
 
 /**
@@ -79,6 +84,7 @@ export function mapProfileSettings(
         cornerStyle: appearanceRaw.cornerStyle ?? themeRaw.appearance?.cornerStyle,
         fontFamily: appearanceRaw.fontFamily ?? themeRaw.appearance?.fontFamily,
         buttonShadow: appearanceRaw.buttonShadow ?? themeRaw.appearance?.buttonShadow,
+        buttonType: appearanceRaw.buttonType ?? themeRaw.appearance?.buttonType,
       },
     },
     resolvedTemplate
@@ -92,6 +98,7 @@ export function mapProfileSettings(
     cornerStyle:
       typeof appearanceRaw.cornerStyle === 'string' ? appearanceRaw.cornerStyle : defaults.appearance.cornerStyle,
     buttonShadow: mapButtonShadowToAppearance(appearanceRaw.buttonShadow, themeConfig.appearance.buttonShadow),
+    buttonType: mapButtonTypeToAppearance(appearanceRaw.buttonType, themeConfig.appearance.buttonType),
   }
 
   const hasThemeConfig = Boolean(payload?.theme_config && typeof payload.theme_config === 'object')

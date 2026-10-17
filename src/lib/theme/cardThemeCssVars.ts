@@ -52,10 +52,11 @@ function resolveComponentColors(
     foreground = '#ffffff'
   } else if (style === 'outlined') {
     // Transparent / light tint surface — always white label/icon (Template Settings).
+    // Use the role fill (primary/secondary/accent) so Button type Primary/Secondary wins.
     if (mode === 'light') {
       fill = `color-mix(in srgb, ${roleFill} 10%, transparent)`
     } else {
-      fill = `color-mix(in srgb, ${set.secondary} 55%, transparent)`
+      fill = `color-mix(in srgb, ${roleFill} 55%, transparent)`
     }
     foreground = '#ffffff'
   } else if (style === 'ghost') {

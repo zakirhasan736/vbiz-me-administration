@@ -25,6 +25,8 @@ export type VCardSeo = {
 
 /** Per-vCard template & layout snapshot (defaults copied from account profile settings on create). */
 export type ButtonShadowId = 'none' | 'soft' | 'strong' | 'hard'
+/** Home buttons + social icons fill role: default keeps P/S/A roles; primary/secondary force one fill. */
+export type ButtonTypeId = 'default' | 'primary' | 'secondary'
 
 export type VCardAppearance = {
   profileTemplate: ProfileTemplateId
@@ -32,6 +34,8 @@ export type VCardAppearance = {
   buttonStyle: string
   cornerStyle: string
   buttonShadow?: ButtonShadowId
+  /** Template Settings → Button type (home CTAs + social icons). */
+  buttonType?: ButtonTypeId
 }
 
 export type VCardPersonal = {
@@ -493,4 +497,6 @@ export const DEFAULT_VCARD_APPEARANCE: VCardAppearance = {
   layoutStyle: 'classic',
   buttonStyle: 'solid',
   cornerStyle: 'round',
+  buttonShadow: 'none',
+  buttonType: 'default',
 }

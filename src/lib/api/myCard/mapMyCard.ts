@@ -572,12 +572,17 @@ function resolveAppearance(card: MyCardData): VCardData['appearance'] {
     .toLowerCase()
   const buttonShadow =
     shadowRaw === 'soft' || shadowRaw === 'strong' || shadowRaw === 'hard' || shadowRaw === 'none' ? shadowRaw : 'none'
+  const typeRaw = String(cfg?.appearance.buttonType || '')
+    .trim()
+    .toLowerCase()
+  const buttonType = typeRaw === 'primary' || typeRaw === 'secondary' || typeRaw === 'default' ? typeRaw : 'default'
   return {
     profileTemplate: template,
     layoutStyle: cfg?.appearance.layoutStyle ?? 'classic',
     buttonStyle,
     cornerStyle: cfg?.appearance.cornerStyle ?? 'round',
     buttonShadow,
+    buttonType,
   }
 }
 

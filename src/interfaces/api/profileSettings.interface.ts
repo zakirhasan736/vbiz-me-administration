@@ -7,6 +7,7 @@ export type ProfileSettingsAppearance = {
   cornerStyle?: string
   fontFamily?: string
   buttonShadow?: string
+  buttonType?: string
 }
 
 export type ProfileSettingsColorSet = {

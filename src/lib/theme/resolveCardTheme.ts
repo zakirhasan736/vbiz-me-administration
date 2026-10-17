@@ -250,6 +250,57 @@ function applyComponentStyleToButtons(buttons: ButtonComponents, style: Componen
   }
 }
 
+export type AppearanceButtonType = 'default' | 'primary' | 'secondary'
+
+export function normalizeAppearanceButtonType(value: unknown): AppearanceButtonType {
+  if (value === 'primary' || value === 'secondary' || value === 'default') return value
+  return 'default'
+}
+
+function paintComponentFill(
+  component: ComponentAppearance,
+  fill: 'primary' | 'secondary',
+  foreground: 'secondary' | 'auto'
+): ComponentAppearance {
+  const modePaint = (colors: ComponentModeColors): ComponentModeColors => ({
+    ...colors,
+    fill,
+    foreground,
+    borderColor: fill,
+  })
+  return {
+    ...component,
+    colors: {
+      light: modePaint(component.colors.light),
+      dark: modePaint(component.colors.dark),
+    },
+  }
+}
+
+/** Force home CTA + social fills to one Global Color role, or leave role defaults. */
+export function applyButtonTypeToComponents(
+  buttons: ButtonComponents,
+  social: SocialIconComponent,
+  buttonType: AppearanceButtonType
+): { buttons: ButtonComponents; social: SocialIconComponent } {
+  if (buttonType === 'default') return { buttons, social }
+  const fill = buttonType
+  const foreground: 'secondary' | 'auto' = buttonType === 'primary' ? 'secondary' : 'auto'
+  return {
+    buttons: {
+      primary: paintComponentFill(buttons.primary, fill, foreground),
+      secondary: paintComponentFill(buttons.secondary, fill, foreground),
+      accent: paintComponentFill(buttons.accent, fill, foreground),
+    },
+    social: {
+      ...paintComponentFill(social, fill, foreground),
+      iconSize: social.iconSize,
+      size: social.size,
+      cornerRadius: social.cornerRadius,
+    },
+  }
+}
+
 /**
  * Merge a raw `theme_config` from the API with safe defaults.
  * Returns a fully-populated, type-safe config — never throws on bad input.
@@ -319,6 +370,8 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
     appearance.buttonShadow === 'none'
       ? appearance.buttonShadow
       : defaults.appearance.buttonShadow
+  const buttonType = normalizeAppearanceButtonType(appearance.buttonType)
+  const typed = applyButtonTypeToComponents(buttons, socialIcon, buttonType)
 
   const wallpaper = normalizeWallpaper((r as { wallpaper?: unknown }).wallpaper)
 
@@ -332,8 +385,8 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
       defaults.colors
     ),
     components: {
-      button: buttons,
-      socialIcon,
+      button: typed.buttons,
+      socialIcon: typed.social,
       ...(sectionBanner ? { sectionBanner } : {}),
       ...(contentCard ? { contentCard } : {}),
       ...(reviewCard ? { reviewCard } : {}),
@@ -356,6 +409,7 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
       cornerStyle,
       fontFamily,
       buttonShadow,
+      buttonType,
     },
     ...(wallpaper ? { wallpaper } : {}),
   }
@@ -408,6 +462,7 @@ export function applyEditorSettingsToThemeConfig(
         buttonStyle?: unknown
         cornerStyle?: unknown
         buttonShadow?: unknown
+        buttonType?: unknown
       }
     | null
     | undefined
@@ -441,6 +496,9 @@ export function applyEditorSettingsToThemeConfig(
     appearance?.buttonShadow === 'none'
       ? appearance.buttonShadow
       : (current?.appearance.buttonShadow ?? 'none')
+  const buttonType = normalizeAppearanceButtonType(
+    appearance?.buttonType ?? current?.appearance.buttonType ?? 'default'
+  )
   const fontFamily =
     (typeof theme?.fontFamily === 'string' && theme.fontFamily.trim()) || current?.appearance.fontFamily || 'inter'
 
@@ -451,24 +509,49 @@ export function applyEditorSettingsToThemeConfig(
     buttonStyle,
     cornerStyle,
     buttonShadow,
+    buttonType,
     fontFamily,
   }
 
+  // Rebuild from template defaults + appearance so style/corner/shadow/type always re-apply
+  // cleanly when the user toggles back to a previous option (no stale glass/outline leftover).
+  const stock = getDefaultThemeConfig(template)
   const base = resolveCardThemeConfig(
     {
-      ...(current ?? {}),
+      ...stock,
+      colors: current?.colors ?? stock.colors,
+      components: {
+        ...stock.components,
+        sectionBanner: current?.components.sectionBanner,
+        contentCard: current?.components.contentCard,
+        reviewCard: current?.components.reviewCard,
+        faqItem: current?.components.faqItem,
+        topNavBar: current?.components.topNavBar,
+      },
+      wallpaper: current?.wallpaper,
       appearance: mergedAppearance,
+      version: current?.version ?? stock.version,
     },
     template
   )
 
   const appearanceStyle = appearanceButtonStyleToComponentStyle(mergedAppearance.buttonStyle)
-  const buttons = appearanceStyle
+  const styledButtons = appearanceStyle
     ? applyComponentStyleToButtons(base.components.button, appearanceStyle)
     : base.components.button
-  const socialIcon = appearanceStyle
-    ? { ...base.components.socialIcon, style: appearanceStyle, cornerRadius: cornerStyleToRadius(cornerStyle) }
-    : { ...base.components.socialIcon, cornerRadius: cornerStyleToRadius(cornerStyle) }
+  const styledSocial: SocialIconComponent = appearanceStyle
+    ? {
+        ...base.components.socialIcon,
+        style: appearanceStyle,
+        cornerRadius: cornerStyleToRadius(cornerStyle),
+      }
+    : {
+        ...base.components.socialIcon,
+        cornerRadius: cornerStyleToRadius(cornerStyle),
+      }
+  const typed = applyButtonTypeToComponents(styledButtons, styledSocial, buttonType)
+  const buttons = typed.buttons
+  const socialIcon = typed.social
 
   const primary = pickBrandColor(theme?.primaryColor)
   const secondary = pickBrandColor(theme?.secondaryColor)

@@ -189,6 +189,8 @@ export type CardThemeConfig = {
     cornerStyle: CornerStyle
     fontFamily?: string
     buttonShadow?: 'none' | 'soft' | 'strong' | 'hard'
+    /** Home CTAs + social: default = role colors; primary/secondary = force one Global Color role. */
+    buttonType?: 'default' | 'primary' | 'secondary'
   }
   /** Cover wallpaper style; omit to infer image/video from Background Video/Image. */
   wallpaper?: CardWallpaperConfig
@@ -388,6 +390,7 @@ export function getDefaultThemeConfig(template: ProfileTemplateId = 'v3'): CardT
       cornerStyle: 'round',
       fontFamily: 'inter',
       buttonShadow: 'none',
+      buttonType: 'default',
     },
   }
 }

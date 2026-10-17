@@ -10,7 +10,7 @@ import {
   type PresetFontOption,
 } from '@/lib/fonts'
 import { useGetGoogleFontsQuery } from '@/redux/features/fonts/fonts.api'
-import type { ButtonShadowId, VCardAppearance } from '@/types/vcard'
+import type { ButtonShadowId, ButtonTypeId, VCardAppearance } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Loader2, Search, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -20,6 +20,24 @@ const BUTTON_SHADOW_OPTIONS: { id: ButtonShadowId; label: string }[] = [
   { id: 'soft', label: 'Soft' },
   { id: 'strong', label: 'Strong' },
   { id: 'hard', label: 'Hard' },
+]
+
+const BUTTON_TYPE_OPTIONS: { id: ButtonTypeId; label: string; hint: string }[] = [
+  {
+    id: 'default',
+    label: 'Default',
+    hint: 'Keep current Primary / Secondary / Accent roles on home buttons and social icons.',
+  },
+  {
+    id: 'primary',
+    label: 'Primary',
+    hint: 'All home action buttons and social icons use Primary as the fill.',
+  },
+  {
+    id: 'secondary',
+    label: 'Secondary',
+    hint: 'All home action buttons and social icons use Secondary as the fill.',
+  },
 ]
 
 const BUTTON_SHADOW_PREVIEW_CLASS: Record<ButtonShadowId, string> = {
@@ -134,6 +152,8 @@ export function VCardTemplateDesignPanel({
   const buttonStyle = appearance.buttonStyle || 'solid'
   const cornerStyle = appearance.cornerStyle || 'round'
   const buttonShadow: ButtonShadowId = appearance.buttonShadow ?? 'none'
+  const buttonType: ButtonTypeId =
+    appearance.buttonType === 'primary' || appearance.buttonType === 'secondary' ? appearance.buttonType : 'default'
 
   const [fontQuery, setFontQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -184,6 +204,45 @@ export function VCardTemplateDesignPanel({
       />
 
       <div className="space-y-6 border-t border-slate-200/60 pt-8 dark:border-white/10">
+        <SettingSection title="Button type">
+          <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            Controls which Global Color fills home social icons and action buttons. Works with Button style, corner, and
+            shadow below.
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            {BUTTON_TYPE_OPTIONS.map((option) => (
+              <OptionCard
+                key={option.id}
+                label={option.label}
+                selected={buttonType === option.id}
+                onClick={() => onAppearanceChange({ buttonType: option.id })}
+              >
+                <div className="flex h-7 w-full items-center justify-center gap-1.5 px-1">
+                  <span
+                    className={cn(
+                      'h-5 w-5 rounded-full border border-black/10 dark:border-white/15',
+                      option.id === 'secondary' ? 'bg-slate-700' : 'bg-amber-300'
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'h-5 flex-1 rounded-md border border-black/10 dark:border-white/15',
+                      option.id === 'secondary'
+                        ? 'bg-slate-700'
+                        : option.id === 'primary'
+                          ? 'bg-amber-300'
+                          : 'bg-slate-300'
+                    )}
+                  />
+                </div>
+              </OptionCard>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] font-medium text-slate-400 dark:text-slate-500">
+            {BUTTON_TYPE_OPTIONS.find((o) => o.id === buttonType)?.hint}
+          </p>
+        </SettingSection>
+
         <SettingSection title="Button style">
           <div className="grid grid-cols-3 gap-4">
             <OptionCard

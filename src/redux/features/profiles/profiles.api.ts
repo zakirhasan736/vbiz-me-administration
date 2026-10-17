@@ -244,6 +244,7 @@ export type ApiProfile = {
     buttonStyle?: string | null
     cornerStyle?: string | null
     buttonShadow?: string | null
+    buttonType?: string | null
     themeConfig?: unknown
   } | null
   /** Legacy / top-level theme config mirror when present on profile payloads. */
@@ -807,6 +808,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
       buttonShadow: normalizeEditorButtonShadow(
         profile.profileSettings?.buttonShadow || themeConfig?.appearance.buttonShadow
       ),
+      buttonType: normalizeEditorButtonType(profile.profileSettings?.buttonType || themeConfig?.appearance.buttonType),
     },
     social: {
       handles: {
@@ -1040,6 +1042,7 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
             buttonStyle: data.appearance.buttonStyle,
             cornerStyle: data.appearance.cornerStyle,
             buttonShadow: data.appearance.buttonShadow ?? 'none',
+            buttonType: data.appearance.buttonType ?? 'default',
           }
         : {}),
       ...(themeConfig ? { themeConfig } : {}),
@@ -1059,6 +1062,11 @@ function normalizeEditorButtonStyle(value: unknown): string {
 function normalizeEditorButtonShadow(value: unknown): 'none' | 'soft' | 'strong' | 'hard' {
   if (value === 'soft' || value === 'strong' || value === 'hard' || value === 'none') return value
   return 'none'
+}
+
+function normalizeEditorButtonType(value: unknown): 'default' | 'primary' | 'secondary' {
+  if (value === 'primary' || value === 'secondary' || value === 'default') return value
+  return 'default'
 }
 
 function isLocalTempId(id: string): boolean {

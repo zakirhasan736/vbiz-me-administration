@@ -11,6 +11,7 @@ export function appearanceFromDesignSettings(design: DesignSettingsState): VCard
     buttonStyle: design.buttonStyle || 'solid',
     cornerStyle: design.cornerStyle || 'round',
     buttonShadow: 'none',
+    buttonType: 'default',
   }
 }
 
@@ -42,5 +43,6 @@ export function resolveVCardAppearance(
     buttonStyle: cardAppearance.buttonStyle ?? account.buttonStyle,
     cornerStyle: cardAppearance.cornerStyle ?? account.cornerStyle,
     buttonShadow: cardAppearance.buttonShadow ?? account.buttonShadow,
+    buttonType: cardAppearance.buttonType ?? account.buttonType ?? 'default',
   }
 }
