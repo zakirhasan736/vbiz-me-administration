@@ -87,11 +87,10 @@ export function CreateCardLauncher({
         open={modeOpen}
         onClose={() => setModeOpen(false)}
         onChooseManual={() => {
-          setModeOpen(false)
+          // Keep modal open so its loader stays visible until the editor route mounts.
           router.push(withFreshReset(createHref))
         }}
         onChooseAi={() => {
-          setModeOpen(false)
           router.push(withFreshReset(aiHref))
         }}
         canUseAi={canUseAi}

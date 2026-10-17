@@ -2129,11 +2129,10 @@ export default function AdminUsers() {
         open={createCardModeOpen}
         onClose={() => setCreateCardModeOpen(false)}
         onChooseManual={() => {
-          setCreateCardModeOpen(false)
+          // Keep modal open so its loader stays visible until the editor route mounts.
           router.push(withFreshReset('/vcards/create/home'))
         }}
         onChooseAi={() => {
-          setCreateCardModeOpen(false)
           router.push(withFreshReset('/vcards/create/home?agent=1'))
         }}
         canUseAi={canUseAi}

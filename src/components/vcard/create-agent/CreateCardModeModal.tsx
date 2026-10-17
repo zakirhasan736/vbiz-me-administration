@@ -1,8 +1,12 @@
 'use client'
 
+import { Loader } from '@/components/ui/Loader'
 import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/utils/cn'
 import { FilePenLine, Sparkles, X } from 'lucide-react'
+import { useState } from 'react'
+
+type CreateDestination = 'ai' | 'manual'
 
 type CreateCardModeModalProps = {
   open: boolean
@@ -21,11 +25,39 @@ export function CreateCardModeModal({
   title = 'Create a new card',
   canUseAi = true,
 }: CreateCardModeModalProps) {
+  const [pending, setPending] = useState<CreateDestination | null>(null)
+  const [wasOpen, setWasOpen] = useState(open)
+  // Reset loader when the parent closes the modal (avoid setState-in-effect lint).
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (!open && pending) setPending(null)
+  }
+
+  const handleClose = () => {
+    if (pending) return
+    setPending(null)
+    onClose()
+  }
+
+  const start = (destination: CreateDestination) => {
+    if (pending) return
+    if (destination === 'ai' && !canUseAi) return
+    setPending(destination)
+    // Let the loader paint before navigation starts (router.push can feel laggy).
+    window.setTimeout(() => {
+      if (destination === 'ai') onChooseAi()
+      else onChooseManual()
+    }, 80)
+  }
+
+  const loadingLabel =
+    pending === 'ai' ? 'Opening AI card builder…' : pending === 'manual' ? 'Opening card editor…' : null
+
   return (
     <Modal
       open={open}
-      onClose={onClose}
-      className="w-full max-w-lg space-y-6 rounded-4xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]"
+      onClose={handleClose}
+      className="relative w-full max-w-lg space-y-6 overflow-hidden rounded-4xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8 dark:border-white/10 dark:bg-[#0b0f19]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -36,18 +68,19 @@ export function CreateCardModeModal({
         </div>
         <button
           type="button"
-          onClick={onClose}
-          className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-white/5"
+          onClick={handleClose}
+          disabled={Boolean(pending)}
+          className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-white/5"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="grid gap-3">
+      <div className={cn('grid gap-3', pending && 'pointer-events-none opacity-40')}>
         <button
           type="button"
-          onClick={canUseAi ? onChooseAi : undefined}
-          disabled={!canUseAi}
+          onClick={() => start('ai')}
+          disabled={!canUseAi || Boolean(pending)}
           className={cn(
             'flex items-start gap-4 rounded-3xl border p-5 text-left transition',
             canUseAi
@@ -70,7 +103,8 @@ export function CreateCardModeModal({
 
         <button
           type="button"
-          onClick={onChooseManual}
+          onClick={() => start('manual')}
+          disabled={Boolean(pending)}
           className="flex items-start gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-slate-300 hover:bg-white dark:border-white/10 dark:bg-white/5"
         >
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-200">
@@ -84,6 +118,24 @@ export function CreateCardModeModal({
           </span>
         </button>
       </div>
+
+      {pending && loadingLabel ? (
+        <div
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-4xl bg-white/85 backdrop-blur-sm dark:bg-[#0b0f19]/90"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Loader
+            className="h-14 w-14 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10"
+            iconClassName="h-7 w-7 text-emerald-600 dark:text-emerald-300"
+          />
+          <p className="text-sm font-black text-slate-900 dark:text-white">{loadingLabel}</p>
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            {pending === 'ai' ? 'Preparing the AI builder…' : 'Preparing the card editor…'}
+          </p>
+        </div>
+      ) : null}
     </Modal>
   )
 }
