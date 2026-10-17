@@ -345,7 +345,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const mode = useCardScopeMode()
   const isCreateMode = mode === 'create'
   const design = useAppSelector((s) => s.designSettings)
-  const authUser = useAppSelector((s) => s.user.user)
+  const authUser = useAppSelector((s) => s.user?.user ?? null)
   const record = useAppSelector((s: RootState) => selectVCardById(s, cardId))
   const recordRef = useRef(record)
   recordRef.current = record

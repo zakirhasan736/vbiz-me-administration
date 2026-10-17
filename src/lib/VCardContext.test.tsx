@@ -14,6 +14,7 @@ type VCardApi = ReturnType<typeof useVCard>
 type TestState = {
   designSettings: DesignSettingsState
   vcards: VCardsState
+  user: { user: { id: string; name: string; email: string } | null; isLoading: boolean; token: string | null }
 }
 
 const mocks = vi.hoisted(() => ({
@@ -62,10 +63,14 @@ vi.mock('@/lib/aboutMePersist', () => ({
   flushAboutMeUpsert: mocks.flushAboutMeUpsert,
 }))
 
-vi.mock('@/lib/admin/createCardOwner', () => ({
-  clearCreateCardOwner: mocks.clearCreateCardOwner,
-  getCreateCardOwner: mocks.getCreateCardOwner,
-}))
+vi.mock('@/lib/admin/createCardOwner', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/admin/createCardOwner')>()
+  return {
+    ...actual,
+    clearCreateCardOwner: mocks.clearCreateCardOwner,
+    getCreateCardOwner: mocks.getCreateCardOwner,
+  }
+})
 
 vi.mock('@/lib/toast/toast', () => ({
   notify: {
@@ -150,6 +155,12 @@ function makeState(record: VCardRecord | null): TestState {
       byId: record ? { [record.id]: record } : {},
       ids: record ? [record.id] : [],
       slugToId: record?.slug ? { [record.slug]: record.id } : {},
+    },
+    // Slice must exist — VCardProvider reads s.user.user for create-draft seeding.
+    user: {
+      user: null,
+      isLoading: false,
+      token: null,
     },
   }
 }
