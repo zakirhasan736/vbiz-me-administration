@@ -4,6 +4,7 @@ import { useAppDispatch } from '@/hooks/redux'
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { mapNavBarLinks } from '@/lib/api/navbar/mapNavBarLinks'
 import { DEFAULT_PROFILE_SECTION } from '@/lib/profileRoutes'
+import { encodePublicCardTabHash, parsePublicCardTabHash, resolveTabIdFromHash } from '@/lib/publicCardTabHash'
 import {
   applyNavLabelOverrides,
   getNavItemById,
@@ -30,6 +31,18 @@ import {
   type ReactNode,
 } from 'react'
 
+function writePublicCardTabHash(tabId: string) {
+  if (typeof window === 'undefined') return
+  const nextHash = encodePublicCardTabHash(tabId)
+  const url = new URL(window.location.href)
+  const current = url.hash || ''
+  if (current === nextHash || (!nextHash && !current)) return
+  if (nextHash) url.hash = nextHash
+  else url.hash = ''
+  // replaceState keeps history clean while making the shareable URL update on every tab click.
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+}
+
 type ProfileNavigationContextValue = {
   navItems: NavBarNavItem[]
   visibleTabs: NavBarNavItem[]
@@ -55,8 +68,9 @@ type Props = {
 }
 
 /**
- * Client-side section nav — no URL / route changes.
- * Visible tabs follow Add Tabs order (`editorNavOrder`), including empty sections.
+ * Client-side section nav.
+ * Public cards sync the active tab into `location.hash` (`#services`) for share/copy/push deep-links.
+ * Embedded editor preview does not touch the URL.
  */
 export function ProfileNavigationProvider({
   children,
@@ -144,7 +158,29 @@ export function ProfileNavigationProvider({
     setLocalSectionId(null)
   }
 
+  // Public deep-link: open the tab named in `#services` (etc.) on first paint / when hash changes.
+  useLayoutEffect(() => {
+    if (embedded || typeof window === 'undefined') return
+    const applyHash = () => {
+      const hashId = parsePublicCardTabHash(window.location.hash)
+      if (!hashId || !visibleTabs.length) return
+      const matched = resolveTabIdFromHash(hashId, visibleTabs)
+      if (!matched) return
+      setLocalSectionId(matched)
+      onSectionChange?.(matched)
+    }
+    applyHash()
+    window.addEventListener('hashchange', applyHash)
+    return () => window.removeEventListener('hashchange', applyHash)
+  }, [embedded, onSectionChange, visibleTabs])
+
   const activeSectionId = resolveActiveSection(localSectionId ?? sectionId, visibleTabs)
+
+  // Keep the address bar hash aligned with the active public tab for copy/share.
+  useEffect(() => {
+    if (embedded) return
+    writePublicCardTabHash(activeSectionId)
+  }, [activeSectionId, embedded])
 
   const goToSection = useCallback(
     (tabId: string) => {
@@ -152,6 +188,7 @@ export function ProfileNavigationProvider({
       const apply = () => {
         setLocalSectionId(nextId)
         onSectionChange?.(nextId)
+        if (!embedded) writePublicCardTabHash(nextId)
       }
       // Public cards can wait a frame for the next chunk. The editor phone must follow instantly.
       if (embedded) apply()

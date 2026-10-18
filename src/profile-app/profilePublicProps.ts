@@ -91,9 +91,9 @@ export type VBizProfileAppProps = {
   shareSlug?: string
   /** Slug for the public profile URL (`/vCard/{slug}`). */
   profileSlug?: string
-  /** Active nav section (client state — not reflected in the URL). */
+  /** Active nav section (public cards also sync `#tab-id` in the URL). */
   sectionId?: string
-  /** Called when the user picks a nav item (embedded preview). */
+  /** Called when the user picks a nav item (embedded preview / public hash sync). */
   onSectionChange?: (sectionId: string) => void
   /** Skip intro preloader and scope theme (editor preview). */
   embedded?: boolean
