@@ -7,11 +7,12 @@ import type { OneOnOneRequest, Propose1On1SlotsPayload } from '@/redux/features/
 import {
   useCancelOneOnOneMeetingMutation,
   useCompleteOneOnOneMeetingMutation,
+  useDeleteOneOnOneRequestMutation,
   useListOpenOneOnOneRequestsQuery,
   useScheduleOneOnOneMeetingMutation,
 } from '@/redux/features/oneOnOne/oneOnOne.api'
 import { cn } from '@/utils/cn'
-import { ChevronDown, ChevronUp, Clock, Mail, MessageCircle, Phone } from 'lucide-react'
+import { ChevronDown, ChevronUp, Clock, Mail, MessageCircle, Phone, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 const PAGE_SIZE = 8
@@ -53,6 +54,8 @@ export function OneOnOneRequestsPanel({ className }: Props) {
     open: boolean
     title: string
     description: string
+    confirmLabel?: string
+    variant?: 'danger' | 'default'
     onConfirm: () => void
   } | null>(null)
   const [, setBusyId] = useState<string | null>(null)
@@ -60,6 +63,7 @@ export function OneOnOneRequestsPanel({ className }: Props) {
   const [scheduleMeeting] = useScheduleOneOnOneMeetingMutation()
   const [cancelMeeting] = useCancelOneOnOneMeetingMutation()
   const [completeMeeting] = useCompleteOneOnOneMeetingMutation()
+  const [deleteRequest] = useDeleteOneOnOneRequestMutation()
 
   const { data: requestedPage, isLoading: requestedLoading } = useListOpenOneOnOneRequestsQuery(
     { skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE },
@@ -107,6 +111,37 @@ export function OneOnOneRequestsPanel({ className }: Props) {
     }
   }
 
+  const handleDelete = async (requestId: string) => {
+    setBusyId(requestId)
+    try {
+      await deleteRequest({ requestId }).unwrap()
+      if (expandedId === requestId) setExpandedId(null)
+      if (scheduleRequest?.id === requestId) setScheduleRequest(null)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const deleteButton = (request: OneOnOneRequest) => (
+    <button
+      type="button"
+      onClick={() =>
+        setConfirmState({
+          open: true,
+          title: 'Delete 1-on-1 request?',
+          description: `Permanently delete the request from ${request.guestName}? This cannot be undone.`,
+          confirmLabel: 'Delete',
+          variant: 'danger',
+          onConfirm: () => void handleDelete(request.id),
+        })
+      }
+      className="inline-flex items-center gap-1 rounded-lg bg-rose-500/10 px-2.5 py-1.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase dark:text-rose-300"
+    >
+      <Trash2 className="h-3 w-3" />
+      Delete
+    </button>
+  )
+
   const actions = (request: OneOnOneRequest) => {
     const detailsOpen = expandedId === request.id
     const canPropose = request.status === 'open' || request.status === 'awaiting_guest'
@@ -135,6 +170,7 @@ export function OneOnOneRequestsPanel({ className }: Props) {
             <MessageCircle className="h-3 w-3" />
             {request.status === 'awaiting_guest' ? 'Update & reply' : 'Reply & propose'}
           </button>
+          {deleteButton(request)}
         </div>
       )
     }
@@ -183,11 +219,12 @@ export function OneOnOneRequestsPanel({ className }: Props) {
           >
             Complete
           </button>
+          {deleteButton(request)}
         </div>
       )
     }
 
-    return null
+    return deleteButton(request)
   }
 
   return (
@@ -333,7 +370,12 @@ export function OneOnOneRequestsPanel({ className }: Props) {
         open={Boolean(confirmState?.open)}
         title={confirmState?.title || ''}
         description={confirmState?.description || ''}
-        onConfirm={() => confirmState?.onConfirm()}
+        confirmLabel={confirmState?.confirmLabel || 'Confirm'}
+        variant={confirmState?.variant || 'default'}
+        onConfirm={() => {
+          confirmState?.onConfirm()
+          setConfirmState(null)
+        }}
         onCancel={() => setConfirmState(null)}
       />
     </section>
