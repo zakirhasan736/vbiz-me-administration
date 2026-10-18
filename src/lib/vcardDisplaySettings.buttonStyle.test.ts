@@ -32,7 +32,7 @@ describe('displayCtaChromeStyle', () => {
     ).toBeUndefined()
   })
 
-  it('applies glass mix when the owner saved a custom CTA fill', () => {
+  it('applies the exact saved fill without injecting Template defaults or glass mix', () => {
     const style = displayCtaChromeStyle(
       {
         visible: true,
@@ -43,8 +43,22 @@ describe('displayCtaChromeStyle', () => {
       { bg: '#eed677', text: '#0f2c4d' },
       { buttonStyle: 'glass' }
     ) as Record<string, string> | undefined
-    expect(style?.['--vbiz-btn-primary-fill']).toContain('color-mix')
-    expect(style?.['--vbiz-btn-primary-fill']).toContain('#112233')
+    expect(style?.['--vbiz-btn-primary-fill']).toBe('#112233')
+    expect(style?.['--vbiz-btn-secondary-fill']).toBe('#112233')
     expect(style?.['--vbiz-control-fill']).toBeUndefined()
+  })
+
+  it('does not freeze BG to Template defaults when only text is overridden', () => {
+    const style = displayCtaChromeStyle(
+      {
+        visible: true,
+        dark: { textColor: '#ff40ff' },
+      },
+      'dark',
+      { bg: '#eed677', text: '#0f2c4d' },
+      { buttonStyle: 'solid' }
+    ) as Record<string, string> | undefined
+    expect(style?.['--vbiz-btn-secondary-fg']).toBe('#ff40ff')
+    expect(style?.['--vbiz-btn-secondary-fill']).toBeUndefined()
   })
 })

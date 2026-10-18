@@ -242,6 +242,7 @@ function ColorPicker({
   defaultValue?: string
 }) {
   const live = useLiveCssColor(value ?? defaultValue ?? '#000000', onChange)
+  const swatchFill = live.swatch || live.text || value || defaultValue || '#000000'
 
   return (
     <div
@@ -261,7 +262,13 @@ function ColorPicker({
           spellCheck={false}
           className="focus:text-primary-600 dark:focus:text-primary-400 w-24 bg-transparent text-right font-mono text-[.75rem] font-medium text-slate-500 uppercase outline-none dark:text-slate-400"
         />
-        <ColorSwatchInput label={label} swatch={live.swatch} onChange={live.onPicker} />
+        <span
+          className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full border border-slate-200 shadow-inner dark:border-white/15"
+          style={{ backgroundColor: swatchFill }}
+          title={swatchFill}
+        >
+          <ColorSwatchInput label={label} swatch={live.swatch} onChange={live.onPicker} overlay />
+        </span>
       </div>
     </div>
   )
@@ -1919,9 +1926,14 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
       ? cardId || contextCardId || undefined
       : undefined
 
+  // Template Settings → Button type Primary remaps secondary-role CTAs (Save Contact, Share…)
+  // to the primary Global Color fill — pickers must show that same effective default.
+  const buttonType = vCardData.appearance?.buttonType
+  const secondaryPickerDefaults = buttonType === 'primary' ? themeDefaults : secondaryThemeDefaults
+
   const fieldThemeDefaultsFor = (key: string) => {
     if (myInfoActionFieldSet.has(key)) return myInfoActionDefaults
-    if (isSecondaryBgDisplayField(key)) return secondaryThemeDefaults
+    if (isSecondaryBgDisplayField(key)) return secondaryPickerDefaults
     if (isPrimaryBgDisplayField(key)) return themeDefaults
     return themeDefaults
   }

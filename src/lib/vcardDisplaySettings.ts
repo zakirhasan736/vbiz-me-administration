@@ -900,25 +900,28 @@ export function displayCtaChromeStyle(
   defaults?: ChromeColorDefaults,
   options?: ChromeStyleOptions
 ): CSSProperties | undefined {
+  void defaults
+  void options
   const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
+  // Only channels the owner saved. Do NOT inject Template defaults for the other channel —
+  // that made text-only overrides freeze BG and fight Global Color / Button type.
   const userFill = storedCssColor(fill)
   const userFg = storedCssColor(fg)
   if (!userFill && !userFg) return undefined
-  const brandFill = userFill || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
-  const brandFg = userFg || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
-  const painted = styleAwareChromePaint(brandFill, brandFg, options?.buttonStyle, mode, options?.outlineCompanion)
+  // Exact hex from Card Settings — do not glass/outline-mix away the picked color.
   const style: CSSPropertiesWithVariables = {}
-  if (painted.fill) {
-    style['--vbiz-btn-fill'] = painted.fill
-    style['--vbiz-btn-accent-fill'] = painted.fill
-    style['--vbiz-btn-primary-fill'] = painted.fill
-    style['--vbiz-btn-secondary-fill'] = painted.fill
+  if (userFill) {
+    style['--vbiz-btn-fill'] = userFill
+    style['--vbiz-btn-accent-fill'] = userFill
+    style['--vbiz-btn-primary-fill'] = userFill
+    style['--vbiz-btn-secondary-fill'] = userFill
+    style['--vbiz-btn-secondary-border-color'] = userFill
   }
-  if (painted.fg) {
-    style['--vbiz-btn-fg'] = painted.fg
-    style['--vbiz-btn-accent-fg'] = painted.fg
-    style['--vbiz-btn-primary-fg'] = painted.fg
-    style['--vbiz-btn-secondary-fg'] = painted.fg
+  if (userFg) {
+    style['--vbiz-btn-fg'] = userFg
+    style['--vbiz-btn-accent-fg'] = userFg
+    style['--vbiz-btn-primary-fg'] = userFg
+    style['--vbiz-btn-secondary-fg'] = userFg
   }
   return style
 }
