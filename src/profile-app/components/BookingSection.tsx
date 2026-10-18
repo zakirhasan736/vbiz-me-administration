@@ -77,10 +77,7 @@ function BookingCard({ item, idx, accent, primaryColor }: BookingCardProps) {
 
         <div className="absolute inset-0 bg-black/45" />
 
-        <span
-          className="absolute top-3 right-3 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
-          style={{ backgroundColor: accent }}
-        >
+        <span className="vbiz-section-pill absolute top-3 right-3 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
           Featured
         </span>
 

@@ -99,8 +99,8 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
                 href={detailUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-zinc-900 transition-opacity hover:opacity-90"
-                style={{ backgroundColor: accent }}
+                className="vbiz-btn inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90"
+                data-role="primary"
               >
                 Learn more <ArrowUpRight size={16} />
               </a>

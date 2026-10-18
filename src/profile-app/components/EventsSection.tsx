@@ -99,10 +99,7 @@ function EventCard({ item, idx, accent }: { item: DynamicPostListItem; idx: numb
         ) : null}
 
         {detailUrl ? (
-          <span
-            className="mt-5 inline-flex items-center gap-2 text-sm font-bold transition-opacity group-hover:opacity-80"
-            style={{ color: accent }}
-          >
+          <span className="vbiz-link mt-5 inline-flex items-center gap-2 text-sm font-bold transition-opacity group-hover:opacity-80">
             View event <ArrowUpRight size={15} />
           </span>
         ) : null}

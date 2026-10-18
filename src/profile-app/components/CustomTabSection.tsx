@@ -166,7 +166,8 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                       href={link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+                      className="vbiz-btn inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition hover:opacity-90"
+                      data-role="primary"
                     >
                       <ExternalLink size={16} /> {media ? 'Learn more' : 'Open video link'}
                     </a>

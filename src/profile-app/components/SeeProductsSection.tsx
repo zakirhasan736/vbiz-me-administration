@@ -89,10 +89,7 @@ function SeeProductsCard({ item, idx, accent }: { item: DynamicPostListItem; idx
           </div>
         )}
         <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
-        <span
-          className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
-          style={{ backgroundColor: accent }}
-        >
+        <span className="vbiz-section-pill absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
           <ShoppingBag size={12} /> Product
         </span>
       </div>
@@ -117,8 +114,7 @@ function SeeProductsCard({ item, idx, accent }: { item: DynamicPostListItem; idx
             href={detailUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-bold transition-opacity hover:opacity-80"
-            style={{ color: accent }}
+            className="vbiz-link mt-auto inline-flex items-center gap-2 pt-5 text-sm font-bold transition-opacity hover:opacity-80"
           >
             View product <ArrowUpRight size={15} />
           </a>

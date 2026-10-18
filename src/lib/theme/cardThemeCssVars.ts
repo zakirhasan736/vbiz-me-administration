@@ -831,7 +831,7 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 
 /* Body titles only — skip light-surface chips/pills (filters, card labels).
    Content / review / FAQ cards keep their own tokens (Card Settings panels). */
-.vbiz-profile-root .text-zinc-900:not(.vbiz-btn):not(.vbiz-live-agent-fab):not(.vbiz-social):not(.vbiz-filter-chip-active):not(.vbiz-card-pill):not(.vbiz-on-light-surface),
+.vbiz-profile-root .text-zinc-900:not(.vbiz-btn):not(.vbiz-live-agent-fab):not(.vbiz-social):not(.vbiz-filter-chip-active):not(.vbiz-card-pill):not(.vbiz-section-pill):not(.vbiz-on-light-surface),
 .vbiz-profile-root .dark\\:text-zinc-100 {
   color: var(--vbiz-text) !important;
 }
@@ -1550,6 +1550,25 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 .vbiz-card-overlay {
   background-color: color-mix(in srgb, var(--vbiz-accent) 78%, transparent) !important;
+}
+
+/* ---------- Content-tab pills / labels (Inventory, Menu, SalesPerson, etc.) ---------- */
+/* Accent is the text/highlight only — fill uses secondary (fallback primary) for contrast. */
+.vbiz-profile-root .vbiz-section-pill {
+  background-color: var(--vbiz-secondary, var(--vbiz-primary)) !important;
+  color: var(--vbiz-accent) !important;
+  border: 1px solid color-mix(in srgb, var(--vbiz-accent) 40%, transparent) !important;
+  border-radius: var(--vbiz-btn-radius, 9999px) !important;
+  box-shadow: var(--vbiz-btn-shadow, none);
+  font-family: var(--vbiz-font, inherit) !important;
+}
+.vbiz-profile-root .vbiz-section-pill,
+.vbiz-profile-root .vbiz-section-pill * {
+  color: var(--vbiz-accent) !important;
+}
+.vbiz-profile-root .vbiz-section-pill svg {
+  color: inherit !important;
+  stroke: currentColor;
 }
 
 /* ---------- Links (accent, readable on any bg) ---------- */
