@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
+import { describe, expect, it } from 'vitest'
 import {
   encodePublicCardTabHash,
   parsePublicCardTabHash,
@@ -9,9 +8,9 @@ import {
 
 describe('publicCardTabHash', () => {
   it('encodes and parses tab hashes', () => {
-    assert.equal(encodePublicCardTabHash('services'), '#services')
-    assert.equal(parsePublicCardTabHash('#Services'), 'services')
-    assert.equal(withPublicCardTabHash('/vCard/wd', 'services'), '/vCard/wd#services')
+    expect(encodePublicCardTabHash('services')).toBe('#services')
+    expect(parsePublicCardTabHash('#Services')).toBe('services')
+    expect(withPublicCardTabHash('/vCard/wd', 'services')).toBe('/vCard/wd#services')
   })
 
   it('resolves hash against visible tabs by id or label', () => {
@@ -19,8 +18,8 @@ describe('publicCardTabHash', () => {
       { id: 'services', label: 'Services' },
       { id: 'gallery', label: 'Gallery', displayLabel: 'Photos' },
     ]
-    assert.equal(resolveTabIdFromHash('services', tabs), 'services')
-    assert.equal(resolveTabIdFromHash('photos', tabs), 'gallery')
-    assert.equal(resolveTabIdFromHash('missing', tabs), null)
+    expect(resolveTabIdFromHash('services', tabs)).toBe('services')
+    expect(resolveTabIdFromHash('photos', tabs)).toBe('gallery')
+    expect(resolveTabIdFromHash('missing', tabs)).toBeNull()
   })
 })
