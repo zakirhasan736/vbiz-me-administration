@@ -15,6 +15,8 @@ export type ProfileOwnerSelection = {
   identity: string
   /** Corporate parent account id when the card sits under a company. */
   companyUserId?: string | null
+  /** CRM lead (GuestUserData) id when this selection is a saved contact / lead. */
+  guestUserDataId?: string | null
 }
 
 export type ProfileOwnerPickerSource = 'admin' | 'owner'

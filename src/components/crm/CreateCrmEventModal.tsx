@@ -8,7 +8,8 @@ import { SchedulePersonPicker } from '@/components/crm/SchedulePersonPicker'
 import { useAppSelector } from '@/hooks/redux'
 import type { CreateCrmEventSubmitPayload } from '@/lib/buildCreateCrmEventPayload'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
-import { meetingScopeLabel } from '@/lib/meetingScope'
+import { wishScopeHint, wishScopeLabel } from '@/lib/meetingScope'
+import { useGetCrmLeadsQuery } from '@/redux/features/crm/crm.api'
 import { useGetProfilesQuery, type ApiProfile } from '@/redux/features/profiles/profiles.api'
 import { CRM_EVENT_TYPES, type CrmEvent, type CrmEventAttachment, type CrmEventType } from '@/types/crmEvent'
 import { MEETING_SCOPES, type MeetingScope } from '@/types/meeting'
@@ -157,7 +158,7 @@ function CreateCrmEventModalContent({
   initialTime = '10:00 AM',
   initialType = 'Birthday Wish',
   title = 'Create Wish & outreach',
-  subtitle = 'Schedule a wish or outreach message with optional media attachments.',
+  subtitle = 'Choose a wish type, pick CRM leads, set the USA date/time, and the system auto-sends then.',
   cardPicker = 'admin',
   personSearch = false,
 }: CreateCrmEventModalContentProps) {
@@ -180,6 +181,8 @@ function CreateCrmEventModalContent({
   const [eventType, setEventType] = useState<CrmEventType | string>(initialType)
   const [eventDate, setEventDate] = useState(initialDate || todayIsoDate())
   const [eventTime, setEventTime] = useState(initialTime)
+  const [timezone, setTimezone] = useState('America/New_York')
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
   const [description, setDescription] = useState('')
   const [attachments, setAttachments] = useState<CrmEventAttachment[]>([])
   const [uploading, setUploading] = useState(false)
@@ -189,11 +192,18 @@ function CreateCrmEventModalContent({
   const [audioRecording, setAudioRecording] = useState(false)
   const [videoRecorderOpen, setVideoRecorderOpen] = useState(false)
 
+  const { data: leadsPage } = useGetCrmLeadsQuery(
+    { profileId: owner?.profileId || undefined, limit: 100 },
+    { skip: scope !== 'group' }
+  )
+  const crmLeads = leadsPage?.items ?? []
+
   const mediaBusy = uploading || audioRecording || videoRecorderOpen
 
   const handleScopeChange = (option: MeetingScope) => {
     setScope(option)
     if (option === 'one_to_one' && initialOwner) setOwner(initialOwner)
+    if (option !== 'group') setSelectedLeadIds([])
   }
 
   const hasDescription = description.trim().length > 0
@@ -202,8 +212,8 @@ function CreateCrmEventModalContent({
     (scope === 'global'
       ? globalHost.trim().length > 0
       : scope === 'one_to_one'
-        ? Boolean(owner)
-        : Boolean(owner) || Boolean(groupProfileIds.length))
+        ? Boolean(owner?.guestUserDataId || (lockOwner && owner))
+        : selectedLeadIds.length > 0)
 
   const uploadAttachmentFile = useCallback(
     async (file: File) => {
@@ -272,9 +282,15 @@ function CreateCrmEventModalContent({
     if (!canSubmit || isSubmitting || mediaBusy) return
 
     try {
+      const leadIds =
+        scope === 'group'
+          ? selectedLeadIds
+          : scope === 'one_to_one' && owner?.guestUserDataId
+            ? [owner.guestUserDataId]
+            : []
       const created = await onSubmit({
         scope,
-        owner: scope === 'global' ? null : owner,
+        owner,
         groupProfileIds:
           scope === 'group'
             ? includeTeamGroup && groupCompanyUserId
@@ -292,9 +308,12 @@ function CreateCrmEventModalContent({
         type: eventType,
         date: eventDate,
         time: eventTime,
+        timezone,
         description: description.trim(),
         attachments,
         globalHost: scope === 'global' ? globalHost.trim() : undefined,
+        recipientLeadIds: leadIds,
+        guestUserDataId: leadIds[0] || owner?.guestUserDataId || null,
       })
       // Success → brief confirmation, then auto-close. Errors keep the popup open.
       if (created !== undefined && created !== null) {
@@ -324,7 +343,7 @@ function CreateCrmEventModalContent({
           <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(244,63,94,0.08),transparent_50%)] px-6 py-5 dark:border-white/5">
             <div>
               <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-rose-700 uppercase dark:text-rose-300">
-                <CalendarHeart className="h-3.5 w-3.5" /> Event
+                <CalendarHeart className="h-3.5 w-3.5" /> Wish & outreach
               </p>
               <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h2>
               {subtitle ? (
@@ -345,9 +364,7 @@ function CreateCrmEventModalContent({
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
               {scopeOptions.length > 1 ? (
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
-                    Schedule type
-                  </label>
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Wish type</label>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     {scopeOptions.map((option) => (
                       <button
@@ -361,48 +378,117 @@ function CreateCrmEventModalContent({
                             : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
                         )}
                       >
-                        {meetingScopeLabel(option)}
+                        {wishScopeLabel(option)}
                       </button>
                     ))}
                   </div>
+                  <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                    {wishScopeHint(scope)}
+                  </p>
                 </div>
               ) : null}
 
               {scope === 'global' ? (
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Host label</label>
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                    Sender label
+                  </label>
                   <input
                     value={globalHost}
                     onChange={(e) => setGlobalHost(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
                   />
+                  <p className="text-[11px] text-slate-500">
+                    Sends to all qualified CRM leads in your current CRM at the scheduled USA time.
+                  </p>
                 </div>
-              ) : lockOwner && owner ? (
+              ) : null}
+
+              {lockOwner && owner ? (
                 <div className="rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                  <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Card</p>
+                  <p className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Lead / card</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{owner.hostName}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{owner.identity}</p>
                 </div>
-              ) : personSearch ? (
-                <SchedulePersonPicker
-                  value={owner}
-                  onChange={setOwner}
-                  label={scope === 'group' ? 'Primary card / team anchor' : 'Card or saved guest'}
-                  defaultProfileId={initialOwner?.profileId}
-                />
+              ) : scope === 'one_to_one' || scope === 'group' ? (
+                personSearch || useOwnCards ? (
+                  <SchedulePersonPicker
+                    value={owner}
+                    onChange={(next) => {
+                      setOwner(next)
+                      if (scope === 'one_to_one' && next?.guestUserDataId) {
+                        setSelectedLeadIds([next.guestUserDataId])
+                      }
+                    }}
+                    label={scope === 'group' ? 'Primary lead / card (optional anchor)' : 'CRM lead (single wish)'}
+                    defaultProfileId={initialOwner?.profileId}
+                  />
+                ) : (
+                  <ProfileOwnerPicker
+                    value={owner}
+                    onChange={setOwner}
+                    label="Card for this wish"
+                    listClassName="max-h-40"
+                    required={scope !== 'group'}
+                  />
+                )
               ) : useOwnCards ? (
-                <OwnCardsPicker value={owner} onChange={setOwner} label="Which card?" />
-              ) : (
-                <ProfileOwnerPicker
-                  value={owner}
-                  onChange={setOwner}
-                  label={scope === 'group' ? 'Primary card / team anchor' : 'Owner / host'}
-                  listClassName="max-h-40"
-                  required
-                />
-              )}
+                <OwnCardsPicker value={owner} onChange={setOwner} label="Card context (optional)" />
+              ) : null}
 
-              {scope === 'group' && !lockOwner ? (
+              {scope === 'group' ? (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                    Select CRM leads ({selectedLeadIds.length} selected)
+                  </label>
+                  <div className="max-h-48 overflow-y-auto rounded-2xl border border-slate-200/80 dark:border-white/10">
+                    {crmLeads.length === 0 ? (
+                      <p className="px-3 py-3 text-xs text-slate-400">No CRM leads found yet.</p>
+                    ) : (
+                      <ul className="divide-y divide-slate-100 dark:divide-white/5">
+                        {crmLeads.map((lead) => {
+                          const checked = selectedLeadIds.includes(lead.id)
+                          return (
+                            <li key={lead.id}>
+                              <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-white/5">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setSelectedLeadIds((prev) =>
+                                      checked ? prev.filter((id) => id !== lead.id) : [...prev, lead.id]
+                                    )
+                                    if (!owner) {
+                                      setOwner({
+                                        profileId: lead.vCardId,
+                                        hostName: lead.fullName,
+                                        ownerEmails: lead.email ? [lead.email] : [],
+                                        identity: lead.vCardName,
+                                        guestUserDataId: lead.id,
+                                      })
+                                    }
+                                  }}
+                                  className="mt-1"
+                                />
+                                <span className="min-w-0">
+                                  <span className="block text-sm font-semibold text-slate-900 dark:text-white">
+                                    {lead.fullName}
+                                  </span>
+                                  <span className="block text-[11px] text-slate-500">
+                                    {[lead.email, lead.phoneNumber, lead.vCardName].filter(Boolean).join(' · ')}
+                                  </span>
+                                </span>
+                              </label>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {scope === 'group' && !lockOwner && (groupCompanyUserId || useOwnCards) ? (
                 <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
                   <input
                     type="checkbox"
@@ -411,9 +497,8 @@ function CreateCrmEventModalContent({
                     className="mt-1"
                   />
                   <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                    {useOwnCards
-                      ? 'Include every card on your team in this event.'
-                      : 'Include every card under the selected corporate account when a team anchor is chosen.'}
+                    Also attach related team cards for owner CRM confirmation (leads above still control who receives
+                    the wish).
                   </span>
                 </label>
               ) : null}
@@ -444,7 +529,9 @@ function CreateCrmEventModalContent({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">Time</label>
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                    Time (USA local)
+                  </label>
                   <input
                     type="text"
                     required
@@ -453,6 +540,26 @@ function CreateCrmEventModalContent({
                     placeholder="e.g. 10:00 AM"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
                   />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">
+                    Timezone (USA)
+                  </label>
+                  <select
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none dark:border-white/10 dark:bg-[#101826] dark:text-white"
+                  >
+                    <option value="America/New_York">Eastern — America/New_York</option>
+                    <option value="America/Chicago">Central — America/Chicago</option>
+                    <option value="America/Denver">Mountain — America/Denver</option>
+                    <option value="America/Los_Angeles">Pacific — America/Los_Angeles</option>
+                    <option value="America/Phoenix">Arizona — America/Phoenix</option>
+                  </select>
+                  <p className="text-[11px] text-slate-500">
+                    Wish auto-sends at this local date/time. Selected leads get email + push; you get CRM in-app + push
+                    confirmation.
+                  </p>
                 </div>
               </div>
 

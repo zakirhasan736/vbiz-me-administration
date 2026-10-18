@@ -15,6 +15,10 @@ export type CreateCrmEventSubmitPayload = {
   globalHost?: string
   /** Optional CRM lead this event was created from. */
   guestUserDataId?: string | null
+  /** Selected CRM lead ids for single / grouped / (optional) global snapshot. */
+  recipientLeadIds?: string[]
+  /** IANA USA timezone for scheduled send (default America/New_York). */
+  timezone?: string
 }
 
 export function buildCreateCrmEventPayload(payload: CreateCrmEventSubmitPayload): CreateCrmEventPayload {
@@ -23,9 +27,18 @@ export function buildCreateCrmEventPayload(payload: CreateCrmEventSubmitPayload)
       ? payload.globalHost?.trim() || 'vBiz Team'
       : payload.owner?.hostName?.trim() || 'vCard Owner'
 
+  const leadIds = [
+    ...new Set(
+      [...(payload.recipientLeadIds || []), payload.guestUserDataId || payload.owner?.guestUserDataId || '']
+        .map((id) => (id || '').trim())
+        .filter(Boolean)
+    ),
+  ]
+
   const recipientEmail = payload.owner?.ownerEmails?.[0]?.trim().toLowerCase() || null
   const recipientName = payload.owner?.hostName?.trim() || host
   const description = payload.description.trim()
+  const timezone = payload.timezone?.trim() || 'America/New_York'
 
   const base: CreateCrmEventPayload = {
     host,
@@ -38,11 +51,16 @@ export function buildCreateCrmEventPayload(payload: CreateCrmEventSubmitPayload)
     attachments: payload.attachments,
     recipientEmail,
     recipientName,
-    ...(payload.guestUserDataId ? { guestUserDataId: payload.guestUserDataId } : {}),
+    timezone,
+    ...(leadIds[0] ? { guestUserDataId: leadIds[0] } : {}),
+    ...(leadIds.length ? { recipientLeadIds: leadIds } : {}),
   }
 
   if (payload.scope === 'global') {
-    return { ...base, profileId: null }
+    return {
+      ...base,
+      profileId: payload.owner?.profileId ?? null,
+    }
   }
 
   if (payload.scope === 'group') {

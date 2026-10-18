@@ -122,14 +122,16 @@ export default function AnnouncementBanner({ enabled = true }: AnnouncementBanne
     for (const item of toSeed) {
       if (!item?.id || !item.title?.trim() || seen.has(item.id)) continue
       seen.add(item.id)
-      // Prefer server topic. Public card notes use category `note` + topic `card` — never CRM.
+      // Prefer explicit server topic. 1-on-1 / card schedules may use category `event` with topic `card`.
+      const explicitTopic = item.meta?.topic?.trim().toLowerCase()
       const topic =
-        item.meta?.topic === 'crm' ||
-        item.meta?.category === 'event' ||
-        item.meta?.href === '/crm' ||
-        (item.meta?.category === 'note' && item.meta?.href?.startsWith('/crm'))
-          ? ('crm' as const)
-          : ('card' as const)
+        explicitTopic === 'crm' || explicitTopic === 'card'
+          ? (explicitTopic as 'crm' | 'card')
+          : item.meta?.category === 'event' ||
+              item.meta?.href === '/crm' ||
+              (item.meta?.category === 'note' && item.meta?.href?.startsWith('/crm'))
+            ? ('crm' as const)
+            : ('card' as const)
       for (const audience of audiences) {
         seedActiveAnnouncementNotification({
           audience,

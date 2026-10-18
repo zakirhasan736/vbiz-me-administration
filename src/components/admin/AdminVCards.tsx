@@ -1523,7 +1523,7 @@ export default function AdminVCards() {
                         source: 'card_notice',
                         channel: 'inbox',
                         ...(options.onlyBackoffice
-                          ? { onlyBackoffice: '1', sendPush: '1' }
+                          ? { onlyBackoffice: '1', sendPush: '0' }
                           : { showPublic: '1', sendPush: '0' }),
                       },
                     }).unwrap()

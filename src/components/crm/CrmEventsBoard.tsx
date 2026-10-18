@@ -221,7 +221,9 @@ export function CrmEventsBoard({
     try {
       const body = buildCreateCrmEventPayload(payload)
       const created = await createEvent(body).unwrap()
-      notify.success('Wish & outreach created. It will show on the Schedules calendar too.')
+      notify.success(
+        'Wish & outreach scheduled. Email sends at the date/time you set; you get a CRM confirmation then.'
+      )
       // Modal auto-closes after success confirmation; keep open on error.
       return created
     } catch (err) {

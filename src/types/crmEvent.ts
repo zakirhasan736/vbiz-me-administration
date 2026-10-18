@@ -30,6 +30,7 @@ export type CrmEvent = {
   date: string
   time: string
   startsAt: string
+  timezone?: string
   status: CrmEventStatus
   description?: string | null
   scope: MeetingScope
@@ -39,6 +40,7 @@ export type CrmEvent = {
   recipientEmail?: string | null
   recipientName?: string | null
   guestUserDataId?: string | null
+  recipientLeadIds?: string[]
   googleEventId?: string | null
   meetLink?: string | null
   createdById: string | null
@@ -61,6 +63,8 @@ export type CreateCrmEventPayload = {
   recipientEmail?: string | null
   recipientName?: string | null
   guestUserDataId?: string | null
+  recipientLeadIds?: string[]
+  timezone?: string
 }
 
 export type UpdateCrmEventPayload = Partial<CreateCrmEventPayload>

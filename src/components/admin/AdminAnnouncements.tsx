@@ -271,8 +271,8 @@ export default function AdminAnnouncements() {
       )
       if (onlyBackoffice) {
         nextMeta.onlyBackoffice = '1'
-        // Owner/target Web Push only (no public saver blast — requires showPublic).
-        nextMeta.sendPush = '1'
+        // Matrix §8.F — back-office only: in-app (+ email/SMS as needed). No public or owner browser push.
+        nextMeta.sendPush = '0'
       } else {
         nextMeta.showPublic = '1'
         nextMeta.sendPush = '1'

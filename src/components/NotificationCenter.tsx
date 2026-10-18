@@ -183,7 +183,7 @@ export function NotificationCenter({ audience, topic, title = 'Your Alerts', cla
   }
 
   const handleMarkAllRead = () => {
-    markAllNotificationsRead(audience)
+    markAllNotificationsRead(audience, { topic })
     setReadOverrides((current) => {
       const next = new Set(current)
       storedItems.forEach((item) => {

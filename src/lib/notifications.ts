@@ -269,8 +269,14 @@ export function dismissAnnouncementEverywhere(announcementId: string) {
   persist(list)
 }
 
-export function markAllNotificationsRead(audience: NotificationAudience) {
-  const list = loadNotifications().map((n) => (n.audience === audience ? { ...n, read: true } : n))
+/** Mark read only within one audience (+ optional card vs CRM topic). Never cross-clears the other bell. */
+export function markAllNotificationsRead(audience: NotificationAudience, opts?: { topic?: NotificationTopic | null }) {
+  const topic = opts?.topic || null
+  const list = loadNotifications().map((n) => {
+    if (n.audience !== audience) return n
+    if (topic && resolveNotificationTopic(n) !== topic) return n
+    return { ...n, read: true }
+  })
   persist(list)
 }
 
