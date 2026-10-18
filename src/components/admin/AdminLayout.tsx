@@ -2,7 +2,6 @@
 
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import { VbizBrandMark } from '@/components/brand/VbizBrandMark'
-import { DashboardPushPrompt } from '@/components/DashboardPushPrompt'
 import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
 import { ModalPortal } from '@/components/ModalPortal'
 import NotificationCenter from '@/components/NotificationCenter'
@@ -348,7 +347,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             isLoading={isLoggingOut}
           />
         )}
-        <DashboardPushPrompt />
       </div>
     </AdminVCardListProvider>
   )

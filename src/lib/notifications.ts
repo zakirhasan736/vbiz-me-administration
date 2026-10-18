@@ -418,7 +418,8 @@ export function pushNotification(input: {
   list.unshift(n)
   persist(list)
 
-  if (input.forceBrowser || categoryAllowed(input.category, prefs)) {
+  // Staff-admin audience: inbox only — never in-tab browser Notification toasts.
+  if (input.audience !== 'admin' && (input.forceBrowser || categoryAllowed(input.category, prefs))) {
     maybeBrowserNotify(n, prefs)
   }
 

@@ -122,11 +122,12 @@ export default function AnnouncementBanner({ enabled = true }: AnnouncementBanne
     for (const item of toSeed) {
       if (!item?.id || !item.title?.trim() || seen.has(item.id)) continue
       seen.add(item.id)
+      // Prefer server topic. Public card notes use category `note` + topic `card` — never CRM.
       const topic =
         item.meta?.topic === 'crm' ||
         item.meta?.category === 'event' ||
-        item.meta?.category === 'note' ||
-        item.meta?.href === '/crm'
+        item.meta?.href === '/crm' ||
+        (item.meta?.category === 'note' && item.meta?.href?.startsWith('/crm'))
           ? ('crm' as const)
           : ('card' as const)
       for (const audience of audiences) {
