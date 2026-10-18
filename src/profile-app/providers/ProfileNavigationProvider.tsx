@@ -27,6 +27,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -152,19 +153,34 @@ export function ProfileNavigationProvider({
 
   const [localSectionId, setLocalSectionId] = useState<string | null>(null)
   const [prevSectionId, setPrevSectionId] = useState(sectionId)
+  // Preserve `#aboutme` (etc.) until visible tabs load — otherwise default Home overwrites the hash.
+  const pendingHashRef = useRef<string | null>(
+    typeof window !== 'undefined' && !embedded ? parsePublicCardTabHash(window.location.hash) : null
+  )
+  const hashReadyRef = useRef(Boolean(embedded || (typeof window !== 'undefined' && !window.location.hash)))
 
   if (sectionId !== prevSectionId) {
     setPrevSectionId(sectionId)
     setLocalSectionId(null)
   }
 
-  // Public deep-link: open the tab named in `#services` (etc.) on first paint / when hash changes.
+  // Public deep-link: open the tab named in `#services` / `#aboutme` on first paint / hashchange.
   useLayoutEffect(() => {
     if (embedded || typeof window === 'undefined') return
     const applyHash = () => {
-      const hashId = parsePublicCardTabHash(window.location.hash)
-      if (!hashId || !visibleTabs.length) return
+      const hashId = parsePublicCardTabHash(window.location.hash) || pendingHashRef.current
+      if (!hashId) {
+        pendingHashRef.current = null
+        hashReadyRef.current = true
+        return
+      }
+      if (!visibleTabs.length) {
+        pendingHashRef.current = hashId
+        return
+      }
       const matched = resolveTabIdFromHash(hashId, visibleTabs)
+      hashReadyRef.current = true
+      pendingHashRef.current = null
       if (!matched) return
       setLocalSectionId(matched)
       onSectionChange?.(matched)
@@ -179,8 +195,10 @@ export function ProfileNavigationProvider({
   // Keep the address bar hash aligned with the active public tab for copy/share.
   useEffect(() => {
     if (embedded) return
+    // Wait until deep-link hash is applied (or confirmed unmatched) before writing.
+    if (pendingHashRef.current && !hashReadyRef.current) return
     writePublicCardTabHash(activeSectionId)
-  }, [activeSectionId, embedded])
+  }, [activeSectionId, embedded, visibleTabs.length])
 
   const goToSection = useCallback(
     (tabId: string) => {

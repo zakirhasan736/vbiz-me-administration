@@ -1476,7 +1476,7 @@ export default function AdminVCards() {
         cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
-        deliverySummary="Choose backoffice-only, or public card + saved contacts + owner backoffice."
+        deliverySummary="Choose backoffice-only, or public card + notification subscribers + owner backoffice."
         onClose={() => setNoticeCard(null)}
         onSave={(text, type, options) => {
           if (!noticeCard?.id) return

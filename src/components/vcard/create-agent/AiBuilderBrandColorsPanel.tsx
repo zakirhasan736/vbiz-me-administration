@@ -22,11 +22,16 @@ function RoleColorField({
   onChange: (next: string) => void
 }) {
   const live = useLiveCssColor(value || '#000000', onChange)
+  // Overlay picker is opacity:0 — paint the shell so AI-picked hex is visible (same as Theme panels).
+  const swatchFill = live.swatch || live.text || value || '#000000'
   return (
     <label className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 dark:border-white/10 dark:bg-slate-950/50">
       <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">{label}</span>
       <div className="flex items-center gap-2">
-        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg border border-slate-200 dark:border-white/15">
+        <span
+          className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg border border-slate-200 shadow-inner dark:border-white/15"
+          style={{ backgroundColor: swatchFill }}
+        >
           <ColorSwatchInput label={label} swatch={live.swatch} onChange={live.onPicker} overlay />
         </span>
         <input

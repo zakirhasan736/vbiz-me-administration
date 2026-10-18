@@ -620,7 +620,7 @@ export default function AdminAnnouncements() {
               <p className="pl-6 text-[10px] leading-relaxed text-slate-400">
                 {onlyBackoffice
                   ? 'Shows in owner backoffice banner and in-app notifications only.'
-                  : 'Also shows on the public card and pushes this card’s saved contacts / notification subscribers.'}
+                  : 'Also shows on the public card and pushes browsers that Allowed notifications on this card (save contact not required).'}
               </p>
             </div>
 
