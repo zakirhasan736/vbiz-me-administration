@@ -120,6 +120,7 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
             const link = item.url?.trim() || ''
             const html = item.description?.trim() || ''
             const forceVideo = item.mediaKind === 'video'
+            const pillLabel = sectionTitle.trim() || 'Custom'
             return (
               <article
                 key={item.id}
@@ -133,6 +134,10 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                       forceVideo={forceVideo}
                       frame={item.mediaFrame}
                     />
+                    <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
+                    <span className="vbiz-section-pill pointer-events-none absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
+                      <Layers size={12} /> {pillLabel}
+                    </span>
                   </div>
                 ) : link ? (
                   <a
@@ -140,17 +145,23 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`Open ${item.title || 'link'}`}
-                    className="relative flex h-[200px] w-full items-center justify-center overflow-hidden bg-zinc-100 transition hover:bg-zinc-200 md:h-[240px] dark:bg-zinc-950 dark:hover:bg-zinc-900"
+                    className="relative flex h-[200px] w-full flex-col items-center justify-center gap-4 overflow-hidden bg-zinc-100 transition hover:bg-zinc-200 md:h-[240px] dark:bg-zinc-950 dark:hover:bg-zinc-900"
                   >
-                    <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
-                    <span className="relative z-10 inline-flex items-center gap-2 rounded-2xl bg-white/90 px-5 py-3 text-sm font-bold text-zinc-900 shadow-lg backdrop-blur-sm">
+                    <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
+                    <span className="vbiz-section-pill relative z-10 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
+                      <Layers size={12} /> {pillLabel}
+                    </span>
+                    <span
+                      className="vbiz-btn relative z-10 inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90"
+                      data-role="primary"
+                    >
                       <ExternalLink size={16} /> Open link
                     </span>
                   </a>
                 ) : null}
                 <div className="space-y-4 p-5 md:p-8">
                   {item.title?.trim() ? (
-                    <h3 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">
+                    <h3 className="vbiz-title text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">
                       {item.title.trim()}
                     </h3>
                   ) : null}
@@ -166,10 +177,10 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                       href={link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="vbiz-btn inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition hover:opacity-90"
+                      className="vbiz-btn inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90"
                       data-role="primary"
                     >
-                      <ExternalLink size={16} /> {media ? 'Learn more' : 'Open video link'}
+                      <ExternalLink size={16} /> {media ? 'Learn more' : 'Open link'}
                     </a>
                   ) : null}
                 </div>
