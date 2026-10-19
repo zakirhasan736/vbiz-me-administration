@@ -229,7 +229,13 @@ function buildNotificationCopy(payload) {
   const appLink = isAppDeepLink(payload.url)
 
   // Keep backend identity copy (e.g. "Services updated", "Dagmary saved your card").
-  let title = rawTitle || `${name} · Update`
+  let title =
+    rawTitle ||
+    (payload.type === 'save_contact'
+      ? `${name} · New contact activity`
+      : payload.type === 'meeting_alert'
+        ? `${name} · Schedule or CRM notice`
+        : `${name} · Card activity`)
   if (rawTitle && !ownerOps && payload.slug) {
     const nameLower = name.toLowerCase()
     if (nameLower && !rawTitle.toLowerCase().includes(nameLower)) {
