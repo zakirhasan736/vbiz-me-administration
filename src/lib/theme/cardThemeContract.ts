@@ -75,6 +75,8 @@ export type CardWallpaperConfig = {
 }
 
 export type BannerVariant = 'gradient' | 'solid' | 'image'
+/** How the banner heading is painted — solid fill, full gradient, or smart (solid + accent gradient word). */
+export type BannerTitleStyle = 'solid' | 'gradient' | 'smart'
 export type ObjectFitMode = 'cover' | 'contain' | 'fill'
 export type ObjectPositionMode = 'top' | 'center' | 'bottom'
 
@@ -84,7 +86,12 @@ export type BannerModeColors = {
   bg?: string
   gradientFrom?: string
   gradientTo?: string
+  /** Solid title / base words color (used by solid + smart). */
   title?: string
+  /** solid = flat title; gradient = full title gradient; smart = solid base + gradient accent word. */
+  titleStyle?: BannerTitleStyle
+  titleGradientFrom?: string
+  titleGradientTo?: string
   description?: string
   note?: string
   label?: string

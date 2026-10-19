@@ -9,6 +9,7 @@ import {
   PRESET_FONT_OPTIONS,
   type PresetFontOption,
 } from '@/lib/fonts'
+import { readableForeground } from '@/lib/theme/resolveCardTheme'
 import { useGetGoogleFontsQuery } from '@/redux/features/fonts/fonts.api'
 import type { ButtonShadowId, ButtonTypeId, VCardAppearance } from '@/types/vcard'
 import { cn } from '@/utils/cn'
@@ -22,23 +23,28 @@ const BUTTON_SHADOW_OPTIONS: { id: ButtonShadowId; label: string }[] = [
   { id: 'hard', label: 'Hard' },
 ]
 
-const BUTTON_TYPE_OPTIONS: { id: ButtonTypeId; label: string; hint: string }[] = [
-  {
-    id: 'default',
-    label: 'Default',
-    hint: 'Keep current Primary / Secondary / Accent roles on home buttons and social icons.',
-  },
-  {
-    id: 'primary',
-    label: 'Primary',
-    hint: 'All home action buttons and social icons use Primary as the fill.',
-  },
-  {
-    id: 'secondary',
-    label: 'Secondary',
-    hint: 'All home action buttons and social icons use Secondary as the fill.',
-  },
-]
+export type ButtonTypeBrandColors = {
+  primary: string
+  secondary: string
+  accent: string
+}
+
+const FALLBACK_BRAND: ButtonTypeBrandColors = {
+  primary: '#eed677',
+  secondary: '#0f2c4d',
+  accent: '#cca43b',
+}
+
+function buttonTypeHint(id: ButtonTypeId): string {
+  switch (id) {
+    case 'primary':
+      return 'All home action buttons and social icons use Primary fill (text from Secondary).'
+    case 'secondary':
+      return 'All home action buttons and social icons use Secondary fill.'
+    default:
+      return 'Social icons & Primary CTAs use Primary fill; action buttons use Secondary; Accent CTAs keep Accent.'
+  }
+}
 
 const BUTTON_SHADOW_PREVIEW_CLASS: Record<ButtonShadowId, string> = {
   none: 'shadow-none',
@@ -136,11 +142,87 @@ function OptionCard({
   )
 }
 
+/** Live Theme Colors swatch for Button type — matches public card role fills. */
+function ButtonTypePreview({ type, brand }: { type: ButtonTypeId; brand: ButtonTypeBrandColors }) {
+  const { primary, secondary, accent } = brand
+  const secondaryFg = readableForeground(secondary)
+  const primaryFg = secondary
+
+  if (type === 'primary') {
+    return (
+      <div className="flex h-7 w-full items-center justify-center gap-1.5 px-1" title="Primary fill on all">
+        <span
+          className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: primary, color: primaryFg }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+        </span>
+        <span
+          className="flex h-5 flex-1 items-center justify-center rounded-md border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: primary, color: primaryFg }}
+        >
+          <span className="h-1 w-5 rounded-full bg-current opacity-80" />
+        </span>
+      </div>
+    )
+  }
+
+  if (type === 'secondary') {
+    return (
+      <div className="flex h-7 w-full items-center justify-center gap-1.5 px-1" title="Secondary fill on all">
+        <span
+          className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: secondary, color: secondaryFg }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+        </span>
+        <span
+          className="flex h-5 flex-1 items-center justify-center rounded-md border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: secondary, color: secondaryFg }}
+        >
+          <span className="h-1 w-5 rounded-full bg-current opacity-80" />
+        </span>
+      </div>
+    )
+  }
+
+  // Default: social/primary CTA = Primary+Secondary text; action pill = Secondary; accent tip
+  return (
+    <div
+      className="flex h-7 w-full items-center justify-center gap-1 px-0.5"
+      title="Primary social · Secondary actions · Accent CTA"
+    >
+      <span
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-black/10 dark:border-white/15"
+        style={{ backgroundColor: primary, color: primaryFg }}
+        aria-label="Primary"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      </span>
+      <span
+        className="flex h-5 min-w-0 flex-1 items-center justify-center rounded-md border border-black/10 dark:border-white/15"
+        style={{ backgroundColor: secondary, color: secondaryFg }}
+        aria-label="Secondary"
+      >
+        <span className="h-1 w-4 rounded-full bg-current opacity-80" />
+      </span>
+      <span
+        className="h-5 w-2.5 shrink-0 rounded-md border border-black/10 dark:border-white/15"
+        style={{ backgroundColor: accent }}
+        aria-label="Accent"
+        title="Accent"
+      />
+    </div>
+  )
+}
+
 type VCardTemplateDesignPanelProps = {
   appearance: VCardAppearance
   onAppearanceChange: (patch: Partial<VCardAppearance>) => void
   fontFamily: string
   onFontFamilyChange: (fontId: string) => void
+  /** Live Theme Colors for the active/default mode — drives Button type previews. */
+  brandColors?: ButtonTypeBrandColors
 }
 
 export function VCardTemplateDesignPanel({
@@ -148,7 +230,18 @@ export function VCardTemplateDesignPanel({
   onAppearanceChange,
   fontFamily,
   onFontFamilyChange,
+  brandColors,
 }: VCardTemplateDesignPanelProps) {
+  const brand = {
+    primary: brandColors?.primary?.trim() || FALLBACK_BRAND.primary,
+    secondary: brandColors?.secondary?.trim() || FALLBACK_BRAND.secondary,
+    accent: brandColors?.accent?.trim() || FALLBACK_BRAND.accent,
+  }
+  const buttonTypeOptions: { id: ButtonTypeId; label: string }[] = [
+    { id: 'default', label: 'Default' },
+    { id: 'primary', label: 'Primary' },
+    { id: 'secondary', label: 'Secondary' },
+  ]
   const buttonStyle = appearance.buttonStyle || 'solid'
   const cornerStyle = appearance.cornerStyle || 'round'
   const buttonShadow: ButtonShadowId = appearance.buttonShadow ?? 'none'
@@ -206,40 +299,46 @@ export function VCardTemplateDesignPanel({
       <div className="space-y-6 border-t border-slate-200/60 pt-8 dark:border-white/10">
         <SettingSection title="Button type">
           <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-            Controls which Global Color fills home social icons and action buttons. Works with Button style, corner, and
-            shadow below.
+            Controls which Global Color fills home social icons and action buttons. Previews use your Theme Colors
+            below. Works with Button style, corner, and shadow.
           </p>
+          <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px] font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="h-3 w-3 rounded-full border border-black/10 dark:border-white/15"
+                style={{ backgroundColor: brand.primary }}
+              />
+              Primary
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="h-3 w-3 rounded-full border border-black/10 dark:border-white/15"
+                style={{ backgroundColor: brand.secondary }}
+              />
+              Secondary
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="h-3 w-3 rounded-full border border-black/10 dark:border-white/15"
+                style={{ backgroundColor: brand.accent }}
+              />
+              Accent
+            </span>
+          </div>
           <div className="grid grid-cols-3 gap-4">
-            {BUTTON_TYPE_OPTIONS.map((option) => (
+            {buttonTypeOptions.map((option) => (
               <OptionCard
                 key={option.id}
                 label={option.label}
                 selected={buttonType === option.id}
                 onClick={() => onAppearanceChange({ buttonType: option.id })}
               >
-                <div className="flex h-7 w-full items-center justify-center gap-1.5 px-1">
-                  <span
-                    className={cn(
-                      'h-5 w-5 rounded-full border border-black/10 dark:border-white/15',
-                      option.id === 'secondary' ? 'bg-slate-700' : 'bg-amber-300'
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      'h-5 flex-1 rounded-md border border-black/10 dark:border-white/15',
-                      option.id === 'secondary'
-                        ? 'bg-slate-700'
-                        : option.id === 'primary'
-                          ? 'bg-amber-300'
-                          : 'bg-slate-300'
-                    )}
-                  />
-                </div>
+                <ButtonTypePreview type={option.id} brand={brand} />
               </OptionCard>
             ))}
           </div>
           <p className="mt-2 text-[10px] font-medium text-slate-400 dark:text-slate-500">
-            {BUTTON_TYPE_OPTIONS.find((o) => o.id === buttonType)?.hint}
+            {buttonTypeHint(buttonType)}
           </p>
         </SettingSection>
 

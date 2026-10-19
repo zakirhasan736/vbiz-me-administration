@@ -1,4 +1,9 @@
-import { displayCtaChromeStyle, styleAwareChromePaint } from '@/lib/vcardDisplaySettings'
+import {
+  displayCtaChromeStyle,
+  displayMyInfoActionChromeStyle,
+  getMyInfoActionButtonColorDefaults,
+  styleAwareChromePaint,
+} from '@/lib/vcardDisplaySettings'
 import { describe, expect, it } from 'vitest'
 
 describe('styleAwareChromePaint', () => {
@@ -60,5 +65,21 @@ describe('displayCtaChromeStyle', () => {
     ) as Record<string, string> | undefined
     expect(style?.['--vbiz-btn-secondary-fg']).toBe('#ff40ff')
     expect(style?.['--vbiz-btn-secondary-fill']).toBeUndefined()
+  })
+})
+
+describe('My Info action button theme defaults', () => {
+  it('uses theme_config secondary for Call/Text/Email defaults, not static gold', () => {
+    const defaults = getMyInfoActionButtonColorDefaults(undefined, 'v3', {
+      light: { primary: '#FFFFFF', secondary: '#F96A62', accent: '#FFFFFF' },
+      dark: { primary: '#FFFFFF', secondary: '#F96A62', accent: '#FFFFFF' },
+    })
+    expect(defaults.dark.bg.toLowerCase()).toBe('#f96a62')
+    expect(defaults.light.bg.toLowerCase()).toBe('#f96a62')
+    expect(defaults.dark.bg.toLowerCase()).not.toBe('#eed677')
+  })
+
+  it('leaves public My Info chrome to theme tokens when no owner override is saved', () => {
+    expect(displayMyInfoActionChromeStyle({ visible: true }, 'dark', { bg: '#f96a62', text: '#ffffff' })).toEqual({})
   })
 })

@@ -185,11 +185,16 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   const faq = resolveFaqItemStyle(set, mode, config.components.faqItem)
   const topNav = resolveTopNavBarStyle(set, mode, config.components.topNavBar)
 
-  vars['--vbiz-banner-variant'] = banner.variant || 'solid'
+  const bannerVariant = banner.variant || 'solid'
+  const bannerTitleStyle = banner.titleStyle || 'smart'
+  vars['--vbiz-banner-variant'] = bannerVariant
   vars['--vbiz-banner-bg'] = banner.bg || set.secondary
-  vars['--vbiz-banner-gradient-from'] = banner.gradientFrom || set.accent
-  vars['--vbiz-banner-gradient-to'] = banner.gradientTo || '#020617'
+  vars['--vbiz-banner-gradient-from'] = banner.gradientFrom || set.primary
+  vars['--vbiz-banner-gradient-to'] = banner.gradientTo || set.secondary
   vars['--vbiz-banner-title'] = banner.title || '#ffffff'
+  vars['--vbiz-banner-title-style'] = bannerTitleStyle
+  vars['--vbiz-banner-title-gradient-from'] = banner.titleGradientFrom || set.primary
+  vars['--vbiz-banner-title-gradient-to'] = banner.titleGradientTo || set.accent || set.primary
   vars['--vbiz-banner-description'] = banner.description || 'rgba(255,255,255,0.78)'
   vars['--vbiz-banner-note'] = banner.note || vars['--vbiz-banner-description']
   vars['--vbiz-banner-label'] = banner.label || set.accent
@@ -226,7 +231,7 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
 
   const navVariant = topNav.variant || 'solid'
   vars['--vbiz-nav-variant'] = navVariant
-  vars['--vbiz-nav-bg'] = topNav.bg || (mode === 'light' ? '#ffffff' : set.surface)
+  vars['--vbiz-nav-bg'] = topNav.bg || (mode === 'light' ? set.background || '#ffffff' : set.secondary)
   vars['--vbiz-nav-gradient-from'] = topNav.gradientFrom || set.primary
   vars['--vbiz-nav-gradient-to'] = topNav.gradientTo || set.secondary
   // Default icons = brand primary (#eed677 on v3), not secondary navy.
@@ -239,26 +244,13 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
       ? 'none'
       : `linear-gradient(135deg, ${vars['--vbiz-nav-gradient-from']} 0%, ${vars['--vbiz-nav-gradient-to']} 100%)`
 
-  const bannerOverride = config.components.sectionBanner?.[mode]
-  const bannerPaintCustom = Boolean(
-    bannerOverride &&
-    (bannerOverride.variant ||
-      bannerOverride.bg ||
-      bannerOverride.gradientFrom ||
-      bannerOverride.gradientTo ||
-      bannerOverride.imageUrl)
-  )
-  if (bannerOverride?.title) vars['--vbiz-banner-title-override'] = banner.title || '#ffffff'
-  if (bannerOverride?.description) {
-    vars['--vbiz-banner-description-override'] = banner.description || 'rgba(255,255,255,0.78)'
-  }
+  // Always honor resolved (derived + override) title/description — not only when a snapshot exists.
+  if (banner.title) vars['--vbiz-banner-title-override'] = banner.title
+  if (banner.description) vars['--vbiz-banner-description-override'] = banner.description
 
-  const bannerVariant = bannerOverride?.variant || banner.variant || 'solid'
   const bannerFrom = banner.gradientFrom || set.primary
   const bannerTo = banner.gradientTo || set.secondary
-  if (bannerPaintCustom && bannerVariant === 'solid' && bannerOverride?.bg) {
-    vars['--vbiz-banner-bg'] = bannerOverride.bg
-  }
+  // Solid / gradient / image always follow the resolved Tab banner styles (Theme Colors + overrides).
   vars['--vbiz-banner-bg-image'] =
     bannerVariant === 'solid'
       ? 'none'
@@ -691,11 +683,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-home-description, var(--vbiz-primary)) !important;
 }
 
-/* Dark hero banners (About, etc.) — white titles in light + dark theme */
+/* Hero banners follow Tab banner title tokens (not a hardcoded white). */
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-title,
 .vbiz-profile-root .vbiz-hero-banner h2.vbiz-hero-title,
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-heading {
-  color: #ffffff !important;
+  color: var(--vbiz-banner-title-override, var(--vbiz-banner-title, #ffffff)) !important;
 }
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-eyebrow {
   color: #ffffff !important;
@@ -981,15 +973,47 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 .vbiz-profile-root .from-gold,
 .vbiz-profile-root .from-yellow-primary,
-.vbiz-profile-root .from-\\[\\#eab308\\] {
-  --tw-gradient-from: var(--vbiz-accent) !important;
-  --tw-gradient-to: var(--vbiz-accent-dark) !important;
+.vbiz-profile-root .from-\\[\\#eab308\\],
+.vbiz-profile-root .vbiz-banner-title-accent {
+  --tw-gradient-from: var(--vbiz-banner-title-gradient-from, var(--vbiz-accent)) !important;
+  --tw-gradient-to: var(--vbiz-banner-title-gradient-to, var(--vbiz-accent-dark)) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 .vbiz-profile-root .to-gold,
 .vbiz-profile-root .to-yellow-400,
+.vbiz-profile-root .to-yellow-500,
 .vbiz-profile-root .to-\\[\\#ca8a04\\] {
-  --tw-gradient-to: var(--vbiz-accent-dark) !important;
+  --tw-gradient-to: var(--vbiz-banner-title-gradient-to, var(--vbiz-accent-dark)) !important;
+}
+
+/* Full-title gradient when Tab banner → Title style = Gradient */
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-section-banner .vbiz-title,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-section-banner h2,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-hero-banner .vbiz-hero-title,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-hero-banner h2,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-page-header-surface .vbiz-title,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-page-header-surface h2,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-banner-title-accent {
+  background-image: linear-gradient(
+    90deg,
+    var(--vbiz-banner-title-gradient-from, var(--vbiz-primary)),
+    var(--vbiz-banner-title-gradient-to, var(--vbiz-accent))
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Solid title — no accent gradient clip */
+.vbiz-profile-root[data-banner-title-style='solid'] .vbiz-banner-title-accent,
+.vbiz-profile-root[data-banner-title-style='solid'] .vbiz-section-banner .from-gold,
+.vbiz-profile-root[data-banner-title-style='solid'] .vbiz-hero-banner .from-gold {
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  color: var(--vbiz-banner-title-override, var(--vbiz-banner-title, #ffffff)) !important;
+  -webkit-text-fill-color: var(--vbiz-banner-title-override, var(--vbiz-banner-title, #ffffff)) !important;
 }
 
 /* Secondary / ocean surfaces */
@@ -1866,8 +1890,9 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-faq-icon, var(--vbiz-accent)) !important;
 }
 .vbiz-profile-root .vbiz-my-info-action {
-  background-color: var(--vbiz-my-info-fill, var(--vbiz-control-fill, var(--vbiz-primary))) !important;
-  color: var(--vbiz-my-info-fg, var(--vbiz-control-fg, #ffffff)) !important;
+  /* Theme secondary / Button type — same tokens as Share, Save Contact, rails. */
+  background-color: var(--vbiz-my-info-fill, var(--vbiz-btn-secondary-fill, var(--vbiz-secondary))) !important;
+  color: var(--vbiz-my-info-fg, var(--vbiz-btn-secondary-fg, var(--vbiz-primary))) !important;
   background-image: none !important;
 }
 .vbiz-profile-root .vbiz-review-slider-fill {

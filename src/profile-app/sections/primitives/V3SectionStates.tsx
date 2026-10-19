@@ -24,19 +24,22 @@ type V3SectionHeaderProps = {
   className?: string
 }
 
+/** Smart title: solid base words + gradient accent word (Tab banner titleStyle). */
 function goldSplitTitle(title: ReactNode): ReactNode {
   if (typeof title !== 'string') return title
   const words = title.trim().split(/\s+/)
   if (words.length <= 1) {
     return (
-      <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">{title}</span>
+      <span className="vbiz-banner-title-accent from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">
+        {title}
+      </span>
     )
   }
   const accentWord = words.pop()
   return (
     <>
       {words.join(' ')}{' '}
-      <span className="from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">
+      <span className="vbiz-banner-title-accent from-gold bg-linear-to-r to-yellow-500 bg-clip-text text-transparent not-italic">
         {accentWord}
       </span>
     </>

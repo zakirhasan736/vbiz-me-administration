@@ -6,28 +6,55 @@ const PUBLIC_CARD_HOST = 'vbiz.me'
 const PUSH_TYPE_TO_CATEGORY = {
   profile_update: 'company',
   contact_update: 'contact',
+  contact_updates: 'contact',
   video_update: 'video',
   blog_update: 'blog',
   services_update: 'services',
   event_update: 'events',
   event_updates: 'events',
-  meeting_alert: 'events',
+  meeting_alert: 'crm',
+  viewer_return: 'crm',
+  save_contact: 'crm',
   announcement_update: 'announcements',
   announcement_updates: 'announcements',
   portfolio_update: 'video',
+  portfolio_updates: 'video',
   service_updates: 'services',
+  theme_updates: 'company',
   news: 'blog',
   business_hours: 'company',
 }
 
+/** Fallback only when the push payload has no title/body — never replace server copy. */
 const CATEGORY_ACTION = {
   contact: 'updated their contact info',
   video: 'added new photos or videos',
   blog: 'published a new post',
   services: 'updated their services',
-  company: 'updated their profile',
+  company: 'updated a section on their card',
   events: 'shared a new event',
   announcements: 'posted an announcement',
+  crm: 'sent a back-office alert',
+}
+
+const OWNER_PUSH_TYPES = new Set(['meeting_alert', 'viewer_return', 'save_contact'])
+
+/** Back-office / app routes — must never be rewritten to `/vCard/...`. */
+function isAppDeepLink(url) {
+  const value = String(url || '').trim()
+  if (!value) return false
+  try {
+    const parsed = value.startsWith('http') ? new URL(value) : new URL(value, self.location.origin)
+    const path = parsed.pathname || '/'
+    if (/^\/(crm|admin|dashboard|vcards|settings|notifications)(\/|$)/i.test(path)) return true
+    // Dashboard contact-saves deep link: `/?contacts=1` or `/?contacts=1&tab=notes`
+    if (path === '/' && (parsed.searchParams.has('contacts') || parsed.searchParams.has('tab'))) return true
+    return false
+  } catch {
+    return (
+      /^\/(crm|admin|dashboard|vcards|settings|notifications)(\/|\?|#|$)/i.test(value) || /^\?contacts=/.test(value)
+    )
+  }
 }
 
 const PUBLIC_CARD_SEGMENT = 'vCard'
@@ -140,14 +167,20 @@ async function readCachedCardMedia(slug) {
 }
 
 function normalizePushPayload(raw) {
+  const ownerOps = OWNER_PUSH_TYPES.has(String(raw.type || ''))
   const meetingAlert = raw.type === 'meeting_alert'
   const explicitSlug = firstNonEmpty(raw.slug, raw.profile_slug, raw.cardSlug)
-  const slug = meetingAlert ? explicitSlug : firstNonEmpty(explicitSlug, slugFromUrl(raw.url))
+  const slug = ownerOps ? explicitSlug : firstNonEmpty(explicitSlug, slugFromUrl(raw.url))
   const category = raw.category || PUSH_TYPE_TO_CATEGORY[raw.type] || 'company'
-  const externalMeetingUrl =
-    meetingAlert && typeof raw.url === 'string' && /^https?:\/\//i.test(raw.url.trim()) ? raw.url.trim() : ''
-  // Card updates open `/vCard/{slug}`. A scheduled meeting keeps its join link.
-  const url = externalMeetingUrl || normalizeCardUrl(raw.url, slug)
+  const rawUrl = typeof raw.url === 'string' ? raw.url.trim() : ''
+  const externalMeetingUrl = meetingAlert && /^https?:\/\//i.test(rawUrl) && !isAppDeepLink(rawUrl) ? rawUrl : ''
+  // Keep CRM/backoffice paths + public `#tab` hashes. Never rewrite `/crm` → `/vCard/crm`.
+  let url = externalMeetingUrl || rawUrl
+  if (!url) {
+    url = ownerOps ? '/crm' : cardPathFromSlug(slug)
+  } else if (!externalMeetingUrl && !isAppDeepLink(url)) {
+    url = normalizeCardUrl(url, slug)
+  }
 
   const avatarImageUrl = firstNonEmpty(
     raw.icon,
@@ -186,37 +219,46 @@ function normalizePushPayload(raw) {
   }
 }
 
-/** Build a clearer OS notification title/body (owner + what changed + card link). */
+/** Prefer exact server title/body; only invent copy when the payload is empty. */
 function buildNotificationCopy(payload) {
-  // Always the updated card’s owner — never another subscribed card’s name.
   const name = firstNonEmpty(payload.businessName, payload.slug, 'vBiz Me')
   const action = CATEGORY_ACTION[payload.category] || 'has a new update'
   const rawTitle = firstNonEmpty(payload.title)
   const rawBody = firstNonEmpty(payload.body, payload.speakLine)
-  const nameLower = name.toLowerCase()
+  const ownerOps = OWNER_PUSH_TYPES.has(String(payload.type || ''))
+  const appLink = isAppDeepLink(payload.url)
 
-  // Title always leads with THIS card’s name.
-  let title = `${name} · Update`
-  if (rawTitle) {
-    const titleLower = rawTitle.toLowerCase()
-    title = titleLower.includes(nameLower) ? rawTitle : `${name} · ${rawTitle}`
+  // Keep backend identity copy (e.g. "Services updated", "Dagmary saved your card").
+  let title = rawTitle || `${name} · Update`
+  if (rawTitle && !ownerOps && payload.slug) {
+    const nameLower = name.toLowerCase()
+    if (nameLower && !rawTitle.toLowerCase().includes(nameLower)) {
+      title = `${name} · ${rawTitle}`
+    }
   }
 
-  // Body must mention THIS card. If backend text names someone else, rebuild it.
-  let detail = rawBody || `${name} ${action}.`
-  if (rawBody && nameLower && !rawBody.toLowerCase().includes(nameLower)) {
-    detail = `${name} ${action}.`
-  }
+  // Never replace a specific body with generic "updated their profile".
+  const detail = (rawBody || `${name} ${action}.`).replace(/\/v\/(?=[\w%-])/g, '/vCard/')
 
   let displayLink = ''
-  if (payload.slug) {
-    const slugPath = `vCard/${String(payload.slug).trim()}`
+  let openHint = 'Tap to open'
+  if (appLink) {
+    displayLink = String(payload.url || '').replace(/^\//, '')
+    openHint = `Open · ${payload.url}`
+  } else if (payload.slug) {
+    let hash = ''
+    try {
+      hash = payload.url ? new URL(payload.url, self.location.origin).hash || '' : ''
+    } catch {
+      const idx = String(payload.url || '').indexOf('#')
+      hash = idx >= 0 ? String(payload.url).slice(idx) : ''
+    }
+    const slugPath = `vCard/${String(payload.slug).trim()}${hash}`
     displayLink = isLocalDevHost() ? `${PUBLIC_CARD_HOST}/${slugPath}` : `${self.location.host}/${slugPath}`
+    openHint = `Open card · ${displayLink}`
   }
 
-  const cleanedDetail = String(detail).replace(/\/v\/(?=[\w%-])/g, '/vCard/')
-  const body = displayLink ? `${cleanedDetail}\nOpen card · ${displayLink}` : `${cleanedDetail}\nTap to open card`
-
+  const body = `${detail}\n${openHint}`
   return { title, body, displayLink }
 }
 
@@ -647,14 +689,14 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     (async () => {
       payload = await resolveCardMedia(payload)
-      // Force /vCard/{slug} before copy + click target (never leave legacy /v/ in the payload).
-      if (payload.slug) {
-        payload.url = normalizeCardUrl(payload.url, payload.slug)
-      } else if (payload.url) {
-        payload.url = normalizeCardUrl(payload.url, slugFromUrl(payload.url))
+      // Normalize public card paths only — keep `/crm?tab=…`, `/?contacts=1`, and `#services`.
+      if (payload.url && !isAppDeepLink(payload.url) && !/^https?:\/\//i.test(payload.url)) {
+        payload.url = normalizeCardUrl(payload.url, payload.slug || slugFromUrl(payload.url))
+      } else if (!payload.url && payload.slug) {
+        payload.url = cardPathFromSlug(payload.slug)
       }
       const copy = buildNotificationCopy(payload)
-      const openUrl = toAbsoluteUrl(normalizeCardUrl(payload.url, payload.slug))
+      const openUrl = toAbsoluteUrl(payload.url || '/')
 
       const richPayload = {
         title: copy.title,
@@ -750,7 +792,11 @@ self.addEventListener('notificationclick', (event) => {
   const slug = event.notification.data?.slug || slugFromUrl(rawUrl)
   let targetUrl = '/'
   try {
-    targetUrl = toAbsoluteUrl(normalizeCardUrl(rawUrl, slug))
+    if (isAppDeepLink(rawUrl) || /^https?:\/\//i.test(String(rawUrl).trim())) {
+      targetUrl = toAbsoluteUrl(rawUrl)
+    } else {
+      targetUrl = toAbsoluteUrl(normalizeCardUrl(rawUrl, slug))
+    }
   } catch {
     targetUrl = self.location.origin + '/'
   }

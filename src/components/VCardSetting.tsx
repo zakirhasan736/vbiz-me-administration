@@ -70,7 +70,6 @@ import {
   GENERAL_SETTINGS_FIELDS,
   getDisplaySettingsFromVCard,
   getFieldModePickerValues,
-  getMyInfoActionButtonColorDefaults,
   HOME_PAGE_COLOR_FIELDS,
   HOME_PAGE_FIELDS,
   HOME_PAGE_URL_FIELDS,
@@ -559,6 +558,12 @@ function TemplateDesigner() {
         onAppearanceChange={patchAppearance}
         fontFamily={vCardData.theme.fontFamily ?? 'inter'}
         onFontFamilyChange={(fontId) => updateData('theme.fontFamily', fontId)}
+        brandColors={(() => {
+          const themeConfig = resolveCardThemeConfig(vCardData.themeConfig, templateId)
+          const mode = themeConfig.colors.defaultMode === 'light' ? 'light' : 'dark'
+          const set = themeConfig.colors[mode]
+          return { primary: set.primary, secondary: set.secondary, accent: set.accent }
+        })()}
       />
 
       {layoutStyle === 'hero' && (
@@ -1916,23 +1921,17 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
     vCardData.theme,
     profileTemplate
   )
-  const myInfoActionDefaults = getMyInfoActionButtonColorDefaults(vCardData.theme, profileTemplate, {
-    lightPrimary: resolvedThemeConfig.colors.light.primary,
-    darkPrimary: resolvedThemeConfig.colors.dark.primary,
-  })
-  const myInfoActionFieldSet = new Set<string>(MY_INFO_ACTION_FIELDS)
   const settingsProfileId =
     (cardId || contextCardId) && !isLocalTempId(cardId || contextCardId || '') && !isCreateMode
       ? cardId || contextCardId || undefined
       : undefined
 
-  // Template Settings → Button type Primary remaps secondary-role CTAs (Save Contact, Share…)
-  // to the primary Global Color fill — pickers must show that same effective default.
+  // Template Settings → Button type Primary remaps secondary-role CTAs (Save Contact, Share,
+  // My Info Call/Text/Email…) to the primary Global Color fill — pickers must match.
   const buttonType = vCardData.appearance?.buttonType
   const secondaryPickerDefaults = buttonType === 'primary' ? themeDefaults : secondaryThemeDefaults
 
   const fieldThemeDefaultsFor = (key: string) => {
-    if (myInfoActionFieldSet.has(key)) return myInfoActionDefaults
     if (isSecondaryBgDisplayField(key)) return secondaryPickerDefaults
     if (isPrimaryBgDisplayField(key)) return themeDefaults
     return themeDefaults
@@ -2074,7 +2073,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
                 : activeTab === 'faq-style'
                   ? 'Style FAQ question and answer surfaces for light and dark mode.'
                   : activeTab === 'my-info-buttons'
-                    ? 'Style the public My Info Call, Text, and Email buttons. Template colors apply until you set a color on a button.'
+                    ? 'Style the public My Info Call, Text, and Email buttons. Defaults match Template Theme Colors (Secondary, or Primary when Button type is Primary) until you override a color.'
                     : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
 
   const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)

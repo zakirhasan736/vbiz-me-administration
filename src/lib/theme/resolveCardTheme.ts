@@ -616,6 +616,32 @@ export function patchModeBrandColor(
   if (!color) return current
   const nextSet = { ...current.colors[mode], [role]: color }
   const readable = ensureReadableColorSet(nextSet)
+  // Drop nav/banner color snapshots for this mode so chrome re-derives from the new brand.
+  // Keep layout choices (variant / titleStyle) if the owner chose them.
+  const prevNav = current.components.topNavBar
+  const prevModeNav = prevNav?.[mode]
+  const nextTopNavBar = prevNav
+    ? {
+        ...prevNav,
+        [mode]: prevModeNav?.variant ? { variant: prevModeNav.variant } : undefined,
+      }
+    : prevNav
+
+  const prevBanner = current.components.sectionBanner
+  const prevModeBanner = prevBanner?.[mode]
+  const keptBanner: Record<string, unknown> = {}
+  if (prevModeBanner?.variant) keptBanner.variant = prevModeBanner.variant
+  if (prevModeBanner?.titleStyle) keptBanner.titleStyle = prevModeBanner.titleStyle
+  if (prevModeBanner?.imageUrl) keptBanner.imageUrl = prevModeBanner.imageUrl
+  if (prevModeBanner?.imageFit) keptBanner.imageFit = prevModeBanner.imageFit
+  if (prevModeBanner?.imagePosition) keptBanner.imagePosition = prevModeBanner.imagePosition
+  const nextSectionBanner = prevBanner
+    ? {
+        ...prevBanner,
+        [mode]: Object.keys(keptBanner).length ? keptBanner : undefined,
+      }
+    : prevBanner
+
   return {
     ...current,
     colors: {
@@ -626,6 +652,25 @@ export function patchModeBrandColor(
         textMuted: readable.textMuted,
         border: readable.border,
       },
+    },
+    components: {
+      ...current.components,
+      ...(nextTopNavBar
+        ? {
+            topNavBar: {
+              light: nextTopNavBar.light,
+              dark: nextTopNavBar.dark,
+            },
+          }
+        : {}),
+      ...(nextSectionBanner
+        ? {
+            sectionBanner: {
+              light: nextSectionBanner.light,
+              dark: nextSectionBanner.dark,
+            },
+          }
+        : {}),
     },
   }
 }

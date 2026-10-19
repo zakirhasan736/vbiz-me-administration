@@ -1,6 +1,6 @@
 'use client'
 
-import { displayMyInfoActionChromeStyle, getMyInfoActionButtonColorDefaults } from '@/lib/vcardDisplaySettings'
+import { displayMyInfoActionChromeStyle, fieldThemeDefaultsFromThemeConfig } from '@/lib/vcardDisplaySettings'
 import { DEFAULT_VCARD_MY_INFO, resolveMyInfoContact } from '@/lib/vcardMyInfo'
 import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import { toMailtoHref, toSmsHref, toTelHref } from '@/profile-app/lib/openExternalIntent'
@@ -27,18 +27,31 @@ export function MyInfoSection() {
   const { phone, email, smsNumber } = resolveMyInfoContact(personal, info)
   const template = design?.profileTemplate === 'v1' || design?.profileTemplate === 'v2' ? design.profileTemplate : 'v3'
 
-  const actionDefaults = getMyInfoActionButtonColorDefaults(
+  const themeConfig = cardTheme?.themeConfig
+  const { primary: primaryDefaults, secondary: secondaryDefaults } = fieldThemeDefaultsFromThemeConfig(
+    themeConfig ?? {
+      colors: {
+        light: {
+          primary: design?.primaryColor || '',
+          secondary: design?.secondaryColor || '',
+          accent: design?.accentColor || '',
+        },
+        dark: {
+          primary: design?.primaryColor || '',
+          secondary: design?.secondaryColor || '',
+          accent: design?.accentColor || '',
+        },
+      },
+    },
     {
       primaryColor: design?.primaryColor,
       secondaryColor: design?.secondaryColor,
       accentColor: design?.accentColor,
     },
-    template,
-    {
-      lightPrimary: cardTheme?.themeConfig.colors.light.primary,
-      darkPrimary: cardTheme?.themeConfig.colors.dark.primary,
-    }
+    template
   )
+  // Match Card Settings pickers: Button type Primary remaps action fills to Global primary.
+  const actionDefaults = themeConfig?.appearance.buttonType === 'primary' ? primaryDefaults : secondaryDefaults
   const modeDefaults = themeMode === 'dark' ? actionDefaults.dark : actionDefaults.light
 
   const callHref = info.showCall !== false && isVisible('My Info Call Btn') ? toTelHref(phone) : null

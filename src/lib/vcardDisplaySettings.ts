@@ -398,25 +398,33 @@ export const GENERAL_SETTINGS_FIELDS = [
 
 /**
  * Defaults for My Info Call / Text / Email.
- * Light and dark follow that mode’s Template primary. A saved field color replaces it.
+ * Same Template secondary (or Button-type remapped fill) as other action chrome —
+ * never the static template gold fallback when theme_config is present.
  */
 export function getMyInfoActionButtonColorDefaults(
   theme?: ThemeBrandColors,
   profileTemplate: 'v1' | 'v2' | 'v3' = 'v2',
-  modes?: { lightPrimary?: string; darkPrimary?: string }
-): { light: { text: string; bg: string; icon: string }; dark: { text: string; bg: string; icon: string } } {
-  const fallback =
-    theme?.primaryColor?.trim() ||
-    theme?.secondaryColor?.trim() ||
-    (profileTemplate === 'v1' ? '#dcc969' : profileTemplate === 'v3' ? '#0f2c4d' : '#eab308')
-  const lightBg = modes?.lightPrimary?.trim() || fallback
-  const darkBg = modes?.darkPrimary?.trim() || theme?.accentColor?.trim() || lightBg
-  const lightFg = readableForeground(lightBg)
-  const darkFg = readableForeground(darkBg)
-  return {
-    light: { bg: lightBg, text: lightFg, icon: lightFg },
-    dark: { bg: darkBg, text: darkFg, icon: darkFg },
+  modes?: Partial<ThemeModeColorSets> & {
+    /** @deprecated use modes.light.primary / modes.dark.primary */
+    lightPrimary?: string
+    darkPrimary?: string
+    lightSecondary?: string
+    darkSecondary?: string
   }
+): FieldThemeColorDefaults {
+  const modeSets: Partial<ThemeModeColorSets> = {
+    light: {
+      primary: modes?.light?.primary || modes?.lightPrimary || '',
+      secondary: modes?.light?.secondary || modes?.lightSecondary || '',
+      accent: modes?.light?.accent || '',
+    },
+    dark: {
+      primary: modes?.dark?.primary || modes?.darkPrimary || '',
+      secondary: modes?.dark?.secondary || modes?.darkSecondary || '',
+      accent: modes?.dark?.accent || '',
+    },
+  }
+  return getFieldSecondaryThemeColorDefaults(theme, profileTemplate, modeSets)
 }
 
 /** Legacy key kept for API/visibility sync; colors live on Social → Share. */
@@ -437,6 +445,7 @@ export const SECONDARY_BG_DISPLAY_FIELDS = [
   'Save to Wallet',
   'My Info Btn',
   'Theme Toggle',
+  ...MY_INFO_ACTION_FIELDS,
 ] as const
 
 export const SECONDARY_BG_DISPLAY_FIELD_SET = new Set<string>(SECONDARY_BG_DISPLAY_FIELDS)
@@ -950,7 +959,8 @@ export function primaryChromeDefaultsForMode(
 
 /**
  * Solid pill chrome for My Info Call / Text / Email.
- * A saved light/dark color replaces the Template primary default for that button only.
+ * Saved light/dark colors replace Template secondary (action) defaults for that button only.
+ * When nothing is saved, omit inline paint so theme CSS (`--vbiz-btn-secondary-fill`) applies.
  */
 export function displayMyInfoActionChromeStyle(
   config: DisplayFieldConfig | undefined,
@@ -958,8 +968,14 @@ export function displayMyInfoActionChromeStyle(
   defaults: { bg: string; text: string }
 ): CSSProperties {
   const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
-  const backgroundColor = storedCssColor(fill) || storedCssColor(defaults.bg) || defaults.bg
-  const color = storedCssColor(fg) || storedCssColor(defaults.text) || defaults.text
+  const userFill = storedCssColor(fill)
+  const userFg = storedCssColor(fg)
+  if (!userFill && !userFg) {
+    // No owner override — public card uses theme secondary / Button type tokens.
+    return {}
+  }
+  const backgroundColor = userFill || storedCssColor(defaults.bg) || defaults.bg
+  const color = userFg || storedCssColor(defaults.text) || defaults.text
   const style: CSSPropertiesWithVariables = {
     backgroundColor,
     color,
@@ -969,6 +985,8 @@ export function displayMyInfoActionChromeStyle(
   style['--vbiz-control-fg'] = color
   style['--vbiz-my-info-fill'] = backgroundColor
   style['--vbiz-my-info-fg'] = color
+  style['--vbiz-btn-secondary-fill'] = backgroundColor
+  style['--vbiz-btn-secondary-fg'] = color
   return style
 }
 
