@@ -11,21 +11,31 @@ import {
 import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
 import { registerOwnerPushForCurrentUser } from '@/lib/push/registerOwnerPush'
 import { Bell, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
  * After login, ask admin / corporate / single-card owners to allow browser
  * notifications, then register this device as an **owner** Web Push target
  * for their cards (separate from public-card saver/follower push).
+ *
+ * Once Allow succeeds, the subscription is stored server-side and the service
+ * worker delivers OS push even when this tab / browser window is closed.
  */
 export function DashboardPushPrompt() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hint, setHint] = useState<string | null>(null)
+  const syncAttempts = useRef(0)
 
   const closeForSession = useCallback(() => {
     markDashboardPushPromptSeenThisSession()
     setOpen(false)
+  }, [])
+
+  const syncOwnerPush = useCallback(async () => {
+    if (!getNotificationPrefs().browserPush) return { registered: 0 }
+    if (readNotificationPermission() !== 'granted') return { registered: 0 }
+    return registerOwnerPushForCurrentUser()
   }, [])
 
   const maybeOpen = useCallback(() => {
@@ -40,41 +50,72 @@ export function DashboardPushPrompt() {
     setOpen(true)
   }, [])
 
+  // Keep owner Web Push registered after first Allow (retry until token/SW ready).
   useEffect(() => {
-    const permission = readNotificationPermission()
-    if (permission === 'unsupported') return
-    if (!getNotificationPrefs().browserPush) return
+    let cancelled = false
+    let retryTimer: number | undefined
 
-    // Already granted: silently register owner-device push for owned cards.
-    if (permission === 'granted') {
-      void registerOwnerPushForCurrentUser()
-      return
-    }
+    const run = async () => {
+      if (cancelled) return
+      if (!getNotificationPrefs().browserPush) return
+      const permission = readNotificationPermission()
+      if (permission === 'unsupported') return
 
-    if (dashboardPushPromptSeenThisSession()) return
+      if (permission === 'granted') {
+        const result = await syncOwnerPush()
+        if (cancelled) return
+        if (result.registered > 0) {
+          syncAttempts.current = 0
+          return
+        }
+        if (syncAttempts.current < 6) {
+          syncAttempts.current += 1
+          retryTimer = window.setTimeout(() => void run(), 1200 * syncAttempts.current)
+        }
+        return
+      }
 
-    const timer = window.setTimeout(() => {
+      if (dashboardPushPromptSeenThisSession()) return
       maybeOpen()
       if (readNotificationPermission() === 'default') {
-        void ensureNotificationPermission().then((next) => {
-          window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
-          if (next === 'granted') {
-            void registerOwnerPushForCurrentUser()
-            markDashboardPushPromptSeenThisSession()
-            setOpen(false)
-          }
-        })
+        const next = await ensureNotificationPermission()
+        if (cancelled) return
+        window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
+        if (next === 'granted') {
+          await syncOwnerPush()
+          markDashboardPushPromptSeenThisSession()
+          setOpen(false)
+        }
       }
-    }, 700)
+    }
 
-    return () => window.clearTimeout(timer)
-  }, [maybeOpen])
+    const bootTimer = window.setTimeout(() => void run(), 400)
 
-  useEffect(() => {
-    const onForce = () => maybeOpen()
-    window.addEventListener(DASHBOARD_PUSH_PROMPT_EVENT, onForce)
-    return () => window.removeEventListener(DASHBOARD_PUSH_PROMPT_EVENT, onForce)
-  }, [maybeOpen])
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return
+      if (readNotificationPermission() !== 'granted') return
+      syncAttempts.current = 0
+      void run()
+    }
+    const onOnline = () => {
+      if (readNotificationPermission() !== 'granted') return
+      syncAttempts.current = 0
+      void run()
+    }
+
+    window.addEventListener('visibilitychange', onVis)
+    window.addEventListener('online', onOnline)
+    window.addEventListener(DASHBOARD_PUSH_PROMPT_EVENT, maybeOpen)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(bootTimer)
+      if (retryTimer) window.clearTimeout(retryTimer)
+      window.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener(DASHBOARD_PUSH_PROMPT_EVENT, maybeOpen)
+    }
+  }, [maybeOpen, syncOwnerPush])
 
   const handleAllow = async () => {
     setBusy(true)
@@ -83,7 +124,13 @@ export function DashboardPushPrompt() {
       const permission = await ensureNotificationPermission()
       window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
       if (permission === 'granted') {
-        await registerOwnerPushForCurrentUser()
+        syncAttempts.current = 0
+        const result = await syncOwnerPush()
+        if (result.registered === 0) {
+          // Token/SW race — retry shortly; do not require another backoffice visit.
+          window.setTimeout(() => void syncOwnerPush(), 1500)
+          window.setTimeout(() => void syncOwnerPush(), 4000)
+        }
         markDashboardPushPromptSeenThisSession()
         setOpen(false)
         return
@@ -126,8 +173,8 @@ export function DashboardPushPrompt() {
           Allow notifications
         </h2>
         <p className="mt-2 text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Stay updated on card saves, replies, and admin alerts for <strong>your cards only</strong>. Choose Allow so we
-          can reach you after you leave this tab.
+          After you choose Allow once, you get alerts for <strong>your cards</strong> even when this page and your
+          browser are closed — you do not need to open the backoffice again.
         </p>
         {hint ? (
           <p className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

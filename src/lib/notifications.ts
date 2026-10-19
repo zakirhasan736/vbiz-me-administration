@@ -348,7 +348,13 @@ export async function activateDashboardPush(): Promise<NotificationPermission | 
   saveNotificationPrefs({ browserPush: true })
   clearDashboardPushPromptSession()
   const permission = await ensureNotificationPermission()
-  if (permission !== 'granted') openDashboardPushPrompt()
+  if (permission === 'granted') {
+    // Persist owner endpoint now — do not wait for the next backoffice visit.
+    const { registerOwnerPushForCurrentUser } = await import('@/lib/push/registerOwnerPush')
+    await registerOwnerPushForCurrentUser()
+  } else {
+    openDashboardPushPrompt()
+  }
   return permission
 }
 
