@@ -2,6 +2,7 @@ export type PushDisplayInput = {
   type?: string
   slug?: string
   profileId?: string | null
+  /** Kept for callers; focused tabs no longer mute OS push after Allow. */
   hasFocusedClient: boolean
   now?: number
 }
@@ -22,6 +23,7 @@ export function isOperationalPushDisplay(type?: string) {
 
 /** How the service worker should present a push on Windows, Mac, iPhone, and Android. */
 export function planPushDisplay(input: PushDisplayInput): PushDisplayPlan {
+  void input.hasFocusedClient
   const operational = isOperationalPushDisplay(input.type)
   const stamp = input.now ?? Date.now()
   const tag = operational
@@ -32,7 +34,9 @@ export function planPushDisplay(input: PushDisplayInput): PushDisplayPlan {
 
   return {
     tag,
-    silent: operational ? false : input.hasFocusedClient,
+    // Always show the OS push after Allow — even if backoffice or the card tab is open/focused.
+    // In-app toast can still fire via SW postMessage; silent must not hide responsible alerts.
+    silent: false,
     requireInteraction: operational,
     omitRichOptionsOnFailure: true,
   }

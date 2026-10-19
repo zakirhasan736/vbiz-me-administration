@@ -1,5 +1,7 @@
 import {
+  listNotifications,
   markAllNotificationsRead,
+  notificationMatchesViewer,
   pushNotification,
   resolveNotificationTopic,
   type AppNotification,
@@ -75,5 +77,47 @@ describe('notification topic isolation (matrix §14.C)', () => {
     })
     expect(created?.meta?.topic).toBe('card')
     expect(resolveNotificationTopic(created!)).toBe('card')
+  })
+
+  it('scopes identity: single/member own card; corporate owner linked cards; never other cards', () => {
+    const memberNotice: AppNotification = {
+      id: 'n1',
+      audience: 'corporate',
+      category: 'contact_save',
+      title: 'Lead',
+      body: 'x',
+      read: false,
+      createdAt: new Date().toISOString(),
+      meta: { topic: 'card', userId: 'julie', profileId: 'julie-card' },
+    }
+    expect(notificationMatchesViewer(memberNotice, { userId: 'julie', ownedProfileIds: ['julie-card'] })).toBe(true)
+    expect(
+      notificationMatchesViewer(memberNotice, {
+        userId: 'corp-parent',
+        ownedProfileIds: ['corp-hq', 'julie-card'],
+      })
+    ).toBe(true)
+    expect(
+      notificationMatchesViewer(memberNotice, {
+        userId: 'other-corp',
+        ownedProfileIds: ['other-hq'],
+      })
+    ).toBe(false)
+
+    seed([
+      memberNotice,
+      {
+        ...memberNotice,
+        id: 'n2',
+        audience: 'single',
+        meta: { topic: 'crm', userId: 'julie', profileId: 'julie-card' },
+      },
+    ])
+    const crmOnly = listNotifications('single', {
+      userId: 'julie',
+      ownedProfileIds: ['julie-card'],
+      topic: 'crm',
+    })
+    expect(crmOnly.map((n) => n.id)).toEqual(['n2'])
   })
 })

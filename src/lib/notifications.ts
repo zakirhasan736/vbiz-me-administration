@@ -158,6 +158,27 @@ function persist(list: AppNotification[]) {
   window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
 }
 
+/**
+ * Whether a stored bell row belongs to this logged-in viewer.
+ * - Single / corporate member: meta.userId match, or meta.profileId in their cards
+ * - Corporate owner: also cards linked via company (included in ownedProfileIds)
+ * - Untagged rows stay audience-scoped (admin / system broadcasts)
+ */
+export function notificationMatchesViewer(
+  n: Pick<AppNotification, 'meta'>,
+  opts?: { userId?: string | null; ownedProfileIds?: string[] | null }
+): boolean {
+  const userId = opts?.userId?.trim() || ''
+  const owned = new Set((opts?.ownedProfileIds || []).filter(Boolean))
+  const metaUserId = n.meta?.userId?.trim() || ''
+  const metaProfileId = n.meta?.profileId?.trim() || ''
+
+  if (!metaUserId && !metaProfileId) return true
+  if (metaUserId && userId && metaUserId === userId) return true
+  if (metaProfileId && owned.has(metaProfileId)) return true
+  return false
+}
+
 export function listNotifications(
   audience: NotificationAudience,
   opts?: {
@@ -167,18 +188,12 @@ export function listNotifications(
     topic?: NotificationTopic | null
   }
 ): AppNotification[] {
-  const userId = opts?.userId?.trim() || ''
-  const owned = new Set((opts?.ownedProfileIds || []).filter(Boolean))
   const topic = opts?.topic || null
 
   return loadNotifications()
     .filter((n) => {
       if (n.audience !== audience) return false
-      const metaUserId = n.meta?.userId?.trim() || ''
-      const metaProfileId = n.meta?.profileId?.trim() || ''
-      // Exact identity: when a notice is tagged to a user/card, only that owner sees it.
-      if (metaUserId && !(userId && metaUserId === userId)) return false
-      if (!metaUserId && metaProfileId && owned.size && !owned.has(metaProfileId)) return false
+      if (!notificationMatchesViewer(n, opts)) return false
       if (topic && resolveNotificationTopic(n) !== topic) return false
       return true
     })

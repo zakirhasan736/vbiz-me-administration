@@ -19,6 +19,7 @@ import {
 import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
 import { useAuth } from '@/providers/AuthProvider'
 import { clearActiveAnnouncementBannerCache } from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
+import { useGetProfilesQuery } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import {
   AlertCircle,
@@ -94,12 +95,14 @@ function subscribeToNotifications(onStoreChange: () => void) {
 function getNotificationsSnapshot(
   audience: NotificationAudience,
   userId?: string | null,
-  topic?: NotificationTopic | null
+  topic?: NotificationTopic | null,
+  ownedProfileIds?: string[] | null
 ): AppNotification[] {
-  const key = `${audience}:${userId || ''}:${topic || 'all'}`
+  const ownedKey = (ownedProfileIds || []).slice().sort().join(',')
+  const key = `${audience}:${userId || ''}:${topic || 'all'}:${ownedKey}`
   const cached = notificationSnapshots.get(key)
   if (cached && cached.version === notificationStoreVersion) return cached.items
-  const items = listNotifications(audience, { userId, topic })
+  const items = listNotifications(audience, { userId, topic, ownedProfileIds })
   notificationSnapshots.set(key, { version: notificationStoreVersion, items })
   return items
 }
@@ -126,13 +129,22 @@ export function NotificationCenter({ audience, topic, title = 'Your Alerts', cla
   const dispatch = useAppDispatch()
   const { user } = useAuth()
   const userId = user?.uid || null
+  // Owner back-office scope: own cards (+ corporate-linked cards from list API).
+  const { data: profilesResult } = useGetProfilesQuery(
+    { status: 'all', skip: 0, limit: 100 },
+    { skip: audience === 'admin' }
+  )
+  const ownedProfileIds = useMemo(
+    () => (profilesResult?.items ?? []).map((row) => row.id).filter(Boolean),
+    [profilesResult?.items]
+  )
   const btnRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 12, width: 320 })
 
   const storedItems = useSyncExternalStore(
     subscribeToNotifications,
-    () => getNotificationsSnapshot(audience, userId, topic),
+    () => getNotificationsSnapshot(audience, userId, topic, ownedProfileIds),
     getServerNotificationsSnapshot
   )
   const [readOverrides, setReadOverrides] = useState<Set<string>>(() => new Set())

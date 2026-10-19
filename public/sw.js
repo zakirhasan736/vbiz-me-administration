@@ -722,7 +722,6 @@ self.addEventListener('push', (event) => {
           : ''
 
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      const hasFocusedClient = clientList.some((client) => client.focused)
       const meetingAlert =
         payload.type === 'meeting_alert' || payload.type === 'viewer_return' || payload.type === 'save_contact'
 
@@ -739,12 +738,13 @@ self.addEventListener('push', (event) => {
           ? `vbiz-card-${payload.slug}`
           : 'vbiz-card-update'
 
+      // Always show OS push after first Allow — backoffice/card open/focused must not mute it.
       const compatibleOptions = {
         body: copy.body,
         data: richPayload,
         tag,
         requireInteraction: meetingAlert,
-        silent: meetingAlert ? false : hasFocusedClient,
+        silent: false,
         ...(icon ? { icon, badge: icon } : {}),
       }
 
