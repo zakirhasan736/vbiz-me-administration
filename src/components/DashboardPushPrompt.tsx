@@ -54,7 +54,6 @@ export function DashboardPushPrompt() {
   useEffect(() => {
     let cancelled = false
     let retryTimer: number | undefined
-    let keepAliveTimer: number | undefined
 
     const scheduleRetry = (delayMs: number) => {
       if (retryTimer) window.clearTimeout(retryTimer)
@@ -133,7 +132,7 @@ export function DashboardPushPrompt() {
     }
 
     // Periodic keep-alive: re-save owner endpoint while backoffice is open.
-    keepAliveTimer = window.setInterval(() => {
+    const keepAliveTimer = window.setInterval(() => {
       if (readNotificationPermission() !== 'granted') return
       if (!getNotificationPrefs().browserPush) return
       if (!isOwnerPushPending() && syncAttempts.current === 0) {
