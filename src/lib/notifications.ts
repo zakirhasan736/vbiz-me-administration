@@ -350,9 +350,7 @@ export async function activateDashboardPush(): Promise<NotificationPermission | 
   const permission = await ensureNotificationPermission()
   if (permission === 'granted') {
     // Persist owner endpoint now — do not wait for the next backoffice visit.
-    const { markOwnerPushPending, registerOwnerPushForCurrentUser } = await import(
-      '@/lib/push/registerOwnerPush'
-    )
+    const { markOwnerPushPending, registerOwnerPushForCurrentUser } = await import('@/lib/push/registerOwnerPush')
     markOwnerPushPending()
     await registerOwnerPushForCurrentUser()
   } else {

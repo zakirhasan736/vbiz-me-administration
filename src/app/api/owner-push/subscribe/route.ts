@@ -30,32 +30,26 @@ export async function POST(request: NextRequest) {
 
   const profileId = typeof body.profileId === 'string' ? body.profileId.trim() : ''
   if (!profileId || !body.endpoint?.trim() || !body.keys?.p256dh || !body.keys?.auth) {
-    return NextResponse.json(
-      { success: false, message: 'profileId, endpoint, and keys are required' },
-      { status: 400 }
-    )
+    return NextResponse.json({ success: false, message: 'profileId, endpoint, and keys are required' }, { status: 400 })
   }
 
   try {
-    const upstream = await fetch(
-      `${getServerApiOrigin()}/profiles/${encodeURIComponent(profileId)}/push/subscribe`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: auth,
-        },
-        body: JSON.stringify({
-          endpoint: body.endpoint,
-          keys: body.keys,
-          browser: body.browser,
-          platform: body.platform,
-          audience: 'owner',
-        }),
-        cache: 'no-store',
-      }
-    )
+    const upstream = await fetch(`${getServerApiOrigin()}/profiles/${encodeURIComponent(profileId)}/push/subscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: auth,
+      },
+      body: JSON.stringify({
+        endpoint: body.endpoint,
+        keys: body.keys,
+        browser: body.browser,
+        platform: body.platform,
+        audience: 'owner',
+      }),
+      cache: 'no-store',
+    })
     const payload = await upstream.text()
     return new NextResponse(payload, {
       status: upstream.status,

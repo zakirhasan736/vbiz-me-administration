@@ -9,11 +9,7 @@ import {
   NOTIFICATIONS_EVENT,
 } from '@/lib/notifications'
 import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
-import {
-  isOwnerPushPending,
-  markOwnerPushPending,
-  registerOwnerPushForCurrentUser,
-} from '@/lib/push/registerOwnerPush'
+import { isOwnerPushPending, markOwnerPushPending, registerOwnerPushForCurrentUser } from '@/lib/push/registerOwnerPush'
 import { Bell, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
