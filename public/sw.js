@@ -354,6 +354,60 @@ self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
 
+/** urlBase64 → Uint8Array for PushManager.subscribe inside the worker. */
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; i += 1) outputArray[i] = rawData.charCodeAt(i)
+  return outputArray
+}
+
+async function readStoredOwnerVapidPublicKey() {
+  try {
+    const cache = await caches.open('vbiz-owner-push-meta')
+    const res = await cache.match('/__vbiz_owner_vapid')
+    if (!res) return ''
+    const json = await res.json()
+    return typeof json?.publicKey === 'string' ? json.publicKey.trim() : ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Browser rotated the push endpoint — resubscribe and tell open clients to
+ * re-save owner rows so closed-browser push keeps working after first Allow.
+ */
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const publicKey = await readStoredOwnerVapidPublicKey()
+        if (publicKey && self.registration?.pushManager) {
+          await self.registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey),
+          })
+        }
+      } catch {
+        /* client re-register will recreate */
+      }
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of clientList) {
+        client.postMessage({ type: 'vbiz_push_subscription_changed' })
+      }
+      try {
+        const cache = await caches.open('vbiz-owner-push-meta')
+        await cache.put('/__vbiz_owner_reregister', new Response('1'))
+      } catch {
+        /* ignore */
+      }
+    })()
+  )
+})
+
 const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v5'
 const CARD_DATA_CACHE = 'vbiz-public-card-data-v5'
 const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v5'

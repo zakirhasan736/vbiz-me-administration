@@ -9,7 +9,11 @@ import {
   NOTIFICATIONS_EVENT,
 } from '@/lib/notifications'
 import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
-import { registerOwnerPushForCurrentUser } from '@/lib/push/registerOwnerPush'
+import {
+  isOwnerPushPending,
+  markOwnerPushPending,
+  registerOwnerPushForCurrentUser,
+} from '@/lib/push/registerOwnerPush'
 import { Bell, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -50,10 +54,16 @@ export function DashboardPushPrompt() {
     setOpen(true)
   }, [])
 
-  // Keep owner Web Push registered after first Allow (retry until token/SW ready).
+  // Keep owner Web Push registered after first Allow (retry until server has the endpoint).
   useEffect(() => {
     let cancelled = false
     let retryTimer: number | undefined
+    let keepAliveTimer: number | undefined
+
+    const scheduleRetry = (delayMs: number) => {
+      if (retryTimer) window.clearTimeout(retryTimer)
+      retryTimer = window.setTimeout(() => void run(), delayMs)
+    }
 
     const run = async () => {
       if (cancelled) return
@@ -68,10 +78,10 @@ export function DashboardPushPrompt() {
           syncAttempts.current = 0
           return
         }
-        if (syncAttempts.current < 6) {
-          syncAttempts.current += 1
-          retryTimer = window.setTimeout(() => void run(), 1200 * syncAttempts.current)
-        }
+        // Never give up while this session is open — closed-browser push depends on it.
+        syncAttempts.current += 1
+        const delay = Math.min(30000, 1000 * Math.min(syncAttempts.current, 12))
+        scheduleRetry(delay)
         return
       }
 
@@ -82,14 +92,30 @@ export function DashboardPushPrompt() {
         if (cancelled) return
         window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
         if (next === 'granted') {
+          markOwnerPushPending()
           await syncOwnerPush()
           markDashboardPushPromptSeenThisSession()
           setOpen(false)
+          if (isOwnerPushPending()) scheduleRetry(1500)
         }
       }
     }
 
-    const bootTimer = window.setTimeout(() => void run(), 400)
+    const bootTimer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const cache = await caches.open('vbiz-owner-push-meta')
+          const flag = await cache.match('/__vbiz_owner_reregister')
+          if (flag) {
+            markOwnerPushPending()
+            await cache.delete('/__vbiz_owner_reregister')
+          }
+        } catch {
+          /* ignore */
+        }
+        void run()
+      })()
+    }, 400)
 
     const onVis = () => {
       if (document.visibilityState !== 'visible') return
@@ -102,18 +128,44 @@ export function DashboardPushPrompt() {
       syncAttempts.current = 0
       void run()
     }
+    const onSwMessage = (event: MessageEvent) => {
+      const type = (event.data as { type?: string } | null)?.type
+      if (type !== 'vbiz_push_subscription_changed' && type !== 'vbiz_owner_push_reregister') return
+      markOwnerPushPending()
+      syncAttempts.current = 0
+      void run()
+    }
+
+    // Periodic keep-alive: re-save owner endpoint while backoffice is open.
+    keepAliveTimer = window.setInterval(() => {
+      if (readNotificationPermission() !== 'granted') return
+      if (!getNotificationPrefs().browserPush) return
+      if (!isOwnerPushPending() && syncAttempts.current === 0) {
+        // Quiet refresh every few minutes so rotated endpoints stay on the server.
+        void syncOwnerPush()
+        return
+      }
+      void run()
+    }, 45000)
 
     window.addEventListener('visibilitychange', onVis)
     window.addEventListener('online', onOnline)
     window.addEventListener(DASHBOARD_PUSH_PROMPT_EVENT, maybeOpen)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', onSwMessage)
+    }
 
     return () => {
       cancelled = true
       window.clearTimeout(bootTimer)
       if (retryTimer) window.clearTimeout(retryTimer)
+      if (keepAliveTimer) window.clearInterval(keepAliveTimer)
       window.removeEventListener('visibilitychange', onVis)
       window.removeEventListener('online', onOnline)
       window.removeEventListener(DASHBOARD_PUSH_PROMPT_EVENT, maybeOpen)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', onSwMessage)
+      }
     }
   }, [maybeOpen, syncOwnerPush])
 
@@ -124,12 +176,14 @@ export function DashboardPushPrompt() {
       const permission = await ensureNotificationPermission()
       window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
       if (permission === 'granted') {
+        markOwnerPushPending()
         syncAttempts.current = 0
         const result = await syncOwnerPush()
         if (result.registered === 0) {
-          // Token/SW race — retry shortly; do not require another backoffice visit.
+          // Token/SW race — keep retrying; do not require another backoffice visit later.
           window.setTimeout(() => void syncOwnerPush(), 1500)
           window.setTimeout(() => void syncOwnerPush(), 4000)
+          window.setTimeout(() => void syncOwnerPush(), 10000)
         }
         markDashboardPushPromptSeenThisSession()
         setOpen(false)
