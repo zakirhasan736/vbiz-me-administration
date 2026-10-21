@@ -1259,8 +1259,7 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
 
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-social-rail,
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-utility-rail {
-    gap: 1.3rem !important; 
-    
+    gap: 1.3rem !important;
   }
 
   /* Nudge side rails down with the hero (top area “comes down”). */
