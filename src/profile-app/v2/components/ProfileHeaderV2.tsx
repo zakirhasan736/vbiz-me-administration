@@ -218,7 +218,7 @@ export function ProfileHeaderV2({
       className={`relative mb-4 flex w-full flex-col items-center gap-6 px-12 md:flex-row md:items-start md:justify-center md:px-16 lg:gap-10 lg:px-20 ${embedded ? 'mb-8' : 'sm:mb-10'}`}
     >
       {showSocialRail && (
-        <div className="absolute top-0 left-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:hidden dark:border-zinc-700/50 dark:bg-zinc-900/50">
+        <div className="vbiz-home-social-rail absolute top-0 left-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:hidden dark:border-zinc-700/50 dark:bg-zinc-900/50">
           {visibleSocials.map((socialItem) => {
             const href = resolveSocialLinkHref(socialItem.label, socialHref, personal.whatsapp)
             const tip = V2_SOCIAL_TOOLTIP[socialItem.label] ?? socialItem.label
@@ -327,7 +327,7 @@ export function ProfileHeaderV2({
 
       <div
         className={cn(
-          'absolute top-0 right-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:gap-4 md:p-2 dark:border-zinc-700/50 dark:bg-zinc-900/50',
+          'vbiz-home-utility-rail absolute top-0 right-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:gap-4 md:p-2 dark:border-zinc-700/50 dark:bg-zinc-900/50',
           embedded ? 'top-4 right-1' : 'top-0 right-0'
         )}
       >

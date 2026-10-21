@@ -297,7 +297,7 @@ function Toggle({
 function TemplateDesigner() {
   const canBgVideo = true
   const { vCardData, updateData, flushSave, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
-  const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
+  const { getCustomValue, setCustomValue, patchField, display } = useVCardDisplayEditor()
   const accountDesign = useAppSelector((s) => s.designSettings)
 
   const cardAppearance: VCardAppearance = vCardData.appearance ?? appearanceFromDesignSettings(accountDesign)
@@ -412,8 +412,11 @@ function TemplateDesigner() {
   )
 
   const setBackgroundMedia = useCallback(
-    (url: string) => {
-      setCustomValue(FIELD_BACKGROUND_MEDIA, url || '')
+    (url: string, options?: { clearFrame?: boolean }) => {
+      patchField(FIELD_BACKGROUND_MEDIA, {
+        customValue: url || '',
+        ...(options?.clearFrame || !url ? { mediaFrame: undefined } : {}),
+      })
       const trimmed = url.trim()
       if (!trimmed) return
       // Always sync wallpaper style to image/video so cover media actually renders
@@ -421,7 +424,7 @@ function TemplateDesigner() {
       const next = inferMediaWallpaperStyle(trimmed)
       updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
     },
-    [setCustomValue, templateId, updateData, vCardData.themeConfig]
+    [patchField, templateId, updateData, vCardData.themeConfig]
   )
 
   const mediaAccept =
@@ -828,7 +831,7 @@ function TemplateDesigner() {
           <VCardMediaField
             variant="inset"
             value={bgMediaUrl}
-            onChange={(url) => setBackgroundMedia(url || '')}
+            onChange={(url) => setBackgroundMedia(url || '', { clearFrame: !url })}
             profileId={profileId}
             attachmentType={FIELD_BACKGROUND_MEDIA}
             accept={mediaAccept}
@@ -836,13 +839,16 @@ function TemplateDesigner() {
             selectPlaceholder="Select media file"
             subtitle={
               wallpaperStyle === 'blur'
-                ? 'Blurred cover media • no size limit'
+                ? 'Blurred cover • drag, zoom, and position'
                 : wallpaperStyle === 'video'
-                  ? 'Video loop • no size limit'
-                  : 'Cover image • no size limit'
+                  ? 'Video loop • drag, zoom, and position'
+                  : 'Cover image • drag, zoom, and position'
             }
             previewKind="auto"
             previewClassName="aspect-video max-h-56"
+            frameLayout="feature"
+            mediaFrame={display.fields[FIELD_BACKGROUND_MEDIA]?.mediaFrame}
+            onMediaFrameChange={(mediaFrame) => patchField(FIELD_BACKGROUND_MEDIA, { mediaFrame })}
           >
             <MediaSourceActions
               mode={canBgVideo ? 'both' : 'image'}

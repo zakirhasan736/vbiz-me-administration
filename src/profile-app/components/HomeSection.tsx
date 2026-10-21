@@ -326,6 +326,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
   const theme = useProfileTheme()
   const wallpaper = resolveWallpaperConfig(theme?.themeConfig, homeMedia.bgMedia)
   const coverMediaUrl = encodeMediaUrl(homeMedia.bgMedia || '')
+  const coverMediaFrame = field('Background Video/Image').mediaFrame
   const introSrc = homeMedia.introVideo || undefined
   const profileSrc = useMemo(
     () => resolveProfileAvatarSrc(homeMedia.profileMedia, introSrc),
@@ -413,10 +414,15 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
               <ProfileWallpaperContent
                 wallpaper={wallpaper}
                 mediaUrl={coverMediaUrl}
+                mediaFrame={coverMediaFrame}
                 mediaClassName={
                   wallpaper.style === 'video' || isVideoUrl(coverMediaUrl)
-                    ? 'scale-105 object-cover opacity-90 transition-all duration-[10s] group-hover:scale-110'
-                    : 'scale-105 opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen'
+                    ? coverMediaFrame
+                      ? 'opacity-90'
+                      : 'scale-105 object-cover opacity-90 transition-all duration-[10s] group-hover:scale-110'
+                    : coverMediaFrame
+                      ? 'opacity-30 mix-blend-multiply dark:opacity-60 dark:mix-blend-screen'
+                      : 'scale-105 opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen'
                 }
               />
               <div className="absolute inset-0 bg-linear-to-t from-white via-white/40 to-transparent dark:from-gray-950 dark:via-gray-950/40" />

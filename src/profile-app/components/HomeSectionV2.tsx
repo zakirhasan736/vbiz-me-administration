@@ -61,7 +61,7 @@ export const HomeSectionV2 = () => {
 
   return (
     <div className="grid w-full grid-cols-1 gap-6 pb-0 md:grid-cols-2">
-      <div className="flex min-h-[42vh] flex-col md:contents md:min-h-0">
+      <div className="vbiz-home-v2-cta-slot flex min-h-[42vh] flex-col md:contents md:min-h-0">
         <ProfileActionButtons className="w-full" />
       </div>
 

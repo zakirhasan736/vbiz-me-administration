@@ -186,6 +186,7 @@ export const HomeHero: React.FC<{
   const wallpaper = resolveWallpaperConfig(profileTheme?.themeConfig, homeMedia.bgMedia)
   const coverMediaUrl = encodeMediaUrl(homeMedia.bgMedia || '')
   const coverIsVideo = wallpaper.style === 'video' || isVideoUrl(homeMedia.bgMedia || '')
+  const coverMediaFrame = field('Background Video/Image').mediaFrame
   const profileIsVideo = Boolean(profileSrc) && isVideoUrl(profileSrc)
   const avatarFrame = parseProfileMediaFrame(field('Profile Image/Video').mediaFrame)
   const avatarHeightAdjusted = avatarFrame.height !== 1
@@ -297,15 +298,25 @@ export const HomeHero: React.FC<{
           <ProfileWallpaperContent
             wallpaper={wallpaper}
             mediaUrl={coverMediaUrl}
+            mediaFrame={coverMediaFrame}
             mediaClassName={
               // Videos stay mix-blend-normal — lighten/screen wash them out on dark home canvases.
+              // When mediaFrame is set, object-fit / position come from cover layout — skip object-cover.
               coverIsVideo
                 ? compact
-                  ? 'h-full w-full object-cover opacity-95'
-                  : 'h-full w-full object-cover opacity-95 md:aspect-auto'
+                  ? coverMediaFrame
+                    ? 'opacity-95'
+                    : 'h-full w-full object-cover opacity-95'
+                  : coverMediaFrame
+                    ? 'opacity-95'
+                    : 'h-full w-full object-cover opacity-95 md:aspect-auto'
                 : compact
-                  ? 'h-full w-full opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
-                  : 'aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten'
+                  ? coverMediaFrame
+                    ? 'opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
+                    : 'h-full w-full opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
+                  : coverMediaFrame
+                    ? 'opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
+                    : 'aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten'
             }
           />
           <div
@@ -330,7 +341,7 @@ export const HomeHero: React.FC<{
         >
           <div className="relative h-0 w-full max-w-258">
             <div
-              className={`pointer-events-auto absolute flex flex-col gap-1 sm:gap-2 ${compact ? 'top-20 right-1' : 'top-4 right-1 md:right-6'}`}
+              className={`vbiz-home-utility-rail pointer-events-auto absolute flex flex-col gap-1 sm:gap-2 ${compact ? 'top-20 right-1' : 'top-4 right-1 md:right-6'}`}
             >
               {/* Fixed rail: Eye → World (website) → Language → CRM → Theme */}
               <IconHoverTooltip label="Total views" placement="left">
@@ -437,12 +448,14 @@ export const HomeHero: React.FC<{
 
         {/* Phone View — also used by the editor preview frame */}
         <div
-          className={`relative flex flex-col items-center ${
+          className={`vbiz-home-phone-stack relative flex flex-col items-center ${
             compact ? 'flex-1 pt-16 pb-5' : 'flex-1 pt-6.25 pb-2 sm:pb-17.5 md:hidden'
           }`}
         >
           {showSocialRail && (
-            <div className={`absolute z-30 flex flex-col gap-2 ${compact ? 'top-24 left-0' : 'top-8 left-2'}`}>
+            <div
+              className={`vbiz-home-social-rail absolute z-30 flex flex-col gap-2 ${compact ? 'top-24 left-0' : 'top-8 left-2'}`}
+            >
               {visibleSocials.map((item) => {
                 const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
                 return (
@@ -469,7 +482,7 @@ export const HomeHero: React.FC<{
           )}
 
           <div
-            className={`relative z-20 mx-auto mb-2 max-w-60 overflow-hidden border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
+            className={`vbiz-home-avatar relative z-20 mx-auto mb-2 max-w-60 overflow-hidden border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
               avatarHeightAdjusted ? '' : 'aspect-4/4.5'
             } ${compact ? 'w-[52%]' : 'w-[56%] sm:w-[60%] md:w-[65%]'}`}
             style={avatarHeightAdjusted ? { aspectRatio: profileFramePhoneAspect(avatarFrame) } : undefined}
@@ -482,8 +495,8 @@ export const HomeHero: React.FC<{
             />
           </div>
 
-          <div className="relative z-20 mt-5 flex w-full flex-1 flex-col items-center">
-            <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="vbiz-home-mid-stack relative z-20 mt-5 flex w-full flex-1 flex-col items-center">
+            <div className="vbiz-home-mid-actions flex flex-wrap items-center justify-center gap-2">
               {showShare && (
                 <IconHoverTooltip label="Share">
                   <button

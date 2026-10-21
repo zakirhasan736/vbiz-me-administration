@@ -34,7 +34,7 @@ type ProfileActionButtonsProps = {
 
 /** Shared mobile hero shell — mt-auto pins the CTA stack to the bottom of flex heroes. */
 export const PROFILE_ACTION_BUTTONS_MOBILE_SHELL_CLASS =
-  'relative z-20 mt-auto mb-2 flex w-[90%] max-w-[340px] shrink-0 flex-col gap-2 shadow-xl'
+  'vbiz-home-cta-mobile relative z-20 mt-auto mb-2 flex w-[90%] max-w-[340px] shrink-0 flex-col gap-2 shadow-xl'
 
 function CtaButtonContent({ button, iconSize }: { button: ResolvedHomeCtaButton; iconSize: number }) {
   const Icon = button.icon
