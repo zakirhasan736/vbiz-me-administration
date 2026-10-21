@@ -180,7 +180,10 @@ function WallpaperMedia({
 }) {
   const safariLike = isSafariBrowser() || isIosDevice()
   const boxRef = useRef<HTMLDivElement | null>(null)
-  const [mediaSize, setMediaSize] = useState<MediaPixelSize | null>(null)
+  const [mediaSizeState, setMediaSizeState] = useState<{ key: string; size: MediaPixelSize | null }>({
+    key: '',
+    size: null,
+  })
   const [boxSize, setBoxSize] = useState<MediaPixelSize | null>(null)
   const frame = mediaFrame ? parseProfileMediaFrame(mediaFrame) : null
 
@@ -197,13 +200,17 @@ function WallpaperMedia({
     return buildBackgroundVideoPosterUrl(src) || undefined
   }, [src, treatAsVideo])
 
+  const mediaKey = treatAsVideo ? adaptiveSrc : src
+  // Reset measured pixels when the media URL changes (render-time, not an effect).
+  if (mediaSizeState.key !== mediaKey) {
+    setMediaSizeState({ key: mediaKey, size: null })
+  }
+  const mediaSize = mediaSizeState.key === mediaKey ? mediaSizeState.size : null
+  const setMediaSize = (size: MediaPixelSize) => setMediaSizeState({ key: mediaKey, size })
+
   // Always mount the <video> for home backgrounds so warmup + real player share cache.
   // `deferVideo` used to delay mount until intersection — that caused a post-intro wait.
   const showVideo = treatAsVideo && (!deferVideo || videoVisible)
-
-  useEffect(() => {
-    setMediaSize(null)
-  }, [src, adaptiveSrc])
 
   useEffect(() => {
     if (!frame) return
