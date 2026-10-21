@@ -1300,7 +1300,7 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
     margin-bottom: 6rem !important;
     gap: 0.65rem !important;
   }
-  .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile >div{
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile > div {
     gap: 1em !important;
   }
 
@@ -1314,5 +1314,5 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
 @media (min-width: 400px) and (max-width: 440px) and (min-height: 900px) and (max-height: 996px) {
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile {
     margin-top: 10rem !important;
-  } 
- }
+  }
+}
