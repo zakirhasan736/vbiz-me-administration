@@ -1297,7 +1297,7 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
   /* Sit CTAs under the name (not pinned to the bottom of a tall flex void). */
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile {
     margin-top: 6.1rem !important;
-    margin-bottom: 6rem !important;
+    margin-bottom: 3rem !important;
     gap: 0.65rem !important;
   }
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile > div {
