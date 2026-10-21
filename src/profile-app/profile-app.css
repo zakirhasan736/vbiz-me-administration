@@ -1250,6 +1250,7 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
  * Pulls the hero slightly down, collapses the empty middle (CTA mt-auto stretch),
  * and adds breathing room between rails / mid-actions / video — nowhere else.
  */
+
 @media (min-width: 380px) and (max-width: 440px) and (min-height: 720px) and (max-height: 996px) {
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-phone-stack {
     padding-top: 1.75rem !important;
@@ -1258,12 +1259,12 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
 
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-social-rail,
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-utility-rail {
-    gap: 0.7rem !important;
+    gap: 1.3rem !important;
   }
 
   /* Nudge side rails down with the hero (top area “comes down”). */
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-social-rail {
-    top: 2.75rem !important;
+    top: 3.75rem !important;
   }
 
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-utility-rail {
@@ -1276,8 +1277,8 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
     /* Taller frame so image/video fills more of the Pro Max middle. */
     aspect-ratio: 4 / 5.15 !important;
     min-height: 17.5rem !important;
-    margin-top: 0.35rem !important;
-    margin-bottom: 0.85rem !important;
+    margin-top: 2rem !important;
+    margin-bottom: 2rem !important;
   }
 
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-mid-stack {
@@ -1295,9 +1296,12 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
 
   /* Sit CTAs under the name (not pinned to the bottom of a tall flex void). */
   .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile {
-    margin-top: 1.1rem !important;
-    margin-bottom: 1rem !important;
+    margin-top: 6.1rem !important;
+    margin-bottom: 6rem !important;
     gap: 0.65rem !important;
+  }
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile >div{
+    gap: 1em !important;
   }
 
   /* V2 home CTA slot — same tall-phone densify. */
@@ -1307,3 +1311,8 @@ html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
     padding-bottom: 0.75rem;
   }
 }
+@media (min-width: 400px) and (max-width: 440px) and (min-height: 900px) and (max-height: 996px) {
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile {
+    margin-top: 10rem !important;
+  } 
+ }
