@@ -5,6 +5,7 @@ vi.mock('@/lib/api/serverApi', () => ({
   getApiBaseUrl: () => 'https://api.vbizme.com/api/v1/public',
   PUBLIC_CARD_FETCH_INIT: { cache: 'no-store' },
   fetchPublicCardResponseWithOneRetry: (url: string, init?: RequestInit) => fetch(url, init),
+  describeFetchError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }))
 
 vi.mock('react', async () => {
