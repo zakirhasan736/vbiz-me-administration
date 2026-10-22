@@ -458,7 +458,7 @@ const FIELD_BG = 'Background Video/Image'
 export function Tab4HomeMedia() {
   const { user } = useAuth()
   const { cardId, vCardData, updateData } = useVCard()
-  const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
+  const { display, getCustomValue, setCustomValue, patchField } = useVCardDisplayEditor()
   const { can } = usePackageAccess()
   const canMusicFile = musicFileAllowed(can)
   const canYtMusic = can('allow_yt_bg_music_upload')
@@ -472,8 +472,11 @@ export function Tab4HomeMedia() {
   const musicYoutubeUrl = getCustomValue(FIELD_MUSIC_YT)
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
 
-  const setBackgroundMedia = (url: string) => {
-    setCustomValue(FIELD_BG, url || '')
+  const setBackgroundMedia = (url: string, options?: { clearFrame?: boolean }) => {
+    patchField(FIELD_BG, {
+      customValue: url || '',
+      ...(options?.clearFrame || !url ? { mediaFrame: undefined } : {}),
+    })
     const trimmed = url.trim()
     if (!trimmed) return
     const next = inferMediaWallpaperStyle(trimmed)
@@ -689,15 +692,18 @@ export function Tab4HomeMedia() {
               <VCardMediaField
                 variant="inset"
                 value={bgMediaUrl}
-                onChange={(url) => setBackgroundMedia(url || '')}
+                onChange={(url) => setBackgroundMedia(url || '', { clearFrame: !url })}
                 profileId={profileId}
                 attachmentType={FIELD_BG}
                 accept="image/*,video/*"
                 allowVideo
                 selectPlaceholder="Select media file"
-                subtitle="Displayed as the background of your entire vCard. Image or Video loop • no size limit"
+                subtitle="Full-card background • drag, zoom, and position"
                 previewKind="auto"
                 previewClassName="aspect-video max-h-56"
+                frameLayout="feature"
+                mediaFrame={display.fields[FIELD_BG]?.mediaFrame}
+                onMediaFrameChange={(mediaFrame) => patchField(FIELD_BG, { mediaFrame })}
               >
                 <MediaSourceActions mode="both" onSelect={(asset) => setBackgroundMedia(asset.url)} />
               </VCardMediaField>

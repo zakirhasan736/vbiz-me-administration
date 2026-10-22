@@ -5,10 +5,12 @@ import {
   extractPublicSeoFaqs,
   extractPublicSeoProducts,
   extractPublicSeoReviews,
+  extractPublicSeoServices,
   sectionByName,
   type PublicSeoFaq,
   type PublicSeoProduct,
   type PublicSeoReview,
+  type PublicSeoService,
 } from '@/lib/seo/publicCardSeo'
 
 export function plainCardText(value: unknown): string {
@@ -20,7 +22,17 @@ export function plainCardText(value: unknown): string {
     .trim()
 }
 
-const STRUCTURED_SECTION_KEYS = new Set(['faq', 'faqs', 'reviews', 'review', 'products', 'see products', 'product'])
+const STRUCTURED_SECTION_KEYS = new Set([
+  'faq',
+  'faqs',
+  'reviews',
+  'review',
+  'products',
+  'see products',
+  'product',
+  'services',
+  'service',
+])
 const SOURCE_LINE_LIMIT = 80
 
 function sectionLines(sections: Record<string, unknown> | null | undefined): string[] {
@@ -57,6 +69,7 @@ export type PublicCardSource = {
   faqs: PublicSeoFaq[]
   reviews: PublicSeoReview[]
   products: PublicSeoProduct[]
+  services: PublicSeoService[]
   canonical: string
   markdownUrl: string
 }
@@ -98,6 +111,7 @@ export function assemblePublicCardSource(input: {
     faqs: extractPublicSeoFaqs(sectionByName(input.sections, ['faqs', 'faq', 'Faq'])),
     reviews: extractPublicSeoReviews(sectionByName(input.sections, ['reviews', 'review'])),
     products: extractPublicSeoProducts(sectionByName(input.sections, ['products', 'See Products', 'product'])),
+    services: extractPublicSeoServices(sectionByName(input.sections, ['services', 'service', 'Services'])),
     canonical,
     markdownUrl: `${canonical}/llms.txt`,
   }

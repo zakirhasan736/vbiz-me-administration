@@ -21,9 +21,23 @@ import {
   Lock,
   UserPlus,
 } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 type CrmTab = 'dashboard' | 'leads' | 'calendar' | 'work_notes' | 'events'
+
+const CRM_TAB_IDS = new Set<CrmTab>(['dashboard', 'leads', 'calendar', 'work_notes', 'events'])
+
+function crmTabFromSearch(raw: string | null): CrmTab | null {
+  const value = String(raw || '')
+    .trim()
+    .toLowerCase()
+  if (!value) return null
+  if (value === 'notes' || value === 'work-notes') return 'work_notes'
+  if (value === 'wish' || value === 'outreach') return 'events'
+  if (value === 'schedules' || value === 'schedule') return 'calendar'
+  return CRM_TAB_IDS.has(value as CrmTab) ? (value as CrmTab) : null
+}
 
 type FocusTarget = { tab: 'calendar'; id: string; date: string } | { tab: 'events'; id: string }
 
@@ -46,7 +60,15 @@ export default function CrmWorkspace() {
   const { isCorporateBackOffice } = useOwnerMode()
   const isStaff = isStaffRole(role)
   const allowed = CRM_UI_ENABLED && canSessionUseCrm({ role, allowedModules })
-  const [tab, setTab] = useState<CrmTab>('dashboard')
+  const searchParams = useSearchParams()
+  const urlTab = crmTabFromSearch(searchParams.get('tab'))
+  const [tab, setTab] = useState<CrmTab>(() => urlTab || 'dashboard')
+  const [prevUrlTab, setPrevUrlTab] = useState<CrmTab | null>(urlTab)
+  // Sync CRM tab from deep-link query without an effect (push opens `/crm?tab=…`).
+  if (urlTab !== prevUrlTab) {
+    setPrevUrlTab(urlTab)
+    if (urlTab) setTab(urlTab)
+  }
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null)
   const skipFirstPeekRef = useRef(true)
 

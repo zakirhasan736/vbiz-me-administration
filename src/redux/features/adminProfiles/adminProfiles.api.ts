@@ -232,6 +232,72 @@ const adminProfilesApi = api.injectEndpoints({
         { type: 'adminProfiles', id: 'LIST' },
       ],
     }),
+    linkCorporateCards: builder.mutation<
+      {
+        apply: boolean
+        corporate: { id: string; name: string | null; email: string; role: string }
+        cards: Array<{
+          profileId: string
+          slug: string | null
+          name: string | null
+          email: string
+          status: string
+          message: string
+          ownerEmail?: string | null
+          linkedToEmail?: string | null
+        }>
+        orphanMembers: Array<{ userId: string; email: string; status: string; message: string }>
+        summary: {
+          linked: number
+          alreadyLinked: number
+          missing: number
+          errors: number
+          orphansDeleted: number
+        }
+      },
+      {
+        corporateEmail: string
+        slugs: string[]
+        apply?: boolean
+        promoteToCorporateOwner?: boolean
+        forceAsOwnerCard?: boolean
+        deleteOrphanMembers?: boolean
+      }
+    >({
+      query: (body) => ({
+        url: '/admin/corporate-cards/link',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: Envelope<unknown>) =>
+        res.data as {
+          apply: boolean
+          corporate: { id: string; name: string | null; email: string; role: string }
+          cards: Array<{
+            profileId: string
+            slug: string | null
+            name: string | null
+            email: string
+            status: string
+            message: string
+            ownerEmail?: string | null
+            linkedToEmail?: string | null
+          }>
+          orphanMembers: Array<{ userId: string; email: string; status: string; message: string }>
+          summary: {
+            linked: number
+            alreadyLinked: number
+            missing: number
+            errors: number
+            orphansDeleted: number
+          }
+        },
+      invalidatesTags: [
+        { type: 'adminUsers', id: 'LIST' },
+        { type: 'adminUsers', id: 'STATS' },
+        { type: 'adminProfiles', id: 'LIST' },
+      ],
+    }),
   }),
 })
 
@@ -273,6 +339,7 @@ export const {
   useGetPortfolioMembersQuery,
   useSendAdminProfileEmailMutation,
   useEnsureCorporateMemberLoginsMutation,
+  useLinkCorporateCardsMutation,
 } = adminProfilesApi
 
 export default adminProfilesApi

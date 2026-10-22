@@ -1,7 +1,12 @@
 'use client'
 
 import { useTranslation } from '@/lib/i18n/translationData'
-import { displayCtaChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import {
+  displayCtaChromeStyle,
+  mergeDisplayFieldConfigs,
+  primaryChromeDefaultsForMode,
+  secondaryChromeDefaultsForMode,
+} from '@/lib/vcardDisplaySettings'
 import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
 import {
   buildHomeCtaInlineStyle,
@@ -29,7 +34,7 @@ type ProfileActionButtonsProps = {
 
 /** Shared mobile hero shell — mt-auto pins the CTA stack to the bottom of flex heroes. */
 export const PROFILE_ACTION_BUTTONS_MOBILE_SHELL_CLASS =
-  'relative z-20 mt-auto mb-2 flex w-[90%] max-w-[340px] shrink-0 flex-col gap-2 shadow-xl'
+  'vbiz-home-cta-mobile relative z-20 mt-auto mb-2 flex w-[90%] max-w-[340px] shrink-0 flex-col gap-2 shadow-xl'
 
 function CtaButtonContent({ button, iconSize }: { button: ResolvedHomeCtaButton; iconSize: number }) {
   const Icon = button.icon
@@ -55,7 +60,8 @@ function getCtaButtonClasses(template: ProfileTemplateId, isDesktop: boolean): s
   }
 
   if (template === 'v2') {
-    return `${base} ${isDesktop ? 'text-[13px] sm:text-sm' : mobileText} font-semibold tracking-wide shadow-sm`
+    // Shadow comes from Template Settings → Button shadow (--vbiz-btn-shadow), not Tailwind.
+    return `${base} ${isDesktop ? 'text-[13px] sm:text-sm' : mobileText} font-semibold tracking-wide`
   }
 
   return `${base} ${isDesktop ? 'text-[13px] font-bold' : `${mobileText} font-semibold`} duration-300 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.02]`
@@ -102,14 +108,31 @@ function CtaButtonGrid({
   themeMode: 'light' | 'dark'
   onClick: (button: ResolvedHomeCtaButton) => void
 }) {
-  const { field } = useProfileDisplay()
+  const { field, design } = useProfileDisplay()
   const gap = isDesktop ? (template === 'v1' ? 'gap-4' : 'gap-3') : 'gap-2'
   const rowGap = isDesktop ? 'gap-3' : 'gap-2'
-  const chromeFor = (button: ResolvedHomeCtaButton) =>
-    displayCtaChromeStyle(
+  const brandTheme = {
+    primaryColor: design?.primaryColor,
+    secondaryColor: design?.secondaryColor,
+    accentColor: design?.accentColor,
+  }
+  const chromeFor = (button: ResolvedHomeCtaButton) => {
+    // Only emit when the owner saved a custom CTA color. Otherwise theme CSS vars
+    // apply Template Settings button style / corner / shadow (Solid·Glass·Outline).
+    const defaults =
+      button.role === 'secondary'
+        ? secondaryChromeDefaultsForMode(brandTheme, themeMode, design?.profileTemplate)
+        : primaryChromeDefaultsForMode(brandTheme, themeMode, design?.profileTemplate)
+    return displayCtaChromeStyle(
       mergeDisplayFieldConfigs(...HOME_CTA_SETTING_KEYS[button.key].map((key) => field(key))),
-      themeMode
+      themeMode,
+      defaults,
+      {
+        buttonStyle: design?.buttonStyle,
+        outlineCompanion: design?.secondaryColor,
+      }
     )
+  }
 
   return (
     <div className={`flex flex-col ${gap}`}>

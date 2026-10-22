@@ -38,13 +38,14 @@ describe('display chrome styles', () => {
     const dark = displayIconChromeStyle(config, 'dark') as Record<string, string>
 
     expect(light['--vbiz-btn-secondary-fill']).toBe('#ffffff')
-    expect(light['--vbiz-control-fill']).toBe('#ffffff')
     expect(light['--vbiz-btn-secondary-fg']).toBe('#111111')
+    expect(light['--vbiz-control-fill']).toBeUndefined()
     expect(dark['--vbiz-btn-secondary-fill']).toBe('#0b0b0d')
-    expect(dark['--vbiz-control-fg']).toBe('#f5f5f5')
+    expect(dark['--vbiz-btn-secondary-fg']).toBe('#f5f5f5')
+    expect(dark['--vbiz-control-fg']).toBeUndefined()
   })
 
-  it('paints a hex pasted without a hash onto the control variables the preview reads', () => {
+  it('paints a hex pasted without a hash onto secondary button variables', () => {
     const style = displayIconChromeStyle(
       {
         visible: true,
@@ -53,8 +54,9 @@ describe('display chrome styles', () => {
       'dark'
     ) as Record<string, string>
 
-    expect(style['--vbiz-control-fill']).toBe('#a5d49b')
-    expect(style['--vbiz-control-fg']).toBe('#291426')
+    expect(style['--vbiz-btn-secondary-fill']).toBe('#a5d49b')
+    expect(style['--vbiz-btn-secondary-fg']).toBe('#291426')
+    expect(style['--vbiz-control-fill']).toBeUndefined()
   })
 
   it('keeps an explicit text color when the background is set', () => {
@@ -84,10 +86,28 @@ describe('display chrome styles', () => {
     ).toBeUndefined()
   })
 
-  it('leaves theme tokens alone when the owner has not set a color', () => {
+  it('leaves theme tokens alone when the owner has not set a color and no defaults are passed', () => {
     expect(displaySocialChromeStyle({ visible: true })).toBeUndefined()
     expect(displayIconChromeStyle({ visible: true })).toBeUndefined()
     expect(displayCtaChromeStyle({ visible: true })).toBeUndefined()
+  })
+
+  it('skips icon chrome when no owner override so Template Settings style can apply', () => {
+    expect(
+      displayIconChromeStyle({ visible: true }, 'dark', {
+        bg: '#0f2c4d',
+        text: '#ffffff',
+      })
+    ).toBeUndefined()
+  })
+
+  it('skips social chrome when no owner override so Template Settings style can apply', () => {
+    expect(
+      displaySocialChromeStyle({ visible: true }, 'light', {
+        bg: '#eed677',
+        text: '#0f2c4d',
+      })
+    ).toBeUndefined()
   })
 
   it('merges Share + Share Btn colors with the first non-empty value winning', () => {

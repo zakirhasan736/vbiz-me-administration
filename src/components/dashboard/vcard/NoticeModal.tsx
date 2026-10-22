@@ -133,8 +133,8 @@ export function NoticeModal({
           <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
             <span className="font-semibold text-slate-800 dark:text-slate-100">Only backoffice</span>
             <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
-              Owner backoffice and in-app notifications only. Uncheck to also show on the public card and notify saved
-              contacts / push subscribers.
+              Owner backoffice and in-app notifications only. Uncheck to also show on the public card and notify
+              browsers that Allowed notifications (save contact is not required).
             </span>
           </span>
         </label>

@@ -12,7 +12,7 @@ import type {
   TopNavBarModeColors,
   TopNavBarStyleConfig,
 } from '@/lib/theme/cardThemeContract'
-import { CONTRAST_BODY_MIN, CONTRAST_LARGE_MIN, ensureReadableText } from '@/lib/theme/colorAccessibility'
+import { CONTRAST_BODY_MIN, CONTRAST_LARGE_MIN, ensureReadableText, isReadable } from '@/lib/theme/colorAccessibility'
 
 type Rgb = { r: number; g: number; b: number; a: number }
 
@@ -120,6 +120,9 @@ export function deriveBannerMode(
 ): BannerModeColors {
   const title = ensureReadableText('#020617', override?.title || '#ffffff', CONTRAST_LARGE_MIN)
   const description = ensureReadableText('#020617', override?.description || 'rgba(255,255,255,0.78)', 3)
+  // Title accent gradient follows Theme Colors (Primary → Accent), not a fixed gold.
+  const titleGradientFrom = set.primary
+  const titleGradientTo = set.accent?.trim() || set.primary
   const base: BannerModeColors = {
     variant: 'solid',
     bg: set.secondary,
@@ -128,6 +131,9 @@ export function deriveBannerMode(
     gradientTo: colorWithAlpha(set.secondary, 0.85),
     border: colorWithAlpha(set.accent, 0.35),
     title,
+    titleStyle: 'smart',
+    titleGradientFrom,
+    titleGradientTo,
     description,
     note: description,
     label: set.accent,
@@ -143,6 +149,9 @@ export function deriveBannerMode(
     if (!override?.text?.trim()) merged.text = ensureReadableText(merged.bg, merged.text, CONTRAST_BODY_MIN)
     if (!override?.note?.trim()) merged.note = ensureReadableText(merged.bg, merged.note, 3)
   }
+  if (!override?.titleGradientFrom?.trim()) merged.titleGradientFrom = titleGradientFrom
+  if (!override?.titleGradientTo?.trim()) merged.titleGradientTo = titleGradientTo
+  if (!override?.titleStyle) merged.titleStyle = 'smart'
   void mode
   return merged
 }
@@ -236,35 +245,57 @@ export function resolveFaqItemStyle(
 
 /**
  * Top navbar defaults — solid (plane) for light and dark.
- * Nav item / icon / active use brand primary (e.g. #eed677 on v3), not secondary navy.
+ * Solid BG follows Theme Colors Secondary (same brand token as tab banners), never the
+ * unused page `surface` navy that owners cannot edit in Theme Colors.
+ * Icons prefer Primary when readable on that fill; gradient stops use Primary → Secondary.
  */
 export function deriveTopNavBarMode(
   set: ThemeColorSet,
   mode: ThemeMode,
   override?: TopNavBarModeColors | null
 ): TopNavBarModeColors {
-  const icon = set.primary
-  const base: TopNavBarModeColors =
-    mode === 'light'
-      ? {
-          variant: 'solid',
-          bg: '#ffffff',
-          gradientFrom: '#ffffff',
-          gradientTo: '#f4f5f7',
-          item: icon,
-          itemActive: icon,
-          border: set.primary,
-        }
-      : {
-          variant: 'solid',
-          bg: set.surface,
-          gradientFrom: set.primary,
-          gradientTo: set.secondary,
-          item: icon,
-          itemActive: icon,
-          border: set.accent,
-        }
-  return pick(base, override)
+  // Legacy cards may have snapshot `#0b1626` (old dark surface default) as an override.
+  // Ignore that so Theme Color changes re-flow into Plane (solid).
+  const cleaned = scrubLegacyTopNavSurfaceOverride(override)
+
+  const solidBg = mode === 'light' ? set.background?.trim() || '#ffffff' : set.secondary
+  // Prefer brand roles that stay readable on the bar (gold on white often fails → Secondary).
+  const icon = pickReadableBrand(solidBg, set.primary, set.secondary, set.accent)
+  const activeIcon = pickReadableBrand(solidBg, set.accent, set.primary, set.secondary)
+  const border = pickReadableBrand(solidBg, mode === 'light' ? set.primary : set.accent, set.secondary, set.primary)
+
+  const base: TopNavBarModeColors = {
+    variant: 'solid',
+    bg: solidBg,
+    gradientFrom: mode === 'light' ? set.background?.trim() || '#ffffff' : set.primary,
+    gradientTo: mode === 'light' ? set.surface?.trim() || '#f4f5f7' : set.secondary,
+    item: icon,
+    itemActive: activeIcon,
+    border,
+  }
+  return pick(base, cleaned)
+}
+
+/** Old dark Plane default used page surface `#0b1626` — not a Theme Colors brand role. */
+const LEGACY_TOP_NAV_SURFACE_BG = new Set(['#0b1626', '#0b1626ff', '#020914'])
+
+function scrubLegacyTopNavSurfaceOverride(
+  override?: TopNavBarModeColors | null
+): TopNavBarModeColors | null | undefined {
+  if (!override) return override
+  const bg = override.bg?.trim().toLowerCase()
+  if (!bg || !LEGACY_TOP_NAV_SURFACE_BG.has(bg)) return override
+  const next = { ...override }
+  delete next.bg
+  return next
+}
+
+function pickReadableBrand(bg: string, ...candidates: Array<string | undefined>): string {
+  for (const candidate of candidates) {
+    const value = candidate?.trim()
+    if (value && isReadable(value, bg, CONTRAST_LARGE_MIN)) return value
+  }
+  return ensureReadableText(bg, candidates.find((c) => c?.trim()) || undefined, CONTRAST_LARGE_MIN)
 }
 
 export function resolveTopNavBarStyle(

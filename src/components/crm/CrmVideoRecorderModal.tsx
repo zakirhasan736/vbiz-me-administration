@@ -133,7 +133,8 @@ export function CrmVideoRecorderModal({ open, onClose, onRecorded, uploading = f
           audio: true,
           video: {
             facingMode: 'user',
-            width: { ideal: 1280 },
+            aspectRatio: { ideal: 1 },
+            width: { ideal: 720 },
             height: { ideal: 720 },
           },
         })
@@ -271,7 +272,7 @@ export function CrmVideoRecorderModal({ open, onClose, onRecorded, uploading = f
     <ModalPortal>
       <div className="fixed inset-0 z-10050 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={handleClose} aria-hidden />
-        <div className="animate-in zoom-in-95 relative flex w-full max-w-lg flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]">
+        <div className="animate-in zoom-in-95 relative flex w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-2xl dark:border-white/10 dark:bg-[#0b1018]">
           <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-white/5">
             <div>
               <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.16em] text-rose-700 uppercase dark:text-rose-300">
@@ -294,7 +295,7 @@ export function CrmVideoRecorderModal({ open, onClose, onRecorded, uploading = f
           </div>
 
           <div className="space-y-4 px-5 py-4">
-            <div className="relative aspect-video overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 dark:border-white/10">
+            <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 dark:border-white/10">
               <video
                 ref={videoRef}
                 muted

@@ -33,6 +33,9 @@ describe('sectionStyleDefaults', () => {
     expect(banner.gradientFrom).toContain('0.45')
     expect(banner.gradientTo).toContain('0.85')
     expect(banner.border).toContain('0.35')
+    expect(banner.titleStyle).toBe('smart')
+    expect(banner.titleGradientFrom).toBe(dark.primary)
+    expect(banner.titleGradientTo).toBe(dark.accent)
     const gradient = buildSoftBannerGradient(banner.gradientFrom || '', banner.gradientTo || '')
     expect(gradient).toContain('13%')
     expect(gradient).toContain('45%')
@@ -143,17 +146,25 @@ describe('sectionStyleDefaults', () => {
     expect(resolved.components.topNavBar?.dark?.bg).toBe('#eed677')
   })
 
-  it('derives top navbar solid defaults with primary icon color', () => {
+  it('derives top navbar solid defaults from Secondary bar + readable brand icons (not page surface)', () => {
     const darkNav = deriveTopNavBarMode(dark, 'dark')
     expect(darkNav.variant).toBe('solid')
-    expect(darkNav.item).toBe(dark.primary)
-    expect(darkNav.itemActive).toBe(dark.primary)
-    expect(darkNav.border).toBe(dark.accent)
+    expect(darkNav.bg).toBe(dark.secondary)
+    expect(String(darkNav.bg).toLowerCase()).not.toBe('#0b1626')
+    expect(darkNav.gradientFrom).toBe(dark.primary)
+    expect(darkNav.gradientTo).toBe(dark.secondary)
+    expect(String(darkNav.item).toLowerCase()).toBe(dark.primary.toLowerCase())
 
     const lightNav = deriveTopNavBarMode(stock.colors.light, 'light')
     expect(lightNav.variant).toBe('solid')
-    expect(lightNav.bg).toBe('#ffffff')
-    expect(lightNav.item).toBe(stock.colors.light.primary)
-    expect(lightNav.border).toBe(stock.colors.light.primary)
+    expect(String(lightNav.bg).toLowerCase()).toBe((stock.colors.light.background || '#ffffff').toLowerCase())
+    // Gold primary on white often fails contrast → Secondary navy is used for icons.
+    expect(String(lightNav.item).toLowerCase()).toBe(stock.colors.light.secondary.toLowerCase())
+  })
+
+  it('ignores legacy dark surface snapshot so Theme Colors re-flow into Plane bg', () => {
+    const darkNav = deriveTopNavBarMode(dark, 'dark', { variant: 'solid', bg: '#0b1626' })
+    expect(darkNav.bg).toBe(dark.secondary)
+    expect(darkNav.variant).toBe('solid')
   })
 })

@@ -14,6 +14,8 @@ import { useEffect, useState } from 'react'
 
 export function selectionFromSchedulePerson(person: SchedulePerson): ProfileOwnerSelection | null {
   if (!person.profileId) return null
+  const guestUserDataId =
+    person.kind === 'guest' && person.id.startsWith('guest:') ? person.id.slice('guest:'.length) : null
   return {
     profileId: person.profileId,
     hostName: person.name,
@@ -21,6 +23,7 @@ export function selectionFromSchedulePerson(person: SchedulePerson): ProfileOwne
     identity:
       person.subtitle ||
       [person.kind === 'guest' ? 'Saved guest' : 'Card', person.email, person.phone].filter(Boolean).join(' · '),
+    guestUserDataId,
   }
 }
 
@@ -30,6 +33,7 @@ function selectionFromCreatedLead(lead: CrmLeadRow): ProfileOwnerSelection {
     hostName: lead.fullName,
     ownerEmails: lead.email ? [lead.email] : [],
     identity: ['New CRM lead', lead.vCardName, lead.email, lead.phoneNumber].filter(Boolean).join(' · '),
+    guestUserDataId: lead.id,
   }
 }
 

@@ -154,10 +154,7 @@ function MenuCard({ item, idx, accent, onSelect, onPreview }: MenuCardProps) {
 
         <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
 
-        <span
-          className="pointer-events-none absolute top-3 left-3 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
-          style={{ backgroundColor: accent }}
-        >
+        <span className="vbiz-section-pill pointer-events-none absolute top-3 left-3 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
           Menu
         </span>
       </button>
@@ -181,11 +178,11 @@ function MenuCard({ item, idx, accent, onSelect, onPreview }: MenuCardProps) {
         ) : null}
 
         {opensPreviewOnCard ? (
-          <span className="mt-auto inline-flex items-center gap-1 text-sm font-bold" style={{ color: accent }}>
+          <span className="vbiz-link mt-auto inline-flex items-center gap-1 text-sm font-bold">
             {video ? 'View video' : 'View menu'} <ArrowUpRight size={14} />
           </span>
         ) : hasDetail ? (
-          <span className="mt-auto inline-flex items-center gap-1 text-sm font-bold" style={{ color: accent }}>
+          <span className="vbiz-link mt-auto inline-flex items-center gap-1 text-sm font-bold">
             View item <ArrowUpRight size={14} />
           </span>
         ) : null}
@@ -291,8 +288,8 @@ function MenuMediaPopup({
               <button
                 type="button"
                 onClick={onOpenDetails}
-                className="rounded-lg px-3 py-1.5 text-xs font-bold text-zinc-950"
-                style={{ backgroundColor: accent }}
+                className="vbiz-btn px-3 py-1.5 text-xs font-bold"
+                data-role="primary"
               >
                 View details
               </button>
@@ -407,8 +404,8 @@ function MenuItemDetail({ item, sectionTitle, accent, onBack, onPreview }: MenuI
               href={detailUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-zinc-900 transition-opacity hover:opacity-90"
-              style={{ backgroundColor: accent }}
+              className="vbiz-btn inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90"
+              data-role="primary"
             >
               Learn more <ArrowUpRight size={16} />
             </a>

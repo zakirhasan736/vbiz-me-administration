@@ -89,56 +89,68 @@ function schemaProblems(html: string, pageUrl: string): string[] {
     }
   })
 
-  const page = nodes.find((node) => node['@type'] === 'ProfilePage')
-  if (!page) {
+  const pages = nodes.filter((node) => node['@type'] === 'ProfilePage')
+  if (!pages.length) {
     problems.push('JSON-LD has no ProfilePage')
     return problems
   }
+  if (pages.length > 1) problems.push(`JSON-LD has ${pages.length} ProfilePage nodes; expected 1`)
+  const page = pages[0]
   if (canonical && page.url !== canonical) problems.push('ProfilePage url does not match canonical')
-  const entity = page.mainEntity
-  if (!entity || typeof entity !== 'object' || Array.isArray(entity)) {
-    problems.push('ProfilePage has no mainEntity')
+
+  for (const node of nodes) {
+    const type = String(node['@type'] || '')
+    if (type === 'Review' || type === 'AggregateRating') {
+      problems.push(`forbidden ${type} markup in JSON-LD`)
+    }
+    if (node.review || node.aggregateRating) {
+      problems.push(`forbidden review/aggregateRating on ${type || 'node'}`)
+    }
+    if (type === 'Product' && /^test(\s+title)?$/i.test(String(node.name || '').trim())) {
+      problems.push('Product schema includes a test title')
+    }
+  }
+
+  let main: Record<string, unknown> | undefined
+  const entityRef = page.mainEntity
+  if (entityRef && typeof entityRef === 'object' && !Array.isArray(entityRef)) {
+    const ref = entityRef as Record<string, unknown>
+    if (ref['@type'] === 'Person' || ref['@type'] === 'LocalBusiness') {
+      main = ref
+    } else if (typeof ref['@id'] === 'string') {
+      main = nodes.find((node) => node['@id'] === ref['@id'])
+    }
+  }
+  if (!main) {
+    problems.push('ProfilePage has no mainEntity Person/LocalBusiness')
     return problems
   }
-  const main = entity as Record<string, unknown>
   const entityType = String(main['@type'] || '')
   if (entityType !== 'Person' && entityType !== 'LocalBusiness') {
     problems.push(`mainEntity type is ${entityType || 'missing'}`)
   }
   if (!String(main.name || '').trim()) problems.push('mainEntity name is empty')
-  if (entityType === 'Person' && (main.review || main.aggregateRating)) {
-    problems.push('Person includes review markup the vocabulary does not allow')
-  }
   if (main.image && !isHttpUrl(String(main.image))) problems.push('mainEntity image is not an absolute URL')
   if (main.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(main.email)))
     problems.push('mainEntity email is not an email')
+  const address = main.address as { streetAddress?: string; addressLocality?: string } | undefined
+  if (
+    address?.streetAddress &&
+    /^[^,]+,\s*[A-Za-z]{2}\b/.test(address.streetAddress) &&
+    !/\d/.test(address.streetAddress)
+  ) {
+    problems.push('streetAddress looks like city/state only')
+  }
   const sameAs = Array.isArray(main.sameAs) ? main.sameAs : page.sameAs
   if (Array.isArray(sameAs)) {
     for (const url of sameAs) {
       if (!isHttpUrl(String(url))) problems.push(`sameAs is not a web address: ${String(url).slice(0, 80)}`)
+      if (/wa\.me\//i.test(String(url))) problems.push('sameAs includes wa.me')
     }
   }
-
-  const reviews = [
-    ...(Array.isArray(page.review) ? page.review : []),
-    ...(Array.isArray(main.review) ? main.review : []),
-  ] as Record<string, unknown>[]
-  const aggregate = (entityType === 'LocalBusiness' ? main.aggregateRating : page.aggregateRating) as
-    Record<string, unknown> | undefined
-  if (aggregate && typeof aggregate === 'object') {
-    const rating = Number(aggregate.ratingValue)
-    const count = Number(aggregate.reviewCount)
-    if (!Number.isFinite(rating) || rating < 1 || rating > 5) problems.push('aggregateRating is outside 1-5')
-    if (count !== reviews.length) problems.push(`reviewCount ${count} does not match ${reviews.length} reviews`)
+  if (!nodes.some((node) => node['@id'] === 'https://www.vbizme.com/#organization')) {
+    problems.push('missing shared vBiz Me Organization entity')
   }
-  reviews.forEach((review, index) => {
-    const author = review.author as { name?: string } | undefined
-    if (!author?.name) problems.push(`review ${index + 1} has no author`)
-    const rating = Number((review.reviewRating as { ratingValue?: unknown } | undefined)?.ratingValue)
-    if (!Number.isFinite(rating) || rating < 1 || rating > 5) problems.push(`review ${index + 1} rating is outside 1-5`)
-    const reviewed = review.itemReviewed as { '@id'?: string } | undefined
-    if (!reviewed?.['@id']) problems.push(`review ${index + 1} has no itemReviewed`)
-  })
 
   for (const node of nodes) {
     if (node['@type'] === 'FAQPage') {
@@ -179,7 +191,7 @@ async function readCard(request: APIRequestContext, url: string): Promise<{ stat
   return { status: lastStatus, html: lastHtml }
 }
 
-test('every public card URL has valid schema', async ({ request, baseURL }) => {
+test('every sitemap public card URL has valid schema (all cards, not one demo)', async ({ request, baseURL }) => {
   const sitemap = await request.get(SITEMAP_URL)
   expect(sitemap.ok()).toBeTruthy()
   const xml = await sitemap.text()

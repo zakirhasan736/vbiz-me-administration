@@ -198,11 +198,13 @@ export function MediaFileUploader({
   const [localPreview, setLocalPreview] = useState<string | null>(null)
   const [localMime, setLocalMime] = useState<string | null>(null)
   const [urlDraft, setUrlDraft] = useState('')
+  const [clearing, setClearing] = useState(false)
 
   const styles = accentMap[accent]
   const videoOnly = isVideoOnlyAccept(accept)
-  const displayUrl = localPreview || value || ''
-  const displayName = fileName || (value ? value.split('/').pop()?.split('?')[0] : '') || ''
+  const savedUrl = (value || '').trim()
+  const displayUrl = localPreview || savedUrl
+  const displayName = fileName || (savedUrl ? savedUrl.split('/').pop()?.split('?')[0] : '') || ''
   const uploadLabel = uploadStage === 'preparing' ? 'Optimizing…' : 'Uploading…'
   const kind = useMemo(
     () => (displayUrl ? guessKind(displayUrl, localMime, displayName) : null),
@@ -289,16 +291,36 @@ export function MediaFileUploader({
   }
 
   const remove = () => {
-    if (disabled) return
-    abortRef.current?.abort()
-    setError(null)
-    setUploading(false)
-    setUploadStage(null)
-    setProgress(0)
-    clearLocalPreview()
-    setUrlDraft('')
-    if (inputRef.current) inputRef.current.value = ''
-    onChange(null)
+    if (disabled || clearing) return
+    void (async () => {
+      const urlToClear = savedUrl && !savedUrl.startsWith('blob:') ? savedUrl : ''
+      abortRef.current?.abort()
+      setError(null)
+      setUploading(false)
+      setUploadStage(null)
+      setProgress(0)
+      clearLocalPreview()
+      setUrlDraft('')
+      if (inputRef.current) inputRef.current.value = ''
+      onChange(null)
+      onMediaFrameChange?.(null)
+
+      if (profileId && attachmentType && urlToClear) {
+        setClearing(true)
+        try {
+          const { clearProfileMediaAttachment } = await import('@/lib/media/clearProfileMediaAttachment')
+          await clearProfileMediaAttachment({
+            profileId,
+            attachmentType,
+            url: urlToClear,
+          })
+        } catch {
+          setError('Removed from the editor, but server delete failed. Save the card or try Remove again.')
+        } finally {
+          setClearing(false)
+        }
+      }
+    })()
   }
 
   const applyUrl = () => {
@@ -447,7 +469,7 @@ export function MediaFileUploader({
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  disabled={uploading}
+                  disabled={uploading || clearing}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:bg-[#1e2333] dark:text-slate-200 dark:hover:bg-white/5"
                 >
                   <Upload className="h-3.5 w-3.5" />
@@ -456,11 +478,11 @@ export function MediaFileUploader({
                 <button
                   type="button"
                   onClick={remove}
-                  disabled={uploading}
+                  disabled={uploading || clearing}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-60 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Remove
+                  {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  {clearing ? 'Removing…' : 'Remove'}
                 </button>
               </div>
             </div>

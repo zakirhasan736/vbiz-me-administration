@@ -80,10 +80,7 @@ function InventoryCard({ item, idx, accent, onSelect }: InventoryCardProps) {
 
         <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
 
-        <span
-          className="absolute top-3 left-3 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
-          style={{ backgroundColor: accent }}
-        >
+        <span className="vbiz-section-pill absolute top-3 left-3 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
           Inventory
         </span>
       </div>
@@ -102,7 +99,7 @@ function InventoryCard({ item, idx, accent, onSelect }: InventoryCardProps) {
         ) : null}
 
         {hasDetail ? (
-          <span className="mt-auto inline-flex items-center gap-1 text-sm font-bold" style={{ color: accent }}>
+          <span className="vbiz-link mt-auto inline-flex items-center gap-1 text-sm font-bold">
             View item <ArrowUpRight size={14} />
           </span>
         ) : null}
@@ -205,8 +202,8 @@ function InventoryItemDetail({ item, sectionTitle, accent, onBack }: InventoryIt
               href={detailUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-zinc-900 transition-opacity hover:opacity-90"
-              style={{ backgroundColor: accent }}
+              className="vbiz-btn inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90"
+              data-role="primary"
             >
               Learn more <ArrowUpRight size={16} />
             </a>

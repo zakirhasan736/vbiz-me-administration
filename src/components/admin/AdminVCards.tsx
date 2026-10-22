@@ -1476,7 +1476,7 @@ export default function AdminVCards() {
         cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
-        deliverySummary="Choose backoffice-only, or public card + saved contacts + owner backoffice."
+        deliverySummary="Choose backoffice-only, or public card + notification subscribers + owner backoffice."
         onClose={() => setNoticeCard(null)}
         onSave={(text, type, options) => {
           if (!noticeCard?.id) return
@@ -1506,9 +1506,10 @@ export default function AdminVCards() {
                 } catch (error) {
                   lastError = error
                 }
-                // Public notices also need a showPublic announcement banner; backoffice-only
-                // already creates the owner announcement inside createTeamNotice.
-                if (!options.onlyBackoffice) {
+                // Public + backoffice: createTeamNotice already creates the owner inbox
+                // announcement (and push). Do not create a second announcement row.
+                // Fallback only if team-notice API failed but we still have owner emails.
+                if (!published && targetEmails.length) {
                   try {
                     await createAnnouncement({
                       type: announcementType,
@@ -1520,24 +1521,11 @@ export default function AdminVCards() {
                       meta: {
                         profileId: noticeCard.id,
                         source: 'card_notice',
-                        showPublic: '1',
-                        sendPush: '1',
+                        channel: 'inbox',
+                        ...(options.onlyBackoffice
+                          ? { onlyBackoffice: '1', sendPush: '0' }
+                          : { showPublic: '1', sendPush: '0' }),
                       },
-                    }).unwrap()
-                    published = true
-                  } catch (error) {
-                    lastError = lastError ?? error
-                  }
-                } else if (!published && targetEmails.length) {
-                  try {
-                    await createAnnouncement({
-                      type: announcementType,
-                      title: `Card notice · ${ownerName}`,
-                      body: text.trim(),
-                      status: 'active',
-                      targetType: 'specific',
-                      targetEmails,
-                      meta: { profileId: noticeCard.id, source: 'card_notice', onlyBackoffice: '1' },
                     }).unwrap()
                     published = true
                   } catch (error) {

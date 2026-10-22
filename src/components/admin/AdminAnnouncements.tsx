@@ -271,8 +271,8 @@ export default function AdminAnnouncements() {
       )
       if (onlyBackoffice) {
         nextMeta.onlyBackoffice = '1'
-        // Owner/target Web Push only (no public saver blast — requires showPublic).
-        nextMeta.sendPush = '1'
+        // Matrix §8.F — back-office only: in-app (+ email/SMS as needed). No public or owner browser push.
+        nextMeta.sendPush = '0'
       } else {
         nextMeta.showPublic = '1'
         nextMeta.sendPush = '1'
@@ -620,7 +620,7 @@ export default function AdminAnnouncements() {
               <p className="pl-6 text-[10px] leading-relaxed text-slate-400">
                 {onlyBackoffice
                   ? 'Shows in owner backoffice banner and in-app notifications only.'
-                  : 'Also shows on the public card and pushes this card’s saved contacts / notification subscribers.'}
+                  : 'Also shows on the public card and pushes browsers that Allowed notifications on this card (save contact not required).'}
               </p>
             </div>
 

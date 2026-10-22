@@ -8,7 +8,7 @@ import {
   setAboutMeDraft,
 } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
-import { clearCreateCardOwner, getCreateCardOwner } from '@/lib/admin/createCardOwner'
+import { clearCreateCardOwner, getCreateCardOwner, mergeAccountOwnerIntoPersonal } from '@/lib/admin/createCardOwner'
 import { omitUnchangedCorporateSharedSettings } from '@/lib/api/myCard/mapDisplaySettingsToApi'
 import { useCardScopeId, useCardScopeMode } from '@/lib/card-scope'
 import {
@@ -219,6 +219,11 @@ function mergeServerProfileData(current: VCardData, server: VCardData): VCardDat
   return {
     ...current,
     ...server,
+    // Keep Template Settings / Global Color from the editor — server remaps can lag or drop fields
+    // (e.g. buttonShadow) and would reset Solid/Glass/Outline + corner + shadow mid-edit.
+    appearance: current.appearance ?? server.appearance,
+    theme: current.theme ?? server.theme,
+    themeConfig: current.themeConfig ?? server.themeConfig,
     education: current.education,
     experience: current.experience,
     services: current.services,
@@ -236,12 +241,21 @@ function mergeServerProfileData(current: VCardData, server: VCardData): VCardDat
   }
 }
 
-function buildCreateDraft(design: RootState['designSettings']): VCardData {
+function buildCreateDraft(
+  design: RootState['designSettings'],
+  accountOwner?: { name?: string; email?: string; phone?: string } | null
+): VCardData {
   const defaults = designSettingsToVCardDefaults(design)
-  return createDefaultVCardData({
+  const assigned = getCreateCardOwner()
+  const seedOwner = assigned || accountOwner || null
+  const base = createDefaultVCardData({
     theme: defaults.theme,
     appearance: defaults.appearance,
   })
+  return {
+    ...base,
+    personal: mergeAccountOwnerIntoPersonal(base.personal, seedOwner),
+  }
 }
 
 function designDefaultsSignature(design: RootState['designSettings']): string {
@@ -336,9 +350,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   const mode = useCardScopeMode()
   const isCreateMode = mode === 'create'
   const design = useAppSelector((s) => s.designSettings)
+  const authUser = useAppSelector((s) => s.user?.user ?? null)
   const record = useAppSelector((s: RootState) => selectVCardById(s, cardId))
   const recordRef = useRef(record)
   recordRef.current = record
+  const selfAccountOwner = authUser?.id ? { name: authUser.name || '', email: authUser.email || '', phone: '' } : null
 
   const { data: remoteProfile, isFetching } = useGetProfileQuery(cardId || '', {
     skip: isCreateMode || !cardId,
@@ -645,11 +661,25 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
           }
           const generalPosts = mapApiPostsToGeneralPosts(bundle.blogs || [])
           const faqs = mapApiPostsToFaqs(bundle.tabs.faqs || [])
+          // editor-sections only returns direct TAB_REGISTRY tabs. Post-backed
+          // sections (e.g. Contact Us / "Schedule A Service") live in Post +
+          // PostType and must still be loaded via /posts, or the builder shows
+          // empty while the public card keeps rendering those rows.
           const sectionPosts: Record<string, VCardSectionPostItem[]> = {}
-          schemas.forEach((schema) => {
-            const tabKey = publicNameToTabKey(schema.postTypeName)
-            sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts((tabKey && bundle.tabs[tabKey]) || [])
-          })
+          await Promise.all(
+            schemas.map(async (schema) => {
+              const tabKey = publicNameToTabKey(schema.postTypeName)
+              if (tabKey && TAB_REGISTRY[tabKey]?.architecture === 'direct') {
+                sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts(bundle.tabs[tabKey] || [])
+                return
+              }
+              const rows = await listPosts({ id: profileId, postType: schema.postTypeName })
+                .unwrap()
+                .catch(() => [])
+              sectionPosts[schema.postTypeName] = mapApiPostsToSectionPosts(Array.isArray(rows) ? rows : [])
+            })
+          )
+          if (cancelled) return
           applyHydratedPosts(generalPosts, faqs, sectionPosts)
           return
         } catch {
@@ -713,13 +743,32 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
   }, [cardId, isCreateMode, dispatch, listPosts, listBlogs, listTabItems, listEditorSections, record])
 
   const accountDefaultsSig = designDefaultsSignature(design)
-  const [createDraft, setCreateDraft] = useState<VCardData>(() => buildCreateDraft(design))
+  const [createDraft, setCreateDraft] = useState<VCardData>(() => buildCreateDraft(design, selfAccountOwner))
   const [appliedDefaultsSig, setAppliedDefaultsSig] = useState(accountDefaultsSig)
   const createDraftRef = useRef(createDraft)
+  const seededAccountEmailRef = useRef('')
 
   useEffect(() => {
     createDraftRef.current = createDraft
   }, [createDraft])
+
+  // Users area account (or assigned create-card owner) wins for email/name on new cards.
+  useEffect(() => {
+    if (!isCreateMode) return
+    const assigned = getCreateCardOwner()
+    const seed = assigned || selfAccountOwner
+    const email = (seed?.email || '').trim().toLowerCase()
+    if (!email || seededAccountEmailRef.current === email) return
+    seededAccountEmailRef.current = email
+    setCreateDraft((prev) => {
+      const next = {
+        ...prev,
+        personal: mergeAccountOwnerIntoPersonal(prev.personal, seed),
+      }
+      createDraftRef.current = next
+      return next
+    })
+  }, [isCreateMode, selfAccountOwner?.email, selfAccountOwner?.name])
 
   if (isCreateMode && accountDefaultsSig !== appliedDefaultsSig) {
     setAppliedDefaultsSig(accountDefaultsSig)
@@ -729,6 +778,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         theme: { ...prev.theme, ...defaults.theme },
         appearance: defaults.appearance,
+        personal: mergeAccountOwnerIntoPersonal(prev.personal, getCreateCardOwner() || selfAccountOwner),
       }
       createDraftRef.current = next
       return next
@@ -1276,7 +1326,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     (path: string, value: unknown) => {
       if (isCreateMode) {
         const prev = createDraftRef.current
-        let next = setByPath(prev as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+        const nextValue =
+          path === 'appearance' && value && typeof value === 'object' && !Array.isArray(value)
+            ? { ...(prev.appearance ?? {}), ...(value as Record<string, unknown>) }
+            : value
+        let next = setByPath(prev as unknown as Record<string, unknown>, path, nextValue) as unknown as VCardData
         next = applyNameSlugAutofill(prev, next, path)
         if (isAppearanceOrThemePath(path)) {
           next = {
@@ -1298,7 +1352,11 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       if (!cardId) return
       const base = editDataRef.current ?? (record ? toVCardData(record) : null)
       if (!base) return
-      let next = setByPath(base as unknown as Record<string, unknown>, path, value) as unknown as VCardData
+      const nextValue =
+        path === 'appearance' && value && typeof value === 'object' && !Array.isArray(value)
+          ? { ...(base.appearance ?? {}), ...(value as Record<string, unknown>) }
+          : value
+      let next = setByPath(base as unknown as Record<string, unknown>, path, nextValue) as unknown as VCardData
       next = applyNameSlugAutofill(base, next, path)
       if (isAppearanceOrThemePath(path)) {
         next = {

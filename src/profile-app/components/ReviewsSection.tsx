@@ -374,9 +374,7 @@ export const ReviewsSection = () => {
                   />
                   <div className="min-w-0 flex-1">
                     {item.title.trim() ? (
-                      <p
-                        className={`vbiz-review-user-name font-bold text-zinc-900 dark:text-zinc-100 ${isFeatured ? 'text-base' : 'text-sm'}`}
-                      >
+                      <p className={`vbiz-review-user-name font-bold ${isFeatured ? 'text-base' : 'text-sm'}`}>
                         {item.title}
                       </p>
                     ) : null}

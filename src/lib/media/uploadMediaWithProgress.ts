@@ -139,7 +139,14 @@ export async function uploadMediaWithProgress(
   } else if (isOptimizableImageFile(uploadFile)) {
     onStatus?.('preparing')
     try {
-      uploadFile = await optimizeImageFile(uploadFile, signal)
+      const coverQuality =
+        attachmentType === 'Background Video/Image' ||
+        attachmentType === 'Background Image' ||
+        /background/i.test(attachmentType || '')
+      uploadFile = await optimizeImageFile(uploadFile, {
+        signal,
+        quality: coverQuality ? 'cover' : 'standard',
+      })
     } catch (error) {
       if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         throw new MediaUploadError('Upload cancelled')

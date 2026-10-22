@@ -76,7 +76,7 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
           <div className="relative">
             <Quote size={40} className="absolute -top-4 -left-4 -rotate-12 text-zinc-300 dark:text-zinc-800/50" />
             {item.title.trim() ? (
-              <h2 className="vcard-mission-title relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-4xl dark:text-zinc-100">
+              <h2 className="vcard-mission-title vbiz-title relative z-10 mb-2 max-w-3xl pl-2 text-2xl leading-[1.1] font-bold tracking-tight sm:text-4xl lg:text-4xl">
                 {item.title}
               </h2>
             ) : null}
@@ -99,8 +99,8 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
                 href={detailUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-zinc-900 transition-opacity hover:opacity-90"
-                style={{ backgroundColor: accent }}
+                className="vbiz-btn inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90"
+                data-role="primary"
               >
                 Learn more <ArrowUpRight size={16} />
               </a>

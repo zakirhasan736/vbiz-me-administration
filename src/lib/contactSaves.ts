@@ -241,6 +241,8 @@ export function createContactSave(input: {
     adminBody: `${input.fullName} saved on ${input.vCardName} (${ownerAudience}).`,
     ownerHref: '/',
     adminHref: '#leads',
+    profileId: input.vCardId,
+    ownerUserId: input.ownerId,
   })
   return record
 }

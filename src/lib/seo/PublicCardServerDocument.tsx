@@ -10,7 +10,10 @@ type Props = {
   sections?: Record<string, unknown> | null
 }
 
-/** Card text and JSON-LD in the first HTML response, outside the client app shell. */
+/**
+ * Card text and JSON-LD in the first HTML response, outside the client app shell.
+ * Used for every public `/vCard/{slug}` — not a single demo card.
+ */
 export function PublicCardServerDocument({ slug, origin, myCard, sections }: Props) {
   const source = assemblePublicCardSource({ slug, origin, myCard, sections })
   const jsonLd = buildPublicCardJsonLdGraph(
@@ -21,7 +24,7 @@ export function PublicCardServerDocument({ slug, origin, myCard, sections }: Pro
       myCard,
       reviews: source.reviews,
     },
-    { faqs: source.faqs, products: source.products }
+    { faqs: source.faqs, products: source.products, services: source.services }
   )
 
   return (

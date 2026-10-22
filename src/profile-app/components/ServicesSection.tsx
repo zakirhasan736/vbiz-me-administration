@@ -159,7 +159,8 @@ export const ServicesSection = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="mt-auto inline-flex w-fit items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-2.5 text-sm font-bold text-zinc-900 transition-colors hover:bg-zinc-900 hover:text-white dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-100 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+                  className="vbiz-btn mt-auto inline-flex w-fit items-center gap-2 px-4 py-2.5 text-sm font-bold transition-opacity hover:opacity-90"
+                  data-role="primary"
                 >
                   Learn more <ArrowUpRight size={16} />
                 </a>

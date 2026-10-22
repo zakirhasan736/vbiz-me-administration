@@ -243,6 +243,8 @@ export type ApiProfile = {
     layoutStyle?: string | null
     buttonStyle?: string | null
     cornerStyle?: string | null
+    buttonShadow?: string | null
+    buttonType?: string | null
     themeConfig?: unknown
   } | null
   /** Legacy / top-level theme config mirror when present on profile payloads. */
@@ -798,9 +800,15 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     })(),
     appearance: {
       profileTemplate,
-      layoutStyle: profile.profileSettings?.layoutStyle || 'classic',
-      buttonStyle: profile.profileSettings?.buttonStyle || 'solid',
-      cornerStyle: profile.profileSettings?.cornerStyle || 'round',
+      layoutStyle: profile.profileSettings?.layoutStyle || themeConfig?.appearance.layoutStyle || 'classic',
+      buttonStyle: normalizeEditorButtonStyle(
+        profile.profileSettings?.buttonStyle || themeConfig?.appearance.buttonStyle
+      ),
+      cornerStyle: profile.profileSettings?.cornerStyle || themeConfig?.appearance.cornerStyle || 'round',
+      buttonShadow: normalizeEditorButtonShadow(
+        profile.profileSettings?.buttonShadow || themeConfig?.appearance.buttonShadow
+      ),
+      buttonType: normalizeEditorButtonType(profile.profileSettings?.buttonType || themeConfig?.appearance.buttonType),
     },
     social: {
       handles: {
@@ -876,13 +884,22 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
                 ) || portfolios[index]
               return {
                 ...gallery,
-                featuredImage: gallery.featuredImage || legacy?.imageUrl || gallery.featuredImage,
-                imageUrl: ('imageUrl' in gallery ? gallery.imageUrl : undefined) || legacy?.imageUrl,
+                // Keep explicit empty featuredImage (user removed it) — do not rehydrate from legacy.
+                featuredImage:
+                  typeof gallery.featuredImage === 'string'
+                    ? gallery.featuredImage
+                    : legacy?.imageUrl || gallery.featuredImage || '',
+                imageUrl:
+                  typeof gallery.featuredImage === 'string'
+                    ? gallery.featuredImage
+                    : ('imageUrl' in gallery ? gallery.imageUrl : undefined) || legacy?.imageUrl,
               }
             })
           : portfolios
       return rows.map((p) => {
-        const imageUrl = String(('featuredImage' in p && p.featuredImage) || ('imageUrl' in p && p.imageUrl) || '')
+        const imageUrl = String(
+          typeof p.featuredImage === 'string' ? p.featuredImage : ('imageUrl' in p && p.imageUrl) || ''
+        )
         const linkUrl = String(p.url || '')
         const status = p.status
         const active = status !== 0 && status !== '0'
@@ -1024,11 +1041,32 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
             layoutStyle: data.appearance.layoutStyle,
             buttonStyle: data.appearance.buttonStyle,
             cornerStyle: data.appearance.cornerStyle,
+            buttonShadow: data.appearance.buttonShadow ?? 'none',
+            buttonType: data.appearance.buttonType ?? 'default',
           }
         : {}),
       ...(themeConfig ? { themeConfig } : {}),
     },
   }
+}
+
+function normalizeEditorButtonStyle(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return 'solid'
+  const v = value.trim().toLowerCase()
+  if (v === 'filled') return 'solid'
+  if (v === 'outlined') return 'outline'
+  if (v === 'solid' || v === 'soft' || v === 'outline' || v === 'glass') return v
+  return 'solid'
+}
+
+function normalizeEditorButtonShadow(value: unknown): 'none' | 'soft' | 'strong' | 'hard' {
+  if (value === 'soft' || value === 'strong' || value === 'hard' || value === 'none') return value
+  return 'none'
+}
+
+function normalizeEditorButtonType(value: unknown): 'default' | 'primary' | 'secondary' {
+  if (value === 'primary' || value === 'secondary' || value === 'default') return value
+  return 'default'
 }
 
 function isLocalTempId(id: string): boolean {

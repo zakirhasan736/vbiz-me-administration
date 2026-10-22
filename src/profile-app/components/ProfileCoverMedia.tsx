@@ -4,6 +4,7 @@ import { isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
 import { restoreCoverPlayback, saveCoverPlayback } from '@/profile-app/lib/profileCoverPlayback'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import { memo, useEffect, useRef } from 'react'
 
@@ -25,9 +26,11 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
   isHeroLayout,
 }: Props) {
   const theme = useProfileTheme()
+  const { field } = useProfileDisplay()
   const wallpaper = resolveWallpaperConfig(theme?.themeConfig, coverVideoUrl)
   const needsMedia = wallpaperNeedsMedia(wallpaper.style)
   const src = coverVideoUrl?.trim() ?? ''
+  const mediaFrame = field('Background Video/Image').mediaFrame
   const isVideo = Boolean(src) && (wallpaper.style === 'video' || wallpaper.style === 'blur' || isVideoUrl(src))
   const cacheKey = needsMedia && src ? `${persistenceId}:${src}` : ''
   const coverVideoRef = useRef<HTMLVideoElement>(null)
@@ -72,10 +75,11 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
         ref={coverVideoRef}
         wallpaper={wallpaper}
         mediaUrl={src}
+        mediaFrame={mediaFrame}
         alt={ownerName ? `${ownerName} cover` : 'Cover'}
         deferVideo={false}
         videoVisible
-        mediaClassName="opacity-100 brightness-105"
+        mediaClassName={mediaFrame ? 'opacity-100 brightness-105' : 'object-cover opacity-100 brightness-105'}
       />
       <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-b from-zinc-50/25 via-zinc-50/5 to-transparent dark:from-[#09090b]/70 dark:via-[#09090b]/30 dark:to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-48 bg-linear-to-t from-zinc-50/90 via-zinc-50/30 to-transparent dark:from-[#09090b] dark:via-[#09090b]/40" />
