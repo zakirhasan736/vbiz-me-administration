@@ -2,11 +2,13 @@
 
 import { Modal } from '@/components/ui/Modal'
 import { normalizeNavOrderWithPinnedEnds } from '@/lib/createCardTabs'
+import { customTabHideOwnerSectionKey, type HideOwnerSectionsMap } from '@/lib/memberMediaVisibility'
 import { assemblePublicNavOrder } from '@/lib/publicNavOrder'
 import { getNavItemCompletionPercent } from '@/lib/vcardCompletion'
 import {
   buildCustomNavItems,
-  CUSTOM_TAB_ID_PREFIX,
+  createDraftCustomTab,
+  customTabStableKey,
   getDefaultEnabledNavIds,
   getEditorNavLabel,
   getNavItemGroup,
@@ -16,9 +18,11 @@ import {
   MIN_NAV_LABEL_LENGTH,
   NAV_BAR_NAV_ITEMS,
   NAV_ITEM_GROUPS,
+  remapRecordKey,
+  remintCustomTabPublicId,
   type NavBarNavItem,
 } from '@/lib/vcardNavbar'
-import type { VCardCustomTab, VCardData, VCardTabLabelOverrides } from '@/types/vcard'
+import type { VCardCustomTab, VCardData, VCardTabLabelOverrides, VCardTabSectionMeta } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { reorderByIndex } from '@/utils/reorderByIndex'
 import { Check, GripVertical, Pencil, Plus, X } from 'lucide-react'
@@ -33,6 +37,8 @@ type AddTabsModalProps = {
     nextIds: string[]
     customTabs: VCardCustomTab[]
     labelOverrides: VCardTabLabelOverrides
+    tabSectionMeta?: VCardTabSectionMeta
+    hideOwnerSections?: HideOwnerSectionsMap
     navOrderCustomized?: boolean
   }) => void
 }
@@ -41,26 +47,73 @@ function normalizeDraft(ids: string[], preserveCustom = false): string[] {
   return assemblePublicNavOrder(ids, { preserveCustom })
 }
 
-function customId() {
-  return `${CUSTOM_TAB_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-}
-
-function createDraftCustomTab(label: string): VCardCustomTab {
-  return {
-    id: customId(),
-    label,
-    items: [],
-  }
-}
-
 function normalizeCustomTabs(tabs?: VCardCustomTab[] | null): VCardCustomTab[] {
   return (tabs || [])
-    .filter((tab) => isCustomNavItemId(tab.id))
+    .filter((tab) => typeof tab.id === 'string' && tab.id.trim())
     .map((tab) => ({
       id: tab.id,
+      key: customTabStableKey(tab),
       label: tab.label?.trim() || 'Custom tab',
       items: tab.items || [],
+      ...(tab.corporateOwned ? { corporateOwned: true as const } : {}),
     }))
+}
+
+function reservedCustomIds(tabs: VCardCustomTab[], exceptId?: string): string[] {
+  return tabs.map((tab) => tab.id).filter((id) => id !== exceptId)
+}
+
+function remapIdList(ids: string[], fromId: string, toId: string): string[] {
+  if (fromId === toId) return ids
+  return ids.map((id) => (id === fromId ? toId : id))
+}
+
+function remapHideOwnerSections(
+  map: HideOwnerSectionsMap | undefined,
+  fromId: string,
+  toId: string
+): HideOwnerSectionsMap {
+  if (!map || fromId === toId) return map ? { ...map } : {}
+  return remapRecordKey(map, customTabHideOwnerSectionKey(fromId), customTabHideOwnerSectionKey(toId))
+}
+
+/** Remint public ids from labels (`Events` → `events-2`) and remap dependent keys. */
+function syncSmartCustomTabIds(
+  tabs: VCardCustomTab[],
+  draftIds: string[],
+  labelOverrides: VCardTabLabelOverrides,
+  tabSectionMeta: VCardTabSectionMeta | undefined,
+  hideOwnerSections: HideOwnerSectionsMap | undefined
+) {
+  const nextTabs = [...tabs]
+  let nextIds = [...draftIds]
+  let nextOverrides = { ...labelOverrides }
+  let nextMeta = tabSectionMeta ? { ...tabSectionMeta } : undefined
+  let nextHide = hideOwnerSections ? { ...hideOwnerSections } : undefined
+
+  for (let i = 0; i < nextTabs.length; i += 1) {
+    const tab = nextTabs[i]
+    const label = getNavLabelOverride(tab.id, nextOverrides) || tab.label?.trim() || 'Custom tab'
+    const reminted = remintCustomTabPublicId(tab, label, reservedCustomIds(nextTabs, tab.id))
+    if (reminted.id === tab.id) {
+      nextTabs[i] = { ...reminted, label }
+      continue
+    }
+    nextIds = remapIdList(nextIds, tab.id, reminted.id)
+    nextOverrides = remapRecordKey(nextOverrides, tab.id, reminted.id)
+    nextOverrides[reminted.id] = label
+    nextMeta = nextMeta ? remapRecordKey(nextMeta, tab.id, reminted.id) : nextMeta
+    nextHide = remapHideOwnerSections(nextHide, tab.id, reminted.id)
+    nextTabs[i] = reminted
+  }
+
+  return {
+    customTabs: nextTabs,
+    draftIds: nextIds,
+    labelOverrides: nextOverrides,
+    tabSectionMeta: nextMeta,
+    hideOwnerSections: nextHide,
+  }
 }
 
 export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: AddTabsModalProps) {
@@ -157,14 +210,26 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
       })
       return
     }
-    setLabelOverrides((prev) => ({ ...prev, [item.id]: trimmed }))
-    if (isCustomNavItemId(item.id)) {
-      setCustomTabs((prev) => prev.map((tab) => (tab.id === item.id ? { ...tab, label: trimmed } : tab)))
+    if (!isCustomNavItemId(item.id)) {
+      setLabelOverrides((prev) => ({ ...prev, [item.id]: trimmed }))
+      return
     }
+
+    const synced = syncSmartCustomTabIds(
+      customTabs.map((tab) => (tab.id === item.id ? { ...tab, label: trimmed } : tab)),
+      draftIds,
+      { ...labelOverrides, [item.id]: trimmed },
+      undefined,
+      undefined
+    )
+    setCustomTabs(synced.customTabs)
+    setDraftIds(normalizeDraft(synced.draftIds, reordered))
+    setLabelOverrides(synced.labelOverrides)
   }
 
   const addCustomTab = () => {
-    const tab = createDraftCustomTab(`Custom tab ${customTabs.length + 1}`)
+    const label = `Custom tab ${customTabs.length + 1}`
+    const tab = createDraftCustomTab(label, reservedCustomIds(customTabs))
     setCustomTabs((prev) => [...prev, tab])
     setLabelOverrides((prev) => ({ ...prev, [tab.id]: tab.label }))
     setDraftIds((prev) => normalizeDraft([...prev, tab.id], reordered))
@@ -193,14 +258,22 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
   }
 
   const apply = () => {
-    const normalizedIds = normalizeDraft(draftIds, reordered)
-    const nextCustomTabs = customTabs.map((tab) => ({
+    const synced = syncSmartCustomTabIds(
+      customTabs,
+      draftIds,
+      labelOverrides,
+      vCardData.tabSectionMeta,
+      vCardData.hideOwnerSections
+    )
+    const normalizedIds = normalizeDraft(synced.draftIds, reordered)
+    const nextCustomTabs = synced.customTabs.map((tab) => ({
       ...tab,
-      label: getNavLabelOverride(tab.id, labelOverrides) || tab.label?.trim() || 'Custom tab',
+      key: customTabStableKey(tab),
+      label: getNavLabelOverride(tab.id, synced.labelOverrides) || tab.label?.trim() || 'Custom tab',
       items: tab.items || [],
     }))
     const cleanedOverrides = Object.fromEntries(
-      Object.entries(labelOverrides)
+      Object.entries(synced.labelOverrides)
         .map(([id, label]) => [id, label.trim()] as const)
         .filter(([, label]) => label.length >= MIN_NAV_LABEL_LENGTH)
     )
@@ -208,6 +281,8 @@ export function AddTabsModal({ open, onClose, enabledIds, vCardData, onApply }: 
       nextIds: normalizedIds,
       customTabs: nextCustomTabs,
       labelOverrides: cleanedOverrides,
+      tabSectionMeta: synced.tabSectionMeta,
+      hideOwnerSections: synced.hideOwnerSections,
       navOrderCustomized: reordered,
     })
   }

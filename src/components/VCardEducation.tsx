@@ -8,8 +8,10 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultEducationEntry, normalizeEducationList } from '@/lib/vcardEducation'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -32,29 +34,34 @@ export function TabEducation() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Education')
   const { vCardData, updateData } = useVCard()
   const educations = normalizeEducationList(vCardData.education)
-  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
-    useExpandableEntryList(educations)
-
   const setEducations = (next: VCardEducationEntry[]) => {
     updateData('education', next)
   }
+  const { hideOwner, hasOwnerItems, visibleItems, commitVisible, setHideOwner } = useHideOwnerSectionList(
+    'education',
+    educations,
+    setEducations
+  )
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(visibleItems)
 
   const addEducation = () => {
     const next = createDefaultEducationEntry()
-    setEducations([...educations, next])
+    commitVisible([...visibleItems, next])
     expandNew(next.id)
   }
 
   const removeEducation = (id: string) => {
     if (educations.some((edu) => edu.id === id && edu.corporateOwned)) return
-    const next = educations.filter((edu) => edu.id !== id)
+    const next = visibleItems.filter((edu) => edu.id !== id)
     const resolved = next.length ? next : [createDefaultEducationEntry()]
-    setEducations(resolved)
+    commitVisible(resolved)
     recoverExpandedAfterRemove(id, resolved)
   }
 
   const updateEducation = (id: string, field: keyof VCardEducationEntry, value: string | boolean) => {
-    setEducations(educations.map((edu) => (edu.id === id ? { ...edu, [field]: value } : edu)))
+    if (educations.some((edu) => edu.id === id && edu.corporateOwned)) return
+    commitVisible(visibleItems.map((edu) => (edu.id === id ? { ...edu, [field]: value } : edu)))
   }
 
   return (
@@ -79,6 +86,14 @@ export function TabEducation() {
           Highlight your academic background and achievements. Changes appear instantly in the live preview (v1 and v2
           layouts).
         </p>
+        {hasOwnerItems ? (
+          <HideOwnerMediaToggle
+            checked={hideOwner}
+            label="Only show my education"
+            detail="Corporate owner entries stay saved. This card’s editor and public page show only the education you added."
+            onChange={setHideOwner}
+          />
+        ) : null}
         <button
           type="button"
           onClick={addEducation}
@@ -92,7 +107,7 @@ export function TabEducation() {
         accent="cyan"
         label="Quick find"
         onJump={setExpandedId}
-        items={educations.map((edu) => ({
+        items={visibleItems.map((edu) => ({
           id: edu.id,
           title: edu.institute || 'New Education Entry',
           detail: edu.degree || undefined,
@@ -100,7 +115,7 @@ export function TabEducation() {
       />
 
       <div className="space-y-4">
-        {educations.map((edu, index) => {
+        {visibleItems.map((edu, index) => {
           const open = isExpanded(edu.id)
           return (
             <section
@@ -117,7 +132,7 @@ export function TabEducation() {
                 }
                 isExpanded={open}
                 onToggle={() => toggleExpanded(edu.id)}
-                showRemove={!edu.corporateOwned && educations.length > 1}
+                showRemove={!edu.corporateOwned && visibleItems.length > 1}
                 onRemove={() => removeEducation(edu.id)}
                 accent={accent}
               />

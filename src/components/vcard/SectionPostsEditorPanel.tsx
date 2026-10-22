@@ -19,8 +19,10 @@ import { isCorporateMemberEditorCard } from '@/lib/corporateCardDuplicate'
 import { stripHtml } from '@/lib/htmlText'
 import {
   hiddenOwnerMediaMatches,
+  isHideOwnerSectionEnabled,
   mergeHiddenCorporateOwned,
   toggleHiddenOwnerMedia,
+  withHideOwnerSection,
   withoutCorporateOwned,
 } from '@/lib/memberMediaVisibility'
 import { useVCard } from '@/lib/VCardContext'
@@ -153,10 +155,13 @@ export function SectionPostsEditorPanel({
   const isVideos = schema.key === 'videos'
   const memberCard = isCorporateMemberEditorCard(vCardData)
   const hideOwnerVideos = memberCard && isVideos && Boolean(vCardData.hideOwnerVideos)
+  const hideOwnerSection = memberCard && !isVideos && isHideOwnerSectionEnabled(vCardData.hideOwnerSections, schema.key)
+  const hideOwner = isVideos ? hideOwnerVideos : hideOwnerSection
   const hiddenPhotos = vCardData.hiddenOwnerMedia?.photos || []
   const hiddenVideos = vCardData.hiddenOwnerMedia?.videos || []
-  const hasOwnerVideos = memberCard && isVideos && posts.some((item) => item.corporateOwned)
-  const visiblePosts = withoutCorporateOwned(posts, hideOwnerVideos)
+  const hasOwnerItems = memberCard && posts.some((item) => item.corporateOwned)
+  const hasOwnerVideos = hasOwnerItems && isVideos
+  const visiblePosts = withoutCorporateOwned(posts, hideOwner)
   const a = accentStyles[resolveAccent(schema.accentClass)]
   const inputClasses = `${baseInput} ${a.focus}`
   const fieldSet = new Set(schema.fields)
@@ -190,7 +195,7 @@ export function SectionPostsEditorPanel({
   )
 
   const commitVisible = (nextVisible: VCardSectionPostItem[]) => {
-    setPosts(hideOwnerVideos ? mergeHiddenCorporateOwned(postsRef.current, nextVisible) : nextVisible)
+    setPosts(hideOwner ? mergeHiddenCorporateOwned(postsRef.current, nextVisible) : nextVisible)
   }
 
   const isSingleItem = schema.maxItems === 1
@@ -262,12 +267,22 @@ export function SectionPostsEditorPanel({
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           {schema.description}
         </p>
-        {hasOwnerVideos ? (
+        {hasOwnerItems ? (
           <HideOwnerMediaToggle
-            checked={hideOwnerVideos}
-            label="Only show my videos"
-            detail="Corporate owner videos stay saved. This card’s editor and public page show only the videos you added."
-            onChange={(next) => updateData('hideOwnerVideos', next)}
+            checked={hideOwner}
+            label={isVideos ? 'Only show my videos' : 'Only show my items'}
+            detail={
+              isVideos
+                ? 'Corporate owner videos stay saved. This card’s editor and public page show only the videos you added.'
+                : 'Corporate owner items stay saved. This card’s editor and public page show only the items you added.'
+            }
+            onChange={(next) => {
+              if (isVideos) {
+                updateData('hideOwnerVideos', next)
+                return
+              }
+              updateData('hideOwnerSections', withHideOwnerSection(vCardData.hideOwnerSections, schema.key, next))
+            }}
           />
         ) : null}
         {canAdd ? (

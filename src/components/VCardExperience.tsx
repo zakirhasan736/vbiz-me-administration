@@ -9,8 +9,10 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
 import { stripHtml } from '@/lib/htmlText'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultExperienceEntry, normalizeExperienceList } from '@/lib/vcardExperience'
@@ -34,29 +36,34 @@ export function TabExperience() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Experience')
   const { vCardData, updateData } = useVCard()
   const experiences = normalizeExperienceList(vCardData.experience)
-  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
-    useExpandableEntryList(experiences)
-
   const setExperiences = (next: VCardExperienceEntry[]) => {
     updateData('experience', next)
   }
+  const { hideOwner, hasOwnerItems, visibleItems, commitVisible, setHideOwner } = useHideOwnerSectionList(
+    'experience',
+    experiences,
+    setExperiences
+  )
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(visibleItems)
 
   const addExperience = () => {
     const next = createDefaultExperienceEntry()
-    setExperiences([...experiences, next])
+    commitVisible([...visibleItems, next])
     expandNew(next.id)
   }
 
   const removeExperience = (id: string) => {
     if (experiences.some((exp) => exp.id === id && exp.corporateOwned)) return
-    const next = experiences.filter((exp) => exp.id !== id)
+    const next = visibleItems.filter((exp) => exp.id !== id)
     const resolved = next.length ? next : [createDefaultExperienceEntry()]
-    setExperiences(resolved)
+    commitVisible(resolved)
     recoverExpandedAfterRemove(id, resolved)
   }
 
   const updateExperience = (id: string, field: keyof VCardExperienceEntry, value: string | boolean) => {
-    setExperiences(experiences.map((exp) => (exp.id === id ? { ...exp, [field]: value } : exp)))
+    if (experiences.some((exp) => exp.id === id && exp.corporateOwned)) return
+    commitVisible(visibleItems.map((exp) => (exp.id === id ? { ...exp, [field]: value } : exp)))
   }
 
   return (
@@ -81,6 +88,14 @@ export function TabExperience() {
           Add your professional work experience and career milestones. Changes appear instantly in the live preview (v1
           and v2 layouts).
         </p>
+        {hasOwnerItems ? (
+          <HideOwnerMediaToggle
+            checked={hideOwner}
+            label="Only show my experience"
+            detail="Corporate owner entries stay saved. This card’s editor and public page show only the experience you added."
+            onChange={setHideOwner}
+          />
+        ) : null}
         <button
           type="button"
           onClick={addExperience}
@@ -94,7 +109,7 @@ export function TabExperience() {
         accent="orange"
         label="Quick find"
         onJump={setExpandedId}
-        items={experiences.map((exp) => ({
+        items={visibleItems.map((exp) => ({
           id: exp.id,
           title: exp.company || 'New Experience Entry',
           detail: exp.jobTitle || undefined,
@@ -102,7 +117,7 @@ export function TabExperience() {
       />
 
       <div className="space-y-4">
-        {experiences.map((exp, index) => {
+        {visibleItems.map((exp, index) => {
           const open = isExpanded(exp.id)
           return (
             <section
@@ -119,7 +134,7 @@ export function TabExperience() {
                 }
                 isExpanded={open}
                 onToggle={() => toggleExpanded(exp.id)}
-                showRemove={!exp.corporateOwned && experiences.length > 1}
+                showRemove={!exp.corporateOwned && visibleItems.length > 1}
                 onRemove={() => removeExperience(exp.id)}
                 accent={accent}
               />

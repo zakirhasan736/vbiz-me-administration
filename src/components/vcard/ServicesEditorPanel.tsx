@@ -13,7 +13,9 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
 import { mapServicesFromPayload } from '@/lib/ai/applyCardDraft'
 import { stripHtml } from '@/lib/htmlText'
 import { createDefaultServiceEntry, normalizeServiceList } from '@/lib/vcardServices'
@@ -48,28 +50,34 @@ export function ServicesEditorPanel({
   const sectionTitle = useResolvedSectionTitle(undefined, 'Services')
   const services = normalizeServiceList(rawServices)
   const servicesRef = useRef(services)
-  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
-    useExpandableEntryList(services)
-
-  useEffect(() => {
-    servicesRef.current = services
-  }, [services])
 
   const setServices = (next: VCardServiceEntry[]) => {
     servicesRef.current = next
     onServicesChange(next)
   }
 
+  const { hideOwner, hasOwnerItems, visibleItems, commitVisible, setHideOwner } = useHideOwnerSectionList(
+    'services',
+    services,
+    setServices
+  )
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(visibleItems)
+
+  useEffect(() => {
+    servicesRef.current = services
+  }, [services])
+
   const addService = () => {
     const next = createDefaultServiceEntry()
-    setServices([...servicesRef.current, next])
+    commitVisible([...visibleItems, next])
     expandNew(next.id)
   }
 
   const reorderServices = (next: VCardServiceEntry[]) => {
     // Keep owner-synced items editable only for order among themselves if needed;
     // never drop corporateOwned flags while reordering member-local items.
-    setServices(
+    commitVisible(
       next.map((item) => {
         const prev = servicesRef.current.find((s) => s.id === item.id)
         if (!prev) return item
@@ -81,8 +89,8 @@ export function ServicesEditorPanel({
   const removeService = (id: string) => {
     const target = servicesRef.current.find((s) => s.id === id)
     if (target?.corporateOwned) return
-    const next = servicesRef.current.filter((s) => s.id !== id)
-    setServices(next)
+    const next = visibleItems.filter((s) => s.id !== id)
+    commitVisible(next)
     recoverExpandedAfterRemove(id, next)
   }
 
@@ -91,8 +99,8 @@ export function ServicesEditorPanel({
     field: keyof VCardServiceEntry,
     value: VCardServiceEntry[keyof VCardServiceEntry]
   ) => {
-    setServices(
-      servicesRef.current.map((s) => {
+    commitVisible(
+      visibleItems.map((s) => {
         if (s.id !== id) return s
         if (s.corporateOwned) return s
         return { ...s, [field]: value }
@@ -103,7 +111,7 @@ export function ServicesEditorPanel({
   const applyFilled = (result: AiFilledResult) => {
     const mapped = mapServicesFromPayload(result.payload)
     if (!mapped.length) return
-    setServices([...mapped, ...servicesRef.current])
+    commitVisible([...mapped, ...visibleItems])
     expandNew(mapped[0]!.id)
   }
 
@@ -130,7 +138,7 @@ export function ServicesEditorPanel({
         </div>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           Offerings you provide to clients. Title and description are required for completion.
-          {services.some((s) => s.corporateOwned) ? (
+          {hasOwnerItems ? (
             <>
               {' '}
               Services marked from the corporate team owner stay on this card but are view-only — you can still add your
@@ -138,6 +146,14 @@ export function ServicesEditorPanel({
             </>
           ) : null}
         </p>
+        {hasOwnerItems ? (
+          <HideOwnerMediaToggle
+            checked={hideOwner}
+            label="Only show my services"
+            detail="Corporate owner services stay saved. This card’s editor and public page show only the services you added."
+            onChange={setHideOwner}
+          />
+        ) : null}
         <button
           type="button"
           onClick={addService}
@@ -159,14 +175,14 @@ export function ServicesEditorPanel({
         accent="indigo"
         label="Quick find"
         onJump={setExpandedId}
-        items={services.map((s) => ({
+        items={visibleItems.map((s) => ({
           id: s.id,
           title: s.title || 'Untitled',
           detail: s.type || stripHtml(s.description || '').slice(0, 36),
         }))}
       />
 
-      {services.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
             <BellRing className="h-8 w-8 text-slate-400" />
@@ -186,7 +202,7 @@ export function ServicesEditorPanel({
       ) : (
         <>
           <ReorderList
-            items={services}
+            items={visibleItems}
             getKey={(s) => s.id}
             onReorder={reorderServices}
             className="space-y-4"

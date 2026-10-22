@@ -20,6 +20,7 @@ describe('publicCardTabHash', () => {
       { id: 'services', label: 'Services' },
       { id: 'gallery', label: 'Gallery', displayLabel: 'Photos' },
       { id: 'mission', label: 'Company Mission Statement' },
+      { id: 'events-2', label: 'Events' },
     ]
     expect(resolveTabIdFromHash('services', tabs)).toBe('services')
     expect(resolveTabIdFromHash('photos', tabs)).toBe('gallery')
@@ -29,6 +30,7 @@ describe('publicCardTabHash', () => {
     expect(resolveTabIdFromHash('about_me', tabs)).toBe('about')
     expect(resolveTabIdFromHash('About Me', tabs)).toBe('about')
     expect(resolveTabIdFromHash('companymission', tabs)).toBe('mission')
+    expect(resolveTabIdFromHash('events-2', tabs)).toBe('events-2')
     expect(resolveTabIdFromHash('missing', tabs)).toBeNull()
   })
 })

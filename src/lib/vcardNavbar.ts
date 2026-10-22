@@ -637,8 +637,92 @@ export function resolvePublicPreviewSectionId(editorSectionId: string, visibleId
 
 export const CUSTOM_TAB_ID_PREFIX = 'custom-tab-'
 
+/** Built-in catalog ids — custom tabs must never collide with these (`events` → `events-2`). */
+export const BUILT_IN_NAV_ITEM_IDS: ReadonlySet<string> = new Set(NAV_BAR_NAV_ITEMS.map((item) => item.id))
+
+const CUSTOM_TAB_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+/** Slug token for public hashes / custom tab ids (`Events!` → `events`). */
+export function slugifyNavTabId(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/**
+ * Allocate a public custom-tab id from its label.
+ * Reserves built-in nav ids and any ids already in use (`events` taken → `events-2`).
+ */
+export function allocateCustomTabId(label: string, reservedIds: Iterable<string> = []): string {
+  const reserved = new Set<string>()
+  for (const id of BUILT_IN_NAV_ITEM_IDS) reserved.add(id.toLowerCase())
+  for (const id of reservedIds) {
+    const trimmed = typeof id === 'string' ? id.trim().toLowerCase() : ''
+    if (trimmed) reserved.add(trimmed)
+  }
+  const base = slugifyNavTabId(label) || 'custom-tab'
+  if (!reserved.has(base)) return base
+  let n = 2
+  while (reserved.has(`${base}-${n}`)) n += 1
+  return `${base}-${n}`
+}
+
 export function isCustomNavItemId(id: string): boolean {
-  return id.startsWith(CUSTOM_TAB_ID_PREFIX)
+  if (!id) return false
+  if (id.startsWith(CUSTOM_TAB_ID_PREFIX)) return true
+  if (id.startsWith('post-type-')) return false
+  if (BUILT_IN_NAV_ITEM_IDS.has(id)) return false
+  return CUSTOM_TAB_SLUG_RE.test(id)
+}
+
+/** Stable sync key — survives public id renames. */
+export function customTabStableKey(tab: Pick<VCardCustomTab, 'id' | 'key'>): string {
+  const key = typeof tab.key === 'string' ? tab.key.trim() : ''
+  return key || tab.id
+}
+
+/** Opaque stable sync key (never used in public hashes). */
+export function createCustomTabStableKey(): string {
+  return `ct_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+/** Create a draft custom tab with a smart public id + stable sync key. */
+export function createDraftCustomTab(label: string, reservedIds: Iterable<string> = []): VCardCustomTab {
+  const id = allocateCustomTabId(label, reservedIds)
+  return { id, key: createCustomTabStableKey(), label, items: [] }
+}
+
+/**
+ * Remint the public id from the current label (e.g. rename "Events" → `#events-2`).
+ * Keeps `key` stable so the backend can match the same row across renames.
+ */
+export function remintCustomTabPublicId(
+  tab: VCardCustomTab,
+  label: string,
+  reservedIds: Iterable<string> = []
+): VCardCustomTab {
+  const trimmed = label.trim() || 'Custom tab'
+  const reserved = [...reservedIds].filter((id) => id !== tab.id)
+  const nextId = allocateCustomTabId(trimmed, reserved)
+  const key = customTabStableKey(tab)
+  if (nextId === tab.id && trimmed === tab.label && tab.key === key) return tab
+  return { ...tab, id: nextId, key, label: trimmed }
+}
+
+/** Remap a string-keyed record when a custom tab public id changes. */
+export function remapRecordKey<T>(
+  record: Record<string, T> | null | undefined,
+  fromId: string,
+  toId: string
+): Record<string, T> {
+  if (!record || fromId === toId) return record ? { ...record } : {}
+  if (!Object.prototype.hasOwnProperty.call(record, fromId)) return { ...record }
+  const next = { ...record }
+  if (!Object.prototype.hasOwnProperty.call(next, toId)) next[toId] = next[fromId]
+  delete next[fromId]
+  return next
 }
 
 export function createCustomNavItem(tab: VCardCustomTab): NavBarNavItem {
@@ -656,7 +740,9 @@ export function createCustomNavItem(tab: VCardCustomTab): NavBarNavItem {
 }
 
 export function buildCustomNavItems(customTabs?: VCardCustomTab[] | null): NavBarNavItem[] {
-  return (customTabs || []).filter((tab) => isCustomNavItemId(tab.id)).map((tab) => createCustomNavItem(tab))
+  return (customTabs || [])
+    .filter((tab) => typeof tab.id === 'string' && tab.id.trim())
+    .map((tab) => createCustomNavItem(tab))
 }
 
 export function mergeCustomNavItems(items: NavBarNavItem[], customTabs?: VCardCustomTab[] | null): NavBarNavItem[] {

@@ -727,10 +727,14 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     nextIds,
     customTabs,
     labelOverrides,
+    tabSectionMeta,
+    hideOwnerSections,
   }: {
     nextIds: string[]
     customTabs: NonNullable<typeof vCardData.customTabs>
     labelOverrides: NonNullable<typeof vCardData.tabLabelOverrides>
+    tabSectionMeta?: typeof vCardData.tabSectionMeta
+    hideOwnerSections?: typeof vCardData.hideOwnerSections
     navOrderCustomized?: boolean
   }) => {
     const normalized = nextIds
@@ -740,6 +744,8 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     updateData('displaySettings', next)
     updateData('customTabs', customTabs)
     updateData('tabLabelOverrides', labelOverrides)
+    if (tabSectionMeta) updateData('tabSectionMeta', tabSectionMeta)
+    if (hideOwnerSections) updateData('hideOwnerSections', hideOwnerSections)
     updateData('memberNavCustomized', true)
     setNavOrderIds(normalized)
     localStorage.setItem(storageKeyForEditorNavOrder(cardKey), JSON.stringify(normalized))

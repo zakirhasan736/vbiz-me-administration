@@ -195,28 +195,33 @@ function parseCustomTabs(raw?: string): VCardCustomTab[] {
     if (!Array.isArray(parsed)) return []
     return parsed
       .filter((tab): tab is Partial<VCardCustomTab> => Boolean(tab && typeof tab === 'object'))
-      .map((tab) => ({
-        id: typeof tab.id === 'string' ? tab.id : '',
-        label: decodeHtmlText(typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab'),
-        items: Array.isArray(tab.items)
-          ? (tab.items as unknown[]).map((raw) => {
-              const item = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
-              return {
-                id: typeof item.id === 'string' ? item.id : '',
-                title: decodeHtmlText(typeof item.title === 'string' ? item.title : ''),
-                description: typeof item.description === 'string' ? item.description : '',
-                url: typeof item.url === 'string' ? item.url : '',
-                mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
-                mediaFrame: readOptionalMediaFrame(item.mediaFrame),
-                mediaName: typeof item.mediaName === 'string' ? item.mediaName : '',
-                mediaKind: item.mediaKind as VCardCustomTab['items'][number]['mediaKind'],
-                gallery: Array.isArray(item.gallery) ? item.gallery : [],
-                active: item.active !== false,
-              }
-            })
-          : [],
-      }))
-      .filter((tab) => tab.id.startsWith('custom-tab-'))
+      .map((tab) => {
+        const id = typeof tab.id === 'string' ? tab.id : ''
+        const key = typeof tab.key === 'string' && tab.key.trim() ? tab.key.trim() : undefined
+        return {
+          id,
+          ...(key ? { key } : {}),
+          label: decodeHtmlText(typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab'),
+          items: Array.isArray(tab.items)
+            ? (tab.items as unknown[]).map((raw) => {
+                const item = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+                return {
+                  id: typeof item.id === 'string' ? item.id : '',
+                  title: decodeHtmlText(typeof item.title === 'string' ? item.title : ''),
+                  description: typeof item.description === 'string' ? item.description : '',
+                  url: typeof item.url === 'string' ? item.url : '',
+                  mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
+                  mediaFrame: readOptionalMediaFrame(item.mediaFrame),
+                  mediaName: typeof item.mediaName === 'string' ? item.mediaName : '',
+                  mediaKind: item.mediaKind as VCardCustomTab['items'][number]['mediaKind'],
+                  gallery: Array.isArray(item.gallery) ? item.gallery : [],
+                  active: item.active !== false,
+                }
+              })
+            : [],
+        }
+      })
+      .filter((tab) => Boolean(tab.id.trim()))
   } catch {
     return []
   }

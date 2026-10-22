@@ -263,12 +263,22 @@ export type VCardCustomTabItem = {
   mediaKind?: VCardCustomTabMediaKind
   gallery?: VCardCustomTabGalleryItem[]
   active: boolean
+  /** Synced from the corporate team owner. Members can view but not edit or delete. */
+  corporateOwned?: boolean
 }
 
 export type VCardCustomTab = {
+  /** Public nav / hash id (smart slug, e.g. `events-2`). May change when the tab is renamed. */
   id: string
+  /**
+   * Stable sync identity for the backend row. Survives public id renames.
+   * Defaults to the first assigned `id` when omitted.
+   */
+  key?: string
   label: string
   items: VCardCustomTabItem[]
+  /** Synced from the corporate team owner. Members keep the tab; they cannot rename or remove it. */
+  corporateOwned?: boolean
 }
 
 export type VCardTabLabelOverrides = Record<string, string>
@@ -366,6 +376,11 @@ export type VCardData = {
   hideOwnerPhotos?: boolean
   /** Team member card: hide corporate-owner videos on this card's editor and public page. */
   hideOwnerVideos?: boolean
+  /**
+   * Team member card: per-section “Only show my items” for list tabs
+   * (services, FAQ, custom tabs, …). Photos/videos keep dedicated keys above.
+   */
+  hideOwnerSections?: Record<string, boolean>
   /** Per owner photo or video hidden from this member's public card. The file stays on the owner card. */
   hiddenOwnerMedia?: HiddenOwnerMediaLists
   /** This member chose their own navbar and tabs. Owner sync does not overwrite that choice. */

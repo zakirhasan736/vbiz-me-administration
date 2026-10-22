@@ -2,8 +2,10 @@ import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssist
 import {
   HIDDEN_OWNER_MEDIA_SETTING_KEY,
   HIDE_OWNER_PHOTOS_SETTING_KEY,
+  HIDE_OWNER_SECTIONS_SETTING_KEY,
   HIDE_OWNER_VIDEOS_SETTING_KEY,
   MEMBER_NAV_CUSTOMIZED_SETTING_KEY,
+  serializeHideOwnerSections,
 } from '@/lib/memberMediaVisibility'
 import { seoToApiSettings } from '@/lib/seo/cardSeo'
 import { mapContentMediaToApiSettings } from '@/lib/vcardContentMedia'
@@ -266,8 +268,18 @@ export function mapThemeToApiSettings(data: Pick<VCardData, 'theme'>): Record<st
 }
 
 function mapCustomTabsToApiSettings(data: VCardData): Record<string, string> {
+  const tabs = (data.customTabs || []).map((tab) => {
+    const { corporateOwned: _tabOwned, items, ...tabRest } = tab
+    return {
+      ...tabRest,
+      items: (items || []).map((item) => {
+        const { corporateOwned: _owned, ...rest } = item
+        return rest
+      }),
+    }
+  })
   const settings: Record<string, string> = {
-    [CUSTOM_TABS_SETTING_KEY]: JSON.stringify(data.customTabs || []),
+    [CUSTOM_TABS_SETTING_KEY]: JSON.stringify(tabs),
     [TAB_LABEL_OVERRIDES_SETTING_KEY]: JSON.stringify(data.tabLabelOverrides || {}),
   }
   return settings
@@ -310,6 +322,7 @@ export function mapVCardEditorSettingsPayload(data: VCardData): Record<string, s
     [AI_ASSISTANCE_SETTING_KEY]: isAiAssistanceEnabled(data.aiAssistanceEnabled) ? '1' : '0',
     [HIDE_OWNER_PHOTOS_SETTING_KEY]: data.hideOwnerPhotos ? '1' : '0',
     [HIDE_OWNER_VIDEOS_SETTING_KEY]: data.hideOwnerVideos ? '1' : '0',
+    [HIDE_OWNER_SECTIONS_SETTING_KEY]: serializeHideOwnerSections(data.hideOwnerSections),
     [HIDDEN_OWNER_MEDIA_SETTING_KEY]: JSON.stringify(data.hiddenOwnerMedia || { photos: [], videos: [] }),
     [MEMBER_NAV_CUSTOMIZED_SETTING_KEY]: data.memberNavCustomized ? '1' : '0',
   }

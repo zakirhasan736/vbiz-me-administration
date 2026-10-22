@@ -2,6 +2,7 @@ import {
   DEFAULT_PROFILE_MEDIA_FRAME,
   parseProfileMediaFrame,
   PROFILE_FRAME_ZOOM_MIN,
+  profileFeatureMediaAspectRatio,
   profileFramePhoneAspect,
   profileMediaCoverLayoutStyle,
   profileMediaFitStyle,
@@ -35,6 +36,19 @@ describe('profile media frame', () => {
     expect(frame.zoom).toBe(0.5)
     expect(profileMediaFitStyle(frame).objectFit).toBe('contain')
     expect(profileMediaFitStyle(frame).transform).toBe('scale(0.5)')
+  })
+
+  it('honors an explicit image object type over zoom heuristics', () => {
+    const frame = parseProfileMediaFrame({ zoom: 0.5, objectFit: 'cover' })
+    expect(frame.objectFit).toBe('cover')
+    expect(profileMediaFitStyle(frame).objectFit).toBe('cover')
+  })
+
+  it('scales featured media aspect ratio from height', () => {
+    const tall = parseProfileMediaFrame({ height: 1.4 })
+    const short = parseProfileMediaFrame({ height: 0.7 })
+    expect(profileFeatureMediaAspectRatio(tall)).toBe('16 / 12.6')
+    expect(profileFeatureMediaAspectRatio(short)).toBe('16 / 6.3')
   })
 
   it('pans left/right and top/bottom with cover layout math', () => {
