@@ -73,6 +73,11 @@ export type DynamicPostListItem = {
   mediaFrame?: ProfileMediaFrame | null
   generalInfoUrl: string
   date: string
+  /**
+   * `event` = owner-set date from the builder; `post` = fallback to created/updated time
+   * when the event date field was left blank.
+   */
+  dateKind?: 'event' | 'post'
   issuer: string
   year: string
   price: string

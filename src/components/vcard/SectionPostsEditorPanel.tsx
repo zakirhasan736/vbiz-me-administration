@@ -538,13 +538,19 @@ export function SectionPostsEditorPanel({
                                 {fieldSet.has('date') ? (
                                   <div className="group flex flex-col space-y-1.5">
                                     <label className="flex items-center gap-2 pl-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
-                                      <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} /> Date
+                                      <Calendar className={`h-3.5 w-3.5 ${a.iconText}`} />{' '}
+                                      {schema.key === 'events' ? 'Event date' : 'Date'}
                                     </label>
                                     <VCardDateInput
                                       value={post.date}
                                       onChange={(e) => updatePost(post.id, 'date', e.target.value)}
                                       className={inputClasses}
                                     />
+                                    {schema.key === 'events' ? (
+                                      <p className="pl-1 text-[10px] font-medium text-slate-400">
+                                        Leave blank to show the post date on the public card instead.
+                                      </p>
+                                    ) : null}
                                   </div>
                                 ) : null}
                                 {fieldSet.has('location') ? (

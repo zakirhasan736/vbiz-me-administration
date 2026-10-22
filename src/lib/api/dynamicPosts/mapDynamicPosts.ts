@@ -130,6 +130,11 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
   }
   const price = readMetaText(item.price, metas.price)
   const offerPrice = readMetaText(item.offerPrice, item.offer_price, metas.offer_price, metas.offerPrice)
+  // Owner-placed date from the builder (events, bookings, etc.) — not the license `year` meta.
+  const placedDate = readMetaText((item as { date?: unknown }).date, metas.date, metas.event_date, metas.eventDate)
+  const postDateRaw = item.created_at || item.updated_at || ''
+  const postDate = typeof postDateRaw === 'string' ? postDateRaw.trim() : postDateRaw ? String(postDateRaw) : ''
+  const date = placedDate || postDate || ''
 
   return {
     id,
@@ -138,7 +143,8 @@ export function mapDynamicPostItemToListItem(item: DynamicPostItem, index = 0): 
     featuredImage: featured.url,
     mediaFrame: readOptionalMediaFrame(item.media_frame),
     generalInfoUrl: resolveGeneralInfoUrl(item, metas),
-    date: year || item.created_at || item.updated_at || '',
+    date,
+    ...(date ? { dateKind: (placedDate ? 'event' : 'post') as 'event' | 'post' } : {}),
     issuer: decodeHtmlText(issuer),
     year,
     price,

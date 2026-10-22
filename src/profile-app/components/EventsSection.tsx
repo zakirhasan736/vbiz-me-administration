@@ -62,6 +62,7 @@ function EventCard({
   const preview = stripHtml(item.description)
   const detailUrl = item.generalInfoUrl.trim()
   const eventDate = formatEventDate(item.date)
+  const datePrefix = item.dateKind === 'post' ? 'Post date' : 'Event date'
 
   return (
     <motion.article
@@ -104,7 +105,7 @@ function EventCard({
         {eventDate ? (
           <div className="mb-3 inline-flex items-center gap-2 text-xs font-bold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
             <CalendarDays size={14} style={{ color: accent }} />
-            {eventDate}
+            {datePrefix}: {eventDate}
           </div>
         ) : null}
 
