@@ -186,13 +186,16 @@ function toDynamicResult(sectionName: string, items: VCardSectionPostItem[]): Dy
             },
           ]
         }
+        const placedDate = p.date?.trim() || ''
         return {
           id: p.id,
           title: p.title || '',
           description: p.description || '',
           featuredImage: p.featuredImage || '',
           generalInfoUrl: p.url || attachments[0]?.url || '',
-          date: year || p.date || '',
+          // Prefer the builder date field; do not collapse YYYY-MM-DD into year-only.
+          date: placedDate || year || '',
+          ...(placedDate || year ? { dateKind: (placedDate ? 'event' : 'post') as 'event' | 'post' } : {}),
           issuer,
           year,
           price: p.price || '',

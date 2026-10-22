@@ -68,4 +68,28 @@ describe('mapDynamicPostItemToListItem', () => {
     expect(item.price).toBe('$49.99')
     expect(item.offerPrice).toBe('$39.99')
   })
+
+  it('prefers the owner-placed event date over created_at', () => {
+    const item = mapDynamicPostItemToListItem({
+      id: 1,
+      title: 'Youth Seminar',
+      created_at: '2024-01-10T12:00:00.000Z',
+      metas: { date: '2026-05-15' },
+    })
+
+    expect(item.date).toBe('2026-05-15')
+    expect(item.dateKind).toBe('event')
+  })
+
+  it('falls back to post created_at when event date is blank', () => {
+    const item = mapDynamicPostItemToListItem({
+      id: 1,
+      title: 'Youth Seminar',
+      created_at: '2024-01-10T12:00:00.000Z',
+      metas: { date: '' },
+    })
+
+    expect(item.date).toBe('2024-01-10T12:00:00.000Z')
+    expect(item.dateKind).toBe('post')
+  })
 })
