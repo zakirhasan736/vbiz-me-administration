@@ -5,6 +5,7 @@ import { ColorSwatchInput, useLiveCssColor } from '@/components/vcard/HexColorCo
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import type {
   BannerModeColors,
+  BannerTitleStyle,
   BannerVariant,
   CardThemeConfig,
   ContentCardModeColors,
@@ -75,6 +76,7 @@ function ColorField({
             aria-label={`${label} hex`}
             value={live.text}
             onChange={(e) => live.onTextChange(e.target.value)}
+            onPaste={live.onPaste}
             spellCheck={false}
             className={cn(
               'focus:text-primary-600 dark:focus:text-primary-400 bg-transparent text-right font-mono text-[.7rem] font-medium text-slate-500 outline-none dark:text-slate-400',
@@ -361,7 +363,8 @@ export function BannerStylePanel({
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Tab banner styles</h3>
           <p className="text-[12px] text-slate-500 dark:text-slate-400">
-            Soft gradient: primary stays a light tint, secondary covers most of the banner. Use Opacity on fill colors.
+            Bar fill follows Theme Colors (Secondary solid / Primary→Secondary gradient). Title color and title gradient
+            are separate — Smart keeps a solid base with a brand gradient accent word.
           </p>
         </div>
         <ModeTabs mode={mode} onChange={setMode} />
@@ -385,23 +388,101 @@ export function BannerStylePanel({
         ))}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {(
-          [
-            ['bg', 'Background', true],
-            ['gradientFrom', 'Gradient from', true],
-            ['gradientTo', 'Gradient to', true],
-            ['border', 'Banner border', true],
-            ['title', 'Title', false],
-            ['description', 'Description', false],
-            ['label', 'Label', false],
-            ['text', 'Text', false],
-            ['note', 'Note', false],
-          ] as Array<[keyof BannerModeColors, string, boolean]>
+        {((resolved.variant || 'solid') === 'gradient'
+          ? ([
+              ['gradientFrom', 'Gradient from', true],
+              ['gradientTo', 'Gradient to', true],
+              ['border', 'Banner border', true],
+            ] as Array<[keyof BannerModeColors, string, boolean]>)
+          : (resolved.variant || 'solid') === 'image'
+            ? ([['border', 'Banner border', true]] as Array<[keyof BannerModeColors, string, boolean]>)
+            : ([
+                ['bg', 'Background', true],
+                ['border', 'Banner border', true],
+              ] as Array<[keyof BannerModeColors, string, boolean]>)
         ).map(([field, label, withOpacity]) => (
           <ColorField
             key={field}
             label={label}
             withOpacity={withOpacity}
+            value={String(resolved[field] || '#000000')}
+            onChange={(v) => patch({ [field]: v })}
+          />
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-slate-200/80 p-3 dark:border-white/10">
+        <p className="mb-2 text-[11px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+          Title paint
+        </p>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {(
+            [
+              ['smart', 'Smart'],
+              ['solid', 'Solid color'],
+              ['gradient', 'Title gradient'],
+            ] as Array<[BannerTitleStyle, string]>
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => patch({ titleStyle: id })}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-[12px] font-bold',
+                (resolved.titleStyle || 'smart') === id
+                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-200'
+                  : 'border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300'
+              )}
+            >
+              {id === 'smart' ? <Sparkles className="h-3 w-3" /> : null}
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 text-[11px] text-slate-500 dark:text-slate-400">
+          {(resolved.titleStyle || 'smart') === 'solid'
+            ? 'Entire title uses Title color.'
+            : (resolved.titleStyle || 'smart') === 'gradient'
+              ? 'Entire title uses Title gradient from → to.'
+              : 'Base words use Title color; the last word uses Title gradient (Primary → Accent by default).'}
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <ColorField
+            label="Title color"
+            value={String(resolved.title || '#ffffff')}
+            onChange={(v) => patch({ title: v })}
+          />
+          {(resolved.titleStyle || 'smart') !== 'solid' ? (
+            <>
+              <ColorField
+                label="Title gradient from"
+                withOpacity
+                value={String(resolved.titleGradientFrom || colorSet.primary)}
+                onChange={(v) => patch({ titleGradientFrom: v })}
+              />
+              <ColorField
+                label="Title gradient to"
+                withOpacity
+                value={String(resolved.titleGradientTo || colorSet.accent)}
+                onChange={(v) => patch({ titleGradientTo: v })}
+              />
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {(
+          [
+            ['description', 'Description'],
+            ['label', 'Label'],
+            ['text', 'Text'],
+            ['note', 'Note'],
+          ] as Array<[keyof BannerModeColors, string]>
+        ).map(([field, label]) => (
+          <ColorField
+            key={field}
+            label={label}
             value={String(resolved[field] || '#000000')}
             onChange={(v) => patch({ [field]: v })}
           />
@@ -645,8 +726,8 @@ export function TopNavBarStylePanel({
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Top navbar styles</h3>
           <p className="text-[12px] text-slate-500 dark:text-slate-400">
-            Bar background, item icons, and border. Defaults follow global Primary / Secondary / Accent for light and
-            dark.
+            Plane uses Secondary as the bar (Primary / Accent for icons). Gradient uses Primary → Secondary. Both light
+            and dark follow Theme Colors until you override a field.
           </p>
         </div>
         <ModeTabs mode={mode} onChange={setMode} />
@@ -670,15 +751,20 @@ export function TopNavBarStylePanel({
         ))}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {(
-          [
-            ['bg', 'Navbar background'],
-            ['gradientFrom', 'Gradient from'],
-            ['gradientTo', 'Gradient to'],
-            ['item', 'Nav item / icon'],
-            ['itemActive', 'Active item / icon'],
-            ['border', 'Navbar border'],
-          ] as Array<[keyof TopNavBarModeColors, string]>
+        {((resolved.variant || 'solid') === 'gradient'
+          ? ([
+              ['gradientFrom', 'Gradient from'],
+              ['gradientTo', 'Gradient to'],
+              ['item', 'Nav item / icon'],
+              ['itemActive', 'Active item / icon'],
+              ['border', 'Navbar border'],
+            ] as Array<[keyof TopNavBarModeColors, string]>)
+          : ([
+              ['bg', 'Navbar background'],
+              ['item', 'Nav item / icon'],
+              ['itemActive', 'Active item / icon'],
+              ['border', 'Navbar border'],
+            ] as Array<[keyof TopNavBarModeColors, string]>)
         ).map(([field, label]) => (
           <ColorField
             key={field}

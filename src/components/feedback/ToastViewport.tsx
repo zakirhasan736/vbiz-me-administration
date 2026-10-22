@@ -122,7 +122,7 @@ export function ToastViewport() {
   }, [])
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 top-3 z-[300] flex flex-col items-center gap-2.5 sm:inset-x-auto sm:right-5 sm:items-end">
+    <div className="pointer-events-none fixed inset-x-3 top-3 z-[20000] flex flex-col items-center gap-2.5 sm:inset-x-auto sm:right-5 sm:items-end">
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
           <ToastPill key={toast.id} toast={toast} onDismiss={dismiss} />

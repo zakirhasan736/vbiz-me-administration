@@ -99,6 +99,19 @@ function resolveTabFavicon(origin: string, seo?: VCardSeo): string {
   return toAbsoluteUrl(origin, VBIZ_DEFAULT_FAVICON_PATH)
 }
 
+function jsonLdContainsProfilePage(data: Record<string, unknown>): boolean {
+  if (data['@type'] === 'ProfilePage') return true
+  if (typeof data['@id'] === 'string' && data['@id'].endsWith('#page')) return true
+  if (Array.isArray(data['@graph'])) {
+    return data['@graph'].some((node) => {
+      if (!node || typeof node !== 'object' || Array.isArray(node)) return false
+      const record = node as Record<string, unknown>
+      return record['@type'] === 'ProfilePage' || (typeof record['@id'] === 'string' && record['@id'].endsWith('#page'))
+    })
+  }
+  return false
+}
+
 /** Keep SSR JSON-LD in sync when Card Settings SEO title / description / keywords change. */
 function upsertProfilePageJsonLd(title: string, description: string, keywords: string[], fallbackName?: string) {
   const scripts = Array.from(document.querySelectorAll<HTMLScriptElement>('script[type="application/ld+json"]'))
@@ -107,10 +120,7 @@ function upsertProfilePageJsonLd(title: string, description: string, keywords: s
   for (const script of scripts) {
     try {
       const parsed = JSON.parse(script.textContent || '') as Record<string, unknown>
-      const type = parsed['@type']
-      const id = typeof parsed['@id'] === 'string' ? parsed['@id'] : ''
-      const isProfilePage = type === 'ProfilePage' || id.endsWith('#page')
-      if (!isProfilePage) continue
+      if (!jsonLdContainsProfilePage(parsed)) continue
 
       script.textContent = serializeJsonLd(
         applySeoFieldsToJsonLd(
@@ -126,25 +136,8 @@ function upsertProfilePageJsonLd(title: string, description: string, keywords: s
     }
   }
 
-  if (updated) return
-
-  // Fallback when SSR did not emit JSON-LD (rare) — still expose page-level SEO for crawlers that run JS.
-  const script = document.createElement('script')
-  script.type = 'application/ld+json'
-  script.dataset.vbizSeo = 'card'
-  script.textContent = serializeJsonLd(
-    applySeoFieldsToJsonLd(
-      {
-        '@context': 'https://schema.org',
-        '@type': 'ProfilePage',
-        name: title,
-        description,
-      },
-      { metaTitle: title, metaDescription: description, metaKeywords: keywords },
-      fallbackName
-    )
-  )
-  document.head.appendChild(script)
+  // Never append a second ProfilePage when SSR already emitted JSON-LD (including @graph).
+  if (updated || scripts.length > 0) return
 }
 
 /** Injects per-card manifest + apple-touch-icon so Chrome / iOS can install this card. */

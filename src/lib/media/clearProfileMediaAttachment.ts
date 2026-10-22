@@ -14,17 +14,21 @@ const ATTACHMENT_TYPE_TO_SETTING_KEY: Record<string, string> = {
 /**
  * Clears a card builder media field: setting URL → '', matching Attachment rows + S3 objects,
  * and Profile.avatar when clearing profile media.
+ * Pass `url` for multi-item types (Service Featured, Blog Featured, …) so only that file is destroyed.
  */
 export async function clearProfileMediaAttachment(options: {
   profileId: string
   attachmentType: string
+  /** When set, only delete the attachment(s) with this URL (safe for shared type names). */
+  url?: string | null
   signal?: AbortSignal
 }): Promise<void> {
-  const { profileId, attachmentType, signal } = options
+  const { profileId, attachmentType, url, signal } = options
   const trimmedType = attachmentType.trim()
   if (!profileId || !trimmedType) return
 
   const token = store.getState().user.token || ''
+  const mediaUrl = typeof url === 'string' ? url.trim() : ''
 
   const res = await fetch(`${baseUrl.replace(/\/$/, '')}/media/clear`, {
     method: 'POST',
@@ -37,6 +41,7 @@ export async function clearProfileMediaAttachment(options: {
       profileId,
       attachmentType: trimmedType,
       settingKey: ATTACHMENT_TYPE_TO_SETTING_KEY[trimmedType] || undefined,
+      ...(mediaUrl && !mediaUrl.startsWith('blob:') ? { url: mediaUrl } : {}),
     }),
     signal,
   })

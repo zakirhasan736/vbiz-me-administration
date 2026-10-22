@@ -1,7 +1,13 @@
 'use client'
 
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
-import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import {
+  displayIconChromeStyle,
+  displaySocialChromeStyle,
+  mergeDisplayFieldConfigs,
+  primaryChromeDefaultsForMode,
+  secondaryChromeDefaultsForMode,
+} from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
@@ -121,7 +127,7 @@ export function ProfileHeaderV2({
   onLanguage,
   embedded,
 }: ProfileHeaderV2Props) {
-  const { personal, social, isVisible, field, socialHref, profileViews, actionButtons, cardOwnerId, cardSlug } =
+  const { personal, social, isVisible, field, socialHref, profileViews, actionButtons, cardOwnerId, cardSlug, design } =
     useProfileDisplay()
   const avatarDisplaySrc = useMemo(
     () => resolveProfileAvatarSrc(avatarVideoUrl, explainerVideoUrl),
@@ -139,14 +145,30 @@ export function ProfileHeaderV2({
   const showViewCounter = isProfileActionButtonEnabled('view_counter', actionButtons, isVisible)
   const showLanguage = isProfileActionButtonEnabled('language', actionButtons, isVisible)
   const viewCounterCount = actionButtons?.view_counter?.count ?? profileViews
-  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), theme)
-  const crmChrome = displayIconChromeStyle(field('CRM'), theme)
-  const languageChrome = displayIconChromeStyle(field('Language'), theme)
-  const websiteChrome = displayIconChromeStyle(field('Website'), theme)
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), theme)
-  const notificationsChrome = displayIconChromeStyle(field('Notifications'), theme)
-  const notepadChrome = displayIconChromeStyle(field('Notepad'), theme)
-  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), theme)
+  const brandTheme = {
+    primaryColor: design?.primaryColor,
+    secondaryColor: design?.secondaryColor,
+    accentColor: design?.accentColor,
+  }
+  const iconDefaults = secondaryChromeDefaultsForMode(brandTheme, theme, design?.profileTemplate)
+  const socialDefaults = primaryChromeDefaultsForMode(brandTheme, theme, design?.profileTemplate)
+  const chromeOpts = {
+    buttonStyle: design?.buttonStyle,
+    outlineCompanion: design?.secondaryColor,
+  }
+  const shareChrome = displayIconChromeStyle(
+    mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
+    theme,
+    iconDefaults,
+    chromeOpts
+  )
+  const crmChrome = displayIconChromeStyle(field('CRM'), theme, iconDefaults, chromeOpts)
+  const languageChrome = displayIconChromeStyle(field('Language'), theme, iconDefaults, chromeOpts)
+  const websiteChrome = displayIconChromeStyle(field('Website'), theme, iconDefaults, chromeOpts)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), theme, iconDefaults, chromeOpts)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), theme, iconDefaults, chromeOpts)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), theme, iconDefaults, chromeOpts)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), theme, iconDefaults, chromeOpts)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')
@@ -171,7 +193,7 @@ export function ProfileHeaderV2({
     return <Icon size={HOME_ICON_SIZE} />
   }
 
-  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), theme)
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), theme, socialDefaults, chromeOpts)
 
   const socialBtnClass =
     'vbiz-social vbiz-social-rail-sm flex h-8 w-8 items-center justify-center rounded-full transition-colors md:h-10 md:w-10'
@@ -196,7 +218,7 @@ export function ProfileHeaderV2({
       className={`relative mb-4 flex w-full flex-col items-center gap-6 px-12 md:flex-row md:items-start md:justify-center md:px-16 lg:gap-10 lg:px-20 ${embedded ? 'mb-8' : 'sm:mb-10'}`}
     >
       {showSocialRail && (
-        <div className="absolute top-0 left-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:hidden dark:border-zinc-700/50 dark:bg-zinc-900/50">
+        <div className="vbiz-home-social-rail absolute top-0 left-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:hidden dark:border-zinc-700/50 dark:bg-zinc-900/50">
           {visibleSocials.map((socialItem) => {
             const href = resolveSocialLinkHref(socialItem.label, socialHref, personal.whatsapp)
             const tip = V2_SOCIAL_TOOLTIP[socialItem.label] ?? socialItem.label
@@ -305,7 +327,7 @@ export function ProfileHeaderV2({
 
       <div
         className={cn(
-          'absolute top-0 right-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:gap-4 md:p-2 dark:border-zinc-700/50 dark:bg-zinc-900/50',
+          'vbiz-home-utility-rail absolute top-0 right-0 z-30 flex flex-col gap-2 rounded-full border border-zinc-200 bg-white/50 p-1.5 shadow-sm backdrop-blur-md md:gap-4 md:p-2 dark:border-zinc-700/50 dark:bg-zinc-900/50',
           embedded ? 'top-4 right-1' : 'top-0 right-0'
         )}
       >

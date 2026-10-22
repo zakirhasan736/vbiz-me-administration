@@ -1243,3 +1243,76 @@ html[data-pwa-standalone] .vbiz-profile-root[data-profile-template='v2']:not([da
 html[data-pwa-standalone] .vbiz-public-announcement-overlay--v2 {
   top: calc(5.75rem + env(safe-area-inset-top, 0px));
 }
+
+/*
+ * Tall Pro / Pro Max–class public home only.
+ * Viewport: 380–440px wide × 720–996px tall (iPhone 16/17/18 Pro & Max family).
+ * Pulls the hero slightly down, collapses the empty middle (CTA mt-auto stretch),
+ * and adds breathing room between rails / mid-actions / video — nowhere else.
+ */
+
+@media (min-width: 380px) and (max-width: 440px) and (min-height: 720px) and (max-height: 996px) {
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-phone-stack {
+    padding-top: 1.75rem !important;
+    padding-bottom: 1.25rem !important;
+  }
+
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-social-rail,
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-utility-rail {
+    gap: 1.3rem !important;
+  }
+
+  /* Nudge side rails down with the hero (top area “comes down”). */
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-social-rail {
+    top: 3.75rem !important;
+  }
+
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-utility-rail {
+    top: 2.35rem !important;
+  }
+
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-avatar {
+    width: 68% !important;
+    max-width: 17.5rem !important;
+    /* Taller frame so image/video fills more of the Pro Max middle. */
+    aspect-ratio: 4 / 5.15 !important;
+    min-height: 17.5rem !important;
+    margin-top: 2rem !important;
+    margin-bottom: 2rem !important;
+  }
+
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-mid-stack {
+    margin-top: 0.85rem !important;
+  }
+
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-mid-actions {
+    gap: 0.8rem !important;
+    margin-bottom: 0.35rem;
+  }
+
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-heading {
+    margin-top: 0.85rem !important;
+  }
+
+  /* Sit CTAs under the name (not pinned to the bottom of a tall flex void). */
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile {
+    margin-top: 6.1rem !important;
+    margin-bottom: 3rem !important;
+    gap: 0.65rem !important;
+  }
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile > div {
+    gap: 1em !important;
+  }
+
+  /* V2 home CTA slot — same tall-phone densify. */
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-v2-cta-slot {
+    min-height: 0 !important;
+    margin-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+}
+@media (min-width: 400px) and (max-width: 440px) and (min-height: 900px) and (max-height: 996px) {
+  .vbiz-profile-root:not([data-embedded]) .vbiz-home-cta-mobile {
+    margin-top: 10rem !important;
+  }
+}

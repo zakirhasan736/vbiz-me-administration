@@ -8,6 +8,7 @@ import {
   displayIconChromeStyle,
   isPagesHeaderVisible,
   resolveFieldModeColors,
+  secondaryChromeDefaultsForMode,
 } from '@/lib/vcardDisplaySettings'
 import { CardColorModeProvider } from '@/profile-app/components/CardThemeStyles'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
@@ -164,7 +165,19 @@ export function VBizProfileApp({
                   onClick={toggleTheme}
                   aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   className="vbiz-icon-btn flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-700/50 bg-zinc-800 p-1.5 text-yellow-400 shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-blur-md transition-colors md:h-10 md:w-10 md:p-2.5 dark:border-zinc-200 dark:bg-white dark:text-zinc-800"
-                  style={displayIconChromeStyle(field('Theme Toggle'), theme === 'dark' ? 'dark' : 'light')}
+                  style={displayIconChromeStyle(
+                    field('Theme Toggle'),
+                    theme === 'dark' ? 'dark' : 'light',
+                    secondaryChromeDefaultsForMode(
+                      {
+                        primaryColor: design?.primaryColor,
+                        secondaryColor: design?.secondaryColor,
+                        accentColor: design?.accentColor,
+                      },
+                      theme === 'dark' ? 'dark' : 'light',
+                      design?.profileTemplate
+                    )
+                  )}
                 >
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.div

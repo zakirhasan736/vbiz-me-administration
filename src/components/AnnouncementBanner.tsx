@@ -1,12 +1,14 @@
 'use client'
 
-import { useAppDispatch } from '@/hooks/redux'
+import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
 import {
   ANNOUNCEMENT_DISMISS_EVENT,
   dismissAnnouncementEverywhere,
   isAnnouncementUserDismissed,
+  roleToAudience,
   seedActiveAnnouncementNotification,
+  type NotificationAudience,
 } from '@/lib/notifications'
 import {
   clearActiveAnnouncementBannerCache,
@@ -84,6 +86,7 @@ function isRenderableBanner(value: Announcement | null | undefined): value is An
 export default function AnnouncementBanner({ enabled = true }: AnnouncementBannerProps) {
   const dispatch = useAppDispatch()
   const { ownerMode } = useOwnerMode()
+  const role = useAppSelector((state) => state.user.user?.role)
   const { data } = useGetActiveAnnouncementQuery(undefined, {
     skip: !enabled,
     pollingInterval: 60_000,
@@ -108,27 +111,48 @@ export default function AnnouncementBanner({ enabled = true }: AnnouncementBanne
 
   useEffect(() => {
     if (!enabled) return
-    const audience = ownerMode === 'corporate' || ownerMode === 'single' ? ownerMode : null
-    if (!audience) return
+    const audiences: NotificationAudience[] = []
+    if (ownerMode === 'corporate' || ownerMode === 'single') audiences.push(ownerMode)
+    const roleAudience = roleToAudience(role, ownerMode)
+    if (roleAudience === 'admin' && !audiences.includes('admin')) audiences.push('admin')
+    if (!audiences.length) return
 
     const seen = new Set<string>()
     const toSeed = [...(data?.inbox ?? []), ...(banner ? [banner] : [])]
     for (const item of toSeed) {
       if (!item?.id || !item.title?.trim() || seen.has(item.id)) continue
       seen.add(item.id)
-      seedActiveAnnouncementNotification({
-        audience,
-        announcementId: item.id,
-        title: item.title,
-        body: item.body,
-        profileId: item.meta?.profileId,
-        href:
-          item.meta?.kind === 'birthday' && item.meta?.profileId
-            ? `/vcards/edit/home/${item.meta.profileId}`
-            : undefined,
-      })
+      // Prefer explicit server topic. 1-on-1 / card schedules may use category `event` with topic `card`.
+      const explicitTopic = item.meta?.topic?.trim().toLowerCase()
+      const topic =
+        explicitTopic === 'crm' || explicitTopic === 'card'
+          ? (explicitTopic as 'crm' | 'card')
+          : item.meta?.category === 'event' ||
+              item.meta?.href === '/crm' ||
+              (item.meta?.category === 'note' && item.meta?.href?.startsWith('/crm'))
+            ? ('crm' as const)
+            : ('card' as const)
+      for (const audience of audiences) {
+        seedActiveAnnouncementNotification({
+          audience,
+          announcementId: item.id,
+          title: item.title,
+          body: item.body,
+          profileId: item.meta?.profileId,
+          userId: item.meta?.userId,
+          topic,
+          category: topic === 'crm' ? (item.meta?.category === 'note' ? 'note' : 'event') : 'system',
+          href:
+            item.meta?.href ||
+            (topic === 'crm'
+              ? '/crm'
+              : item.meta?.kind === 'birthday' && item.meta?.profileId
+                ? `/vcards/edit/home/${item.meta.profileId}`
+                : undefined),
+        })
+      }
     }
-  }, [enabled, data, banner, ownerMode])
+  }, [enabled, data, banner, ownerMode, role])
 
   if (!enabled || !banner || dismissed) {
     return null

@@ -1,7 +1,13 @@
 'use client'
 
-import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
+import {
+  profileMediaCoverLayoutStyle,
+  profileMediaFitStyle,
+  type MediaPixelSize,
+  type ProfileMediaFrame,
+} from '@/lib/media/profileMediaFrame'
 import { isVideoUrl } from '@/lib/mediaUrl'
+import { useEffect, useRef, useState } from 'react'
 
 type PositionedFeatureMediaProps = {
   src: string
@@ -14,10 +20,40 @@ type PositionedFeatureMediaProps = {
 
 /**
  * Shows the original image until a crop is saved. A saved crop uses the same
- * cover position as the card builder drag preview.
+ * cover position / zoom as the card builder drag preview.
  */
 export function PositionedFeatureMedia({ src, alt, frame, className, video = false }: PositionedFeatureMediaProps) {
   const playVideo = video || isVideoUrl(src)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const [mediaSizeState, setMediaSizeState] = useState<{ src: string; size: MediaPixelSize | null }>({
+    src,
+    size: null,
+  })
+  const [boxSize, setBoxSize] = useState<MediaPixelSize | null>(null)
+
+  // Reset measured pixels when the media URL changes (render-time, not an effect).
+  if (mediaSizeState.src !== src) {
+    setMediaSizeState({ src, size: null })
+  }
+  const mediaSize = mediaSizeState.src === src ? mediaSizeState.size : null
+  const setMediaSize = (size: MediaPixelSize) => setMediaSizeState({ src, size })
+
+  useEffect(() => {
+    if (!frame) return
+    const box = boxRef.current
+    if (!box || typeof ResizeObserver === 'undefined') return
+    const sync = () => {
+      const rect = box.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) {
+        setBoxSize({ width: rect.width, height: rect.height })
+      }
+    }
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [frame])
+
   if (!frame) {
     if (playVideo) {
       return <video src={src} className={className} controls playsInline preload="metadata" aria-label={alt} />
@@ -28,23 +64,45 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
     )
   }
 
-  const fit = profileMediaFitStyle(frame)
+  const fit =
+    mediaSize && boxSize
+      ? profileMediaCoverLayoutStyle(frame, mediaSize, boxSize)
+      : { ...profileMediaFitStyle(frame), width: '100%', height: '100%' }
+
   return (
-    <div className="relative aspect-video w-full overflow-hidden bg-black">
+    <div ref={boxRef} className="relative aspect-video w-full overflow-hidden bg-black">
       {playVideo ? (
         <video
           src={src}
-          className="pointer-events-none absolute inset-0 h-full w-full"
+          className="pointer-events-none"
           style={fit}
           muted
           loop
           autoPlay
           playsInline
           aria-label={alt}
+          onLoadedMetadata={(event) => {
+            const videoEl = event.currentTarget
+            if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+              setMediaSize({ width: videoEl.videoWidth, height: videoEl.videoHeight })
+            }
+          }}
         />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={alt} draggable={false} className="absolute inset-0 h-full w-full" style={fit} />
+        <img
+          src={src}
+          alt={alt}
+          draggable={false}
+          className="pointer-events-none"
+          style={fit}
+          onLoad={(event) => {
+            const image = event.currentTarget
+            if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+              setMediaSize({ width: image.naturalWidth, height: image.naturalHeight })
+            }
+          }}
+        />
       )}
     </div>
   )

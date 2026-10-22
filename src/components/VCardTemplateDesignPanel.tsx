@@ -9,8 +9,9 @@ import {
   PRESET_FONT_OPTIONS,
   type PresetFontOption,
 } from '@/lib/fonts'
+import { readableForeground } from '@/lib/theme/resolveCardTheme'
 import { useGetGoogleFontsQuery } from '@/redux/features/fonts/fonts.api'
-import type { ButtonShadowId, VCardAppearance } from '@/types/vcard'
+import type { ButtonShadowId, ButtonTypeId, VCardAppearance } from '@/types/vcard'
 import { cn } from '@/utils/cn'
 import { Loader2, Search, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -21,6 +22,29 @@ const BUTTON_SHADOW_OPTIONS: { id: ButtonShadowId; label: string }[] = [
   { id: 'strong', label: 'Strong' },
   { id: 'hard', label: 'Hard' },
 ]
+
+export type ButtonTypeBrandColors = {
+  primary: string
+  secondary: string
+  accent: string
+}
+
+const FALLBACK_BRAND: ButtonTypeBrandColors = {
+  primary: '#eed677',
+  secondary: '#0f2c4d',
+  accent: '#cca43b',
+}
+
+function buttonTypeHint(id: ButtonTypeId): string {
+  switch (id) {
+    case 'primary':
+      return 'All home action buttons and social icons use Primary fill (text from Secondary).'
+    case 'secondary':
+      return 'All home action buttons and social icons use Secondary fill.'
+    default:
+      return 'Social icons & Primary CTAs use Primary fill; action buttons use Secondary; Accent CTAs keep Accent.'
+  }
+}
 
 const BUTTON_SHADOW_PREVIEW_CLASS: Record<ButtonShadowId, string> = {
   none: 'shadow-none',
@@ -118,11 +142,87 @@ function OptionCard({
   )
 }
 
+/** Live Theme Colors swatch for Button type — matches public card role fills. */
+function ButtonTypePreview({ type, brand }: { type: ButtonTypeId; brand: ButtonTypeBrandColors }) {
+  const { primary, secondary, accent } = brand
+  const secondaryFg = readableForeground(secondary)
+  const primaryFg = secondary
+
+  if (type === 'primary') {
+    return (
+      <div className="flex h-7 w-full items-center justify-center gap-1.5 px-1" title="Primary fill on all">
+        <span
+          className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: primary, color: primaryFg }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+        </span>
+        <span
+          className="flex h-5 flex-1 items-center justify-center rounded-md border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: primary, color: primaryFg }}
+        >
+          <span className="h-1 w-5 rounded-full bg-current opacity-80" />
+        </span>
+      </div>
+    )
+  }
+
+  if (type === 'secondary') {
+    return (
+      <div className="flex h-7 w-full items-center justify-center gap-1.5 px-1" title="Secondary fill on all">
+        <span
+          className="flex h-5 w-5 items-center justify-center rounded-full border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: secondary, color: secondaryFg }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+        </span>
+        <span
+          className="flex h-5 flex-1 items-center justify-center rounded-md border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: secondary, color: secondaryFg }}
+        >
+          <span className="h-1 w-5 rounded-full bg-current opacity-80" />
+        </span>
+      </div>
+    )
+  }
+
+  // Default: social/primary CTA = Primary+Secondary text; action pill = Secondary; accent tip
+  return (
+    <div
+      className="flex h-7 w-full items-center justify-center gap-1 px-0.5"
+      title="Primary social · Secondary actions · Accent CTA"
+    >
+      <span
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-black/10 dark:border-white/15"
+        style={{ backgroundColor: primary, color: primaryFg }}
+        aria-label="Primary"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      </span>
+      <span
+        className="flex h-5 min-w-0 flex-1 items-center justify-center rounded-md border border-black/10 dark:border-white/15"
+        style={{ backgroundColor: secondary, color: secondaryFg }}
+        aria-label="Secondary"
+      >
+        <span className="h-1 w-4 rounded-full bg-current opacity-80" />
+      </span>
+      <span
+        className="h-5 w-2.5 shrink-0 rounded-md border border-black/10 dark:border-white/15"
+        style={{ backgroundColor: accent }}
+        aria-label="Accent"
+        title="Accent"
+      />
+    </div>
+  )
+}
+
 type VCardTemplateDesignPanelProps = {
   appearance: VCardAppearance
   onAppearanceChange: (patch: Partial<VCardAppearance>) => void
   fontFamily: string
   onFontFamilyChange: (fontId: string) => void
+  /** Live Theme Colors for the active/default mode — drives Button type previews. */
+  brandColors?: ButtonTypeBrandColors
 }
 
 export function VCardTemplateDesignPanel({
@@ -130,10 +230,23 @@ export function VCardTemplateDesignPanel({
   onAppearanceChange,
   fontFamily,
   onFontFamilyChange,
+  brandColors,
 }: VCardTemplateDesignPanelProps) {
+  const brand = {
+    primary: brandColors?.primary?.trim() || FALLBACK_BRAND.primary,
+    secondary: brandColors?.secondary?.trim() || FALLBACK_BRAND.secondary,
+    accent: brandColors?.accent?.trim() || FALLBACK_BRAND.accent,
+  }
+  const buttonTypeOptions: { id: ButtonTypeId; label: string }[] = [
+    { id: 'default', label: 'Default' },
+    { id: 'primary', label: 'Primary' },
+    { id: 'secondary', label: 'Secondary' },
+  ]
   const buttonStyle = appearance.buttonStyle || 'solid'
   const cornerStyle = appearance.cornerStyle || 'round'
   const buttonShadow: ButtonShadowId = appearance.buttonShadow ?? 'none'
+  const buttonType: ButtonTypeId =
+    appearance.buttonType === 'primary' || appearance.buttonType === 'secondary' ? appearance.buttonType : 'default'
 
   const [fontQuery, setFontQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -161,18 +274,17 @@ export function VCardTemplateDesignPanel({
 
   const customSelected = !isPresetFontFamily(fontFamily)
 
-  const setBtnStyle = (label: string) => {
-    onAppearanceChange({ buttonStyle: label.toLowerCase() })
-  }
-
-  const setBtnRadius = (label: string) => {
-    const mapped = label === 'Square' ? 'square' : label === 'Rounder' ? 'soft' : label === 'Full' ? 'pill' : 'round'
-    onAppearanceChange({ cornerStyle: mapped })
-  }
-
-  const btnStyleLabel = buttonStyle.charAt(0).toUpperCase() + buttonStyle.slice(1)
-  const btnRadiusLabel =
-    cornerStyle === 'square' ? 'Square' : cornerStyle === 'soft' ? 'Rounder' : cornerStyle === 'pill' ? 'Full' : 'Round'
+  const normalizedButtonStyle = String(buttonStyle).trim().toLowerCase()
+  const activeButtonStyle =
+    normalizedButtonStyle === 'filled'
+      ? 'solid'
+      : normalizedButtonStyle === 'outlined'
+        ? 'outline'
+        : normalizedButtonStyle === 'glass' || normalizedButtonStyle === 'outline' || normalizedButtonStyle === 'soft'
+          ? normalizedButtonStyle
+          : 'solid'
+  const activeCorner =
+    cornerStyle === 'square' || cornerStyle === 'soft' || cornerStyle === 'pill' ? cornerStyle : 'round'
 
   return (
     <div className="mb-8 space-y-8" data-tour-id="tour-card-template-design">
@@ -185,19 +297,77 @@ export function VCardTemplateDesignPanel({
       />
 
       <div className="space-y-6 border-t border-slate-200/60 pt-8 dark:border-white/10">
+        <SettingSection title="Button type">
+          <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            Controls which Global Color fills home social icons and action buttons. Previews use your Theme Colors
+            below. Works with Button style, corner, and shadow.
+          </p>
+          <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px] font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="h-3 w-3 rounded-full border border-black/10 dark:border-white/15"
+                style={{ backgroundColor: brand.primary }}
+              />
+              Primary
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="h-3 w-3 rounded-full border border-black/10 dark:border-white/15"
+                style={{ backgroundColor: brand.secondary }}
+              />
+              Secondary
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="h-3 w-3 rounded-full border border-black/10 dark:border-white/15"
+                style={{ backgroundColor: brand.accent }}
+              />
+              Accent
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {buttonTypeOptions.map((option) => (
+              <OptionCard
+                key={option.id}
+                label={option.label}
+                selected={buttonType === option.id}
+                onClick={() => onAppearanceChange({ buttonType: option.id })}
+              >
+                <ButtonTypePreview type={option.id} brand={brand} />
+              </OptionCard>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] font-medium text-slate-400 dark:text-slate-500">
+            {buttonTypeHint(buttonType)}
+          </p>
+        </SettingSection>
+
         <SettingSection title="Button style">
           <div className="grid grid-cols-3 gap-4">
-            <OptionCard label="Solid" selected={btnStyleLabel === 'Solid'} onClick={() => setBtnStyle('Solid')}>
+            <OptionCard
+              label="Solid"
+              selected={activeButtonStyle === 'solid'}
+              onClick={() => onAppearanceChange({ buttonStyle: 'solid' })}
+            >
               <div className="flex h-7 w-16 items-center justify-center rounded-lg bg-slate-200 dark:bg-[#1e2333]">
                 <div className="h-1.5 w-6 rounded-full bg-slate-400/80" />
               </div>
             </OptionCard>
-            <OptionCard label="Glass" selected={btnStyleLabel === 'Glass'} onClick={() => setBtnStyle('Glass')} isPro>
+            <OptionCard
+              label="Glass"
+              selected={activeButtonStyle === 'glass'}
+              onClick={() => onAppearanceChange({ buttonStyle: 'glass' })}
+              isPro
+            >
               <div className="flex h-7 w-16 items-center justify-center rounded-lg border border-black/20 bg-black/5 shadow-sm backdrop-blur-md dark:border-white/20 dark:bg-white/5">
                 <div className="h-1.5 w-6 rounded-full bg-white/30" />
               </div>
             </OptionCard>
-            <OptionCard label="Outline" selected={btnStyleLabel === 'Outline'} onClick={() => setBtnStyle('Outline')}>
+            <OptionCard
+              label="Outline"
+              selected={activeButtonStyle === 'outline'}
+              onClick={() => onAppearanceChange({ buttonStyle: 'outline' })}
+            >
               <div className="flex h-7 w-16 items-center justify-center rounded-lg border-2 border-slate-600 bg-transparent">
                 <div className="h-1.5 w-6 rounded-full bg-slate-600" />
               </div>
@@ -207,16 +377,32 @@ export function VCardTemplateDesignPanel({
 
         <SettingSection title="Corner roundness">
           <div className="grid grid-cols-4 gap-4">
-            <OptionCard label="Square" selected={btnRadiusLabel === 'Square'} onClick={() => setBtnRadius('Square')}>
+            <OptionCard
+              label="Square"
+              selected={activeCorner === 'square'}
+              onClick={() => onAppearanceChange({ cornerStyle: 'square' })}
+            >
               <div className="h-6 w-6 border-t-[.1875rem] border-l-[.1875rem] border-slate-400" />
             </OptionCard>
-            <OptionCard label="Round" selected={btnRadiusLabel === 'Round'} onClick={() => setBtnRadius('Round')}>
+            <OptionCard
+              label="Round"
+              selected={activeCorner === 'round'}
+              onClick={() => onAppearanceChange({ cornerStyle: 'round' })}
+            >
               <div className="h-6 w-6 rounded-tl-md border-t-[.1875rem] border-l-[.1875rem] border-slate-400" />
             </OptionCard>
-            <OptionCard label="Rounder" selected={btnRadiusLabel === 'Rounder'} onClick={() => setBtnRadius('Rounder')}>
+            <OptionCard
+              label="Rounder"
+              selected={activeCorner === 'soft'}
+              onClick={() => onAppearanceChange({ cornerStyle: 'soft' })}
+            >
               <div className="h-6 w-6 rounded-tl-xl border-t-[.1875rem] border-l-[.1875rem] border-slate-400" />
             </OptionCard>
-            <OptionCard label="Full" selected={btnRadiusLabel === 'Full'} onClick={() => setBtnRadius('Full')}>
+            <OptionCard
+              label="Full"
+              selected={activeCorner === 'pill'}
+              onClick={() => onAppearanceChange({ cornerStyle: 'pill' })}
+            >
               <div className="h-6 w-6 rounded-tl-full border-t-[.1875rem] border-l-[.1875rem] border-slate-400" />
             </OptionCard>
           </div>

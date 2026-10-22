@@ -1,6 +1,29 @@
-import { getHomeMediaUrls, getPageColors, HOME_PAGE_FIELDS, HOME_PAGE_URL_FIELDS } from '@/lib/vcardDisplaySettings'
+import {
+  getHomeMediaUrls,
+  getPageColors,
+  HOME_PAGE_FIELDS,
+  HOME_PAGE_URL_FIELDS,
+  homePageIdentityDefaultsFromThemeConfig,
+} from '@/lib/vcardDisplaySettings'
 import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { describe, expect, it } from 'vitest'
+
+describe('homePageIdentityDefaultsFromThemeConfig', () => {
+  it('mirrors public --vbiz-home-heading / --vbiz-home-description per mode', () => {
+    const defaults = homePageIdentityDefaultsFromThemeConfig({
+      colors: {
+        light: { primary: '#eed677', secondary: '#0f2c4d', accent: '#eed677' },
+        dark: { primary: '#f5e6a3', secondary: '#031327', accent: '#f5e6a3' },
+      },
+    })
+
+    expect(defaults.heading.light.text).toBe('#0f2c4d')
+    expect(defaults.heading.dark.text).toBe('#ffffff')
+    expect(defaults.description.light.text).toBe('#eed677')
+    expect(defaults.description.dark.text).toBe('#f5e6a3')
+    expect(defaults.header).toEqual(defaults.heading)
+  })
+})
 
 describe('HOME_PAGE_FIELDS catalog', () => {
   it('keeps only meaningful home media/music/header controls', () => {

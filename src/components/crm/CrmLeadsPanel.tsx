@@ -108,6 +108,7 @@ function eventRecipientFromLead(lead: CrmLeadRow): ProfileOwnerSelection {
     hostName: lead.fullName?.trim() || lead.vCardName || lead.ownerName || 'Guest',
     ownerEmails: guestEmail ? [guestEmail] : [],
     identity: [lead.vCardName || lead.vCardSlug, guestEmail || lead.phoneNumber].filter(Boolean).join(' · '),
+    guestUserDataId: lead.id,
   }
 }
 
@@ -234,15 +235,17 @@ export function CrmLeadsPanel({
         guestUserDataId: eventLead?.id ?? payload.guestUserDataId ?? null,
       })
       const created = await createCrmEvent(body).unwrap()
-      notify.info('Event created. It will show on Schedules and Wish & Outreach.')
-      setEventLead(null)
+      notify.success(
+        'Wish & outreach scheduled. Email sends at the date/time you set; you get a CRM confirmation then.'
+      )
+      // Modal closes itself after success; clear lead context when it closes via onClose.
       return created
     } catch (error) {
       const message =
         error && typeof error === 'object' && 'data' in error
           ? String((error as { data?: { message?: string } }).data?.message || '')
           : ''
-      notify.error(message || 'Couldn’t create this event.')
+      notify.error(message || 'Couldn’t create this wish.')
       throw error
     }
   }
@@ -686,15 +689,9 @@ export function CrmLeadsPanel({
         allowedScopes={['one_to_one']}
         defaultScope="one_to_one"
         initialType="Follow-up Message"
-        title="Create event"
-        subtitle="Wish or outreach for this lead — attachments optional."
-        onSubmit={async (payload) => {
-          try {
-            return await handleCreateEvent(payload)
-          } catch {
-            return undefined
-          }
-        }}
+        title="Create Wish & outreach"
+        subtitle="Single wish for this lead — set USA date/time; auto-sends then with email + push."
+        onSubmit={handleCreateEvent}
       />
 
       <ConfirmModal

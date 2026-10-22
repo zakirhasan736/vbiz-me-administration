@@ -36,14 +36,17 @@ export function Tab1MediaProfile() {
   )
 
   const setBackgroundMedia = useCallback(
-    (url: string) => {
-      setCustomValue(FIELD_BG, url || '')
+    (url: string, options?: { clearFrame?: boolean }) => {
+      patchField(FIELD_BG, {
+        customValue: url || '',
+        ...(options?.clearFrame || !url ? { mediaFrame: undefined } : {}),
+      })
       const trimmed = url.trim()
       if (!trimmed) return
       const next = inferMediaWallpaperStyle(trimmed)
       updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
     },
-    [setCustomValue, templateId, updateData, vCardData.themeConfig]
+    [patchField, templateId, updateData, vCardData.themeConfig]
   )
 
   return (
@@ -59,16 +62,19 @@ export function Tab1MediaProfile() {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
         <VCardMediaField
           value={profileMediaUrl}
-          onChange={(url) => setBackgroundMedia(url || '')}
+          onChange={(url) => setBackgroundMedia(url || '', { clearFrame: !url })}
           profileId={profileId}
           attachmentType={FIELD_BG}
           accept="image/*,video/*"
           allowVideo
           title="Profile Background"
-          subtitle="Video or image • no size limit"
+          subtitle="Image or video • drag, zoom, and position"
           icon={<ImageIcon className="text-primary-600 dark:text-primary-400 h-5 w-5" />}
           selectPlaceholder="Select file"
           previewKind="auto"
+          frameLayout="feature"
+          mediaFrame={display.fields[FIELD_BG]?.mediaFrame}
+          onMediaFrameChange={(mediaFrame) => patchField(FIELD_BG, { mediaFrame })}
         >
           <MediaSourceActions
             mode="both"

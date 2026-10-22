@@ -52,10 +52,11 @@ function resolveComponentColors(
     foreground = '#ffffff'
   } else if (style === 'outlined') {
     // Transparent / light tint surface — always white label/icon (Template Settings).
+    // Use the role fill (primary/secondary/accent) so Button type Primary/Secondary wins.
     if (mode === 'light') {
       fill = `color-mix(in srgb, ${roleFill} 10%, transparent)`
     } else {
-      fill = `color-mix(in srgb, ${set.secondary} 55%, transparent)`
+      fill = `color-mix(in srgb, ${roleFill} 55%, transparent)`
     }
     foreground = '#ffffff'
   } else if (style === 'ghost') {
@@ -184,11 +185,16 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
   const faq = resolveFaqItemStyle(set, mode, config.components.faqItem)
   const topNav = resolveTopNavBarStyle(set, mode, config.components.topNavBar)
 
-  vars['--vbiz-banner-variant'] = banner.variant || 'solid'
+  const bannerVariant = banner.variant || 'solid'
+  const bannerTitleStyle = banner.titleStyle || 'smart'
+  vars['--vbiz-banner-variant'] = bannerVariant
   vars['--vbiz-banner-bg'] = banner.bg || set.secondary
-  vars['--vbiz-banner-gradient-from'] = banner.gradientFrom || set.accent
-  vars['--vbiz-banner-gradient-to'] = banner.gradientTo || '#020617'
+  vars['--vbiz-banner-gradient-from'] = banner.gradientFrom || set.primary
+  vars['--vbiz-banner-gradient-to'] = banner.gradientTo || set.secondary
   vars['--vbiz-banner-title'] = banner.title || '#ffffff'
+  vars['--vbiz-banner-title-style'] = bannerTitleStyle
+  vars['--vbiz-banner-title-gradient-from'] = banner.titleGradientFrom || set.primary
+  vars['--vbiz-banner-title-gradient-to'] = banner.titleGradientTo || set.accent || set.primary
   vars['--vbiz-banner-description'] = banner.description || 'rgba(255,255,255,0.78)'
   vars['--vbiz-banner-note'] = banner.note || vars['--vbiz-banner-description']
   vars['--vbiz-banner-label'] = banner.label || set.accent
@@ -225,7 +231,7 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
 
   const navVariant = topNav.variant || 'solid'
   vars['--vbiz-nav-variant'] = navVariant
-  vars['--vbiz-nav-bg'] = topNav.bg || (mode === 'light' ? '#ffffff' : set.surface)
+  vars['--vbiz-nav-bg'] = topNav.bg || (mode === 'light' ? set.background || '#ffffff' : set.secondary)
   vars['--vbiz-nav-gradient-from'] = topNav.gradientFrom || set.primary
   vars['--vbiz-nav-gradient-to'] = topNav.gradientTo || set.secondary
   // Default icons = brand primary (#eed677 on v3), not secondary navy.
@@ -238,26 +244,13 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
       ? 'none'
       : `linear-gradient(135deg, ${vars['--vbiz-nav-gradient-from']} 0%, ${vars['--vbiz-nav-gradient-to']} 100%)`
 
-  const bannerOverride = config.components.sectionBanner?.[mode]
-  const bannerPaintCustom = Boolean(
-    bannerOverride &&
-    (bannerOverride.variant ||
-      bannerOverride.bg ||
-      bannerOverride.gradientFrom ||
-      bannerOverride.gradientTo ||
-      bannerOverride.imageUrl)
-  )
-  if (bannerOverride?.title) vars['--vbiz-banner-title-override'] = banner.title || '#ffffff'
-  if (bannerOverride?.description) {
-    vars['--vbiz-banner-description-override'] = banner.description || 'rgba(255,255,255,0.78)'
-  }
+  // Always honor resolved (derived + override) title/description — not only when a snapshot exists.
+  if (banner.title) vars['--vbiz-banner-title-override'] = banner.title
+  if (banner.description) vars['--vbiz-banner-description-override'] = banner.description
 
-  const bannerVariant = bannerOverride?.variant || banner.variant || 'solid'
   const bannerFrom = banner.gradientFrom || set.primary
   const bannerTo = banner.gradientTo || set.secondary
-  if (bannerPaintCustom && bannerVariant === 'solid' && bannerOverride?.bg) {
-    vars['--vbiz-banner-bg'] = bannerOverride.bg
-  }
+  // Solid / gradient / image always follow the resolved Tab banner styles (Theme Colors + overrides).
   vars['--vbiz-banner-bg-image'] =
     bannerVariant === 'solid'
       ? 'none'
@@ -363,11 +356,13 @@ export const CARD_THEME_UTILITY_CSS = `
 }
 
 /* ---------- Buttons: primary | secondary | accent (all screens + preloaders) ---------- */
+/* Prefer style-resolved --vbiz-btn-*-fill (Solid/Glass/Outline) over --vbiz-control-fill
+   so Template Settings button style is not flattened to a solid paint. */
 ${themeUi('.vbiz-btn')},
 ${themeUi(".vbiz-btn[data-role='accent']")} {
   border-radius: var(--vbiz-btn-radius, 16px) !important;
-  background: var(--vbiz-control-fill, var(--vbiz-btn-accent-fill, var(--vbiz-btn-fill))) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-btn-accent-fg, var(--vbiz-btn-fg))) !important;
+  background: var(--vbiz-btn-accent-fill, var(--vbiz-btn-fill)) !important;
+  color: var(--vbiz-btn-accent-fg, var(--vbiz-btn-fg)) !important;
   border: var(--vbiz-btn-accent-border-width, var(--vbiz-btn-border-width, 0px)) solid var(--vbiz-btn-accent-border-color, var(--vbiz-btn-border-color, transparent)) !important;
   backdrop-filter: blur(var(--vbiz-btn-accent-blur, var(--vbiz-btn-blur, 0px)));
   box-shadow: var(--vbiz-btn-shadow, none) !important;
@@ -378,14 +373,14 @@ ${themeUi('.vbiz-btn svg')} {
   stroke: currentColor;
 }
 ${themeUi(".vbiz-btn[data-role='primary']")} {
-  background: var(--vbiz-control-fill, var(--vbiz-btn-primary-fill)) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-btn-primary-fg)) !important;
+  background: var(--vbiz-btn-primary-fill) !important;
+  color: var(--vbiz-btn-primary-fg) !important;
   border: var(--vbiz-btn-primary-border-width, 0px) solid var(--vbiz-btn-primary-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-btn-primary-blur, 0px));
 }
 ${themeUi(".vbiz-btn[data-role='secondary']")} {
-  background: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill)) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg)) !important;
+  background: var(--vbiz-btn-secondary-fill) !important;
+  color: var(--vbiz-btn-secondary-fg) !important;
   border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 0px));
 }
@@ -412,10 +407,11 @@ ${themeUi('.vbiz-social')} {
   min-width: var(--vbiz-social-size, 40px) !important;
   min-height: var(--vbiz-social-size, 40px) !important;
   border-radius: var(--vbiz-social-radius, 9999px) !important;
-  background-color: var(--vbiz-control-fill, var(--vbiz-social-fill)) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-social-fg)) !important;
-  border: var(--vbiz-social-border-width, 1px) solid var(--vbiz-control-border, var(--vbiz-social-border-color, transparent)) !important;
+  background-color: var(--vbiz-social-fill) !important;
+  color: var(--vbiz-social-fg) !important;
+  border: var(--vbiz-social-border-width, 1px) solid var(--vbiz-social-border-color, transparent) !important;
   backdrop-filter: blur(var(--vbiz-social-blur, 0px));
+  box-shadow: var(--vbiz-btn-shadow, none) !important;
   font-family: var(--vbiz-font, inherit);
 }
 /* Side rails next to Views/Website/CRM — match .vbiz-icon-btn diameter (ignore theme social size). */
@@ -448,12 +444,14 @@ ${themeUi('.vbiz-social:hover')} {
 }
 }
 
-/* ---------- Toolbar / icon buttons — theme colors + button style, default corners from markup ---------- */
+/* ---------- Toolbar / icon buttons — Template Settings style + corner + shadow ---------- */
 ${themeUi('.vbiz-icon-btn')} {
-  border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-control-border, var(--vbiz-btn-secondary-border-color, var(--vbiz-accent-border))) !important;
-  background-color: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle))) !important;
-  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg, var(--vbiz-accent))) !important;
+  border-radius: var(--vbiz-btn-radius, 9999px) !important;
+  border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, var(--vbiz-accent-border)) !important;
+  background-color: var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle)) !important;
+  color: var(--vbiz-btn-secondary-fg, var(--vbiz-accent)) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 8px));
+  box-shadow: var(--vbiz-btn-shadow, none) !important;
   font-family: var(--vbiz-font, inherit);
 }
 ${themeUi('.vbiz-icon-btn svg')},
@@ -685,11 +683,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-home-description, var(--vbiz-primary)) !important;
 }
 
-/* Dark hero banners (About, etc.) — white titles in light + dark theme */
+/* Hero banners follow Tab banner title tokens (not a hardcoded white). */
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-title,
 .vbiz-profile-root .vbiz-hero-banner h2.vbiz-hero-title,
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-heading {
-  color: #ffffff !important;
+  color: var(--vbiz-banner-title-override, var(--vbiz-banner-title, #ffffff)) !important;
 }
 .vbiz-profile-root .vbiz-hero-banner .vbiz-hero-eyebrow {
   color: #ffffff !important;
@@ -825,7 +823,7 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 
 /* Body titles only — skip light-surface chips/pills (filters, card labels).
    Content / review / FAQ cards keep their own tokens (Card Settings panels). */
-.vbiz-profile-root .text-zinc-900:not(.vbiz-btn):not(.vbiz-live-agent-fab):not(.vbiz-social):not(.vbiz-filter-chip-active):not(.vbiz-card-pill):not(.vbiz-on-light-surface),
+.vbiz-profile-root .text-zinc-900:not(.vbiz-btn):not(.vbiz-live-agent-fab):not(.vbiz-social):not(.vbiz-filter-chip-active):not(.vbiz-card-pill):not(.vbiz-section-pill):not(.vbiz-on-light-surface),
 .vbiz-profile-root .dark\\:text-zinc-100 {
   color: var(--vbiz-text) !important;
 }
@@ -975,15 +973,47 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 }
 .vbiz-profile-root .from-gold,
 .vbiz-profile-root .from-yellow-primary,
-.vbiz-profile-root .from-\\[\\#eab308\\] {
-  --tw-gradient-from: var(--vbiz-accent) !important;
-  --tw-gradient-to: var(--vbiz-accent-dark) !important;
+.vbiz-profile-root .from-\\[\\#eab308\\],
+.vbiz-profile-root .vbiz-banner-title-accent {
+  --tw-gradient-from: var(--vbiz-banner-title-gradient-from, var(--vbiz-accent)) !important;
+  --tw-gradient-to: var(--vbiz-banner-title-gradient-to, var(--vbiz-accent-dark)) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 .vbiz-profile-root .to-gold,
 .vbiz-profile-root .to-yellow-400,
+.vbiz-profile-root .to-yellow-500,
 .vbiz-profile-root .to-\\[\\#ca8a04\\] {
-  --tw-gradient-to: var(--vbiz-accent-dark) !important;
+  --tw-gradient-to: var(--vbiz-banner-title-gradient-to, var(--vbiz-accent-dark)) !important;
+}
+
+/* Full-title gradient when Tab banner → Title style = Gradient */
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-section-banner .vbiz-title,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-section-banner h2,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-hero-banner .vbiz-hero-title,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-hero-banner h2,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-page-header-surface .vbiz-title,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-page-header-surface h2,
+.vbiz-profile-root[data-banner-title-style='gradient'] .vbiz-banner-title-accent {
+  background-image: linear-gradient(
+    90deg,
+    var(--vbiz-banner-title-gradient-from, var(--vbiz-primary)),
+    var(--vbiz-banner-title-gradient-to, var(--vbiz-accent))
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Solid title — no accent gradient clip */
+.vbiz-profile-root[data-banner-title-style='solid'] .vbiz-banner-title-accent,
+.vbiz-profile-root[data-banner-title-style='solid'] .vbiz-section-banner .from-gold,
+.vbiz-profile-root[data-banner-title-style='solid'] .vbiz-hero-banner .from-gold {
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  color: var(--vbiz-banner-title-override, var(--vbiz-banner-title, #ffffff)) !important;
+  -webkit-text-fill-color: var(--vbiz-banner-title-override, var(--vbiz-banner-title, #ffffff)) !important;
 }
 
 /* Secondary / ocean surfaces */
@@ -1046,33 +1076,6 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vcard-rich-html.vbiz-description :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
-.vbiz-profile-root [data-section-id='mission'] .vcard-mission-card {
-  background-image: none !important;
-}
-.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card,
-html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card {
-  background-color: #ffffff !important;
-}
-.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-title,
-html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
-  color: #18181b !important;
-}
-.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card .vbiz-description,
-.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card p,
-html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card .vbiz-description,
-html:not(.dark) .vbiz-profile-root [data-section-id='mission'] .vcard-mission-card p {
-  color: #3f3f46 !important;
-}
-.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-title,
-html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
-  color: #f4f4f5 !important;
-}
-.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html {
-  color: inherit !important;
-}
-.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
-  color: inherit !important;
-}
 /* Extra <span style="color: …"> under p/headings must not lock light/dark text */
 .vbiz-profile-root .vcard-rich-html [style*='color: rgb(0, 0, 0)'],
 .vbiz-profile-root .vcard-rich-html [style*='color:rgb(0, 0, 0)'],
@@ -1123,12 +1126,16 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 .vbiz-profile-root [data-section-id='mission'] .vcard-rich-html a {
   color: var(--vbiz-accent) !important;
 }
-/* Reviews body: theme text (white in dark, dark in light) — override TipTap black */
+/* Reviews body fallback (mode-specific rules above win for light/dark card) */
 .vbiz-profile-root .vbiz-review-body,
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html {
   color: var(--vbiz-review-text, var(--vbiz-text)) !important;
 }
 .vbiz-profile-root .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
+  color: inherit !important;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
 }
 .vbiz-profile-root .vcard-rich-html h1,
@@ -1569,6 +1576,25 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
   background-color: color-mix(in srgb, var(--vbiz-accent) 78%, transparent) !important;
 }
 
+/* ---------- Content-tab pills / labels (Inventory, Menu, SalesPerson, etc.) ---------- */
+/* Accent is the text/highlight only — fill uses secondary (fallback primary) for contrast. */
+.vbiz-profile-root .vbiz-section-pill {
+  background-color: var(--vbiz-secondary, var(--vbiz-primary)) !important;
+  color: var(--vbiz-accent) !important;
+  border: 1px solid color-mix(in srgb, var(--vbiz-accent) 40%, transparent) !important;
+  border-radius: var(--vbiz-btn-radius, 9999px) !important;
+  box-shadow: var(--vbiz-btn-shadow, none);
+  font-family: var(--vbiz-font, inherit) !important;
+}
+.vbiz-profile-root .vbiz-section-pill,
+.vbiz-profile-root .vbiz-section-pill * {
+  color: var(--vbiz-accent) !important;
+}
+.vbiz-profile-root .vbiz-section-pill svg {
+  color: inherit !important;
+  stroke: currentColor;
+}
+
 /* ---------- Links (accent, readable on any bg) ---------- */
 .vbiz-link {
   color: var(--vbiz-accent) !important;
@@ -1864,8 +1890,9 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
   color: var(--vbiz-faq-icon, var(--vbiz-accent)) !important;
 }
 .vbiz-profile-root .vbiz-my-info-action {
-  background-color: var(--vbiz-my-info-fill, var(--vbiz-control-fill, var(--vbiz-primary))) !important;
-  color: var(--vbiz-my-info-fg, var(--vbiz-control-fg, #ffffff)) !important;
+  /* Theme secondary / Button type — same tokens as Share, Save Contact, rails. */
+  background-color: var(--vbiz-my-info-fill, var(--vbiz-btn-secondary-fill, var(--vbiz-secondary))) !important;
+  color: var(--vbiz-my-info-fg, var(--vbiz-btn-secondary-fg, var(--vbiz-primary))) !important;
   background-image: none !important;
 }
 .vbiz-profile-root .vbiz-review-slider-fill {
@@ -1873,5 +1900,109 @@ html.dark .vbiz-profile-root [data-section-id='mission'] .vcard-mission-title {
 }
 .vbiz-profile-root .vbiz-review-slider-track {
   background-color: var(--vbiz-review-slider-track, var(--vbiz-border)) !important;
+}
+
+/* Mission + Reviews — LAST so eye preview matches public.
+   Scope ONLY to card data-theme / vbiz-theme-* (never html.dark). */
+.vbiz-profile-root [data-section-id='mission'] .vcard-mission-card,
+.vbiz-profile-root .vbiz-card.vcard-mission-card {
+  background-image: none !important;
+  background-color: var(--vbiz-content-card-bg, var(--vbiz-surface)) !important;
+  border-color: var(--vbiz-content-card-border, var(--vbiz-border)) !important;
+  color: var(--vbiz-content-card-text, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card .vbiz-title,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card .vbiz-title {
+  color: var(--vbiz-content-card-title, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root[data-theme='light'] [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root[data-theme='light'] .vbiz-card.vcard-mission-card p,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-light .vbiz-card.vcard-mission-card p {
+  color: var(--vbiz-content-card-desc, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root.dark [data-section-id='mission'] .vcard-mission-title,
+.vbiz-profile-root.dark [data-section-id='mission'] .vbiz-title,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card .vbiz-title,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card .vbiz-title,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card .vcard-mission-title,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card .vbiz-title {
+  color: var(--vbiz-content-card-title, #ffffff) !important;
+}
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root[data-theme='dark'] [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root.dark [data-section-id='mission'] .vcard-mission-card .vbiz-description,
+.vbiz-profile-root.dark [data-section-id='mission'] .vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.dark [data-section-id='mission'] .vcard-mission-card p,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root[data-theme='dark'] .vbiz-card.vcard-mission-card p,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-card.vcard-mission-card p,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card .vbiz-description,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card .vbiz-description.vcard-rich-html,
+.vbiz-profile-root.dark .vbiz-card.vcard-mission-card p {
+  color: #ffffff !important;
+}
+.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html,
+.vbiz-profile-root .vbiz-card.vcard-mission-card .vcard-rich-html {
+  color: inherit !important;
+}
+.vbiz-profile-root [data-section-id='mission'] .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root .vbiz-card.vcard-mission-card .vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
+  color: inherit !important;
+}
+.vbiz-profile-root[data-theme='light'] .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root.vbiz-theme-light .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root[data-theme='light'] .vbiz-review-card .vbiz-review-body.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-light .vbiz-review-card .vbiz-review-body.vcard-rich-html {
+  color: var(--vbiz-review-text, var(--vbiz-content-card-desc, var(--vbiz-text))) !important;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root.dark .vbiz-review-card .vbiz-review-body,
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-body.vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body.vcard-rich-html,
+.vbiz-profile-root.dark .vbiz-review-card .vbiz-review-body.vcard-rich-html {
+  color: #ffffff !important;
+}
+.vbiz-profile-root[data-theme='light'] .vbiz-review-card .vbiz-review-user-name,
+.vbiz-profile-root.vbiz-theme-light .vbiz-review-card .vbiz-review-user-name {
+  color: var(--vbiz-review-user-name, var(--vbiz-content-card-title, var(--vbiz-text))) !important;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-user-name,
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-user-name,
+.vbiz-profile-root.dark .vbiz-review-card .vbiz-review-user-name {
+  color: var(--vbiz-review-user-name, #ffffff) !important;
+}
+.vbiz-profile-root[data-theme='dark'] .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
+.vbiz-profile-root.dark .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
+  color: inherit !important;
 }
 `.trim()

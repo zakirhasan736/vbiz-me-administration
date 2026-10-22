@@ -18,7 +18,7 @@ describe('push display across devices', () => {
     }
   })
 
-  it('collapses ordinary card updates onto the card tag and stays quiet while the site is focused', () => {
+  it('shows ordinary card updates even when a same-origin tab (backoffice/card) is focused', () => {
     const focused = planPushDisplay({
       type: 'contact_updates',
       slug: 'acme',
@@ -26,7 +26,7 @@ describe('push display across devices', () => {
       now: 1000,
     })
     expect(focused.tag).toBe('vbiz-card-acme')
-    expect(focused.silent).toBe(true)
+    expect(focused.silent).toBe(false)
     expect(focused.requireInteraction).toBe(false)
 
     const background = planPushDisplay({

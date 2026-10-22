@@ -81,6 +81,64 @@ describe('applyEditorSettingsToThemeConfig', () => {
     expect(next.components.socialIcon.style).toBe('outlined')
   })
 
+  it('overwrites default solid component styles when Template Settings choose glass', () => {
+    const stock = getDefaultThemeConfig('v3')
+    expect(stock.components.button.primary.style).toBe('filled')
+    const next = applyEditorSettingsToThemeConfig(stock, null, {
+      buttonStyle: 'glass',
+      cornerStyle: 'soft',
+      buttonShadow: 'strong',
+    })
+    expect(next.appearance.buttonStyle).toBe('glass')
+    expect(next.appearance.cornerStyle).toBe('soft')
+    expect(next.appearance.buttonShadow).toBe('strong')
+    expect(next.components.button.primary.style).toBe('glass')
+    expect(next.components.button.secondary.style).toBe('glass')
+    expect(next.components.button.accent.style).toBe('glass')
+    expect(next.components.socialIcon.style).toBe('glass')
+    expect(next.components.socialIcon.cornerRadius).toBe(8)
+  })
+
+  it('can toggle button style / corner / shadow back to a previous option', () => {
+    const stock = getDefaultThemeConfig('v3')
+    const glass = applyEditorSettingsToThemeConfig(stock, null, {
+      buttonStyle: 'glass',
+      cornerStyle: 'pill',
+      buttonShadow: 'hard',
+    })
+    const back = applyEditorSettingsToThemeConfig(glass, null, {
+      buttonStyle: 'solid',
+      cornerStyle: 'square',
+      buttonShadow: 'none',
+    })
+    expect(back.appearance.buttonStyle).toBe('solid')
+    expect(back.appearance.cornerStyle).toBe('square')
+    expect(back.appearance.buttonShadow).toBe('none')
+    expect(back.components.button.primary.style).toBe('filled')
+    expect(back.components.socialIcon.style).toBe('filled')
+    expect(back.components.socialIcon.cornerRadius).toBe(0)
+  })
+
+  it('forces all home button fills when Button type is primary or secondary', () => {
+    const stock = getDefaultThemeConfig('v3')
+    expect(stock.components.button.secondary.colors.light.fill).toBe('secondary')
+    const primary = applyEditorSettingsToThemeConfig(stock, null, { buttonType: 'primary' })
+    expect(primary.appearance.buttonType).toBe('primary')
+    expect(primary.components.button.primary.colors.light.fill).toBe('primary')
+    expect(primary.components.button.secondary.colors.light.fill).toBe('primary')
+    expect(primary.components.button.accent.colors.light.fill).toBe('primary')
+    expect(primary.components.socialIcon.colors.light.fill).toBe('primary')
+
+    const secondary = applyEditorSettingsToThemeConfig(primary, null, { buttonType: 'secondary' })
+    expect(secondary.components.button.primary.colors.light.fill).toBe('secondary')
+    expect(secondary.components.socialIcon.colors.light.fill).toBe('secondary')
+
+    const reset = applyEditorSettingsToThemeConfig(secondary, null, { buttonType: 'default' })
+    expect(reset.components.button.secondary.colors.light.fill).toBe('secondary')
+    expect(reset.components.button.primary.colors.light.fill).toBe('primary')
+    expect(reset.components.socialIcon.colors.light.fill).toBe('primary')
+  })
+
   it('stores the selected font on theme_config so public cards can load it', () => {
     const next = applyEditorSettingsToThemeConfig(
       getDefaultThemeConfig('v3'),

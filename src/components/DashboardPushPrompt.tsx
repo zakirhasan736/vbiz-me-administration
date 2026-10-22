@@ -9,22 +9,33 @@ import {
   NOTIFICATIONS_EVENT,
 } from '@/lib/notifications'
 import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
+import { isOwnerPushPending, markOwnerPushPending, registerOwnerPushForCurrentUser } from '@/lib/push/registerOwnerPush'
 import { Bell, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
  * After login, ask admin / corporate / single-card owners to allow browser
- * notifications until they grant them. Denied sites cannot re-open the native
- * prompt; we still show this panel every login so they can try again.
+ * notifications, then register this device as an **owner** Web Push target
+ * for their cards (separate from public-card saver/follower push).
+ *
+ * Once Allow succeeds, the subscription is stored server-side and the service
+ * worker delivers OS push even when this tab / browser window is closed.
  */
 export function DashboardPushPrompt() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hint, setHint] = useState<string | null>(null)
+  const syncAttempts = useRef(0)
 
   const closeForSession = useCallback(() => {
     markDashboardPushPromptSeenThisSession()
     setOpen(false)
+  }, [])
+
+  const syncOwnerPush = useCallback(async () => {
+    if (!getNotificationPrefs().browserPush) return { registered: 0 }
+    if (readNotificationPermission() !== 'granted') return { registered: 0 }
+    return registerOwnerPushForCurrentUser()
   }, [])
 
   const maybeOpen = useCallback(() => {
@@ -39,33 +50,119 @@ export function DashboardPushPrompt() {
     setOpen(true)
   }, [])
 
+  // Keep owner Web Push registered after first Allow (retry until server has the endpoint).
   useEffect(() => {
-    const permission = readNotificationPermission()
-    if (permission === 'unsupported' || permission === 'granted') return
-    if (!getNotificationPrefs().browserPush) return
-    if (dashboardPushPromptSeenThisSession()) return
+    let cancelled = false
+    let retryTimer: number | undefined
 
-    const timer = window.setTimeout(() => {
+    const scheduleRetry = (delayMs: number) => {
+      if (retryTimer) window.clearTimeout(retryTimer)
+      retryTimer = window.setTimeout(() => void run(), delayMs)
+    }
+
+    const run = async () => {
+      if (cancelled) return
+      if (!getNotificationPrefs().browserPush) return
+      const permission = readNotificationPermission()
+      if (permission === 'unsupported') return
+
+      if (permission === 'granted') {
+        const result = await syncOwnerPush()
+        if (cancelled) return
+        if (result.registered > 0) {
+          syncAttempts.current = 0
+          return
+        }
+        // Never give up while this session is open — closed-browser push depends on it.
+        syncAttempts.current += 1
+        const delay = Math.min(30000, 1000 * Math.min(syncAttempts.current, 12))
+        scheduleRetry(delay)
+        return
+      }
+
+      if (dashboardPushPromptSeenThisSession()) return
       maybeOpen()
       if (readNotificationPermission() === 'default') {
-        void ensureNotificationPermission().then((permission) => {
-          window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
-          if (permission === 'granted') {
-            markDashboardPushPromptSeenThisSession()
-            setOpen(false)
-          }
-        })
+        const next = await ensureNotificationPermission()
+        if (cancelled) return
+        window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
+        if (next === 'granted') {
+          markOwnerPushPending()
+          await syncOwnerPush()
+          markDashboardPushPromptSeenThisSession()
+          setOpen(false)
+          if (isOwnerPushPending()) scheduleRetry(1500)
+        }
       }
-    }, 700)
+    }
 
-    return () => window.clearTimeout(timer)
-  }, [maybeOpen])
+    const bootTimer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const cache = await caches.open('vbiz-owner-push-meta')
+          const flag = await cache.match('/__vbiz_owner_reregister')
+          if (flag) {
+            markOwnerPushPending()
+            await cache.delete('/__vbiz_owner_reregister')
+          }
+        } catch {
+          /* ignore */
+        }
+        void run()
+      })()
+    }, 400)
 
-  useEffect(() => {
-    const onForce = () => maybeOpen()
-    window.addEventListener(DASHBOARD_PUSH_PROMPT_EVENT, onForce)
-    return () => window.removeEventListener(DASHBOARD_PUSH_PROMPT_EVENT, onForce)
-  }, [maybeOpen])
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return
+      if (readNotificationPermission() !== 'granted') return
+      syncAttempts.current = 0
+      void run()
+    }
+    const onOnline = () => {
+      if (readNotificationPermission() !== 'granted') return
+      syncAttempts.current = 0
+      void run()
+    }
+    const onSwMessage = (event: MessageEvent) => {
+      const type = (event.data as { type?: string } | null)?.type
+      if (type !== 'vbiz_push_subscription_changed' && type !== 'vbiz_owner_push_reregister') return
+      markOwnerPushPending()
+      syncAttempts.current = 0
+      void run()
+    }
+
+    // Periodic keep-alive: re-save owner endpoint while backoffice is open.
+    const keepAliveTimer = window.setInterval(() => {
+      if (readNotificationPermission() !== 'granted') return
+      if (!getNotificationPrefs().browserPush) return
+      if (!isOwnerPushPending() && syncAttempts.current === 0) {
+        // Quiet refresh every few minutes so rotated endpoints stay on the server.
+        void syncOwnerPush()
+        return
+      }
+      void run()
+    }, 45000)
+
+    window.addEventListener('visibilitychange', onVis)
+    window.addEventListener('online', onOnline)
+    window.addEventListener(DASHBOARD_PUSH_PROMPT_EVENT, maybeOpen)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', onSwMessage)
+    }
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(bootTimer)
+      if (retryTimer) window.clearTimeout(retryTimer)
+      if (keepAliveTimer) window.clearInterval(keepAliveTimer)
+      window.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener(DASHBOARD_PUSH_PROMPT_EVENT, maybeOpen)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', onSwMessage)
+      }
+    }
+  }, [maybeOpen, syncOwnerPush])
 
   const handleAllow = async () => {
     setBusy(true)
@@ -74,6 +171,15 @@ export function DashboardPushPrompt() {
       const permission = await ensureNotificationPermission()
       window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
       if (permission === 'granted') {
+        markOwnerPushPending()
+        syncAttempts.current = 0
+        const result = await syncOwnerPush()
+        if (result.registered === 0) {
+          // Token/SW race — keep retrying; do not require another backoffice visit later.
+          window.setTimeout(() => void syncOwnerPush(), 1500)
+          window.setTimeout(() => void syncOwnerPush(), 4000)
+          window.setTimeout(() => void syncOwnerPush(), 10000)
+        }
         markDashboardPushPromptSeenThisSession()
         setOpen(false)
         return
@@ -116,8 +222,8 @@ export function DashboardPushPrompt() {
           Allow notifications
         </h2>
         <p className="mt-2 text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Stay updated on card saves, replies, and admin alerts. Choose Allow in the browser prompt so we can reach you
-          after you leave this tab.
+          After you choose Allow once, you get alerts for <strong>your cards</strong> even when this page and your
+          browser are closed — you do not need to open the backoffice again.
         </p>
         {hint ? (
           <p className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

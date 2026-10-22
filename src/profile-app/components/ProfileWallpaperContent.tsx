@@ -1,5 +1,12 @@
 'use client'
 
+import {
+  parseProfileMediaFrame,
+  profileMediaCoverLayoutStyle,
+  profileMediaFitStyle,
+  type MediaPixelSize,
+  type ProfileMediaFrame,
+} from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { isIosDevice, isSafariBrowser } from '@/lib/pwa/pwaInstallEnv'
 import {
@@ -12,12 +19,14 @@ import {
 } from '@/lib/theme/wallpaper'
 import { buildBackgroundVideoPosterUrl, resolveAdaptiveBackgroundVideoSrc } from '@/profile-app/lib/introVideoAdaptive'
 import { cn } from '@/utils/cn'
-import { forwardRef, useEffect, useMemo, useRef, type CSSProperties, type MutableRefObject } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react'
 
 type Props = {
   wallpaper: CardWallpaperConfig
   /** Background Video/Image URL. Empty when the owner has not uploaded cover media. */
   mediaUrl?: string | null
+  /** Drag / zoom / object-position saved on Background Video/Image. */
+  mediaFrame?: ProfileMediaFrame | null
   className?: string
   /** Applied to img/video elements (template opacity / blend). */
   mediaClassName?: string
@@ -55,7 +64,16 @@ function applySafariBgPlayFlags(el: HTMLVideoElement) {
  * Outer wrappers (fades, blends, z-index) stay with each template.
  */
 export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(function ProfileWallpaperContent(
-  { wallpaper, mediaUrl, className, mediaClassName, alt = '', deferVideo = false, videoVisible = true },
+  {
+    wallpaper,
+    mediaUrl,
+    mediaFrame = null,
+    className,
+    mediaClassName,
+    alt = '',
+    deferVideo = false,
+    videoVisible = true,
+  },
   videoRef
 ) {
   const style = wallpaper.style
@@ -109,9 +127,11 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
 
   const isBlur = style === 'blur'
   const treatAsVideo = style === 'video' || isVideoUrl(src) || (isBlur && isVideoUrl(src))
+  const framed = Boolean(mediaFrame)
   const mediaClasses = cn(
-    'absolute inset-0 h-full w-full object-cover',
-    isBlur && 'scale-110 blur-md',
+    framed ? 'pointer-events-none max-w-none' : 'absolute inset-0 h-full w-full object-cover',
+    isBlur && !framed && 'scale-110 blur-md',
+    isBlur && framed && 'blur-md',
     mediaClassName,
     !isBlur && className
   )
@@ -126,6 +146,7 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
       isBlur={isBlur}
       className={className}
       mediaClasses={mediaClasses}
+      mediaFrame={mediaFrame}
       setVideoRef={setVideoRef}
       localVideoRef={localVideoRef}
     />
@@ -141,6 +162,7 @@ function WallpaperMedia({
   isBlur,
   className,
   mediaClasses,
+  mediaFrame,
   setVideoRef,
   localVideoRef,
 }: {
@@ -152,10 +174,19 @@ function WallpaperMedia({
   isBlur: boolean
   className?: string
   mediaClasses: string
+  mediaFrame?: ProfileMediaFrame | null
   setVideoRef: (node: HTMLVideoElement | null) => void
   localVideoRef: MutableRefObject<HTMLVideoElement | null>
 }) {
   const safariLike = isSafariBrowser() || isIosDevice()
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  const [mediaSizeState, setMediaSizeState] = useState<{ key: string; size: MediaPixelSize | null }>({
+    key: '',
+    size: null,
+  })
+  const [boxSize, setBoxSize] = useState<MediaPixelSize | null>(null)
+  const frame = mediaFrame ? parseProfileMediaFrame(mediaFrame) : null
+
   const adaptiveSrc = useMemo(() => {
     if (!treatAsVideo) return src
     return resolveAdaptiveBackgroundVideoSrc(src, {
@@ -169,9 +200,33 @@ function WallpaperMedia({
     return buildBackgroundVideoPosterUrl(src) || undefined
   }, [src, treatAsVideo])
 
+  const mediaKey = treatAsVideo ? adaptiveSrc : src
+  // Reset measured pixels when the media URL changes (render-time, not an effect).
+  if (mediaSizeState.key !== mediaKey) {
+    setMediaSizeState({ key: mediaKey, size: null })
+  }
+  const mediaSize = mediaSizeState.key === mediaKey ? mediaSizeState.size : null
+  const setMediaSize = (size: MediaPixelSize) => setMediaSizeState({ key: mediaKey, size })
+
   // Always mount the <video> for home backgrounds so warmup + real player share cache.
   // `deferVideo` used to delay mount until intersection — that caused a post-intro wait.
   const showVideo = treatAsVideo && (!deferVideo || videoVisible)
+
+  useEffect(() => {
+    if (!frame) return
+    const box = boxRef.current
+    if (!box || typeof ResizeObserver === 'undefined') return
+    const sync = () => {
+      const rect = box.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) {
+        setBoxSize({ width: rect.width, height: rect.height })
+      }
+    }
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [frame])
 
   useEffect(() => {
     if (!showVideo) return
@@ -209,6 +264,16 @@ function WallpaperMedia({
     }
   }, [adaptiveSrc, localVideoRef, showVideo])
 
+  const fitStyle: CSSProperties | undefined = frame
+    ? mediaSize && boxSize
+      ? profileMediaCoverLayoutStyle(frame, mediaSize, boxSize)
+      : { ...profileMediaFitStyle(frame), width: '100%', height: '100%' }
+    : undefined
+
+  const onMediaMeta = (width: number, height: number) => {
+    if (width > 0 && height > 0) setMediaSize({ width, height })
+  }
+
   const media = showVideo ? (
     <video
       ref={setVideoRef}
@@ -222,6 +287,11 @@ function WallpaperMedia({
       disablePictureInPicture
       disableRemotePlayback
       className={mediaClasses}
+      style={fitStyle}
+      onLoadedMetadata={(event) => {
+        const video = event.currentTarget
+        onMediaMeta(video.videoWidth, video.videoHeight)
+      }}
       {...{
         'webkit-playsinline': 'true',
         'x5-playsinline': 'true',
@@ -231,13 +301,23 @@ function WallpaperMedia({
     <div className="absolute inset-0 h-full w-full bg-zinc-200 dark:bg-zinc-900" aria-hidden />
   ) : (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className={mediaClasses} />
+    <img
+      src={src}
+      alt={alt}
+      className={mediaClasses}
+      style={fitStyle}
+      onLoad={(event) => {
+        const image = event.currentTarget
+        onMediaMeta(image.naturalWidth, image.naturalHeight)
+      }}
+    />
   )
 
   // Clip filter:blur + scale so paint cannot escape the cover slot.
-  if (isBlur) {
+  // Framed media always needs a measured overflow box for cover layout.
+  if (isBlur || frame) {
     return (
-      <div className={cn('absolute inset-0 overflow-hidden', className)} aria-hidden>
+      <div ref={boxRef} className={cn('absolute inset-0 overflow-hidden', className)} aria-hidden={!alt}>
         {media}
       </div>
     )

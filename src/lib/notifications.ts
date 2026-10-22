@@ -1,6 +1,10 @@
 import { hasNotificationApi, readNotificationPermission } from '@/lib/push/iosPushGuidance'
+import { writePwaBadgeCount } from '@/lib/push/pwaBadgeCount'
 
 export type NotificationAudience = 'single' | 'corporate' | 'admin'
+
+/** Which backoffice surface should show this alert in the shared bell. */
+export type NotificationTopic = 'card' | 'crm'
 
 export type NotificationCategory =
   | 'contact_save'
@@ -26,6 +30,26 @@ export type AppNotification = {
   read: boolean
   createdAt: string
   meta?: Record<string, string>
+}
+
+const CRM_CATEGORIES = new Set<NotificationCategory>(['event', 'weekly_insight'])
+
+/** Resolve card vs CRM topic for filtering the shared notification bell. */
+export function resolveNotificationTopic(n: Pick<AppNotification, 'category' | 'href' | 'meta'>): NotificationTopic {
+  const explicit = n.meta?.topic?.trim().toLowerCase()
+  if (explicit === 'crm' || explicit === 'card') return explicit
+  if (n.meta?.category === 'event') return 'crm'
+  if (n.href?.startsWith('/crm')) return 'crm'
+  if (CRM_CATEGORIES.has(n.category)) return 'crm'
+  // Card-area public notes use category `note` with topic=card from server; CRM notes set topic=crm.
+  if (n.category === 'note' && n.meta?.href?.startsWith('/crm')) return 'crm'
+  return 'card'
+}
+
+export function syncAppBadge(count: number) {
+  if (typeof navigator === 'undefined') return
+  // Keep the Add-to-Home-Screen / PWA icon pill + OS badge in sync with bell unread.
+  writePwaBadgeCount(count)
 }
 
 export type NotificationPrefs = {
@@ -134,14 +158,57 @@ function persist(list: AppNotification[]) {
   window.dispatchEvent(new Event(NOTIFICATIONS_EVENT))
 }
 
-export function listNotifications(audience: NotificationAudience): AppNotification[] {
+/**
+ * Whether a stored bell row belongs to this logged-in viewer.
+ * - Single / corporate member: meta.userId match, or meta.profileId in their cards
+ * - Corporate owner: also cards linked via company (included in ownedProfileIds)
+ * - Untagged rows stay audience-scoped (admin / system broadcasts)
+ */
+export function notificationMatchesViewer(
+  n: Pick<AppNotification, 'meta'>,
+  opts?: { userId?: string | null; ownedProfileIds?: string[] | null }
+): boolean {
+  const userId = opts?.userId?.trim() || ''
+  const owned = new Set((opts?.ownedProfileIds || []).filter(Boolean))
+  const metaUserId = n.meta?.userId?.trim() || ''
+  const metaProfileId = n.meta?.profileId?.trim() || ''
+
+  if (!metaUserId && !metaProfileId) return true
+  if (metaUserId && userId && metaUserId === userId) return true
+  if (metaProfileId && owned.has(metaProfileId)) return true
+  return false
+}
+
+export function listNotifications(
+  audience: NotificationAudience,
+  opts?: {
+    userId?: string | null
+    ownedProfileIds?: string[] | null
+    /** When set, only show card-area or CRM-area alerts in the shared bell. */
+    topic?: NotificationTopic | null
+  }
+): AppNotification[] {
+  const topic = opts?.topic || null
+
   return loadNotifications()
-    .filter((n) => n.audience === audience)
+    .filter((n) => {
+      if (n.audience !== audience) return false
+      if (!notificationMatchesViewer(n, opts)) return false
+      if (topic && resolveNotificationTopic(n) !== topic) return false
+      return true
+    })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
-export function unreadCount(audience: NotificationAudience): number {
-  return listNotifications(audience).filter((n) => !n.read).length
+export function unreadCount(
+  audience: NotificationAudience,
+  opts?: {
+    userId?: string | null
+    ownedProfileIds?: string[] | null
+    topic?: NotificationTopic | null
+  }
+): number {
+  return listNotifications(audience, opts).filter((n) => !n.read).length
 }
 
 export function markNotificationRead(id: string) {
@@ -217,8 +284,14 @@ export function dismissAnnouncementEverywhere(announcementId: string) {
   persist(list)
 }
 
-export function markAllNotificationsRead(audience: NotificationAudience) {
-  const list = loadNotifications().map((n) => (n.audience === audience ? { ...n, read: true } : n))
+/** Mark read only within one audience (+ optional card vs CRM topic). Never cross-clears the other bell. */
+export function markAllNotificationsRead(audience: NotificationAudience, opts?: { topic?: NotificationTopic | null }) {
+  const topic = opts?.topic || null
+  const list = loadNotifications().map((n) => {
+    if (n.audience !== audience) return n
+    if (topic && resolveNotificationTopic(n) !== topic) return n
+    return { ...n, read: true }
+  })
   persist(list)
 }
 
@@ -275,7 +348,14 @@ export async function activateDashboardPush(): Promise<NotificationPermission | 
   saveNotificationPrefs({ browserPush: true })
   clearDashboardPushPromptSession()
   const permission = await ensureNotificationPermission()
-  if (permission !== 'granted') openDashboardPushPrompt()
+  if (permission === 'granted') {
+    // Persist owner endpoint now — do not wait for the next backoffice visit.
+    const { markOwnerPushPending, registerOwnerPushForCurrentUser } = await import('@/lib/push/registerOwnerPush')
+    markOwnerPushPending()
+    await registerOwnerPushForCurrentUser()
+  } else {
+    openDashboardPushPrompt()
+  }
   return permission
 }
 
@@ -366,7 +446,8 @@ export function pushNotification(input: {
   list.unshift(n)
   persist(list)
 
-  if (input.forceBrowser || categoryAllowed(input.category, prefs)) {
+  // Staff-admin audience: inbox only — never in-tab browser Notification toasts.
+  if (input.audience !== 'admin' && (input.forceBrowser || categoryAllowed(input.category, prefs))) {
     maybeBrowserNotify(n, prefs)
   }
 
@@ -424,12 +505,15 @@ export function notifyCardOwner(input: {
  * Never re-seed after the user deleted/dismissed that announcement.
  */
 export function seedActiveAnnouncementNotification(input: {
-  audience: 'single' | 'corporate'
+  audience: NotificationAudience
   announcementId: string
   title: string
   body: string
   profileId?: string
+  userId?: string
   href?: string
+  topic?: NotificationTopic
+  category?: NotificationCategory
 }) {
   const announcementId = input.announcementId.trim()
   if (!announcementId) return null
@@ -440,15 +524,21 @@ export function seedActiveAnnouncementNotification(input: {
   )
   if (already) return null
 
+  const category = input.category || (input.topic === 'crm' ? 'event' : 'system')
+  const href =
+    input.href || (input.topic === 'crm' ? '/crm' : input.profileId ? `/vcards/edit/home/${input.profileId}` : '/')
+
   return pushNotification({
     audience: input.audience,
-    category: 'system',
+    category,
     title: input.title,
     body: input.body,
-    href: input.href || (input.profileId ? `/vcards/edit/home/${input.profileId}` : '/'),
+    href,
     meta: {
       announcementId,
+      topic: input.topic || (category === 'event' ? 'crm' : 'card'),
       ...(input.profileId ? { profileId: input.profileId } : {}),
+      ...(input.userId?.trim() ? { userId: input.userId.trim() } : {}),
     },
     // Browser toast only on first seed — never again after dismiss/delete.
     forceBrowser: true,
@@ -465,7 +555,14 @@ export function notifyOwnerAndAdmin(opts: {
   ownerHref?: string
   adminHref?: string
   forceBrowser?: boolean
+  /** Exact card + owner identity — prevents corporate sibling leak in the bell. */
+  profileId?: string
+  ownerUserId?: string
 }) {
+  const identityMeta = {
+    ...(opts.profileId?.trim() ? { profileId: opts.profileId.trim() } : {}),
+    ...(opts.ownerUserId?.trim() ? { userId: opts.ownerUserId.trim() } : {}),
+  }
   pushNotification({
     audience: opts.ownerAudience,
     category: opts.category,
@@ -473,6 +570,7 @@ export function notifyOwnerAndAdmin(opts: {
     body: opts.ownerBody,
     href: opts.ownerHref || '/',
     forceBrowser: opts.forceBrowser,
+    meta: identityMeta,
   })
   pushNotification({
     audience: 'admin',
@@ -481,6 +579,7 @@ export function notifyOwnerAndAdmin(opts: {
     body: opts.adminBody,
     href: opts.adminHref || '/admin/leads',
     forceBrowser: opts.forceBrowser,
+    meta: identityMeta,
   })
 }
 

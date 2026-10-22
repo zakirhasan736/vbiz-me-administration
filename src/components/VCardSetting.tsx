@@ -66,15 +66,17 @@ import { appearanceFromDesignSettings } from '@/lib/vcardDesignDefaults'
 import {
   buildModeColorPatch,
   fieldHasColorOverrides,
+  fieldThemeDefaultsFromThemeConfig,
   GENERAL_SETTINGS_FIELDS,
   getDisplaySettingsFromVCard,
   getFieldModePickerValues,
-  getFieldThemeColorDefaults,
-  getMyInfoActionButtonColorDefaults,
   HOME_PAGE_COLOR_FIELDS,
   HOME_PAGE_FIELDS,
   HOME_PAGE_URL_FIELDS,
+  homePageIdentityDefaultsFromThemeConfig,
   ICON_FIELDS,
+  isPrimaryBgDisplayField,
+  isSecondaryBgDisplayField,
   MY_INFO_ACTION_FIELDS,
   MY_INFO_FIELDS,
   NAV_BAR_FIELDS,
@@ -239,6 +241,7 @@ function ColorPicker({
   defaultValue?: string
 }) {
   const live = useLiveCssColor(value ?? defaultValue ?? '#000000', onChange)
+  const swatchFill = live.swatch || live.text || value || defaultValue || '#000000'
 
   return (
     <div
@@ -254,10 +257,17 @@ function ColorPicker({
           aria-label={`${label} hex`}
           value={live.text}
           onChange={(e) => live.onTextChange(e.target.value)}
+          onPaste={live.onPaste}
           spellCheck={false}
           className="focus:text-primary-600 dark:focus:text-primary-400 w-24 bg-transparent text-right font-mono text-[.75rem] font-medium text-slate-500 uppercase outline-none dark:text-slate-400"
         />
-        <ColorSwatchInput label={label} swatch={live.swatch} onChange={live.onPicker} />
+        <span
+          className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full border border-slate-200 shadow-inner dark:border-white/15"
+          style={{ backgroundColor: swatchFill }}
+          title={swatchFill}
+        >
+          <ColorSwatchInput label={label} swatch={live.swatch} onChange={live.onPicker} overlay />
+        </span>
       </div>
     </div>
   )
@@ -287,13 +297,15 @@ function Toggle({
 function TemplateDesigner() {
   const canBgVideo = true
   const { vCardData, updateData, flushSave, cardId, isCreateMode, avatarImageUrl, updateMeta } = useVCard()
-  const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
+  const { getCustomValue, setCustomValue, patchField, display } = useVCardDisplayEditor()
   const accountDesign = useAppSelector((s) => s.designSettings)
 
   const cardAppearance: VCardAppearance = vCardData.appearance ?? appearanceFromDesignSettings(accountDesign)
 
   const patchAppearance = (patch: Partial<VCardAppearance>) => {
-    updateData('appearance', { ...cardAppearance, ...patch })
+    // Pass the patch only — VCardContext merges onto the live draft so rapid Template
+    // Settings clicks (style / corner / shadow) never drop the previous selection.
+    updateData('appearance', patch)
   }
 
   const layoutStyle = cardAppearance.layoutStyle
@@ -400,8 +412,11 @@ function TemplateDesigner() {
   )
 
   const setBackgroundMedia = useCallback(
-    (url: string) => {
-      setCustomValue(FIELD_BACKGROUND_MEDIA, url || '')
+    (url: string, options?: { clearFrame?: boolean }) => {
+      patchField(FIELD_BACKGROUND_MEDIA, {
+        customValue: url || '',
+        ...(options?.clearFrame || !url ? { mediaFrame: undefined } : {}),
+      })
       const trimmed = url.trim()
       if (!trimmed) return
       // Always sync wallpaper style to image/video so cover media actually renders
@@ -409,7 +424,7 @@ function TemplateDesigner() {
       const next = inferMediaWallpaperStyle(trimmed)
       updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
     },
-    [setCustomValue, templateId, updateData, vCardData.themeConfig]
+    [patchField, templateId, updateData, vCardData.themeConfig]
   )
 
   const mediaAccept =
@@ -546,6 +561,12 @@ function TemplateDesigner() {
         onAppearanceChange={patchAppearance}
         fontFamily={vCardData.theme.fontFamily ?? 'inter'}
         onFontFamilyChange={(fontId) => updateData('theme.fontFamily', fontId)}
+        brandColors={(() => {
+          const themeConfig = resolveCardThemeConfig(vCardData.themeConfig, templateId)
+          const mode = themeConfig.colors.defaultMode === 'light' ? 'light' : 'dark'
+          const set = themeConfig.colors[mode]
+          return { primary: set.primary, secondary: set.secondary, accent: set.accent }
+        })()}
       />
 
       {layoutStyle === 'hero' && (
@@ -810,7 +831,7 @@ function TemplateDesigner() {
           <VCardMediaField
             variant="inset"
             value={bgMediaUrl}
-            onChange={(url) => setBackgroundMedia(url || '')}
+            onChange={(url) => setBackgroundMedia(url || '', { clearFrame: !url })}
             profileId={profileId}
             attachmentType={FIELD_BACKGROUND_MEDIA}
             accept={mediaAccept}
@@ -818,13 +839,16 @@ function TemplateDesigner() {
             selectPlaceholder="Select media file"
             subtitle={
               wallpaperStyle === 'blur'
-                ? 'Blurred cover media • no size limit'
+                ? 'Blurred cover • drag, zoom, and position'
                 : wallpaperStyle === 'video'
-                  ? 'Video loop • no size limit'
-                  : 'Cover image • no size limit'
+                  ? 'Video loop • drag, zoom, and position'
+                  : 'Cover image • drag, zoom, and position'
             }
             previewKind="auto"
             previewClassName="aspect-video max-h-56"
+            frameLayout="feature"
+            mediaFrame={display.fields[FIELD_BACKGROUND_MEDIA]?.mediaFrame}
+            onMediaFrameChange={(mediaFrame) => patchField(FIELD_BACKGROUND_MEDIA, { mediaFrame })}
           >
             <MediaSourceActions
               mode={canBgVideo ? 'both' : 'image'}
@@ -1919,20 +1943,31 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const contentTourId = settingContentTourIds[activeTab]
 
   const profileTemplate = (vCardData.appearance?.profileTemplate ?? 'v2') as 'v1' | 'v2' | 'v3'
-  const themeDefaults = getFieldThemeColorDefaults(vCardData.theme, profileTemplate)
   const resolvedThemeConfig = resolveCardThemeConfig(
     vCardData.themeConfig ?? getDefaultThemeConfig(profileTemplate),
     profileTemplate
   )
-  const myInfoActionDefaults = getMyInfoActionButtonColorDefaults(vCardData.theme, profileTemplate, {
-    lightPrimary: resolvedThemeConfig.colors.light.primary,
-    darkPrimary: resolvedThemeConfig.colors.dark.primary,
-  })
-  const myInfoActionFieldSet = new Set<string>(MY_INFO_ACTION_FIELDS)
+  // Same light/dark primary + secondary the public card CSS uses — keep pickers in sync.
+  const { primary: themeDefaults, secondary: secondaryThemeDefaults } = fieldThemeDefaultsFromThemeConfig(
+    resolvedThemeConfig,
+    vCardData.theme,
+    profileTemplate
+  )
   const settingsProfileId =
     (cardId || contextCardId) && !isLocalTempId(cardId || contextCardId || '') && !isCreateMode
       ? cardId || contextCardId || undefined
       : undefined
+
+  // Template Settings → Button type Primary remaps secondary-role CTAs (Save Contact, Share,
+  // My Info Call/Text/Email…) to the primary Global Color fill — pickers must match.
+  const buttonType = vCardData.appearance?.buttonType
+  const secondaryPickerDefaults = buttonType === 'primary' ? themeDefaults : secondaryThemeDefaults
+
+  const fieldThemeDefaultsFor = (key: string) => {
+    if (isSecondaryBgDisplayField(key)) return secondaryPickerDefaults
+    if (isPrimaryBgDisplayField(key)) return themeDefaults
+    return themeDefaults
+  }
 
   const renderFieldCards = (
     keys: readonly string[],
@@ -1944,7 +1979,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         title={key}
         config={display.fields[key] ?? { visible: true }}
         onPatch={(patch) => patchField(key, patch)}
-        themeDefaults={myInfoActionFieldSet.has(key) ? myInfoActionDefaults : themeDefaults}
+        themeDefaults={fieldThemeDefaultsFor(key)}
         {...options}
       />
     ))
@@ -2002,29 +2037,23 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
         )
       case 'my-info-buttons':
         return renderFieldCards(MY_INFO_ACTION_FIELDS, { showTextCol: true, showBgCol: true })
-      case 'home':
+      case 'home': {
+        // Exact public-card identity tokens (--vbiz-home-heading / --vbiz-home-description).
+        const homeIdentityDefaults = homePageIdentityDefaultsFromThemeConfig(resolvedThemeConfig)
         return HOME_PAGE_FIELDS.map((key) => {
           const isColorField = HOME_PAGE_COLOR_FIELDS.has(key)
           const isHeading = key === 'Home Heading Color'
           const isDescription = key === 'Home Description Color'
+          const isHeader = key === 'vCard Header Color'
           const isHeadingDesc = isHeading || isDescription
           const showInput = HOME_PAGE_URL_FIELDS.has(key)
-          const primary =
-            vCardData.theme.primaryColor?.trim() || resolvedThemeConfig.colors.dark.primary || themeDefaults.light.bg
-          const secondary =
-            vCardData.theme.secondaryColor?.trim() || resolvedThemeConfig.colors.dark.secondary || primary
-          // Global home defaults: dark title white + primary desc; light title secondary + primary desc.
           const homeColorDefaults = isHeading
-            ? {
-                light: { ...themeDefaults.light, text: secondary, icon: secondary },
-                dark: { ...themeDefaults.dark, text: '#ffffff', icon: '#ffffff' },
-              }
+            ? homeIdentityDefaults.heading
             : isDescription
-              ? {
-                  light: { ...themeDefaults.light, text: primary, icon: primary },
-                  dark: { ...themeDefaults.dark, text: primary, icon: primary },
-                }
-              : themeDefaults
+              ? homeIdentityDefaults.description
+              : isHeader
+                ? homeIdentityDefaults.header
+                : themeDefaults
           return (
             <FieldCard
               key={key}
@@ -2034,19 +2063,18 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
               themeDefaults={homeColorDefaults}
               showInput={showInput}
               showTextCol={isColorField}
-              showBgCol={isColorField && !isHeadingDesc}
+              showBgCol={false}
               toggleLabel={
                 showInput
                   ? 'Visibility and media URL'
-                  : isHeadingDesc
-                    ? 'Light/dark text color for home name or description'
-                    : isColorField
-                      ? 'Visibility and header colors'
-                      : 'Visibility only'
+                  : isHeadingDesc || isHeader
+                    ? 'Light/dark text color matching the public home name / description'
+                    : 'Visibility only'
               }
             />
           )
         })
+      }
       case 'template':
         return <TemplateDesigner />
       case 'integration':
@@ -2077,7 +2105,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
                 : activeTab === 'faq-style'
                   ? 'Style FAQ question and answer surfaces for light and dark mode.'
                   : activeTab === 'my-info-buttons'
-                    ? 'Style the public My Info Call, Text, and Email buttons. Template colors apply until you set a color on a button.'
+                    ? 'Style the public My Info Call, Text, and Email buttons. Defaults match Template Theme Colors (Secondary, or Primary when Button type is Primary) until you override a color.'
                     : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
 
   const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)

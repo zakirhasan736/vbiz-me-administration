@@ -24,6 +24,31 @@ describe('See Products price sync', () => {
     expect(item.metas?.offer_price).toBe('$39.99')
   })
 
+  it('persists cleared featured images as empty string and drops document stubs', () => {
+    const [item] = sectionPostsToSyncItems([
+      {
+        id: 'local_2',
+        title: 'Cleared media',
+        description: '',
+        url: '',
+        featuredImage: '',
+        date: '',
+        rating: '',
+        location: '',
+        price: '',
+        offerPrice: '',
+        active: true,
+        metas: {
+          documents: JSON.stringify([{ url: 'https://cdn.example.com/old.jpg', name: 'document' }]),
+        },
+      },
+    ])
+
+    expect(item.featuredImage).toBe('')
+    expect(item.featuredImage).not.toBeUndefined()
+    expect(item.documents).toEqual([])
+  })
+
   it('reads price and offer_price back from API metas', () => {
     const [item] = mapApiPostsToSectionPosts([
       {

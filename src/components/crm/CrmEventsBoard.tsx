@@ -221,15 +221,17 @@ export function CrmEventsBoard({
     try {
       const body = buildCreateCrmEventPayload(payload)
       const created = await createEvent(body).unwrap()
-      notify.info('Event created. It will show on the Schedules calendar too.')
-      setCreateOpen(false)
+      notify.success(
+        'Wish & outreach scheduled. Email sends at the date/time you set; you get a CRM confirmation then.'
+      )
+      // Modal auto-closes after success confirmation; keep open on error.
       return created
     } catch (err) {
       const message =
         err && typeof err === 'object' && 'data' in err
           ? String((err as { data?: { message?: string } }).data?.message || '')
           : ''
-      notify.error(message || 'Couldn’t create this event.')
+      notify.error(message || 'Couldn’t create this wish.')
       throw err
     }
   }
@@ -237,9 +239,9 @@ export function CrmEventsBoard({
   const setStatus = async (row: CrmEvent, status: CrmEventStatus) => {
     try {
       await updateEvent({ id: row.id, body: { status } }).unwrap()
-      notify.info(`Event marked ${status.toLowerCase()}.`)
+      notify.success(`Wish marked ${status.toLowerCase()}.`)
     } catch {
-      notify.error('Couldn’t update this event.')
+      notify.error('Couldn’t update this wish.')
     }
   }
 
@@ -247,9 +249,9 @@ export function CrmEventsBoard({
     if (!window.confirm(`Delete “${row.type}” with ${row.host}?`)) return
     try {
       await deleteEvent(row.id).unwrap()
-      notify.info('Event deleted.')
+      notify.success('Wish deleted.')
     } catch {
-      notify.error('Couldn’t delete this event.')
+      notify.error('Couldn’t delete this wish.')
     }
   }
 
@@ -417,13 +419,7 @@ export function CrmEventsBoard({
         personSearch={personSearch}
         allowedScopes={allowedScopes}
         defaultScope={defaultScope}
-        onSubmit={async (payload) => {
-          try {
-            return await handleCreate(payload)
-          } catch {
-            return undefined
-          }
-        }}
+        onSubmit={handleCreate}
       />
     </div>
   )

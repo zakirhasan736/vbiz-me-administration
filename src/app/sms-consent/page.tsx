@@ -1,9 +1,11 @@
-import { SMS_PRIVACY_URL, SMS_TERMS_URL, SMS_VISITOR_CONSENT_TEXT } from '@/lib/sms/smsConsentCopy'
+import { SmsOptInForm } from '@/components/sms/SmsOptInForm'
+import { SMS_PRIVACY_URL, SMS_TERMS_URL } from '@/lib/sms/smsConsentCopy'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'vBiz Me SMS opt-in',
-  description: 'Opt in to vBiz Me account notification texts.',
+  title: 'vBiz Me SMS opt-in (optional)',
+  description:
+    'Optionally opt in to vBiz Me account notification texts. SMS consent is voluntary and not required to use vBiz Me.',
   robots: { index: true, follow: true },
 }
 
@@ -13,70 +15,55 @@ export default function SmsConsentPage() {
       <p className="text-[11px] font-semibold tracking-[0.16em] text-teal-700 uppercase dark:text-teal-300">
         vBiz Me LLC
       </p>
-      <h1 className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">Account notification texts</h1>
+      <h1 className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">
+        Account notification texts (optional)
+      </h1>
       <p className="mt-3 text-sm leading-relaxed">
-        Enter your mobile number and check the box to agree to text messages from vBiz Me LLC. The box is not
-        pre-checked. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe. Reply HELP
-        for help. Consent is not required to buy or use vBiz Me.
+        SMS opt-in is entirely voluntary. You can use vBiz Me without providing a phone number and without agreeing to
+        texts. If you want account notification messages, enter a mobile number, check the optional consent box (it is
+        never pre-checked), and choose <strong>Opt in to SMS</strong>. To decline messaging, choose{' '}
+        <strong>Skip SMS — continue without texts</strong>.
       </p>
-      <form className="mt-6 space-y-4" action="/sms-consent" method="get">
-        <div>
-          <label htmlFor="sms-phone" className="block text-sm font-semibold text-slate-900 dark:text-white">
-            Mobile phone number
-          </label>
-          <input
-            id="sms-phone"
-            name="phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            required
-            placeholder="+1 555 000 0000"
-            className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none focus:border-teal-600 dark:border-white/15 dark:bg-[#0b1018] dark:text-white"
-          />
-        </div>
-        <label className="flex items-start gap-3 text-sm leading-snug text-slate-700 dark:text-slate-200">
-          <input
-            type="checkbox"
-            name="sms-consent"
-            value="yes"
-            required
-            className="mt-1 h-4 w-4 shrink-0 accent-teal-700"
-          />
-          <span>
-            {SMS_VISITOR_CONSENT_TEXT}{' '}
-            <a href={SMS_PRIVACY_URL} className="underline">
-              Privacy Policy
-            </a>
-            {' · '}
-            <a href={SMS_TERMS_URL} className="underline">
-              Terms & Conditions
-            </a>
-          </span>
-        </label>
-        <button
-          type="submit"
-          className="rounded-full bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
-        >
-          Agree and opt in
-        </button>
-      </form>
-      <h2 className="mt-10 text-lg font-semibold text-slate-950 dark:text-white">Consent screenshots</h2>
+      <ul className="mt-4 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+        <li>Phone number is optional — not required to buy or use vBiz Me.</li>
+        <li>Consent checkbox is optional and not pre-checked.</li>
+        <li>You may skip SMS and still use every other vBiz Me service.</li>
+        <li>Message frequency varies. Message and data rates may apply.</li>
+        <li>Reply STOP to unsubscribe. Reply HELP for help.</li>
+      </ul>
+      <p className="mt-3 text-sm leading-relaxed">
+        Full details:{' '}
+        <a href={SMS_PRIVACY_URL} className="underline">
+          Privacy Policy
+        </a>
+        {' · '}
+        <a href={SMS_TERMS_URL} className="underline">
+          Terms & Conditions
+        </a>
+        .
+      </p>
+
+      <SmsOptInForm />
+
+      <h2 className="mt-10 text-lg font-semibold text-slate-950 dark:text-white">In-product consent (also optional)</h2>
       <p className="mt-2 text-sm leading-relaxed">
-        The same unchecked consent checkbox appears on a public vBiz Me card when a visitor opens Save Contact or
-        1-on-1.
+        On a public vBiz Me card, Save Contact and 1-on-1 also show an unchecked SMS consent checkbox. Visitors can
+        complete those flows without SMS by leaving the box unchecked (and may omit a phone number when the form allows
+        it). Consent is never a required condition of using the card.
       </p>
       <figure className="mt-4">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static compliance screenshot for A2P reviewers */}
         <img
           src="/sms-opt-in/save-contact.png"
-          alt="Save Contact screen with an unchecked SMS consent checkbox, phone field, Privacy Policy, and Terms."
+          alt="Save Contact screen with an unchecked optional SMS consent checkbox, phone field, Privacy Policy, and Terms."
           className="w-full rounded-xl border border-slate-200 dark:border-white/10"
         />
       </figure>
       <figure className="mt-4">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static compliance screenshot for A2P reviewers */}
         <img
           src="/sms-opt-in/one-on-one.png"
-          alt="1-on-1 screen with an unchecked SMS consent checkbox, phone field, Privacy Policy, and Terms."
+          alt="1-on-1 screen with an unchecked optional SMS consent checkbox, phone field, Privacy Policy, and Terms."
           className="w-full rounded-xl border border-slate-200 dark:border-white/10"
         />
       </figure>

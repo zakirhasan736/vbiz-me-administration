@@ -3,7 +3,8 @@
  * Do not read OPENAI_API_KEY from the Next.js env — stealer/XSS cannot exfiltrate a key that isn’t here.
  */
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+/** Keep in sync with backend AI_CARD_MAX_UPLOAD_MB / MAX_UPLOAD_BYTES (default 50MB). */
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 export const MAX_FILES = 6
 
 export function getOpenAiApiKey(): never {

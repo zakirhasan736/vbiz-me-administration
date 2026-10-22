@@ -523,7 +523,7 @@ export default function AdminMyCards() {
         cardName={String((noticeCard?.personal as { fullName?: string })?.fullName || 'this card')}
         initialText={noticeInitialText}
         initialType={['info', 'warning', 'success'].includes(noticeInitialType) ? noticeInitialType : 'info'}
-        deliverySummary="Choose backoffice-only, or public card + saved contacts + owner backoffice."
+        deliverySummary="Choose backoffice-only, or public card + notification subscribers + owner backoffice."
         onClose={() => setNoticeCard(null)}
         onSave={(text, type, options) => {
           if (!noticeCard?.id) return
@@ -542,7 +542,7 @@ export default function AdminMyCards() {
                 notify.success(
                   options.onlyBackoffice
                     ? 'Notice sent to this card’s owner backoffice only.'
-                    : 'Notice sent to this card’s owner and saved-contact audience.'
+                    : 'Notice sent to this card’s owner and notification subscribers.'
                 )
               } else {
                 clearLocalCardNotice(noticeCard.id)

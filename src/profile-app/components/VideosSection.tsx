@@ -496,10 +496,7 @@ function VideoCard({
           </button>
         )}
 
-        <span
-          className="pointer-events-none absolute top-3 left-3 z-30 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-zinc-900 uppercase"
-          style={{ backgroundColor: accent }}
-        >
+        <span className="vbiz-section-pill pointer-events-none absolute top-3 left-3 z-30 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
           {isGallery ? <ImageIcon size={12} /> : <PlayCircle size={12} />} {isGallery ? 'Gallery' : 'Video'}
         </span>
         {hasGalleryImages ? (

@@ -10,12 +10,16 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  syncAppBadge,
   type AppNotification,
   type NotificationAudience,
   type NotificationCategory,
+  type NotificationTopic,
 } from '@/lib/notifications'
 import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
+import { useAuth } from '@/providers/AuthProvider'
 import { clearActiveAnnouncementBannerCache } from '@/redux/features/adminAnnouncements/adminAnnouncements.api'
+import { useGetProfilesQuery } from '@/redux/features/profiles/profiles.api'
 import { cn } from '@/utils/cn'
 import {
   AlertCircle,
@@ -53,6 +57,8 @@ const CATEGORY_ICON: Record<NotificationCategory, ElementType> = {
 
 type NotificationCenterProps = {
   audience: NotificationAudience
+  /** Filter the shared bell to card-office or CRM-office topics. */
+  topic?: NotificationTopic
   title?: string
   className?: string
 }
@@ -71,7 +77,7 @@ function formatWhen(iso: string) {
 }
 
 let notificationStoreVersion = 0
-const notificationSnapshots = new Map<NotificationAudience, { version: number; items: AppNotification[] }>()
+const notificationSnapshots = new Map<string, { version: number; items: AppNotification[] }>()
 
 function subscribeToNotifications(onStoreChange: () => void) {
   const onUpdate = () => {
@@ -86,11 +92,18 @@ function subscribeToNotifications(onStoreChange: () => void) {
   }
 }
 
-function getNotificationsSnapshot(audience: NotificationAudience): AppNotification[] {
-  const cached = notificationSnapshots.get(audience)
+function getNotificationsSnapshot(
+  audience: NotificationAudience,
+  userId?: string | null,
+  topic?: NotificationTopic | null,
+  ownedProfileIds?: string[] | null
+): AppNotification[] {
+  const ownedKey = (ownedProfileIds || []).slice().sort().join(',')
+  const key = `${audience}:${userId || ''}:${topic || 'all'}:${ownedKey}`
+  const cached = notificationSnapshots.get(key)
   if (cached && cached.version === notificationStoreVersion) return cached.items
-  const items = listNotifications(audience)
-  notificationSnapshots.set(audience, { version: notificationStoreVersion, items })
+  const items = listNotifications(audience, { userId, topic, ownedProfileIds })
+  notificationSnapshots.set(key, { version: notificationStoreVersion, items })
   return items
 }
 
@@ -111,16 +124,27 @@ function getServerNotificationPermissionSnapshot(): NotificationPermission | 'un
   return 'unsupported'
 }
 
-export function NotificationCenter({ audience, title = 'Your Alerts', className }: NotificationCenterProps) {
+export function NotificationCenter({ audience, topic, title = 'Your Alerts', className }: NotificationCenterProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
+  const { user } = useAuth()
+  const userId = user?.uid || null
+  // Owner back-office scope: own cards (+ corporate-linked cards from list API).
+  const { data: profilesResult } = useGetProfilesQuery(
+    { status: 'all', skip: 0, limit: 100 },
+    { skip: audience === 'admin' }
+  )
+  const ownedProfileIds = useMemo(
+    () => (profilesResult?.items ?? []).map((row) => row.id).filter(Boolean),
+    [profilesResult?.items]
+  )
   const btnRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 12, width: 320 })
 
   const storedItems = useSyncExternalStore(
     subscribeToNotifications,
-    () => getNotificationsSnapshot(audience),
+    () => getNotificationsSnapshot(audience, userId, topic, ownedProfileIds),
     getServerNotificationsSnapshot
   )
   const [readOverrides, setReadOverrides] = useState<Set<string>>(() => new Set())
@@ -133,6 +157,10 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
     [deletedIds, readOverrides, storedItems]
   )
   const unread = items.reduce((count, item) => count + (item.read ? 0 : 1), 0)
+
+  useEffect(() => {
+    syncAppBadge(unread)
+  }, [unread])
 
   const perm = useSyncExternalStore(
     subscribeToNotificationPermission,
@@ -167,7 +195,7 @@ export function NotificationCenter({ audience, title = 'Your Alerts', className 
   }
 
   const handleMarkAllRead = () => {
-    markAllNotificationsRead(audience)
+    markAllNotificationsRead(audience, { topic })
     setReadOverrides((current) => {
       const next = new Set(current)
       storedItems.forEach((item) => {

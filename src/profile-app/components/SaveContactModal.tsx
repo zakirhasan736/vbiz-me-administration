@@ -223,7 +223,6 @@ export const SaveContactModal = ({
                   className="vbiz-modal-input w-full rounded-xl border p-3 text-sm focus:outline-none disabled:opacity-60"
                 />
               </label>
-              <SmsPhoneConsent checked={smsAgreed} onChange={setSmsAgreed} disabled={submitting} />
               <input
                 type="email"
                 placeholder="Your email address (optional)"
@@ -239,6 +238,9 @@ export const SaveContactModal = ({
                   {submitError}
                 </p>
               ) : null}
+              <div className="pt-1">
+                <SmsPhoneConsent checked={smsAgreed} onChange={setSmsAgreed} disabled={submitting} />
+              </div>
               <button
                 type="submit"
                 disabled={submitting}

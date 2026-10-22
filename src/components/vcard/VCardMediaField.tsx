@@ -48,6 +48,8 @@ export type VCardMediaFieldProps = {
   /** Avatar crop. When set, the preview is draggable and shows zoom and height controls. */
   mediaFrame?: ProfileMediaFrame | null
   onMediaFrameChange?: (frame: ProfileMediaFrame) => void
+  /** Portrait avatar frame, or landscape cover used by background / featured media. */
+  frameLayout?: 'avatar' | 'feature'
 }
 
 export function mediaLabel(url: string, fallback: string, fileName?: string | null) {
@@ -131,6 +133,7 @@ export function VCardMediaField({
   allowAudio = true,
   mediaFrame = null,
   onMediaFrameChange,
+  frameLayout = 'avatar',
 }: VCardMediaFieldProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -381,6 +384,7 @@ export function VCardMediaField({
           alt={title || 'Avatar preview'}
           removing={disabled || uploading}
           onRemove={() => setConfirmOpen(true)}
+          layout={frameLayout}
         />
         {uploading ? (
           <UploadProgressBar progress={progress} label={uploadStage === 'preparing' ? 'Optimizing…' : 'Uploading…'} />

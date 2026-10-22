@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.ref || github.event.workflow_run.head_sha || github.sha }}
 
@@ -40,19 +40,51 @@ jobs:
         id: meta
         run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
-
-      - name: Trust host key
+      - name: Setup SSH and trust host key
         env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
         run: |
-          mkdir -p ~/.ssh
+          set -euo pipefail
+          : "${DEPLOY_SSH_KEY:?DEPLOY_SSH_KEY production secret is required}"
+          : "${DEPLOY_HOST:?DEPLOY_HOST production secret is required}"
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          HOST="$(printf '%s' "$DEPLOY_HOST" | tr -d '\r' | xargs)"
           PORT="${DEPLOY_PORT:-22}"
-          ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          HOST_KEYS="$(mktemp)"
+          trap 'rm -f "$HOST_KEYS"' EXIT
+
+          # Production can briefly reject new connections during restart/firewall reload.
+          # Retry host-key discovery instead of failing the deployment immediately.
+          FOUND=false
+          for ATTEMPT in 1 2 3 4 5; do
+            if ssh-keyscan -T 10 -p "$PORT" -H "$HOST" > "$HOST_KEYS" 2>/dev/null && [[ -s "$HOST_KEYS" ]]; then
+              cat "$HOST_KEYS" >> ~/.ssh/known_hosts
+              FOUND=true
+              break
+            fi
+            echo "SSH host-key scan attempt ${ATTEMPT}/5 failed; retrying..."
+            sleep 5
+          done
+          if [[ "$FOUND" != true ]]; then
+            echo "::error::Unable to reach the deployment host on SSH port ${PORT} after 5 attempts."
+            exit 1
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+          cat > ~/.ssh/config <<'EOF'
+          Host *
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+          EOF
+          chmod 600 ~/.ssh/config
 
       - name: Upload release + run remote deploy
         env:
@@ -64,13 +96,18 @@ jobs:
           HEALTH_URL: ${{ secrets.ADMIN_HEALTH_URL }}
         run: |
           set -euo pipefail
+          : "${DEPLOY_USER:?DEPLOY_USER production secret is required}"
+          : "${DEPLOY_HOST:?DEPLOY_HOST production secret is required}"
+
+          HOST="$(printf '%s' "$DEPLOY_HOST" | tr -d '\r' | xargs)"
+          DEPLOY_LOGIN="$(printf '%s' "$DEPLOY_USER" | tr -d '\r' | xargs)"
           PORT="${DEPLOY_PORT:-22}"
           APP_PATH="${DEPLOY_PATH:-/var/www/vbiz-me-administration}"
           CHECK_URL="$(printf '%s' "${HEALTH_URL:-}" | tr -d '\r' | xargs || true)"
           if [[ -z "$CHECK_URL" || ! "$CHECK_URL" =~ ^https?:// ]]; then
             CHECK_URL="http://127.0.0.1:3009/"
           fi
-          REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_LOGIN}@${HOST}"
           RELEASE_DIR="${APP_PATH}/releases/${RELEASE_SHA}"
 
           ssh -p "$PORT" "$REMOTE" "mkdir -p '${APP_PATH}/releases' '${APP_PATH}/shared'"

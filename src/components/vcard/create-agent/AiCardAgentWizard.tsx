@@ -1,8 +1,11 @@
 'use client'
 
 import { Modal } from '@/components/ui/Modal'
+import { AiBuilderBrandColorsPanel } from '@/components/vcard/create-agent/AiBuilderBrandColorsPanel'
 import { LaunchTabReviewModal } from '@/components/vcard/create-agent/LaunchTabReviewModal'
+import { useAppSelector } from '@/hooks/redux'
 import { getAboutMeDraft, isAboutMeDescriptionFilled } from '@/lib/aboutMeDraft'
+import { getCreateCardOwner, mergeAccountOwnerIntoPersonal } from '@/lib/admin/createCardOwner'
 import {
   AI_CARD_DRAFT_STORAGE_KEY,
   AI_CARD_JOB_STORAGE_KEY,
@@ -24,7 +27,15 @@ import {
 } from '@/lib/ai/cardAgentClient'
 import { TAB_NAV_MAP } from '@/lib/ai/cardBlueprint'
 import { gapFieldToSection, type GapItem } from '@/lib/ai/gapReport'
+import { MAX_FILES, MAX_UPLOAD_BYTES } from '@/lib/ai/openai'
 import { mergeParsedPersonal, parseOwnerPersonalFromText, patchDraftFromFieldKey } from '@/lib/ai/ownerPersonalParse'
+import {
+  applyThemeRecommendationToConfig,
+  flatThemeFromConfig,
+  readThemeRecommendationFromJob,
+  shouldApplyBrandThemeConfig,
+  type ThemeRecommendation,
+} from '@/lib/ai/themeFromRecommendation'
 import { looksLikeStorefrontUrl } from '@/lib/ai/websiteCrawlMode'
 import { SESSION_FLUSH_DRAFT_EVENT } from '@/lib/auth/sessionPolicy'
 import {
@@ -39,6 +50,7 @@ import {
 } from '@/lib/createCardTabs'
 import { ensureNotificationPermission, saveNotificationPrefs } from '@/lib/notifications'
 import { normalizeCardSeo, normalizeCardSeoPayload } from '@/lib/seo/cardSeo'
+import { getDefaultThemeConfig, type CardThemeConfig } from '@/lib/theme/cardThemeContract'
 import { getOverallCardCompletionPercent } from '@/lib/vcardCompletion'
 import { getDisplaySettingsFromVCard, getFieldConfig } from '@/lib/vcardDisplaySettings'
 import type { SettingsTabId } from '@/lib/vcardEditorRoutes'
@@ -164,6 +176,8 @@ type JobSnapshot = AnalyzeResponse & {
   profileId?: string | null
   blueprint?: AnalyzeResponse['blueprint']
   assembledDraft?: unknown
+  businessProfile?: { themeRecommendation?: ThemeRecommendation | null } | null
+  themeRecommendation?: ThemeRecommendation | null
 }
 
 function sleep(ms: number) {
@@ -871,6 +885,22 @@ function existingCardStatusMessage(data: VCardData, navIds: string[]): { overall
   }
 }
 
+function pickUploadFiles(selected: File[]): { files: File[]; error: string } {
+  if (!selected.length) return { files: [], error: '' }
+  if (selected.length > MAX_FILES) {
+    return { files: [], error: `Too many files (max ${MAX_FILES}).` }
+  }
+  const maxMb = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))
+  const oversized = selected.find((file) => file.size > MAX_UPLOAD_BYTES)
+  if (oversized) {
+    return {
+      files: [],
+      error: `“${oversized.name}” is over ${maxMb}MB. Compress the PDF/text or split it, then upload again so Card Studio can read it fully.`,
+    }
+  }
+  return { files: selected, error: '' }
+}
+
 export function AiCardAgentWizard({
   open,
   onClose,
@@ -889,6 +919,7 @@ export function AiCardAgentWizard({
   cardLoading = false,
 }: AiCardAgentWizardProps) {
   const isEdit = mode === 'edit'
+  const authUser = useAppSelector((s) => s.user.user)
   const [phase, setPhase] = useState<Phase>('intake')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [websiteUrl, setWebsiteUrl] = useState('')
@@ -917,6 +948,10 @@ export function AiCardAgentWizard({
   const [dragNavId, setDragNavId] = useState<string | null>(null)
   const [dragOverNavId, setDragOverNavId] = useState<string | null>(null)
   const [openLaunchTabs, setOpenLaunchTabs] = useState<string[]>([])
+  const [brandRecommendation, setBrandRecommendation] = useState<ThemeRecommendation | null>(null)
+  const [launchThemeConfig, setLaunchThemeConfig] = useState<CardThemeConfig>(
+    () => vCardData.themeConfig || getDefaultThemeConfig(vCardData.appearance?.profileTemplate || 'v3')
+  )
   const [activeFeatureGuideKey, setActiveFeatureGuideKey] = useState<keyof OptionalFeatures | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -974,15 +1009,31 @@ export function AiCardAgentWizard({
       sessionIdRef.current = ''
       sourceContextRef.current = { websiteUrl: '', businessText: '', files: [] }
     }
+    if (!isEdit) {
+      const assigned = getCreateCardOwner()
+      const accountOwner =
+        assigned ||
+        (authUser?.email
+          ? { userId: authUser.id || '', name: authUser.name || '', email: authUser.email, role: authUser.role || '' }
+          : null)
+      if (accountOwner?.email) {
+        const seededPersonal = mergeAccountOwnerIntoPersonal(vCardData.personal, accountOwner)
+        updateData('personal', seededPersonal)
+        draftRef.current = { ...vCardData, personal: seededPersonal }
+      }
+    }
     const existingWebsite = isEdit ? vCardData.personal?.website?.trim() || '' : ''
-    const status = existingCardStatusMessage(vCardData, enabledNavIds)
+    const status = existingCardStatusMessage(draftRef.current, enabledNavIds)
+    const accountEmail = String(draftRef.current.personal?.email || '').trim()
     setMessages([
       {
         id: uid(),
         role: 'assistant',
         text: isEdit
           ? status.text
-          : `I’ll build your vBiz Me card with you:\n\n1. Read your website, PDF, Word file, notes, or photos\n2. Suggest the tabs that fit this business — all of them start selected\n3. Fill every selected tab myself, including up to 5 services, FAQs, reviews, and similar items when they’re missing\n4. Ask only for personal details I can’t invent, like your name, email, phone, and date of birth\n5. Offer optional extras, then preview and create\n\nAdd a website, files, or a short description, then tap Start.`,
+          : accountEmail
+            ? `I’ll build this card for the existing account (${accountEmail}). Website/PDF email won’t create a new user or replace that login email.\n\n1. Read your website, PDF, Word file, notes, or photos\n2. Suggest the tabs that fit this business\n3. Fill content tabs (services, FAQs, reviews, …)\n4. Ask only for missing personal details (like date of birth) — email/phone already on the account stay as-is\n5. Preview and create\n\nAdd a website, files, or a short description, then tap Start.`
+            : `I’ll build your vBiz Me card with you:\n\n1. Read your website, PDF, Word file, notes, or photos\n2. Suggest the tabs that fit this business — all of them start selected\n3. Fill every selected tab myself, including up to 5 services, FAQs, reviews, and similar items when they’re missing\n4. Ask only for personal details I can’t invent, like your name, email, phone, and date of birth\n5. Offer optional extras, then preview and create\n\nAdd a website, files, or a short description, then tap Start.`,
       },
     ])
     setWebsiteUrl(existingWebsite)
@@ -1021,6 +1072,8 @@ export function AiCardAgentWizard({
     setDragNavId(null)
     setDragOverNavId(null)
     setOpenLaunchTabs([])
+    setBrandRecommendation(null)
+    setLaunchThemeConfig(vCardData.themeConfig || getDefaultThemeConfig(vCardData.appearance?.profileTemplate || 'v3'))
     setActiveFeatureGuideKey(null)
     setActiveNav(enabledNavIds)
   }, [open, cardLoading, isEdit]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when newly opened
@@ -1087,6 +1140,7 @@ export function AiCardAgentWizard({
       draftRef.current = synced
       const nextNav = normalizeNavOrderWithPinnedEnds(navIds)
       setActiveNav(nextNav)
+      if (synced.themeConfig) setLaunchThemeConfig(synced.themeConfig)
       if (!editorUnlockedRef.current) return
       for (const write of draftFieldWrites(synced)) {
         updateData(write.path, write.value)
@@ -1094,6 +1148,48 @@ export function AiCardAgentWizard({
       onEnableNavIds(nextNav)
     },
     [updateData, onEnableNavIds]
+  )
+
+  const persistLaunchThemeConfig = useCallback(
+    (next: CardThemeConfig) => {
+      setLaunchThemeConfig(next)
+      const flat = flatThemeFromConfig(next)
+      const merged: VCardData = {
+        ...draftRef.current,
+        themeConfig: next,
+        theme: {
+          ...(draftRef.current.theme || {
+            primaryColor: flat.primaryColor,
+            secondaryColor: flat.secondaryColor,
+            accentColor: flat.accentColor,
+            darkMode: true,
+          }),
+          ...flat,
+        },
+      }
+      draftRef.current = merged
+      if (!editorUnlockedRef.current) return
+      updateData('themeConfig', next)
+      updateData('theme', merged.theme)
+    },
+    [updateData]
+  )
+
+  const applyBrandThemeFromJob = useCallback(
+    (job: JobSnapshot) => {
+      const recommendation = readThemeRecommendationFromJob(job)
+      setBrandRecommendation(recommendation)
+      if (!shouldApplyBrandThemeConfig(recommendation)) {
+        setLaunchThemeConfig(
+          draftRef.current.themeConfig || getDefaultThemeConfig(draftRef.current.appearance?.profileTemplate || 'v3')
+        )
+        return
+      }
+      const next = applyThemeRecommendationToConfig(draftRef.current.themeConfig, recommendation)
+      if (!next) return
+      persistLaunchThemeConfig(next)
+    },
+    [persistLaunchThemeConfig]
   )
 
   const refreshGaps = useCallback(async (navIds: string[], draft?: VCardData) => {
@@ -1415,6 +1511,18 @@ export function AiCardAgentWizard({
       if (text) extractForm.set('businessText', text)
       if (effectiveStorefront) extractForm.set('crawlMode', 'storefront')
       for (const file of uploadFiles) extractForm.append('files', file)
+      if (!isEdit) {
+        const assigned = getCreateCardOwner()
+        const accountOwner =
+          assigned || (authUser?.email ? { name: authUser.name || '', email: authUser.email, phone: '' } : null)
+        if (accountOwner?.email) {
+          draftRef.current = {
+            ...draftRef.current,
+            personal: mergeAccountOwnerIntoPersonal(draftRef.current.personal, accountOwner),
+          }
+          if (assigned?.userId) extractForm.set('ownerUserId', assigned.userId)
+        }
+      }
       extractForm.set('existingCard', JSON.stringify(draftRef.current || {}))
       extractForm.set('builderMode', isEdit ? 'update' : 'create')
       if (profileId) {
@@ -1667,13 +1775,15 @@ export function AiCardAgentWizard({
         )
         applyDraft(mapped.data, job.selectedNavIds || mapped.enabledNavIds)
       }
+      // Website/PDF brand colors → themeConfig (Global Color) before Create & activate / Save draft.
+      applyBrandThemeFromJob(job)
       if (job.selectedNavIds?.length) {
         const nextNav = normalizeNavOrderWithPinnedEnds(job.selectedNavIds)
         setActiveNav(nextNav)
         if (editorUnlockedRef.current) onEnableNavIds(nextNav)
       }
     },
-    [applyDraft, onEnableNavIds, activeNav]
+    [applyDraft, applyBrandThemeFromJob, onEnableNavIds, activeNav]
   )
 
   const continueFieldFlow = async (job: JobSnapshot) => {
@@ -2489,9 +2599,12 @@ export function AiCardAgentWizard({
         .map((tab) => tab.navId)
     )
     setPhase('preview')
+    const brandNote = shouldApplyBrandThemeConfig(brandRecommendation)
+      ? ' Brand colors from your website/PDF are ready in the checklist — change Primary / Secondary / Accent before you save if you want.'
+      : ' Review Brand colors in the checklist (defaults stay unless you change them).'
     pushMsg(
       'assistant',
-      `You’re at about ${score}% content completeness. Preview your card below. When it looks right, confirm and I’ll create it.`
+      `You’re at about ${score}% content completeness. Preview your card below. When it looks right, confirm and I’ll create it.${brandNote}`
     )
   }
 
@@ -3144,7 +3257,12 @@ export function AiCardAgentWizard({
                       onChange={(e) => {
                         const next = Array.from(e.target.files || [])
                         if (!next.length) return
-                        setFiles(next)
+                        const picked = pickUploadFiles(next)
+                        if (picked.error) {
+                          setError(picked.error)
+                          return
+                        }
+                        setFiles(picked.files)
                         setError('')
                       }}
                     />
@@ -3784,6 +3902,12 @@ export function AiCardAgentWizard({
                 </p>
               )}
 
+              <AiBuilderBrandColorsPanel
+                themeConfig={launchThemeConfig}
+                recommendation={brandRecommendation}
+                onThemeConfigChange={persistLaunchThemeConfig}
+              />
+
               {!isEdit ? (
                 <div className="rounded-2xl border border-white/80 bg-white/80 p-2 dark:border-white/10 dark:bg-slate-900/70">
                   <p className="px-1 pb-2 text-[10px] font-black tracking-wider text-slate-400 uppercase">
@@ -4285,7 +4409,16 @@ export function AiCardAgentWizard({
                   multiple
                   accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
                   className="hidden"
-                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                  onChange={(e) => {
+                    const picked = pickUploadFiles(Array.from(e.target.files || []))
+                    if (picked.error) {
+                      setError(picked.error)
+                      setFiles([])
+                      return
+                    }
+                    setFiles(picked.files)
+                    if (picked.files.length) setError('')
+                  }}
                 />
               </label>
               <textarea

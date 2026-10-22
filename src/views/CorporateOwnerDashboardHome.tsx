@@ -62,7 +62,7 @@ import {
 } from '@/redux/features/profiles/profiles.api'
 import type { VCardRecord } from '@/types/vcard'
 import { getVCardPublicPath } from '@/utils/vcard'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 
 function formatTrendPercent(value?: number | null): { text?: string; negative?: boolean } {
@@ -75,6 +75,7 @@ function formatTrendPercent(value?: number | null): { text?: string; negative?: 
 
 export default function CorporateOwnerDashboardHome() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const user = useAppSelector((state) => state.user.user)
 
   const {
@@ -95,11 +96,32 @@ export default function CorporateOwnerDashboardHome() {
   )
   const stats = summary?.stats
   const { overlay: liveKpis } = useDashboardLiveKpis('all')
-  const [showContactSavesModal, setShowContactSavesModal] = useState(false)
+  const [manualContactSavesOpen, setManualContactSavesOpen] = useState(false)
+  const [manualContactSavesTab, setManualContactSavesTab] = useState<ContactSavesModalTab>('saves')
+  const [dismissedContactsDeepLink, setDismissedContactsDeepLink] = useState('')
+  const contactsDeepLinkKey =
+    searchParams.has('contacts') || searchParams.get('tab') === 'notes'
+      ? `contacts:${searchParams.get('contacts') || '1'}:tab:${searchParams.get('tab') || 'saves'}`
+      : ''
+  const contactsDeepLinkActive = Boolean(contactsDeepLinkKey) && contactsDeepLinkKey !== dismissedContactsDeepLink
+  const showContactSavesModal = contactsDeepLinkActive || manualContactSavesOpen
+  const contactSavesModalTab: ContactSavesModalTab = contactsDeepLinkActive
+    ? searchParams.get('tab') === 'notes'
+      ? 'notes'
+      : 'saves'
+    : manualContactSavesTab
   const [contactsSkip, setContactsSkip] = useState(0)
   const [contactsAccum, setContactsAccum] = useState<DashboardContact[]>([])
   const [notesSkip, setNotesSkip] = useState(0)
   const [notesAccum, setNotesAccum] = useState<DashboardContact[]>([])
+  const [listResetKey, setListResetKey] = useState(contactsDeepLinkKey)
+  if (contactsDeepLinkActive && contactsDeepLinkKey !== listResetKey) {
+    setListResetKey(contactsDeepLinkKey)
+    setContactsSkip(0)
+    setContactsAccum([])
+    setNotesSkip(0)
+    setNotesAccum([])
+  }
   const { data: contactsPage, isFetching: contactsFetching } = useGetContactsQuery(
     { skip: contactsSkip, limit: 50, source: 'guest_save' },
     { skip: !showContactSavesModal }
@@ -145,7 +167,6 @@ export default function CorporateOwnerDashboardHome() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
-  const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
   const [hubTab, setHubTab] = useState<HubTab>('directory')
   const [panelCardId, setPanelCardId] = useState<string | null>(null)
   const [trendsCard, setTrendsCard] = useState<VCardRecord | null>(null)
@@ -236,16 +257,27 @@ export default function CorporateOwnerDashboardHome() {
     setContactsAccum([])
     setNotesSkip(0)
     setNotesAccum([])
-    setContactSavesModalTab(tab)
-    setShowContactSavesModal(true)
+    setManualContactSavesTab(tab)
+    setManualContactSavesOpen(true)
+    if (contactsDeepLinkKey) setDismissedContactsDeepLink(contactsDeepLinkKey)
   }
 
   const closeContactSaves = () => {
-    setShowContactSavesModal(false)
+    setManualContactSavesOpen(false)
     setContactsSkip(0)
     setContactsAccum([])
     setNotesSkip(0)
     setNotesAccum([])
+    if (contactsDeepLinkKey) {
+      setDismissedContactsDeepLink(contactsDeepLinkKey)
+      router.replace('/', { scroll: false })
+    }
+  }
+
+  const setContactSavesModalTab = (tab: ContactSavesModalTab) => {
+    setManualContactSavesTab(tab)
+    if (contactsDeepLinkActive) setDismissedContactsDeepLink(contactsDeepLinkKey)
+    setManualContactSavesOpen(true)
   }
 
   const loadMoreContacts = () => {

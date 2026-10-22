@@ -14,6 +14,7 @@ export type BackendNotificationPreferenceKey =
 
 export type BackendNotificationPreferences = Record<BackendNotificationPreferenceKey, boolean>
 
+/** Public preference toggles — New Events removed; meetings use participant `meeting_alert`. */
 export const BACKEND_NOTIFICATION_PREFERENCE_OPTIONS: Array<{ id: BackendNotificationPreferenceKey; label: string }> = [
   { id: 'contact_updates', label: '📞 Updated contact info' },
   { id: 'portfolio_updates', label: '🎬 New videos or photos' },
@@ -21,19 +22,18 @@ export const BACKEND_NOTIFICATION_PREFERENCE_OPTIONS: Array<{ id: BackendNotific
   { id: 'service_updates', label: '🛠️ Services section updates' },
   { id: 'business_hours', label: '🏢 Professional updates' },
   { id: 'offers', label: '🎁 Offers & promotions' },
-  { id: 'event_updates', label: '📅 New events' },
   { id: 'announcement_updates', label: '📢 New announcements' },
   { id: 'theme_updates', label: '🎨 Theme & design updates' },
 ]
 
-const UI_TO_BACKEND: Record<NotificationPreferenceKey, BackendNotificationPreferenceKey> = {
+const UI_TO_BACKEND: Partial<Record<NotificationPreferenceKey, BackendNotificationPreferenceKey>> = {
   contact: 'contact_updates',
   video: 'portfolio_updates',
   blog: 'news',
   company: 'business_hours',
   services: 'service_updates',
-  events: 'event_updates',
   announcements: 'announcement_updates',
+  // Legacy UI key `events` is ignored (no longer a public preference).
 }
 
 const BACKEND_TO_UI: Record<BackendNotificationPreferenceKey, NotificationPreferenceKey | null> = {
@@ -42,7 +42,7 @@ const BACKEND_TO_UI: Record<BackendNotificationPreferenceKey, NotificationPrefer
   news: 'blog',
   business_hours: 'company',
   service_updates: 'services',
-  event_updates: 'events',
+  event_updates: null,
   announcement_updates: 'announcements',
   offers: null,
   theme_updates: null,

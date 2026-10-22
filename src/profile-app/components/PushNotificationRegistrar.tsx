@@ -2,6 +2,7 @@
 
 import { enrichPushPayloadWithCardMedia, readCardPushMediaSync } from '@/lib/push/cardPushMediaCache'
 import { isPushSupported, registerServiceWorker } from '@/lib/push/config'
+import { incrementPwaBadgeCount } from '@/lib/push/pwaBadgeCount'
 import type { PlatformUpdateDetail } from '@/lib/push/types'
 import { useEffect } from 'react'
 
@@ -45,6 +46,7 @@ export function PushNotificationRegistrar() {
         data.payload as PlatformUpdateDetail & Record<string, unknown>
       ) as PlatformUpdateDetail
 
+      incrementPwaBadgeCount(1)
       dispatchPlatformUpdate(enriched)
     }
 

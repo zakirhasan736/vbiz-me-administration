@@ -366,20 +366,16 @@ export function mergeSectionPayload(draft: VCardData, section: string, payload: 
 
 export function preferExistingPersonal(base: VCardData | undefined, next: VCardData): VCardData {
   if (!base?.personal) return next
-  const keys: Array<keyof VCardData['personal']> = [
-    'fullName',
-    'email',
-    'phone',
-    'dob',
-    'company',
-    'website',
-    'address',
-    'designation',
-    'about',
-    'whatsapp',
-  ]
+  // Account / existing-card identity always wins over scraped website contact.
+  // Marketing fields (company, about, website, …) keep existing values when already set.
+  const identityKeys: Array<keyof VCardData['personal']> = ['fullName', 'email', 'phone', 'dob', 'whatsapp']
+  const contentKeys: Array<keyof VCardData['personal']> = ['company', 'website', 'address', 'designation', 'about']
   const personal = { ...next.personal }
-  for (const key of keys) {
+  for (const key of identityKeys) {
+    const existing = String(base.personal[key] || '').trim()
+    if (existing) personal[key] = existing as never
+  }
+  for (const key of contentKeys) {
     const existing = String(base.personal[key] || '').trim()
     if (existing) personal[key] = existing as never
   }
@@ -438,7 +434,7 @@ export function applyAnalyzeToDraft(response: AnalyzeResponse, base?: VCardData)
 
 /** Paths to write via updateData for a full draft replace. */
 export function draftFieldWrites(data: VCardData): Array<{ path: string; value: unknown }> {
-  return [
+  const writes: Array<{ path: string; value: unknown }> = [
     { path: 'slug', value: data.slug },
     { path: 'personal', value: data.personal },
     { path: 'social', value: data.social },
@@ -453,4 +449,9 @@ export function draftFieldWrites(data: VCardData): Array<{ path: string; value: 
     { path: 'seo', value: data.seo },
     { path: 'myInfo', value: data.myInfo },
   ]
+  // Brand colors from AI builder (website/PDF) must persist on Create & activate / Save draft.
+  if (data.themeConfig) writes.push({ path: 'themeConfig', value: data.themeConfig })
+  if (data.theme) writes.push({ path: 'theme', value: data.theme })
+  if (data.appearance) writes.push({ path: 'appearance', value: data.appearance })
+  return writes
 }

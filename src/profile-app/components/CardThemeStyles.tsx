@@ -107,12 +107,17 @@ export function CardThemeStyles({
       config.appearance.layoutStyle,
       config.appearance.cornerStyle,
       config.appearance.buttonStyle,
+      config.appearance.buttonType,
       config.appearance.fontFamily,
       config.appearance.buttonShadow,
       b.primary.style,
+      b.primary.colors.light.fill,
       b.secondary.style,
+      b.secondary.colors.light.fill,
       b.accent.style,
+      b.accent.colors.light.fill,
       s.style,
+      s.colors.light.fill,
       s.cornerRadius,
       JSON.stringify(config.components.sectionBanner ?? null),
       JSON.stringify(config.components.contentCard ?? null),
@@ -134,15 +139,20 @@ export function CardThemeStyles({
     const banner = resolveBannerStyle(set, mode, config.components.sectionBanner)
     const topNav = resolveTopNavBarStyle(set, mode, config.components.topNavBar)
     const bannerVariant = banner.variant || 'solid'
+    const bannerTitleStyle = banner.titleStyle || 'smart'
     const navVariant = topNav.variant || 'solid'
     const roots = document.querySelectorAll('.vbiz-profile-root')
     roots.forEach((el) => {
       el.setAttribute('data-banner-variant', bannerVariant)
+      el.setAttribute('data-banner-title-style', bannerTitleStyle)
       el.setAttribute('data-nav-variant', navVariant)
     })
     return () => {
       roots.forEach((el) => {
         if (el.getAttribute('data-banner-variant') === bannerVariant) el.removeAttribute('data-banner-variant')
+        if (el.getAttribute('data-banner-title-style') === bannerTitleStyle) {
+          el.removeAttribute('data-banner-title-style')
+        }
         if (el.getAttribute('data-nav-variant') === navVariant) el.removeAttribute('data-nav-variant')
       })
     }

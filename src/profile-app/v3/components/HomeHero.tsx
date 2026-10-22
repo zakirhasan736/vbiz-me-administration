@@ -11,7 +11,13 @@ import {
 } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig } from '@/lib/theme/wallpaper'
-import { displayIconChromeStyle, displaySocialChromeStyle, mergeDisplayFieldConfigs } from '@/lib/vcardDisplaySettings'
+import {
+  displayIconChromeStyle,
+  displaySocialChromeStyle,
+  mergeDisplayFieldConfigs,
+  primaryChromeDefaultsForMode,
+  secondaryChromeDefaultsForMode,
+} from '@/lib/vcardDisplaySettings'
 import { CustomVideoPlayer } from '@/profile-app/components/CustomVideoPlayer'
 import { GameIdsRail } from '@/profile-app/components/GameIdsRail'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
@@ -162,6 +168,7 @@ export const HomeHero: React.FC<{
     cardOwnerId,
     cardSlug,
     embedded,
+    design,
   } = useProfileDisplay()
 
   /**
@@ -179,6 +186,7 @@ export const HomeHero: React.FC<{
   const wallpaper = resolveWallpaperConfig(profileTheme?.themeConfig, homeMedia.bgMedia)
   const coverMediaUrl = encodeMediaUrl(homeMedia.bgMedia || '')
   const coverIsVideo = wallpaper.style === 'video' || isVideoUrl(homeMedia.bgMedia || '')
+  const coverMediaFrame = field('Background Video/Image').mediaFrame
   const profileIsVideo = Boolean(profileSrc) && isVideoUrl(profileSrc)
   const avatarFrame = parseProfileMediaFrame(field('Profile Image/Video').mediaFrame)
   const avatarHeightAdjusted = avatarFrame.height !== 1
@@ -186,15 +194,31 @@ export const HomeHero: React.FC<{
   const showShare = isVisible('Share Btn') || isVisible('Share')
   const showCrm = isVisible('CRM')
   const mode = (theme === 'dark' ? 'dark' : 'light') as 'light' | 'dark'
-  const shareChrome = displayIconChromeStyle(mergeDisplayFieldConfigs(field('Share'), field('Share Btn')), mode)
-  const crmChrome = displayIconChromeStyle(field('CRM'), mode)
-  const languageChrome = displayIconChromeStyle(field('Language'), mode)
-  const websiteChrome = displayIconChromeStyle(field('Website'), mode)
-  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), mode)
-  const notificationsChrome = displayIconChromeStyle(field('Notifications'), mode)
-  const notepadChrome = displayIconChromeStyle(field('Notepad'), mode)
-  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), mode)
-  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), mode)
+  const brandTheme = {
+    primaryColor: design?.primaryColor,
+    secondaryColor: design?.secondaryColor,
+    accentColor: design?.accentColor,
+  }
+  const iconDefaults = secondaryChromeDefaultsForMode(brandTheme, mode, design?.profileTemplate)
+  const socialDefaults = primaryChromeDefaultsForMode(brandTheme, mode, design?.profileTemplate)
+  const chromeOpts = {
+    buttonStyle: design?.buttonStyle,
+    outlineCompanion: design?.secondaryColor,
+  }
+  const shareChrome = displayIconChromeStyle(
+    mergeDisplayFieldConfigs(field('Share'), field('Share Btn')),
+    mode,
+    iconDefaults,
+    chromeOpts
+  )
+  const crmChrome = displayIconChromeStyle(field('CRM'), mode, iconDefaults, chromeOpts)
+  const languageChrome = displayIconChromeStyle(field('Language'), mode, iconDefaults, chromeOpts)
+  const websiteChrome = displayIconChromeStyle(field('Website'), mode, iconDefaults, chromeOpts)
+  const viewsChrome = displayIconChromeStyle(field('Vcard View Counter'), mode, iconDefaults, chromeOpts)
+  const notificationsChrome = displayIconChromeStyle(field('Notifications'), mode, iconDefaults, chromeOpts)
+  const notepadChrome = displayIconChromeStyle(field('Notepad'), mode, iconDefaults, chromeOpts)
+  const oneOnOneChrome = displayIconChromeStyle(field('1-on-1'), mode, iconDefaults, chromeOpts)
+  const themeToggleChrome = displayIconChromeStyle(field('Theme Toggle'), mode, iconDefaults, chromeOpts)
   const showNotifications = isVisible('Notifications')
   const showNotepad = isVisible('Notepad')
   const showOneOnOne = isVisible('1-on-1')
@@ -259,7 +283,7 @@ export const HomeHero: React.FC<{
     return <Icon size={size} strokeWidth={2.5} />
   }
 
-  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), mode)
+  const socialInlineStyle = (label: string) => displaySocialChromeStyle(field(label), mode, socialDefaults, chromeOpts)
 
   return (
     <div
@@ -274,15 +298,25 @@ export const HomeHero: React.FC<{
           <ProfileWallpaperContent
             wallpaper={wallpaper}
             mediaUrl={coverMediaUrl}
+            mediaFrame={coverMediaFrame}
             mediaClassName={
               // Videos stay mix-blend-normal — lighten/screen wash them out on dark home canvases.
+              // When mediaFrame is set, object-fit / position come from cover layout — skip object-cover.
               coverIsVideo
                 ? compact
-                  ? 'h-full w-full object-cover opacity-95'
-                  : 'h-full w-full object-cover opacity-95 md:aspect-auto'
+                  ? coverMediaFrame
+                    ? 'opacity-95'
+                    : 'h-full w-full object-cover opacity-95'
+                  : coverMediaFrame
+                    ? 'opacity-95'
+                    : 'h-full w-full object-cover opacity-95 md:aspect-auto'
                 : compact
-                  ? 'h-full w-full opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
-                  : 'aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten'
+                  ? coverMediaFrame
+                    ? 'opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
+                    : 'h-full w-full opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
+                  : coverMediaFrame
+                    ? 'opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
+                    : 'aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten'
             }
           />
           <div
@@ -307,7 +341,7 @@ export const HomeHero: React.FC<{
         >
           <div className="relative h-0 w-full max-w-258">
             <div
-              className={`pointer-events-auto absolute flex flex-col gap-1 sm:gap-2 ${compact ? 'top-20 right-1' : 'top-4 right-1 md:right-6'}`}
+              className={`vbiz-home-utility-rail pointer-events-auto absolute flex flex-col gap-1 sm:gap-2 ${compact ? 'top-20 right-1' : 'top-4 right-1 md:right-6'}`}
             >
               {/* Fixed rail: Eye → World (website) → Language → CRM → Theme */}
               <IconHoverTooltip label="Total views" placement="left">
@@ -414,12 +448,14 @@ export const HomeHero: React.FC<{
 
         {/* Phone View — also used by the editor preview frame */}
         <div
-          className={`relative flex flex-col items-center ${
+          className={`vbiz-home-phone-stack relative flex flex-col items-center ${
             compact ? 'flex-1 pt-16 pb-5' : 'flex-1 pt-6.25 pb-2 sm:pb-17.5 md:hidden'
           }`}
         >
           {showSocialRail && (
-            <div className={`absolute z-30 flex flex-col gap-2 ${compact ? 'top-24 left-0' : 'top-8 left-2'}`}>
+            <div
+              className={`vbiz-home-social-rail absolute z-30 flex flex-col gap-2 ${compact ? 'top-24 left-0' : 'top-8 left-2'}`}
+            >
               {visibleSocials.map((item) => {
                 const href = resolveSocialLinkHref(item.label, socialHref, personal.whatsapp)
                 return (
@@ -446,7 +482,7 @@ export const HomeHero: React.FC<{
           )}
 
           <div
-            className={`relative z-20 mx-auto mb-2 max-w-60 overflow-hidden border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
+            className={`vbiz-home-avatar relative z-20 mx-auto mb-2 max-w-60 overflow-hidden border-2 border-white bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
               avatarHeightAdjusted ? '' : 'aspect-4/4.5'
             } ${compact ? 'w-[52%]' : 'w-[56%] sm:w-[60%] md:w-[65%]'}`}
             style={avatarHeightAdjusted ? { aspectRatio: profileFramePhoneAspect(avatarFrame) } : undefined}
@@ -459,8 +495,8 @@ export const HomeHero: React.FC<{
             />
           </div>
 
-          <div className="relative z-20 mt-5 flex w-full flex-1 flex-col items-center">
-            <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="vbiz-home-mid-stack relative z-20 mt-5 flex w-full flex-1 flex-col items-center">
+            <div className="vbiz-home-mid-actions flex flex-wrap items-center justify-center gap-2">
               {showShare && (
                 <IconHoverTooltip label="Share">
                   <button

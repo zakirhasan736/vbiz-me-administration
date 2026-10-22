@@ -75,6 +75,8 @@ export type CardWallpaperConfig = {
 }
 
 export type BannerVariant = 'gradient' | 'solid' | 'image'
+/** How the banner heading is painted — solid fill, full gradient, or smart (solid + accent gradient word). */
+export type BannerTitleStyle = 'solid' | 'gradient' | 'smart'
 export type ObjectFitMode = 'cover' | 'contain' | 'fill'
 export type ObjectPositionMode = 'top' | 'center' | 'bottom'
 
@@ -84,7 +86,12 @@ export type BannerModeColors = {
   bg?: string
   gradientFrom?: string
   gradientTo?: string
+  /** Solid title / base words color (used by solid + smart). */
   title?: string
+  /** solid = flat title; gradient = full title gradient; smart = solid base + gradient accent word. */
+  titleStyle?: BannerTitleStyle
+  titleGradientFrom?: string
+  titleGradientTo?: string
   description?: string
   note?: string
   label?: string
@@ -189,6 +196,8 @@ export type CardThemeConfig = {
     cornerStyle: CornerStyle
     fontFamily?: string
     buttonShadow?: 'none' | 'soft' | 'strong' | 'hard'
+    /** Home CTAs + social: default = role colors; primary/secondary = force one Global Color role. */
+    buttonType?: 'default' | 'primary' | 'secondary'
   }
   /** Cover wallpaper style; omit to infer image/video from Background Video/Image. */
   wallpaper?: CardWallpaperConfig
@@ -319,29 +328,13 @@ export function defaultButtonComponents(): ButtonComponents {
   return {
     // Filled brand CTAs: gold/primary fill + dark-blue (secondary) icons/text
     primary: roleButton('filled', 'primary', 'secondary'),
-    // Outline with opacity surface (readable in light + dark — not gold-on-transparent).
-    secondary: {
-      style: 'outlined',
-      colors: {
-        light: {
-          fill: 'accent',
-          foreground: 'auto',
-          borderColor: 'accent',
-          hoverOverlay: 'rgba(0,0,0,0.06)',
-        },
-        dark: {
-          fill: 'secondary',
-          foreground: 'auto',
-          borderColor: 'accent',
-          hoverOverlay: 'rgba(255,255,255,0.10)',
-        },
-      },
-    },
+    // Utility / outline-role CTAs: solid secondary (navy) fill — Share, Save Contact, rails, etc.
+    secondary: roleButton('filled', 'secondary', 'auto'),
     accent: roleButton('filled', 'accent', 'secondary'),
   }
 }
 
-/** Social icons: accent (gold) bg + secondary (dark blue) icon — prior brand concept. */
+/** Social icons: primary fill + readable icon (matches Card Settings Social defaults). */
 export function defaultSocialIconComponent(): SocialIconComponent {
   return {
     style: 'filled',
@@ -350,13 +343,13 @@ export function defaultSocialIconComponent(): SocialIconComponent {
     cornerRadius: 9999,
     colors: {
       light: {
-        fill: 'accent',
+        fill: 'primary',
         foreground: 'secondary',
         borderColor: 'auto',
         hoverOverlay: 'rgba(0,0,0,0.10)',
       },
       dark: {
-        fill: 'accent',
+        fill: 'primary',
         foreground: 'secondary',
         borderColor: 'auto',
         hoverOverlay: 'rgba(255,255,255,0.12)',
@@ -404,6 +397,7 @@ export function getDefaultThemeConfig(template: ProfileTemplateId = 'v3'): CardT
       cornerStyle: 'round',
       fontFamily: 'inter',
       buttonShadow: 'none',
+      buttonType: 'default',
     },
   }
 }

@@ -46,29 +46,129 @@ type ThemeBrandColors = {
   accentColor?: string
 }
 
-/** Defaults shown in Card Settings pickers — from Template primary / secondary / accent. */
+export type FieldThemeColorDefaults = {
+  light: { text: string; bg: string; icon: string }
+  dark: { text: string; bg: string; icon: string }
+}
+
+export type ThemeModeColorSets = {
+  light: { primary: string; secondary: string; accent: string }
+  dark: { primary: string; secondary: string; accent: string }
+}
+
+function fallbackPrimary(profileTemplate: 'v1' | 'v2' | 'v3') {
+  return profileTemplate === 'v1' ? '#dcc969' : profileTemplate === 'v3' ? '#eed677' : '#eab308'
+}
+
+function fallbackSecondary(profileTemplate: 'v1' | 'v2' | 'v3') {
+  return profileTemplate === 'v1' ? '#0a0a0a' : profileTemplate === 'v3' ? '#0f2c4d' : '#18181b'
+}
+
+/**
+ * Defaults for primary-fill controls (social networks, My vCard, Get your VCard Now).
+ * Prefer per-mode theme_config colors so Card Settings pickers match the public card.
+ */
 export function getFieldThemeColorDefaults(
   theme?: ThemeBrandColors,
-  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
-): { light: { text: string; bg: string; icon: string }; dark: { text: string; bg: string; icon: string } } {
-  const primary = theme?.primaryColor?.trim() || (profileTemplate === 'v1' ? '#dcc969' : '#eab308')
-  const secondary = theme?.secondaryColor?.trim() || primary
-  const accent = theme?.accentColor?.trim() || primary
-  const lightFg = readableForeground(primary)
-  const darkFill = accent || primary
-  const darkFg = readableForeground(darkFill)
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2',
+  modeSets?: Partial<ThemeModeColorSets>
+): FieldThemeColorDefaults {
+  const flatPrimary = theme?.primaryColor?.trim() || fallbackPrimary(profileTemplate)
+  const flatSecondary = theme?.secondaryColor?.trim() || fallbackSecondary(profileTemplate)
+  const lightPrimary = modeSets?.light?.primary?.trim() || flatPrimary
+  const darkPrimary = modeSets?.dark?.primary?.trim() || flatPrimary
+  const lightSecondary = modeSets?.light?.secondary?.trim() || flatSecondary
+  const darkSecondary = modeSets?.dark?.secondary?.trim() || flatSecondary
+  const lightFg = contrastSafeForeground(lightPrimary, lightSecondary, readableForeground(lightPrimary))
+  const darkFg = contrastSafeForeground(darkPrimary, darkSecondary, readableForeground(darkPrimary))
   return {
+    light: { bg: lightPrimary, text: lightFg, icon: lightFg },
+    dark: { bg: darkPrimary, text: darkFg, icon: darkFg },
+  }
+}
+
+/**
+ * Defaults for secondary-fill controls (Share, Notes, Save Contact, Theme Toggle, rails…).
+ * Card Settings pickers and public chrome both use Template secondary as the solid BG.
+ */
+export function getFieldSecondaryThemeColorDefaults(
+  theme?: ThemeBrandColors,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2',
+  modeSets?: Partial<ThemeModeColorSets>
+): FieldThemeColorDefaults {
+  const flatPrimary = theme?.primaryColor?.trim() || fallbackPrimary(profileTemplate)
+  const flatSecondary = theme?.secondaryColor?.trim() || fallbackSecondary(profileTemplate)
+  const lightPrimary = modeSets?.light?.primary?.trim() || flatPrimary
+  const darkPrimary = modeSets?.dark?.primary?.trim() || flatPrimary
+  const lightSecondary = modeSets?.light?.secondary?.trim() || flatSecondary
+  const darkSecondary = modeSets?.dark?.secondary?.trim() || flatSecondary
+  const lightFg = contrastSafeForeground(lightSecondary, lightPrimary, readableForeground(lightSecondary))
+  const darkFg = contrastSafeForeground(darkSecondary, darkPrimary, readableForeground(darkSecondary))
+  return {
+    light: { bg: lightSecondary, text: lightFg, icon: lightFg },
+    dark: { bg: darkSecondary, text: darkFg, icon: darkFg },
+  }
+}
+
+/** Build picker defaults from the same theme_config the public card CSS uses. */
+export function fieldThemeDefaultsFromThemeConfig(
+  themeConfig: {
+    colors: {
+      light: { primary: string; secondary: string; accent: string }
+      dark: { primary: string; secondary: string; accent: string }
+    }
+  },
+  theme?: ThemeBrandColors,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): { primary: FieldThemeColorDefaults; secondary: FieldThemeColorDefaults } {
+  const modeSets: ThemeModeColorSets = {
     light: {
-      bg: primary,
-      text: contrastSafeForeground(primary, secondary, lightFg),
-      icon: contrastSafeForeground(primary, secondary, lightFg),
+      primary: themeConfig.colors.light.primary,
+      secondary: themeConfig.colors.light.secondary,
+      accent: themeConfig.colors.light.accent,
     },
     dark: {
-      bg: darkFill,
-      text: contrastSafeForeground(darkFill, secondary, darkFg),
-      icon: contrastSafeForeground(darkFill, secondary, darkFg),
+      primary: themeConfig.colors.dark.primary,
+      secondary: themeConfig.colors.dark.secondary,
+      accent: themeConfig.colors.dark.accent,
     },
   }
+  return {
+    primary: getFieldThemeColorDefaults(theme, profileTemplate, modeSets),
+    secondary: getFieldSecondaryThemeColorDefaults(theme, profileTemplate, modeSets),
+  }
+}
+
+/**
+ * Home Page Settings text colors — same tokens the public card paints:
+ * `--vbiz-home-heading` = light secondary / dark white
+ * `--vbiz-home-description` = mode primary
+ * `vCard Header Color` falls back to the heading token on the public card.
+ */
+export function homePageIdentityDefaultsFromThemeConfig(themeConfig: {
+  colors: {
+    light: { primary: string; secondary: string; accent: string }
+    dark: { primary: string; secondary: string; accent: string }
+  }
+}): {
+  heading: FieldThemeColorDefaults
+  description: FieldThemeColorDefaults
+  header: FieldThemeColorDefaults
+} {
+  const lightPrimary = themeConfig.colors.light.primary.trim()
+  const darkPrimary = themeConfig.colors.dark.primary.trim()
+  const lightSecondary = themeConfig.colors.light.secondary.trim()
+  const darkHeading = '#ffffff'
+
+  const heading: FieldThemeColorDefaults = {
+    light: { bg: lightSecondary, text: lightSecondary, icon: lightSecondary },
+    dark: { bg: darkHeading, text: darkHeading, icon: darkHeading },
+  }
+  const description: FieldThemeColorDefaults = {
+    light: { bg: lightPrimary, text: lightPrimary, icon: lightPrimary },
+    dark: { bg: darkPrimary, text: darkPrimary, icon: darkPrimary },
+  }
+  return { heading, description, header: heading }
 }
 
 /** Prefer brand secondary when it stays readable on the fill; otherwise WCAG pair. */
@@ -234,7 +334,8 @@ export const MY_INFO_FIELDS = [
   'About Me',
 ] as const
 
-export const SOCIAL_LINK_FIELDS = [
+/** Social network icons — Template primary BG on the public card. */
+export const SOCIAL_NETWORK_FIELDS = [
   'FaceBook',
   'Twitter',
   'Instagram',
@@ -245,6 +346,10 @@ export const SOCIAL_LINK_FIELDS = [
   'Rumble',
   'Truth',
   'Pinterest',
+] as const
+
+export const SOCIAL_LINK_FIELDS = [
+  ...SOCIAL_NETWORK_FIELDS,
   'Share',
   'Notifications',
   'Notepad',
@@ -254,6 +359,15 @@ export const SOCIAL_LINK_FIELDS = [
   'CRM',
   'Website',
 ] as const
+
+/** Primary-fill CTAs in General Settings (same primary BG as social network icons). */
+export const PRIMARY_BG_GENERAL_FIELDS = ['My vCard Btn', 'Get your VCard Now'] as const
+
+export const PRIMARY_BG_DISPLAY_FIELD_SET = new Set<string>([...SOCIAL_NETWORK_FIELDS, ...PRIMARY_BG_GENERAL_FIELDS])
+
+export function isPrimaryBgDisplayField(key: string): boolean {
+  return PRIMARY_BG_DISPLAY_FIELD_SET.has(key)
+}
 
 export const ICON_FIELDS = [
   'Profession Icon',
@@ -284,29 +398,61 @@ export const GENERAL_SETTINGS_FIELDS = [
 
 /**
  * Defaults for My Info Call / Text / Email.
- * Light and dark follow that mode’s Template primary. A saved field color replaces it.
+ * Same Template secondary (or Button-type remapped fill) as other action chrome —
+ * never the static template gold fallback when theme_config is present.
  */
 export function getMyInfoActionButtonColorDefaults(
   theme?: ThemeBrandColors,
   profileTemplate: 'v1' | 'v2' | 'v3' = 'v2',
-  modes?: { lightPrimary?: string; darkPrimary?: string }
-): { light: { text: string; bg: string; icon: string }; dark: { text: string; bg: string; icon: string } } {
-  const fallback =
-    theme?.primaryColor?.trim() ||
-    theme?.secondaryColor?.trim() ||
-    (profileTemplate === 'v1' ? '#dcc969' : profileTemplate === 'v3' ? '#0f2c4d' : '#eab308')
-  const lightBg = modes?.lightPrimary?.trim() || fallback
-  const darkBg = modes?.darkPrimary?.trim() || theme?.accentColor?.trim() || lightBg
-  const lightFg = readableForeground(lightBg)
-  const darkFg = readableForeground(darkBg)
-  return {
-    light: { bg: lightBg, text: lightFg, icon: lightFg },
-    dark: { bg: darkBg, text: darkFg, icon: darkFg },
+  modes?: Partial<ThemeModeColorSets> & {
+    /** @deprecated use modes.light.primary / modes.dark.primary */
+    lightPrimary?: string
+    darkPrimary?: string
+    lightSecondary?: string
+    darkSecondary?: string
   }
+): FieldThemeColorDefaults {
+  const modeSets: Partial<ThemeModeColorSets> = {
+    light: {
+      primary: modes?.light?.primary || modes?.lightPrimary || '',
+      secondary: modes?.light?.secondary || modes?.lightSecondary || '',
+      accent: modes?.light?.accent || '',
+    },
+    dark: {
+      primary: modes?.dark?.primary || modes?.darkPrimary || '',
+      secondary: modes?.dark?.secondary || modes?.darkSecondary || '',
+      accent: modes?.dark?.accent || '',
+    },
+  }
+  return getFieldSecondaryThemeColorDefaults(theme, profileTemplate, modeSets)
 }
 
 /** Legacy key kept for API/visibility sync; colors live on Social → Share. */
 export const LEGACY_SHARE_BTN_FIELD = 'Share Btn' as const
+
+/** Utility / action fields that default to Template secondary as background. */
+export const SECONDARY_BG_DISPLAY_FIELDS = [
+  'Share',
+  LEGACY_SHARE_BTN_FIELD,
+  'Notifications',
+  'Notepad',
+  '1-on-1',
+  'Vcard View Counter',
+  'Language',
+  'CRM',
+  'Website',
+  'Save Contact',
+  'Save to Wallet',
+  'My Info Btn',
+  'Theme Toggle',
+  ...MY_INFO_ACTION_FIELDS,
+] as const
+
+export const SECONDARY_BG_DISPLAY_FIELD_SET = new Set<string>(SECONDARY_BG_DISPLAY_FIELDS)
+
+export function isSecondaryBgDisplayField(key: string): boolean {
+  return SECONDARY_BG_DISPLAY_FIELD_SET.has(key)
+}
 
 export const HOME_PAGE_FIELDS = [
   'Intro vCard Video',
@@ -637,90 +783,184 @@ export function mergeDisplayFieldConfigs(...configs: Array<DisplayFieldConfig | 
   })
 }
 
+type ChromeColorDefaults = { bg: string; text: string }
+
+function resolveChromePaint(
+  config: DisplayFieldConfig | undefined,
+  mode: ThemeMode,
+  defaults?: ChromeColorDefaults,
+  options?: { preferText?: boolean }
+): { paintFill?: string; paintFg?: string } {
+  const { fill, fg } = resolveFieldModeColors(config, mode, options)
+  const paintFill =
+    storedCssColor(fill) || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
+  const paintFg =
+    storedCssColor(fg) || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
+  return {
+    paintFill: paintFill || undefined,
+    paintFg: paintFg || undefined,
+  }
+}
+
+export type ChromeButtonStyle = 'solid' | 'soft' | 'outline' | 'glass' | 'filled' | 'outlined' | string
+
 /**
- * Per-button colors from Card Settings. Sets CSS variables the themed
- * `.vbiz-social` / `.vbiz-icon-btn` / `.vbiz-btn` rules already read, so
- * `!important` theme tokens still apply — but use the owner's color when set.
- * Unset fields keep light/dark theme tokens.
+ * Adapt a solid brand/custom paint to Template Settings button style (Solid / Glass / Outline / Soft).
+ * Keeps Glass/Outline readable when a per-control color override is present.
+ */
+export function styleAwareChromePaint(
+  paintFill: string | undefined,
+  paintFg: string | undefined,
+  buttonStyle: ChromeButtonStyle | undefined,
+  mode: ThemeMode,
+  outlineCompanion?: string
+): { fill?: string; fg?: string } {
+  if (!paintFill && !paintFg) return {}
+  const style = String(buttonStyle || 'solid')
+    .trim()
+    .toLowerCase()
+  if (!paintFill) return { fill: undefined, fg: paintFg }
+
+  if (style === 'glass') {
+    return {
+      fill: `color-mix(in srgb, ${paintFill} 28%, transparent)`,
+      fg: paintFg || '#ffffff',
+    }
+  }
+  if (style === 'outline' || style === 'outlined') {
+    const fill =
+      mode === 'light'
+        ? `color-mix(in srgb, ${paintFill} 10%, transparent)`
+        : `color-mix(in srgb, ${outlineCompanion || paintFill} 55%, transparent)`
+    return { fill, fg: paintFg || '#ffffff' }
+  }
+  if (style === 'soft') {
+    return {
+      fill: `color-mix(in srgb, ${paintFill} 18%, transparent)`,
+      fg: paintFg || paintFill,
+    }
+  }
+  return { fill: paintFill, fg: paintFg }
+}
+
+type ChromeStyleOptions = {
+  /** Template Settings → Button style. Defaults stay on theme CSS vars when omitted. */
+  buttonStyle?: ChromeButtonStyle
+  /** Dark outline companion (usually secondary). */
+  outlineCompanion?: string
+}
+
+/**
+ * Per-button colors from Card Settings. Only emits overrides when the owner saved a
+ * custom color — otherwise theme CSS vars (Solid/Glass/Outline + corner + shadow) apply.
  */
 export function displaySocialChromeStyle(
   config?: DisplayFieldConfig,
-  mode: ThemeMode = 'light'
+  mode: ThemeMode = 'light',
+  defaults?: ChromeColorDefaults,
+  options?: ChromeStyleOptions
 ): CSSProperties | undefined {
+  // Ignore template defaults here — CardThemeStyles already paints social from appearance.buttonStyle.
   const { fill, fg } = resolveFieldModeColors(config, mode)
-  const paintFill = storedCssColor(fill)
-  const paintFg = storedCssColor(fg)
-  if (!paintFill && !paintFg) return undefined
+  const userFill = storedCssColor(fill)
+  const userFg = storedCssColor(fg)
+  if (!userFill && !userFg) return undefined
+  const brandFill = userFill || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
+  const brandFg = userFg || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
+  const painted = styleAwareChromePaint(brandFill, brandFg, options?.buttonStyle, mode, options?.outlineCompanion)
   const style: CSSPropertiesWithVariables = {}
-  if (paintFill) {
-    style['--vbiz-control-fill'] = paintFill
-    style['--vbiz-control-border'] = paintFill
-    style['--vbiz-social-fill'] = paintFill
-    style['--vbiz-social-border-color'] = paintFill
-    style.backgroundColor = paintFill
+  if (painted.fill) {
+    style['--vbiz-social-fill'] = painted.fill
+    style['--vbiz-social-border-color'] = painted.fill
   }
-  if (paintFg) {
-    style['--vbiz-control-fg'] = paintFg
-    style['--vbiz-social-fg'] = paintFg
-    style.color = paintFg
+  if (painted.fg) {
+    style['--vbiz-social-fg'] = painted.fg
   }
   return style
 }
 
 export function displayIconChromeStyle(
   config?: DisplayFieldConfig,
-  mode: ThemeMode = 'light'
+  mode: ThemeMode = 'light',
+  defaults?: ChromeColorDefaults,
+  options?: ChromeStyleOptions
 ): CSSProperties | undefined {
   const { fill, fg } = resolveFieldModeColors(config, mode)
-  const paintFill = storedCssColor(fill)
-  const paintFg = storedCssColor(fg)
-  if (!paintFill && !paintFg) return undefined
+  const userFill = storedCssColor(fill)
+  const userFg = storedCssColor(fg)
+  if (!userFill && !userFg) return undefined
+  const brandFill = userFill || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
+  const brandFg = userFg || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
+  const painted = styleAwareChromePaint(brandFill, brandFg, options?.buttonStyle, mode, options?.outlineCompanion)
   const style: CSSPropertiesWithVariables = {}
-  if (paintFill) {
-    style['--vbiz-control-fill'] = paintFill
-    style['--vbiz-control-border'] = paintFill
-    style['--vbiz-btn-secondary-fill'] = paintFill
-    style['--vbiz-btn-secondary-border-color'] = paintFill
-    style.backgroundColor = paintFill
+  if (painted.fill) {
+    style['--vbiz-btn-secondary-fill'] = painted.fill
+    style['--vbiz-btn-secondary-border-color'] = painted.fill
   }
-  if (paintFg) {
-    style['--vbiz-control-fg'] = paintFg
-    style['--vbiz-btn-secondary-fg'] = paintFg
-    style.color = paintFg
+  if (painted.fg) {
+    style['--vbiz-btn-secondary-fg'] = painted.fg
   }
   return style
 }
 
 export function displayCtaChromeStyle(
   config?: DisplayFieldConfig,
-  mode: ThemeMode = 'light'
+  mode: ThemeMode = 'light',
+  defaults?: ChromeColorDefaults,
+  options?: ChromeStyleOptions
 ): CSSProperties | undefined {
+  void defaults
+  void options
   const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
-  const paintFill = storedCssColor(fill)
-  const paintFg = storedCssColor(fg)
-  if (!paintFill && !paintFg) return undefined
+  // Only channels the owner saved. Do NOT inject Template defaults for the other channel —
+  // that made text-only overrides freeze BG and fight Global Color / Button type.
+  const userFill = storedCssColor(fill)
+  const userFg = storedCssColor(fg)
+  if (!userFill && !userFg) return undefined
+  // Exact hex from Card Settings — do not glass/outline-mix away the picked color.
   const style: CSSPropertiesWithVariables = {}
-  if (paintFill) {
-    style['--vbiz-control-fill'] = paintFill
-    style['--vbiz-control-border'] = paintFill
-    style['--vbiz-btn-fill'] = paintFill
-    style['--vbiz-btn-accent-fill'] = paintFill
-    style['--vbiz-btn-primary-fill'] = paintFill
-    style['--vbiz-btn-secondary-fill'] = paintFill
+  if (userFill) {
+    style['--vbiz-btn-fill'] = userFill
+    style['--vbiz-btn-accent-fill'] = userFill
+    style['--vbiz-btn-primary-fill'] = userFill
+    style['--vbiz-btn-secondary-fill'] = userFill
+    style['--vbiz-btn-secondary-border-color'] = userFill
   }
-  if (paintFg) {
-    style['--vbiz-control-fg'] = paintFg
-    style['--vbiz-btn-fg'] = paintFg
-    style['--vbiz-btn-accent-fg'] = paintFg
-    style['--vbiz-btn-primary-fg'] = paintFg
-    style['--vbiz-btn-secondary-fg'] = paintFg
+  if (userFg) {
+    style['--vbiz-btn-fg'] = userFg
+    style['--vbiz-btn-accent-fg'] = userFg
+    style['--vbiz-btn-primary-fg'] = userFg
+    style['--vbiz-btn-secondary-fg'] = userFg
   }
   return style
 }
 
+/** Mode slice of Template secondary defaults for public icon / secondary CTA chrome. */
+export function secondaryChromeDefaultsForMode(
+  theme: ThemeBrandColors | undefined,
+  mode: ThemeMode,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): ChromeColorDefaults {
+  const defaults = getFieldSecondaryThemeColorDefaults(theme, profileTemplate)
+  const slice = mode === 'dark' ? defaults.dark : defaults.light
+  return { bg: slice.bg, text: slice.text }
+}
+
+/** Mode slice of Template primary defaults for social / primary CTA chrome. */
+export function primaryChromeDefaultsForMode(
+  theme: ThemeBrandColors | undefined,
+  mode: ThemeMode,
+  profileTemplate: 'v1' | 'v2' | 'v3' = 'v2'
+): ChromeColorDefaults {
+  const defaults = getFieldThemeColorDefaults(theme, profileTemplate)
+  const slice = mode === 'dark' ? defaults.dark : defaults.light
+  return { bg: slice.bg, text: slice.text }
+}
+
 /**
  * Solid pill chrome for My Info Call / Text / Email.
- * A saved light/dark color replaces the Template primary default for that button only.
+ * Saved light/dark colors replace Template secondary (action) defaults for that button only.
+ * When nothing is saved, omit inline paint so theme CSS (`--vbiz-btn-secondary-fill`) applies.
  */
 export function displayMyInfoActionChromeStyle(
   config: DisplayFieldConfig | undefined,
@@ -728,8 +968,14 @@ export function displayMyInfoActionChromeStyle(
   defaults: { bg: string; text: string }
 ): CSSProperties {
   const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
-  const backgroundColor = storedCssColor(fill) || storedCssColor(defaults.bg) || defaults.bg
-  const color = storedCssColor(fg) || storedCssColor(defaults.text) || defaults.text
+  const userFill = storedCssColor(fill)
+  const userFg = storedCssColor(fg)
+  if (!userFill && !userFg) {
+    // No owner override — public card uses theme secondary / Button type tokens.
+    return {}
+  }
+  const backgroundColor = userFill || storedCssColor(defaults.bg) || defaults.bg
+  const color = userFg || storedCssColor(defaults.text) || defaults.text
   const style: CSSPropertiesWithVariables = {
     backgroundColor,
     color,
@@ -739,6 +985,8 @@ export function displayMyInfoActionChromeStyle(
   style['--vbiz-control-fg'] = color
   style['--vbiz-my-info-fill'] = backgroundColor
   style['--vbiz-my-info-fg'] = color
+  style['--vbiz-btn-secondary-fill'] = backgroundColor
+  style['--vbiz-btn-secondary-fg'] = color
   return style
 }
 

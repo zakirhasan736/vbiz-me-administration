@@ -3,6 +3,12 @@ import { resolvePublicCardSeo, resolvePublicCardShareImageUrl } from '@/lib/seo/
 import { socialHandleUrl } from '@/lib/vcardSocial'
 import type { Metadata } from 'next'
 
+/** Shared platform Organization every public card links to (publisher / isPartOf). */
+export const VBIZ_ME_ORGANIZATION_ID = 'https://www.vbizme.com/#organization'
+export const VBIZ_ME_ORGANIZATION_URL = 'https://www.vbizme.com'
+export const VBIZ_ME_ORGANIZATION_NAME = 'vBiz Me'
+export const VBIZ_ME_ORGANIZATION_LOGO = 'https://app.vbizme.com/logo-vbizme.webp'
+
 const SOCIAL_PROFILE_KEYS = [
   'facebook',
   'instagram',
@@ -13,7 +19,6 @@ const SOCIAL_PROFILE_KEYS = [
   'truth',
   'linkedin',
   'pinterest',
-  'whatsapp',
 ] as const
 
 export type PublicSeoReview = {
@@ -32,6 +37,11 @@ export type PublicSeoProduct = {
   description: string
   price: string
   image: string
+}
+
+export type PublicSeoService = {
+  name: string
+  description: string
 }
 
 export type PublicCardSeoReviews = {
@@ -114,14 +124,50 @@ export function buildPublicCardCanonicalUrl(origin: string, cardPath: string): s
   return `${origin.replace(/\/$/, '')}${path}`
 }
 
+/** Strip tracking query params; drop messaging deep-links that are not profile pages. */
+export function cleanSameAsUrl(raw: string): string {
+  const value = raw.trim()
+  if (!value) return ''
+  try {
+    const url = new URL(value.startsWith('http') ? value : `https://${value}`)
+    if (!isSchemaHttpUrl(url.toString())) return ''
+    const host = url.hostname.replace(/^www\./i, '').toLowerCase()
+    if (host === 'wa.me' || host === 'api.whatsapp.com' || host === 'chat.whatsapp.com') return ''
+    url.hash = ''
+    for (const key of [
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_term',
+      'utm_content',
+      'utm_id',
+      'fbclid',
+      'gclid',
+      '_r',
+      '_t',
+      'ref',
+    ]) {
+      url.searchParams.delete(key)
+    }
+    if (host.endsWith('tiktok.com') || host.endsWith('facebook.com') || host.endsWith('instagram.com')) {
+      for (const key of [...url.searchParams.keys()]) url.searchParams.delete(key)
+    }
+    let cleaned = url.toString()
+    if (cleaned.endsWith('/') && url.pathname !== '/') cleaned = cleaned.slice(0, -1)
+    return cleaned
+  } catch {
+    return ''
+  }
+}
+
 export function collectSameAsUrls(profile: MyCardProfile): string[] {
   const urls: string[] = []
   const seen = new Set<string>()
   const push = (raw: string) => {
-    const value = raw.trim()
-    if (!isSchemaHttpUrl(value) || seen.has(value.toLowerCase())) return
-    seen.add(value.toLowerCase())
-    urls.push(value)
+    const cleaned = cleanSameAsUrl(raw)
+    if (!cleaned || seen.has(cleaned.toLowerCase())) return
+    seen.add(cleaned.toLowerCase())
+    urls.push(cleaned)
   }
 
   for (const key of SOCIAL_PROFILE_KEYS) {
@@ -131,12 +177,28 @@ export function collectSameAsUrls(profile: MyCardProfile): string[] {
     if (href) push(href)
   }
 
-  const website = profile.website?.trim()
-  if (website) {
-    push(website.startsWith('http') ? website : `https://${website}`)
-  }
-
+  // Website belongs on worksFor.url / Organization.url, not sameAs.
   return urls
+}
+
+/** Format phone for schema.org telephone (prefer E.164-style US display). */
+export function toSchemaTelephone(phone: string): string | undefined {
+  const trimmed = phone.trim()
+  if (!trimmed) return undefined
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length === 10) {
+    return `+1-${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+  }
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+1-${digits.slice(1, 4)}-${digits.slice(4, 7)}-${digits.slice(7)}`
+  }
+  if (trimmed.startsWith('+')) return trimmed
+  return trimmed
+}
+
+function isVbizMeCompanyName(name: string): boolean {
+  const normalized = name.trim().toLowerCase().replace(/\s+/g, ' ')
+  return normalized === 'vbiz me' || normalized === 'vbizme' || normalized === 'vbiz.me'
 }
 
 export function resolvePublicCardImageUrl(myCard: MyCardData, origin: string, slug?: string): string {
@@ -213,6 +275,16 @@ export function extractPublicSeoFaqs(section: unknown): PublicSeoFaq[] {
   return faqs
 }
 
+/** Drop empty / placeholder / test products from Product JSON-LD. */
+export function isSchemaEligibleProduct(product: PublicSeoProduct): boolean {
+  const name = product.name.trim()
+  if (!name) return false
+  if (/^test(\s+title)?$/i.test(name)) return false
+  if (/^(untitled|n\/?a|placeholder|asdf|xxx+|sample product|test product)$/i.test(name)) return false
+  if (!product.description.trim() && !product.price.trim() && !product.image.trim()) return false
+  return Boolean(parseProductOffer(product.price))
+}
+
 export function extractPublicSeoProducts(section: unknown): PublicSeoProduct[] {
   const products: PublicSeoProduct[] = []
   for (const item of sectionItems(section)) {
@@ -222,10 +294,26 @@ export function extractPublicSeoProducts(section: unknown): PublicSeoProduct[] {
     const description = stripHtml(String(item.description || ''))
     const price = stripHtml(String(item.offerPrice || item.offer_price || item.price || ''))
     const image = firstImageUrl(item.featured_image || item.image)
-    products.push({ name, description, price, image })
+    const product = { name, description, price, image }
+    if (!isSchemaEligibleProduct(product)) continue
+    products.push(product)
     if (products.length >= 20) break
   }
   return products
+}
+
+export function extractPublicSeoServices(section: unknown): PublicSeoService[] {
+  const services: PublicSeoService[] = []
+  for (const item of sectionItems(section)) {
+    if (itemIsHidden(item)) continue
+    const name = stripHtml(String(item.title || item.name || ''))
+    if (!name) continue
+    if (/^test(\s+title)?$/i.test(name)) continue
+    const description = stripHtml(String(item.description || ''))
+    services.push({ name, description })
+    if (services.length >= 20) break
+  }
+  return services
 }
 
 export function sectionByName(sections: Record<string, unknown> | null | undefined, names: string[]): unknown {
@@ -235,19 +323,6 @@ export function sectionByName(sections: Record<string, unknown> | null | undefin
     if (wanted.has(key.toLowerCase())) return value
   }
   return undefined
-}
-
-function reviewsForJsonLd(input: PublicCardSeoInput['reviews']): PublicSeoReview[] {
-  if (!input) return []
-  if (Array.isArray(input)) return input.slice(0, 10)
-  return input.slides
-    .filter((item) => !item.isLinkCard)
-    .slice(0, 10)
-    .map((item) => ({
-      author: String(item.title || '').trim() || 'Customer',
-      text: String(item.plainDescription || ''),
-      rating: Number.isFinite(Number(item.rating)) ? Math.min(5, Math.max(1, Math.round(Number(item.rating)))) : 5,
-    }))
 }
 
 export function isPublicCardIndexable(profile: MyCardProfile): boolean {
@@ -264,12 +339,41 @@ export function publicCardEntityType(profile: MyCardProfile): 'Person' | 'LocalB
   return 'Person'
 }
 
+/** Detect "City, ST" (optionally with full state name) stored in the address field. */
+function parseCityStateLine(value: string): { locality: string; region: string } | null {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.includes('\n')) return null
+  const match = trimmed.match(/^([^,]+),\s*([A-Za-z]{2})\b(?:\s*,\s*[A-Za-z\s]+)?$/)
+  if (!match) return null
+  const locality = match[1].trim()
+  const region = match[2].trim().toUpperCase()
+  if (!locality || locality.length < 2) return null
+  if (/\d/.test(locality)) return null
+  return { locality, region }
+}
+
 function postalAddress(profile: MyCardProfile) {
-  const street = profile.address?.trim() || ''
-  const city = profile.city?.trim() || ''
-  const region = profile.state?.trim() || ''
+  let street = profile.address?.trim() || ''
+  let city = profile.city?.trim() || ''
+  let region = profile.state?.trim() || ''
   const postalCode = profile.zip_code?.trim() || profile.zipCode?.trim() || ''
-  const country = profile.country?.trim() || ''
+  let country = profile.country?.trim() || ''
+
+  const cityStateFromStreet = street ? parseCityStateLine(street) : null
+  if (cityStateFromStreet) {
+    if (!city) city = cityStateFromStreet.locality
+    if (!region) region = cityStateFromStreet.region
+    street = ''
+  } else if (street && city && region) {
+    const normalizedStreet = street.toLowerCase().replace(/\s+/g, ' ')
+    const cityRegion = `${city}, ${region}`.toLowerCase()
+    if (normalizedStreet === cityRegion || normalizedStreet.startsWith(`${cityRegion},`)) {
+      street = ''
+    }
+  }
+
+  if (!country && (city || region || postalCode)) country = 'US'
+
   if (!street && !city && !region && !postalCode && !country) return undefined
   return {
     '@type': 'PostalAddress',
@@ -281,7 +385,31 @@ function postalAddress(profile: MyCardProfile) {
   }
 }
 
-export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string, unknown> {
+function serviceOffers(services: PublicSeoService[]): Record<string, unknown>[] {
+  return services.map((service) => ({
+    '@type': 'Offer',
+    itemOffered: {
+      '@type': 'Service',
+      name: service.name,
+      ...(service.description ? { description: service.description } : {}),
+    },
+  }))
+}
+
+function sharedVbizOrganizationNode(): Record<string, unknown> {
+  return {
+    '@type': 'Organization',
+    '@id': VBIZ_ME_ORGANIZATION_ID,
+    name: VBIZ_ME_ORGANIZATION_NAME,
+    url: VBIZ_ME_ORGANIZATION_URL,
+    logo: VBIZ_ME_ORGANIZATION_LOGO,
+  }
+}
+
+export function buildPublicCardJsonLd(
+  input: PublicCardSeoInput,
+  extras?: { services?: PublicSeoService[] }
+): Record<string, unknown> {
   const { myCard, origin, cardPath, slug } = input
   const profile = myCard.profile
   const seo = resolvePublicCardSeo(myCard, slug)
@@ -290,10 +418,28 @@ export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string,
   const description = seo.metaDescription
   const image = resolvePublicCardImageUrl(myCard, origin, slug)
   const sameAs = collectSameAsUrls(profile)
-  const reviews = reviewsForJsonLd(input.reviews)
   const company = profile.company_name?.trim() || ''
   const entityType = publicCardEntityType(profile)
   const personId = `${canonical}#${entityType === 'LocalBusiness' ? 'business' : 'person'}`
+  const websiteUrl = profile.website?.trim()
+    ? cleanSameAsUrl(profile.website.startsWith('http') ? profile.website : `https://${profile.website}`)
+    : ''
+  const telephone = profile.phone?.trim() ? toSchemaTelephone(profile.phone) : undefined
+  const offers = serviceOffers(extras?.services || [])
+
+  let worksFor: Record<string, unknown> | undefined
+  if (entityType === 'Person' && company) {
+    if (isVbizMeCompanyName(company)) {
+      worksFor = { '@id': VBIZ_ME_ORGANIZATION_ID }
+    } else {
+      worksFor = {
+        '@type': 'Organization',
+        '@id': `${canonical}#employer`,
+        name: company,
+        ...(websiteUrl ? { url: websiteUrl } : {}),
+      }
+    }
+  }
 
   const person: Record<string, unknown> = {
     '@type': entityType,
@@ -304,23 +450,20 @@ export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string,
     ...(entityType === 'Person' && profile.profession?.trim() && !profile.designation?.trim()
       ? { jobTitle: profile.profession.trim() }
       : {}),
-    ...(entityType === 'Person' && company ? { worksFor: { '@type': 'Organization', name: company } } : {}),
+    ...(worksFor ? { worksFor } : {}),
     ...(description ? { description } : {}),
     ...(image && isSchemaHttpUrl(image) ? { image } : {}),
     ...(profile.email?.trim() && isSchemaEmail(profile.email) ? { email: profile.email.trim() } : {}),
-    ...(profile.phone?.trim() ? { telephone: profile.phone.trim() } : {}),
+    ...(telephone ? { telephone } : {}),
     ...(postalAddress(profile) ? { address: postalAddress(profile) } : {}),
     ...(sameAs.length ? { sameAs } : {}),
+    ...(offers.length ? { makesOffer: offers } : {}),
   }
 
-  const reviewMarkup = reviews.length ? reviewMarkupFor(reviews, personId) : null
-  // LocalBusiness accepts review and aggregateRating. Person does not, so those sit on ProfilePage.
-  if (reviewMarkup && entityType === 'LocalBusiness') {
-    person.aggregateRating = reviewMarkup.aggregateRating
-    person.review = reviewMarkup.review
-  }
+  // Never emit Review / AggregateRating — self-serving review markup violates Google guidelines.
 
   const keywords = seo.metaKeywords.filter(Boolean)
+  const websiteId = `${origin.replace(/\/$/, '')}/#website`
 
   return {
     '@context': 'https://schema.org',
@@ -329,50 +472,84 @@ export function buildPublicCardJsonLd(input: PublicCardSeoInput): Record<string,
     url: canonical,
     name: seo.metaTitle || name,
     description,
+    inLanguage: 'en-US',
+    isPartOf: { '@id': websiteId },
+    breadcrumb: { '@id': `${canonical}#breadcrumb` },
     ...(keywords.length ? { keywords: keywords.join(', ') } : {}),
-    ...(reviewMarkup && entityType === 'Person' ? reviewMarkup : {}),
     mainEntity: person,
   }
 }
 
-function reviewMarkupFor(reviews: PublicSeoReview[], reviewedId: string) {
-  const ratingValue = Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length) * 10) / 10
-  return {
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue,
-      reviewCount: reviews.length,
-      bestRating: 5,
-      worstRating: 1,
-    },
-    review: reviews.map((review) => ({
-      '@type': 'Review',
-      itemReviewed: { '@id': reviewedId },
-      author: { '@type': 'Person', name: review.author },
-      ...(review.text ? { reviewBody: review.text } : {}),
-      reviewRating: {
-        '@type': 'Rating',
-        ratingValue: review.rating,
-        bestRating: 5,
-        worstRating: 1,
-      },
-    })),
-  }
-}
-
-/** ProfilePage plus FAQ and products, in one script Google can read. */
+/**
+ * ProfilePage plus Person/Org, FAQ, services, and products — one script Google can read.
+ * Same builder for every published public card slug (no per-card special cases).
+ */
 export function buildPublicCardJsonLdGraph(
   input: PublicCardSeoInput,
-  extras?: { faqs?: PublicSeoFaq[]; products?: PublicSeoProduct[] }
+  extras?: { faqs?: PublicSeoFaq[]; products?: PublicSeoProduct[]; services?: PublicSeoService[] }
 ): Record<string, unknown> {
-  const page = buildPublicCardJsonLd(input)
+  const page = buildPublicCardJsonLd(input, { services: extras?.services })
   const pageNode = { ...page }
   delete pageNode['@context']
-  const canonical = String(pageNode.url || '')
-  const graph: Record<string, unknown>[] = [pageNode]
-  const faqs = extras?.faqs?.filter((item) => item.question && item.answer) ?? []
-  const products = extras?.products?.filter((item) => item.name) ?? []
+  const inlineEntity = { ...(pageNode.mainEntity as Record<string, unknown>) }
+  const personId = String(inlineEntity['@id'] || `${String(pageNode.url)}#person`)
+  pageNode.mainEntity = { '@id': personId }
 
+  const canonical = String(pageNode.url || '')
+  const origin = (() => {
+    try {
+      return new URL(canonical).origin
+    } catch {
+      return input.origin.replace(/\/$/, '')
+    }
+  })()
+  const websiteId = `${origin}/#website`
+  const name = String(inlineEntity.name || input.slug)
+
+  const graph: Record<string, unknown>[] = [
+    pageNode,
+    inlineEntity,
+    sharedVbizOrganizationNode(),
+    {
+      '@type': 'WebSite',
+      '@id': websiteId,
+      url: origin,
+      name: VBIZ_ME_ORGANIZATION_NAME,
+      publisher: { '@id': VBIZ_ME_ORGANIZATION_ID },
+    },
+    {
+      '@type': 'BreadcrumbList',
+      '@id': `${canonical}#breadcrumb`,
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: VBIZ_ME_ORGANIZATION_NAME,
+          item: VBIZ_ME_ORGANIZATION_URL,
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name,
+          item: canonical,
+        },
+      ],
+    },
+  ]
+
+  const employer = inlineEntity.worksFor as Record<string, unknown> | undefined
+  if (
+    employer &&
+    typeof employer === 'object' &&
+    employer['@type'] === 'Organization' &&
+    employer['@id'] &&
+    employer['@id'] !== VBIZ_ME_ORGANIZATION_ID
+  ) {
+    graph.push(employer)
+    inlineEntity.worksFor = { '@id': employer['@id'] }
+  }
+
+  const faqs = extras?.faqs?.filter((item) => item.question && item.answer) ?? []
   if (faqs.length) {
     graph.push({
       '@type': 'FAQPage',
@@ -386,13 +563,7 @@ export function buildPublicCardJsonLdGraph(
     })
   }
 
-  const origin = (() => {
-    try {
-      return new URL(canonical).origin
-    } catch {
-      return ''
-    }
-  })()
+  const products = (extras?.products || []).filter(isSchemaEligibleProduct)
   let productIndex = 0
   for (const product of products) {
     const offer = parseProductOffer(product.price)
@@ -426,32 +597,65 @@ export function serializeJsonLd(data: unknown): string {
   return JSON.stringify(data).replace(/</g, '\\u003c')
 }
 
-/**
- * Patch ProfilePage JSON-LD so title / description / keywords stay aligned with Card Settings SEO.
- * Person `name` is left alone (real person/brand name); only the page + person description update.
- */
-export function applySeoFieldsToJsonLd(
-  data: Record<string, unknown>,
+function patchProfilePageNode(
+  node: Record<string, unknown>,
   seo: { metaTitle?: string | null; metaDescription?: string | null; metaKeywords?: string[] | null },
   fallbackName?: string | null
 ): Record<string, unknown> {
   const title = seo.metaTitle?.trim() || fallbackName?.trim() || ''
   const description = seo.metaDescription?.trim() || ''
   const keywords = (seo.metaKeywords || []).map((k) => k.trim()).filter(Boolean)
-  const next: Record<string, unknown> = { ...data }
+  const next: Record<string, unknown> = { ...node }
 
   if (title) next.name = title
   if (description) {
     next.description = description
     const entity = next.mainEntity
     if (entity && typeof entity === 'object' && !Array.isArray(entity)) {
-      next.mainEntity = { ...(entity as Record<string, unknown>), description }
+      const entityRecord = entity as Record<string, unknown>
+      // Only patch inline Person/LocalBusiness objects — leave @id references alone.
+      if (entityRecord['@type'] === 'Person' || entityRecord['@type'] === 'LocalBusiness') {
+        next.mainEntity = { ...entityRecord, description }
+      }
     }
   }
   if (keywords.length) next.keywords = keywords.join(', ')
   else delete next.keywords
 
   return next
+}
+
+/**
+ * Patch ProfilePage JSON-LD so title / description / keywords stay aligned with Card Settings SEO.
+ * Supports both a lone ProfilePage object and an @graph document. Never creates a second ProfilePage.
+ */
+export function applySeoFieldsToJsonLd(
+  data: Record<string, unknown>,
+  seo: { metaTitle?: string | null; metaDescription?: string | null; metaKeywords?: string[] | null },
+  fallbackName?: string | null
+): Record<string, unknown> {
+  if (Array.isArray(data['@graph'])) {
+    const graph = (data['@graph'] as unknown[]).map((node) => {
+      if (!node || typeof node !== 'object' || Array.isArray(node)) return node
+      const record = node as Record<string, unknown>
+      const type = record['@type']
+      const id = typeof record['@id'] === 'string' ? record['@id'] : ''
+      if (type === 'ProfilePage' || id.endsWith('#page')) {
+        return patchProfilePageNode(record, seo, fallbackName)
+      }
+      if (
+        (type === 'Person' || type === 'LocalBusiness') &&
+        seo.metaDescription?.trim() &&
+        (id.endsWith('#person') || id.endsWith('#business'))
+      ) {
+        return { ...record, description: seo.metaDescription.trim() }
+      }
+      return record
+    })
+    return { ...data, '@graph': graph }
+  }
+
+  return patchProfilePageNode(data, seo, fallbackName)
 }
 
 export function buildPublicCardSeoMetadata(input: PublicCardSeoInput): Metadata {

@@ -33,7 +33,7 @@ import {
 } from '@/redux/features/profiles/profiles.api'
 import CorporateOwnerDashboardHome from '@/views/CorporateOwnerDashboardHome'
 import { Calendar, Download, Loader2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
 const ENGAGEMENT_PAGE_SIZE = 10
@@ -171,15 +171,36 @@ function LegacyDashboardHome() {
 
 function SingleOwnerDashboardHome() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const user = useAppSelector((state) => state.user.user)
   const [period, setPeriod] = useState<DashboardPeriod>('all')
   const [ownerFeedbackMode, setOwnerFeedbackMode] = useState<OwnerFeedbackMode | null>(null)
-  const [showContactSavesModal, setShowContactSavesModal] = useState(false)
-  const [contactSavesModalTab, setContactSavesModalTab] = useState<ContactSavesModalTab>('saves')
+  const [manualContactSavesOpen, setManualContactSavesOpen] = useState(false)
+  const [manualContactSavesTab, setManualContactSavesTab] = useState<ContactSavesModalTab>('saves')
+  const [dismissedContactsDeepLink, setDismissedContactsDeepLink] = useState('')
+  const contactsDeepLinkKey =
+    searchParams.has('contacts') || searchParams.get('tab') === 'notes'
+      ? `contacts:${searchParams.get('contacts') || '1'}:tab:${searchParams.get('tab') || 'saves'}`
+      : ''
+  const contactsDeepLinkActive = Boolean(contactsDeepLinkKey) && contactsDeepLinkKey !== dismissedContactsDeepLink
+  const showContactSavesModal = contactsDeepLinkActive || manualContactSavesOpen
+  const contactSavesModalTab: ContactSavesModalTab = contactsDeepLinkActive
+    ? searchParams.get('tab') === 'notes'
+      ? 'notes'
+      : 'saves'
+    : manualContactSavesTab
   const [contactsSkip, setContactsSkip] = useState(0)
   const [contactsAccum, setContactsAccum] = useState<DashboardContact[]>([])
   const [notesSkip, setNotesSkip] = useState(0)
   const [notesAccum, setNotesAccum] = useState<DashboardContact[]>([])
+  const [listResetKey, setListResetKey] = useState(contactsDeepLinkKey)
+  if (contactsDeepLinkActive && contactsDeepLinkKey !== listResetKey) {
+    setListResetKey(contactsDeepLinkKey)
+    setContactsSkip(0)
+    setContactsAccum([])
+    setNotesSkip(0)
+    setNotesAccum([])
+  }
   const [engagementPage, setEngagementPage] = useState(1)
   const { hasOrder, timeLeft } = useOrderTimer()
 
@@ -259,16 +280,27 @@ function SingleOwnerDashboardHome() {
     setContactsAccum([])
     setNotesSkip(0)
     setNotesAccum([])
-    setContactSavesModalTab(tab)
-    setShowContactSavesModal(true)
+    setManualContactSavesTab(tab)
+    setManualContactSavesOpen(true)
+    if (contactsDeepLinkKey) setDismissedContactsDeepLink(contactsDeepLinkKey)
   }
 
   const closeContactSaves = () => {
-    setShowContactSavesModal(false)
+    setManualContactSavesOpen(false)
     setContactsSkip(0)
     setContactsAccum([])
     setNotesSkip(0)
     setNotesAccum([])
+    if (contactsDeepLinkKey) {
+      setDismissedContactsDeepLink(contactsDeepLinkKey)
+      router.replace('/', { scroll: false })
+    }
+  }
+
+  const setContactSavesModalTab = (tab: ContactSavesModalTab) => {
+    setManualContactSavesTab(tab)
+    if (contactsDeepLinkActive) setDismissedContactsDeepLink(contactsDeepLinkKey)
+    setManualContactSavesOpen(true)
   }
 
   const loadMoreContacts = () => {

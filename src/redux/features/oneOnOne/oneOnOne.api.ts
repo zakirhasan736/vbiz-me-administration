@@ -163,6 +163,15 @@ const oneOnOneApi = api.injectEndpoints({
       transformResponse: (res: Envelope<{ id: string; status: string }>) => res.data,
       invalidatesTags: [{ type: 'meetings', id: 'ONE_ON_ONE_LIST' }],
     }),
+    deleteOneOnOneRequest: builder.mutation<{ id: string; deleted: boolean }, { requestId: string }>({
+      query: ({ requestId }) => ({
+        url: '/one-on-one/delete',
+        method: 'POST',
+        body: { requestId },
+      }),
+      transformResponse: (res: Envelope<{ id: string; deleted: boolean }>) => res.data,
+      invalidatesTags: [{ type: 'meetings', id: 'ONE_ON_ONE_LIST' }],
+    }),
     createPublicOneOnOneRequest: builder.mutation<
       OneOnOneRequest,
       {
@@ -202,6 +211,7 @@ export const {
   useRescheduleOneOnOneMeetingMutation,
   useCancelOneOnOneMeetingMutation,
   useCompleteOneOnOneMeetingMutation,
+  useDeleteOneOnOneRequestMutation,
   useCreatePublicOneOnOneRequestMutation,
   useGetGuestOneOnOneMeetingQuery,
   useConfirmGuestOneOnOneSlotMutation,
