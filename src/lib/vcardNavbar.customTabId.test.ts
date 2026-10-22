@@ -42,5 +42,6 @@ describe('custom tab public ids', () => {
     expect(isCustomNavItemId('events')).toBe(false)
     expect(isCustomNavItemId('services')).toBe(false)
     expect(isCustomNavItemId('post-type-9')).toBe(false)
+    expect(isCustomNavItemId('12')).toBe(false)
   })
 })

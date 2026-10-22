@@ -674,6 +674,8 @@ export function isCustomNavItemId(id: string): boolean {
   if (id.startsWith(CUSTOM_TAB_ID_PREFIX)) return true
   if (id.startsWith('post-type-')) return false
   if (BUILT_IN_NAV_ITEM_IDS.has(id)) return false
+  // Numeric API post-type ids (e.g. `12`) are not smart custom-tab slugs.
+  if (/^\d+$/.test(id)) return false
   return CUSTOM_TAB_SLUG_RE.test(id)
 }
 
