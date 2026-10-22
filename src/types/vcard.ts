@@ -21,6 +21,11 @@ export type VCardSeo = {
   seoImage: string
   /** Browser tab / apple-touch favicon for this card. Empty → vBiz Me default icon. */
   faviconUrl: string
+  /**
+   * Explicit Add to Home Screen / PWA install icon.
+   * Empty → avatar → About Me → other stills on the card.
+   */
+  pwaHomeScreenIconUrl: string
 }
 
 /** Per-vCard template & layout snapshot (defaults copied from account profile settings on create). */
@@ -437,6 +442,7 @@ export function createDefaultVCardData(overrides?: Partial<VCardData>): VCardDat
       metaKeywords: ['vbizme', 'vbiz me', 'virtual card', 'digital business card', 'online business card'],
       seoImage: '',
       faviconUrl: '',
+      pwaHomeScreenIconUrl: '',
     },
     appearance: { ...DEFAULT_VCARD_APPEARANCE },
     services: [],

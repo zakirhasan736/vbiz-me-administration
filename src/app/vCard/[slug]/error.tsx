@@ -1,12 +1,44 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
+
 type Props = {
   error: Error & { digest?: string }
   reset: () => void
 }
 
-/** Infrastructure failures for `/vCard/[slug]` — never a fake 404. */
+const AUTO_RETRY_KEY = 'vbiz_vcard_error_auto_retry'
+const MAX_AUTO_RETRIES = 3
+
+/** Last-resort UI — page soft-fails to client fetch first; this auto-retries briefly. */
 export default function PublicCardError({ error: _error, reset }: Props) {
+  const resetting = useRef(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || resetting.current) return
+    let attempt = 0
+    try {
+      attempt = Number(window.sessionStorage.getItem(AUTO_RETRY_KEY) || '0') || 0
+    } catch {
+      attempt = 0
+    }
+    if (attempt >= MAX_AUTO_RETRIES) return
+
+    resetting.current = true
+    try {
+      window.sessionStorage.setItem(AUTO_RETRY_KEY, String(attempt + 1))
+    } catch {
+      /* ignore */
+    }
+    const timer = window.setTimeout(
+      () => {
+        reset()
+      },
+      600 + attempt * 700
+    )
+    return () => window.clearTimeout(timer)
+  }, [reset])
+
   return (
     <main
       style={{
@@ -22,13 +54,20 @@ export default function PublicCardError({ error: _error, reset }: Props) {
       }}
     >
       <div style={{ maxWidth: 420, textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.35rem', fontWeight: 650, margin: '0 0 0.75rem' }}>
-          We&apos;re having trouble loading this card right now.
-        </h1>
-        <p style={{ margin: '0 0 1.5rem', lineHeight: 1.5, color: '#cbd5e1' }}>Please try again in a moment.</p>
+        <h1 style={{ fontSize: '1.35rem', fontWeight: 650, margin: '0 0 0.75rem' }}>Loading your card…</h1>
+        <p style={{ margin: '0 0 1.5rem', lineHeight: 1.5, color: '#cbd5e1' }}>
+          Reconnecting. This usually resolves in a moment.
+        </p>
         <button
           type="button"
-          onClick={() => reset()}
+          onClick={() => {
+            try {
+              window.sessionStorage.removeItem(AUTO_RETRY_KEY)
+            } catch {
+              /* ignore */
+            }
+            reset()
+          }}
           style={{
             appearance: 'none',
             border: 0,
@@ -40,7 +79,7 @@ export default function PublicCardError({ error: _error, reset }: Props) {
             cursor: 'pointer',
           }}
         >
-          Try Again
+          Reload
         </button>
       </div>
     </main>

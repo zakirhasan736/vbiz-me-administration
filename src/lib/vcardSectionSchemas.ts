@@ -148,7 +148,8 @@ export const VCARD_SECTION_SCHEMAS: Record<string, VCardSectionSchema> = {
     key: 'events',
     postTypeName: PUBLIC_SECTION_NAMES.events,
     title: 'Events',
-    fields: ['title', 'description', 'date', 'url', 'active'],
+    // Featured media = flyer / poster shown on the public Events tab (full visible, 11:8).
+    fields: ['title', 'description', 'date', 'url', 'featuredImage', 'active'],
     addLabel: 'Add Event',
     emptyTitle: 'No events yet',
     emptyHint: 'Add events for your public profile.',

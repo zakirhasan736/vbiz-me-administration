@@ -94,7 +94,8 @@ describe('authenticated API session handling', () => {
     expect(result).toMatchObject({ error: { status: 401 } })
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(requestUrl(fetchMock.mock.calls[1][0])).toContain('/auth/refresh-token')
-    expect(dispatched).toHaveLength(0)
+    // Clears local session so polling stops, then redirects to login.
+    expect(dispatched.length).toBeGreaterThanOrEqual(1)
     expect(replace).toHaveBeenCalledWith(SESSION_EXPIRED_LOGIN_PATH)
   })
 

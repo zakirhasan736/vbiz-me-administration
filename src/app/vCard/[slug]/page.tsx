@@ -1,5 +1,6 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import { fetchPublicCardBootstrap } from '@/lib/api/myCard/fetchPublicCardBootstrap'
+import { PublicCardApiError } from '@/lib/api/myCard/publicCardApiError'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { mapProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
 import { resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
@@ -16,12 +17,30 @@ type Props = {
   params: Promise<{ slug: string }>
 }
 
+/**
+ * SSR bootstrap may fail when loopback API is briefly unreachable.
+ * Never throw to error.tsx for that — client RTK fetch recovers via NEXT_PUBLIC_API_URL.
+ */
+async function loadBootstrapSafe(slug: string) {
+  try {
+    return { bootstrap: await fetchPublicCardBootstrap(slug), softFail: false as const }
+  } catch (error) {
+    if (!(error instanceof PublicCardApiError)) {
+      console.error('[vCard page] unexpected bootstrap failure', {
+        slug,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+    return { bootstrap: null, softFail: true as const }
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const trimmed = slug?.trim()
   if (!trimmed) return {}
 
-  const bootstrap = await fetchPublicCardBootstrap(trimmed)
+  const { bootstrap } = await loadBootstrapSafe(trimmed)
   const myCard = bootstrap?.myCard ?? null
   const name = resolvePwaDisplayName(myCard?.profile?.name?.trim() || myCard?.profile?.company_name, trimmed)
   const headerStore = await headers()
@@ -87,9 +106,26 @@ export default async function PublicProfilePage({ params }: Props) {
     notFound()
   }
 
-  const bootstrap = await fetchPublicCardBootstrap(trimmed)
-  if (!bootstrap?.myCard) {
+  const { bootstrap, softFail } = await loadBootstrapSafe(trimmed)
+
+  // Definite miss from API — real 404. Soft fail = SSR couldn't reach API; client will load.
+  if (!bootstrap?.myCard && !softFail) {
     notFound()
+  }
+
+  const icon192 = buildProfileIconPath(trimmed, 192)
+  const icon512 = buildProfileIconPath(trimmed, 512)
+
+  if (!bootstrap?.myCard) {
+    return (
+      <>
+        <link rel="manifest" href={buildPwaManifestUrl(trimmed)} />
+        <link rel="apple-touch-icon" href={icon192} sizes="192x192" />
+        <link rel="icon" type="image/png" href={icon192} sizes="192x192" />
+        <link rel="icon" type="image/png" href={icon512} sizes="512x512" />
+        <PublicProfileLayout slug={trimmed} />
+      </>
+    )
   }
 
   const myCard = bootstrap.myCard
@@ -110,8 +146,6 @@ export default async function PublicProfilePage({ params }: Props) {
   const liveAgent = liveAgentEnabled ? await resolveLiveAgentPromptFromProfileId(profileId).catch(() => null) : null
   const agent = liveAgentEnabled ? liveAgent : null
   const tabIcon = resolvePublicCardFaviconUrl(myCard, origin)
-  const icon192 = buildProfileIconPath(trimmed, 192)
-  const icon512 = buildProfileIconPath(trimmed, 512)
 
   return (
     <>

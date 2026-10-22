@@ -185,6 +185,7 @@ export function resolvePublicCardSeo(myCard: MyCardData, slug: string): VCardSeo
     metaKeywords,
     seoImage: parsed.seoImage,
     faviconUrl: parsed.faviconUrl,
+    pwaHomeScreenIconUrl: parsed.pwaHomeScreenIconUrl,
   })
 }
 

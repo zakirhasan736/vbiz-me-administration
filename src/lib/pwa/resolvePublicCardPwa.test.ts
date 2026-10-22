@@ -13,9 +13,10 @@ describe('public card PWA manifest', () => {
     expect(manifest.icons.some((icon) => icon.sizes === '512x512' && icon.purpose === 'any')).toBe(true)
   })
 
-  it('picks avatar, then About Me, then the Open Graph image for the Home Screen icon', () => {
+  it('prefers the Card Settings Home Screen icon, then avatar, About Me, then other stills', () => {
     const urls = resolvePwaAvatarCandidates({
       settings: {
+        pwa_home_screen_icon_url: 'https://cdn.example.com/pwa-icon.png',
         seo_image_url: 'https://cdn.example.com/og.jpg',
         about_me_featured_media_url: 'https://cdn.example.com/about.jpg',
         company_logo: 'https://cdn.example.com/logo.png',
@@ -25,7 +26,8 @@ describe('public card PWA manifest', () => {
       profile_media: { url: 'https://cdn.example.com/intro.mp4', is_video: true, fallback_url: '' },
     } as unknown as MyCardData)
 
-    expect(urls.slice(0, 4)).toEqual([
+    expect(urls.slice(0, 5)).toEqual([
+      'https://cdn.example.com/pwa-icon.png',
       'https://cdn.example.com/avatar.jpg',
       'https://cdn.example.com/about.jpg',
       'https://cdn.example.com/og.jpg',
@@ -33,6 +35,22 @@ describe('public card PWA manifest', () => {
     ])
     expect(urls).toContain('https://cdn.example.com/logo.png')
     expect(urls).not.toContain('https://cdn.example.com/intro.mp4')
+  })
+
+  it('falls back to avatar → About Me → Open Graph when no Home Screen icon is set', () => {
+    const urls = resolvePwaAvatarCandidates({
+      settings: {
+        seo_image_url: 'https://cdn.example.com/og.jpg',
+        about_me_featured_media_url: 'https://cdn.example.com/about.jpg',
+      },
+      profile: { avatar: 'https://cdn.example.com/avatar.jpg' },
+    } as unknown as MyCardData)
+
+    expect(urls.slice(0, 3)).toEqual([
+      'https://cdn.example.com/avatar.jpg',
+      'https://cdn.example.com/about.jpg',
+      'https://cdn.example.com/og.jpg',
+    ])
   })
 
   it('skips a video avatar and uses the About Me image', () => {

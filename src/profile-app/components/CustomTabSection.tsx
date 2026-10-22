@@ -3,11 +3,14 @@
 import { SkeletonMediaShell, SkeletonVideo, useMediaLoadState } from '@/components/media/SkeletonMedia'
 import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
+import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3EmptyState, V3SectionHeader, V3SectionShell } from '@/profile-app/sections'
-import { ExternalLink, Layers } from 'lucide-react'
+import { ExternalLink, Layers, Maximize2 } from 'lucide-react'
+import { AnimatePresence } from 'motion/react'
 import Image from 'next/image'
+import { useState } from 'react'
 
 const RICH_PROSE =
   'vcard-rich-html vbiz-description prose prose-sm max-w-none leading-relaxed font-medium ' +
@@ -36,11 +39,13 @@ function FeaturedMedia({
   alt,
   forceVideo,
   frame,
+  onOpenImage,
 }: {
   src: string
   alt: string
   forceVideo?: boolean
   frame?: ProfileMediaFrame | null
+  onOpenImage?: () => void
 }) {
   const encoded = encodeMediaUrl(src)
   if (!encoded && !youtubeEmbedSrc(src)) return null
@@ -74,12 +79,24 @@ function FeaturedMedia({
     )
   }
   if (!isUsableImageSrc(encoded)) return null
-  return <FeaturedNextImage src={encoded} alt={alt} frame={frame} />
+  return <FeaturedNextImage src={encoded} alt={alt} frame={frame} onOpenImage={onOpenImage} />
 }
 
-function FeaturedNextImage({ src, alt, frame }: { src: string; alt: string; frame?: ProfileMediaFrame | null }) {
+function FeaturedNextImage({
+  src,
+  alt,
+  frame,
+  onOpenImage,
+}: {
+  src: string
+  alt: string
+  frame?: ProfileMediaFrame | null
+  onOpenImage?: () => void
+}) {
   const { loaded, markLoaded, markError } = useMediaLoadState(src)
-  return (
+  const interactive = Boolean(onOpenImage)
+
+  const media = (
     <SkeletonMediaShell loading={!loaded} label="Loading media" className="absolute inset-0 h-full w-full">
       <Image
         src={src}
@@ -91,18 +108,41 @@ function FeaturedNextImage({ src, alt, frame }: { src: string; alt: string; fram
         onLoadingComplete={markLoaded}
         onError={markError}
       />
+      {interactive ? (
+        <span
+          className="absolute right-3 bottom-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-black/45 text-white shadow-sm backdrop-blur-md"
+          aria-hidden
+        >
+          <Maximize2 size={16} strokeWidth={2.25} />
+        </span>
+      ) : null}
     </SkeletonMediaShell>
+  )
+
+  if (!interactive) return media
+
+  return (
+    <button
+      type="button"
+      onClick={onOpenImage}
+      className="absolute inset-0 h-full w-full cursor-zoom-in text-left"
+      aria-label={`View full image: ${alt}`}
+    >
+      {media}
+    </button>
   )
 }
 
 export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) {
-  const { customTabs } = useProfileDisplay()
+  const { customTabs, design } = useProfileDisplay()
+  const accent = design?.accentColor ?? '#eab308'
   const needle = sectionName?.trim() || ''
   const tab = customTabs.find(
     (entry) => entry.id === needle || entry.label.trim() === title.trim() || (needle && entry.label.trim() === needle)
   )
   const items = (tab?.items || []).filter((item) => item.active !== false)
   const sectionTitle = tab?.label?.trim() || title
+  const [preview, setPreview] = useState<CertificatePreview | null>(null)
 
   if (!tab || !items.length) {
     return (
@@ -120,7 +160,13 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
             const link = item.url?.trim() || ''
             const html = item.description?.trim() || ''
             const forceVideo = item.mediaKind === 'video'
-            const pillLabel = sectionTitle.trim() || 'Custom'
+            const isImage =
+              Boolean(media) &&
+              !forceVideo &&
+              !isVideoUrl(media) &&
+              !youtubeEmbedSrc(media) &&
+              isUsableImageSrc(encodeMediaUrl(media) || media)
+
             return (
               <article
                 key={item.id}
@@ -133,6 +179,20 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                       alt={item.title || sectionTitle}
                       forceVideo={forceVideo}
                       frame={item.mediaFrame}
+                      onOpenImage={
+                        isImage
+                          ? () =>
+                              setPreview({
+                                title: item.title?.trim() || sectionTitle,
+                                imageUrl: media,
+                                mediaKind: 'image',
+                                description: (item.description || '').replace(/<[^>]+>/g, '').trim(),
+                                detailUrl: link,
+                                credentialLabel: '',
+                                year: '',
+                              })
+                          : undefined
+                      }
                     />
                     <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
                     <span className="vbiz-section-pill pointer-events-none absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
@@ -189,6 +249,12 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
           })}
         </div>
       </div>
+
+      <AnimatePresence>
+        {preview ? (
+          <CertificateImageLightbox preview={preview} accent={accent} onClose={() => setPreview(null)} />
+        ) : null}
+      </AnimatePresence>
     </V3SectionShell>
   )
 }
