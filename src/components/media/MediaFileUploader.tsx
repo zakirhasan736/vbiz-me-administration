@@ -399,14 +399,7 @@ export function MediaFileUploader({
         />
 
         {displayUrl ? (
-          <div
-            className={cn(
-              'grid gap-3 p-3',
-              onMediaFrameChange && (kind === 'image' || kind === 'video')
-                ? 'md:grid-cols-[minmax(0,1fr)_minmax(240px,1.1fr)] md:items-start'
-                : ''
-            )}
-          >
+          <div className="flex flex-col gap-3 p-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
               <div className="relative flex h-36 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 sm:h-28 sm:w-40 dark:border-white/10 dark:bg-white/5">
                 {kind === 'image' ? (
