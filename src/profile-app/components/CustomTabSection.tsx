@@ -196,7 +196,7 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                     />
                     <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
                     <span className="vbiz-section-pill pointer-events-none absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
-                      <Layers size={12} /> {pillLabel}
+                      <Layers size={12} /> {sectionTitle}
                     </span>
                   </div>
                 ) : link ? (
@@ -209,7 +209,7 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                   >
                     <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
                     <span className="vbiz-section-pill relative z-10 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase">
-                      <Layers size={12} /> {pillLabel}
+                      <Layers size={12} /> {sectionTitle}
                     </span>
                     <span
                       className="vbiz-btn relative z-10 inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90"
