@@ -1,6 +1,12 @@
 import type { NextConfig } from 'next'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/** Capistrano-style `releases/*` leave sibling lockfiles; pin tracing to this app. */
+const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: projectRoot,
   serverExternalPackages: ['sharp'],
   images: {
     remotePatterns: [

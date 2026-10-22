@@ -1,6 +1,6 @@
 import type { ProfileSettingsData } from '@/interfaces/api/profileSettings.interface'
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
-import { fetchPublicCardResponseWithOneRetry, getApiBaseUrl } from '@/lib/api/serverApi'
+import { describeFetchError, fetchPublicCardResponseWithOneRetry, getApiBaseUrl } from '@/lib/api/serverApi'
 import type { MyCardData } from '@interfaces/api/myCard'
 import { cache } from 'react'
 import { enrichMyCardForSharePreview } from './enrichMyCardForSharePreview'
@@ -35,7 +35,12 @@ async function loadPublicCardBootstrap(slug: string): Promise<PublicCardBootstra
   } catch (error) {
     if (error instanceof PublicCardApiError) throw error
     const wrapped = new PublicCardApiError('Failed to reach the public card API', 'NETWORK_ERROR', null)
-    logPublicCardFetchFailure({ slug: trimmed, status: null, kind: wrapped.kind })
+    logPublicCardFetchFailure({
+      slug: trimmed,
+      status: null,
+      kind: wrapped.kind,
+      cause: describeFetchError(error),
+    })
     throw wrapped
   }
 

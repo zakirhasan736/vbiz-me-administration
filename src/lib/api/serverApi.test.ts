@@ -42,4 +42,22 @@ describe('serverApi origin', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     vi.unstubAllGlobals()
   })
+
+  it('retries network failure then falls back from SERVER_API_URL to NEXT_PUBLIC_API_URL', async () => {
+    process.env.SERVER_API_URL = 'http://127.0.0.1:5000/api/v1'
+    process.env.NEXT_PUBLIC_API_URL = 'https://api.vbizme.com/api/v1'
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const refused = Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } })
+    fetchMock
+      .mockRejectedValueOnce(refused)
+      .mockRejectedValueOnce(refused)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }))
+    const { fetchPublicCardResponse } = await import('./serverApi')
+    const res = await fetchPublicCardResponse('http://127.0.0.1:5000/api/v1/public/v/x/bootstrap')
+    expect(res.status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(String(fetchMock.mock.calls[2][0])).toContain('https://api.vbizme.com/api/v1/public/v/x/bootstrap')
+    vi.unstubAllGlobals()
+  })
 })

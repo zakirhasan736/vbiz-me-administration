@@ -1143,9 +1143,9 @@ function CardSeoPanel() {
   return (
     <div className="max-w-3xl space-y-6">
       <p className="text-[.8125rem] leading-relaxed font-semibold text-slate-500">
-        SEO for this card — meta title, description, keywords, Open Graph / JSON-LD share image, and browser-tab
-        favicon. Social tags and structured data are built automatically. Without a custom favicon, the vBiz Me icon is
-        used in the browser tab.
+        SEO for this card — meta title, description, keywords, Open Graph / JSON-LD share image, browser-tab favicon,
+        and Add to Home Screen icon. Social tags and structured data are built automatically. Without a custom favicon,
+        the vBiz Me icon is used in the browser tab.
       </p>
       <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-white/2">
         <h4 className="text-sm font-black text-slate-900 dark:text-white">Card metadata</h4>
@@ -1290,6 +1290,32 @@ function CardSeoPanel() {
               mode="image"
               profileId={profileId}
               onSelect={(asset) => updateSeo({ faviconUrl: asset.url })}
+            />
+          </VCardMediaField>
+        </div>
+
+        <div className="space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Add to Home Screen icon</label>
+          <p className="text-[.6875rem] font-semibold text-slate-400">
+            Image used when someone installs this card as a PWA / Save to Home Screen shortcut. Leave empty to use
+            profile photo → About Me image → other stills on the card.
+          </p>
+          <VCardMediaField
+            variant="inset"
+            value={seo.pwaHomeScreenIconUrl}
+            onChange={(url) => updateSeo({ pwaHomeScreenIconUrl: url || '' })}
+            profileId={profileId}
+            attachmentType="PWA Home Screen Icon"
+            accept="image/*"
+            selectPlaceholder={isCreateMode ? 'Select Home Screen icon' : 'Upload Home Screen icon'}
+            subtitle="Square PNG or WebP • recommended 512×512"
+            previewKind="image"
+            previewClassName="aspect-square max-h-28 max-w-28"
+          >
+            <MediaSourceActions
+              mode="image"
+              profileId={profileId}
+              onSelect={(asset) => updateSeo({ pwaHomeScreenIconUrl: asset.url })}
             />
           </VCardMediaField>
         </div>

@@ -49,11 +49,11 @@ function pushPwaImage(seen: Set<string>, out: string[], url?: string | null) {
 }
 
 /**
- * Home Screen icon stills, in order:
- * 1. Avatar
- * 2. About Me image
- * 3. Open Graph image from Card Settings → SEO
- * 4. Any other still on the card
+ * Home Screen / PWA install icon stills, in order:
+ * 1. Explicit Add to Home Screen image (Card Settings → SEO)
+ * 2. Profile avatar
+ * 3. About Me featured image
+ * 4. Open Graph / other stills on the card
  */
 export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
   const settings = card.settings || {}
@@ -64,6 +64,8 @@ export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
   const media = card.profile_media
   const mediaIsVideo =
     media?.is_video === true || isPwaVideoUrl(media?.url || '') || isPwaVideoUrl(media?.video_url || '')
+
+  push(setting('pwa_home_screen_icon_url'))
 
   push(card.profile?.avatar)
   for (const key of ['avatar', 'avatar_url', 'profile_image', 'profile_image_url']) push(setting(key))

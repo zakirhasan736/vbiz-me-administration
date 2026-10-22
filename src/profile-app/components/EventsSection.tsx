@@ -2,17 +2,18 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
-import { ArrowUpRight, CalendarDays, Ticket } from 'lucide-react'
-import { motion } from 'motion/react'
+import { ArrowUpRight, CalendarDays, Maximize2, Ticket } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
+import { useState } from 'react'
 
 function resolveEventImage(item: DynamicPostListItem): string {
   const featured = item.featuredImage.trim()
@@ -46,33 +47,55 @@ function EventsSkeleton() {
   )
 }
 
-function EventCard({ item, idx, accent }: { item: DynamicPostListItem; idx: number; accent: string }) {
+function EventCard({
+  item,
+  idx,
+  accent,
+  onOpenImage,
+}: {
+  item: DynamicPostListItem
+  idx: number
+  accent: string
+  onOpenImage: (item: DynamicPostListItem) => void
+}) {
   const imageUrl = resolveEventImage(item)
   const preview = stripHtml(item.description)
   const detailUrl = item.generalInfoUrl.trim()
   const eventDate = formatEventDate(item.date)
 
-  const card = (
+  return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: idx * 0.08 }}
-      className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${detailUrl ? 'cursor-pointer' : ''}`}
+      className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
       {imageUrl ? (
-        <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+        <button
+          type="button"
+          onClick={() => onOpenImage(item)}
+          className="relative aspect-[11/8] w-full overflow-hidden bg-zinc-100 text-left dark:bg-zinc-950"
+          aria-label={`View full flyer: ${item.title || 'event'}`}
+        >
           <Image
             src={imageUrl}
-            alt={item.title}
+            alt={item.title || 'Event flyer'}
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
-            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            className="object-contain"
           />
-          <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
-        </div>
+          <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-black/45 px-2.5 py-1 text-[10px] font-bold tracking-wider text-white uppercase backdrop-blur-sm">
+            <Ticket size={11} /> Events
+          </span>
+          <span
+            className="absolute right-3 bottom-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-black/45 text-white shadow-sm backdrop-blur-md"
+            aria-hidden
+          >
+            <Maximize2 size={16} strokeWidth={2.25} />
+          </span>
+        </button>
       ) : (
-        <div className="flex h-40 items-center justify-center bg-zinc-100 dark:bg-zinc-950">
+        <div className="flex aspect-[11/8] items-center justify-center bg-zinc-100 dark:bg-zinc-950">
           <Ticket size={40} style={{ color: accent }} />
         </div>
       )}
@@ -99,23 +122,18 @@ function EventCard({ item, idx, accent }: { item: DynamicPostListItem; idx: numb
         ) : null}
 
         {detailUrl ? (
-          <span
-            className="mt-5 inline-flex items-center gap-2 text-sm font-bold transition-opacity group-hover:opacity-80"
+          <a
+            href={detailUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-flex w-fit items-center gap-2 text-sm font-bold transition-opacity hover:opacity-80"
             style={{ color: accent }}
           >
             View event <ArrowUpRight size={15} />
-          </span>
+          </a>
         ) : null}
       </div>
     </motion.article>
-  )
-
-  if (!detailUrl) return card
-
-  return (
-    <a href={detailUrl} target="_blank" rel="noopener noreferrer" className="block h-full">
-      {card}
-    </a>
   )
 }
 
@@ -124,6 +142,7 @@ export const EventsSection = () => {
   const profileId = cardOwnerId?.trim() ?? ''
   const template = design?.profileTemplate === 'v1' ? 'v1' : 'v2'
   const accent = design?.accentColor ?? (template === 'v1' ? '#dcc969' : '#eab308')
+  const [preview, setPreview] = useState<CertificatePreview | null>(null)
 
   const { data, isLoading, isError } = useGetDynamicSectionQuery(
     { profileId, sectionName: PUBLIC_SECTION_NAMES.events },
@@ -134,6 +153,20 @@ export const EventsSection = () => {
   const items = data?.posts ?? []
   const showInitialLoader = isLoading && items.length === 0
   const showEmptyState = !isLoading && !isError && items.length === 0
+
+  const openFlyer = (item: DynamicPostListItem) => {
+    const imageUrl = resolveEventImage(item)
+    if (!imageUrl) return
+    setPreview({
+      title: item.title.trim() || 'Event flyer',
+      imageUrl,
+      mediaKind: 'image',
+      description: stripHtml(item.description),
+      detailUrl: item.generalInfoUrl.trim(),
+      credentialLabel: '',
+      year: formatEventDate(item.date) || '',
+    })
+  }
 
   if (!profileId) return null
   if (showInitialLoader) return <EventsSkeleton />
@@ -189,9 +222,15 @@ export const EventsSection = () => {
 
       <div className={cn('relative z-20 mt-4', contentGridClass(items.length, 'md:grid-cols-2'))}>
         {items.map((item, idx) => (
-          <EventCard key={item.id} item={item} idx={idx} accent={accent} />
+          <EventCard key={item.id} item={item} idx={idx} accent={accent} onOpenImage={openFlyer} />
         ))}
       </div>
+
+      <AnimatePresence>
+        {preview ? (
+          <CertificateImageLightbox preview={preview} accent={accent} onClose={() => setPreview(null)} />
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

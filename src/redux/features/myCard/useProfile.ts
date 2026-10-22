@@ -55,6 +55,15 @@ export function useProfile(slug: string = DEFAULT_PROFILE_SLUG, options?: UsePro
     pollingInterval: !skip && visible ? PUBLIC_CARD_LIVE_POLL_MS : 0,
   })
 
+  // Soft recovery when SSR handed off without data and the first client GET failed.
+  useEffect(() => {
+    if (skip || hasPrefetched || !query.isError || query.isFetching) return
+    const timer = window.setTimeout(() => {
+      void query.refetch()
+    }, 1200)
+    return () => window.clearTimeout(timer)
+  }, [skip, hasPrefetched, query.isError, query.isFetching, query.refetch])
+
   useEffect(() => {
     if (skip || !trimmed) return
     return subscribePublicCardSettingsSaved((event) => {
@@ -90,10 +99,11 @@ export function useProfile(slug: string = DEFAULT_PROFILE_SLUG, options?: UsePro
     media,
     features,
     actionButtons,
-    isLoading: !skip && !hasPrefetched && query.isLoading && !myCard,
+    isLoading: !skip && !hasPrefetched && (query.isLoading || query.isFetching) && !myCard,
     isFetching: query.isFetching,
-    isError: hasPrefetched ? false : query.isError,
+    isError: hasPrefetched ? false : query.isError && !query.isFetching && !myCard,
     isSuccess: Boolean(myCard),
     error: query.error,
+    refetch: query.refetch,
   }
 }

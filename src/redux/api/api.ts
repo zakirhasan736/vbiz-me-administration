@@ -2,14 +2,17 @@
 import { refreshSession } from '@/lib/auth/sessionClient'
 import { isAuthenticatedWorkspacePath, redirectToLogin } from '@/lib/auth/sessionPolicy'
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import { updateAuthState } from '../features/auth/user.slice'
+import { logout as clearAuth, updateAuthState } from '../features/auth/user.slice'
 import { RootState } from '../store'
 
 export const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'
 
-const handleExpiredSession = (api: any) => {
-  const state = api?.getState?.() as RootState | undefined
-  if (!state?.user?.user?.id) return
+const handleExpiredSession = (queryApi: { getState?: () => unknown; dispatch?: (action: unknown) => unknown }) => {
+  const state = queryApi?.getState?.() as RootState | undefined
+  if (!state?.user?.user?.id && !state?.user?.token) return
+  // Drop local session immediately so RTK / banners stop hammering the API with 401s.
+  queryApi?.dispatch?.(clearAuth())
+  queryApi?.dispatch?.(api.util.resetApiState())
   redirectToLogin()
 }
 
@@ -23,16 +26,16 @@ const baseQuery = fetchBaseQuery({
   },
 })
 
-export const baseQueryWithRefreshToken = async (args: any, api: any, extraOptions: any) => {
-  let result = await baseQuery(args, api, extraOptions)
+export const baseQueryWithRefreshToken = async (args: any, queryApi: any, extraOptions: any) => {
+  let result = await baseQuery(args, queryApi, extraOptions)
 
   if (result?.error?.status === 419) {
-    handleExpiredSession(api)
+    handleExpiredSession(queryApi)
     return result
   }
 
   if (result?.error?.status === 401) {
-    const state = api.getState() as RootState
+    const state = queryApi.getState() as RootState
     const token = state?.user?.token
 
     if (!isAuthenticatedWorkspacePath(typeof window === 'undefined' ? '' : window.location.pathname)) {
@@ -41,14 +44,14 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
 
     const refreshed = await refreshSession(token)
     if (!refreshed.accessToken) {
-      handleExpiredSession(api)
+      handleExpiredSession(queryApi)
       return result
     }
 
-    api?.dispatch(updateAuthState({ token: refreshed.accessToken }))
-    result = await baseQuery(args, api, extraOptions)
+    queryApi?.dispatch(updateAuthState({ token: refreshed.accessToken }))
+    result = await baseQuery(args, queryApi, extraOptions)
     if (result?.error?.status === 401 || result?.error?.status === 419) {
-      handleExpiredSession(api)
+      handleExpiredSession(queryApi)
     }
     return result
   }
@@ -60,7 +63,7 @@ export const baseQueryWithRefreshToken = async (args: any, api: any, extraOption
     'message' in result.error.data &&
     result.error.data.message === 'Unauthorized'
   ) {
-    handleExpiredSession(api)
+    handleExpiredSession(queryApi)
   }
 
   return result

@@ -1,4 +1,4 @@
-import { fetchPublicCardResponseWithOneRetry, getApiBaseUrl } from '@/lib/api/serverApi'
+import { describeFetchError, fetchPublicCardResponseWithOneRetry, getApiBaseUrl } from '@/lib/api/serverApi'
 import type { MyCardData, MyCardResponse } from '@interfaces/api/myCard'
 import { cache } from 'react'
 import { enrichMyCardForSharePreview } from './enrichMyCardForSharePreview'
@@ -20,7 +20,12 @@ async function loadMyCardBySlug(slug: string): Promise<MyCardData | null> {
   } catch (error) {
     if (error instanceof PublicCardApiError) throw error
     const wrapped = new PublicCardApiError('Failed to reach the public card API', 'NETWORK_ERROR', null)
-    logPublicCardFetchFailure({ slug: trimmed, status: null, kind: wrapped.kind })
+    logPublicCardFetchFailure({
+      slug: trimmed,
+      status: null,
+      kind: wrapped.kind,
+      cause: describeFetchError(error),
+    })
     throw wrapped
   }
 

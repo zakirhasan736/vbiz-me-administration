@@ -360,6 +360,7 @@ export function mapPushSubscribeError(error: unknown): Error {
 export async function resolveVapidPublicKey(): Promise<string> {
   try {
     const response = await fetch(pushApiUrl('/vapid-public-key'), {
+      cache: 'no-store',
       headers: { Accept: 'application/json' },
     })
     if (response.ok) {

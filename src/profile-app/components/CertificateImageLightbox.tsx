@@ -82,11 +82,11 @@ export function CertificateImageLightbox({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`${preview.title} certificate preview`}
+      aria-label={`${preview.title} media preview`}
     >
       <button
         type="button"
-        aria-label="Close certificate preview"
+        aria-label="Close media preview"
         onClick={onClose}
         className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white transition-colors hover:bg-black/75 sm:top-6 sm:right-6"
       >

@@ -121,6 +121,10 @@ function useAuthBootstrap() {
       void refreshSession(currentToken).then((result) => {
         if (cancelled) return
         if (!result.accessToken) {
+          if (result.hardExpired) {
+            store.dispatch(clearAuth())
+            store.dispatch(api.util.resetApiState())
+          }
           return
         }
         if (store.getState().user.token !== result.accessToken) {

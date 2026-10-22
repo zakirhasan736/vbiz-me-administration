@@ -5,6 +5,8 @@ export const SEO_META_DESCRIPTION_SETTING_KEY = 'seo_meta_description'
 export const SEO_META_KEYWORDS_SETTING_KEY = 'seo_meta_keywords_json'
 export const SEO_IMAGE_SETTING_KEY = 'seo_image_url'
 export const SEO_FAVICON_SETTING_KEY = 'seo_favicon_url'
+/** Add to Home Screen / PWA install icon (square still). */
+export const PWA_HOME_SCREEN_ICON_SETTING_KEY = 'pwa_home_screen_icon_url'
 export const MAX_OWNER_SEO_KEYWORDS = 10
 export const MAX_SEO_TITLE_LENGTH = 70
 export const MAX_SEO_DESCRIPTION_LENGTH = 160
@@ -77,6 +79,7 @@ export function normalizeCardSeo(input?: Partial<VCardSeo> | null): VCardSeo {
     metaKeywords: normalizeSeoKeywords(input?.metaKeywords),
     seoImage: normalizeSeoImage(input?.seoImage),
     faviconUrl: normalizeSeoImage(input?.faviconUrl),
+    pwaHomeScreenIconUrl: normalizeSeoImage(input?.pwaHomeScreenIconUrl),
   }
 }
 
@@ -92,6 +95,9 @@ export function normalizeCardSeoPayload(input: unknown): VCardSeo {
     seoImageUrl?: unknown
     faviconUrl?: unknown
     favicon?: unknown
+    pwaHomeScreenIconUrl?: unknown
+    pwaIconUrl?: unknown
+    homeScreenIconUrl?: unknown
   }
   const rawKeywords = raw.metaKeywords ?? raw.keywords
   return normalizeCardSeo({
@@ -104,6 +110,14 @@ export function normalizeCardSeoPayload(input: unknown): VCardSeo {
       typeof raw.seoImage === 'string' ? raw.seoImage : typeof raw.seoImageUrl === 'string' ? raw.seoImageUrl : '',
     faviconUrl:
       typeof raw.faviconUrl === 'string' ? raw.faviconUrl : typeof raw.favicon === 'string' ? raw.favicon : '',
+    pwaHomeScreenIconUrl:
+      typeof raw.pwaHomeScreenIconUrl === 'string'
+        ? raw.pwaHomeScreenIconUrl
+        : typeof raw.pwaIconUrl === 'string'
+          ? raw.pwaIconUrl
+          : typeof raw.homeScreenIconUrl === 'string'
+            ? raw.homeScreenIconUrl
+            : '',
   })
 }
 
@@ -124,6 +138,7 @@ export function parseSeoSettings(settings: Record<string, string | undefined>): 
     metaKeywords: Array.isArray(metaKeywords) ? metaKeywords : [],
     seoImage: settings[SEO_IMAGE_SETTING_KEY],
     faviconUrl: settings[SEO_FAVICON_SETTING_KEY],
+    pwaHomeScreenIconUrl: settings[PWA_HOME_SCREEN_ICON_SETTING_KEY],
   })
 }
 
@@ -135,11 +150,16 @@ export function seoToApiSettings(seo?: VCardSeo): Record<string, string> {
     [SEO_META_KEYWORDS_SETTING_KEY]: JSON.stringify(normalized.metaKeywords),
     [SEO_IMAGE_SETTING_KEY]: normalized.seoImage,
     [SEO_FAVICON_SETTING_KEY]: normalized.faviconUrl,
+    [PWA_HOME_SCREEN_ICON_SETTING_KEY]: normalized.pwaHomeScreenIconUrl,
   }
 }
 
 export function hasSeoContent(seo?: VCardSeo): boolean {
   return Boolean(
-    seo?.metaTitle?.trim() || seo?.metaDescription?.trim() || seo?.seoImage?.trim() || seo?.faviconUrl?.trim()
+    seo?.metaTitle?.trim() ||
+    seo?.metaDescription?.trim() ||
+    seo?.seoImage?.trim() ||
+    seo?.faviconUrl?.trim() ||
+    seo?.pwaHomeScreenIconUrl?.trim()
   )
 }

@@ -4,6 +4,9 @@ function trimSlash(url: string): string {
   return url.replace(/\/$/, '')
 }
 
+/** Keep SSR from hanging forever when the API is wedged; network errors retry below. */
+const PUBLIC_CARD_FETCH_TIMEOUT_MS = 12_000
+
 /**
  * Server-only API origin. Prefer SERVER_API_URL (loopback) so SSR does not
  * exit to the public hostname and share one internet IP rate-limit bucket.
@@ -11,6 +14,10 @@ function trimSlash(url: string): string {
 export function getServerApiOrigin(): string {
   const internal = process.env.SERVER_API_URL?.trim()
   if (internal) return trimSlash(internal)
+  return trimSlash(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1')
+}
+
+function getPublicApiOrigin(): string {
   return trimSlash(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1')
 }
 
@@ -46,21 +53,89 @@ function retryAfterMs(response: Response): number {
   return 250
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Human-readable cause for PM2 logs (ECONNREFUSED, AbortError, etc.). */
+export function describeFetchError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  const parts = [error.name, error.message]
+  const cause = error.cause
+  if (cause instanceof Error) {
+    parts.push(cause.message)
+    const code = (cause as NodeJS.ErrnoException).code
+    if (code) parts.push(String(code))
+  } else if (cause && typeof cause === 'object' && 'code' in cause) {
+    parts.push(String((cause as { code: unknown }).code))
+  }
+  return parts.filter(Boolean).join(' | ')
+}
+
+function withFetchTimeout(init?: RequestInit): RequestInit {
+  if (init?.signal) return init
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return { ...init, signal: AbortSignal.timeout(PUBLIC_CARD_FETCH_TIMEOUT_MS) }
+  }
+  return init ?? {}
+}
+
+/** When loopback SSR fails, rewrite to the public API origin once. */
+function rewriteToPublicOrigin(url: string): string | null {
+  const internal = process.env.SERVER_API_URL?.trim()
+  if (!internal) return null
+  const from = trimSlash(internal)
+  const to = getPublicApiOrigin()
+  if (!from || from === to || !url.startsWith(from)) return null
+  return `${to}${url.slice(from.length)}`
+}
+
 async function fetchPublicCardResponseOnce(url: string, init?: RequestInit): Promise<Response> {
   const headers = publicCardServerHeaders(init?.headers)
   return fetch(url, {
     ...PUBLIC_CARD_FETCH_INIT,
-    ...init,
+    ...withFetchTimeout(init),
     headers,
   })
 }
 
-/** Server-side public API fetch — at most one 429 retry to avoid error pages on brief spikes. */
-export async function fetchPublicCardResponse(url: string, init?: RequestInit): Promise<Response> {
+async function fetchWith429Retry(url: string, init?: RequestInit): Promise<Response> {
   const first = await fetchPublicCardResponseOnce(url, init)
   if (first.status !== 429) return first
-  await new Promise((resolve) => setTimeout(resolve, retryAfterMs(first)))
+  await sleep(retryAfterMs(first))
   return fetchPublicCardResponseOnce(url, init)
+}
+
+/**
+ * Server-side public API fetch:
+ * - one 429 retry
+ * - one network retry on the same origin
+ * - one fallback to NEXT_PUBLIC_API_URL when SERVER_API_URL loopback fails
+ */
+export async function fetchPublicCardResponse(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetchWith429Retry(url, init)
+  } catch (firstError) {
+    try {
+      await sleep(200)
+      return await fetchWith429Retry(url, init)
+    } catch (secondError) {
+      const fallback = rewriteToPublicOrigin(url)
+      if (fallback) {
+        try {
+          console.warn('[serverApi] loopback public-card fetch failed; retrying via NEXT_PUBLIC_API_URL', {
+            cause: describeFetchError(secondError),
+            from: getServerApiOrigin(),
+            to: getPublicApiOrigin(),
+          })
+          return await fetchWith429Retry(fallback, init)
+        } catch {
+          // Prefer the loopback failure message — ops care about SERVER_API_URL health.
+        }
+      }
+      throw secondError instanceof Error ? secondError : firstError
+    }
+  }
 }
 
 /** @deprecated use fetchPublicCardResponse (retry is built in). */

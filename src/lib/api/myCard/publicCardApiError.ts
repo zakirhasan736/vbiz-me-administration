@@ -46,12 +46,15 @@ export function logPublicCardFetchFailure(details: {
   status: number | null
   kind: PublicCardApiErrorKind
   requestId?: string
+  cause?: string
 }) {
   console.error('[fetchMyCardBySlug]', {
     slug: details.slug,
     status: details.status,
     kind: details.kind,
     requestId: details.requestId,
+    cause: details.cause,
     transport: process.env.SERVER_API_URL?.trim() ? 'server-internal' : 'public',
+    serverApiOrigin: process.env.SERVER_API_URL?.trim() || process.env.NEXT_PUBLIC_API_URL || null,
   })
 }

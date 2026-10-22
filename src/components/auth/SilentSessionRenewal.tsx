@@ -6,9 +6,11 @@ import {
   isAuthenticatedWorkspacePath,
   isJwtExpired,
   jwtExpiresAt,
+  redirectToLogin,
   SESSION_RENEW_BEFORE_EXPIRY_MS,
 } from '@/lib/auth/sessionPolicy'
-import { updateAuthState } from '@/redux/features/auth/user.slice'
+import { api } from '@/redux/api/api'
+import { logout as clearAuth, updateAuthState } from '@/redux/features/auth/user.slice'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
@@ -44,6 +46,12 @@ export function SilentSessionRenewal() {
         const result = await refreshSession(currentToken)
         if (result.accessToken) {
           dispatch(updateAuthState({ token: result.accessToken }))
+          return
+        }
+        if (result.hardExpired) {
+          dispatch(clearAuth())
+          dispatch(api.util.resetApiState())
+          redirectToLogin()
         }
       } finally {
         renewalPendingRef.current = false

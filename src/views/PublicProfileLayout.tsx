@@ -21,7 +21,7 @@ import { ProfileThemeProvider } from '@/profile-app/providers/ProfileThemeProvid
 import type { ProfileTemplateId } from '@/redux/features/designSettings/designSettings.slice'
 import { useProfile } from '@/redux/features/myCard'
 import type { MyCardData } from '@interfaces/api/myCard'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import type { LiveAgentCardData } from '@/profile-app/lib/liveAgentPrompt'
 
@@ -46,7 +46,9 @@ export default function PublicProfileLayout({
   liveAgentCardData,
   liveAgentSystemPrompt,
 }: Props) {
-  const { record, isLoading, isError, error, actionButtons, myCard } = useProfile(slug, { initialMyCard })
+  const { record, isLoading, isError, error, actionButtons, myCard, refetch } = useProfile(slug, {
+    initialMyCard,
+  })
   const designSettings = useAppSelector((s) => s.designSettings)
 
   const earlyTemplate: ProfileTemplateId =
@@ -191,6 +193,16 @@ export default function PublicProfileLayout({
 
   useGoogleFont(profileProps?.design?.fontFamily)
 
+  // Clear error-boundary auto-retry counter once a card loads successfully.
+  useEffect(() => {
+    if (!record) return
+    try {
+      window.sessionStorage.removeItem('vbiz_vcard_error_auto_retry')
+    } catch {
+      /* ignore */
+    }
+  }, [record])
+
   if (isLoading) {
     return (
       <ProfileThemeShell config={themeConfig} fromApi={fromApi} template={template}>
@@ -200,18 +212,31 @@ export default function PublicProfileLayout({
   }
 
   if (isError || !record || !profileProps) {
-    const message =
-      error && typeof error === 'object' && 'data' in error && typeof error.data === 'string'
-        ? error.data
-        : 'Profile not found'
-
+    const status =
+      error && typeof error === 'object' && 'status' in error ? Number((error as { status?: number }).status) : null
+    const isMissing = status === 404
     return (
       <ProfileThemeShell config={themeConfig} fromApi={fromApi} template={template}>
         <div className="vbiz-loading-screen flex min-h-screen flex-col items-center justify-center px-6 text-center">
-          <p className="vbiz-title text-lg font-bold">vCard not found</p>
+          <p className="vbiz-title text-lg font-bold">{isMissing ? 'vCard not found' : 'Still connecting…'}</p>
           <p className="vbiz-description mt-2 max-w-md text-sm">
-            {message}. No public card matches <span className="vbiz-title font-mono">{slug}</span>.
+            {isMissing ? (
+              <>
+                No public card matches <span className="vbiz-title font-mono">{slug}</span>.
+              </>
+            ) : (
+              'We could not reach the card service. Retrying usually fixes this.'
+            )}
           </p>
+          {!isMissing ? (
+            <button
+              type="button"
+              className="vbiz-title mt-6 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900"
+              onClick={() => void refetch()}
+            >
+              Reload card
+            </button>
+          ) : null}
         </div>
       </ProfileThemeShell>
     )
