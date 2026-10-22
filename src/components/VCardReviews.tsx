@@ -12,7 +12,9 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
 import { mapReviewsFromPayload } from '@/lib/ai/applyCardDraft'
 import { stripHtml } from '@/lib/htmlText'
 import { useVCard } from '@/lib/VCardContext'
@@ -39,12 +41,6 @@ export function TabReviews() {
   const { cardId, vCardData, updateData } = useVCard()
   const reviews = normalizeReviewList(vCardData.reviews)
   const reviewsRef = useRef(reviews)
-  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
-    useExpandableEntryList(reviews)
-
-  useEffect(() => {
-    reviewsRef.current = reviews
-  }, [reviews])
 
   const setReviews = (next: VCardReviewEntry[]) => {
     // Keep the ref in sync immediately so rapid delete/add does not read a stale list.
@@ -52,27 +48,40 @@ export function TabReviews() {
     updateData('reviews', next)
   }
 
+  const { hideOwner, hasOwnerItems, visibleItems, commitVisible, setHideOwner } = useHideOwnerSectionList(
+    'reviews',
+    reviews,
+    setReviews
+  )
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(visibleItems)
+
+  useEffect(() => {
+    reviewsRef.current = reviews
+  }, [reviews])
+
   const addReview = () => {
     const next = createDefaultReviewEntry()
-    setReviews([...reviewsRef.current, next])
+    commitVisible([...visibleItems, next])
     expandNew(next.id)
   }
 
   const removeReview = (id: string) => {
     if (reviewsRef.current.some((item) => item.id === id && item.corporateOwned)) return
-    const next = reviewsRef.current.filter((r) => r.id !== id)
-    setReviews(next)
+    const next = visibleItems.filter((r) => r.id !== id)
+    commitVisible(next)
     recoverExpandedAfterRemove(id, next)
   }
 
   const updateReview = (id: string, patch: Partial<VCardReviewEntry>) => {
-    setReviews(reviewsRef.current.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+    if (reviewsRef.current.some((r) => r.id === id && r.corporateOwned)) return
+    commitVisible(visibleItems.map((r) => (r.id === id ? { ...r, ...patch } : r)))
   }
 
   const applyFilled = (result: AiFilledResult) => {
     const mapped = mapReviewsFromPayload(result.payload)
     if (!mapped.length) return
-    setReviews([...mapped, ...reviewsRef.current.filter((r) => r.author || r.text)])
+    commitVisible([...mapped, ...visibleItems.filter((r) => r.author || r.text)])
     expandNew(mapped[0]!.id)
   }
 
@@ -97,6 +106,14 @@ export function TabReviews() {
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           Showcase client testimonials on your public card.
         </p>
+        {hasOwnerItems ? (
+          <HideOwnerMediaToggle
+            checked={hideOwner}
+            label="Only show my reviews"
+            detail="Corporate owner reviews stay saved. This card’s editor and public page show only the reviews you added."
+            onChange={setHideOwner}
+          />
+        ) : null}
         <button
           type="button"
           onClick={addReview}
@@ -119,14 +136,14 @@ export function TabReviews() {
         accent="amber"
         label="Quick find"
         onJump={setExpandedId}
-        items={reviews.map((r) => ({
+        items={visibleItems.map((r) => ({
           id: r.id,
           title: r.author || 'Reviewer',
           detail: r.text?.slice(0, 40),
         }))}
       />
 
-      {reviews.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
             <MessageSquareQuote className="h-8 w-8 text-slate-400" />
@@ -139,7 +156,7 @@ export function TabReviews() {
       ) : (
         <>
           <ReorderList
-            items={reviews}
+            items={visibleItems}
             getKey={(r) => r.id}
             onReorder={setReviews}
             renderItem={(item, idx, dragHandleProps) => {

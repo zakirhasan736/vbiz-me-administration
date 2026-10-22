@@ -13,8 +13,10 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
 import { mapBlogsFromPayload } from '@/lib/ai/applyCardDraft'
 import { stripHtml } from '@/lib/htmlText'
 import { createDefaultGeneralPost, normalizeGeneralPostList } from '@/lib/vcardGeneralPosts'
@@ -47,12 +49,6 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
   const sectionTitle = useResolvedSectionTitle(undefined, 'Blog')
   const posts = normalizeGeneralPostList(rawPosts)
   const postsRef = useRef(posts)
-  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
-    useExpandableEntryList(posts)
-
-  useEffect(() => {
-    postsRef.current = posts
-  }, [posts])
 
   const setPosts = (next: VCardGeneralPost[]) => {
     // Keep the ref in sync immediately so rapid delete/add does not read a stale list.
@@ -60,27 +56,40 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
     onPostsChange(next)
   }
 
+  const { hideOwner, hasOwnerItems, visibleItems, commitVisible, setHideOwner } = useHideOwnerSectionList(
+    'blog',
+    posts,
+    setPosts
+  )
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(visibleItems)
+
+  useEffect(() => {
+    postsRef.current = posts
+  }, [posts])
+
   const addPost = () => {
     const next = createDefaultGeneralPost()
-    setPosts([...postsRef.current, next])
+    commitVisible([next, ...visibleItems])
     expandNew(next.clientKey || next.id)
   }
 
   const removePost = (key: string) => {
     if (postsRef.current.some((item) => (item.clientKey || item.id) === key && item.corporateOwned)) return
-    const next = postsRef.current.filter((p) => (p.clientKey || p.id) !== key)
-    setPosts(next)
+    const next = visibleItems.filter((p) => (p.clientKey || p.id) !== key)
+    commitVisible(next)
     recoverExpandedAfterRemove(key, next)
   }
 
   const updatePost = (id: string, field: keyof VCardGeneralPost, value: VCardGeneralPost[keyof VCardGeneralPost]) => {
-    setPosts(postsRef.current.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+    if (postsRef.current.some((p) => p.id === id && p.corporateOwned)) return
+    commitVisible(visibleItems.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
   }
 
   const applyFilled = (result: AiFilledResult) => {
     const mapped = mapBlogsFromPayload(result.payload)
     if (!mapped.length) return
-    setPosts([...mapped, ...postsRef.current.filter((p) => p.title || p.description)])
+    commitVisible([...mapped, ...visibleItems.filter((p) => p.title || p.description)])
     expandNew(mapped[0]!.clientKey || mapped[0]!.id)
   }
 
@@ -105,6 +114,14 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
             <Plus className="h-4 w-4" /> Add post
           </button>
         </div>
+        {hasOwnerItems ? (
+          <HideOwnerMediaToggle
+            checked={hideOwner}
+            label="Only show my posts"
+            detail="Corporate owner posts stay saved. This card’s editor and public page show only the posts you added."
+            onChange={setHideOwner}
+          />
+        ) : null}
         <button
           type="button"
           onClick={addPost}
@@ -123,12 +140,12 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
         onFilled={applyFilled}
       />
 
-      {posts.length > 0 ? (
+      {visibleItems.length > 0 ? (
         <SectionJumpPills
           accent="violet"
           label="Quick find"
           onJump={setExpandedId}
-          items={posts.map((p) => ({
+          items={visibleItems.map((p) => ({
             id: p.id,
             title: p.title || 'Untitled',
             detail: stripHtml(p.description || '').slice(0, 40),
@@ -136,7 +153,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
         />
       ) : null}
 
-      {posts.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="rounded-2xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
             <FileBox className="h-8 w-8 text-slate-400" />
@@ -156,7 +173,7 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
       ) : (
         <>
           <ReorderList
-            items={posts}
+            items={visibleItems}
             getKey={(p) => p.clientKey || p.id}
             onReorder={setPosts}
             renderItem={(item, idx, dragHandleProps) => {

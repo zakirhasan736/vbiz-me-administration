@@ -1,3 +1,4 @@
+import { isCustomNavItemId } from '@/lib/vcardNavbar'
 import type { VCardTabSectionMeta, VCardTabSectionMetaEntry } from '@/types/vcard'
 
 export const TAB_SECTION_META_SETTING_KEY = 'tab_section_meta_json'
@@ -54,7 +55,7 @@ export function defaultBannerDescription(tabId?: string | null): string {
   const id = tabId?.trim() || ''
   if (!id) return GENERIC_BANNER_DESCRIPTION
   if (DEFAULT_BANNER_DESCRIPTIONS[id]) return DEFAULT_BANNER_DESCRIPTIONS[id]
-  if (id.startsWith('custom-tab-')) return 'Updates and information shared on this tab.'
+  if (isCustomNavItemId(id)) return 'Updates and information shared on this tab.'
   return GENERIC_BANNER_DESCRIPTION
 }
 

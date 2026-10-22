@@ -1,6 +1,11 @@
 import type { NavBarLinksData } from '@/interfaces/navbarLinks.interface'
 import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
-import { withoutHiddenOwnerMedia } from '@/lib/memberMediaVisibility'
+import {
+  customTabHideOwnerSectionKey,
+  isHideOwnerSectionEnabled,
+  withoutCorporateOwned,
+  withoutHiddenOwnerMedia,
+} from '@/lib/memberMediaVisibility'
 import { buildProfilePath } from '@/lib/profileRoutes'
 import type { ResolvedProfileDesign } from '@/lib/resolvedProfileDesign'
 import { resolveProfileDesignFromData } from '@/lib/resolvedProfileDesign'
@@ -187,34 +192,52 @@ export function vCardDataToProfileProps(
     myInfo: data.myInfo,
     resume: getVCardResume(data),
     contentMedia: getVCardContentMedia(data),
-    education: data.education ?? [],
-    experience: data.experience ?? [],
-    services: normalizeServiceList(data.services),
-    skills: data.skills ?? [],
+    education: withoutCorporateOwned(
+      data.education ?? [],
+      isHideOwnerSectionEnabled(data.hideOwnerSections, 'education')
+    ),
+    experience: withoutCorporateOwned(
+      data.experience ?? [],
+      isHideOwnerSectionEnabled(data.hideOwnerSections, 'experience')
+    ),
+    services: withoutCorporateOwned(
+      normalizeServiceList(data.services),
+      isHideOwnerSectionEnabled(data.hideOwnerSections, 'services')
+    ),
+    skills: withoutCorporateOwned(data.skills ?? [], isHideOwnerSectionEnabled(data.hideOwnerSections, 'skills')),
     portfolio: withoutHiddenOwnerMedia(
       data.portfolio ?? [],
       data.hiddenOwnerMedia?.photos || [],
       Boolean(data.hideOwnerPhotos)
     ),
-    reviews: data.reviews ?? [],
+    reviews: withoutCorporateOwned(data.reviews ?? [], isHideOwnerSectionEnabled(data.hideOwnerSections, 'reviews')),
     sectionPosts: (() => {
       const posts = data.sectionPosts ?? {}
       const videoKey = PUBLIC_SECTION_NAMES.videos
-      if (!posts[videoKey]) return posts
-      return {
-        ...posts,
-        [videoKey]: withoutHiddenOwnerMedia(
-          posts[videoKey],
-          data.hiddenOwnerMedia?.videos || [],
-          Boolean(data.hideOwnerVideos)
-        ),
+      const next: typeof posts = {}
+      for (const [key, list] of Object.entries(posts)) {
+        if (key === videoKey) {
+          next[key] = withoutHiddenOwnerMedia(list, data.hiddenOwnerMedia?.videos || [], Boolean(data.hideOwnerVideos))
+          continue
+        }
+        next[key] = withoutCorporateOwned(list, isHideOwnerSectionEnabled(data.hideOwnerSections, key))
       }
+      return next
     })(),
-    customTabs: data.customTabs ?? [],
+    customTabs: (data.customTabs ?? []).map((tab) => ({
+      ...tab,
+      items: withoutCorporateOwned(
+        tab.items || [],
+        isHideOwnerSectionEnabled(data.hideOwnerSections, customTabHideOwnerSectionKey(tab.id))
+      ),
+    })),
     tabLabelOverrides: data.tabLabelOverrides ?? {},
     tabSectionMeta: data.tabSectionMeta ?? {},
-    generalPosts: normalizeGeneralPostList(data.generalPosts),
-    faqs: normalizeFaqList(data.faqs),
+    generalPosts: withoutCorporateOwned(
+      normalizeGeneralPostList(data.generalPosts),
+      isHideOwnerSectionEnabled(data.hideOwnerSections, 'blog')
+    ),
+    faqs: withoutCorporateOwned(normalizeFaqList(data.faqs), isHideOwnerSectionEnabled(data.hideOwnerSections, 'faq')),
     displaySettings: display,
     shareSlug: slug || undefined,
     themeConfig,

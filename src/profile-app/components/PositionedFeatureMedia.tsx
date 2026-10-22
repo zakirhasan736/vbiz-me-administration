@@ -1,6 +1,8 @@
 'use client'
 
 import {
+  parseProfileMediaFrame,
+  profileFeatureMediaAspectRatio,
   profileMediaCoverLayoutStyle,
   profileMediaFitStyle,
   type MediaPixelSize,
@@ -20,7 +22,7 @@ type PositionedFeatureMediaProps = {
 
 /**
  * Shows the original image until a crop is saved. A saved crop uses the same
- * cover position / zoom as the card builder drag preview.
+ * cover position / zoom / object-fit / height as the card builder.
  */
 export function PositionedFeatureMedia({ src, alt, frame, className, video = false }: PositionedFeatureMediaProps) {
   const playVideo = video || isVideoUrl(src)
@@ -37,9 +39,10 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
   }
   const mediaSize = mediaSizeState.src === src ? mediaSizeState.size : null
   const setMediaSize = (size: MediaPixelSize) => setMediaSizeState({ src, size })
+  const resolved = frame ? parseProfileMediaFrame(frame) : null
 
   useEffect(() => {
-    if (!frame) return
+    if (!resolved) return
     const box = boxRef.current
     if (!box || typeof ResizeObserver === 'undefined') return
     const sync = () => {
@@ -52,9 +55,9 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
     const observer = new ResizeObserver(sync)
     observer.observe(box)
     return () => observer.disconnect()
-  }, [frame])
+  }, [resolved])
 
-  if (!frame) {
+  if (!resolved) {
     if (playVideo) {
       return <video src={src} className={className} controls playsInline preload="metadata" aria-label={alt} />
     }
@@ -66,11 +69,15 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
 
   const fit =
     mediaSize && boxSize
-      ? profileMediaCoverLayoutStyle(frame, mediaSize, boxSize)
-      : { ...profileMediaFitStyle(frame), width: '100%', height: '100%' }
+      ? profileMediaCoverLayoutStyle(resolved, mediaSize, boxSize)
+      : { ...profileMediaFitStyle(resolved), width: '100%', height: '100%' }
 
   return (
-    <div ref={boxRef} className="relative aspect-video w-full overflow-hidden bg-black">
+    <div
+      ref={boxRef}
+      className="relative w-full overflow-hidden bg-black"
+      style={{ aspectRatio: profileFeatureMediaAspectRatio(resolved) }}
+    >
       {playVideo ? (
         <video
           src={src}

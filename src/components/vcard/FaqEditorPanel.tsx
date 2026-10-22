@@ -13,7 +13,9 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
 import { mapFaqsFromPayload } from '@/lib/ai/applyCardDraft'
 import { stripHtml } from '@/lib/htmlText'
 import { createDefaultFaqEntry, normalizeFaqList } from '@/lib/vcardFaq'
@@ -44,12 +46,6 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
   const sectionTitle = useResolvedSectionTitle(undefined, 'FAQ')
   const faqs = normalizeFaqList(rawFaqs)
   const faqsRef = useRef(faqs)
-  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
-    useExpandableEntryList(faqs)
-
-  useEffect(() => {
-    faqsRef.current = faqs
-  }, [faqs])
 
   const setFaqs = (next: VCardFaqEntry[]) => {
     // Keep the ref in sync immediately so rapid delete/add does not read a stale list.
@@ -57,27 +53,41 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
     onFaqsChange(next)
   }
 
+  const { hideOwner, hasOwnerItems, visibleItems, commitVisible, setHideOwner } = useHideOwnerSectionList(
+    'faq',
+    faqs,
+    setFaqs
+  )
+  const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
+    useExpandableEntryList(visibleItems)
+
+  useEffect(() => {
+    faqsRef.current = faqs
+  }, [faqs])
+
   const addFaq = () => {
     const next = createDefaultFaqEntry()
-    setFaqs([...faqsRef.current, next])
+    commitVisible([next, ...visibleItems])
     expandNew(next.clientKey || next.id)
   }
 
   const removeFaq = (key: string) => {
     if (faqsRef.current.some((item) => (item.clientKey || item.id) === key && item.corporateOwned)) return
-    const next = faqsRef.current.filter((f) => (f.clientKey || f.id) !== key)
-    setFaqs(next)
+    const next = visibleItems.filter((f) => (f.clientKey || f.id) !== key)
+    commitVisible(next)
     recoverExpandedAfterRemove(key, next)
   }
 
   const updateFaq = (id: string, field: keyof VCardFaqEntry, value: VCardFaqEntry[keyof VCardFaqEntry]) => {
-    setFaqs(faqsRef.current.map((f) => (f.id === id ? { ...f, [field]: value } : f)))
+    const target = faqsRef.current.find((f) => f.id === id)
+    if (target?.corporateOwned) return
+    commitVisible(visibleItems.map((f) => (f.id === id ? { ...f, [field]: value } : f)))
   }
 
   const applyFilled = (result: AiFilledResult) => {
     const mapped = mapFaqsFromPayload(result.payload)
     if (!mapped.length) return
-    setFaqs([...mapped, ...faqsRef.current.filter((f) => f.question || f.answer)])
+    commitVisible([...mapped, ...visibleItems.filter((f) => f.question || f.answer)])
     expandNew(mapped[0]!.clientKey || mapped[0]!.id)
   }
 
@@ -106,6 +116,14 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
           Questions and answers for the FAQ tab on your public profile (v1 and v2). Toggle visibility under Card
           Settings → FAQs. Changes appear instantly in live preview.
         </p>
+        {hasOwnerItems ? (
+          <HideOwnerMediaToggle
+            checked={hideOwner}
+            label="Only show my FAQs"
+            detail="Corporate owner FAQs stay saved. This card’s editor and public page show only the questions you added."
+            onChange={setHideOwner}
+          />
+        ) : null}
         <button
           type="button"
           onClick={addFaq}
@@ -124,12 +142,12 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
         onFilled={applyFilled}
       />
 
-      {faqs.length > 0 ? (
+      {visibleItems.length > 0 ? (
         <SectionJumpPills
           accent="amber"
           label="Quick find"
           onJump={setExpandedId}
-          items={faqs.map((f) => ({
+          items={visibleItems.map((f) => ({
             id: f.id,
             title: f.question || 'Question',
             detail: f.answer?.slice(0, 40),
@@ -138,7 +156,7 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
       ) : null}
 
       <div className="flex flex-1 flex-col">
-        {faqs.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <div className="rounded-4xl border border-slate-200/50 bg-slate-50/50 p-12 text-center shadow-sm dark:border-white/5 dark:bg-white/2">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-slate-200 bg-slate-100 dark:border-white/5 dark:bg-white/5">
               <FileBox className="h-8 w-8 text-slate-400" />
@@ -158,9 +176,9 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
         ) : (
           <div>
             <ReorderList
-              items={faqs}
+              items={visibleItems}
               getKey={(faq) => faq.clientKey || faq.id}
-              onReorder={setFaqs}
+              onReorder={commitVisible}
               renderItem={(faq, index, dragHandleProps) => {
                 const key = faq.clientKey || faq.id
                 const open = isExpanded(key)

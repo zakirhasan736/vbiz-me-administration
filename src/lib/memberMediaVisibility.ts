@@ -1,10 +1,63 @@
 /** Member-only card settings. The owner card and other team cards do not receive these. */
 export const HIDE_OWNER_PHOTOS_SETTING_KEY = 'hide_owner_photos'
 export const HIDE_OWNER_VIDEOS_SETTING_KEY = 'hide_owner_videos'
+/** JSON map of section keys → hide corporate-owner list items on this member card. */
+export const HIDE_OWNER_SECTIONS_SETTING_KEY = 'hide_owner_sections_json'
+
+export type HideOwnerSectionsMap = Record<string, boolean>
 
 export function isHideOwnerMediaSetting(value: string | null | undefined): boolean {
   const normalized = (value || '').trim().toLowerCase()
   return normalized === '1' || normalized === 'true' || normalized === 'yes'
+}
+
+export function parseHideOwnerSections(raw: string | null | undefined): HideOwnerSectionsMap {
+  if (!raw?.trim()) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const out: HideOwnerSectionsMap = {}
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      const section = key.trim()
+      if (!section) continue
+      if (value === true || value === 1 || value === '1' || value === 'true') out[section] = true
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+export function serializeHideOwnerSections(map: HideOwnerSectionsMap | null | undefined): string {
+  const cleaned: HideOwnerSectionsMap = {}
+  for (const [key, value] of Object.entries(map || {})) {
+    const section = key.trim()
+    if (!section || !value) continue
+    cleaned[section] = true
+  }
+  return JSON.stringify(cleaned)
+}
+
+export function isHideOwnerSectionEnabled(map: HideOwnerSectionsMap | null | undefined, sectionKey: string): boolean {
+  return Boolean(map?.[sectionKey.trim()])
+}
+
+export function withHideOwnerSection(
+  map: HideOwnerSectionsMap | null | undefined,
+  sectionKey: string,
+  hide: boolean
+): HideOwnerSectionsMap {
+  const next = { ...(map || {}) }
+  const key = sectionKey.trim()
+  if (!key) return next
+  if (hide) next[key] = true
+  else delete next[key]
+  return next
+}
+
+/** Section key for a custom tab's "Only show my items" preference. */
+export function customTabHideOwnerSectionKey(tabId: string): string {
+  return `custom:${tabId.trim()}`
 }
 
 export function withoutCorporateOwned<T extends { corporateOwned?: boolean }>(items: T[], hideOwner: boolean): T[] {

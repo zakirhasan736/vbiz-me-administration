@@ -28,10 +28,12 @@ import { detectPortfolioType, isVideoUrl } from '@/lib/mediaUrl'
 import {
   HIDDEN_OWNER_MEDIA_SETTING_KEY,
   HIDE_OWNER_PHOTOS_SETTING_KEY,
+  HIDE_OWNER_SECTIONS_SETTING_KEY,
   HIDE_OWNER_VIDEOS_SETTING_KEY,
   isHideOwnerMediaSetting,
   MEMBER_NAV_CUSTOMIZED_SETTING_KEY,
   parseHiddenOwnerMedia,
+  parseHideOwnerSections,
 } from '@/lib/memberMediaVisibility'
 import { parseSeoSettings } from '@/lib/seo/cardSeo'
 import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
@@ -616,35 +618,62 @@ function metaMap(metas?: ApiPost['metas']): Record<string, string> {
   return out
 }
 
-function parseCustomTabs(raw?: string): VCardCustomTab[] {
+const CORPORATE_OWNED_IDS_SETTING_KEY = 'corporate_owned_ids_json'
+
+function parseCorporateOwnedIdSet(raw: string | undefined, model: string): Set<string> {
+  if (!raw?.trim()) return new Set()
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return new Set()
+    const ids = (parsed as Record<string, unknown>)[model]
+    if (!Array.isArray(ids)) return new Set()
+    return new Set(ids.filter((id): id is string => typeof id === 'string' && Boolean(id.trim())))
+  } catch {
+    return new Set()
+  }
+}
+
+function parseCustomTabs(
+  raw: string | undefined,
+  ownedTabIds: ReadonlySet<string> = new Set(),
+  ownedItemIds: ReadonlySet<string> = new Set()
+): VCardCustomTab[] {
   if (!raw?.trim()) return []
   try {
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) return []
     return parsed
       .filter((tab): tab is Partial<VCardCustomTab> => Boolean(tab && typeof tab === 'object'))
-      .map((tab) => ({
-        id: typeof tab.id === 'string' ? tab.id : '',
-        label: typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab',
-        items: Array.isArray(tab.items)
-          ? (tab.items as unknown[]).map((raw) => {
-              const item = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
-              return {
-                id: typeof item.id === 'string' ? item.id : '',
-                title: typeof item.title === 'string' ? item.title : '',
-                description: typeof item.description === 'string' ? item.description : '',
-                url: typeof item.url === 'string' ? item.url : '',
-                mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
-                mediaFrame: readOptionalMediaFrame(item.mediaFrame),
-                mediaName: typeof item.mediaName === 'string' ? item.mediaName : '',
-                mediaKind: item.mediaKind as VCardCustomTab['items'][number]['mediaKind'],
-                gallery: Array.isArray(item.gallery) ? item.gallery : [],
-                active: item.active !== false,
-              }
-            })
-          : [],
-      }))
-      .filter((tab) => tab.id.startsWith('custom-tab-'))
+      .map((tab) => {
+        const id = typeof tab.id === 'string' ? tab.id : ''
+        const key = typeof tab.key === 'string' && tab.key.trim() ? tab.key.trim() : undefined
+        return {
+          id,
+          ...(key ? { key } : {}),
+          label: typeof tab.label === 'string' && tab.label.trim() ? tab.label : 'Custom tab',
+          corporateOwned: Boolean((id && ownedTabIds.has(id)) || (key && ownedTabIds.has(key))),
+          items: Array.isArray(tab.items)
+            ? (tab.items as unknown[]).map((rawItem) => {
+                const item = (rawItem && typeof rawItem === 'object' ? rawItem : {}) as Record<string, unknown>
+                const itemId = typeof item.id === 'string' ? item.id : ''
+                return {
+                  id: itemId,
+                  title: typeof item.title === 'string' ? item.title : '',
+                  description: typeof item.description === 'string' ? item.description : '',
+                  url: typeof item.url === 'string' ? item.url : '',
+                  mediaUrl: typeof item.mediaUrl === 'string' ? item.mediaUrl : '',
+                  mediaFrame: readOptionalMediaFrame(item.mediaFrame),
+                  mediaName: typeof item.mediaName === 'string' ? item.mediaName : '',
+                  mediaKind: item.mediaKind as VCardCustomTab['items'][number]['mediaKind'],
+                  gallery: Array.isArray(item.gallery) ? item.gallery : [],
+                  active: item.active !== false,
+                  corporateOwned: Boolean(itemId && ownedItemIds.has(itemId)),
+                }
+              })
+            : [],
+        }
+      })
+      .filter((tab) => Boolean(tab.id.trim()))
   } catch {
     return []
   }
@@ -729,6 +758,7 @@ function withoutCorporateMemberState<T extends VCardData>(data: T): T {
     ...(stripCorporateOwnedFlags(data) as T),
     hideOwnerPhotos: false,
     hideOwnerVideos: false,
+    hideOwnerSections: {},
     hiddenOwnerMedia: { photos: [], videos: [] },
   }
 }
@@ -754,7 +784,11 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     : undefined
   const staticTheme = getStaticProfileTheme(profileTemplate)
   const savedTheme = parseThemeJson(settingsMap[THEME_SETTING_KEY])
-  const customTabs = parseCustomTabs(settingsMap[CUSTOM_TABS_SETTING_KEY])
+  const customTabs = parseCustomTabs(
+    settingsMap[CUSTOM_TABS_SETTING_KEY],
+    parseCorporateOwnedIdSet(settingsMap[CORPORATE_OWNED_IDS_SETTING_KEY], 'customTab'),
+    parseCorporateOwnedIdSet(settingsMap[CORPORATE_OWNED_IDS_SETTING_KEY], 'customTabItem')
+  )
   const extraFields = parseExtraFieldsJson(settingsMap[EXTRA_FIELDS_SETTING_KEY])
   const gameIds = parseGameIdsJson(settingsMap[GAME_IDS_SETTING_KEY])
   const tabLabelOverrides = parseTabLabelOverrides(settingsMap[TAB_LABEL_OVERRIDES_SETTING_KEY])
@@ -956,6 +990,7 @@ export function mapApiProfileToVCardRecord(profile: ApiProfile): VCardRecord {
     aiAssistanceEnabled: isAiAssistanceEnabled(settingsMap[AI_ASSISTANCE_SETTING_KEY], profile.slug),
     hideOwnerPhotos: isHideOwnerMediaSetting(settingsMap[HIDE_OWNER_PHOTOS_SETTING_KEY]),
     hideOwnerVideos: isHideOwnerMediaSetting(settingsMap[HIDE_OWNER_VIDEOS_SETTING_KEY]),
+    hideOwnerSections: parseHideOwnerSections(settingsMap[HIDE_OWNER_SECTIONS_SETTING_KEY]),
     hiddenOwnerMedia: parseHiddenOwnerMedia(settingsMap[HIDDEN_OWNER_MEDIA_SETTING_KEY]),
     memberNavCustomized: isHideOwnerMediaSetting(settingsMap[MEMBER_NAV_CUSTOMIZED_SETTING_KEY]),
   })

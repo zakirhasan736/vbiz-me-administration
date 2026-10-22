@@ -399,93 +399,116 @@ export function MediaFileUploader({
         />
 
         {displayUrl ? (
-          <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch">
-            <div className="relative flex h-36 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 sm:h-28 sm:w-40 dark:border-white/10 dark:bg-white/5">
-              {kind === 'image' ? (
-                <SkeletonImage
-                  src={displayUrl}
-                  alt={displayName || 'Upload preview'}
-                  fill
-                  mediaClassName="object-cover"
-                  skeletonLabel="Loading preview"
-                />
-              ) : kind === 'video' ? (
-                <SkeletonVideo
-                  src={displayUrl}
-                  fill
-                  mediaClassName="object-cover"
-                  controls
-                  muted
-                  playsInline
-                  skeletonLabel="Loading preview"
-                />
-              ) : kind === 'audio' ? (
-                <div className="flex w-full flex-col items-center gap-2 px-3">
-                  <FileAudio className={cn('h-8 w-8', styles.icon)} />
-                  <audio src={displayUrl} controls className="w-full" />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2 px-3 text-center">
-                  <PreviewIcon className={cn('h-8 w-8', styles.icon)} />
-                  <span className="line-clamp-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                    {displayName || 'File'}
-                  </span>
-                </div>
-              )}
-              {uploading ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/45 px-3 backdrop-blur-[1px]">
-                  <Loader2 className="h-5 w-5 animate-spin text-white" />
-                  <div className="w-full space-y-1">
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/25">
-                      <div
-                        className={cn('h-full rounded-full transition-[width] duration-150 ease-out', styles.bar)}
-                        style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-                      />
-                    </div>
-                    <p className="text-center text-[10px] font-bold tracking-wider text-white uppercase">
-                      {Math.min(100, Math.max(0, progress))}%
-                    </p>
+          <div
+            className={cn(
+              'grid gap-3 p-3',
+              onMediaFrameChange && (kind === 'image' || kind === 'video')
+                ? 'md:grid-cols-[minmax(0,1fr)_minmax(240px,1.1fr)] md:items-start'
+                : ''
+            )}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+              <div className="relative flex h-36 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 sm:h-28 sm:w-40 dark:border-white/10 dark:bg-white/5">
+                {kind === 'image' ? (
+                  <SkeletonImage
+                    src={displayUrl}
+                    alt={displayName || 'Upload preview'}
+                    fill
+                    mediaClassName="object-cover"
+                    skeletonLabel="Loading preview"
+                  />
+                ) : kind === 'video' ? (
+                  <SkeletonVideo
+                    src={displayUrl}
+                    fill
+                    mediaClassName="object-cover"
+                    controls
+                    muted
+                    playsInline
+                    skeletonLabel="Loading preview"
+                  />
+                ) : kind === 'audio' ? (
+                  <div className="flex w-full flex-col items-center gap-2 px-3">
+                    <FileAudio className={cn('h-8 w-8', styles.icon)} />
+                    <audio src={displayUrl} controls className="w-full" />
                   </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 px-3 text-center">
+                    <PreviewIcon className={cn('h-8 w-8', styles.icon)} />
+                    <span className="line-clamp-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      {displayName || 'File'}
+                    </span>
+                  </div>
+                )}
+                {uploading ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/45 px-3 backdrop-blur-[1px]">
+                    <Loader2 className="h-5 w-5 animate-spin text-white" />
+                    <div className="w-full space-y-1">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/25">
+                        <div
+                          className={cn('h-full rounded-full transition-[width] duration-150 ease-out', styles.bar)}
+                          style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+                        />
+                      </div>
+                      <p className="text-center text-[10px] font-bold tracking-wider text-white uppercase">
+                        {Math.min(100, Math.max(0, progress))}%
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-white">
+                    {displayName || 'Uploaded file'}
+                  </p>
+                  <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">{displayUrl}</p>
+                  {kind ? (
+                    <p className="mt-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">{kind}</p>
+                  ) : null}
+                  {uploading ? (
+                    <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      {uploadLabel} {Math.min(100, Math.max(0, progress))}%
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => inputRef.current?.click()}
+                    disabled={uploading || clearing}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:bg-[#1e2333] dark:text-slate-200 dark:hover:bg-white/5"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={remove}
+                    disabled={uploading || clearing}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-60 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                  >
+                    {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    {clearing ? 'Removing…' : 'Remove'}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-white">
-                  {displayName || 'Uploaded file'}
-                </p>
-                <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">{displayUrl}</p>
-                {kind ? (
-                  <p className="mt-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">{kind}</p>
-                ) : null}
-                {uploading ? (
-                  <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    {uploadLabel} {Math.min(100, Math.max(0, progress))}%
-                  </p>
-                ) : null}
+            {onMediaFrameChange && (kind === 'image' || kind === 'video') ? (
+              <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/3">
+                <AvatarMediaFramePreview
+                  src={displayUrl}
+                  kind={kind === 'video' ? 'video' : 'image'}
+                  frame={mediaFrame}
+                  layout="feature"
+                  compact
+                  onChange={onMediaFrameChange}
+                  alt={label || 'Featured media'}
+                />
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => inputRef.current?.click()}
-                  disabled={uploading || clearing}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:bg-[#1e2333] dark:text-slate-200 dark:hover:bg-white/5"
-                >
-                  <Upload className="h-3.5 w-3.5" />
-                  Replace
-                </button>
-                <button
-                  type="button"
-                  onClick={remove}
-                  disabled={uploading || clearing}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-60 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
-                >
-                  {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                  {clearing ? 'Removing…' : 'Remove'}
-                </button>
-              </div>
-            </div>
+            ) : null}
           </div>
         ) : (
           <button
@@ -560,17 +583,6 @@ export function MediaFileUploader({
       ) : null}
 
       {error ? <p className="pl-1 text-[12px] font-medium text-rose-600 dark:text-rose-400">{error}</p> : null}
-
-      {onMediaFrameChange && displayUrl && (kind === 'image' || kind === 'video') ? (
-        <AvatarMediaFramePreview
-          src={displayUrl}
-          kind={kind === 'video' ? 'video' : 'image'}
-          frame={mediaFrame}
-          layout="feature"
-          onChange={onMediaFrameChange}
-          alt={label || 'Featured media'}
-        />
-      ) : null}
     </div>
   )
 }

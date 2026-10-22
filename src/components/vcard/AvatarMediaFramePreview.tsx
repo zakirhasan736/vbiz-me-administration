@@ -7,11 +7,15 @@ import {
   PROFILE_FRAME_HEIGHT_MIN,
   PROFILE_FRAME_ZOOM_MAX,
   PROFILE_FRAME_ZOOM_MIN,
+  PROFILE_MEDIA_OBJECT_FIT_OPTIONS,
+  profileFeatureMediaAspectRatio,
   profileFramePreviewHeight,
   profileMediaCoverLayoutStyle,
   profileMediaFitStyle,
+  profileMediaObjectFitSelectValue,
   type MediaPixelSize,
   type ProfileMediaFrame,
+  type ProfileMediaObjectFit,
 } from '@/lib/media/profileMediaFrame'
 import { Minus, Move, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -26,6 +30,8 @@ type AvatarMediaFramePreviewProps = {
   removing?: boolean
   /** Portrait avatar frame, or a landscape crop used by featured media. */
   layout?: 'avatar' | 'feature'
+  /** Compact controls for the right-column upload layout. */
+  compact?: boolean
 }
 
 export function AvatarMediaFramePreview({
@@ -37,6 +43,7 @@ export function AvatarMediaFramePreview({
   onRemove,
   removing = false,
   layout = 'avatar',
+  compact = false,
 }: AvatarMediaFramePreviewProps) {
   const boxRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ x: number; y: number; focusX: number; focusY: number } | null>(null)
@@ -96,19 +103,31 @@ export function AvatarMediaFramePreview({
     )
   }
 
+  const patchFrame = (patch: Partial<ProfileMediaFrame>) => onChange(parseProfileMediaFrame({ ...resolved, ...patch }))
+
   return (
-    <div className="space-y-3">
-      <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">
-        {featureLayout
-          ? 'Drag the image or video left, right, up, or down. Zoom in or out — the public card uses this position.'
-          : 'Drag the photo or video to set top, center, or bottom, and left or right. Zoom in or out — the preview uses that position.'}
-      </p>
+    <div className={compact ? 'space-y-2.5' : 'space-y-3'}>
+      {!compact ? (
+        <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">
+          {featureLayout
+            ? 'Drag to reposition. Set image object type and height — the public card uses these settings.'
+            : 'Drag the photo or video to set top, center, or bottom, and left or right. Zoom in or out — the preview uses that position.'}
+        </p>
+      ) : (
+        <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+          Zoom & frame
+        </p>
+      )}
       <div
         ref={boxRef}
         className={`relative w-full cursor-grab touch-none overflow-hidden rounded-3xl border border-slate-200/80 bg-black select-none dark:border-white/10 ${
-          featureLayout ? 'aspect-video' : ''
-        } ${dragging ? 'cursor-grabbing ring-2 ring-emerald-500/60' : ''}`}
-        style={featureLayout ? undefined : { height: profileFramePreviewHeight(resolved) }}
+          dragging ? 'cursor-grabbing ring-2 ring-emerald-500/60' : ''
+        }`}
+        style={
+          featureLayout
+            ? { aspectRatio: profileFeatureMediaAspectRatio(resolved) }
+            : { height: profileFramePreviewHeight(resolved) }
+        }
         onPointerDown={(event) => {
           if ((event.target as HTMLElement).closest('button')) return
           event.preventDefault()
@@ -200,14 +219,14 @@ export function AvatarMediaFramePreview({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className={`flex flex-wrap items-center gap-3 ${compact ? 'gap-2' : ''}`}>
         <div className="inline-flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#0b0f19]">
           <button
             type="button"
             className="px-3 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-white/5"
             aria-label="Zoom out"
             disabled={resolved.zoom <= PROFILE_FRAME_ZOOM_MIN}
-            onClick={() => onChange(parseProfileMediaFrame({ ...resolved, zoom: resolved.zoom - 0.1 }))}
+            onClick={() => patchFrame({ zoom: resolved.zoom - 0.1 })}
           >
             <Minus className="h-4 w-4" />
           </button>
@@ -219,28 +238,48 @@ export function AvatarMediaFramePreview({
             className="px-3 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-white/5"
             aria-label="Zoom in"
             disabled={resolved.zoom >= PROFILE_FRAME_ZOOM_MAX}
-            onClick={() => onChange(parseProfileMediaFrame({ ...resolved, zoom: resolved.zoom + 0.1 }))}
+            onClick={() => patchFrame({ zoom: resolved.zoom + 0.1 })}
           >
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        {featureLayout ? null : (
-          <label className="flex min-w-[180px] flex-1 items-center gap-2 text-[12px] font-bold text-slate-600 dark:text-slate-300">
-            Height
+
+        {featureLayout ? (
+          <label className="flex min-w-[160px] flex-col gap-1 text-[12px] font-bold text-slate-600 dark:text-slate-300">
+            Image object type
+            <select
+              value={profileMediaObjectFitSelectValue(resolved)}
+              aria-label="Image object type"
+              onChange={(event) => patchFrame({ objectFit: event.target.value as ProfileMediaObjectFit })}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-100"
+            >
+              {PROFILE_MEDIA_OBJECT_FIT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        <label className="flex min-w-[180px] flex-1 flex-col gap-1 text-[12px] font-bold text-slate-600 dark:text-slate-300">
+          {featureLayout ? 'Featured image height' : 'Height'}
+          <div className="flex items-center gap-2">
             <input
               type="range"
               min={PROFILE_FRAME_HEIGHT_MIN}
               max={PROFILE_FRAME_HEIGHT_MAX}
               step={0.05}
               value={resolved.height}
-              aria-label="Adjust avatar height"
-              onChange={(event) =>
-                onChange(parseProfileMediaFrame({ ...resolved, height: Number(event.target.value) }))
-              }
+              aria-label={featureLayout ? 'Adjust featured image height' : 'Adjust avatar height'}
+              onChange={(event) => patchFrame({ height: Number(event.target.value) })}
               className="w-full accent-emerald-600"
             />
-          </label>
-        )}
+            <span className="min-w-10 text-right text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              {Math.round(resolved.height * 100)}%
+            </span>
+          </div>
+        </label>
       </div>
     </div>
   )

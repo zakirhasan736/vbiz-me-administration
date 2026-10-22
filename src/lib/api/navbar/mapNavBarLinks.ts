@@ -1,7 +1,7 @@
 import type { NavBarLinksData, PostTypeNavLink, StaticNavLink } from '@/interfaces/navbarLinks.interface'
 import { decodeHtmlText } from '@/lib/htmlText'
 import { assemblePublicNavOrder } from '@/lib/publicNavOrder'
-import { CUSTOM_TAB_ID_PREFIX, NAV_ITEM_BY_ID, type NavBarNavItem } from '@/lib/vcardNavbar'
+import { CUSTOM_TAB_ID_PREFIX, isCustomNavItemId, NAV_ITEM_BY_ID, type NavBarNavItem } from '@/lib/vcardNavbar'
 import { FileText } from 'lucide-react'
 
 const STATIC_LINK_TO_NAV_ID: Record<string, string> = {
@@ -129,7 +129,9 @@ function createFallbackNavItem(postType: PostTypeNavLink): NavBarNavItem {
   const slug = postType.slug?.trim() || ''
   const name = postType.name?.trim() || ''
   const rawId = String(postType.id || '')
-  const customId = [slug, name, rawId].find((value) => value.startsWith(CUSTOM_TAB_ID_PREFIX))
+  const customId = [slug, name, rawId].find(
+    (value) => value.startsWith(CUSTOM_TAB_ID_PREFIX) || (postType.type === 'custom' && isCustomNavItemId(value))
+  )
   const isCustom = Boolean(customId) || postType.type === 'custom'
   const id = customId || (isCustom ? name || slug || rawId : `post-type-${postType.id}`)
   return {

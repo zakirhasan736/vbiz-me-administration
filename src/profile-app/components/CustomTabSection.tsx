@@ -1,7 +1,13 @@
 'use client'
 
 import { SkeletonMediaShell, SkeletonVideo, useMediaLoadState } from '@/components/media/SkeletonMedia'
-import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
+import {
+  parseProfileMediaFrame,
+  profileFeatureMediaAspectRatio,
+  profileFeatureMediaMaxHeight,
+  profileMediaFitStyle,
+  type ProfileMediaFrame,
+} from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
@@ -102,7 +108,9 @@ function FeaturedNextImage({
         src={src}
         alt={alt}
         fill
-        className={`object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'} ${
+          frame ? '' : 'object-cover'
+        }`}
         style={frame ? profileMediaFitStyle(frame) : undefined}
         sizes="(max-width: 768px) 100vw, 640px"
         onLoadingComplete={markLoaded}
@@ -173,7 +181,17 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
                 className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50"
               >
                 {media ? (
-                  <div className="relative h-[240px] w-full overflow-hidden bg-zinc-900 md:h-[360px]">
+                  <div
+                    className="relative w-full overflow-hidden bg-zinc-900"
+                    style={
+                      item.mediaFrame
+                        ? { aspectRatio: profileFeatureMediaAspectRatio(parseProfileMediaFrame(item.mediaFrame)) }
+                        : {
+                            height: profileFeatureMediaMaxHeight(parseProfileMediaFrame(null), 240),
+                            maxHeight: 360,
+                          }
+                    }
+                  >
                     <FeaturedMedia
                       src={media}
                       alt={item.title || sectionTitle}
