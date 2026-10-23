@@ -299,6 +299,7 @@ export const HomeHero: React.FC<{
             wallpaper={wallpaper}
             mediaUrl={coverMediaUrl}
             mediaFrame={coverMediaFrame}
+            accentColor={design?.accentColor}
             mediaClassName={
               // Videos stay mix-blend-normal — lighten/screen wash them out on dark home canvases.
               // When mediaFrame is set, object-fit / position come from cover layout — skip object-cover.
@@ -318,17 +319,6 @@ export const HomeHero: React.FC<{
                     ? 'opacity-90 mix-blend-normal dark:opacity-[0.78] dark:mix-blend-lighten'
                     : 'aspect-video opacity-90 mix-blend-normal md:aspect-auto dark:opacity-[0.78] dark:mix-blend-lighten'
             }
-          />
-          <div
-            className={`absolute inset-0 bg-linear-to-b ${
-              compact
-                ? theme === 'dark'
-                  ? 'from-[#030914]/15 via-transparent to-transparent'
-                  : 'from-white/5 via-transparent to-transparent'
-                : theme === 'dark'
-                  ? 'from-[#030914]/15 via-[#031327]/30 to-[#031327]'
-                  : 'from-white/5 via-white/10 to-white'
-            }`}
           />
         </div>
       </div>

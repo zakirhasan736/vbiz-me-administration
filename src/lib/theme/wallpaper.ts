@@ -43,7 +43,12 @@ export const DEFAULT_WALLPAPER: CardWallpaperConfig = {
   gradientTo: '#A3C6D3',
   premadeId: 'sunset',
   patternId: 'dots',
+  imageOverlayEnabled: true,
+  imageOverlaySource: 'accent',
+  imageOverlayOpacity: 35,
 }
+
+const DEFAULT_OVERLAY_FALLBACK = '#0a0a0a'
 
 function isWallpaperStyleId(value: unknown): value is WallpaperStyleId {
   return typeof value === 'string' && (WALLPAPER_STYLE_IDS as string[]).includes(value)
@@ -67,6 +72,16 @@ export function normalizeWallpaper(raw: unknown): CardWallpaperConfig | undefine
   if (typeof r.gradientTo === 'string' && r.gradientTo.trim()) next.gradientTo = r.gradientTo.trim()
   if (typeof r.premadeId === 'string' && r.premadeId.trim()) next.premadeId = r.premadeId.trim()
   if (isPatternId(r.patternId)) next.patternId = r.patternId
+  if (typeof r.imageOverlayEnabled === 'boolean') next.imageOverlayEnabled = r.imageOverlayEnabled
+  if (r.imageOverlaySource === 'accent' || r.imageOverlaySource === 'custom') {
+    next.imageOverlaySource = r.imageOverlaySource
+  }
+  if (typeof r.imageOverlayColor === 'string' && r.imageOverlayColor.trim()) {
+    next.imageOverlayColor = r.imageOverlayColor.trim()
+  }
+  if (typeof r.imageOverlayOpacity === 'number' && Number.isFinite(r.imageOverlayOpacity)) {
+    next.imageOverlayOpacity = Math.max(0, Math.min(100, Math.round(r.imageOverlayOpacity)))
+  }
 
   return next
 }
@@ -123,6 +138,39 @@ export function resolveWallpaperConfig(
 
 export function wallpaperNeedsMedia(style: WallpaperStyleId): boolean {
   return style === 'image' || style === 'video' || style === 'blur'
+}
+
+/** Image / video / blur covers can take a configurable color wash. */
+export function wallpaperSupportsImageOverlay(style: WallpaperStyleId): boolean {
+  return style === 'image' || style === 'video' || style === 'blur'
+}
+
+/** When false, media covers render without a tint (and without template scrims). */
+export function wallpaperImageOverlayEnabled(wallpaper: CardWallpaperConfig): boolean {
+  if (!wallpaperSupportsImageOverlay(wallpaper.style)) return false
+  return wallpaper.imageOverlayEnabled !== false
+}
+
+/**
+ * CSS background for the media overlay wash, or null when overlay is off.
+ * `accent` uses the card accent; `custom` uses `imageOverlayColor`.
+ */
+export function resolveWallpaperImageOverlayBackground(
+  wallpaper: CardWallpaperConfig,
+  accentColor?: string | null
+): string | null {
+  if (!wallpaperImageOverlayEnabled(wallpaper)) return null
+  const opacity = Math.max(
+    0,
+    Math.min(100, wallpaper.imageOverlayOpacity ?? DEFAULT_WALLPAPER.imageOverlayOpacity ?? 35)
+  )
+  const source = wallpaper.imageOverlaySource === 'custom' ? 'custom' : 'accent'
+  const hex =
+    (source === 'custom' ? wallpaper.imageOverlayColor?.trim() : '') ||
+    accentColor?.trim() ||
+    wallpaper.imageOverlayColor?.trim() ||
+    DEFAULT_OVERLAY_FALLBACK
+  return `color-mix(in srgb, ${hex} ${opacity}%, transparent)`
 }
 
 export function resolveGradientCss(wallpaper: CardWallpaperConfig): string {

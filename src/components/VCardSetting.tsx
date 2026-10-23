@@ -56,6 +56,7 @@ import {
   PREMADE_GRADIENTS,
   resolveWallpaperConfig,
   wallpaperNeedsMedia,
+  wallpaperSupportsImageOverlay,
   type WallpaperPatternId,
   type WallpaperStyleId,
 } from '@/lib/theme/wallpaper'
@@ -856,6 +857,90 @@ function TemplateDesigner() {
             />
           </VCardMediaField>
         )}
+
+        {wallpaperSupportsImageOverlay(wallpaperStyle) ? (
+          <div className="mt-4 space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-white/10 dark:bg-white/3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[.8125rem] font-bold text-slate-900 dark:text-white">Image overlay</p>
+                <p className="mt-0.5 text-[.75rem] font-medium text-slate-500 dark:text-slate-400">
+                  Tint the cover media. Turn off to show the image with no wash.
+                </p>
+              </div>
+              <Toggle
+                checked={wallpaper.imageOverlayEnabled !== false}
+                onChange={(imageOverlayEnabled) => patchWallpaper({ imageOverlayEnabled })}
+              />
+            </div>
+
+            {wallpaper.imageOverlayEnabled !== false ? (
+              <div className="space-y-3 border-t border-slate-200/70 pt-3 dark:border-white/10">
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: 'accent' as const, label: 'Accent color' },
+                      { id: 'custom' as const, label: 'Custom color' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => patchWallpaper({ imageOverlaySource: opt.id })}
+                      className={cn(
+                        'flex-1 rounded-2xl border py-3 text-sm font-semibold transition-all',
+                        (wallpaper.imageOverlaySource || 'accent') === opt.id
+                          ? 'border-primary-600 bg-primary-600/5 dark:border-primary-500/30 dark:bg-primary-500/15 dark:text-primary-400 text-slate-900 shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:hover:bg-white/5'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {(wallpaper.imageOverlaySource || 'accent') === 'accent' ? (
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-[#070a13]">
+                    <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">
+                      Using global accent
+                    </span>
+                    <span
+                      className="h-7 w-7 shrink-0 rounded-full border border-slate-200 shadow-inner dark:border-white/15"
+                      style={{ backgroundColor: vCardData.theme.accentColor || '#eab308' }}
+                      title={vCardData.theme.accentColor || '#eab308'}
+                    />
+                  </div>
+                ) : (
+                  <ColorPicker
+                    label="Overlay color"
+                    value={wallpaper.imageOverlayColor || vCardData.theme.accentColor || '#0a0a0a'}
+                    onChange={(imageOverlayColor) => patchWallpaper({ imageOverlayColor })}
+                  />
+                )}
+
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-[#070a13]">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="text-[.8125rem] font-semibold text-slate-900 dark:text-white">
+                      Overlay strength
+                    </span>
+                    <span className="font-mono text-[.75rem] font-medium text-slate-500 dark:text-slate-400">
+                      {wallpaper.imageOverlayOpacity ?? 35}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={5}
+                    max={90}
+                    step={1}
+                    value={wallpaper.imageOverlayOpacity ?? 35}
+                    onChange={(e) => patchWallpaper({ imageOverlayOpacity: Number(e.target.value) })}
+                    className="accent-primary-600 w-full"
+                    aria-label="Overlay strength"
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </SettingSection>
 
       <div className="pt-20"></div>

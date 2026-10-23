@@ -227,35 +227,6 @@ const ContactDetailItem: React.FC<{ item: ContactDetailItemData }> = ({ item }) 
   )
 }
 
-const GeometricPattern = () => (
-  <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden opacity-[0.25]">
-    {/* Refined Geometric Wireframe (Inspired by user attachment) */}
-    <div className="absolute top-0 bottom-0 left-[12%] w-px bg-linear-to-b from-transparent via-white/30 to-transparent" />
-    <div className="absolute top-[8%] left-[12%] h-40 w-40 border-t border-l border-black/20 dark:border-white/20" />
-    <div className="absolute top-[8%] left-[12%] h-20 w-20 translate-x-1/2 -translate-y-1/2 border border-white/30" />
-
-    <div className="absolute top-0 right-[12%] bottom-0 w-px bg-linear-to-b from-transparent via-white/30 to-transparent" />
-    <div className="absolute top-[65%] right-[12%] h-48 w-48 translate-x-0 border-r border-b border-black/20 dark:border-white/20" />
-    <div className="border-yellow-primary/30 absolute top-[65%] right-[12%] h-16 w-16 -translate-x-1/2 -translate-y-1/2 rotate-45 border" />
-
-    {/* Horizontal Structural Accents */}
-    <div className="absolute top-[30%] right-0 left-0 h-px bg-linear-to-r from-transparent via-white/15 to-transparent" />
-    <div className="absolute top-[70%] right-0 left-0 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
-
-    {/* Glowing Nodes */}
-    <motion.div
-      animate={{ opacity: [0.3, 0.8, 0.3], scale: [1, 1.5, 1] }}
-      transition={{ duration: 5, repeat: Infinity }}
-      className="bg-yellow-primary absolute top-[40%] left-[12%] h-2 w-2 -translate-x-1/2 rounded-full shadow-[0_0_15px_#dcc969] blur-[2px]"
-    />
-    <motion.div
-      animate={{ opacity: [0.3, 0.8, 0.3], scale: [1, 1.5, 1] }}
-      transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-      className="bg-yellow-primary absolute top-[25%] right-[12%] h-2 w-2 translate-x-1/2 rounded-full shadow-[0_0_15px_#dcc969] blur-[2px]"
-    />
-  </div>
-)
-
 type V1HomeHeroProps = {
   theme: 'light' | 'dark'
   onAction: (action: string) => void
@@ -415,6 +386,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                 wallpaper={wallpaper}
                 mediaUrl={coverMediaUrl}
                 mediaFrame={coverMediaFrame}
+                accentColor={design?.accentColor}
                 mediaClassName={
                   wallpaper.style === 'video' || isVideoUrl(coverMediaUrl)
                     ? coverMediaFrame
@@ -425,11 +397,6 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                       : 'scale-105 opacity-30 mix-blend-multiply transition-all duration-[10s] group-hover:scale-110 group-hover:saturate-125 dark:opacity-60 dark:mix-blend-screen'
                 }
               />
-              <div className="absolute inset-0 bg-linear-to-t from-white via-white/40 to-transparent dark:from-gray-950 dark:via-gray-950/40" />
-              <div className="absolute inset-0 bg-linear-to-r from-white/90 via-transparent to-transparent dark:from-gray-950/90" />
-
-              {/* Geometric Pattern Overlay */}
-              <GeometricPattern />
             </motion.div>
 
             {/* Top-right hero actions (first-template desktop) */}
