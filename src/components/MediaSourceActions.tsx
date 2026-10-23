@@ -7,8 +7,11 @@ import { SkeletonImage } from '@/components/media/SkeletonMedia'
 import { createCanvaDesignSessionApi, fetchCanvaImportSessionApi } from '@/lib/canva/backendClient'
 import {
   clearCanvaHandoff,
+  clearCanvaReadyImport,
+  consumeCanvaReadyImport,
   currentBuilderRoute,
   markCanvaImportApplied,
+  peekCanvaReadyImport,
   readStoredCanvaDesignId,
   rememberCanvaHandoff,
   wasCanvaImportApplied,
@@ -551,6 +554,59 @@ export function MediaSourceActions({
   // Apply auto-imported media when returning to this exact field from /canva/return
   useEffect(() => {
     if (typeof window === 'undefined' || !profileId || !resolvedFieldKey) return
+
+    const stripCanvaParams = () => {
+      const params = new URLSearchParams(window.location.search)
+      params.delete('canva_session')
+      params.delete('canva_field')
+      params.delete('canva_item')
+      params.delete('canva_return')
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`
+      window.history.replaceState({}, '', next)
+    }
+
+    const applyReady = (payload: {
+      sessionId: string
+      designId: string
+      resultUrl: string
+      resultFilename?: string | null
+      designTitle?: string | null
+      mediaKind: string
+    }) => {
+      markCanvaImportApplied(payload.sessionId)
+      clearCanvaHandoff()
+      clearCanvaReadyImport()
+      onSelectRef.current({
+        id: payload.designId,
+        name: payload.resultFilename || payload.designTitle || 'Canva design',
+        url: payload.resultUrl,
+        kind: payload.mediaKind === 'video' ? 'video' : 'image',
+      })
+      setPickedName(payload.resultFilename || payload.designTitle || 'Canva design')
+      setFlowStatus('ready')
+      stripCanvaParams()
+    }
+
+    // Prefer the persisted ready payload (includes resultUrl) — avoids a second fetch race.
+    const stored = peekCanvaReadyImport()
+    if (
+      stored &&
+      stored.profileId === profileId &&
+      stored.fieldKey === resolvedFieldKey &&
+      (stored.itemKey || '') === (itemKey || '') &&
+      !wasCanvaImportApplied(stored.sessionId)
+    ) {
+      const consumed = consumeCanvaReadyImport({
+        profileId,
+        fieldKey: resolvedFieldKey,
+        itemKey,
+      })
+      if (consumed) {
+        const kick = window.setTimeout(() => applyReady(consumed), 0)
+        return () => window.clearTimeout(kick)
+      }
+    }
+
     const params = new URLSearchParams(window.location.search)
     const sessionId = params.get('canva_session')
     const matchField = params.get('canva_field')
@@ -569,22 +625,14 @@ export function MediaSourceActions({
           if (cancelled) return
           if (session.profileId !== profileId) return
           if (session.status === 'ready' && session.resultUrl) {
-            markCanvaImportApplied(sessionId)
-            clearCanvaHandoff()
-            onSelectRef.current({
-              id: session.designId,
-              name: session.resultFilename || session.designTitle || 'Canva design',
-              url: session.resultUrl,
-              kind: session.mediaKind === 'video' ? 'video' : 'image',
+            applyReady({
+              sessionId,
+              designId: session.designId,
+              resultUrl: session.resultUrl,
+              resultFilename: session.resultFilename,
+              designTitle: session.designTitle,
+              mediaKind: session.mediaKind,
             })
-            setPickedName(session.resultFilename || session.designTitle || 'Canva design')
-            setFlowStatus('ready')
-            params.delete('canva_session')
-            params.delete('canva_field')
-            params.delete('canva_item')
-            params.delete('canva_return')
-            const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`
-            window.history.replaceState({}, '', next)
           } else if (session.status === 'failed') {
             setFlowStatus('failed')
             setLocalError(session.errorMessage || 'Canva export failed')

@@ -68,6 +68,17 @@ export function ServicesEditorPanel({
     servicesRef.current = services
   }, [services])
 
+  // After Create/Choose-from-Canva return, expand the matching service so Featured Media is visible.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('canva_field') !== 'Service Featured') return
+    const itemId = params.get('canva_item')
+    if (!itemId) return
+    if (!visibleItems.some((s) => s.id === itemId)) return
+    setExpandedId(itemId)
+  }, [visibleItems, setExpandedId])
+
   const addService = () => {
     const next = createDefaultServiceEntry()
     commitVisible([...visibleItems, next])
@@ -99,11 +110,20 @@ export function ServicesEditorPanel({
     field: keyof VCardServiceEntry,
     value: VCardServiceEntry[keyof VCardServiceEntry]
   ) => {
-    commitVisible(
-      visibleItems.map((s) => {
-        if (s.id !== id) return s
-        if (s.corporateOwned) return s
+    // Use servicesRef so rapid sequential patches (featuredImage + mediaFrame) do not wipe each other.
+    setServices(
+      servicesRef.current.map((s) => {
+        if (s.id !== id || s.corporateOwned) return s
         return { ...s, [field]: value }
+      })
+    )
+  }
+
+  const patchService = (id: string, patch: Partial<VCardServiceEntry>) => {
+    setServices(
+      servicesRef.current.map((s) => {
+        if (s.id !== id || s.corporateOwned) return s
+        return { ...s, ...patch }
       })
     )
   }
@@ -319,8 +339,10 @@ export function ServicesEditorPanel({
                             mediaFrame={service.mediaFrame}
                             onMediaFrameChange={(mediaFrame) => updateService(service.id, 'mediaFrame', mediaFrame)}
                             onChange={(next) => {
-                              updateService(service.id, 'featuredImage', next?.url || '')
-                              updateService(service.id, 'mediaFrame', null)
+                              patchService(service.id, {
+                                featuredImage: next?.url || '',
+                                mediaFrame: null,
+                              })
                             }}
                           />
                           <MediaSourceActions
@@ -332,8 +354,10 @@ export function ServicesEditorPanel({
                             itemKey={service.id}
                             designTitle={service.title ? `${service.title} — service` : 'Service image'}
                             onSelect={(asset) => {
-                              updateService(service.id, 'featuredImage', asset.url)
-                              updateService(service.id, 'mediaFrame', null)
+                              patchService(service.id, {
+                                featuredImage: asset.url,
+                                mediaFrame: null,
+                              })
                             }}
                           />
                         </div>

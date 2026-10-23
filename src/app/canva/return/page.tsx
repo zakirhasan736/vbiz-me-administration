@@ -5,7 +5,7 @@ import {
   fetchCanvaImportSessionApi,
   retryCanvaImportSessionApi,
 } from '@/lib/canva/backendClient'
-import { clearCanvaHandoff, readCanvaHandoff } from '@/lib/canva/editHandoff'
+import { clearCanvaHandoff, readCanvaHandoff, rememberCanvaReadyImport } from '@/lib/canva/editHandoff'
 import type { CanvaEditSession } from '@/lib/canva/types'
 import { Loader2, Palette } from 'lucide-react'
 import Link from 'next/link'
@@ -55,6 +55,8 @@ function CanvaReturnInner() {
       url.searchParams.set('canva_field', s.fieldKey)
       if (s.itemKey) url.searchParams.set('canva_item', s.itemKey)
       url.searchParams.set('canva_return', 'ready')
+      // Persist the uploaded URL so Featured Media can fill even if the field mounts after redirect.
+      rememberCanvaReadyImport(s)
       clearCanvaHandoff()
       router.replace(`${url.pathname}${url.search}${url.hash}`)
     },

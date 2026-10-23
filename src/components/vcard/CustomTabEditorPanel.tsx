@@ -333,6 +333,12 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
                         mode="both"
                         compact
                         profileId={cardId}
+                        fieldKey={tab.label || 'Custom tab'}
+                        attachmentType={tab.label || 'Custom tab'}
+                        itemKey={item.id}
+                        designTitle={
+                          item.title ? `${item.title} — ${tab.label || 'Custom'}` : tab.label || 'Custom tab'
+                        }
                         onSelect={(asset) => applyMediaAsset(item.id, asset)}
                       />
                     </div>

@@ -242,6 +242,12 @@ export function SectionPostsEditorPanel({
     setPosts(postsRef.current.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
   }
 
+  const patchPost = (id: string, patch: Partial<VCardSectionPostItem>) => {
+    const target = postsRef.current.find((item) => item.id === id)
+    if (target?.corporateOwned) return
+    setPosts(postsRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+  }
+
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col pb-12 duration-500">
       <div className={`mb-8 rounded-3xl border p-6 ${a.headerBorder} ${a.headerBg}`}>
@@ -603,17 +609,25 @@ export function SectionPostsEditorPanel({
                                       : 'Upload an image, video, or PDF - preview appears here'
                                   }
                                   onChange={(next) => {
-                                    updatePost(post.id, 'featuredImage', next?.url || '')
-                                    updatePost(post.id, 'mediaFrame', null)
+                                    patchPost(post.id, {
+                                      featuredImage: next?.url || '',
+                                      mediaFrame: null,
+                                    })
                                   }}
                                 />
                                 <MediaSourceActions
                                   mode={schema.featuredMediaMode === 'video' ? 'video' : 'both'}
                                   compact
                                   profileId={cardId}
+                                  fieldKey={schema.title}
+                                  attachmentType={schema.title}
+                                  itemKey={post.id}
+                                  designTitle={post.title ? `${post.title} — ${schema.title}` : schema.title}
                                   onSelect={(asset) => {
-                                    updatePost(post.id, 'featuredImage', asset.url)
-                                    updatePost(post.id, 'mediaFrame', null)
+                                    patchPost(post.id, {
+                                      featuredImage: asset.url,
+                                      mediaFrame: null,
+                                    })
                                   }}
                                 />
                               </div>

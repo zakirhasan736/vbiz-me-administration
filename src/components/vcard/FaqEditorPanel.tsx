@@ -81,7 +81,14 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
   const updateFaq = (id: string, field: keyof VCardFaqEntry, value: VCardFaqEntry[keyof VCardFaqEntry]) => {
     const target = faqsRef.current.find((f) => f.id === id)
     if (target?.corporateOwned) return
-    commitVisible(visibleItems.map((f) => (f.id === id ? { ...f, [field]: value } : f)))
+    // Use faqsRef so rapid sequential patches (featuredImage + mediaFrame) do not wipe each other.
+    setFaqs(faqsRef.current.map((f) => (f.id === id ? { ...f, [field]: value } : f)))
+  }
+
+  const patchFaq = (id: string, patch: Partial<VCardFaqEntry>) => {
+    const target = faqsRef.current.find((f) => f.id === id)
+    if (target?.corporateOwned) return
+    setFaqs(faqsRef.current.map((f) => (f.id === id ? { ...f, ...patch } : f)))
   }
 
   const applyFilled = (result: AiFilledResult) => {
@@ -250,17 +257,25 @@ export function FaqEditorPanel({ faqs: rawFaqs, onFaqsChange, profileId }: FaqEd
                               accept="image/*,application/pdf,.pdf,.doc,.docx"
                               hint="Optional image or file shown with this answer"
                               onChange={(next) => {
-                                updateFaq(faq.id, 'featuredImage', next?.url || '')
-                                updateFaq(faq.id, 'mediaFrame', null)
+                                patchFaq(faq.id, {
+                                  featuredImage: next?.url || '',
+                                  mediaFrame: null,
+                                })
                               }}
                             />
                             <MediaSourceActions
                               mode="both"
                               compact
                               profileId={profileId}
+                              fieldKey="Featured Image"
+                              attachmentType="Featured Image"
+                              itemKey={faq.id}
+                              designTitle={faq.question ? `${faq.question} — FAQ` : 'FAQ image'}
                               onSelect={(asset) => {
-                                updateFaq(faq.id, 'featuredImage', asset.url)
-                                updateFaq(faq.id, 'mediaFrame', null)
+                                patchFaq(faq.id, {
+                                  featuredImage: asset.url,
+                                  mediaFrame: null,
+                                })
                               }}
                             />
                           </div>

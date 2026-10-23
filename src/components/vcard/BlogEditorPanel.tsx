@@ -83,7 +83,13 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
 
   const updatePost = (id: string, field: keyof VCardGeneralPost, value: VCardGeneralPost[keyof VCardGeneralPost]) => {
     if (postsRef.current.some((p) => p.id === id && p.corporateOwned)) return
-    commitVisible(visibleItems.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+    // Use postsRef so rapid sequential patches (featuredImage + mediaFrame) do not wipe each other.
+    setPosts(postsRef.current.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+  }
+
+  const patchPost = (id: string, patch: Partial<VCardGeneralPost>) => {
+    if (postsRef.current.some((p) => p.id === id && p.corporateOwned)) return
+    setPosts(postsRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p)))
   }
 
   const applyFilled = (result: AiFilledResult) => {
@@ -271,17 +277,25 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                             mediaFrame={item.mediaFrame}
                             onMediaFrameChange={(mediaFrame) => updatePost(item.id, 'mediaFrame', mediaFrame)}
                             onChange={(next) => {
-                              updatePost(item.id, 'featuredImage', next?.url || '')
-                              updatePost(item.id, 'mediaFrame', null)
+                              patchPost(item.id, {
+                                featuredImage: next?.url || '',
+                                mediaFrame: null,
+                              })
                             }}
                           />
                           <MediaSourceActions
                             mode="both"
                             compact
                             profileId={profileId}
+                            fieldKey="Blog Featured"
+                            attachmentType="Blog Featured"
+                            itemKey={item.id}
+                            designTitle={item.title ? `${item.title} — blog` : 'Blog featured'}
                             onSelect={(asset) => {
-                              updatePost(item.id, 'featuredImage', asset.url)
-                              updatePost(item.id, 'mediaFrame', null)
+                              patchPost(item.id, {
+                                featuredImage: asset.url,
+                                mediaFrame: null,
+                              })
                             }}
                           />
                         </div>
