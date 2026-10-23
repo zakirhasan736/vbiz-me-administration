@@ -773,6 +773,9 @@ function AboutMeDraftQuickFill({
           compact
           showVideoExtras
           profileId={profileId}
+          fieldKey="About Me Featured"
+          attachmentType="About Me Featured"
+          designTitle="About Me featured"
           onSelect={(asset) => commit(asset.url)}
         />
       </div>
@@ -882,6 +885,10 @@ export function CompletionQuickFillEditor({ field }: { field: VCardCompletionFie
           mode={gate.sourceMode === 'video' ? 'video' : gate.sourceMode}
           compact
           className="mt-3"
+          profileId={profileId}
+          fieldKey={edit.attachmentType}
+          attachmentType={edit.attachmentType}
+          designTitle={field.label}
           onSelect={(asset) => {
             setCustomValue(edit.fieldKey, asset.url)
             if (edit.alsoUpdateMeta === 'avatar') updateMeta({ avatarImageUrl: asset.url })
@@ -937,6 +944,11 @@ export function CompletionQuickFillEditor({ field }: { field: VCardCompletionFie
             mode="both"
             compact
             className="mt-3"
+            profileId={profileId}
+            fieldKey={`${edit.collection}-${edit.field}`}
+            attachmentType={`${edit.collection}-${edit.field}`}
+            itemKey={edit.itemId}
+            designTitle={field.label}
             onSelect={(asset) => patchListItem(vCardData, updateData, edit, asset.url)}
           />
         </VCardMediaField>

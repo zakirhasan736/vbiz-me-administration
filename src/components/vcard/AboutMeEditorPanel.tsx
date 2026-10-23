@@ -13,6 +13,7 @@ import {
   type AboutMeDraft,
 } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
+import { peekCanvaReadyImport } from '@/lib/canva/editHandoff'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { useVCard } from '@/lib/VCardContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -46,24 +47,30 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
   useEffect(() => {
     if (!profileId || isFetching) return
     if (hydratedForId.current === profileId) return
+    // Prefer a just-returned Canva upload over empty server hydration (race after redirect).
+    const pendingCanva = peekCanvaReadyImport()
+    const canvaUrl =
+      pendingCanva?.profileId === profileId && pendingCanva.fieldKey === 'About Me Featured'
+        ? pendingCanva.resultUrl.trim()
+        : ''
     if (isSuccess && data) {
       hydratedForId.current = profileId
       setAboutMeDraft({
         title: data.title || '',
         descriptionHtml: data.description || '',
-        featuredMediaUrl: data.featuredMediaUrl || '',
-        featuredMediaFocusY: data.featuredMediaFocusY ?? null,
+        featuredMediaUrl: canvaUrl || data.featuredMediaUrl || '',
+        featuredMediaFocusY: canvaUrl ? null : (data.featuredMediaFocusY ?? null),
       })
       return
     }
     if (!isSuccess && !isError) return
     hydratedForId.current = profileId
     const about = vCardData.personal?.about?.trim() || ''
-    if (about) {
+    if (about || canvaUrl) {
       setAboutMeDraft({
         title: '',
         descriptionHtml: about,
-        featuredMediaUrl: '',
+        featuredMediaUrl: canvaUrl,
         featuredMediaFocusY: null,
       })
     } else {
@@ -174,7 +181,10 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             mode="both"
             compact
             showVideoExtras
-            profileId={cardId}
+            profileId={profileId}
+            fieldKey="About Me Featured"
+            attachmentType="About Me Featured"
+            designTitle={draft.title ? `${draft.title} — About Me` : 'About Me featured'}
             onSelect={(asset) => update({ featuredMediaUrl: asset.url, featuredMediaFocusY: null })}
           />
         </div>
