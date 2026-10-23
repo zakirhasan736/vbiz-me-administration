@@ -1,12 +1,13 @@
 'use client'
 
 import { isVideoUrl } from '@/lib/mediaUrl'
+import { buildYoutubePlayerEmbedUrl, isYoutubeUrl } from '@/lib/youtubeEmbed'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { PublicTabFrame, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetVideoExplainerQuery } from '@/redux/api'
 import { ExternalLink, PlayCircle, Video } from 'lucide-react'
-import { useRef, type ReactNode } from 'react'
+import { useMemo, useRef, type ReactNode } from 'react'
 
 function ExplainerSectionSkeleton() {
   return (
@@ -26,9 +27,21 @@ export const ExplainerSection = () => {
   const sectionTitle = useResolvedSectionTitle(data?.sectionTitle, '2D Video Explainer')
   const videoUrl = data?.videoUrl?.trim() || ''
   const externalUrl = data?.externalUrl?.trim() || null
-  const hasVideo = Boolean(videoUrl) && isVideoUrl(videoUrl)
-  const showInitialLoader = isLoading && !hasVideo && !externalUrl
-  const showEmptyState = !isLoading && !hasVideo && !externalUrl
+  const hasUploadedVideo = Boolean(videoUrl) && isVideoUrl(videoUrl) && !isYoutubeUrl(videoUrl)
+  const youtubeEmbed = useMemo(() => {
+    const candidate = externalUrl || (isYoutubeUrl(videoUrl) ? videoUrl : '')
+    if (!candidate) return null
+    return buildYoutubePlayerEmbedUrl(candidate, {
+      autoplay: false,
+      muted: false,
+      controls: true,
+      enableJsApi: true,
+    })
+  }, [externalUrl, videoUrl])
+  const directExternalVideo = externalUrl && !isYoutubeUrl(externalUrl) && isVideoUrl(externalUrl) ? externalUrl : null
+  const hasInline = hasUploadedVideo || Boolean(youtubeEmbed) || Boolean(directExternalVideo)
+  const showInitialLoader = isLoading && !hasInline
+  const showEmptyState = !isLoading && !hasInline
 
   const handlePlayVideo = () => {
     const video = videoRef.current
@@ -49,7 +62,7 @@ export const ExplainerSection = () => {
     return frame(<ExplainerSectionSkeleton />)
   }
 
-  if (isError && !hasVideo && !externalUrl) {
+  if (isError && !hasInline) {
     return frame(<V3ErrorState sectionTitle={sectionTitle} />)
   }
 
@@ -66,21 +79,33 @@ export const ExplainerSection = () => {
     )
   }
 
+  const fileSrc = hasUploadedVideo ? videoUrl : directExternalVideo
+
   return frame(
     <div className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-4 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
       <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/10 to-transparent" />
       <div className="bg-yellow-primary/10 dark:bg-yellow-primary/5 pointer-events-none absolute top-0 right-0 -mt-32 -mr-32 rounded-full p-32 blur-3xl transition-transform duration-1000 group-hover:scale-110" />
 
-      {hasVideo ? (
+      {fileSrc ? (
         <div className="relative z-10 mb-6 h-75 w-full overflow-hidden rounded-2xl border border-zinc-200 bg-black md:h-112.5 lg:h-125 dark:border-zinc-800/80">
           <video
             ref={videoRef}
-            key={videoUrl}
-            src={videoUrl}
+            key={fileSrc}
+            src={fileSrc}
             className="h-full w-full object-contain"
             controls
             playsInline
             preload="metadata"
+          />
+        </div>
+      ) : youtubeEmbed ? (
+        <div className="relative z-10 mb-6 h-75 w-full overflow-hidden rounded-2xl border border-zinc-200 bg-black md:h-112.5 lg:h-125 dark:border-zinc-800/80">
+          <iframe
+            title={sectionTitle}
+            src={youtubeEmbed}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="h-full w-full border-0"
           />
         </div>
       ) : externalUrl ? (
@@ -98,7 +123,7 @@ export const ExplainerSection = () => {
         </div>
 
         <div className="flex w-full shrink-0 flex-col gap-3 md:w-auto md:flex-row">
-          {hasVideo ? (
+          {fileSrc ? (
             <button
               type="button"
               onClick={handlePlayVideo}
@@ -108,7 +133,7 @@ export const ExplainerSection = () => {
             </button>
           ) : null}
 
-          {externalUrl ? (
+          {externalUrl && !youtubeEmbed && !directExternalVideo ? (
             <a
               href={externalUrl}
               target="_blank"

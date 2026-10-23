@@ -29,7 +29,9 @@ export function useVCardDisplayEditor() {
   const getCustomValue = useCallback((key: string) => display.fields[key]?.customValue?.trim() ?? '', [display])
 
   const setCustomValue = useCallback(
-    (key: string, value: string) => patchField(key, { customValue: value }),
+    (key: string, value: string) =>
+      // Setting media/URL content should keep the field enabled so public + preview playback work.
+      patchField(key, { customValue: value, ...(value.trim() ? { visible: true } : {}) }),
     [patchField]
   )
 

@@ -70,6 +70,7 @@ describe('getHomeMediaUrls visibility', () => {
     expect(getHomeMediaUrls(withMedia())).toEqual({
       introVideo: 'https://cdn.example/intro.mp4',
       introYoutube: 'https://youtube.com/watch?v=abc',
+      introPlayUrl: 'https://cdn.example/intro.mp4',
       bgMedia: 'https://cdn.example/bg.jpg',
       profileMedia: 'https://cdn.example/avatar.jpg',
     })
@@ -91,6 +92,7 @@ describe('getHomeMediaUrls visibility', () => {
     ).toEqual({
       introVideo: '',
       introYoutube: '',
+      introPlayUrl: '',
       bgMedia: '',
       profileMedia: '',
     })
@@ -100,22 +102,38 @@ describe('getHomeMediaUrls visibility', () => {
     expect(getHomeMediaUrls({ ...withMedia(), globalEnabled: false })).toEqual({
       introVideo: '',
       introYoutube: '',
+      introPlayUrl: '',
       bgMedia: '',
       profileMedia: '',
     })
   })
 
   it('excludes YouTube URLs from introVideo even when the file field is visible', () => {
+    const urls = getHomeMediaUrls(
+      withMedia({
+        'Intro vCard Video': {
+          visible: true,
+          customValue: 'https://youtu.be/abc',
+        },
+        'Intro YouTube vCard Video Link': { visible: false, customValue: '' },
+      })
+    )
+    expect(urls.introVideo).toBe('')
+    expect(urls.introPlayUrl).toBe('https://youtu.be/abc')
+  })
+
+  it('uses YouTube link for introPlayUrl when no uploaded intro exists', () => {
     expect(
       getHomeMediaUrls(
         withMedia({
-          'Intro vCard Video': {
+          'Intro vCard Video': { visible: true, customValue: '' },
+          'Intro YouTube vCard Video Link': {
             visible: true,
-            customValue: 'https://youtu.be/abc',
+            customValue: 'https://youtube.com/watch?v=abc',
           },
         })
-      ).introVideo
-    ).toBe('')
+      ).introPlayUrl
+    ).toBe('https://youtube.com/watch?v=abc')
   })
 })
 

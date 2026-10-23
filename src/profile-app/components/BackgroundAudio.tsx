@@ -41,6 +41,7 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const sourceRef = useRef<BackgroundAudioSource | null>(source)
   const volumeRef = useRef(volume)
+  const mutedRef = useRef(true)
   const iframeId = useId().replace(/:/g, '')
 
   const accentColor = design?.accentColor ?? design?.primaryColor
@@ -52,6 +53,10 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
   useEffect(() => {
     volumeRef.current = volume
   }, [volume])
+
+  useEffect(() => {
+    mutedRef.current = isMuted
+  }, [isMuted])
 
   const bindFilePlayback = useCallback(
     (el: HTMLAudioElement, activeSource: Extract<BackgroundAudioSource, { type: 'file' }>) => {
@@ -146,16 +151,28 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
     if (!readyToPlay || !activeSource) return
 
     const level = volumeRef.current
+    // Default muted for autoplay policy; keep the visitor's unmute choice across restarts.
+    const preferMuted = mutedRef.current
 
     if (activeSource.type === 'file') {
       const el = audioRef.current
       if (!el) return
-      el.volume = level
-      el.muted = true
+      el.volume = preferMuted ? level : Math.max(level, DEFAULT_UNMUTE_VOLUME)
+      el.muted = preferMuted
       try {
         if (el.paused) await el.play()
       } catch {
-        /* autoplay blocked until user gesture */
+        /* autoplay blocked until user gesture — retry muted once */
+        if (!preferMuted) {
+          el.muted = true
+          mutedRef.current = true
+          setIsMuted(true)
+          try {
+            if (el.paused) await el.play()
+          } catch {
+            /* still blocked */
+          }
+        }
       }
       return
     }
@@ -163,7 +180,8 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
     const iframe = iframeRef.current
     if (!iframe) return
     postYoutubeCommand(iframe, 'setVolume', [Math.round(level * 100)])
-    postYoutubeCommand(iframe, 'mute')
+    if (preferMuted) postYoutubeCommand(iframe, 'mute')
+    else postYoutubeCommand(iframe, 'unMute')
     postYoutubeCommand(iframe, 'playVideo')
   }, [readyToPlay])
 
@@ -270,10 +288,13 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
       {source.type === 'file' ? (
         <audio
           ref={audioRef}
+          key={source.src}
           src={source.src}
           loop={source.loop && source.endTime == null}
           preload="auto"
           playsInline
+          muted={isMuted}
+          autoPlay={readyToPlay}
           className="hidden"
           aria-hidden
         />

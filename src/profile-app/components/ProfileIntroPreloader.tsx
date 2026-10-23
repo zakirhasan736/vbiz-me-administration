@@ -1,6 +1,7 @@
 'use client'
 
 import { isIosDevice, isSafariBrowser } from '@/lib/pwa/pwaInstallEnv'
+import { buildYoutubePlayerEmbedUrl, isYoutubeUrl } from '@/lib/youtubeEmbed'
 import {
   buildAdaptiveIntroUrl,
   canAdaptIntroUrl,
@@ -9,6 +10,7 @@ import {
   readNetworkHints,
   type IntroQuality,
 } from '@/profile-app/lib/introVideoAdaptive'
+import { useProfileIntroContext } from '@/profile-app/providers/ProfileIntroProvider'
 import { Loader2, Volume2, VolumeX } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
@@ -46,7 +48,93 @@ function pickInitialQuality(): IntroQuality {
   })
 }
 
-export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intro' }: Props) {
+function YoutubeIntroPreloader({ videoUrl, onSkip, skipLabel }: Props) {
+  const { unlockHomeMediaSound } = useProfileIntroContext()
+  const [muted, setMuted] = useState(true)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const embedSrc = useMemo(
+    () =>
+      buildYoutubePlayerEmbedUrl(videoUrl, {
+        autoplay: true,
+        muted: true,
+        controls: false,
+        enableJsApi: true,
+        origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+      }),
+    [videoUrl]
+  )
+
+  useEffect(() => {
+    const failsafe = window.setTimeout(onSkip, 90_000)
+    return () => window.clearTimeout(failsafe)
+  }, [onSkip])
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (!String(event.origin || '').includes('youtube.com')) return
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+        // 0 = ended
+        if (data?.event === 'onStateChange' && data?.info === 0) onSkip()
+      } catch {
+        /* ignore */
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [onSkip])
+
+  const toggleMute = () => {
+    const iframe = iframeRef.current
+    if (!iframe?.contentWindow) return
+    const next = !muted
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ event: 'command', func: next ? 'mute' : 'unMute', args: [] }),
+      '*'
+    )
+    setMuted(next)
+    // next === true means muted; unlock home bg sound when visitor unmutes intro
+    unlockHomeMediaSound(!next)
+  }
+
+  if (!embedSrc) return null
+
+  return (
+    <div
+      className="vbiz-theme-scope fixed inset-0 z-200 overflow-hidden bg-black text-white"
+      style={{ width: '100dvw', height: '100dvh' }}
+    >
+      <iframe
+        ref={iframeRef}
+        title="Intro video"
+        src={embedSrc}
+        allow="autoplay; encrypted-media; picture-in-picture"
+        allowFullScreen
+        className="absolute inset-0 h-full w-full border-0"
+      />
+      <div className="absolute right-4 bottom-4 z-30 flex items-center gap-3 sm:right-6 sm:bottom-6">
+        <button
+          type="button"
+          onClick={toggleMute}
+          aria-label={muted ? 'Unmute intro video' : 'Mute intro video'}
+          className="vbiz-preloader-btn flex h-11 w-11 shrink-0 items-center justify-center border transition-colors"
+        >
+          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="vbiz-preloader-btn shrink-0 border px-5 py-2.5 text-sm font-semibold transition-colors"
+        >
+          {skipLabel}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intro' }: Props) {
+  const { unlockHomeMediaSound } = useProfileIntroContext()
   const originalSrc = videoUrl.trim()
   const videoRef = useRef<HTMLVideoElement>(null)
   const [srcKey, setSrcKey] = useState(originalSrc)
@@ -233,6 +321,7 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       el.defaultMuted = true
       el.setAttribute('muted', '')
       setIsMuted(true)
+      unlockHomeMediaSound(false)
       return
     }
 
@@ -241,6 +330,7 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
     el.defaultMuted = false
     el.removeAttribute('muted')
     setIsMuted(false)
+    unlockHomeMediaSound(true)
     // iOS/Safari often pauses when leaving muted autoplay — resume in this tap.
     if (el.paused) {
       void el.play().catch(() => undefined)
@@ -262,6 +352,7 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
     el.defaultMuted = true
     el.setAttribute('muted', '')
     setIsMuted(true)
+    unlockHomeMediaSound(false)
   }
 
   const handleVolumeSeek = (e: MouseEvent<HTMLDivElement>) => {
@@ -393,4 +484,13 @@ export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intr
       </div>
     </div>
   )
+}
+
+export function ProfileIntroPreloader({ videoUrl, onSkip, skipLabel = 'Skip intro' }: Props) {
+  const src = videoUrl.trim()
+  if (!src) return null
+  if (isYoutubeUrl(src)) {
+    return <YoutubeIntroPreloader videoUrl={src} onSkip={onSkip} skipLabel={skipLabel} />
+  }
+  return <FileIntroPreloader videoUrl={src} onSkip={onSkip} skipLabel={skipLabel} />
 }

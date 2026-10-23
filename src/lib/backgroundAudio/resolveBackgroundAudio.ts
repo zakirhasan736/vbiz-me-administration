@@ -1,3 +1,4 @@
+import { extractYoutubeVideoId } from '@/lib/youtubeEmbed'
 import type { MyCardBackgroundAudio } from '@interfaces/api/myCard'
 
 export type BackgroundAudioSource =
@@ -40,33 +41,6 @@ function parseTimeToSeconds(value?: string | number | null): number {
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : 0
 }
 
-function extractYoutubeVideoId(url?: string | null): string | null {
-  if (!url?.trim()) return null
-  const trimmed = url.trim()
-
-  try {
-    const parsed = new URL(trimmed)
-    const host = parsed.hostname.replace(/^www\./, '')
-    if (host === 'youtu.be') {
-      const id = parsed.pathname.split('/').filter(Boolean)[0]
-      return id || null
-    }
-    if (host.endsWith('youtube.com')) {
-      const fromQuery = parsed.searchParams.get('v')
-      if (fromQuery) return fromQuery
-      const parts = parsed.pathname.split('/').filter(Boolean)
-      const embedIndex = parts.indexOf('embed')
-      if (embedIndex >= 0 && parts[embedIndex + 1]) return parts[embedIndex + 1]
-      const shortsIndex = parts.indexOf('shorts')
-      if (shortsIndex >= 0 && parts[shortsIndex + 1]) return parts[shortsIndex + 1]
-    }
-  } catch {
-    /* not a URL */
-  }
-
-  return null
-}
-
 export function isBackgroundAudioAvailable(audio?: MyCardBackgroundAudio | null): boolean {
   return resolveBackgroundAudioSource(audio) !== null
 }
@@ -80,18 +54,26 @@ export function resolveBackgroundAudioSource(audio?: MyCardBackgroundAudio | nul
   const endTime = hasEndTime && endTimeRaw > startTime ? endTimeRaw : null
   const loop = audio.repeat !== false
 
-  if (audio.use_youtube_link) {
-    const videoId =
-      audio.youtube?.video_id?.trim() ||
-      extractYoutubeVideoId(audio.youtube?.link) ||
-      extractYoutubeVideoId(audio.youtube?.embed_url)
-    if (!videoId) return null
-    return { type: 'youtube', videoId, startTime, endTime, loop }
+  const youtubeVideoId =
+    audio.youtube?.video_id?.trim() ||
+    extractYoutubeVideoId(audio.youtube?.link) ||
+    extractYoutubeVideoId(audio.youtube?.embed_url) ||
+    extractYoutubeVideoId(audio.url)
+
+  // Prefer uploaded file when present and not a YouTube URL; otherwise play YouTube inline.
+  const fileSrc = audio.url?.trim() || ''
+  const fileIsYoutube = Boolean(extractYoutubeVideoId(fileSrc))
+  if (fileSrc && !fileIsYoutube && !audio.use_youtube_link) {
+    return { type: 'file', src: fileSrc, startTime, endTime, loop }
   }
 
-  const src = audio.url?.trim()
-  if (!src) return null
-  return { type: 'file', src, startTime, endTime, loop }
+  if (audio.use_youtube_link || youtubeVideoId) {
+    if (!youtubeVideoId) return null
+    return { type: 'youtube', videoId: youtubeVideoId, startTime, endTime, loop }
+  }
+
+  if (!fileSrc) return null
+  return { type: 'file', src: fileSrc, startTime, endTime, loop }
 }
 
 export function buildYoutubeEmbedUrl(

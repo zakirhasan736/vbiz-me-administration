@@ -18,7 +18,9 @@ import {
   type CardWallpaperConfig,
   type WallpaperPatternId,
 } from '@/lib/theme/wallpaper'
+import { HOME_MEDIA_SOUND_EVENT, type HomeMediaSoundDetail } from '@/profile-app/lib/homeMediaSound'
 import { buildBackgroundVideoPosterUrl, resolveAdaptiveBackgroundVideoSrc } from '@/profile-app/lib/introVideoAdaptive'
+import { useProfileIntroContextOptional } from '@/profile-app/providers/ProfileIntroProvider'
 import { cn } from '@/utils/cn'
 import { forwardRef, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react'
 
@@ -46,15 +48,22 @@ function isCoarsePointerDevice() {
   return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1
 }
 
-function applySafariBgPlayFlags(el: HTMLVideoElement) {
-  el.muted = true
-  el.defaultMuted = true
+function applySafariBgPlayFlags(el: HTMLVideoElement, preferSound = false) {
   el.playsInline = true
-  el.setAttribute('muted', '')
   el.setAttribute('playsinline', '')
   el.setAttribute('webkit-playsinline', 'true')
   el.setAttribute('x5-playsinline', 'true')
   el.setAttribute('autoplay', '')
+  if (preferSound) {
+    el.muted = false
+    el.defaultMuted = false
+    el.removeAttribute('muted')
+    if (el.volume === 0) el.volume = 0.7
+  } else {
+    el.muted = true
+    el.defaultMuted = true
+    el.setAttribute('muted', '')
+  }
   try {
     el.setAttribute('preload', 'auto')
   } catch {
@@ -84,6 +93,8 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
   const fillColor = wallpaper.fillColor || '#0a0a0a'
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const mediaOverlayBg = resolveWallpaperImageOverlayBackground(wallpaper, accentColor)
+  // Intro unmute → home background video may play with sound; profile avatar stays muted elsewhere.
+  const preferSound = Boolean(useProfileIntroContextOptional()?.homeMediaSoundUnlocked)
 
   const setVideoRef = (node: HTMLVideoElement | null) => {
     localVideoRef.current = node
@@ -153,6 +164,7 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
         className={className}
         mediaClasses={mediaClasses}
         mediaFrame={mediaFrame}
+        preferSound={preferSound}
         setVideoRef={setVideoRef}
         localVideoRef={localVideoRef}
       />
@@ -178,6 +190,7 @@ function WallpaperMedia({
   className,
   mediaClasses,
   mediaFrame,
+  preferSound,
   setVideoRef,
   localVideoRef,
 }: {
@@ -190,6 +203,7 @@ function WallpaperMedia({
   className?: string
   mediaClasses: string
   mediaFrame?: ProfileMediaFrame | null
+  preferSound: boolean
   setVideoRef: (node: HTMLVideoElement | null) => void
   localVideoRef: MutableRefObject<HTMLVideoElement | null>
 }) {
@@ -207,8 +221,9 @@ function WallpaperMedia({
     return resolveAdaptiveBackgroundVideoSrc(src, {
       isMobile: isCoarsePointerDevice(),
       isSafari: safariLike,
+      withAudio: preferSound,
     })
-  }, [safariLike, src, treatAsVideo])
+  }, [preferSound, safariLike, src, treatAsVideo])
 
   const posterSrc = useMemo(() => {
     if (!treatAsVideo) return undefined
@@ -248,11 +263,50 @@ function WallpaperMedia({
     const el = localVideoRef.current
     if (!el) return
 
-    applySafariBgPlayFlags(el)
+    let soundBlocked = false
+    let gestureUnlocked = preferSound
+    const wantSound = () => (preferSound || gestureUnlocked) && !soundBlocked
+
+    applySafariBgPlayFlags(el, wantSound())
 
     const tryPlay = () => {
-      applySafariBgPlayFlags(el)
-      if (el.paused) void el.play().catch(() => undefined)
+      applySafariBgPlayFlags(el, wantSound())
+      if (!el.paused) return
+      void el.play().catch(() => {
+        // Unmuted autoplay can fail after intro ends without a fresh gesture — keep picture muted.
+        if (wantSound()) {
+          soundBlocked = true
+          applySafariBgPlayFlags(el, false)
+          void el.play().catch(() => undefined)
+        }
+      })
+    }
+
+    const onSoundPreference = (event: Event) => {
+      const detail = (event as CustomEvent<HomeMediaSoundDetail>).detail
+      gestureUnlocked = Boolean(detail?.unlocked)
+      if (!gestureUnlocked) {
+        soundBlocked = false
+        applySafariBgPlayFlags(el, false)
+        return
+      }
+      soundBlocked = false
+      // Swap to an audio-capable stream inside this click gesture (stripped URLs have no track).
+      const withAudioSrc = resolveAdaptiveBackgroundVideoSrc(src, {
+        isMobile: isCoarsePointerDevice(),
+        isSafari: safariLike,
+        withAudio: true,
+      })
+      if (withAudioSrc && el.getAttribute('src') !== withAudioSrc) {
+        el.src = withAudioSrc
+      }
+      applySafariBgPlayFlags(el, true)
+      // Same tick as intro unmute click — browsers allow unmuted play here.
+      void el.play().catch(() => {
+        soundBlocked = true
+        applySafariBgPlayFlags(el, false)
+        void el.play().catch(() => undefined)
+      })
     }
 
     tryPlay()
@@ -268,6 +322,7 @@ function WallpaperMedia({
     const onPageShow = () => tryPlay()
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('pageshow', onPageShow)
+    window.addEventListener(HOME_MEDIA_SOUND_EVENT, onSoundPreference)
 
     return () => {
       el.removeEventListener('loadedmetadata', tryPlay)
@@ -276,8 +331,9 @@ function WallpaperMedia({
       el.removeEventListener('canplaythrough', tryPlay)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener(HOME_MEDIA_SOUND_EVENT, onSoundPreference)
     }
-  }, [adaptiveSrc, localVideoRef, showVideo])
+  }, [adaptiveSrc, localVideoRef, preferSound, safariLike, showVideo, src])
 
   const fitStyle: CSSProperties | undefined = frame
     ? mediaSize && boxSize
@@ -296,7 +352,7 @@ function WallpaperMedia({
       poster={posterSrc}
       autoPlay
       loop
-      muted
+      muted={!preferSound}
       playsInline
       preload="auto"
       disablePictureInPicture

@@ -196,14 +196,17 @@ export function buildAdaptiveIntroUrl(
   )
 }
 
-/** Background / cover loops never need audio — strip it to cut bytes on Safari. */
+/**
+ * Background / cover loops usually strip audio to cut bytes on Safari.
+ * Pass `withAudio: true` when the visitor unmuted the intro and home should keep sound.
+ */
 export function buildAdaptiveBackgroundVideoUrl(
   originalUrl: string,
   quality: IntroQuality,
-  options?: { lean?: boolean }
+  options?: { lean?: boolean; withAudio?: boolean }
 ): string {
   return buildAdaptiveIntroUrl(originalUrl, quality, {
-    stripAudio: true,
+    stripAudio: !options?.withAudio,
     lean: options?.lean,
   })
 }
@@ -238,7 +241,7 @@ export function buildBackgroundVideoPosterUrl(originalUrl: string): string | nul
 /** Resolve the exact URL the home background player should fetch (network-aware). */
 export function resolveAdaptiveBackgroundVideoSrc(
   originalUrl: string,
-  options?: { isMobile?: boolean; isSafari?: boolean; hints?: NetworkHints }
+  options?: { isMobile?: boolean; isSafari?: boolean; hints?: NetworkHints; withAudio?: boolean }
 ): string {
   const trimmed = originalUrl.trim()
   if (!trimmed) return ''
@@ -247,7 +250,12 @@ export function resolveAdaptiveBackgroundVideoSrc(
     isSafari: options?.isSafari,
   })
   const lean = Boolean(options?.isSafari || options?.isMobile)
-  return withVideoStartHint(buildAdaptiveBackgroundVideoUrl(trimmed, quality, { lean }))
+  return withVideoStartHint(
+    buildAdaptiveBackgroundVideoUrl(trimmed, quality, {
+      lean,
+      withAudio: options?.withAudio,
+    })
+  )
 }
 
 export function canAdaptIntroUrl(url: string): boolean {

@@ -93,6 +93,11 @@ describe('buildAdaptiveIntroUrl', () => {
     expect(buildAdaptiveIntroUrl(src, 360)).not.toContain('ac_none')
   })
 
+  it('keeps audio when home background should play with sound after intro unmute', () => {
+    const src = 'https://res.cloudinary.com/demo/video/upload/v1/bg.mp4'
+    expect(buildAdaptiveBackgroundVideoUrl(src, 360, { withAudio: true })).not.toContain('ac_none')
+  })
+
   it('replaces existing Cloudinary transforms instead of stacking them', () => {
     const src = 'https://res.cloudinary.com/demo/video/upload/q_auto,w_1280/v12/folder/clip.mp4'
     expect(applyCloudinaryVideoQuality(src, 540)).toBe(

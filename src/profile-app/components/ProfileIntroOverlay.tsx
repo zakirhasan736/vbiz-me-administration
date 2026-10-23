@@ -31,7 +31,7 @@ export function ProfileIntroOverlay({ explainerVideoUrl }: Props) {
   }, [settled])
 
   const src = explainerVideoUrl?.trim()
-  if (!settled || !showPreloader || !hasVideo || !src || /youtu\.?be/i.test(src)) return null
+  if (!settled || !showPreloader || !hasVideo || !src) return null
 
   return <ProfileIntroPreloader videoUrl={src} onSkip={endPreloader} />
 }

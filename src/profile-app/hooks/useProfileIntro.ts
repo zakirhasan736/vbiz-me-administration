@@ -1,6 +1,7 @@
 'use client'
 
 import { isProfileExperienceSettled, PROFILE_EXPERIENCE_SETTLED_EVENT } from '@/lib/push/notificationExperience'
+import { publishHomeMediaSoundPreference } from '@/profile-app/lib/homeMediaSound'
 import { hasSeenProfileIntro, markProfileIntroSeen } from '@/profile-app/lib/profileIntroSession'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -39,13 +40,16 @@ function resolveIntroState(embedded: boolean, slug: string, isClient: boolean): 
 export function useProfileIntro({ embedded = false, profileSlug, shareSlug, explainerVideoUrl }: Options) {
   const slug = profileSlug?.trim() || shareSlug?.trim() || ''
   const rawVideo = explainerVideoUrl?.trim() || ''
-  const hasVideo = Boolean(rawVideo && !/youtu\.?be/i.test(rawVideo))
+  /** Uploaded file or YouTube URL — both play inline in the intro overlay. */
+  const hasVideo = Boolean(rawVideo)
   const isClient = typeof window !== 'undefined'
   const syncKey = `${embedded}\0${slug}`
 
   const [introState, setIntroState] = useState<IntroState>(() => resolveIntroState(embedded, slug, isClient))
   const [clientReady, setClientReady] = useState(isClient)
   const [prevSyncKey, setPrevSyncKey] = useState(syncKey)
+  /** Visitor unmuted the intro — unlock sound on home background video after intro (not profile media). */
+  const [homeMediaSoundUnlocked, setHomeMediaSoundUnlocked] = useState(false)
 
   if (!clientReady && isClient) {
     setClientReady(true)
@@ -55,12 +59,19 @@ export function useProfileIntro({ embedded = false, profileSlug, shareSlug, expl
   if (syncKey !== prevSyncKey) {
     setPrevSyncKey(syncKey)
     setIntroState(resolveIntroState(embedded, slug, isClient))
+    setHomeMediaSoundUnlocked(false)
   }
 
   const endPreloader = useCallback(() => {
     setIntroState({ showPreloader: false, introAllowed: true })
     markProfileIntroSeen(slug)
   }, [slug])
+
+  const unlockHomeMediaSound = useCallback((unlocked: boolean) => {
+    setHomeMediaSoundUnlocked(unlocked)
+    // Fire synchronously so the home bg <video> can unmute/play in this user gesture.
+    publishHomeMediaSoundPreference(unlocked)
+  }, [])
 
   useEffect(() => {
     if (embedded || !slug || hasVideo) return
@@ -80,5 +91,7 @@ export function useProfileIntro({ embedded = false, profileSlug, shareSlug, expl
     introAllowed: embedded || introState.introAllowed,
     endPreloader,
     hasVideo,
+    homeMediaSoundUnlocked,
+    unlockHomeMediaSound,
   }
 }

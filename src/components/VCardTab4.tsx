@@ -8,6 +8,7 @@ import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { musicFileAllowed } from '@/lib/packageAccess'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
+import { buildYoutubePlayerEmbedUrl, isYoutubeUrl } from '@/lib/youtubeEmbed'
 import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import {
@@ -26,7 +27,7 @@ import {
   X,
 } from 'lucide-react'
 import Image from 'next/image'
-import React, { ReactNode, useEffect, useState } from 'react'
+import React, { ReactNode, useEffect, useMemo, useState } from 'react'
 
 function FieldGroup({ label, children, icon }: { label: string; children: ReactNode; icon?: ReactNode }) {
   return (
@@ -466,6 +467,21 @@ export function Tab4HomeMedia() {
   const musicYoutubeUrl = getCustomValue(FIELD_MUSIC_YT)
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
 
+  const introYoutubeEmbed = useMemo(
+    () =>
+      isYoutubeUrl(introYoutubeUrl)
+        ? buildYoutubePlayerEmbedUrl(introYoutubeUrl, { autoplay: false, muted: true, controls: true })
+        : null,
+    [introYoutubeUrl]
+  )
+  const musicYoutubeEmbed = useMemo(
+    () =>
+      isYoutubeUrl(musicYoutubeUrl)
+        ? buildYoutubePlayerEmbedUrl(musicYoutubeUrl, { autoplay: false, muted: true, controls: true })
+        : null,
+    [musicYoutubeUrl]
+  )
+
   const [introStart, setIntroStart] = useState('0')
   const [introEnd, setIntroEnd] = useState('0')
   const [musicStart, setMusicStart] = useState('0')
@@ -565,6 +581,18 @@ export function Tab4HomeMedia() {
                 </div>
               </FieldGroup>
 
+              {introYoutubeEmbed ? (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black dark:border-white/10">
+                  <iframe
+                    title="Intro YouTube preview"
+                    src={introYoutubeEmbed}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="aspect-video w-full border-0"
+                  />
+                </div>
+              ) : null}
+
               <div className="grid grid-cols-2 gap-6">
                 <FieldGroup label="Start (seconds)">
                   <input
@@ -641,6 +669,18 @@ export function Tab4HomeMedia() {
                 </div>
               </FieldGroup>
               {canYtMusic ? null : <PackageFeatureLockNote />}
+
+              {musicYoutubeEmbed ? (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black dark:border-white/10">
+                  <iframe
+                    title="Background music YouTube preview"
+                    src={musicYoutubeEmbed}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="aspect-video w-full border-0"
+                  />
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-6">
                 <FieldGroup label="Start (seconds)">

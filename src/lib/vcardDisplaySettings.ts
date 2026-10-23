@@ -680,12 +680,14 @@ export function getHomeMediaUrls(settings: VCardDisplaySettings) {
   const introFile = visibleValue('Intro vCard Video')
   const introYoutube = visibleValue('Intro YouTube vCard Video Link')
 
-  // Intro preloader only — 2D explainer lives in its own section tab.
+  // Intro preloader: uploaded file preferred, otherwise YouTube link (plays inline).
   const introVideo = introFile && !isYoutube(introFile) ? introFile : ''
+  /** File or YouTube URL for the public intro overlay. */
+  const introPlayUrl = introVideo || introYoutube || (introFile && isYoutube(introFile) ? introFile : '')
 
   const bgMedia = visibleValue('Background Video/Image')
   const profileMedia = visibleValue('Profile Image/Video')
-  return { introVideo, introYoutube, bgMedia, profileMedia }
+  return { introVideo, introYoutube, introPlayUrl, bgMedia, profileMedia }
 }
 
 /** Background color for nav tabs from Card Settings → Nav Bar (editor + public). */

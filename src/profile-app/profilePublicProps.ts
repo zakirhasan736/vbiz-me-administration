@@ -146,7 +146,7 @@ export function vCardDataToProfileProps(
   const slug = data.slug.trim()
   const display = getDisplaySettingsFromVCard(data)
   const homeMedia = getHomeMediaUrls(display)
-  const introUrl = homeMedia.introVideo || undefined
+  const introUrl = homeMedia.introPlayUrl || homeMedia.introVideo || homeMedia.introYoutube || undefined
   const coverUrl = homeMedia.bgMedia || undefined
   const avatarImageUrl = meta?.avatarImageUrl?.trim() || undefined
   const homeAvatarFallback = homeMedia.profileMedia || avatarImageUrl

@@ -65,6 +65,7 @@ function ProfileVideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(true)
   const [progress, setProgress] = useState(0)
+  // Profile / owner avatar videos always start muted and never inherit intro unmute.
   const [isMuted, setIsMuted] = useState(true)
   const [isHovering, setIsHovering] = useState(false)
   const coarsePointer = useCoarsePointer()

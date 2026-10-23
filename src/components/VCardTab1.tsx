@@ -10,9 +10,10 @@ import {
   patchExplainerSectionMedia,
   readExplainerSectionMedia,
 } from '@/lib/vcardExplainerFromProfileMedia'
+import { buildYoutubePlayerEmbedUrl, isYoutubeUrl } from '@/lib/youtubeEmbed'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import { Film, Image as ImageIcon, Link as LinkIcon, User } from 'lucide-react'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 
 const FIELD_BG = 'Background Video/Image'
 const FIELD_AVATAR = 'Profile Image/Video'
@@ -25,6 +26,13 @@ export function Tab1MediaProfile() {
   const profileMediaUrl = getCustomValue(FIELD_BG)
   const profilePicUrl = getCustomValue(FIELD_AVATAR) || avatarImageUrl || ''
   const { fileUrl: explainerUrl, externalUrl } = readExplainerSectionMedia(vCardData)
+  const explainerYoutubeEmbed = useMemo(
+    () =>
+      isYoutubeUrl(externalUrl)
+        ? buildYoutubePlayerEmbedUrl(externalUrl, { autoplay: false, muted: true, controls: true })
+        : null,
+    [externalUrl]
+  )
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
 
   const patchExplainer = useCallback(
@@ -166,6 +174,17 @@ export function Tab1MediaProfile() {
                 </button>
               ) : null}
             </div>
+            {explainerYoutubeEmbed ? (
+              <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-black dark:border-white/10">
+                <iframe
+                  title="2D Explainer YouTube preview"
+                  src={explainerYoutubeEmbed}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="aspect-video w-full border-0"
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
