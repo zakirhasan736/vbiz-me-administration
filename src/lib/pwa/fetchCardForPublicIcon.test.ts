@@ -55,7 +55,8 @@ describe('fetchCardForPublicIcon', () => {
     fetchMyCardBySlugMock.mockResolvedValueOnce(sampleCard)
     await fetchCardForPublicIcon('rifajul')
 
-    now += 61_000
+    // Past fresh TTL, still inside the stale window used for rate-limit fallback.
+    now += 6_000
     fetchMyCardBySlugMock.mockRejectedValueOnce(new PublicCardApiError('rate limited', 'RATE_LIMITED', 429, 'req-1'))
 
     await expect(fetchCardForPublicIcon('rifajul')).resolves.toBe(sampleCard)
