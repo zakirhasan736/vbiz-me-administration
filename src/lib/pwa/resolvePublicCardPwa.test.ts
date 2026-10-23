@@ -17,7 +17,7 @@ describe('public card PWA manifest', () => {
     expect(manifest.icons.some((icon) => icon.sizes === '512x512' && icon.purpose === 'any')).toBe(true)
   })
 
-  it('prefers the Card Settings Home Screen icon, then this card profile, About Me, then other stills', () => {
+  it('prefers the Card Settings Home Screen icon, then SEO, then this card profile / About Me', () => {
     const urls = resolvePwaAvatarCandidates({
       settings: {
         pwa_home_screen_icon_url: 'https://cdn.example.com/pwa-icon.png',
@@ -32,32 +32,35 @@ describe('public card PWA manifest', () => {
 
     expect(urls.slice(0, 5)).toEqual([
       'https://cdn.example.com/pwa-icon.png',
-      'https://cdn.example.com/hero.jpg',
-      'https://cdn.example.com/avatar.jpg',
-      'https://cdn.example.com/about.jpg',
       'https://cdn.example.com/og.jpg',
+      'https://cdn.example.com/hero.jpg',
+      'https://cdn.example.com/about.jpg',
+      'https://cdn.example.com/avatar.jpg',
     ])
     expect(urls).toContain('https://cdn.example.com/logo.png')
     expect(urls).not.toContain('https://cdn.example.com/intro.mp4')
   })
 
-  it('prefers linked-card profile_media_url over a stale corporate owner avatar', () => {
+  it('never falls back to the corporate owner avatar on a linked card', () => {
     const urls = resolvePwaAvatarCandidates({
       settings: {
+        duplicated_from: 'owner-card-id',
+        pwa_home_screen_icon_url: 'https://cdn.example.com/member-pwa.png',
         profile_media_url: 'https://cdn.example.com/member.jpg',
         about_me_featured_media_url: 'https://cdn.example.com/about.jpg',
+        company_logo: 'https://cdn.example.com/owner-logo.png',
       },
       profile: { avatar: 'https://cdn.example.com/owner-from-duplicate.jpg' },
     } as unknown as MyCardData)
 
-    expect(urls.slice(0, 3)).toEqual([
-      'https://cdn.example.com/member.jpg',
-      'https://cdn.example.com/owner-from-duplicate.jpg',
-      'https://cdn.example.com/about.jpg',
-    ])
+    expect(urls[0]).toBe('https://cdn.example.com/member-pwa.png')
+    expect(urls).toContain('https://cdn.example.com/member.jpg')
+    expect(urls).toContain('https://cdn.example.com/about.jpg')
+    expect(urls).not.toContain('https://cdn.example.com/owner-from-duplicate.jpg')
+    expect(urls).not.toContain('https://cdn.example.com/owner-logo.png')
   })
 
-  it('falls back to avatar → About Me → Open Graph when no Home Screen icon is set', () => {
+  it('falls back to SEO → About Me → avatar when no Home Screen icon is set', () => {
     const urls = resolvePwaAvatarCandidates({
       settings: {
         seo_image_url: 'https://cdn.example.com/og.jpg',
@@ -67,13 +70,13 @@ describe('public card PWA manifest', () => {
     } as unknown as MyCardData)
 
     expect(urls.slice(0, 3)).toEqual([
-      'https://cdn.example.com/avatar.jpg',
-      'https://cdn.example.com/about.jpg',
       'https://cdn.example.com/og.jpg',
+      'https://cdn.example.com/about.jpg',
+      'https://cdn.example.com/avatar.jpg',
     ])
   })
 
-  it('skips a video avatar and uses the About Me image', () => {
+  it('skips a video avatar and uses SEO then About Me', () => {
     const urls = resolvePwaAvatarCandidates({
       settings: {
         about_me_featured_media_url: 'https://cdn.example.com/about.jpg',
@@ -82,8 +85,20 @@ describe('public card PWA manifest', () => {
       profile: { avatar: 'https://cdn.example.com/avatar.mp4' },
     } as unknown as MyCardData)
 
-    expect(urls[0]).toBe('https://cdn.example.com/about.jpg')
-    expect(urls[1]).toBe('https://cdn.example.com/og.jpg')
+    expect(urls[0]).toBe('https://cdn.example.com/og.jpg')
+    expect(urls[1]).toBe('https://cdn.example.com/about.jpg')
+  })
+
+  it('busts install-icon cache when the Home Screen image URL changes', () => {
+    const manifest = buildPublicCardManifest(
+      {
+        settings: { pwa_home_screen_icon_url: 'https://cdn.example.com/member-pwa.png' },
+        profile: { name: 'Mila', avatar: 'https://cdn.example.com/owner.jpg' },
+      } as unknown as MyCardData,
+      'mila'
+    )
+    expect(manifest.icons[0]?.src).toMatch(/\/vCard\/mila\/icon\/192\?v=/)
+    expect(manifest.icons[0]?.src).not.toBe('/vCard/mila/icon/192')
   })
 
   it('resolves install-modal preview as Home Screen icon → profile → About Me', () => {

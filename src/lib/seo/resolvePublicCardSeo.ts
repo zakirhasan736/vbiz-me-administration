@@ -2,7 +2,7 @@ import { VBIZ_DEFAULT_FAVICON_PATH } from '@/components/brand/VbizBrandMark'
 import type { MyCardData } from '@/interfaces/api/myCard'
 import { isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { isGenericPublicCardImage } from '@/lib/publicCards/publicCardImage'
-import { buildPwaIconUrl, resolvePwaAvatarCandidates } from '@/lib/pwa/resolvePublicCardPwa'
+import { buildPwaIconUrl, isLinkedCorporateCard, resolvePwaAvatarCandidates } from '@/lib/pwa/resolvePublicCardPwa'
 import { normalizeCardSeo, normalizeSeoKeywords, ownerSeoKeywords, parseSeoSettings } from '@/lib/seo/cardSeo'
 import type { VCardSeo } from '@/types/vcard'
 
@@ -49,11 +49,14 @@ export function collectPublicCardShareImageCandidates(card: MyCardData): string[
   const setting = (key: string) => (typeof settings[key] === 'string' ? settings[key].trim() : '')
   const seen = new Set<string>()
   const candidates: string[] = []
+  const linked = isLinkedCorporateCard(card)
   const profileMedia = card.profile_media
   const profileMediaIsVideo =
     profileMedia?.is_video === true || isVideoUrl(profileMedia?.url || '') || isVideoUrl(profileMedia?.video_url || '')
 
+  // Linked-card SEO is per-card (stripped on duplicate) — never borrow the corporate owner's portrait.
   pushShareImageCandidate(seen, candidates, setting('seo_image_url'))
+  pushShareImageCandidate(seen, candidates, setting('pwa_home_screen_icon_url'))
   pushShareImageCandidate(seen, candidates, setting('share_preview_image_url'))
 
   if (profileMediaIsVideo) {
@@ -67,17 +70,26 @@ export function collectPublicCardShareImageCandidates(card: MyCardData): string[
   pushShareImageCandidate(seen, candidates, setting('profile_media_url'))
   pushShareImageCandidate(seen, candidates, setting('profile_image'))
   pushShareImageCandidate(seen, candidates, setting('profile_image_url'))
-  pushShareImageCandidate(seen, candidates, card.profile?.avatar)
+  pushShareImageCandidate(seen, candidates, setting('about_me_featured_media_url'))
 
-  if (!profileMediaIsVideo) {
-    pushShareImageCandidate(seen, candidates, setting('about_me_featured_media_url'))
-  }
-
-  for (const group of ['personal', 'professional', 'contact'] as const) {
-    const fields = card.my_info?.[group]
-    if (!fields) continue
-    for (const field of Object.values(fields)) {
-      pushShareImageCandidate(seen, candidates, field?.icon)
+  if (!linked) {
+    pushShareImageCandidate(seen, candidates, card.profile?.avatar)
+    for (const group of ['personal', 'professional', 'contact'] as const) {
+      const fields = card.my_info?.[group]
+      if (!fields) continue
+      for (const field of Object.values(fields)) {
+        pushShareImageCandidate(seen, candidates, field?.icon)
+      }
+    }
+  } else {
+    const ownPortrait =
+      setting('profile_media_url') ||
+      setting('profile_image') ||
+      setting('profile_image_url') ||
+      (!profileMediaIsVideo ? profileMedia?.url?.trim() || '' : '')
+    const avatar = card.profile?.avatar?.trim() || ''
+    if (avatar && ownPortrait && avatar === ownPortrait) {
+      pushShareImageCandidate(seen, candidates, avatar)
     }
   }
 

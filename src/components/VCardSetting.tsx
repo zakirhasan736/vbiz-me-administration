@@ -36,6 +36,7 @@ import {
   patchAssistantConfig,
   type AssistantKnowledgeItem,
 } from '@/lib/assistantApi'
+import { isCorporateMemberEditorCard } from '@/lib/corporateCardDuplicate'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
 import { isVideoFile, MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
@@ -1164,6 +1165,7 @@ function CardSeoPanel() {
   const [generating, setGenerating] = useState<'title' | 'description' | 'keywords' | null>(null)
   const visibleKeywords = ownerSeoKeywords(seo.metaKeywords)
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
+  const isLinkedCard = isCorporateMemberEditorCard(vCardData)
 
   useEffect(() => {
     seoRef.current = seo
@@ -1366,8 +1368,9 @@ function CardSeoPanel() {
         <div className="space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
           <label className="text-xs font-bold text-slate-600 dark:text-slate-300">SEO / Open Graph image</label>
           <p className="text-[.6875rem] font-semibold text-slate-400">
-            Used for link previews (Open Graph, Twitter) and JSON-LD. Fallback: avatar → profile image → About Me
-            featured image.
+            {isLinkedCard
+              ? 'Used for link previews and share cards on this linked card only — never the corporate owner image. VCF photo order: profile → About Me → Home Screen → this Open Graph image.'
+              : 'Used for link previews (Open Graph, Twitter) and JSON-LD. VCF photo order: profile → About Me → Home Screen → this Open Graph image.'}
           </p>
           <VCardMediaField
             variant="inset"
@@ -1421,8 +1424,9 @@ function CardSeoPanel() {
         <div className="space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
           <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Add to Home Screen icon</label>
           <p className="text-[.6875rem] font-semibold text-slate-400">
-            Image used when someone installs this card as a PWA / Save to Home Screen shortcut. Leave empty to use
-            profile photo → About Me image → other stills on the card.
+            {isLinkedCard
+              ? 'Used for Add to Home Screen on this linked card only. VCF also uses it after profile and About Me (never the corporate owner image).'
+              : 'Image used when someone installs this card as a PWA / Save to Home Screen shortcut. VCF uses it after profile and About Me, before the Open Graph image.'}
           </p>
           <VCardMediaField
             variant="inset"
