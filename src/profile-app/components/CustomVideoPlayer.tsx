@@ -1,6 +1,11 @@
 import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { HOME_MEDIA_SOUND_EVENT, type HomeMediaSoundDetail } from '@/profile-app/lib/homeMediaSound'
+import {
+  getOwnerVideoMuteOverride,
+  setOwnerVideoMuteOverride,
+  subscribeOwnerVideoMute,
+} from '@/profile-app/lib/profileOwnerVideoMute'
 import { useProfileIntroContextOptional } from '@/profile-app/providers/ProfileIntroProvider'
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import Image from 'next/image'
@@ -64,22 +69,58 @@ function ProfileVideoPlayer({
   showSeekBar = true,
   mediaFrame,
 }: CustomVideoPlayerProps) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [isPlaying, setIsPlaying] = useState(true)
+  const onScreenRef = useRef(false)
+  const homeReadyRef = useRef(true)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
-  // Owner profile video: unmute after intro if the visitor unmuted the intro (derived, no effect setState).
-  const introSoundUnlocked = Boolean(useProfileIntroContextOptional()?.homeMediaSoundUnlocked)
-  const isOwnerLayout = controlsMode === 'owner'
-  const [userMuteOverride, setUserMuteOverride] = useState<boolean | null>(null)
-  const isMuted = userMuteOverride ?? (isOwnerLayout ? !introSoundUnlocked : true)
+  const [ownerOnScreen, setOwnerOnScreen] = useState(false)
   const [isHovering, setIsHovering] = useState(false)
-  const userOverrideRef = useRef(false)
+
+  const intro = useProfileIntroContextOptional()
+  const introSoundUnlocked = Boolean(intro?.homeMediaSoundUnlocked)
+  // Wait until intro ends/skips (or no intro) before home profile video starts.
+  const homeReady = intro ? intro.introAllowed : true
+  const isOwnerLayout = controlsMode === 'owner'
+  // Shared across phone + desktop mounts so mute button mutes every copy (stops echo).
+  const userMuteOverride = useSyncExternalStore(subscribeOwnerVideoMute, getOwnerVideoMuteOverride, () => null)
+  const wantMuted = userMuteOverride ?? (isOwnerLayout ? !introSoundUnlocked : true)
+  const onScreen = isOwnerLayout ? ownerOnScreen : true
+  /** Owner profile may play only on the visible home tile after intro is done. */
+  const canStartPlayback = !isOwnerLayout || (homeReady && onScreen)
+  // Hidden twin / pre-intro: never output audio.
+  const isMuted = wantMuted || (isOwnerLayout && !canStartPlayback)
+
   const coarsePointer = useCoarsePointer()
   const fit = mediaFrame ? profileMediaFitStyle(mediaFrame) : null
 
-  // Touch devices have no hover — keep mute/play reachable on first tap.
   const showPlayButton = isOwnerLayout ? isHovering || !isPlaying || coarsePointer : isHovering || coarsePointer
   const showHoverBar = isHovering || coarsePointer
+
+  useEffect(() => {
+    onScreenRef.current = onScreen
+  }, [onScreen])
+
+  useEffect(() => {
+    homeReadyRef.current = homeReady
+  }, [homeReady])
+
+  useEffect(() => {
+    if (!isOwnerLayout) return
+    const root = rootRef.current
+    if (!root || typeof IntersectionObserver === 'undefined') return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const visible = Boolean(entry?.isIntersecting && (entry.intersectionRatio ?? 0) > 0.05)
+        setOwnerOnScreen(visible)
+      },
+      { threshold: [0, 0.05, 0.25] }
+    )
+    observer.observe(root)
+    return () => observer.disconnect()
+  }, [isOwnerLayout, src])
 
   useEffect(() => {
     const video = videoRef.current
@@ -108,27 +149,47 @@ function ProfileVideoPlayer({
     }
   }, [src])
 
+  // Start / pause / mute according to intro gate + visibility + user mute.
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
-    video.muted = isMuted
-    if (isMuted) {
+
+    if (!canStartPlayback) {
+      video.muted = true
+      video.defaultMuted = true
+      video.setAttribute('muted', '')
+      if (!video.paused) video.pause()
+      // Rewind so home starts cleanly when intro finishes.
+      if (isOwnerLayout && !homeReady) {
+        try {
+          video.currentTime = 0
+        } catch {
+          /* ignore */
+        }
+      }
+      return
+    }
+
+    video.muted = wantMuted
+    if (wantMuted) {
       video.setAttribute('muted', '')
       video.defaultMuted = true
     } else {
       video.removeAttribute('muted')
       video.defaultMuted = false
       if (video.volume === 0) video.volume = 1
-      if (video.paused) void video.play().catch(() => undefined)
     }
-  }, [isMuted])
+    if (video.paused) void video.play().catch(() => undefined)
+  }, [canStartPlayback, homeReady, isOwnerLayout, wantMuted])
 
-  // Gesture-timed DOM unmute during intro click (context re-render may lag one frame).
+  // Intro unmute only applies after home is ready — preference is kept in context until then.
   useEffect(() => {
     if (!isOwnerLayout) return
 
     const onSoundPreference = (event: Event) => {
-      if (userOverrideRef.current) return
+      if (getOwnerVideoMuteOverride() != null) return
+      // During intro: remember preference via context only; do not start profile audio yet.
+      if (!homeReadyRef.current || !onScreenRef.current) return
       const detail = (event as CustomEvent<HomeMediaSoundDetail>).detail
       const unlocked = Boolean(detail?.unlocked)
       const video = videoRef.current
@@ -153,6 +214,7 @@ function ProfileVideoPlayer({
   const togglePlay = (e: MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    if (isOwnerLayout && !homeReady) return
     const video = videoRef.current
     if (!video) return
     if (video.paused) void video.play().catch(() => undefined)
@@ -165,23 +227,22 @@ function ProfileVideoPlayer({
     const video = videoRef.current
     if (!video) return
 
-    userOverrideRef.current = true
-
-    if (isMuted) {
-      video.muted = false
-      video.defaultMuted = false
-      video.removeAttribute('muted')
-      if (video.volume === 0) video.volume = 1
-      setUserMuteOverride(false)
-      // Unmute often pauses autoplay on iOS — resume in this gesture.
-      if (video.paused) void video.play().catch(() => undefined)
+    if (wantMuted) {
+      setOwnerVideoMuteOverride(false)
+      if (canStartPlayback) {
+        video.muted = false
+        video.defaultMuted = false
+        video.removeAttribute('muted')
+        if (video.volume === 0) video.volume = 1
+        if (video.paused) void video.play().catch(() => undefined)
+      }
       return
     }
 
+    setOwnerVideoMuteOverride(true)
     video.muted = true
     video.defaultMuted = true
     video.setAttribute('muted', '')
-    setUserMuteOverride(true)
   }
 
   const handleSeek = (e: MouseEvent<HTMLDivElement>) => {
@@ -209,8 +270,12 @@ function ProfileVideoPlayer({
     else video.pause()
   }
 
+  // Button UI follows user intent (not off-screen forced mute).
+  const muteButtonMuted = wantMuted
+
   return (
     <div
+      ref={rootRef}
       className={`group/profile relative overflow-hidden ${className}`}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -219,11 +284,12 @@ function ProfileVideoPlayer({
       <video
         ref={videoRef}
         src={src}
-        autoPlay
+        // Owner home video is started by effect after intro ends — avoid racing the intro.
+        autoPlay={!isOwnerLayout}
         loop
         muted={isMuted}
         playsInline
-        preload="metadata"
+        preload={isOwnerLayout ? (homeReady ? 'auto' : 'metadata') : 'metadata'}
         className={
           fit
             ? 'h-full w-full cursor-pointer object-cover opacity-90'
@@ -259,10 +325,10 @@ function ProfileVideoPlayer({
           <button
             type="button"
             onClick={toggleMute}
-            aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+            aria-label={muteButtonMuted ? 'Unmute video' : 'Mute video'}
             className={`pointer-events-auto absolute right-3 bottom-3 z-20 ${controlBtnClass}`}
           >
-            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            {muteButtonMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
         </>
       ) : (
@@ -301,10 +367,10 @@ function ProfileVideoPlayer({
             <button
               type="button"
               onClick={toggleMute}
-              aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+              aria-label={muteButtonMuted ? 'Unmute video' : 'Mute video'}
               className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 hover:text-[#facc15]"
             >
-              {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              {muteButtonMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { isProfileExperienceSettled, PROFILE_EXPERIENCE_SETTLED_EVENT } from '@/lib/push/notificationExperience'
 import { publishHomeMediaSoundPreference } from '@/profile-app/lib/homeMediaSound'
 import { hasSeenProfileIntro, markProfileIntroSeen } from '@/profile-app/lib/profileIntroSession'
+import { resetOwnerVideoMuteOverride } from '@/profile-app/lib/profileOwnerVideoMute'
 import { useCallback, useEffect, useState } from 'react'
 
 type Options = {
@@ -60,6 +61,7 @@ export function useProfileIntro({ embedded = false, profileSlug, shareSlug, expl
     setPrevSyncKey(syncKey)
     setIntroState(resolveIntroState(embedded, slug, isClient))
     setHomeMediaSoundUnlocked(false)
+    resetOwnerVideoMuteOverride()
   }
 
   const endPreloader = useCallback(() => {
@@ -68,8 +70,10 @@ export function useProfileIntro({ embedded = false, profileSlug, shareSlug, expl
   }, [slug])
 
   const unlockHomeMediaSound = useCallback((unlocked: boolean) => {
+    // Clear manual mute so intro unmute can take effect on the profile video.
+    if (unlocked) resetOwnerVideoMuteOverride()
     setHomeMediaSoundUnlocked(unlocked)
-    // Fire synchronously so the home bg <video> can unmute/play in this user gesture.
+    // Fire synchronously so the on-screen profile <video> can unmute in this user gesture.
     publishHomeMediaSoundPreference(unlocked)
   }, [])
 
