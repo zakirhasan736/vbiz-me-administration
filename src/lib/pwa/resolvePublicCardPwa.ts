@@ -51,9 +51,12 @@ function pushPwaImage(seen: Set<string>, out: string[], url?: string | null) {
 /**
  * Home Screen / PWA install icon stills, in order:
  * 1. Explicit Add to Home Screen image (Card Settings → SEO)
- * 2. Profile avatar
+ * 2. This card's profile image (settings / profile_media — not a stale copied avatar)
  * 3. About Me featured image
  * 4. Open Graph / other stills on the card
+ *
+ * Linked corporate cards often keep the owner's `profile.avatar` from duplicate while the
+ * member's own photo lives in `profile_media_url` / Profile Image/Video — prefer those first.
  */
 export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
   const settings = card.settings || {}
@@ -67,17 +70,16 @@ export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
 
   push(setting('pwa_home_screen_icon_url'))
 
-  push(card.profile?.avatar)
+  push(setting('profile_media_url'))
   for (const key of ['avatar', 'avatar_url', 'profile_image', 'profile_image_url']) push(setting(key))
+  if (!mediaIsVideo) push(media?.url)
+  push(media?.fallback_url)
+  push(card.profile?.avatar)
 
   push(setting('about_me_featured_media_url'))
 
   push(setting('seo_image_url'))
   push(setting('share_preview_image_url'))
-
-  if (!mediaIsVideo) push(media?.url)
-  push(media?.fallback_url)
-  push(setting('profile_media_url'))
   push(setting('featured_image'))
   push(setting('featured_image_url'))
   push(setting('company_logo'))
@@ -85,6 +87,22 @@ export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
   push(myInfoIcon(card, ['professional', 'personal'], ['company_name', 'company', 'company_office']))
 
   return candidates
+}
+
+/** Client-side install-modal preview: same priority without a MyCardData payload. */
+export function resolvePwaInstallPreviewIconUrl(input: {
+  pwaHomeScreenIconUrl?: string | null
+  profileImageUrl?: string | null
+  aboutMeImageUrl?: string | null
+  fallbackIconPath?: string | null
+}): string {
+  for (const candidate of [input.pwaHomeScreenIconUrl, input.profileImageUrl, input.aboutMeImageUrl]) {
+    const value = candidate?.trim() || ''
+    if (!isUsablePwaImageUrl(value) || isGenericPublicCardImage(value)) continue
+    return value
+  }
+  const fallback = input.fallbackIconPath?.trim() || ''
+  return fallback || '/favicon.ico'
 }
 
 /** Prefer still image avatar; skip obvious video URLs for PWA icons. */

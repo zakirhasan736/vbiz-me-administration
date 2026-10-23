@@ -42,6 +42,31 @@ export function isHideOwnerSectionEnabled(map: HideOwnerSectionsMap | null | und
   return Boolean(map?.[sectionKey.trim()])
 }
 
+/**
+ * Section-post tabs store posts under the public API name (e.g. "Certificates Licenses")
+ * while the editor toggle is keyed by schema/nav id (e.g. "certificates"). Accept either.
+ */
+export function isHideOwnerSectionPostEnabled(
+  map: HideOwnerSectionsMap | null | undefined,
+  postTypeName: string,
+  schemaKeysForPostType: readonly string[] = []
+): boolean {
+  if (isHideOwnerSectionEnabled(map, postTypeName)) return true
+  return schemaKeysForPostType.some((key) => isHideOwnerSectionEnabled(map, key))
+}
+
+/** Reverse lookup: public post-type label → editor schema/nav keys that may hide it. */
+export function schemaKeysForPublicSectionName(
+  postTypeName: string,
+  publicSectionNames: Record<string, string>
+): string[] {
+  const needle = postTypeName.trim().toLowerCase()
+  if (!needle) return []
+  return Object.entries(publicSectionNames)
+    .filter(([, name]) => name.trim().toLowerCase() === needle)
+    .map(([key]) => key)
+}
+
 export function withHideOwnerSection(
   map: HideOwnerSectionsMap | null | undefined,
   sectionKey: string,

@@ -3,6 +3,8 @@ import { isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import {
   customTabHideOwnerSectionKey,
   isHideOwnerSectionEnabled,
+  isHideOwnerSectionPostEnabled,
+  schemaKeysForPublicSectionName,
   withoutCorporateOwned,
   withoutHiddenOwnerMedia,
 } from '@/lib/memberMediaVisibility'
@@ -220,7 +222,12 @@ export function vCardDataToProfileProps(
           next[key] = withoutHiddenOwnerMedia(list, data.hiddenOwnerMedia?.videos || [], Boolean(data.hideOwnerVideos))
           continue
         }
-        next[key] = withoutCorporateOwned(list, isHideOwnerSectionEnabled(data.hideOwnerSections, key))
+        const hideOwner = isHideOwnerSectionPostEnabled(
+          data.hideOwnerSections,
+          key,
+          schemaKeysForPublicSectionName(key, PUBLIC_SECTION_NAMES)
+        )
+        next[key] = withoutCorporateOwned(list, hideOwner)
       }
       return next
     })(),

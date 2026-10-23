@@ -88,6 +88,7 @@ export function CardThemeStyles({
     if (!config) return 'none'
     const b = config.components.button
     const s = config.components.socialIcon
+    const w = config.wallpaper
     return [
       config.version,
       config.colors.defaultMode,
@@ -119,6 +120,16 @@ export function CardThemeStyles({
       s.style,
       s.colors.light.fill,
       s.cornerRadius,
+      w?.style,
+      w?.fillColor,
+      w?.gradientFrom,
+      w?.gradientTo,
+      w?.premadeId,
+      w?.patternId,
+      w?.imageOverlayEnabled === false ? '0' : '1',
+      w?.imageOverlaySource || 'accent',
+      w?.imageOverlayColor || '',
+      String(w?.imageOverlayOpacity ?? ''),
       JSON.stringify(config.components.sectionBanner ?? null),
       JSON.stringify(config.components.contentCard ?? null),
       JSON.stringify(config.components.reviewCard ?? null),
@@ -159,5 +170,8 @@ export function CardThemeStyles({
   }, [config, mode])
 
   if (!css) return null
-  return <HoistableStyle href={forcedMode ? 'vbiz-card-theme-preview' : 'vbiz-card-theme'} css={css} />
+  // Preview uses a dedicated href so public-card sheets never collide with the phone frame.
+  // themeFingerprint is embedded so every color / wallpaper overlay edit swaps the sheet.
+  const hrefBase = forcedMode ? 'vbiz-card-theme-preview' : 'vbiz-card-theme'
+  return <HoistableStyle href={`${hrefBase}:${themeFingerprint}`} css={css} />
 }

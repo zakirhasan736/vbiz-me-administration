@@ -1,5 +1,6 @@
 'use client'
 
+import { isVideoUrl } from '@/lib/mediaUrl'
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import {
   getPwaBadgeCountSnapshot,
@@ -7,10 +8,13 @@ import {
   subscribePwaBadgeCount,
 } from '@/lib/push/pwaBadgeCount'
 import type { PwaInstallSurface } from '@/lib/pwa/pwaInstallEnv'
+import { resolvePwaInstallPreviewIconUrl } from '@/lib/pwa/resolvePublicCardPwa'
 import { ProfileModalShell } from '@/profile-app/components/ProfileModalShell'
 import { openCardInSafari, usePwaInstall } from '@/profile-app/hooks/usePwaInstall'
+import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
+import { useGetAboutMeQuery } from '@/redux/features/sections/aboutMe.api'
 import { Check, Cloud, Home, Loader2, Lock, Smartphone, Sparkles, WifiOff, X, type LucideIcon } from 'lucide-react'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 type SaveCardPwaModalProps = {
   isOpen: boolean
@@ -19,6 +23,12 @@ type SaveCardPwaModalProps = {
   avatarUrl?: string | null
   cardSlug?: string
   contactJustSaved?: boolean
+}
+
+function asStillPreviewUrl(url?: string | null): string {
+  const value = url?.trim() || ''
+  if (!value || isVideoUrl(value)) return ''
+  return value
 }
 
 export function SaveCardPwaModal({
@@ -30,14 +40,45 @@ export function SaveCardPwaModal({
   contactJustSaved = false,
 }: SaveCardPwaModalProps) {
   const { isInstalled, isAndroid, surface, installing, promptInstall } = usePwaInstall()
+  const { seo, avatarImageUrl, homeMedia, field, cardOwnerId } = useProfileDisplay()
   const [installMessage, setInstallMessage] = useState<string | null>(null)
   const [nativeAdded, setNativeAdded] = useState(false)
   const [offlineReady, setOfflineReady] = useState(false)
   const [cacheChecking, setCacheChecking] = useState(false)
   const added = isInstalled || nativeAdded
 
+  const profileId = cardOwnerId?.trim() || ''
+  const { data: aboutMe } = useGetAboutMeQuery(profileId, {
+    skip: !isOpen || !profileId,
+  })
+
   const label = ownerName?.trim() || 'this card'
-  const iconSrc = cardSlug?.trim() ? buildProfileIconPath(cardSlug.trim(), 192) : avatarUrl || '/favicon.ico'
+  const profileFieldUrl = field('Profile Image/Video').customValue
+  const aboutMeFieldUrl = field('About Me').customValue
+  const aboutMeFeaturedUrl = aboutMe?.items?.find((item) => asStillPreviewUrl(item.featuredImage))?.featuredImage || ''
+  const iconSrc = useMemo(() => {
+    const slug = cardSlug?.trim() || ''
+    const profileStill =
+      asStillPreviewUrl(homeMedia.profileMedia) ||
+      asStillPreviewUrl(profileFieldUrl) ||
+      asStillPreviewUrl(avatarImageUrl) ||
+      asStillPreviewUrl(avatarUrl)
+    return resolvePwaInstallPreviewIconUrl({
+      pwaHomeScreenIconUrl: seo?.pwaHomeScreenIconUrl,
+      profileImageUrl: profileStill,
+      aboutMeImageUrl: asStillPreviewUrl(aboutMeFeaturedUrl) || asStillPreviewUrl(aboutMeFieldUrl),
+      fallbackIconPath: slug ? buildProfileIconPath(slug, 192) : asStillPreviewUrl(avatarUrl) || '/favicon.ico',
+    })
+  }, [
+    aboutMeFeaturedUrl,
+    aboutMeFieldUrl,
+    avatarImageUrl,
+    avatarUrl,
+    cardSlug,
+    homeMedia.profileMedia,
+    profileFieldUrl,
+    seo?.pwaHomeScreenIconUrl,
+  ])
 
   useEffect(() => {
     if (!isOpen || !cardSlug?.trim() || typeof window === 'undefined' || !('caches' in window)) return

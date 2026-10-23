@@ -3,6 +3,7 @@ import {
   isHashedNextStaticPath,
   isPublicCardDataPath,
   isPublicCardPagePath,
+  shouldServiceWorkerCacheNextStatic,
 } from '@/lib/pwa/publicCardCachePolicy'
 import { describe, expect, it } from 'vitest'
 
@@ -27,5 +28,9 @@ describe('public card cache policy', () => {
     expect(isPublicCardDataPath('/_next/data/build/vCard/acme.json')).toBe(true)
     expect(isPublicCardDataPath('/_next/data/build/dashboard.json')).toBe(false)
     expect(isHashedNextStaticPath('/_next/static/chunks/app.js')).toBe(true)
+  })
+
+  it('never lets the service worker cache-first Next static assets', () => {
+    expect(shouldServiceWorkerCacheNextStatic()).toBe(false)
   })
 })

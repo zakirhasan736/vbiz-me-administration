@@ -404,6 +404,11 @@ function TemplateDesigner() {
   const wallpaper = resolveWallpaperConfig(vCardData.themeConfig, bgMediaUrl)
   const wallpaperStyle = wallpaper.style
   const templateId = cardAppearance.profileTemplate ?? 'v3'
+  const liveThemeConfig = resolveCardThemeConfig(vCardData.themeConfig, templateId)
+  const liveAccent =
+    liveThemeConfig.colors[liveThemeConfig.colors.defaultMode === 'light' ? 'light' : 'dark'].accent ||
+    vCardData.theme.accentColor ||
+    '#eab308'
 
   const patchWallpaper = useCallback(
     (patch: Parameters<typeof patchThemeConfigWallpaper>[1]) => {
@@ -905,14 +910,14 @@ function TemplateDesigner() {
                     </span>
                     <span
                       className="h-7 w-7 shrink-0 rounded-full border border-slate-200 shadow-inner dark:border-white/15"
-                      style={{ backgroundColor: vCardData.theme.accentColor || '#eab308' }}
-                      title={vCardData.theme.accentColor || '#eab308'}
+                      style={{ backgroundColor: liveAccent }}
+                      title={liveAccent}
                     />
                   </div>
                 ) : (
                   <ColorPicker
                     label="Overlay color"
-                    value={wallpaper.imageOverlayColor || vCardData.theme.accentColor || '#0a0a0a'}
+                    value={wallpaper.imageOverlayColor || liveAccent || '#0a0a0a'}
                     onChange={(imageOverlayColor) => patchWallpaper({ imageOverlayColor })}
                   />
                 )}

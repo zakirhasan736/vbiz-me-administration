@@ -184,6 +184,8 @@ interface VCardContextType {
   avatarImageUrl: string
   updateData: (path: string, value: unknown) => void
   updateMeta: (patch: { avatarImageUrl?: string }) => void
+  /** Keep editor draft + Redux lifecycle in sync after Activate (avoids re-draft on next save). */
+  applyCardLifecycle: (patch: { isDraft: boolean; isPublic: boolean }) => void
   markAboutMeDirty: () => void
   saveVCard: (opts?: { skipNavigate?: boolean; publish?: boolean }) => Promise<string | void>
   flushSave: () => Promise<void>
@@ -334,6 +336,8 @@ function toastSaveSuccess(buckets: ReadonlySet<DirtyBucket>) {
 }
 
 function isAppearanceOrThemePath(path: string): boolean {
+  // themeConfig is the source of truth for per-mode brand + wallpaper — do not
+  // re-stamp flat `theme.*` colors onto it when the panel writes themeConfig.
   return path === 'theme' || path.startsWith('theme.') || path === 'appearance' || path.startsWith('appearance.')
 }
 
@@ -1386,6 +1390,31 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
     [isCreateMode, cardId, dispatch]
   )
 
+  const applyCardLifecycle = useCallback(
+    (patch: { isDraft: boolean; isPublic: boolean }) => {
+      if (isCreateMode || !cardId) return
+      const isDraft = patch.isDraft === true
+      const isPublic = isDraft ? false : patch.isPublic !== false
+      const base = editDataRef.current ?? (record ? toVCardData(record) : null)
+      if (base) {
+        const next = { ...base, isDraft, isPublic }
+        editDataRef.current = next
+        lastSavedProfilePayloadRef.current = JSON.stringify(mapVCardDataToProfilePayload(next))
+      }
+      dispatch(
+        updateVCard({
+          id: cardId,
+          patch: {
+            isDraft,
+            isPublic,
+            isActive: !isDraft && isPublic,
+          },
+        })
+      )
+    },
+    [isCreateMode, cardId, dispatch, record]
+  )
+
   const markAboutMeDirty = useCallback(() => {
     markDirty('aboutMe')
     scheduleAutosave()
@@ -1584,6 +1613,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       avatarImageUrl: record?.avatarImageUrl || '',
       updateData,
       updateMeta,
+      applyCardLifecycle,
       markAboutMeDirty,
       saveVCard,
       flushSave,
@@ -1597,6 +1627,7 @@ export function VCardProvider({ children }: { children: React.ReactNode }) {
       vCardData,
       updateData,
       updateMeta,
+      applyCardLifecycle,
       markAboutMeDirty,
       saveVCard,
       flushSave,

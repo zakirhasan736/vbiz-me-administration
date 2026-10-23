@@ -70,14 +70,20 @@ export default function PublicProfileLayout({
 
   const template: ProfileTemplateId = earlyTemplate
 
-  // Same merge as the builder eye preview — flat theme + theme_config stay aligned.
+  // Same merge as the builder eye preview — theme_config owns brand + wallpaper;
+  // only fold appearance + font from the record so flat theme colors cannot lag.
   const themeConfig = useMemo(() => {
     if (!record) return settingsThemeConfig
-    return applyEditorSettingsToThemeConfig(settingsThemeConfig, record.theme, {
-      ...record.appearance,
-      ...settingsAppearance,
-    })
-  }, [record, settingsThemeConfig, settingsAppearance])
+    const hasThemeConfig = Boolean(settingsThemeConfig) && fromApi
+    return applyEditorSettingsToThemeConfig(
+      settingsThemeConfig,
+      hasThemeConfig ? { fontFamily: record.theme?.fontFamily } : record.theme,
+      {
+        ...record.appearance,
+        ...settingsAppearance,
+      }
+    )
+  }, [record, settingsThemeConfig, settingsAppearance, fromApi])
 
   const colorMode = useDocumentThemeMode(themeConfig.colors.defaultMode === 'light' ? 'light' : 'dark')
 

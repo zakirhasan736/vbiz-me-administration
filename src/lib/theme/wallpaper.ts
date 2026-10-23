@@ -153,7 +153,8 @@ export function wallpaperImageOverlayEnabled(wallpaper: CardWallpaperConfig): bo
 
 /**
  * CSS background for the media overlay wash, or null when overlay is off.
- * `accent` uses the card accent; `custom` uses `imageOverlayColor`.
+ * `accent` tracks live `--vbiz-accent` (builder preview + public) so color
+ * edits apply without a remount / hard refresh; `custom` uses `imageOverlayColor`.
  */
 export function resolveWallpaperImageOverlayBackground(
   wallpaper: CardWallpaperConfig,
@@ -165,11 +166,11 @@ export function resolveWallpaperImageOverlayBackground(
     Math.min(100, wallpaper.imageOverlayOpacity ?? DEFAULT_WALLPAPER.imageOverlayOpacity ?? 35)
   )
   const source = wallpaper.imageOverlaySource === 'custom' ? 'custom' : 'accent'
-  const hex =
-    (source === 'custom' ? wallpaper.imageOverlayColor?.trim() : '') ||
-    accentColor?.trim() ||
-    wallpaper.imageOverlayColor?.trim() ||
-    DEFAULT_OVERLAY_FALLBACK
+  if (source === 'accent') {
+    const fallback = accentColor?.trim() || wallpaper.imageOverlayColor?.trim() || DEFAULT_OVERLAY_FALLBACK
+    return `color-mix(in srgb, var(--vbiz-accent, ${fallback}) ${opacity}%, transparent)`
+  }
+  const hex = wallpaper.imageOverlayColor?.trim() || accentColor?.trim() || DEFAULT_OVERLAY_FALLBACK
   return `color-mix(in srgb, ${hex} ${opacity}%, transparent)`
 }
 

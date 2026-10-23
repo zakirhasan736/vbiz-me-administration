@@ -125,7 +125,11 @@ const vcardsSlice = createSlice({
         saves: cur.saves,
         avatarImageUrl: cur.avatarImageUrl,
         backgroundImageUrl: cur.backgroundImageUrl || '',
+        // Lifecycle is owned by activate / visibility APIs (`updateVCard`), not editor keystrokes.
+        // Otherwise a stale editDataRef with isDraft:true reverts an activated card on every save.
         isActive: cur.isActive,
+        isDraft: cur.isDraft,
+        isPublic: cur.isPublic,
       }
       reindexSlugs(state)
     },

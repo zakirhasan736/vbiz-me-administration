@@ -55,6 +55,14 @@ export function isHashedNextStaticPath(pathname: string): boolean {
   return String(pathname || '').startsWith('/_next/static/')
 }
 
+/**
+ * Next `/_next/static/*` assets are content-hashed — the browser HTTP cache is enough.
+ * The service worker must not cache-first them (stale backoffice UI after theme edits).
+ */
+export function shouldServiceWorkerCacheNextStatic(): boolean {
+  return false
+}
+
 export function publicCardPathPrefix(): string {
   return `/${PUBLIC_CARD_PATH_SEGMENT}/`
 }

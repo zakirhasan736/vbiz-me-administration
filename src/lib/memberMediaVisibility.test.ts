@@ -1,7 +1,9 @@
 import {
   hiddenOwnerMediaMatches,
+  isHideOwnerSectionPostEnabled,
   mergeHiddenCorporateOwned,
   ownerMediaFingerprint,
+  schemaKeysForPublicSectionName,
   toggleHiddenOwnerMedia,
   withoutCorporateOwned,
   withoutHiddenOwnerMedia,
@@ -32,5 +34,15 @@ describe('member media visibility', () => {
       { id: 'mine' },
       { id: 'new' },
     ])
+  })
+
+  it('maps Certificates Licenses public posts to the certificates editor hide toggle', () => {
+    const names = { certificates: 'Certificates Licenses', videos: 'Videos' }
+    expect(schemaKeysForPublicSectionName('Certificates Licenses', names)).toEqual(['certificates'])
+    expect(isHideOwnerSectionPostEnabled({ certificates: true }, 'Certificates Licenses', ['certificates'])).toBe(true)
+    expect(isHideOwnerSectionPostEnabled({ certificates: true }, 'Certificates Licenses', [])).toBe(false)
+    expect(
+      isHideOwnerSectionPostEnabled({ 'Certificates Licenses': true }, 'Certificates Licenses', ['certificates'])
+    ).toBe(true)
   })
 })
