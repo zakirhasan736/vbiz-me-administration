@@ -1050,8 +1050,10 @@ export function mapVCardDataToProfilePayload(data: VCardData) {
     gender: (data.personal.gender || '').trim(),
     maritalStatus: (data.personal.relationship || '').trim(),
     dob: dob || null,
-    isPublic: data.isDraft ? false : data.isPublic,
-    isDraft: data.isDraft !== false,
+    // Only explicit draft=true is a draft. `!== false` treated missing as draft and
+    // re-drafted already-active cards on every autosave after Activate.
+    isDraft: data.isDraft === true,
+    isPublic: data.isDraft === true ? false : data.isPublic !== false,
     avatar,
     template:
       data.appearance?.profileTemplate === 'v1'

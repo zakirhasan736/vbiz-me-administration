@@ -1,4 +1,4 @@
-/** New href when the CSS changes so the preview and public card pick up colors immediately. */
+/** Stable id so we replace the same node instead of stacking hoistable sheets. */
 function cssResourceHref(href: string, css: string): string {
   let hash = 2166136261
   for (let i = 0; i < css.length; i += 1) {
@@ -8,8 +8,15 @@ function cssResourceHref(href: string, css: string): string {
   return `${href}-${(hash >>> 0).toString(36)}`
 }
 
-/** React 19 resource stylesheet. A color change replaces the sheet instead of leaving the previous one mounted. */
+/**
+ * Injects theme CSS for the public card and the builder phone preview.
+ *
+ * Do not use React 19 hoistable `<style href precedence>` here: rapid color /
+ * wallpaper edits could leave the previous sheet mounted until a hard refresh.
+ * A plain keyed `<style>` updates in place on every change.
+ */
 export function HoistableStyle({ href, css }: { href: string; css: string }) {
   if (!css.trim()) return null
-  return <style href={cssResourceHref(href, css)} precedence="medium" dangerouslySetInnerHTML={{ __html: css }} />
+  const resourceHref = cssResourceHref(href, css)
+  return <style key={resourceHref} data-vbiz-style={resourceHref} dangerouslySetInnerHTML={{ __html: css }} />
 }

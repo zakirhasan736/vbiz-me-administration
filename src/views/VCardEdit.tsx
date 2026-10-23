@@ -35,7 +35,7 @@ import { Tab4HomeMedia } from '@/components/VCardTab4'
 import { Tab5ExtraFields } from '@/components/VCardTab5'
 import { isStaffRole } from '@/constants/userRole'
 import { useDashboardTour } from '@/context/DashboardTourContext'
-import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import { useAppSelector } from '@/hooks/redux'
 import { useAccountStatus } from '@/hooks/useAccountStatus'
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll'
 import { useOwnerMode } from '@/hooks/useOwnerMode'
@@ -91,7 +91,6 @@ import {
 import { getSectionSchema } from '@/lib/vcardSectionSchemas'
 import { SectionTitleProvider } from '@/profile-app/lib/sectionTitleContext'
 import { useUpdateProfileCardMutation } from '@/redux/features/profiles/profiles.api'
-import { updateVCard } from '@/redux/features/vcards/vcards.slice'
 import { cn } from '@/utils/cn'
 import {
   AlertCircle,
@@ -135,7 +134,6 @@ function readEditorNavOrderIds(cardKey: string, preferAiSeed = false): string[] 
 export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const dispatch = useAppDispatch()
   const role = useAppSelector((state) => state.user.user?.role)
   const currentUserId = useAppSelector((state) => state.user.user?.id)
   const { ownerMode, isCorporateBackOffice } = useOwnerMode()
@@ -164,6 +162,7 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
   const {
     vCardData,
     updateData,
+    applyCardLifecycle,
     saveVCard,
     flushSave,
     saveStatus,
@@ -785,17 +784,12 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
         // Persist errors are already toasted from VCardContext.
         return
       }
-      await updateProfileCard({ id: activeCardId, body: { isDraft: false, isPublic: true } }).unwrap()
-      dispatch(
-        updateVCard({
-          id: activeCardId,
-          patch: {
-            isActive: true,
-            isDraft: false,
-            isPublic: true,
-          },
-        })
-      )
+      await updateProfileCard({
+        id: activeCardId,
+        body: { isDraft: false, isPublic: true, status: 'active' },
+      }).unwrap()
+      // Sync editor draft + Redux so later autosaves do not send isDraft:true again.
+      applyCardLifecycle({ isDraft: false, isPublic: true })
       notify.success('Card activated. The public link is live.')
     } catch (e) {
       const message =

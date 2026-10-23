@@ -26,7 +26,9 @@ describe('wallpaper image overlay', () => {
     const themeConfig = patchThemeConfigWallpaper(getDefaultThemeConfig('v3'), { style: 'image' }, 'v3')
     const wallpaper = themeConfig.wallpaper!
     expect(wallpaperImageOverlayEnabled(wallpaper)).toBe(true)
-    expect(resolveWallpaperImageOverlayBackground(wallpaper, '#eab308')).toContain('#eab308')
+    const bg = resolveWallpaperImageOverlayBackground(wallpaper, '#eab308')
+    expect(bg).toContain('var(--vbiz-accent')
+    expect(bg).toContain('#eab308')
   })
 
   it('returns null when overlay is switched off', () => {

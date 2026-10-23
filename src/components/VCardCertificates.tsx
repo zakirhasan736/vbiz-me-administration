@@ -11,7 +11,9 @@ import {
   bottomAddButtonClass,
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
+import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
 import { stripHtml } from '@/lib/htmlText'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import {
@@ -25,7 +27,7 @@ import { useVCard } from '@/lib/VCardContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { cn } from '@/utils/cn'
 import { Award, Plus } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 const inputClasses =
   'w-full bg-white dark:bg-[#0b0f19] border border-slate-200/80 dark:border-white/10 rounded-[16px] px-5 py-4 text-[13px] font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm'
@@ -38,36 +40,48 @@ const accent = {
   cardExpandedBorder: 'border-indigo-200/60 dark:border-indigo-500/20',
 }
 
+/** Same nav/schema key as Services / FAQ “Only show my …” toggles. */
+const CERTIFICATES_HIDE_OWNER_KEY = 'certificates'
+
 export function TabCertificates() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Certificates/Licenses')
   const { cardId, vCardData, updateData } = useVCard()
   const items = sectionPostsToCertItems(vCardData.sectionPosts?.[CERTIFICATES_POST_TYPE])
   const itemsRef = useRef(items)
+
+  const persist = useCallback(
+    (next: CertItem[]) => {
+      itemsRef.current = next
+      updateData('sectionPosts', {
+        ...(vCardData.sectionPosts ?? {}),
+        [CERTIFICATES_POST_TYPE]: certItemsToSectionPosts(next),
+      })
+    },
+    [updateData, vCardData.sectionPosts]
+  )
+
+  const { hideOwner, hasOwnerItems, visibleItems, commitVisible, setHideOwner } = useHideOwnerSectionList(
+    CERTIFICATES_HIDE_OWNER_KEY,
+    items,
+    persist
+  )
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
-    useExpandableEntryList(items)
+    useExpandableEntryList(visibleItems)
 
   useEffect(() => {
     itemsRef.current = items
   }, [items])
 
-  const persist = (next: CertItem[]) => {
-    itemsRef.current = next
-    updateData('sectionPosts', {
-      ...(vCardData.sectionPosts ?? {}),
-      [CERTIFICATES_POST_TYPE]: certItemsToSectionPosts(next),
-    })
-  }
-
   const addCert = () => {
     const next = createEmptyCert()
-    persist([...itemsRef.current, next])
+    commitVisible([...visibleItems, next])
     expandNew(next.id)
   }
 
   const removeCert = (id: string) => {
     if (itemsRef.current.some((item) => item.id === id && item.corporateOwned)) return
-    const next = itemsRef.current.filter((c) => c.id !== id)
-    persist(next)
+    const next = visibleItems.filter((c) => c.id !== id)
+    commitVisible(next)
     recoverExpandedAfterRemove(id, next)
   }
 
@@ -94,6 +108,14 @@ export function TabCertificates() {
             <Plus className="h-4 w-4" /> Add
           </button>
         </div>
+        {hasOwnerItems ? (
+          <HideOwnerMediaToggle
+            checked={hideOwner}
+            label="Only show my certificates"
+            detail="Corporate owner certificates stay saved. This card’s editor and public page show only the credentials you added."
+            onChange={setHideOwner}
+          />
+        ) : null}
         <button
           type="button"
           onClick={addCert}
@@ -103,11 +125,15 @@ export function TabCertificates() {
         </button>
       </div>
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="rounded-[28px] border border-slate-200/60 bg-slate-50/50 p-10 text-center dark:border-white/5 dark:bg-white/2">
-          <p className="mb-1 text-[15px] font-black text-slate-900 dark:text-white">No certificates yet</p>
+          <p className="mb-1 text-[15px] font-black text-slate-900 dark:text-white">
+            {hideOwner && hasOwnerItems ? 'Owner certificates hidden' : 'No certificates yet'}
+          </p>
           <p className="mb-5 text-[13px] text-slate-500">
-            Add a credential and upload its document (image, PDF, or TXT).
+            {hideOwner && hasOwnerItems
+              ? 'Add your own credentials for this card, or turn off “Only show my certificates” to see owner items again.'
+              : 'Add a credential and upload its document (image, PDF, or TXT).'}
           </p>
           <button
             type="button"
@@ -123,16 +149,16 @@ export function TabCertificates() {
             accent="indigo"
             label="Quick find"
             onJump={setExpandedId}
-            items={items.map((c) => ({
+            items={visibleItems.map((c) => ({
               id: c.id,
               title: c.name || 'Untitled',
               detail: c.issuer || c.year || undefined,
             }))}
           />
           <ReorderList
-            items={items}
+            items={visibleItems}
             getKey={(c) => c.id}
-            onReorder={persist}
+            onReorder={commitVisible}
             renderItem={(item, idx, dragHandleProps) => {
               const open = isExpanded(item.id)
               const previewDoc = item.documents.find(
@@ -181,8 +207,8 @@ export function TabCertificates() {
                             <input
                               value={item.name}
                               onChange={(e) =>
-                                persist(
-                                  itemsRef.current.map((c) => (c.id === item.id ? { ...c, name: e.target.value } : c))
+                                commitVisible(
+                                  visibleItems.map((c) => (c.id === item.id ? { ...c, name: e.target.value } : c))
                                 )
                               }
                               placeholder="e.g. AWS Solutions Architect"
@@ -196,8 +222,8 @@ export function TabCertificates() {
                             <RichTextEditor
                               value={item.description}
                               onChange={(html) =>
-                                persist(
-                                  itemsRef.current.map((c) => (c.id === item.id ? { ...c, description: html } : c))
+                                commitVisible(
+                                  visibleItems.map((c) => (c.id === item.id ? { ...c, description: html } : c))
                                 )
                               }
                               placeholder="Short summary of this credential"
@@ -211,8 +237,8 @@ export function TabCertificates() {
                             <input
                               value={item.issuer}
                               onChange={(e) =>
-                                persist(
-                                  itemsRef.current.map((c) => (c.id === item.id ? { ...c, issuer: e.target.value } : c))
+                                commitVisible(
+                                  visibleItems.map((c) => (c.id === item.id ? { ...c, issuer: e.target.value } : c))
                                 )
                               }
                               placeholder="Organization"
@@ -224,8 +250,8 @@ export function TabCertificates() {
                             <input
                               value={item.year}
                               onChange={(e) =>
-                                persist(
-                                  itemsRef.current.map((c) => (c.id === item.id ? { ...c, year: e.target.value } : c))
+                                commitVisible(
+                                  visibleItems.map((c) => (c.id === item.id ? { ...c, year: e.target.value } : c))
                                 )
                               }
                               placeholder="2024"
@@ -237,13 +263,12 @@ export function TabCertificates() {
                         <DocumentUploadArea
                           files={item.documents}
                           onChange={(documents) =>
-                            persist(itemsRef.current.map((c) => (c.id === item.id ? { ...c, documents } : c)))
+                            commitVisible(visibleItems.map((c) => (c.id === item.id ? { ...c, documents } : c)))
                           }
                           multiple
                           label="Certificate document"
                           hint="Upload image, PDF, TXT, or DOC"
                           accent="indigo"
-                          mediaAssist={false}
                           profileId={cardId}
                         />
                       </>

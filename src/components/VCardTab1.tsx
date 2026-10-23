@@ -54,8 +54,8 @@ export function Tab1MediaProfile() {
       <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-3xl border p-6">
         <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Profile Media</h3>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Upload your profile photo, background, and 2D explainer video. The explainer appears on its own tab on your
-          public card — separate from the intro video in Home Media.
+          Upload your profile photo, home background, and 2D explainer video. Intro video and music stay under Home
+          Media. The explainer appears on its own tab on your public card.
         </p>
       </div>
 

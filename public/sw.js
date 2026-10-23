@@ -408,11 +408,11 @@ self.addEventListener('pushsubscriptionchange', (event) => {
   )
 })
 
-const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v5'
-const CARD_DATA_CACHE = 'vbiz-public-card-data-v5'
-const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v5'
-const NEXT_STATIC_CACHE = 'vbiz-next-static-v5'
-const MANAGED_CACHES = [CARD_SHELL_CACHE, CARD_DATA_CACHE, CARD_ASSET_CACHE, NEXT_STATIC_CACHE, CARD_PUSH_MEDIA_CACHE]
+const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v6'
+const CARD_DATA_CACHE = 'vbiz-public-card-data-v6'
+const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v6'
+/** Dropped: never SW-cache `/_next/static` (stale builder UI). Old `vbiz-next-static-v*` cleared on activate. */
+const MANAGED_CACHES = [CARD_SHELL_CACHE, CARD_DATA_CACHE, CARD_ASSET_CACHE, CARD_PUSH_MEDIA_CACHE]
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -420,7 +420,9 @@ self.addEventListener('activate', (event) => {
       const keep = new Set(MANAGED_CACHES)
       const keys = await caches.keys()
       await Promise.all(
-        keys.filter((key) => key.startsWith('vbiz-') && !keep.has(key)).map((key) => caches.delete(key))
+        keys
+          .filter((key) => (key.startsWith('vbiz-') && !keep.has(key)) || key.startsWith('vbiz-next-static-'))
+          .map((key) => caches.delete(key))
       )
       await self.clients.claim()
     })()
@@ -504,16 +506,6 @@ function isBackofficePath(pathname) {
   )
 }
 
-function isBackofficeReferer(request) {
-  const referer = request.referrer || (request.headers && request.headers.get('Referer'))
-  if (!referer) return false
-  try {
-    return isBackofficePath(new URL(referer).pathname)
-  } catch {
-    return false
-  }
-}
-
 function isPublicCardDataRequest(url) {
   const pathname = String(url.pathname || '').toLowerCase()
   if (url.origin === self.location.origin && pathname.startsWith('/_next/data/'))
@@ -544,10 +536,10 @@ function shouldHandleFetch(url, request) {
   if (isBackofficePath(pathname)) return false
   if (url.origin === self.location.origin && pathname.startsWith('/_next/webpack')) return false
   if (url.origin === self.location.origin && pathname.includes('hot-update')) return false
-  if (url.origin === self.location.origin && pathname.startsWith('/_next/static/')) {
-    if (isBackofficeReferer(request)) return false
-    return true
-  }
+  // Never SW-cache Next build assets. Content hashes already bust; cache-first here
+  // left the card-builder backoffice on stale JS/CSS until a hard refresh (missing
+  // Referer, or a prior public-card visit warming NEXT_STATIC_CACHE).
+  if (url.origin === self.location.origin && pathname.startsWith('/_next/static/')) return false
   if (request.mode === 'navigate' && isPublicCardPage(pathname)) return true
   if (isPublicCardMeta(pathname)) return false
   if (isPublicCardDataRequest(url)) return true
@@ -556,7 +548,6 @@ function shouldHandleFetch(url, request) {
 }
 
 function cacheNameForUrl(url) {
-  if (url.origin === self.location.origin && url.pathname.startsWith('/_next/static/')) return NEXT_STATIC_CACHE
   if (isPublicCardDataRequest(url)) return CARD_DATA_CACHE
   if (isPublicCardAssetRequest(url)) return CARD_ASSET_CACHE
   return CARD_SHELL_CACHE
@@ -680,19 +671,6 @@ async function publicCardNavigationFallback(request) {
   }
 }
 
-async function cacheFirst(request, cacheName) {
-  const cache = await caches.open(cacheName)
-  const hit = await matchCachedRequest(cache, request)
-  if (hit) return hit
-  try {
-    const res = await fetch(request)
-    if (isCacheableResponse(res)) await cache.put(request, res.clone())
-    return res
-  } catch {
-    return Response.error()
-  }
-}
-
 /**
  * Public-card PWA only. Backoffice, auth, and private APIs pass through.
  * Online card data/settings always network-first; cache is offline fallback.
@@ -708,11 +686,6 @@ self.addEventListener('fetch', (event) => {
   if (!shouldHandleFetch(url, event.request)) return
 
   const sameOrigin = url.origin === self.location.origin
-
-  if (sameOrigin && url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(cacheFirst(event.request, NEXT_STATIC_CACHE))
-    return
-  }
 
   if (sameOrigin && event.request.mode === 'navigate' && isPublicCardPage(url.pathname)) {
     event.respondWith(

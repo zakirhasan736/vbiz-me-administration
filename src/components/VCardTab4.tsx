@@ -1,13 +1,11 @@
 'use client'
 
 import { useCanvaConnection } from '@/components/canva'
-import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { musicFileAllowed } from '@/lib/packageAccess'
-import { inferMediaWallpaperStyle, patchThemeConfigWallpaper } from '@/lib/theme/wallpaper'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { useAuth } from '@/providers/AuthProvider'
@@ -16,7 +14,6 @@ import {
   Check,
   CreditCard,
   Grid,
-  Image as ImageIcon,
   Loader2,
   Lock,
   Mail,
@@ -453,35 +450,21 @@ const FIELD_INTRO = 'Intro vCard Video'
 const FIELD_INTRO_YT = 'Intro YouTube vCard Video Link'
 const FIELD_MUSIC = 'Background Music'
 const FIELD_MUSIC_YT = 'YouTube Background Music Link'
-const FIELD_BG = 'Background Video/Image'
 
 export function Tab4HomeMedia() {
   const { user } = useAuth()
-  const { cardId, vCardData, updateData } = useVCard()
-  const { display, getCustomValue, setCustomValue, patchField } = useVCardDisplayEditor()
+  const { cardId } = useVCard()
+  const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const { can } = usePackageAccess()
   const canMusicFile = musicFileAllowed(can)
   const canYtMusic = can('allow_yt_bg_music_upload')
   const canCanva = can('allow_canva')
-  const templateId = vCardData.appearance?.profileTemplate ?? 'v3'
 
   const introVideoUrl = getCustomValue(FIELD_INTRO)
   const bgMusicUrl = getCustomValue(FIELD_MUSIC)
-  const bgMediaUrl = getCustomValue(FIELD_BG)
   const introYoutubeUrl = getCustomValue(FIELD_INTRO_YT)
   const musicYoutubeUrl = getCustomValue(FIELD_MUSIC_YT)
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
-
-  const setBackgroundMedia = (url: string, options?: { clearFrame?: boolean }) => {
-    patchField(FIELD_BG, {
-      customValue: url || '',
-      ...(options?.clearFrame || !url ? { mediaFrame: undefined } : {}),
-    })
-    const trimmed = url.trim()
-    if (!trimmed) return
-    const next = inferMediaWallpaperStyle(trimmed)
-    updateData('themeConfig', patchThemeConfigWallpaper(vCardData.themeConfig, { style: next }, templateId))
-  }
 
   const [introStart, setIntroStart] = useState('0')
   const [introEnd, setIntroEnd] = useState('0')
@@ -497,7 +480,8 @@ export function Tab4HomeMedia() {
       <div className="bg-primary-50/50 dark:bg-primary-500/2 border-primary-100 dark:border-primary-500/10 mb-8 rounded-3xl border p-6">
         <h3 className="text-primary-600 dark:text-primary-400 mb-2 text-lg font-black">Home Page Media</h3>
         <p className="mb-0 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          Set the background, intro video and background music for your vCard homepage. All fields are optional.
+          Set the intro video and background music for your vCard homepage. Profile background lives under Media &amp;
+          Profile. All fields are optional.
         </p>
       </div>
 
@@ -676,37 +660,6 @@ export function Tab4HomeMedia() {
                   />
                 </FieldGroup>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm lg:col-span-2 dark:border-white/5 dark:bg-white/2">
-          <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">
-            <div className="bg-primary-50 dark:bg-primary-500/10 border-primary-100 dark:border-primary-500/20 flex h-10 w-10 items-center justify-center rounded-[14px] border">
-              <ImageIcon className="text-primary-600 dark:text-primary-400 h-5 w-5" />
-            </div>
-            <h4 className="text-[16px] font-black text-slate-900 dark:text-white">Background Media</h4>
-          </div>
-          <div className="p-4 sm:p-8">
-            <div className="max-w-xl">
-              <VCardMediaField
-                variant="inset"
-                value={bgMediaUrl}
-                onChange={(url) => setBackgroundMedia(url || '', { clearFrame: !url })}
-                profileId={profileId}
-                attachmentType={FIELD_BG}
-                accept="image/*,video/*"
-                allowVideo
-                selectPlaceholder="Select media file"
-                subtitle="Full-card background • drag, zoom, and position"
-                previewKind="auto"
-                previewClassName="aspect-video max-h-56"
-                frameLayout="feature"
-                mediaFrame={display.fields[FIELD_BG]?.mediaFrame}
-                onMediaFrameChange={(mediaFrame) => patchField(FIELD_BG, { mediaFrame })}
-              >
-                <MediaSourceActions mode="both" onSelect={(asset) => setBackgroundMedia(asset.url)} />
-              </VCardMediaField>
             </div>
           </div>
         </section>

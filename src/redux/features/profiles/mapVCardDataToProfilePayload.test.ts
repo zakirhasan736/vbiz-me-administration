@@ -19,3 +19,21 @@ describe('mapVCardDataToProfilePayload gender', () => {
     expect(payload.maritalStatus).toBe('Married')
   })
 })
+
+describe('mapVCardDataToProfilePayload lifecycle', () => {
+  it('does not treat an active card as draft on autosave', () => {
+    const data = createDefaultVCardData({
+      isDraft: false,
+      isPublic: true,
+      personal: {
+        ...createDefaultVCardData().personal,
+        fullName: 'Active Member',
+      },
+    })
+
+    const payload = mapVCardDataToProfilePayload(data)
+
+    expect(payload.isDraft).toBe(false)
+    expect(payload.isPublic).toBe(true)
+  })
+})

@@ -158,6 +158,7 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
       />
       {mediaOverlayBg ? (
         <div
+          key={mediaOverlayBg}
           className="pointer-events-none absolute inset-0 z-[1]"
           style={{ background: mediaOverlayBg }}
           aria-hidden

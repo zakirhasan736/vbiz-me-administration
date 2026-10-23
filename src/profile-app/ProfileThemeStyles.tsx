@@ -112,6 +112,13 @@ function buildProfileThemeCss(design: ResolvedProfileDesign): string {
 /** Overrides hardcoded accent classes inside the profile app shell. */
 export function ProfileThemeStyles({ design }: { design: ResolvedProfileDesign }) {
   const css = useMemo(() => buildProfileThemeCss(design), [design])
+  const revision = [
+    design.primaryColor,
+    design.secondaryColor,
+    design.accentColor,
+    design.profileTemplate,
+    design.darkMode ? 'd' : 'l',
+  ].join('|')
 
-  return <HoistableStyle href="vbiz-profile-theme" css={css} />
+  return <HoistableStyle href={`vbiz-profile-theme:${revision}`} css={css} />
 }

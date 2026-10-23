@@ -53,15 +53,19 @@ function LivePreviewProfileInner({ previewTheme, onPreviewThemeChange, previewAc
 
   const earlyTemplate: ProfileTemplateId =
     (vCardData.appearance?.profileTemplate as ProfileTemplateId | undefined) ?? designSettings.profileTemplate ?? 'v3'
-  const themeConfig = useMemo(
-    () =>
-      applyEditorSettingsToThemeConfig(
-        vCardData.themeConfig ?? getDefaultThemeConfig(earlyTemplate),
-        vCardData.theme,
-        vCardData.appearance
-      ),
-    [vCardData.themeConfig, vCardData.theme, vCardData.appearance, earlyTemplate]
-  )
+  const themeConfig = useMemo(() => {
+    const hasThemeConfig = Boolean(vCardData.themeConfig)
+    const base = vCardData.themeConfig ?? getDefaultThemeConfig(earlyTemplate)
+    // themeConfig is the live source of truth for brand + wallpaper overlay. Do not
+    // re-stamp flat theme.primary/accent here — that kept the phone preview on stale
+    // colors until a hard refresh (flat theme lags one updateData behind the panel).
+    // Legacy cards without themeConfig still fold flat brand colors in.
+    return applyEditorSettingsToThemeConfig(
+      base,
+      hasThemeConfig ? { fontFamily: vCardData.theme?.fontFamily } : vCardData.theme,
+      vCardData.appearance
+    )
+  }, [vCardData.themeConfig, vCardData.theme, vCardData.appearance, earlyTemplate])
   const fromApi = true
 
   const profileProps = useMemo(() => {
