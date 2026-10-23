@@ -128,6 +128,9 @@ const CUSTOM_VALUE_SETTING_KEYS: Record<string, string> = {
   'Intro YouTube vCard Video Link': 'intro_youtube_url',
 }
 
+/** YouTube URL settings — empty must persist so Remove does not revive the previous link on hydrate. */
+const YOUTUBE_URL_SETTING_KEYS = new Set(['intro_youtube_url', 'background_music_url'])
+
 export const EXTRA_FIELDS_SETTING_KEY = 'extra_fields_json'
 export const GAME_IDS_SETTING_KEY = 'game_ids_json'
 export const DISPLAY_SETTINGS_SETTING_KEY = 'display_settings_json'
@@ -165,10 +168,18 @@ export function mapDisplaySettingsToApiSettings(
     if (fieldKey) settings[fieldKey] = checkboxValue(field.visible)
 
     const customKey = CUSTOM_VALUE_SETTING_KEYS[label]
-    const custom = field.customValue?.trim()
-    if (customKey && custom && isPersistableMediaUrl(custom)) settings[customKey] = custom
-    // Empty clears are written by DELETE /media/clear so we don't wipe legacy
-    // attachment-backed media on every autosave of untouched empty fields.
+    const custom = field.customValue?.trim() || ''
+    if (customKey && custom && isPersistableMediaUrl(custom)) {
+      settings[customKey] = custom
+    } else if (
+      customKey &&
+      YOUTUBE_URL_SETTING_KEYS.has(customKey) &&
+      Object.prototype.hasOwnProperty.call(field, 'customValue')
+    ) {
+      // Persist intentional YouTube clears. File/attachment media still use /media/clear
+      // so empty file fields do not wipe legacy attachment-backed URLs on every autosave.
+      settings[customKey] = ''
+    }
   }
 
   // Compat: public MyCard historically reads bg_video_checkbox

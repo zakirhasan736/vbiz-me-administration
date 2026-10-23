@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import {
   EXTRA_FIELDS_SETTING_KEY,
+  mapDisplaySettingsToApiSettings,
   mapExtraFieldsToApiSettings,
   omitUnchangedCorporateSharedSettings,
   parseExtraFieldsJson,
   TAB_LABEL_OVERRIDES_SETTING_KEY,
 } from '@/lib/api/myCard/mapDisplaySettingsToApi'
+import type { VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 
 describe('extra fields settings', () => {
   it('round-trips empty extra-field drafts so autosave cannot drop them', () => {
@@ -36,6 +38,38 @@ describe('extra fields settings', () => {
 
   it('writes an empty JSON array when every extra field is removed', () => {
     expect(mapExtraFieldsToApiSettings([])).toEqual({ [EXTRA_FIELDS_SETTING_KEY]: '[]' })
+  })
+})
+
+describe('mapDisplaySettingsToApiSettings YouTube clears', () => {
+  it('persists empty intro / background-music YouTube URLs so Remove does not revive them', () => {
+    const display: VCardDisplaySettings = {
+      globalEnabled: true,
+      fields: {
+        'Intro YouTube vCard Video Link': { visible: true, customValue: '' },
+        'YouTube Background Music Link': { visible: true, customValue: '   ' },
+        'Intro vCard Video': { visible: true, customValue: '' },
+      },
+    }
+    const settings = mapDisplaySettingsToApiSettings(display)
+    expect(settings.intro_youtube_url).toBe('')
+    expect(settings.background_music_url).toBe('')
+    // File media still omits empty clears (legacy attachments use /media/clear).
+    expect(settings.intro_video_url).toBeUndefined()
+  })
+
+  it('still writes non-empty YouTube URLs', () => {
+    const display: VCardDisplaySettings = {
+      globalEnabled: true,
+      fields: {
+        'Intro YouTube vCard Video Link': {
+          visible: true,
+          customValue: 'https://www.youtube.com/watch?v=abc123',
+        },
+      },
+    }
+    const settings = mapDisplaySettingsToApiSettings(display)
+    expect(settings.intro_youtube_url).toBe('https://www.youtube.com/watch?v=abc123')
   })
 })
 

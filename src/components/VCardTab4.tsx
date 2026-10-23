@@ -5,6 +5,7 @@ import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { usePackageAccess } from '@/hooks/usePackageAccess'
+import { clearProfileMediaAttachment } from '@/lib/media/clearProfileMediaAttachment'
 import { musicFileAllowed } from '@/lib/packageAccess'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
@@ -12,7 +13,7 @@ import { buildYoutubePlayerEmbedUrl, isYoutubeUrl } from '@/lib/youtubeEmbed'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
 import { Check, CreditCard, Grid, Lock, Mail, MapPin, Music, Upload, Video, Wand2, X } from 'lucide-react'
 import Image from 'next/image'
-import React, { ReactNode, useMemo, useState } from 'react'
+import React, { ReactNode, useCallback, useMemo, useState } from 'react'
 
 function FieldGroup({ label, children, icon }: { label: string; children: ReactNode; icon?: ReactNode }) {
   return (
@@ -334,6 +335,15 @@ export function Tab4HomeMedia() {
   const musicYoutubeUrl = getCustomValue(FIELD_MUSIC_YT)
   const profileId = cardId && !isLocalTempId(cardId) ? cardId : undefined
 
+  const clearYoutubeLink = useCallback(
+    (fieldKey: typeof FIELD_INTRO_YT | typeof FIELD_MUSIC_YT) => {
+      setCustomValue(fieldKey, '')
+      if (!profileId) return
+      void clearProfileMediaAttachment({ profileId, attachmentType: fieldKey }).catch(() => undefined)
+    },
+    [profileId, setCustomValue]
+  )
+
   const introYoutubeEmbed = useMemo(
     () =>
       isYoutubeUrl(introYoutubeUrl)
@@ -441,7 +451,7 @@ export function Tab4HomeMedia() {
                   {introYoutubeUrl.trim() ? (
                     <button
                       type="button"
-                      onClick={() => setCustomValue(FIELD_INTRO_YT, '')}
+                      onClick={() => clearYoutubeLink(FIELD_INTRO_YT)}
                       className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
                     >
                       Remove
@@ -528,7 +538,7 @@ export function Tab4HomeMedia() {
                   {musicYoutubeUrl.trim() ? (
                     <button
                       type="button"
-                      onClick={() => setCustomValue(FIELD_MUSIC_YT, '')}
+                      onClick={() => clearYoutubeLink(FIELD_MUSIC_YT)}
                       disabled={!canYtMusic}
                       className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
                     >
