@@ -220,6 +220,14 @@ export function VCardTeamCard({
       setAlertState({ title: 'URL slug required', description: 'Set a URL slug in the editor first.' })
       return
     }
+    if (isDraft || !isPublic) {
+      setAlertState({
+        title: 'Card not live',
+        description:
+          'Turn Visibility on to publish this card. While Visibility is off, the public URL shows Not found.',
+      })
+      return
+    }
     window.open(publicPath, '_blank')
   }
 
@@ -428,7 +436,11 @@ export function VCardTeamCard({
                     : SUSPENDED_CARD_MESSAGE
                   : pausedByAdmin
                     ? ACCOUNT_PAUSED_VCARD_MESSAGE
-                    : undefined
+                    : isDraft
+                      ? 'Turn on to publish: card becomes Active and the live slug URL opens in the browser'
+                      : isPublic
+                        ? 'Visibility on — live slug is public. Turn off to hide the URL (Not found) without deleting the card'
+                        : 'Visibility off — card stays in Active list as Inactive; live slug returns Not found until turned on'
               }
               compact
               onChange={(next) => void handleVisibilityChange(next)}
