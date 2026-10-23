@@ -6,7 +6,8 @@ import type { MyCardData } from '@interfaces/api/myCard'
 import { ImageResponse } from 'next/og'
 import { NextResponse } from 'next/server'
 
-const ICON_CACHE_CONTROL = 'public, max-age=86400, stale-while-revalidate=604800'
+/** Short TTL so linked-card SEO / Home Screen icon edits show up without a day-long owner cache. */
+const ICON_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
 /** Short TTL so browsers retry after a public-API rate-limit window. */
 const DEGRADED_ICON_CACHE_CONTROL = 'public, max-age=30, stale-while-revalidate=60'
 
