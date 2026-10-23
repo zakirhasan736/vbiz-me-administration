@@ -512,6 +512,7 @@ export function MediaSourceActions({
         rememberCanvaHandoff(session)
         setFlowStatus('opening')
         // Same-tab handoff — Canva Return Navigation brings the user back to our return URL.
+        // Must use the same Canva account that connected OAuth, or Canva shows 403.
         window.location.assign(session.editUrl)
       } catch (err) {
         setFlowStatus('failed')
@@ -519,6 +520,10 @@ export function MediaSourceActions({
         if (/session expired|reconnect|not connected|missing scopes/i.test(message)) {
           setLocalError('Session expired — reconnect Canva')
           setShowConnect(true)
+        } else if (/403|forbidden|return navigation/i.test(message)) {
+          setLocalError(
+            'Canva blocked the editor (403). Enable Return Navigation in the Canva Developer Portal, use the same Canva account you connected, then try again.'
+          )
         } else {
           setLocalError(message)
         }
