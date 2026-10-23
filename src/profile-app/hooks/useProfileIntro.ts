@@ -48,7 +48,7 @@ export function useProfileIntro({ embedded = false, profileSlug, shareSlug, expl
   const [introState, setIntroState] = useState<IntroState>(() => resolveIntroState(embedded, slug, isClient))
   const [clientReady, setClientReady] = useState(isClient)
   const [prevSyncKey, setPrevSyncKey] = useState(syncKey)
-  /** Visitor unmuted the intro — unlock sound on home background video after intro (not profile media). */
+  /** Visitor unmuted the intro — unlock sound on home profile video after intro (background wallpaper stays muted). */
   const [homeMediaSoundUnlocked, setHomeMediaSoundUnlocked] = useState(false)
 
   if (!clientReady && isClient) {

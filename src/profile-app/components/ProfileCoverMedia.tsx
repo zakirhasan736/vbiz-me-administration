@@ -3,10 +3,8 @@
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { resolveWallpaperConfig, wallpaperNeedsMedia } from '@/lib/theme/wallpaper'
 import { ProfileWallpaperContent } from '@/profile-app/components/ProfileWallpaperContent'
-import { HOME_MEDIA_SOUND_EVENT, type HomeMediaSoundDetail } from '@/profile-app/lib/homeMediaSound'
 import { restoreCoverPlayback, saveCoverPlayback } from '@/profile-app/lib/profileCoverPlayback'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
-import { useProfileIntroContextOptional } from '@/profile-app/providers/ProfileIntroProvider'
 import { useProfileTheme } from '@/profile-app/providers/ProfileThemeProvider'
 import { memo, useEffect, useRef } from 'react'
 
@@ -20,6 +18,7 @@ type Props = {
 /**
  * Cover media — always mounts the video immediately (no intersection defer) so
  * buffering can finish during intro and play the moment home is visible.
+ * Background wallpaper video always stays muted.
  */
 export const ProfileCoverMedia = memo(function ProfileCoverMedia({
   persistenceId,
@@ -29,7 +28,6 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
 }: Props) {
   const theme = useProfileTheme()
   const { field, design } = useProfileDisplay()
-  const preferSound = Boolean(useProfileIntroContextOptional()?.homeMediaSoundUnlocked)
   const wallpaper = resolveWallpaperConfig(theme?.themeConfig, coverVideoUrl)
   const needsMedia = wallpaperNeedsMedia(wallpaper.style)
   const src = coverVideoUrl?.trim() ?? ''
@@ -43,53 +41,14 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
     const el = coverVideoRef.current
     if (!el) return
 
-    let soundBlocked = false
-    let gestureUnlocked = preferSound
-    const wantSound = () => (preferSound || gestureUnlocked) && !soundBlocked
-
-    const applyMute = (withSound: boolean) => {
-      el.playsInline = true
-      if (withSound) {
-        el.muted = false
-        el.defaultMuted = false
-        el.removeAttribute('muted')
-        if (el.volume === 0) el.volume = 0.7
-      } else {
-        el.muted = true
-        el.defaultMuted = true
-        el.setAttribute('muted', '')
-      }
-    }
-
-    applyMute(wantSound())
+    el.muted = true
+    el.defaultMuted = true
+    el.playsInline = true
+    el.setAttribute('muted', '')
     restoreCoverPlayback(cacheKey, el)
 
     const tryPlay = () => {
-      applyMute(wantSound())
-      if (!el.paused) return
-      void el.play().catch(() => {
-        if (wantSound()) {
-          soundBlocked = true
-          applyMute(false)
-          void el.play().catch(() => undefined)
-        }
-      })
-    }
-
-    const onSoundPreference = (event: Event) => {
-      const detail = (event as CustomEvent<HomeMediaSoundDetail>).detail
-      gestureUnlocked = Boolean(detail?.unlocked)
-      soundBlocked = false
-      if (!gestureUnlocked) {
-        applyMute(false)
-        return
-      }
-      applyMute(true)
-      void el.play().catch(() => {
-        soundBlocked = true
-        applyMute(false)
-        void el.play().catch(() => undefined)
-      })
+      if (el.paused) void el.play().catch(() => undefined)
     }
 
     // Do not call el.load() — it aborts in-flight buffers from warmup / first mount.
@@ -97,16 +56,14 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
     el.addEventListener('loadedmetadata', tryPlay)
     el.addEventListener('loadeddata', tryPlay)
     el.addEventListener('canplay', tryPlay)
-    window.addEventListener(HOME_MEDIA_SOUND_EVENT, onSoundPreference)
 
     return () => {
       el.removeEventListener('loadedmetadata', tryPlay)
       el.removeEventListener('loadeddata', tryPlay)
       el.removeEventListener('canplay', tryPlay)
-      window.removeEventListener(HOME_MEDIA_SOUND_EVENT, onSoundPreference)
       saveCoverPlayback(cacheKey, el)
     }
-  }, [cacheKey, isVideo, preferSound])
+  }, [cacheKey, isVideo])
 
   if (needsMedia && !src && (wallpaper.style === 'image' || wallpaper.style === 'video')) {
     return null

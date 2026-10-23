@@ -12,12 +12,12 @@ export function audioFromDisplaySettings(
 ): MyCardBackgroundAudio | null {
   if (!settings) return null
 
-  const fileVisible = isFieldVisible(settings, 'Background Music')
-  const ytVisible = isFieldVisible(settings, 'YouTube Background Music Link')
-  const fileUrl = fileVisible ? getFieldConfig(settings, 'Background Music').customValue?.trim() || '' : ''
-  const ytUrl = ytVisible ? getFieldConfig(settings, 'YouTube Background Music Link').customValue?.trim() || '' : ''
-  const repeatVisible = isFieldVisible(settings, 'Repeat Background Music')
-  const repeat = repeatVisible !== false
+  // Play whenever a Home Media music URL is set (file or YouTube), including after a YouTube intro.
+  const fileUrl = getFieldConfig(settings, 'Background Music').customValue?.trim() || ''
+  const ytUrl = getFieldConfig(settings, 'YouTube Background Music Link').customValue?.trim() || ''
+  const repeat = isFieldVisible(settings, 'Repeat Background Music') !== false
+
+  if (!fileUrl && !ytUrl) return null
 
   if (fileUrl && !extractYoutubeVideoId(fileUrl)) {
     return {

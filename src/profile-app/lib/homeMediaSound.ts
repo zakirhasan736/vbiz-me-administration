@@ -1,4 +1,4 @@
-/** Sync bridge so home background video can unmute inside the intro unmute click gesture. */
+/** Sync bridge so home profile video can unmute inside the intro unmute click gesture. */
 
 export const HOME_MEDIA_SOUND_EVENT = 'vbiz-home-media-sound'
 

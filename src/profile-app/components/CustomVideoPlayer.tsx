@@ -1,5 +1,7 @@
 import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { isVideoUrl } from '@/lib/mediaUrl'
+import { HOME_MEDIA_SOUND_EVENT, type HomeMediaSoundDetail } from '@/profile-app/lib/homeMediaSound'
+import { useProfileIntroContextOptional } from '@/profile-app/providers/ProfileIntroProvider'
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import Image from 'next/image'
 import { MouseEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -65,13 +67,16 @@ function ProfileVideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(true)
   const [progress, setProgress] = useState(0)
-  // Profile / owner avatar videos always start muted and never inherit intro unmute.
-  const [isMuted, setIsMuted] = useState(true)
+  // Owner profile video: unmute after intro if the visitor unmuted the intro (derived, no effect setState).
+  const introSoundUnlocked = Boolean(useProfileIntroContextOptional()?.homeMediaSoundUnlocked)
+  const isOwnerLayout = controlsMode === 'owner'
+  const [userMuteOverride, setUserMuteOverride] = useState<boolean | null>(null)
+  const isMuted = userMuteOverride ?? (isOwnerLayout ? !introSoundUnlocked : true)
   const [isHovering, setIsHovering] = useState(false)
+  const userOverrideRef = useRef(false)
   const coarsePointer = useCoarsePointer()
   const fit = mediaFrame ? profileMediaFitStyle(mediaFrame) : null
 
-  const isOwnerLayout = controlsMode === 'owner'
   // Touch devices have no hover — keep mute/play reachable on first tap.
   const showPlayButton = isOwnerLayout ? isHovering || !isPlaying || coarsePointer : isHovering || coarsePointer
   const showHoverBar = isHovering || coarsePointer
@@ -109,11 +114,41 @@ function ProfileVideoPlayer({
     video.muted = isMuted
     if (isMuted) {
       video.setAttribute('muted', '')
+      video.defaultMuted = true
     } else {
       video.removeAttribute('muted')
+      video.defaultMuted = false
       if (video.volume === 0) video.volume = 1
+      if (video.paused) void video.play().catch(() => undefined)
     }
   }, [isMuted])
+
+  // Gesture-timed DOM unmute during intro click (context re-render may lag one frame).
+  useEffect(() => {
+    if (!isOwnerLayout) return
+
+    const onSoundPreference = (event: Event) => {
+      if (userOverrideRef.current) return
+      const detail = (event as CustomEvent<HomeMediaSoundDetail>).detail
+      const unlocked = Boolean(detail?.unlocked)
+      const video = videoRef.current
+      if (!video) return
+      if (!unlocked) {
+        video.muted = true
+        video.defaultMuted = true
+        video.setAttribute('muted', '')
+        return
+      }
+      video.muted = false
+      video.defaultMuted = false
+      video.removeAttribute('muted')
+      if (video.volume === 0) video.volume = 1
+      void video.play().catch(() => undefined)
+    }
+
+    window.addEventListener(HOME_MEDIA_SOUND_EVENT, onSoundPreference)
+    return () => window.removeEventListener(HOME_MEDIA_SOUND_EVENT, onSoundPreference)
+  }, [isOwnerLayout])
 
   const togglePlay = (e: MouseEvent) => {
     e.preventDefault()
@@ -130,12 +165,14 @@ function ProfileVideoPlayer({
     const video = videoRef.current
     if (!video) return
 
+    userOverrideRef.current = true
+
     if (isMuted) {
       video.muted = false
       video.defaultMuted = false
       video.removeAttribute('muted')
       if (video.volume === 0) video.volume = 1
-      setIsMuted(false)
+      setUserMuteOverride(false)
       // Unmute often pauses autoplay on iOS — resume in this gesture.
       if (video.paused) void video.play().catch(() => undefined)
       return
@@ -144,7 +181,7 @@ function ProfileVideoPlayer({
     video.muted = true
     video.defaultMuted = true
     video.setAttribute('muted', '')
-    setIsMuted(true)
+    setUserMuteOverride(true)
   }
 
   const handleSeek = (e: MouseEvent<HTMLDivElement>) => {

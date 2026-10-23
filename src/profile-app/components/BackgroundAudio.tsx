@@ -33,6 +33,28 @@ function postYoutubeCommand(iframe: HTMLIFrameElement, func: string, args: unkno
   iframe.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*')
 }
 
+function listenYoutubeReady(iframe: HTMLIFrameElement, onReady: () => void) {
+  const onMessage = (event: MessageEvent) => {
+    if (!String(event.origin || '').includes('youtube.com')) return
+    try {
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+      if (data?.event === 'onReady' || data?.info?.playerState != null) {
+        onReady()
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  window.addEventListener('message', onMessage)
+  // Ask the player to start sending events (needed after intro YouTube iframe unmounts).
+  try {
+    iframe.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: iframe.id }), '*')
+  } catch {
+    /* ignore */
+  }
+  return () => window.removeEventListener('message', onMessage)
+}
+
 export function BackgroundAudio({ audio, design, embedded = false, readyToPlay = true }: Props) {
   const source = resolveBackgroundAudioSource(audio)
   const [isMuted, setIsMuted] = useState(true)
@@ -42,6 +64,7 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
   const sourceRef = useRef<BackgroundAudioSource | null>(source)
   const volumeRef = useRef(volume)
   const mutedRef = useRef(true)
+  const readyToPlayRef = useRef(readyToPlay)
   const iframeId = useId().replace(/:/g, '')
 
   const accentColor = design?.accentColor ?? design?.primaryColor
@@ -57,6 +80,10 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
   useEffect(() => {
     mutedRef.current = isMuted
   }, [isMuted])
+
+  useEffect(() => {
+    readyToPlayRef.current = readyToPlay
+  }, [readyToPlay])
 
   const bindFilePlayback = useCallback(
     (el: HTMLAudioElement, activeSource: Extract<BackgroundAudioSource, { type: 'file' }>) => {
@@ -194,20 +221,45 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
       return bindFilePlayback(el, source)
     }
 
-    return undefined
-  }, [audio, source, bindFilePlayback])
+    const iframe = iframeRef.current
+    if (!iframe) return
+
+    // YouTube BG music (incl. after a YouTube intro): wait for player ready, then play muted.
+    const stopListen = listenYoutubeReady(iframe, () => {
+      if (!readyToPlayRef.current) return
+      void startPlayback()
+    })
+    const kick = window.setInterval(() => {
+      if (!readyToPlayRef.current) return
+      void startPlayback()
+    }, 800)
+    const stopKick = window.setTimeout(() => window.clearInterval(kick), 8000)
+
+    return () => {
+      stopListen()
+      window.clearInterval(kick)
+      window.clearTimeout(stopKick)
+    }
+  }, [audio, source, bindFilePlayback, startPlayback])
 
   useEffect(() => {
     if (!source) return
     if (readyToPlay) {
       void startPlayback()
-      return
+      // Extra kicks right after intro skip/end — YouTube intro can steal the audio session briefly.
+      const t1 = window.setTimeout(() => void startPlayback(), 250)
+      const t2 = window.setTimeout(() => void startPlayback(), 900)
+      return () => {
+        window.clearTimeout(t1)
+        window.clearTimeout(t2)
+      }
     }
     // Hidden/minimized preview: stop the media instead of letting it run unseen.
     const el = audioRef.current
     if (el && !el.paused) el.pause()
     const iframe = iframeRef.current
     if (iframe) postYoutubeCommand(iframe, 'pauseVideo')
+    return undefined
   }, [readyToPlay, source, startPlayback])
 
   const toggleMute = useCallback(() => {

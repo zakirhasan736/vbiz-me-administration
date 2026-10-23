@@ -21,6 +21,7 @@ export function ProfileBackgroundAudio({ profileSlug, shareSlug }: Props) {
 
   const fromDisplay = useMemo(() => audioFromDisplaySettings(settings), [settings])
   // Live editor + public card: prefer Home Media display fields so fresh uploads/YouTube links play immediately.
+  // Fall back to API so published YouTube BG music still plays even if display snapshot lags.
   const audio = fromDisplay || fromApi || null
 
   return (
