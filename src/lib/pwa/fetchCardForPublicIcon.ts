@@ -5,7 +5,7 @@ import type { MyCardData } from '@interfaces/api/myCard'
 /** Fresh enough to dedupe concurrent icon/192 + icon/512; keep short so SEO edits apply quickly. */
 const ICON_CARD_TTL_MS = 5_000
 /** After TTL, still reuse on rate-limit / transient API failure instead of blank icons. */
-const ICON_CARD_STALE_MS = 60_000
+const ICON_CARD_STALE_MS = 10 * 60_000
 
 type CacheEntry = { at: number; data: MyCardData | null }
 
