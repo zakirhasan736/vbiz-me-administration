@@ -26,7 +26,7 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
   isHeroLayout,
 }: Props) {
   const theme = useProfileTheme()
-  const { field } = useProfileDisplay()
+  const { field, design } = useProfileDisplay()
   const wallpaper = resolveWallpaperConfig(theme?.themeConfig, coverVideoUrl)
   const needsMedia = wallpaperNeedsMedia(wallpaper.style)
   const src = coverVideoUrl?.trim() ?? ''
@@ -76,13 +76,12 @@ export const ProfileCoverMedia = memo(function ProfileCoverMedia({
         wallpaper={wallpaper}
         mediaUrl={src}
         mediaFrame={mediaFrame}
+        accentColor={design?.accentColor}
         alt={ownerName ? `${ownerName} cover` : 'Cover'}
         deferVideo={false}
         videoVisible
         mediaClassName={mediaFrame ? 'opacity-100 brightness-105' : 'object-cover opacity-100 brightness-105'}
       />
-      <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-b from-zinc-50/25 via-zinc-50/5 to-transparent dark:from-[#09090b]/70 dark:via-[#09090b]/30 dark:to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-48 bg-linear-to-t from-zinc-50/90 via-zinc-50/30 to-transparent dark:from-[#09090b] dark:via-[#09090b]/40" />
     </div>
   )
 })

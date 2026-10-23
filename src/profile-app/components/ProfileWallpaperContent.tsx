@@ -13,6 +13,7 @@ import {
   patternBackgroundSize,
   resolveGradientCss,
   resolvePatternBackgroundLayers,
+  resolveWallpaperImageOverlayBackground,
   wallpaperNeedsMedia,
   type CardWallpaperConfig,
   type WallpaperPatternId,
@@ -27,6 +28,8 @@ type Props = {
   mediaUrl?: string | null
   /** Drag / zoom / object-position saved on Background Video/Image. */
   mediaFrame?: ProfileMediaFrame | null
+  /** Global accent — used when image overlay source is `accent`. */
+  accentColor?: string | null
   className?: string
   /** Applied to img/video elements (template opacity / blend). */
   mediaClassName?: string
@@ -68,6 +71,7 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
     wallpaper,
     mediaUrl,
     mediaFrame = null,
+    accentColor = null,
     className,
     mediaClassName,
     alt = '',
@@ -79,6 +83,7 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
   const style = wallpaper.style
   const fillColor = wallpaper.fillColor || '#0a0a0a'
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
+  const mediaOverlayBg = resolveWallpaperImageOverlayBackground(wallpaper, accentColor)
 
   const setVideoRef = (node: HTMLVideoElement | null) => {
     localVideoRef.current = node
@@ -137,19 +142,28 @@ export const ProfileWallpaperContent = forwardRef<HTMLVideoElement, Props>(funct
   )
 
   return (
-    <WallpaperMedia
-      treatAsVideo={treatAsVideo}
-      deferVideo={deferVideo}
-      videoVisible={videoVisible}
-      src={src}
-      alt={alt}
-      isBlur={isBlur}
-      className={className}
-      mediaClasses={mediaClasses}
-      mediaFrame={mediaFrame}
-      setVideoRef={setVideoRef}
-      localVideoRef={localVideoRef}
-    />
+    <>
+      <WallpaperMedia
+        treatAsVideo={treatAsVideo}
+        deferVideo={deferVideo}
+        videoVisible={videoVisible}
+        src={src}
+        alt={alt}
+        isBlur={isBlur}
+        className={className}
+        mediaClasses={mediaClasses}
+        mediaFrame={mediaFrame}
+        setVideoRef={setVideoRef}
+        localVideoRef={localVideoRef}
+      />
+      {mediaOverlayBg ? (
+        <div
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{ background: mediaOverlayBg }}
+          aria-hidden
+        />
+      ) : null}
+    </>
   )
 })
 

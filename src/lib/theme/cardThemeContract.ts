@@ -72,6 +72,16 @@ export type CardWallpaperConfig = {
   gradientTo?: string
   premadeId?: string
   patternId?: 'dots' | 'grid' | 'diagonal'
+  /**
+   * Color wash on image / video / blur covers.
+   * `false` = show the media with no tint. Default (unset/`true`) keeps an overlay.
+   */
+  imageOverlayEnabled?: boolean
+  /** `accent` = global accent color; `custom` = `imageOverlayColor`. */
+  imageOverlaySource?: 'accent' | 'custom'
+  imageOverlayColor?: string
+  /** 0–100. How strong the wash is. */
+  imageOverlayOpacity?: number
 }
 
 export type BannerVariant = 'gradient' | 'solid' | 'image'
