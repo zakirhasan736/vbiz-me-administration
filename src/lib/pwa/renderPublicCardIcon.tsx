@@ -6,10 +6,10 @@ import type { MyCardData } from '@interfaces/api/myCard'
 import { ImageResponse } from 'next/og'
 import { NextResponse } from 'next/server'
 
-/** Short TTL so linked-card SEO / Home Screen icon edits show up without a day-long owner cache. */
-const ICON_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300'
+/** Short TTL so linked-card SEO / Home Screen icon edits show up without a stale owner icon. */
+const ICON_CACHE_CONTROL = 'public, max-age=60, must-revalidate'
 /** Short TTL so browsers retry after a public-API rate-limit window. */
-const DEGRADED_ICON_CACHE_CONTROL = 'public, max-age=30, stale-while-revalidate=60'
+const DEGRADED_ICON_CACHE_CONTROL = 'public, max-age=15, must-revalidate'
 
 const ALLOWED_HOST_SUFFIXES = [
   'app.vbizme.com',
@@ -94,7 +94,8 @@ async function fetchAvatarBuffer(avatarUrl: string, origin: string): Promise<Buf
   try {
     const response = await fetch(fetchUrl, {
       headers: { Accept: 'image/*,*/*' },
-      next: { revalidate: 3600 },
+      // Never reuse a cached owner portrait when the linked card's SEO icon URL changed.
+      cache: 'no-store',
     })
     if (!response.ok) return null
     const headerType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()

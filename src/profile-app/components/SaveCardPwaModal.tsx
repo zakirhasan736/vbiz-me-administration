@@ -35,7 +35,6 @@ export function SaveCardPwaModal({
   isOpen,
   onClose,
   ownerName,
-  avatarUrl,
   cardSlug,
   contactJustSaved = false,
 }: SaveCardPwaModalProps) {
@@ -58,26 +57,28 @@ export function SaveCardPwaModal({
   const aboutMeFeaturedUrl = aboutMe?.items?.find((item) => asStillPreviewUrl(item.featuredImage))?.featuredImage || ''
   const iconSrc = useMemo(() => {
     const slug = cardSlug?.trim() || ''
+    // Prefer this card's SEO / Home Screen + own portrait — never the prop avatar alone
+    // (linked cards often still carry the corporate owner's seeded avatar).
     const profileStill =
       asStillPreviewUrl(homeMedia.profileMedia) ||
       asStillPreviewUrl(profileFieldUrl) ||
-      asStillPreviewUrl(avatarImageUrl) ||
-      asStillPreviewUrl(avatarUrl)
+      asStillPreviewUrl(avatarImageUrl)
+    const seoStill = asStillPreviewUrl(seo?.seoImage)
     return resolvePwaInstallPreviewIconUrl({
-      pwaHomeScreenIconUrl: seo?.pwaHomeScreenIconUrl,
+      pwaHomeScreenIconUrl: seo?.pwaHomeScreenIconUrl || seoStill,
       profileImageUrl: profileStill,
       aboutMeImageUrl: asStillPreviewUrl(aboutMeFeaturedUrl) || asStillPreviewUrl(aboutMeFieldUrl),
-      fallbackIconPath: slug ? buildProfileIconPath(slug, 192) : asStillPreviewUrl(avatarUrl) || '/favicon.ico',
+      fallbackIconPath: slug ? buildProfileIconPath(slug, 192) : '/favicon.ico',
     })
   }, [
     aboutMeFeaturedUrl,
     aboutMeFieldUrl,
     avatarImageUrl,
-    avatarUrl,
     cardSlug,
     homeMedia.profileMedia,
     profileFieldUrl,
     seo?.pwaHomeScreenIconUrl,
+    seo?.seoImage,
   ])
 
   useEffect(() => {

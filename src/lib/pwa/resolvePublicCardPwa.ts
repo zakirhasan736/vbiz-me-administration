@@ -6,6 +6,23 @@ function ownerDisplayName(card: MyCardData | null | undefined): string {
   return card?.profile?.name?.trim() || card?.profile?.company_name?.trim() || ''
 }
 
+/** Corporate team member / duplicate card — SEO & Home Screen must not use the source owner's portrait. */
+export function isLinkedCorporateCard(card: MyCardData | null | undefined): boolean {
+  const from = card?.settings?.duplicated_from
+  return typeof from === 'string' && Boolean(from.trim())
+}
+
+/** Short cache-buster so mobile Chrome does not keep an old owner icon after SEO edits. */
+export function pwaIconCacheToken(avatarUrl: string | null | undefined): string {
+  const value = avatarUrl?.trim() || ''
+  if (!value) return '0'
+  let hash = 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0
+  }
+  return hash.toString(36)
+}
+
 /** Home-screen label; OS truncates long names. */
 export function resolvePwaShortName(fullName: string | null | undefined, slug: string): string {
   const name = fullName?.trim() || slug.trim() || 'vCard'
@@ -51,12 +68,11 @@ function pushPwaImage(seen: Set<string>, out: string[], url?: string | null) {
 /**
  * Home Screen / PWA install icon stills, in order:
  * 1. Explicit Add to Home Screen image (Card Settings → SEO)
- * 2. This card's profile image (settings / profile_media — not a stale copied avatar)
- * 3. About Me featured image
- * 4. Open Graph / other stills on the card
+ * 2. Open Graph / SEO image on this card
+ * 3. This card's own profile / About Me stills
  *
- * Linked corporate cards often keep the owner's `profile.avatar` from duplicate while the
- * member's own photo lives in `profile_media_url` / Profile Image/Video — prefer those first.
+ * Linked corporate cards: never fall back to the source owner's seeded `profile.avatar`,
+ * company logo, or shared featured images — those are owner-team assets, not this member's SEO.
  */
 export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
   const settings = card.settings || {}
@@ -64,27 +80,41 @@ export function resolvePwaAvatarCandidates(card: MyCardData): string[] {
   const seen = new Set<string>()
   const candidates: string[] = []
   const push = (url?: string | null) => pushPwaImage(seen, candidates, url)
+  const linked = isLinkedCorporateCard(card)
   const media = card.profile_media
   const mediaIsVideo =
     media?.is_video === true || isPwaVideoUrl(media?.url || '') || isPwaVideoUrl(media?.video_url || '')
 
+  // Card Settings → SEO (unique per linked card; never copied from the corporate owner).
   push(setting('pwa_home_screen_icon_url'))
-
-  push(setting('profile_media_url'))
-  for (const key of ['avatar', 'avatar_url', 'profile_image', 'profile_image_url']) push(setting(key))
-  if (!mediaIsVideo) push(media?.url)
-  push(media?.fallback_url)
-  push(card.profile?.avatar)
-
-  push(setting('about_me_featured_media_url'))
-
   push(setting('seo_image_url'))
   push(setting('share_preview_image_url'))
-  push(setting('featured_image'))
-  push(setting('featured_image_url'))
-  push(setting('company_logo'))
-  push(setting('company_icon_url'))
-  push(myInfoIcon(card, ['professional', 'personal'], ['company_name', 'company', 'company_office']))
+
+  // This card's own portrait / About Me.
+  push(setting('profile_media_url'))
+  for (const key of ['profile_image', 'profile_image_url']) push(setting(key))
+  if (!mediaIsVideo) push(media?.url)
+  push(media?.fallback_url)
+  push(setting('about_me_featured_media_url'))
+
+  if (!linked) {
+    for (const key of ['avatar', 'avatar_url']) push(setting(key))
+    push(card.profile?.avatar)
+    push(setting('featured_image'))
+    push(setting('featured_image_url'))
+    push(setting('company_logo'))
+    push(setting('company_icon_url'))
+    push(myInfoIcon(card, ['professional', 'personal'], ['company_name', 'company', 'company_office']))
+  } else {
+    // Linked card: only reuse profile.avatar when it is the same URL the member set as their portrait.
+    const ownPortrait =
+      setting('profile_media_url') ||
+      setting('profile_image') ||
+      setting('profile_image_url') ||
+      (!mediaIsVideo ? media?.url?.trim() || '' : '')
+    const avatar = card.profile?.avatar?.trim() || ''
+    if (avatar && ownPortrait && avatar === ownPortrait) push(avatar)
+  }
 
   return candidates
 }
@@ -150,8 +180,9 @@ export function buildPublicCardManifest(card: MyCardData | null | undefined, slu
   const trimmed = slug.trim()
   const path = buildProfilePath(trimmed)
   const meta = resolvePublicCardPwaMeta(card, trimmed)
-  const icon192 = `${path}/icon/192`
-  const icon512 = `${path}/icon/512`
+  const bust = pwaIconCacheToken(meta.avatarUrl)
+  const icon192 = `${path}/icon/192?v=${bust}`
+  const icon512 = `${path}/icon/512?v=${bust}`
 
   return {
     id: path,
@@ -218,7 +249,8 @@ export function manifestJsonResponse(manifest: ReturnType<typeof buildPublicCard
     status: 200,
     headers: {
       'Content-Type': 'application/manifest+json',
-      'Cache-Control': 'public, max-age=300',
+      // Short TTL + revalidate so linked-card SEO / Home Screen edits reach mobile install promptly.
+      'Cache-Control': 'public, max-age=60, must-revalidate',
     },
   })
 }
