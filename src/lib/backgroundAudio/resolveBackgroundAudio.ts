@@ -1,4 +1,4 @@
-import { extractYoutubeVideoId } from '@/lib/youtubeEmbed'
+import { buildYoutubeAudioOnlyEmbedUrl, extractYoutubeVideoId } from '@/lib/youtubeEmbed'
 import type { MyCardBackgroundAudio } from '@interfaces/api/myCard'
 
 export type BackgroundAudioSource =
@@ -76,29 +76,18 @@ export function resolveBackgroundAudioSource(audio?: MyCardBackgroundAudio | nul
   return { type: 'file', src: fileSrc, startTime, endTime, loop }
 }
 
+/** Off-screen audio-only YouTube stream for background music (no visible video chrome). */
 export function buildYoutubeEmbedUrl(
   source: Extract<BackgroundAudioSource, { type: 'youtube' }>,
   options?: { muted?: boolean; origin?: string }
 ): string {
-  const params = new URLSearchParams({
-    autoplay: '1',
-    mute: options?.muted === false ? '0' : '1',
-    controls: '0',
-    disablekb: '1',
-    fs: '0',
-    modestbranding: '1',
-    playsinline: '1',
-    rel: '0',
-    enablejsapi: '1',
-  })
-
-  if (source.startTime > 0) params.set('start', String(Math.floor(source.startTime)))
-  if (source.endTime != null) params.set('end', String(Math.floor(source.endTime)))
-  if (source.loop) {
-    params.set('loop', '1')
-    params.set('playlist', source.videoId)
-  }
-  if (options?.origin) params.set('origin', options.origin)
-
-  return `https://www.youtube.com/embed/${source.videoId}?${params.toString()}`
+  return (
+    buildYoutubeAudioOnlyEmbedUrl(source.videoId, {
+      muted: options?.muted,
+      loop: source.loop,
+      startSeconds: source.startTime,
+      endSeconds: source.endTime,
+      origin: options?.origin,
+    }) || `https://www.youtube-nocookie.com/embed/${source.videoId}`
+  )
 }

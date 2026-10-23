@@ -58,6 +58,8 @@ function YoutubeIntroPreloader({ videoUrl, onSkip, skipLabel }: Props) {
         autoplay: true,
         muted: true,
         controls: false,
+        hideChrome: true,
+        privacyEnhanced: true,
         enableJsApi: true,
         origin: typeof window !== 'undefined' ? window.location.origin : undefined,
       }),
@@ -104,14 +106,27 @@ function YoutubeIntroPreloader({ videoUrl, onSkip, skipLabel }: Props) {
       className="vbiz-theme-scope fixed inset-0 z-200 overflow-hidden bg-black text-white"
       style={{ width: '100dvw', height: '100dvh' }}
     >
-      <iframe
-        ref={iframeRef}
-        title="Intro video"
-        src={embedSrc}
-        allow="autoplay; encrypted-media; picture-in-picture"
-        allowFullScreen
-        className="absolute inset-0 h-full w-full border-0"
-      />
+      {/* Scale/crop the iframe so YouTube title, logo, and watermark sit outside the viewport. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <iframe
+          ref={iframeRef}
+          title="Intro video"
+          src={embedSrc}
+          allow="autoplay; encrypted-media"
+          tabIndex={-1}
+          className="absolute top-1/2 left-1/2 border-0"
+          style={{
+            width: '100vw',
+            height: '56.25vw',
+            minHeight: '100vh',
+            minWidth: '177.78vh',
+            transform: 'translate(-50%, -50%) scale(1.35)',
+          }}
+        />
+      </div>
+      {/* Soft edge masks — catch residual YouTube chrome if scale is not enough on odd aspect ratios. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-linear-to-b from-black via-black/80 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-20 bg-linear-to-t from-black via-black/80 to-transparent" />
       <div className="absolute right-4 bottom-4 z-30 flex items-center gap-3 sm:right-6 sm:bottom-6">
         <button
           type="button"

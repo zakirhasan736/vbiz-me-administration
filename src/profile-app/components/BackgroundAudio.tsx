@@ -354,10 +354,12 @@ export function BackgroundAudio({ audio, design, embedded = false, readyToPlay =
         <iframe
           ref={iframeRef}
           id={iframeId}
-          title="Background audio"
+          title="Background music"
           src={youtubeSrc}
           allow="autoplay; encrypted-media"
-          className="pointer-events-none absolute left-[-9999px] h-px w-px opacity-0"
+          tabIndex={-1}
+          // Audio-only: keep the YouTube frame completely off-screen and non-interactive.
+          className="pointer-events-none fixed top-0 left-[-10000px] h-px w-px overflow-hidden opacity-0"
           aria-hidden
         />
       )}
