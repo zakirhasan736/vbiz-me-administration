@@ -4,6 +4,15 @@ import { CanvaConnectModal } from '@/components/canva/CanvaConnectModal'
 import { CanvaLibraryPicker, type CanvaPickedFile } from '@/components/canva/CanvaLibraryPicker'
 import { useCanvaConnection } from '@/components/canva/useCanvaConnection'
 import { SkeletonImage } from '@/components/media/SkeletonMedia'
+import { createCanvaDesignSessionApi, fetchCanvaImportSessionApi } from '@/lib/canva/backendClient'
+import {
+  clearCanvaHandoff,
+  currentBuilderRoute,
+  markCanvaImportApplied,
+  readStoredCanvaDesignId,
+  rememberCanvaHandoff,
+  wasCanvaImportApplied,
+} from '@/lib/canva/editHandoff'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/utils/cn'
@@ -15,12 +24,14 @@ import {
   LayoutGrid,
   Loader2,
   Palette,
+  Pencil,
+  Plus,
   ShieldCheck,
   Video,
   Wand2,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 export type MediaAsset = {
   id: string
@@ -392,12 +403,28 @@ type Props = {
    * Defaults to true so existing video fields keep those extras.
    */
   showVideoExtras?: boolean
+  /** Stable Card Builder field key (usually attachment type name). Required for Create in Canva. */
+  fieldKey?: string | null
+  /** Attachment type for media library binding. Defaults to fieldKey. */
+  attachmentType?: string | null
+  /** Stable repeatable-row id (service/blog/portfolio item) — survives reorder. */
+  itemKey?: string | null
+  /** Design title hint in Canva. */
+  designTitle?: string | null
+  /** Previously associated Canva design id for Edit in Canva. */
+  canvaDesignId?: string | null
+  /** Hide Create/Edit in Canva (picker-only). */
+  allowCreateInCanva?: boolean
 }
+
+type CreateFlowStatus =
+  'idle' | 'creating' | 'opening' | 'waiting_return' | 'exporting' | 'uploading' | 'ready' | 'failed'
 
 /**
  * Connect Canva (+ Gallery / Custom Made for video fields).
  * After Canva connect, opens the owner's real Canva designs, exports the pick,
  * uploads to vBiz media storage, and fills the field URL.
+ * Also supports Create / Edit in Canva via Return Navigation + auto-import.
  */
 export function MediaSourceActions({
   mode = 'image',
@@ -406,6 +433,12 @@ export function MediaSourceActions({
   compact,
   profileId,
   showVideoExtras: showVideoExtrasProp = true,
+  fieldKey,
+  attachmentType,
+  itemKey,
+  designTitle,
+  canvaDesignId,
+  allowCreateInCanva = true,
 }: Props) {
   const { user } = useAuth()
   const userId = user?.uid ?? null
@@ -421,16 +454,152 @@ export function MediaSourceActions({
   const [saving, setSaving] = useState(false)
   const [pickedName, setPickedName] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
+  const [flowStatus, setFlowStatus] = useState<CreateFlowStatus>('idle')
+  const [connectIntent, setConnectIntent] = useState<'picker' | 'create' | 'edit'>('picker')
+  const onSelectRef = useRef(onSelect)
+
+  const resolvedFieldKey = (fieldKey || attachmentType || '').trim()
+  const resolvedAttachmentType = (attachmentType || fieldKey || '').trim()
+  const storedDesignId =
+    canvaDesignId ||
+    (profileId && resolvedFieldKey ? readStoredCanvaDesignId(profileId, resolvedFieldKey, itemKey) : null)
+  const canCreate = allowCreateInCanva && Boolean(profileId && resolvedFieldKey)
+
+  useEffect(() => {
+    onSelectRef.current = onSelect
+  }, [onSelect])
+
+  const ensureConnected = useCallback(
+    (intent: 'picker' | 'create' | 'edit') => {
+      setLocalError(null)
+      if (!userId) {
+        setLocalError('Sign in to connect Canva')
+        return false
+      }
+      if (!isConnected) {
+        setConnectIntent(intent)
+        setShowConnect(true)
+        return false
+      }
+      return true
+    },
+    [userId, isConnected]
+  )
+
+  const launchCreateOrEdit = useCallback(
+    async (editExisting: boolean) => {
+      if (!profileId || !resolvedFieldKey) {
+        setLocalError('Save the card first, then create media in Canva for this field.')
+        return
+      }
+      if (!ensureConnected(editExisting ? 'edit' : 'create')) return
+
+      setLocalError(null)
+      setFlowStatus('creating')
+      try {
+        const mediaKind: 'image' | 'video' = mode === 'video' ? 'video' : 'image'
+        const session = await createCanvaDesignSessionApi({
+          profileId,
+          fieldKey: resolvedFieldKey,
+          itemKey: itemKey || null,
+          attachmentType: resolvedAttachmentType || resolvedFieldKey,
+          mediaKind,
+          builderRoute: currentBuilderRoute(),
+          title: designTitle || undefined,
+          designId: editExisting && storedDesignId ? storedDesignId : undefined,
+        })
+        if (!session.editUrl) throw new Error('Canva did not return an editor URL')
+        rememberCanvaHandoff(session)
+        setFlowStatus('opening')
+        // Same-tab handoff — Canva Return Navigation brings the user back to our return URL.
+        window.location.assign(session.editUrl)
+      } catch (err) {
+        setFlowStatus('failed')
+        const message = err instanceof Error ? err.message : 'Failed to open Canva'
+        if (/session expired|reconnect|not connected|missing scopes/i.test(message)) {
+          setLocalError('Session expired — reconnect Canva')
+          setShowConnect(true)
+        } else {
+          setLocalError(message)
+        }
+      }
+    },
+    [profileId, resolvedFieldKey, ensureConnected, mode, itemKey, resolvedAttachmentType, designTitle, storedDesignId]
+  )
 
   useEffect(() => {
     if (!justConnected || !isConnected || !userId) return
     const t = setTimeout(() => {
       setShowConnect(false)
-      setShowPicker(true)
+      if (connectIntent === 'create') {
+        void launchCreateOrEdit(false)
+      } else if (connectIntent === 'edit') {
+        void launchCreateOrEdit(true)
+      } else {
+        setShowPicker(true)
+      }
       clearJustConnected()
     }, 0)
     return () => clearTimeout(t)
-  }, [justConnected, isConnected, userId, clearJustConnected])
+  }, [justConnected, isConnected, userId, clearJustConnected, connectIntent, launchCreateOrEdit])
+
+  // Apply auto-imported media when returning to this exact field from /canva/return
+  useEffect(() => {
+    if (typeof window === 'undefined' || !profileId || !resolvedFieldKey) return
+    const params = new URLSearchParams(window.location.search)
+    const sessionId = params.get('canva_session')
+    const matchField = params.get('canva_field')
+    const matchItem = params.get('canva_item')
+    if (!sessionId || matchField !== resolvedFieldKey) return
+    if ((matchItem || '') !== (itemKey || '')) return
+    if (wasCanvaImportApplied(sessionId)) return
+
+    let cancelled = false
+    const kick = window.setTimeout(() => {
+      if (cancelled) return
+      setFlowStatus('exporting')
+      void (async () => {
+        try {
+          const session = await fetchCanvaImportSessionApi(sessionId)
+          if (cancelled) return
+          if (session.profileId !== profileId) return
+          if (session.status === 'ready' && session.resultUrl) {
+            markCanvaImportApplied(sessionId)
+            clearCanvaHandoff()
+            onSelectRef.current({
+              id: session.designId,
+              name: session.resultFilename || session.designTitle || 'Canva design',
+              url: session.resultUrl,
+              kind: session.mediaKind === 'video' ? 'video' : 'image',
+            })
+            setPickedName(session.resultFilename || session.designTitle || 'Canva design')
+            setFlowStatus('ready')
+            params.delete('canva_session')
+            params.delete('canva_field')
+            params.delete('canva_item')
+            params.delete('canva_return')
+            const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`
+            window.history.replaceState({}, '', next)
+          } else if (session.status === 'failed') {
+            setFlowStatus('failed')
+            setLocalError(session.errorMessage || 'Canva export failed')
+          } else {
+            setFlowStatus('exporting')
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setFlowStatus('failed')
+            setLocalError(err instanceof Error ? err.message : 'Failed to apply Canva import')
+          }
+        }
+      })()
+    }, 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(kick)
+    }
+  }, [profileId, resolvedFieldKey, itemKey])
 
   const showVideoExtras = showVideoExtrasProp && (mode === 'video' || mode === 'both')
 
@@ -438,15 +607,7 @@ export function MediaSourceActions({
     'inline-flex items-center justify-center gap-2 rounded-[14px] text-[13px] font-bold transition-all active:scale-[0.98] whitespace-nowrap'
 
   const handleCanvaClick = () => {
-    setLocalError(null)
-    if (!userId) {
-      setLocalError('Sign in to connect Canva')
-      return
-    }
-    if (!isConnected) {
-      setShowConnect(true)
-      return
-    }
+    if (!ensureConnected('picker')) return
     setShowPicker(true)
   }
 
@@ -458,6 +619,7 @@ export function MediaSourceActions({
       const uploaded = await uploadMediaWithProgress({
         file: picked.file,
         profileId: profileId ?? undefined,
+        attachmentType: resolvedAttachmentType || undefined,
       })
       onSelect({
         id: picked.id,
@@ -476,13 +638,30 @@ export function MediaSourceActions({
     }
   }
 
+  const flowLabel =
+    flowStatus === 'creating'
+      ? 'Creating Canva design…'
+      : flowStatus === 'opening'
+        ? 'Opening Canva…'
+        : flowStatus === 'waiting_return'
+          ? 'Waiting for Canva return…'
+          : flowStatus === 'exporting'
+            ? 'Exporting design…'
+            : flowStatus === 'uploading'
+              ? 'Uploading to vBiz Me…'
+              : flowStatus === 'ready'
+                ? 'Ready to use'
+                : flowStatus === 'failed'
+                  ? 'Export failed'
+                  : null
+
   return (
     <div className={cn('space-y-2', className)}>
       <div className={cn('flex flex-wrap gap-2', compact ? 'gap-2' : 'gap-3')}>
         <button
           type="button"
           onClick={handleCanvaClick}
-          disabled={isLoading || saving}
+          disabled={isLoading || saving || flowStatus === 'creating' || flowStatus === 'opening'}
           className={cn(
             btnBase,
             compact ? 'px-3.5 py-2.5' : 'px-5 py-3.5',
@@ -493,6 +672,44 @@ export function MediaSourceActions({
           {saving || isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Palette className="h-4 w-4" />}
           {saving ? 'Saving from Canva…' : isConnected ? 'Choose from Canva' : 'Connect Canva'}
         </button>
+
+        {canCreate && isConnected && (
+          <button
+            type="button"
+            onClick={() => void launchCreateOrEdit(false)}
+            disabled={isLoading || saving || flowStatus === 'creating' || flowStatus === 'opening'}
+            className={cn(
+              btnBase,
+              compact ? 'px-3.5 py-2.5' : 'px-5 py-3.5',
+              'border border-[#7D2AE8]/40 bg-[#7D2AE8]/10 text-[#7D2AE8] hover:border-[#7D2AE8] hover:bg-[#7D2AE8] hover:text-white disabled:opacity-60'
+            )}
+            title="Create a new design in Canva and return here automatically"
+          >
+            {flowStatus === 'creating' || flowStatus === 'opening' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            Create in Canva
+          </button>
+        )}
+
+        {canCreate && isConnected && storedDesignId && (
+          <button
+            type="button"
+            onClick={() => void launchCreateOrEdit(true)}
+            disabled={isLoading || saving || flowStatus === 'creating' || flowStatus === 'opening'}
+            className={cn(
+              btnBase,
+              compact ? 'px-3.5 py-2.5' : 'px-5 py-3.5',
+              'border border-slate-300/80 bg-slate-50 text-slate-700 hover:border-slate-400 hover:bg-slate-100 disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200'
+            )}
+            title="Edit the linked Canva design and re-import on return"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit in Canva
+          </button>
+        )}
 
         {showVideoExtras && (
           <>
@@ -528,6 +745,26 @@ export function MediaSourceActions({
         <div className="flex items-center gap-2 text-[11px] font-bold text-[#00C4CC]">
           {mode === 'video' ? <Video className="h-3.5 w-3.5" /> : <ImageIcon className="h-3.5 w-3.5" />}
           Saved from Canva: {pickedName}
+        </div>
+      )}
+
+      {flowLabel && (
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-[#7D2AE8]">
+          {(flowStatus === 'creating' ||
+            flowStatus === 'opening' ||
+            flowStatus === 'exporting' ||
+            flowStatus === 'uploading' ||
+            flowStatus === 'waiting_return') && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {flowLabel}
+          {flowStatus === 'failed' && canCreate && (
+            <button
+              type="button"
+              className="underline"
+              onClick={() => void launchCreateOrEdit(Boolean(storedDesignId))}
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 

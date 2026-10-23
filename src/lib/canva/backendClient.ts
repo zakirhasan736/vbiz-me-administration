@@ -1,4 +1,10 @@
-import type { CanvaConnectionStatus, CanvaExportFormat, CanvaLibraryItem } from '@/lib/canva/types'
+import type {
+  CanvaConnectionStatus,
+  CanvaCreateDesignInput,
+  CanvaEditSession,
+  CanvaExportFormat,
+  CanvaLibraryItem,
+} from '@/lib/canva/types'
 import { baseUrl } from '@/redux/api/api'
 import { store } from '@/redux/store'
 
@@ -82,4 +88,23 @@ export async function importCanvaDesignApi(input: {
   const blob = await response.blob()
   const filename = response.headers.get('X-Canva-Filename') || `canva-design.${input.format === 'mp4' ? 'mp4' : 'png'}`
   return { blob, filename }
+}
+
+export async function createCanvaDesignSessionApi(input: CanvaCreateDesignInput): Promise<CanvaEditSession> {
+  return canvaJson('/designs/create', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function fetchCanvaImportSessionApi(sessionId: string): Promise<CanvaEditSession> {
+  return canvaJson(`/imports/${encodeURIComponent(sessionId)}`)
+}
+
+export async function retryCanvaImportSessionApi(sessionId: string): Promise<CanvaEditSession> {
+  return canvaJson(`/imports/${encodeURIComponent(sessionId)}/retry`, { method: 'POST' })
+}
+
+export async function cancelCanvaImportSessionApi(sessionId: string): Promise<CanvaEditSession> {
+  return canvaJson(`/imports/${encodeURIComponent(sessionId)}/cancel`, { method: 'POST' })
 }

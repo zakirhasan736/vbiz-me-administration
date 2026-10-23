@@ -88,6 +88,9 @@ export function Tab1MediaProfile() {
             mode="both"
             compact
             className="mt-3"
+            profileId={profileId}
+            fieldKey={FIELD_BG}
+            attachmentType={FIELD_BG}
             onSelect={(asset) => setBackgroundMedia(asset.url)}
           />
         </VCardMediaField>
@@ -120,6 +123,9 @@ export function Tab1MediaProfile() {
             mode="both"
             compact
             className="mt-3"
+            profileId={profileId}
+            fieldKey={FIELD_AVATAR}
+            attachmentType={FIELD_AVATAR}
             onSelect={(asset) => {
               setCustomValue(FIELD_AVATAR, asset.url)
               updateMeta({ avatarImageUrl: asset.url })
@@ -148,6 +154,10 @@ export function Tab1MediaProfile() {
               mode="video"
               compact
               className="mt-3"
+              profileId={profileId}
+              fieldKey={EXPLAINER_ATTACHMENT_TYPE}
+              attachmentType={EXPLAINER_ATTACHMENT_TYPE}
+              designTitle="2D Explainer Video"
               onSelect={(asset) => patchExplainer({ fileUrl: asset.url })}
             />
           </VCardMediaField>
