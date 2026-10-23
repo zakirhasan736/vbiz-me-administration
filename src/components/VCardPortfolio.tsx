@@ -351,6 +351,10 @@ export function TabPortfolio() {
                               mode="both"
                               compact
                               profileId={cardId}
+                              fieldKey="Portfolio Gallery"
+                              attachmentType="Portfolio Gallery"
+                              itemKey={portfolio.id}
+                              designTitle={portfolio.title ? `${portfolio.title} — gallery` : 'Gallery media'}
                               onSelect={(asset) => {
                                 if (isRejectedPortfolioAudio(asset.url, null, asset.name)) return
                                 patchPortfolio(portfolio.id, {

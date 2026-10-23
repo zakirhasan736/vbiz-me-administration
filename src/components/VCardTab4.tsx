@@ -1,6 +1,6 @@
 'use client'
 
-import { useCanvaConnection } from '@/components/canva'
+import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
@@ -9,25 +9,10 @@ import { musicFileAllowed } from '@/lib/packageAccess'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { buildYoutubePlayerEmbedUrl, isYoutubeUrl } from '@/lib/youtubeEmbed'
-import { useAuth } from '@/providers/AuthProvider'
 import { isLocalTempId } from '@/redux/features/profiles/profiles.api'
-import {
-  Check,
-  CreditCard,
-  Grid,
-  Loader2,
-  Lock,
-  Mail,
-  MapPin,
-  Music,
-  Palette,
-  Upload,
-  Video,
-  Wand2,
-  X,
-} from 'lucide-react'
+import { Check, CreditCard, Grid, Lock, Mail, MapPin, Music, Upload, Video, Wand2, X } from 'lucide-react'
 import Image from 'next/image'
-import React, { ReactNode, useEffect, useMemo, useState } from 'react'
+import React, { ReactNode, useMemo, useState } from 'react'
 
 function FieldGroup({ label, children, icon }: { label: string; children: ReactNode; icon?: ReactNode }) {
   return (
@@ -330,130 +315,12 @@ function CustomOrderModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function CanvaIntegrationModal({
-  userId,
-  onClose,
-  onSelectVideo,
-}: {
-  userId?: string | null
-  onClose: () => void
-  onSelectVideo: (v: { name: string; url: string }) => void
-}) {
-  const { isConnected, isLoading, error, connect } = useCanvaConnection({ userId })
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [workflowStep, setWorkflowStep] = useState<'editor' | 'exporting' | null>(null)
-
-  const step: 'connect' | 'connecting' | 'connected' | 'editor' | 'exporting' =
-    workflowStep === 'exporting'
-      ? 'exporting'
-      : workflowStep === 'editor'
-        ? 'editor'
-        : isConnected
-          ? 'connected'
-          : isConnecting
-            ? 'connecting'
-            : 'connect'
-
-  const handleConnect = () => {
-    if (!userId) return
-    setIsConnecting(true)
-    void connect()
-  }
-
-  const handleOpenEditor = () => {
-    setWorkflowStep('editor')
-    setTimeout(() => setWorkflowStep('exporting'), 3000)
-  }
-
-  useEffect(() => {
-    if (workflowStep !== 'exporting') return
-
-    const timer = setTimeout(() => {
-      onSelectVideo({ name: 'Canva_Intro.mp4', url: 'https://www.w3schools.com/html/mov_bbb.mp4' })
-      onClose()
-    }, 2500)
-
-    return () => clearTimeout(timer)
-  }, [onClose, onSelectVideo, workflowStep])
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      overlayClassName="bg-black/20 dark:bg-white/20"
-      className="relative max-w-100 overflow-hidden p-8"
-    >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 rounded-full bg-black/5 p-2 transition-colors hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
-      >
-        <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-      </button>
-
-      <div className="text-center">
-        <div className="mx-auto mb-6 h-20 w-20 rounded-3xl bg-linear-to-tr from-[#00C4CC] to-[#7D2AE8] p-0.5 shadow-[0_0_30px_rgba(125,42,232,0.3)]">
-          <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-white dark:bg-[#0b0f19]">
-            <Palette className="h-10 w-10 text-[#00C4CC]" />
-          </div>
-        </div>
-
-        <h3 className="mb-2 text-[22px] font-black text-slate-900 dark:text-white">Canva Integration</h3>
-        <p className="mb-8 text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          {step === 'connect' &&
-            'Connect your Canva account to create beautiful intro videos directly from your vCard dashboard.'}
-          {step === 'connecting' && 'Securely connecting to Canva...'}
-          {step === 'connected' && 'Account connected successfully! You can now create your intro video.'}
-          {step === 'editor' && 'Using Canva Editor... (Simulated)'}
-          {step === 'exporting' && 'Exporting your design and automatically uploading...'}
-        </p>
-
-        {error ? <p className="mb-4 text-[13px] font-medium text-red-500">{error}</p> : null}
-
-        {step === 'connect' && (
-          <button
-            onClick={handleConnect}
-            disabled={!userId || isLoading}
-            className="w-full rounded-2xl border border-black/10 bg-white py-4 text-[15px] font-bold text-slate-900 transition-all hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
-          >
-            {userId ? 'Connect Canva' : 'Log in to connect Canva'}
-          </button>
-        )}
-
-        {step === 'connecting' && (
-          <div className="flex items-center justify-center py-4 text-[#00C4CC]">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        )}
-
-        {step === 'connected' && (
-          <button
-            onClick={handleOpenEditor}
-            className="w-full rounded-2xl bg-linear-to-r from-[#00C4CC] to-[#7D2AE8] py-4 text-[15px] font-bold text-white shadow-[0_0_20px_rgba(0,196,204,0.3)] transition-all hover:opacity-90 active:scale-95"
-          >
-            Create Video with Canva
-          </button>
-        )}
-
-        {(step === 'editor' || step === 'exporting') && (
-          <div className="flex flex-col items-center py-4">
-            <Loader2 className="mb-4 h-10 w-10 animate-spin text-[#7D2AE8]" />
-            <div className="h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-              <div className="h-full w-full animate-pulse bg-linear-to-r from-[#00C4CC] to-[#7D2AE8]"></div>
-            </div>
-          </div>
-        )}
-      </div>
-    </Modal>
-  )
-}
-
 const FIELD_INTRO = 'Intro vCard Video'
 const FIELD_INTRO_YT = 'Intro YouTube vCard Video Link'
 const FIELD_MUSIC = 'Background Music'
 const FIELD_MUSIC_YT = 'YouTube Background Music Link'
 
 export function Tab4HomeMedia() {
-  const { user } = useAuth()
   const { cardId } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
   const { can } = usePackageAccess()
@@ -489,7 +356,6 @@ export function Tab4HomeMedia() {
 
   const [showGalleryModal, setShowGalleryModal] = useState(false)
   const [showCustomModal, setShowCustomModal] = useState(false)
-  const [showCanvaModal, setShowCanvaModal] = useState(false)
 
   return (
     <div className="animate-in fade-in mx-auto w-full max-w-7xl pb-12 duration-500">
@@ -525,17 +391,20 @@ export function Tab4HomeMedia() {
               previewClassName="aspect-video max-h-56"
               emptyIcon={<Video className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
             >
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {canCanva ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowCanvaModal(true)}
-                    className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-[#00C4CC]/30 bg-[#00C4CC]/10 px-3 py-3.5 text-[13px] font-bold whitespace-nowrap text-[#00C4CC] transition-colors hover:border-[#00C4CC] hover:bg-[#00C4CC] hover:text-white sm:px-4 sm:py-4"
-                  >
-                    <Palette className="h-4 w-4 shrink-0 group-hover:animate-pulse" />
-                    Connect Canva
-                  </button>
-                ) : null}
+              {canCanva ? (
+                <MediaSourceActions
+                  mode="video"
+                  compact
+                  className="mt-1"
+                  profileId={profileId}
+                  fieldKey={FIELD_INTRO}
+                  attachmentType={FIELD_INTRO}
+                  designTitle="Intro vCard Video"
+                  showVideoExtras={false}
+                  onSelect={(asset) => setCustomValue(FIELD_INTRO, asset.url)}
+                />
+              ) : null}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => setShowGalleryModal(true)}
@@ -716,16 +585,6 @@ export function Tab4HomeMedia() {
       )}
 
       {showCustomModal && <CustomOrderModal onClose={() => setShowCustomModal(false)} />}
-
-      {showCanvaModal && (
-        <CanvaIntegrationModal
-          userId={user?.uid}
-          onClose={() => setShowCanvaModal(false)}
-          onSelectVideo={(v) => {
-            setCustomValue(FIELD_INTRO, v.url)
-          }}
-        />
-      )}
     </div>
   )
 }

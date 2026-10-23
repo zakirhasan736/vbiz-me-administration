@@ -514,6 +514,9 @@ function TemplateDesigner() {
                 mode="both"
                 compact
                 className="mt-3"
+                profileId={profileId}
+                fieldKey={FIELD_PROFILE_IMAGE}
+                attachmentType={FIELD_PROFILE_IMAGE}
                 onSelect={(asset) => {
                   clearProfileLocalPreview()
                   applyProfileImage(asset.url)
@@ -858,6 +861,9 @@ function TemplateDesigner() {
           >
             <MediaSourceActions
               mode={canBgVideo ? 'both' : 'image'}
+              profileId={profileId}
+              fieldKey={FIELD_BACKGROUND_MEDIA}
+              attachmentType={FIELD_BACKGROUND_MEDIA}
               onSelect={(asset) => setBackgroundMedia(asset.url)}
             />
           </VCardMediaField>
@@ -1378,6 +1384,8 @@ function CardSeoPanel() {
             <MediaSourceActions
               mode="image"
               profileId={profileId}
+              fieldKey="SEO Image"
+              attachmentType="SEO Image"
               onSelect={(asset) => updateSeo({ seoImage: asset.url })}
             />
           </VCardMediaField>
@@ -1403,6 +1411,8 @@ function CardSeoPanel() {
             <MediaSourceActions
               mode="image"
               profileId={profileId}
+              fieldKey="Favicon"
+              attachmentType="Favicon"
               onSelect={(asset) => updateSeo({ faviconUrl: asset.url })}
             />
           </VCardMediaField>
@@ -1429,6 +1439,8 @@ function CardSeoPanel() {
             <MediaSourceActions
               mode="image"
               profileId={profileId}
+              fieldKey="PWA Home Screen Icon"
+              attachmentType="PWA Home Screen Icon"
               onSelect={(asset) => updateSeo({ pwaHomeScreenIconUrl: asset.url })}
             />
           </VCardMediaField>

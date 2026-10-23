@@ -239,6 +239,8 @@ export function DocumentUploadArea({
           mode={mediaAssist}
           compact
           profileId={profileId}
+          fieldKey={attachmentType}
+          attachmentType={attachmentType}
           onSelect={(asset) => {
             const doc: UploadedDoc = {
               id: `canva_${Date.now()}`,

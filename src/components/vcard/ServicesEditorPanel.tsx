@@ -326,6 +326,11 @@ export function ServicesEditorPanel({
                           <MediaSourceActions
                             mode="image"
                             compact
+                            profileId={profileId}
+                            fieldKey="Service Featured"
+                            attachmentType="Service Featured"
+                            itemKey={service.id}
+                            designTitle={service.title ? `${service.title} — service` : 'Service image'}
                             onSelect={(asset) => {
                               updateService(service.id, 'featuredImage', asset.url)
                               updateService(service.id, 'mediaFrame', null)
