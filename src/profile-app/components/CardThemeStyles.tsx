@@ -126,7 +126,7 @@ export function CardThemeStyles({
       w?.gradientTo,
       w?.premadeId,
       w?.patternId,
-      w?.imageOverlayEnabled === false ? '0' : '1',
+      w?.imageOverlayPrefsVersion === 2 && w?.imageOverlayEnabled === true ? '1' : '0',
       w?.imageOverlaySource || 'accent',
       w?.imageOverlayColor || '',
       String(w?.imageOverlayOpacity ?? ''),

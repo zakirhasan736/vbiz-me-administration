@@ -52,10 +52,12 @@ import { getStaticProfileTheme } from '@/lib/staticProfileThemes'
 import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
 import { buildPreviewMatchedThemeConfig, resolveCardThemeConfig } from '@/lib/theme/resolveCardTheme'
 import {
+  IMAGE_OVERLAY_PREFS_VERSION,
   inferMediaWallpaperStyle,
   patchThemeConfigWallpaper,
   PREMADE_GRADIENTS,
   resolveWallpaperConfig,
+  wallpaperImageOverlayEnabled,
   wallpaperNeedsMedia,
   wallpaperSupportsImageOverlay,
   type WallpaperPatternId,
@@ -880,12 +882,17 @@ function TemplateDesigner() {
                 </p>
               </div>
               <Toggle
-                checked={wallpaper.imageOverlayEnabled !== false}
-                onChange={(imageOverlayEnabled) => patchWallpaper({ imageOverlayEnabled })}
+                checked={wallpaperImageOverlayEnabled(wallpaper)}
+                onChange={(imageOverlayEnabled) =>
+                  patchWallpaper({
+                    imageOverlayEnabled,
+                    imageOverlayPrefsVersion: IMAGE_OVERLAY_PREFS_VERSION,
+                  })
+                }
               />
             </div>
 
-            {wallpaper.imageOverlayEnabled !== false ? (
+            {wallpaperImageOverlayEnabled(wallpaper) ? (
               <div className="space-y-3 border-t border-slate-200/70 pt-3 dark:border-white/10">
                 <div className="flex gap-2">
                   {(

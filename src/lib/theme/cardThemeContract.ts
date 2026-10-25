@@ -74,9 +74,14 @@ export type CardWallpaperConfig = {
   patternId?: 'dots' | 'grid' | 'diagonal'
   /**
    * Color wash on image / video / blur covers.
-   * `false` = show the media with no tint. Default (unset/`true`) keeps an overlay.
+   * Opt-in only: unset/`false` = show media with no tint. Requires `imageOverlayPrefsVersion: 2`.
    */
   imageOverlayEnabled?: boolean
+  /**
+   * `2` = overlay preference saved under the opt-in default (off unless enabled).
+   * Missing = legacy default-on configs; treat overlay as off until the user toggles it.
+   */
+  imageOverlayPrefsVersion?: 2
   /** `accent` = global accent color; `custom` = `imageOverlayColor`. */
   imageOverlaySource?: 'accent' | 'custom'
   imageOverlayColor?: string

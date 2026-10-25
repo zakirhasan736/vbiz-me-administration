@@ -43,10 +43,13 @@ export const DEFAULT_WALLPAPER: CardWallpaperConfig = {
   gradientTo: '#A3C6D3',
   premadeId: 'sunset',
   patternId: 'dots',
-  imageOverlayEnabled: true,
+  imageOverlayEnabled: false,
   imageOverlaySource: 'accent',
   imageOverlayOpacity: 35,
 }
+
+/** Overlay is opt-in; only honor `imageOverlayEnabled` when prefs were saved at this version. */
+export const IMAGE_OVERLAY_PREFS_VERSION = 2 as const
 
 const DEFAULT_OVERLAY_FALLBACK = '#0a0a0a'
 
@@ -73,6 +76,9 @@ export function normalizeWallpaper(raw: unknown): CardWallpaperConfig | undefine
   if (typeof r.premadeId === 'string' && r.premadeId.trim()) next.premadeId = r.premadeId.trim()
   if (isPatternId(r.patternId)) next.patternId = r.patternId
   if (typeof r.imageOverlayEnabled === 'boolean') next.imageOverlayEnabled = r.imageOverlayEnabled
+  if (r.imageOverlayPrefsVersion === IMAGE_OVERLAY_PREFS_VERSION) {
+    next.imageOverlayPrefsVersion = IMAGE_OVERLAY_PREFS_VERSION
+  }
   if (r.imageOverlaySource === 'accent' || r.imageOverlaySource === 'custom') {
     next.imageOverlaySource = r.imageOverlaySource
   }
@@ -145,10 +151,14 @@ export function wallpaperSupportsImageOverlay(style: WallpaperStyleId): boolean 
   return style === 'image' || style === 'video' || style === 'blur'
 }
 
-/** When false, media covers render without a tint (and without template scrims). */
+/**
+ * Media covers render without a tint unless the user opted in (toggle on) under prefs v2.
+ * Legacy theme configs that only had the old default-on flag stay untinted.
+ */
 export function wallpaperImageOverlayEnabled(wallpaper: CardWallpaperConfig): boolean {
   if (!wallpaperSupportsImageOverlay(wallpaper.style)) return false
-  return wallpaper.imageOverlayEnabled !== false
+  if (wallpaper.imageOverlayPrefsVersion !== IMAGE_OVERLAY_PREFS_VERSION) return false
+  return wallpaper.imageOverlayEnabled === true
 }
 
 /**

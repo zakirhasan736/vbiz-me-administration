@@ -22,37 +22,48 @@ describe('resolveWallpaperStyle', () => {
 })
 
 describe('wallpaper image overlay', () => {
-  it('defaults to enabled with accent-based wash', () => {
+  it('defaults to inactive (no wash) for new wallpaper patches', () => {
     const themeConfig = patchThemeConfigWallpaper(getDefaultThemeConfig('v3'), { style: 'image' }, 'v3')
     const wallpaper = themeConfig.wallpaper!
-    expect(wallpaperImageOverlayEnabled(wallpaper)).toBe(true)
-    const bg = resolveWallpaperImageOverlayBackground(wallpaper, '#eab308')
-    expect(bg).toContain('var(--vbiz-accent')
-    expect(bg).toContain('#eab308')
+    expect(wallpaper.imageOverlayEnabled).toBe(false)
+    expect(wallpaperImageOverlayEnabled(wallpaper)).toBe(false)
+    expect(resolveWallpaperImageOverlayBackground(wallpaper, '#eab308')).toBeNull()
   })
 
-  it('returns null when overlay is switched off', () => {
+  it('ignores legacy default-on without prefs version 2', () => {
     const themeConfig = patchThemeConfigWallpaper(
       getDefaultThemeConfig('v3'),
-      { style: 'image', imageOverlayEnabled: false },
+      { style: 'image', imageOverlayEnabled: true },
       'v3'
     )
     expect(wallpaperImageOverlayEnabled(themeConfig.wallpaper!)).toBe(false)
     expect(resolveWallpaperImageOverlayBackground(themeConfig.wallpaper!, '#eab308')).toBeNull()
   })
 
-  it('uses custom overlay color when source is custom', () => {
+  it('returns null when overlay is switched off under prefs v2', () => {
+    const themeConfig = patchThemeConfigWallpaper(
+      getDefaultThemeConfig('v3'),
+      { style: 'image', imageOverlayEnabled: false, imageOverlayPrefsVersion: 2 },
+      'v3'
+    )
+    expect(wallpaperImageOverlayEnabled(themeConfig.wallpaper!)).toBe(false)
+    expect(resolveWallpaperImageOverlayBackground(themeConfig.wallpaper!, '#eab308')).toBeNull()
+  })
+
+  it('uses custom overlay color when opted in under prefs v2', () => {
     const themeConfig = patchThemeConfigWallpaper(
       getDefaultThemeConfig('v3'),
       {
         style: 'image',
         imageOverlayEnabled: true,
+        imageOverlayPrefsVersion: 2,
         imageOverlaySource: 'custom',
         imageOverlayColor: '#112233',
         imageOverlayOpacity: 50,
       },
       'v3'
     )
+    expect(wallpaperImageOverlayEnabled(themeConfig.wallpaper!)).toBe(true)
     const bg = resolveWallpaperImageOverlayBackground(themeConfig.wallpaper!, '#eab308')
     expect(bg).toContain('#112233')
     expect(bg).toContain('50%')
