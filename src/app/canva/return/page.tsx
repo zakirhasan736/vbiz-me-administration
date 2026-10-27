@@ -35,14 +35,25 @@ function CanvaReturnInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('sessionId') || ''
+  const correlationJwt = searchParams.get('correlation_jwt') || ''
   const canvaError = searchParams.get('canva_error')
   const [session, setSession] = useState<CanvaEditSession | null>(null)
   const [error, setError] = useState<string | null>(canvaError)
   const [busy, setBusy] = useState(false)
 
+  // Workaround: Canva Portal may still point Return URL at /canva/return (or app root).
+  // Forward correlation_jwt to the API handler so Card Builder restore still works.
+  useEffect(() => {
+    if (sessionId || !correlationJwt.trim()) return
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.vbizme.com/api/v1').replace(/\/$/, '')
+    const target = new URL(`${apiBase}/integrations/canva/return`)
+    target.searchParams.set('correlation_jwt', correlationJwt.trim())
+    window.location.replace(target.toString())
+  }, [sessionId, correlationJwt])
+
   // Derive missing-session messaging during render (no setState-in-effect).
   const missingSessionError =
-    !sessionId && !canvaError && typeof window !== 'undefined' && !readCanvaHandoff()
+    !sessionId && !correlationJwt && !canvaError && typeof window !== 'undefined' && !readCanvaHandoff()
       ? 'Missing Canva return session'
       : null
   const displayError = error || missingSessionError
