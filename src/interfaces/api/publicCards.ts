@@ -10,6 +10,8 @@ export type PublicCard = {
   profession: string | null
   profession_id: PublicCardId | null
   designation?: string | null
+  city?: string | null
+  state?: string | null
   image: string
   image_type: string
   is_video: boolean

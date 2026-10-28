@@ -83,6 +83,34 @@ export function buildPublicCardsQueryPath(params?: PublicCardsSearchParams): str
   return `/public-cards${qs ? `?${qs}` : ''}`
 }
 
+function uniqueNameOptions(names: Array<string | null | undefined>): PublicCardsFilterOption[] {
+  const byKey = new Map<string, string>()
+  for (const raw of names) {
+    const name = String(raw || '').trim()
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (!byKey.has(key)) byKey.set(key, name)
+  }
+  return Array.from(byKey.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** States that appear on loaded public cards (fallback when API dropdowns are empty). */
+export function deriveStateOptionsFromPublicCards(cards: PublicCard[]): PublicCardsFilterOption[] {
+  return uniqueNameOptions(cards.map((card) => card.state))
+}
+
+/** Cities that appear on loaded public cards, optionally limited to a selected state. */
+export function deriveCityOptionsFromPublicCards(
+  cards: PublicCard[],
+  stateId?: PublicCardId | null
+): PublicCardsFilterOption[] {
+  const stateKey = stateId == null || stateId === '' ? null : String(stateId).trim().toLowerCase()
+  const scoped = stateKey ? cards.filter((card) => (card.state || '').trim().toLowerCase() === stateKey) : cards
+  return uniqueNameOptions(scoped.map((card) => card.city))
+}
+
 /** Professions that appear on the loaded public cards (not the full API professions list). */
 export function deriveProfessionOptionsFromPublicCards(cards: PublicCard[]): PublicCardsFilterOption[] {
   const byId = new Map<string, string>()

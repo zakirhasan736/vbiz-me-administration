@@ -3,8 +3,10 @@
 import { mapPublicCardToListItem, type PublicCardListItem } from '@/lib/api/publicCards/mapPublicCards'
 import {
   buildPublicCardsSearchParams,
+  deriveCityOptionsFromPublicCards,
   deriveProfessionOptionsFromListItems,
   deriveProfessionOptionsFromPublicCards,
+  deriveStateOptionsFromPublicCards,
   EMPTY_PUBLIC_CARDS_FILTERS,
   filterPublicCardsByQuery,
   hasActivePublicCardsFilters,
@@ -103,11 +105,21 @@ export function usePublicCardsDirectory() {
     const professions =
       professionsFromCatalog.length > 0 ? professionsFromCatalog : deriveProfessionOptionsFromListItems(loadedCards)
 
+    const statesFromApi = apiDropdowns.states ?? []
+    const citiesFromApi = apiDropdowns.cities ?? []
+    const states = statesFromApi.length > 0 ? statesFromApi : deriveStateOptionsFromPublicCards(catalogSnapshot)
+    const cities =
+      citiesFromApi.length > 0
+        ? citiesFromApi
+        : deriveCityOptionsFromPublicCards(catalogSnapshot, draftFilters.stateId ?? appliedFilters.stateId)
+
     return {
       ...apiDropdowns,
+      states,
+      cities,
       professions,
     }
-  }, [catalogSnapshot, data?.dropdowns, loadedCards])
+  }, [appliedFilters.stateId, catalogSnapshot, data?.dropdowns, draftFilters.stateId, loadedCards])
 
   const searchQuery = normalizePublicCardsSearchQuery(appliedFilters.service)
   const isSearchActive = isPublicCardsSearchReady(searchQuery)
