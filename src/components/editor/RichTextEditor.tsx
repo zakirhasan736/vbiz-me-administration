@@ -1071,6 +1071,18 @@ export function RichTextEditor({
 
   return (
     <div
+      role="group"
+      aria-label={placeholder}
+      // If an ancestor wraps this editor in <label>, clicks on the write area would
+      // activate the first labelable control (Paragraph toolbar button) and open the
+      // heading dropdown. Stop that so empty editors stay typing-friendly.
+      onClickCapture={(event) => {
+        if (!event.currentTarget.closest('label')) return
+        const target = event.target as HTMLElement | null
+        if (!target) return
+        if (target.closest('button, a, input, select, textarea, [role="listbox"], [role="option"]')) return
+        event.preventDefault()
+      }}
       className={cn(
         // overflow-visible so selection bubble / caret handles are never clipped by this shell
         'overflow-visible rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0f19]',

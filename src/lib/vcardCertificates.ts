@@ -84,10 +84,12 @@ export function sectionPostsToCertItems(posts: VCardSectionPostItem[] | undefine
 export function certItemsToSectionPosts(items: CertItem[]): VCardSectionPostItem[] {
   return items.map((item) => {
     const metas: Record<string, string> = {}
-    const issuer = item.issuer.trim()
-    const year = item.year.trim()
-    if (issuer) metas.issuer = issuer
-    if (year) metas.year = year
+    // Do not trim issuer/year here — live editor round-trips on every keystroke.
+    // Trimming trailing spaces made "Acme " collapse to "Acme" so Space between words failed.
+    const issuer = item.issuer
+    const year = item.year
+    if (issuer.trim()) metas.issuer = issuer
+    if (year.trim()) metas.year = year
     if (item.documents.length) {
       metas.documents = JSON.stringify(
         item.documents.map((d) => ({

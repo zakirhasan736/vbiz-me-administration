@@ -66,7 +66,7 @@ export function TabResume() {
           />
         </label>
 
-        <label className="block space-y-1.5">
+        <div className="block space-y-1.5">
           <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Summary (optional)</span>
           <RichTextEditor
             value={state.summary}
@@ -74,7 +74,7 @@ export function TabResume() {
             placeholder="Short summary shown with your resume…"
             minHeightClassName="min-h-48"
           />
-        </label>
+        </div>
 
         <DocumentUploadArea
           files={documents}

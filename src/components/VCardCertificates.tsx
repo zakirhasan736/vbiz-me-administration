@@ -215,7 +215,7 @@ export function TabCertificates() {
                               className={inputClasses}
                             />
                           </label>
-                          <label className="block space-y-1.5 sm:col-span-2">
+                          <div className="block space-y-1.5 sm:col-span-2">
                             <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
                               Description
                             </span>
@@ -229,7 +229,7 @@ export function TabCertificates() {
                               placeholder="Short summary of this credential"
                               minHeightClassName="min-h-48"
                             />
-                          </label>
+                          </div>
                           <label className="block space-y-1.5">
                             <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
                               Issuer
