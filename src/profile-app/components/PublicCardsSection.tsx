@@ -461,7 +461,6 @@ export const PublicCardsSection = () => {
                   options={dropdowns.cities ?? []}
                   placeholder="All Cities"
                   Icon={MapPin}
-                  disabled={!draftFilters.stateId}
                   compact={compact}
                 />
                 <DesktopFilterSelect
@@ -643,7 +642,6 @@ export const PublicCardsSection = () => {
                       options={dropdowns.cities ?? []}
                       placeholder="All Cities"
                       Icon={MapPin}
-                      disabled={!draftFilters.stateId}
                     />
 
                     {/* Profession Select */}
