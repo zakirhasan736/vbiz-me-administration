@@ -158,7 +158,7 @@ const OtpInput = ({ value, onChange, onComplete, disabled, invalid, autoFocus }:
           className={cn(
             'h-12 w-full max-w-11 rounded-[14px] border bg-slate-50 text-center text-lg font-semibold text-slate-900 shadow-sm transition-all outline-none focus:ring-1 dark:bg-slate-800 dark:text-white',
             invalid
-              ? 'border-red-500 bg-red-50 focus:border-red-600 focus:ring-red-500 dark:border-red-500/60 dark:bg-red-500/10'
+              ? 'border-red-600 bg-red-50 focus:border-red-500 focus:ring-red-500 dark:border-red-500/60 dark:bg-red-500/10'
               : 'focus:border-primary-500 focus:ring-primary-500 border-slate-200 dark:border-white/10',
             disabled && 'cursor-not-allowed opacity-60'
           )}
