@@ -2,9 +2,11 @@
 
 import { notify } from '@/lib/toast/toast'
 import {
+  useGetCardMediaStatusQuery,
   useListCardChangeHistoryQuery,
   useRepairCardMediaMutation,
   useRestoreCardChangeMutation,
+  type CardMediaItem,
   type CardMediaSlot,
   type CardTabCount,
 } from '@/redux/features/profiles/profiles.api'
@@ -102,12 +104,74 @@ function TabCountList({ tabs, personalMedia }: { tabs: CardTabCount[]; personalM
   )
 }
 
+const AREA_LABELS: Record<string, string> = {
+  services: 'Services',
+  portfolio: 'Portfolio',
+  gallery: 'Gallery',
+  blogs: 'Blogs',
+  posts: 'Posts',
+  about: 'About Me',
+  mission: 'Mission Statement',
+  reviews: 'Reviews',
+  faqs: 'FAQs',
+  certificates: 'Certificates/Licenses',
+  profile: 'Profile photo',
+  'intro-video': 'Intro video',
+  background: 'Background',
+  music: 'Background music',
+  explainer: '2D explainer',
+  company: 'Company icon',
+  seo: 'SEO / app icon',
+  'custom-tab': 'Custom tab',
+  videos: 'Videos',
+  clients: 'Clients',
+  settings: 'Card settings',
+  attachments: 'Card files',
+}
+
+const areaLabel = (area: string) => AREA_LABELS[area] || area.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase())
+
+/** Broken / recovered files grouped as Tab → item, so the owner knows exactly where to fix. */
+function MediaIssueList({ items }: { items: CardMediaItem[] }) {
+  const groups = new Map<string, CardMediaItem[]>()
+  for (const item of items) {
+    const list = groups.get(item.area) || []
+    list.push(item)
+    groups.set(item.area, list)
+  }
+  return (
+    <ul className="space-y-2">
+      {[...groups.entries()].map(([area, list]) => (
+        <li key={area}>
+          <p className="font-bold">{areaLabel(area)}</p>
+          <ul className="mt-0.5 space-y-0.5 pl-3">
+            {list.map((item) => (
+              <li key={`${item.key}|${item.label || ''}`} className="break-all">
+                {item.label ? <span className="font-semibold">{item.label}</span> : <span>(no title)</span>}
+                <span className="opacity-70"> · {item.key.split('/').pop()}</span>
+                {item.uploadedFor?.area && item.uploadedFor.area !== area ? (
+                  <span className="opacity-70"> · originally uploaded for {areaLabel(item.uploadedFor.area)}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
   const profileId = cardId?.trim() || ''
   const { data, isLoading, isError, refetch } = useListCardChangeHistoryQuery({ id: profileId }, { skip: !profileId })
   const [restoreChange, restoreState] = useRestoreCardChangeMutation()
   const [repairMedia, repairState] = useRepairCardMediaMutation()
-  const [brokenMedia, setBrokenMedia] = useState<string[]>([])
+  const { data: mediaStatus } = useGetCardMediaStatusQuery({ id: profileId }, { skip: !profileId })
+  const [checkedMedia, setCheckedMedia] = useState<CardMediaItem[] | null>(null)
+  const [restoreMissing, setRestoreMissing] = useState<string[]>([])
+  // Latest "check now" result wins; otherwise show the nightly health status.
+  const brokenItems = (checkedMedia ?? mediaStatus ?? []).filter((item) => item.status === 'missing')
+  const recoveredItems = (checkedMedia ?? []).filter((item) => item.status === 'recovered')
   const items = data?.items || []
   const inventory = data?.inventory
   const backups = data?.backups || []
@@ -118,7 +182,7 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
       const result = await restoreChange({ id: profileId, historyId }).unwrap()
       const media = result?.media
       if (media?.unrecoverable.length) {
-        setBrokenMedia(media.unrecoverable)
+        setRestoreMissing(media.unrecoverable)
         notify.error(
           `Restored, but ${media.unrecoverable.length} image/video file(s) no longer exist in storage. Please re-upload them.`
         )
@@ -138,7 +202,8 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
     if (!profileId) return
     try {
       const result = await repairMedia({ id: profileId }).unwrap()
-      setBrokenMedia(result.unrecoverable.map((m) => m.url))
+      setCheckedMedia(result.items || [])
+      setRestoreMissing([])
       if (result.unrecoverable.length) {
         notify.error(
           result.message || `${result.unrecoverable.length} file(s) could not be recovered — please re-upload.`
@@ -199,14 +264,29 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
             Finds any broken image or video on this card and recovers it from storage backups.
           </span>
         </div>
-        {brokenMedia.length ? (
+        {brokenItems.length ? (
           <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[12px] font-medium text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-            <p className="mb-1 font-bold">These files could not be recovered — re-upload them:</p>
+            <p className="mb-2 font-bold">
+              {brokenItems.length} image/video file(s) are missing and could not be recovered. Re-upload them here:
+            </p>
+            <MediaIssueList items={brokenItems} />
+          </div>
+        ) : null}
+        {recoveredItems.length ? (
+          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+            <p className="mb-2 font-bold">Recovered from storage backups:</p>
+            <MediaIssueList items={recoveredItems} />
+          </div>
+        ) : null}
+        {restoreMissing.length ? (
+          <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[12px] font-medium text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            <p className="mb-1 font-bold">The restored change refers to files that no longer exist:</p>
             <ul className="space-y-0.5 break-all">
-              {brokenMedia.map((url) => (
-                <li key={url}>{url.split('/').pop()}</li>
+              {restoreMissing.map((key) => (
+                <li key={key}>{key.split('/').pop()}</li>
               ))}
             </ul>
+            <p className="mt-1">Run “Check &amp; repair images” to see which tab and item each belongs to.</p>
           </div>
         ) : null}
       </section>
